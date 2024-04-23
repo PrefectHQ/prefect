@@ -45,9 +45,18 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.models import deployments
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
+
+
+@pytest.fixture(autouse=True)
+def enable_automations():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
+    ):
+        yield
 
 
 @pytest.fixture
@@ -171,6 +180,32 @@ async def create_objects_for_automation(
     await session.commit()
 
     return wp, deployment, automation
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {
+            PREFECT_EXPERIMENTAL_EVENTS: False,
+        },
+        {
+            PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
+        },
+    ],
+)
+async def test_returns_404_when_automations_are_disabled(
+    client: AsyncClient,
+    settings: Dict,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+):
+    with temporary_settings(settings):
+        response = await client.post(
+            f"{automations_url}/",
+            json=automation_to_create.dict(json_compatible=True),
+        )
+
+    assert response.status_code == 404, response.content
 
 
 @pytest.mark.parametrize(
@@ -884,19 +919,10 @@ async def test_delete_automations_owned_by_resource(
         assert response.status_code == expected, response.content
 
 
-@pytest.fixture
-def enable_infra_overrides():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
-
-
 async def test_create_run_deployment_automation_with_job_variables_and_no_schema(
     client: AsyncClient,
     automations_url: str,
     session: AsyncSession,
-    enable_infra_overrides,
 ) -> None:
     run_vars = {"this": "that"}
     *_, run_deployment_with_no_schema = await create_objects_for_automation(
@@ -920,7 +946,6 @@ async def test_create_run_deployment_automation_with_job_variables_that_match_sc
     client: AsyncClient,
     automations_url: str,
     session: AsyncSession,
-    enable_infra_overrides,
 ) -> None:
     run_vars = {"this": "is a string"}
     *_, run_deployment_with_schema = await create_objects_for_automation(
@@ -953,7 +978,6 @@ async def test_create_run_deployment_automation_with_job_variables_that_dont_mat
     client: AsyncClient,
     automations_url: str,
     session: AsyncSession,
-    enable_infra_overrides,
 ) -> None:
     run_vars = {"this": 100}
     *_, run_deployment_with_bad_vars = await create_objects_for_automation(
@@ -985,7 +1009,6 @@ async def test_multiple_run_deployment_actions_with_job_variables_that_dont_matc
     client: AsyncClient,
     automations_url: str,
     session: AsyncSession,
-    enable_infra_overrides,
 ) -> None:
     run_vars = {"this": 100}
     *_, run_deployment_with_bad_vars = await create_objects_for_automation(
@@ -1023,7 +1046,6 @@ async def test_updating_run_deployment_automation_with_bad_job_variables(
     client: AsyncClient,
     automations_url: str,
     session: AsyncSession,
-    enable_infra_overrides,
 ) -> None:
     run_vars = {"this": "that"}
     *_, run_deployment_with_str_schema = await create_objects_for_automation(
@@ -1068,7 +1090,6 @@ async def test_updating_run_deployment_automation_with_valid_job_variables(
     client: AsyncClient,
     automations_url: str,
     session: AsyncSession,
-    enable_infra_overrides,
 ) -> None:
     run_vars = {"this": "that"}
     *_, run_deployment_with_str_schema = await create_objects_for_automation(
@@ -1114,7 +1135,6 @@ async def test_infrastructure_error_inside_create(
     client: AsyncClient,
     automations_url: str,
     session: AsyncSession,
-    enable_infra_overrides,
 ) -> None:
     *_, run_deployment_with_str_schema = await create_objects_for_automation(
         session,

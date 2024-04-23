@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import AsyncGenerator, Dict
 
 import pytest
 
@@ -9,7 +9,9 @@ from prefect.settings import PREFECT_CLOUD_API_URL
 
 
 @pytest.fixture
-async def prefect_client(test_database_connection_url):
+async def prefect_client(
+    test_database_connection_url: str,
+) -> AsyncGenerator[PrefectClient, None]:
     async with get_client() as client:
         yield client
 
@@ -21,7 +23,9 @@ def sync_prefect_client(test_database_connection_url):
 
 
 @pytest.fixture
-async def cloud_client(prefect_client):
+async def cloud_client(
+    prefect_client: PrefectClient,
+) -> AsyncGenerator[PrefectClient, None]:
     async with PrefectClient(PREFECT_CLOUD_API_URL.value()) as cloud_client:
         yield cloud_client
 

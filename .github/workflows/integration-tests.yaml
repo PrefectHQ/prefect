@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/integration-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt
@@ -52,6 +52,7 @@ jobs:
           - "2.15"
           - "2.16"
           - "2.17"
+          - "2.18"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -120,6 +121,8 @@ jobs:
             server-incompatible: false
           - prefect-version: "2.17"
             server-incompatible: false
+          - prefect-version: "2.18"
+            server-incompatible: false
 
     steps:
       - uses: actions/checkout@v4
@@ -150,16 +153,19 @@ jobs:
 
       - name: Start server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
+        env:
+          PREFECT_EXPERIMENTAL_EVENTS: True
+          PREFECT_API_URL: http://127.0.0.1:4200/api
         run: >
           docker run
           --name "prefect-server-${{ matrix.prefect-version }}"
           --detach
           --publish 4200:4200
           ${{ matrix.extra_docker_run_options }}
+          --env PREFECT_EXPERIMENTAL_EVENTS=True
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           ${{ matrix.server_command || 'prefect server start --analytics-off' }} --host 0.0.0.0
 
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command
@@ -167,9 +173,11 @@ jobs:
 
       - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_EXPERIMENTAL_EVENTS: True
         run: >
           TEST_SERVER_VERSION=${{ matrix.prefect-version }}
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
           TEST_CLIENT_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           ./scripts/run-integration-flows.py flows/
 
@@ -179,6 +187,9 @@ jobs:
           echo "PREFECT_SERVER_CSRF_PROTECTION_ENABLED=0" >> $GITHUB_ENV
 
       - name: Start server@dev
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_EXPERIMENTAL_EVENTS: True
         run: |
           # First, we must stop the server container if it exists
           # TODO: Once we have `prefect server stop` we can run these tests first and the
@@ -187,14 +198,15 @@ jobs:
           docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
           prefect server start --analytics-off&
-          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+          ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
         run: >
           docker run
-          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
           --env TEST_SERVER_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           --env TEST_CLIENT_VERSION=${{ matrix.client_version }}
+          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
+          --env PREFECT_EXPERIMENTAL_EVENTS=True
           --volume $(pwd)/flows:/opt/prefect/integration/flows
           --volume $(pwd)/scripts:/opt/prefect/integration/scripts
           --network host

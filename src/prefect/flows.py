@@ -34,20 +34,10 @@ from typing import (
 )
 from uuid import UUID
 
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-from typing_extensions import Self
+from rich.console import Console
+from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
-from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.orchestration import get_client
-from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
-from prefect.filesystems import ReadableDeploymentStorage
-from prefect.runner.storage import (
-    BlockStorageAdapter,
-    RunnerStorage,
-    create_storage_from_url,
-)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -67,24 +57,33 @@ else:
 
     V2ValidationError = None
 
-from rich.console import Console
-from typing_extensions import Literal, ParamSpec
+from prefect._vendor.fastapi.encoders import jsonable_encoder
 
+from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.events import DeploymentTriggerTypes
+from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     MissingFlowError,
     ObjectNotFound,
     ParameterTypeError,
     UnspecifiedFlowError,
 )
+from prefect.filesystems import ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.runner.storage import (
+    BlockStorageAdapter,
+    RunnerStorage,
+    create_storage_from_url,
+)
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
@@ -619,7 +618,7 @@ class Flow(Generic[P, R]):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -749,7 +748,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List["FlexibleScheduleList"]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -963,7 +962,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List[MinimalDeploymentSchedule]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,

@@ -109,6 +109,8 @@ REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
     "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
     "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
+    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
 }
 
 
@@ -1542,16 +1544,6 @@ a task server should move a task from PENDING to RUNNING very quickly, so runs s
 PENDING for a while is a sign that the task server may have crashed.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
-"""
-Whether or not to enable infrastructure overrides made on flow runs.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=True)
-"""
-Whether or not to warn infrastructure when experimental flow runs overrides are used.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
@@ -1706,6 +1698,17 @@ PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, 
 The maximum number of seconds between flushes of the event persister.
 """
 
+PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to allow streaming events out of via websockets.
+"""
+
+PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
+    timedelta, default=timedelta(minutes=5)
+)
+"""
+How long to cache related resource data for emitting server-side vents
+"""
 
 # Deprecated settings ------------------------------------------------------------------
 

@@ -9,6 +9,7 @@ from prefect._internal.schemas.fields import DateTimeTZ
 from .clients import (
     AssertingEventsClient,
     PrefectCloudEventsClient,
+    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from .schemas.events import Event, RelatedResource
@@ -53,13 +54,14 @@ def emit_event(
         AssertingEventsClient,
         PrefectCloudEventsClient,
         PrefectEventsClient,
+        PrefectEphemeralEventsClient,
     ]
     worker_instance = EventsWorker.instance()
 
     if worker_instance.client_type not in operational_clients:
         return None
 
-    event_kwargs = {
+    event_kwargs: Dict[str, Any] = {
         "event": event,
         "resource": resource,
     }

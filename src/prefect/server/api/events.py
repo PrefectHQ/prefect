@@ -6,38 +6,62 @@ from prefect._vendor.fastapi.exceptions import HTTPException
 from prefect._vendor.fastapi.param_functions import Depends, Path
 from prefect._vendor.fastapi.params import Body, Query
 from prefect._vendor.starlette.requests import Request
+from prefect._vendor.starlette.status import WS_1002_PROTOCOL_ERROR
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
+from prefect.server.api.dependencies import is_ephemeral_request
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.events import messaging
+from prefect.server.events import messaging, stream
 from prefect.server.events.counting import (
     Countable,
     InvalidEventCountParameters,
     TimeUnit,
 )
 from prefect.server.events.filters import EventFilter
+from prefect.server.events.models.automations import automations_session
 from prefect.server.events.schemas.events import Event, EventCount, EventPage
-from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
-from prefect.server.events.storage.database import (
-    count_events,
-    query_events,
-    query_next_page,
+from prefect.server.events.storage import (
+    INTERACTIVE_PAGE_SIZE,
+    InvalidTokenError,
+    database,
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS
 
 logger = get_logger(__name__)
 
 
-router = PrefectRouter(prefix="/events", tags=["Events"])
+def events_enabled() -> bool:
+    if not PREFECT_EXPERIMENTAL_EVENTS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Events are not enabled. Please enable the PREFECT_EXPERIMENTAL_EVENTS setting.",
+        )
+
+
+router = PrefectRouter(
+    prefix="/events",
+    tags=["Events"],
+    dependencies=[Depends(events_enabled)],
+)
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
-async def create_events(events: List[Event]):
+async def create_events(
+    events: List[Event],
+    ephemeral_request: bool = Depends(is_ephemeral_request),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
     """Record a batch of Events"""
-    await messaging.publish([event.receive() for event in events])
+    received_events = [event.receive() for event in events]
+    if ephemeral_request:
+        async with db.session_context() as session:
+            await database.write_events(session, received_events)
+    else:
+        await messaging.publish(received_events)
 
 
 @router.websocket("/in")
@@ -51,6 +75,72 @@ async def stream_events_in(websocket: WebSocket) -> None:
             async for event_json in websocket.iter_text():
                 event = Event.parse_raw(event_json)
                 await publisher.publish_event(event.receive())
+    except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
+        pass  # it's fine if a client disconnects either normally or abnormally
+
+    return None
+
+
+@router.websocket("/out")
+async def stream_workspace_events_out(
+    websocket: WebSocket,
+) -> None:
+    """Open a WebSocket to stream Events"""
+
+    websocket = await subscriptions.accept_prefect_socket(
+        websocket,
+    )
+    if not websocket:
+        return
+
+    try:
+        # After authentication, the next message is expected to be a filter message, any
+        # other type of message will close the connection.
+        message = await websocket.receive_json()
+
+        if message["type"] != "filter":
+            return await websocket.close(
+                WS_1002_PROTOCOL_ERROR, reason="Expected 'filter' message"
+            )
+
+        wants_backfill = message.get("backfill", True)
+
+        try:
+            filter = EventFilter.parse_obj(message["filter"])
+        except Exception as e:
+            return await websocket.close(
+                WS_1002_PROTOCOL_ERROR, reason=f"Invalid filter: {e}"
+            )
+
+        # subscribe to the ongoing event stream first so we don't miss events...
+        async with stream.events(filter) as event_stream:
+            # ...then if the user wants, backfill up to the last 1k events...
+            if wants_backfill:
+                async with automations_session() as session:
+                    backfill, _, _ = await database.query_events(
+                        session=session,
+                        filter=filter,
+                        page_size=1000,
+                    )
+
+                backfilled_ids = set()
+
+                for event in sorted(backfill, key=lambda e: e.occurred):
+                    backfilled_ids.add(event.id)
+                    await websocket.send_json(
+                        {"type": "event", "event": event.dict(json_compatible=True)}
+                    )
+
+            # ...before resuming the ongoing stream of events
+            async for event in event_stream:
+                if wants_backfill and event.id in backfilled_ids:
+                    backfilled_ids.remove(event.id)
+                    continue
+
+                await websocket.send_json(
+                    {"type": "event", "event": event.dict(json_compatible=True)}
+                )
+
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
         pass  # it's fine if a client disconnects either normally or abnormally
 
@@ -98,7 +188,7 @@ async def read_events(
     """
     filter = filter or EventFilter()
     async with db.session_context() as session:
-        events, total, next_token = await query_events(
+        events, total, next_token = await database.query_events(
             session=session,
             filter=filter,
             page_size=limit,
@@ -125,7 +215,7 @@ async def read_account_events_page(
     """
     async with db.session_context() as session:
         try:
-            events, total, next_token = await query_next_page(
+            events, total, next_token = await database.query_next_page(
                 session=session, page_token=page_token
             )
         except InvalidTokenError:
@@ -193,7 +283,7 @@ async def handle_event_count_request(
     )
 
     try:
-        return await count_events(
+        return await database.count_events(
             session=session,
             filter=filter,
             countable=countable,

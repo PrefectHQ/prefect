@@ -29,7 +29,6 @@ import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
     PrefectClient,
@@ -75,7 +74,7 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events import Automation, EventTrigger, Posture
+from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
@@ -85,21 +84,12 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES,
     PREFECT_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-
-
-@pytest.fixture
-def enable_infra_overrides():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES: True}
-    ):
-        yield
 
 
 class TestGetClient:
@@ -1060,20 +1050,6 @@ async def test_create_flow_run_from_deployment_with_options(prefect_client, depl
     assert flow_run.job_variables == job_variables
 
 
-async def test_create_flow_run_from_deployment_with_options_emits_warning(
-    prefect_client, deployment, enable_infra_overrides
-):
-    with pytest.warns(
-        ExperimentalFeature,
-        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
-    ):
-        await prefect_client.create_flow_run_from_deployment(
-            deployment.id,
-            name="test-run-name",
-            job_variables={"foo": "bar"},
-        )
-
-
 async def test_update_flow_run(prefect_client):
     @flow
     def foo():
@@ -1129,24 +1105,6 @@ async def test_update_flow_run_overrides_tags(prefect_client):
     )
     updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert updated_flow_run.tags == ["hello", "world"]
-
-
-async def test_update_flow_run_with_job_vars_emits_warning(
-    prefect_client, deployment, enable_infra_overrides
-):
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        deployment.id,
-        name="test-run-name",
-    )
-
-    with pytest.warns(
-        ExperimentalFeature,
-        match="To use this feature, update your workers to Prefect 2.16.4 or later.",
-    ):
-        await prefect_client.update_flow_run(
-            flow_run.id,
-            job_variables={"foo": "bar"},
-        )
 
 
 async def test_create_then_read_task_run(prefect_client):
@@ -2101,7 +2059,7 @@ class TestVariables:
 class TestAutomations:
     @pytest.fixture
     def automation(self):
-        return Automation(
+        return AutomationCore(
             name="test-automation",
             trigger=EventTrigger(
                 match={"flow_run_id": "123"},
@@ -2113,15 +2071,15 @@ class TestAutomations:
         )
 
     async def test_create_not_cloud_runtime_error(
-        self, prefect_client, automation: Automation
+        self, prefect_client, automation: AutomationCore
     ):
         with pytest.raises(
             RuntimeError,
-            match="Automations are only supported for Prefect Cloud.",
+            match="The current server and client configuration does not support",
         ):
             await prefect_client.create_automation(automation)
 
-    async def test_create_automation(self, cloud_client, automation: Automation):
+    async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
             created_automation = automation.dict(json_compatible=True)
             created_automation["id"] = str(uuid4())
@@ -2142,7 +2100,7 @@ class TestAutomations:
     ):
         with pytest.raises(
             RuntimeError,
-            match="Automations are only supported for Prefect Cloud.",
+            match="The current server and client configuration does not support",
         ):
             resource_id = f"prefect.deployment.{uuid4()}"
             await prefect_client.delete_resource_owned_automations(resource_id)

@@ -9,7 +9,8 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, root_validator
 else:
-    from pydantic import Field, root_validator
+    from pydantic import Field, root_validator  # type: ignore
+
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import StateType
 
@@ -18,6 +19,10 @@ class Action(PrefectBaseModel, abc.ABC):
     """An Action that may be performed when an Automation is triggered"""
 
     type: str
+
+    def describe_for_cli(self) -> str:
+        """A human-readable description of the action"""
+        return self.type.replace("-", " ").capitalize()
 
 
 class DoNothing(Action):

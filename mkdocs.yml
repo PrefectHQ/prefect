@@ -237,6 +237,39 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
+          - Libraries:
+                - Azure:
+                      - integrations/prefect-azure/index.md
+                      - Credentials: integrations/prefect-azure/credentials.md
+                      - Blob Storage: integrations/prefect-azure/blob_storage.md
+                      - Cosmos DB: integrations/prefect-azure/cosmos_db.md
+                      - ML Datastore: integrations/prefect-azure/ml_datastore.md
+                      - Container Instance Block: integrations/prefect-azure/container_instance.md
+                      - Container Instance Worker: integrations/prefect-azure/container_instance_worker.md
+                      - Deployments:
+                            - Steps: integrations/prefect-azure/deployments/steps.md
+                - Bitbucket:
+                      - integrations/prefect-bitbucket/index.md
+                      - Credentials: integrations/prefect-bitbucket/credentials.md
+                      - Repositories: integrations/prefect-bitbucket/repositories.md
+                - Databricks:
+                      - integrations/prefect-databricks/index.md
+                      - Credentials: integrations/prefect-databricks/credentials.md
+                      - Jobs: integrations/prefect-databricks/jobs.md
+                      - Rest: integrations/prefect-databricks/rest.md
+                      - Flows: integrations/prefect-databricks/flows.md
+                - Email:
+                      - integrations/prefect-email/index.md
+                      - Credentials: integrations/prefect-email/credentials.md
+                      - Message: integrations/prefect-email/message.md
+
+                - Shell:
+                      - integrations/prefect-shell/index.md
+                      - Commands: integrations/prefect-shell/commands.md
+                - Slack:
+                      - integrations/prefect-slack/index.md
+                      - Credentials: integrations/prefect-slack/credentials.md
+                      - Messages: integrations/prefect-slack/messages.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:
@@ -282,7 +315,6 @@ nav:
                 - "prefect.context": api-ref/prefect/context.md
                 - "prefect.concurrency":
                       - "asyncio": api-ref/prefect/concurrency/asyncio.md
-                      - "common": api-ref/prefect/concurrency/common.md
                       - "events": api-ref/prefect/concurrency/events.md
                       - "services": api-ref/prefect/concurrency/services.md
                       - "sync": api-ref/prefect/concurrency/sync.md
@@ -290,7 +322,6 @@ nav:
                       - "deployments": api-ref/prefect/deployments/deployments.md
                       - "base": api-ref/prefect/deployments/base.md
                       - "runner": api-ref/prefect/deployments/runner.md
-                      - "schedules": api-ref/prefect/deployments/schedules.md
                       - "steps.core": api-ref/prefect/deployments/steps/core.md
                       - "steps.pull": api-ref/prefect/deployments/steps/pull.md
                       - "steps.utility": api-ref/prefect/deployments/steps/utility.md

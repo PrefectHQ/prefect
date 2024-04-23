@@ -1,0 +1,28 @@
+name: Ensure JSON views are valid on PR
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/prefect/server/api/collections_data/views/*.json'
+jobs:
+  submit-update-pr:
+    name: Run JSON schema validation against all views
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastjsonschema
+
+      - name: Run JSON schema validation
+        run: |
+          python scripts/validate_collection_view_content.py

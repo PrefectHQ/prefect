@@ -84,7 +84,6 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -130,7 +129,7 @@ class Action(PrefectBaseModel, abc.ABC):
         action = triggered_action.action
         action_index = triggered_action.action_index
 
-        automation_resource_id = f"prefect-cloud.automation.{automation.id}"
+        automation_resource_id = f"prefect.automation.{automation.id}"
 
         logger.warning(
             "Action failed: %r",
@@ -139,11 +138,11 @@ class Action(PrefectBaseModel, abc.ABC):
         )
         event = Event(
             occurred=pendulum.now("UTC"),
-            event="prefect-cloud.automation.action.failed",
+            event="prefect.automation.action.failed",
             resource={
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
-                "prefect-cloud.trigger-type": automation.trigger.type,
+                "prefect.trigger-type": automation.trigger.type,
             },
             related=self._resulting_related_resources,
             payload={
@@ -156,7 +155,7 @@ class Action(PrefectBaseModel, abc.ABC):
             id=uuid4(),
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
             await events.emit(event)
@@ -168,15 +167,15 @@ class Action(PrefectBaseModel, abc.ABC):
         action = triggered_action.action
         action_index = triggered_action.action_index
 
-        automation_resource_id = f"prefect-cloud.automation.{automation.id}"
+        automation_resource_id = f"prefect.automation.{automation.id}"
 
         event = Event(
             occurred=pendulum.now("UTC"),
-            event="prefect-cloud.automation.action.executed",
+            event="prefect.automation.action.executed",
             resource={
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
-                "prefect-cloud.trigger-type": automation.trigger.type,
+                "prefect.trigger-type": automation.trigger.type,
             },
             related=self._resulting_related_resources,
             payload={
@@ -188,7 +187,7 @@ class Action(PrefectBaseModel, abc.ABC):
             id=uuid4(),
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect-cloud.posture"] = automation.trigger.posture
+            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
             await events.emit(event)
@@ -657,10 +656,6 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        # Only create a flow run with job_vars if the feature is enabled
-        if not PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
-            self.job_variables = None
-
         state = Scheduled()
 
         try:
@@ -1227,10 +1222,46 @@ class WorkPoolCommandAction(WorkPoolAction, ExternalDataAction):
     _target_work_pool: Optional[WorkPool] = PrivateAttr(default=None)
 
     async def target_work_pool(self, triggered_action: "TriggeredAction") -> WorkPool:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        if not self._target_work_pool:
+            work_pool_id = await self.work_pool_id_to_use(triggered_action)
+
+            async with await self.orchestration_client(
+                triggered_action
+            ) as orchestration:
+                work_pool = await orchestration.read_work_pool(work_pool_id)
+
+                if not work_pool:
+                    raise ActionFailed(f"Work pool {work_pool_id} not found")
+                self._target_work_pool = work_pool
+        return self._target_work_pool
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        work_pool = await self.target_work_pool(triggered_action)
+
+        self._resulting_related_resources += [
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                    "prefect.resource.name": work_pool.name,
+                    "prefect.resource.role": "target",
+                }
+            )
+        ]
+
+        logger.info(
+            self._action_description,
+            extra={
+                "work_pool_id": work_pool.id,
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(orchestration, work_pool, triggered_action)
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
 
     @abc.abstractmethod
     async def command(
@@ -1255,7 +1286,7 @@ class PauseWorkPool(WorkPoolCommandAction):
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_work_pool(work_pool.name)
 
 
 class ResumeWorkPool(WorkPoolCommandAction):
@@ -1271,7 +1302,7 @@ class ResumeWorkPool(WorkPoolCommandAction):
         work_pool: WorkPool,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_work_pool(work_pool.name)
 
 
 class WorkQueueAction(Action):
@@ -1323,7 +1354,33 @@ class WorkQueueCommandAction(WorkQueueAction, ExternalDataAction):
     _action_description: ClassVar[str]
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        work_queue_id = await self.work_queue_id_to_use(triggered_action)
+
+        self._resulting_related_resources += [
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.work-queue.{work_queue_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        ]
+
+        logger.info(
+            self._action_description,
+            extra={
+                "work_queue_id": work_queue_id,
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            response = await self.command(
+                orchestration, work_queue_id, triggered_action
+            )
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
 
     @abc.abstractmethod
     async def command(
@@ -1348,7 +1405,7 @@ class PauseWorkQueue(WorkQueueCommandAction):
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.pause_work_queue(work_queue_id)
 
 
 class ResumeWorkQueue(WorkQueueCommandAction):
@@ -1364,7 +1421,7 @@ class ResumeWorkQueue(WorkQueueCommandAction):
         work_queue_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await orchestration.resume_work_queue(work_queue_id)
 
 
 class AutomationAction(Action):
@@ -1406,7 +1463,7 @@ class AutomationAction(Action):
             raise ActionFailed("No event to infer the automation")
 
         assert event
-        if id := _id_of_first_resource_of_kind(event, "prefect-cloud.automation"):
+        if id := _id_of_first_resource_of_kind(event, "prefect.automation"):
             return id
 
         raise ActionFailed("No automation could be inferred")
@@ -1421,7 +1478,7 @@ class AutomationCommandAction(AutomationAction, ExternalDataAction):
         self._resulting_related_resources += [
             RelatedResource.parse_obj(
                 {
-                    "prefect.resource.id": f"prefect-cloud.automation.{automation_id}",
+                    "prefect.resource.id": f"prefect.automation.{automation_id}",
                     "prefect.resource.role": "target",
                 }
             )
@@ -1465,7 +1522,7 @@ class PauseAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.pause_automation(automation_id)
 
 
 class ResumeAutomation(AutomationCommandAction):
@@ -1481,7 +1538,7 @@ class ResumeAutomation(AutomationCommandAction):
         automation_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        raise NotImplementedError("TODO: coming in a future automations update")
+        return await events.resume_automation(automation_id)
 
 
 # The actual action types that we support.  It's important to update this

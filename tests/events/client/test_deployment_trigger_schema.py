@@ -8,10 +8,10 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 else:
-    import pydantic
+    import pydantic  # type: ignore
 
 from prefect.events import (
-    Automation,
+    AutomationCore,
     CompoundTrigger,
     EventTrigger,
     MetricTrigger,
@@ -47,14 +47,16 @@ def test_deployment_trigger_defaults_to_empty_reactive_trigger():
     assert automation.trigger.expect == set()
 
 
-def test_deployment_trigger_requires_name_but_can_have_it_set_later():
+def test_deployment_trigger_defaults_name_but_can_have_it_overridden():
     trigger = pydantic.parse_obj_as(DeploymentTriggerTypes, {})
     assert isinstance(trigger, DeploymentEventTrigger)
 
-    trigger.set_deployment_id(uuid4())
+    deployment_id = uuid4()
 
-    with pytest.raises(ValueError, match="name is required"):
-        trigger.as_automation()
+    trigger.set_deployment_id(deployment_id)
+
+    automation = trigger.as_automation()
+    assert automation.name == f"Automation for deployment {deployment_id}"
 
     trigger.name = "A deployment automation"
     automation = trigger.as_automation()
@@ -71,7 +73,7 @@ def test_deployment_trigger_defaults_to_reactive_event_trigger():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -102,7 +104,7 @@ def test_deployment_trigger_proactive_trigger_with_defaults():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -173,7 +175,7 @@ def test_deployment_trigger_metric_trigger():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -201,8 +203,8 @@ def test_compound_deployment_trigger_as_automation():
             "require": "all",
             "within": "42",
             "triggers": [
-                {"posture": "Reactive", "expect": ["foo.bar"]},
-                {"posture": "Reactive", "expect": ["buz.baz"]},
+                {"expect": ["foo.bar"]},
+                {"expect": ["buz.baz"]},
             ],
         },
     )
@@ -211,7 +213,7 @@ def test_compound_deployment_trigger_as_automation():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -258,15 +260,15 @@ def test_deeply_nested_compound_deployment_trigger_as_automation():
                     "type": "compound",
                     "require": "any",
                     "triggers": [
-                        {"posture": "Reactive", "expect": ["foo.bar"]},
-                        {"posture": "Reactive", "expect": ["buz.baz"]},
+                        {"expect": ["foo.bar"]},
+                        {"expect": ["buz.baz"]},
                     ],
                 },
                 {
                     "type": "sequence",
                     "triggers": [
-                        {"posture": "Reactive", "expect": ["flibbdy.jibbidy"]},
-                        {"posture": "Reactive", "expect": ["floobity.bop"]},
+                        {"expect": ["flibbdy.jibbidy"]},
+                        {"expect": ["floobity.bop"]},
                     ],
                 },
             ],
@@ -277,7 +279,7 @@ def test_deeply_nested_compound_deployment_trigger_as_automation():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,
@@ -349,7 +351,7 @@ def test_sequence_deployment_trigger_as_automation():
 
     automation = trigger.as_automation()
 
-    assert automation == Automation(
+    assert automation == AutomationCore(
         name="A deployment automation",
         description="",
         enabled=True,

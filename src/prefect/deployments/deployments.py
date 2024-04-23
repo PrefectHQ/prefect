@@ -16,6 +16,13 @@ import anyio
 import pendulum
 import yaml
 
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
+else:
+    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
+
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
     deprecated_callable,
@@ -23,7 +30,6 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_parameter,
     handle_deprecated_infra_overrides_parameter,
 )
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
     handle_openapi_schema,
     infrastructure_must_have_capabilities,
@@ -32,16 +38,10 @@ from prefect._internal.schemas.validators import (
     validate_automation_names,
     validate_deprecated_schedule_fields,
 )
-from prefect.client.schemas.actions import DeploymentScheduleCreate
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
-
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
     FlowRun,
     MinimalDeploymentSchedule,
@@ -53,11 +53,12 @@ from prefect.deployments.schedules import (
     FlexibleScheduleList,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events import DeploymentTriggerTypes
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
@@ -609,7 +610,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
-    triggers: List[DeploymentTriggerTypes] = Field(
+    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -902,14 +903,22 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
             )
 
             if client.server_type.supports_automations():
-                # The triggers defined in the deployment spec are, essentially,
-                # anonymous and attempting truly sync them with cloud is not
-                # feasible. Instead, we remove all automations that are owned
-                # by the deployment, meaning that they were created via this
-                # mechanism below, and then recreate them.
-                await client.delete_resource_owned_automations(
-                    f"prefect.deployment.{deployment_id}"
-                )
+                try:
+                    # The triggers defined in the deployment spec are, essentially,
+                    # anonymous and attempting truly sync them with cloud is not
+                    # feasible. Instead, we remove all automations that are owned
+                    # by the deployment, meaning that they were created via this
+                    # mechanism below, and then recreate them.
+                    await client.delete_resource_owned_automations(
+                        f"prefect.deployment.{deployment_id}"
+                    )
+                except PrefectHTTPStatusError as e:
+                    if e.response.status_code == 404:
+                        # This Prefect server does not support automations, so we can safely
+                        # ignore this 404 and move on.
+                        return deployment_id
+                    raise e
+
                 for trigger in self.triggers:
                     trigger.set_deployment_id(deployment_id)
                     await client.create_automation(trigger.as_automation())

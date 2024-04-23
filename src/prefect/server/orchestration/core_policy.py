@@ -35,9 +35,12 @@ from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
+    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
 )
 from prefect.utilities.math import clamped_poisson_interval
+
+from .instrumentation_policies import InstrumentFlowRunStateTransitions
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -58,7 +61,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
-        ]
+        ] + ([InstrumentFlowRunStateTransitions] if PREFECT_EXPERIMENTAL_EVENTS else [])
 
 
 class CoreTaskPolicy(BaseOrchestrationPolicy):
@@ -106,17 +109,24 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
 
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
-        return [
-            AddUnknownResult,  # mark forced completions with an unknown result
-            BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
-        ]
+        return (
+            [
+                AddUnknownResult,  # mark forced completions with an unknown result
+                BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
+            ]
+            + (
+                [InstrumentFlowRunStateTransitions]
+                if PREFECT_EXPERIMENTAL_EVENTS
+                else []
+            )
+        )
 
 
 class MarkLateRunsPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             EnsureOnlyScheduledFlowsMarkedLate,
-        ]
+        ] + ([InstrumentFlowRunStateTransitions] if PREFECT_EXPERIMENTAL_EVENTS else [])
 
 
 class MinimalTaskPolicy(BaseOrchestrationPolicy):

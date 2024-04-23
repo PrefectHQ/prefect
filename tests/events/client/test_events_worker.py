@@ -3,10 +3,12 @@ import uuid
 import pytest
 
 from prefect import flow
+from prefect.client.schemas.objects import State
 from prefect.events import Event
 from prefect.events.clients import (
     AssertingEventsClient,
     NullEventsClient,
+    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from prefect.events.worker import EventsWorker
@@ -46,7 +48,7 @@ def test_worker_instance_null_client_non_cloud_api_url():
         assert worker.client_type == NullEventsClient
 
 
-def test_worker_instance_null_client_non_cloud_api_url_events_enabled():
+def test_worker_instance_client_non_cloud_api_url_events_enabled():
     with temporary_settings(
         updates={
             PREFECT_API_URL: "http://localhost:8080/api",
@@ -55,6 +57,16 @@ def test_worker_instance_null_client_non_cloud_api_url_events_enabled():
     ):
         worker = EventsWorker.instance()
         assert worker.client_type == PrefectEventsClient
+
+
+def test_worker_instance_ephemeral_prefect_events_client():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_EVENTS: True,
+        }
+    ):
+        worker = EventsWorker.instance()
+        assert worker.client_type == PrefectEphemeralEventsClient
 
 
 async def test_includes_related_resources_from_run_context(
@@ -69,13 +81,14 @@ async def test_includes_related_resources_from_run_context(
             resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
         )
 
-    state = emitting_flow._run()
+    state: State[None] = emitting_flow._run()
 
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     db_flow = await prefect_client.read_flow(flow_run.flow_id)
 
     asserting_events_worker.drain()
 
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert len(asserting_events_worker._client.events) == 1
     event = asserting_events_worker._client.events[0]
     assert event.event == "vogon.poetry.read"

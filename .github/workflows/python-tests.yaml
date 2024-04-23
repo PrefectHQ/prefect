@@ -9,7 +9,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/python-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
+      - "tests/**/*.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt
@@ -20,7 +21,8 @@ on:
       - main
     paths:
       - .github/workflows/python-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
+      - "tests/**/*.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt

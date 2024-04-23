@@ -386,7 +386,7 @@ class TestResolveBlockDocumentReferences:
         assert result == {
             "json": {"key": "value"},
             "secret": "N1nj4C0d3rP@ssw0rd!",
-            "datetime": "2020-01-01T00:00:00",
+            "datetime": "2020-01-01T00:00:00+00:00",
             "string": "hello",
         }
 
