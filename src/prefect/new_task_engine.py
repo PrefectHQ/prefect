@@ -35,6 +35,7 @@ from prefect.states import (
     Retrying,
     Running,
     StateDetails,
+    exception_to_crashed_state,
     exception_to_failed_state,
     return_value_to_state,
 )
@@ -233,6 +234,12 @@ class TaskRunEngine(Generic[P, R]):
             )
             await self.set_state(state)
 
+    async def handle_crash(self, exc: BaseException) -> None:
+        state = await exception_to_crashed_state(exc)
+        self.logger.error(f"Crash detected! {state.message}")
+        self.logger.debug("Crash details:", exc_info=exc)
+        await self.set_state(state, force=True)
+
     async def create_task_run(self, client: PrefectClient) -> TaskRun:
         flow_run_ctx = FlowRunContext.get()
         try:
@@ -302,14 +309,21 @@ class TaskRunEngine(Generic[P, R]):
         async with get_client() as client:
             self._client = client
             self._is_started = True
+            try:
+                if not self.task_run:
+                    self.task_run = await self.create_task_run(client)
 
-            if not self.task_run:
-                self.task_run = await self.create_task_run(client)
-
-            yield self
-
-        self._is_started = False
-        self._client = None
+                yield self
+            except Exception:
+                # regular exceptions are caught and re-raised to the user
+                raise
+            except BaseException as exc:
+                # BaseExceptions are caught and handled as crashes
+                await self.handle_crash(exc)
+                raise
+            finally:
+                self._is_started = False
+                self._client = None
 
     async def get_client(self):
         if not self._is_started:
