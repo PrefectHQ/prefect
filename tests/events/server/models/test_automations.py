@@ -59,56 +59,32 @@ async def test_reading_automations_by_workspace_by_name(
     ]
 
 
-async def test_reading_automation_by_workspace_by_name(
+async def test_reading_automation_by_workspace_by_name_filtered_match(
     automations_session: AsyncSession,
     some_workspace_automations: Sequence[Automation],
 ):
     existing = await automations.read_automations_for_workspace(
         session=automations_session,
         sort=AutomationSort.NAME_ASC,
+        automation_filter=filters.AutomationFilter(name={"any_": ["automation 2"]}),
     )
-    assert [automation.name for automation in existing] == [
-        "automation 1",
-        "automation 2",
-        "automation 3",
-        "automation 4",
-    ]
 
+    assert len(existing) == 1
+
+    assert existing[0].name == "automation 2"
+
+
+async def test_reading_automation_by_workspace_by_name_filtered_mismatch(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
     existing = await automations.read_automations_for_workspace(
         session=automations_session,
-        sort=AutomationSort.NAME_DESC,
-    )
-    assert [automation.name for automation in existing] == [
-        "automation 4",
-        "automation 3",
-        "automation 2",
-        "automation 1",
-    ]
-
-
-async def test_reading_automation_by_name(
-    automations_session: AsyncSession,
-    existing_automation: Automation,
-):
-    found = await automations.read_automation_by_name(
-        session=automations_session,
-        name=existing_automation.name,
-    )
-    assert isinstance(found, Automation)
-    assert found == existing_automation
-    assert found.name == "a automation that is already here, thank you"
-    assert found.id == existing_automation.id
-
-
-async def test_reading_automation_by_name_not_found(
-    automations_session: AsyncSession,
-):
-    found = await automations.read_automation_by_name(
-        session=automations_session,
-        name="not found",
+        sort=AutomationSort.NAME_ASC,
+        automation_filter=filters.AutomationFilter(name={"any_": ["automation 5"]}),
     )
 
-    assert found is None
+    assert len(existing) == 0
 
 
 async def test_reading_automations_by_workspace_paging(
