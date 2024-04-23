@@ -73,6 +73,7 @@ class FlowRunEngine(Generic[P, R]):
         while state.is_pending():
             await asyncio.sleep(1)
             state = await self.set_state(new_state)
+        return state
 
     async def set_subflow_state(self, state: State) -> State:
         """This appears to not be necessary"""
@@ -112,9 +113,10 @@ class FlowRunEngine(Generic[P, R]):
             message=msg or "Flow run encountered an exception:",
             result_factory=result_factory or getattr(context, "result_factory", None),
         )
-        await self.set_state(state)
+        state = await self.set_state(state)
         if self.state.is_scheduled():
-            await self.set_state(Running())
+            state = await self.set_state(Running())
+        return state
 
     async def create_subflow_task_run(
         self, client: PrefectClient, context: FlowRunContext
@@ -289,8 +291,6 @@ async def run_flow(
                         result = cast(R, flow.fn(**(run.parameters or {})))  # type: ignore
                     # If the flow run is successful, finalize it.
                     await run.handle_success(result)
-                    if return_type == "result":
-                        return result
 
                 except Exception as exc:
                     # If the flow fails, and we have retries left, set the flow to retrying.
