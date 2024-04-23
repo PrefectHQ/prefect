@@ -21,6 +21,8 @@ After you build your deployment, you can read other [guides](/guides) to learn h
 
 ## Before you begin
 
+Complete the following steps to start the tutorial:
+
 1. Install [Python](https://www.python.org/downloads/).
 1. Install Prefect:
     ```bash
@@ -32,7 +34,7 @@ After you build your deployment, you can read other [guides](/guides) to learn h
 1. Connect to [Prefect Cloud](https://app.prefect.cloud). You can sign up for a forever free [Prefect Cloud account](/cloud/) or accept your organization's invite to join their Prefect Cloud account. Alternatively, you can use Prefect Cloud and self-host a [Prefect server instance](/host/). If you choose this option, start a local Prefect server instance by running the `prefect server start` command.
 
 1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
-1. Use the `prefect cloud login` CLI command to [authenticate to Prefect Cloud](/cloud/users/api-keys/) from your environment.
+1. Authenticate to Prefect Cloud from your environment:
 
     ```bash
     prefect cloud login
