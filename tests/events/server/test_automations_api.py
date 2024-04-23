@@ -691,6 +691,30 @@ async def test_read_automations(
     assert automations == expected
 
 
+async def test_read_automations_page(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.post(
+        f"{automations_url}/filter",
+        json={"limit": 2, "offset": 1, "sort": AutomationSort.UPDATED_DESC},
+    )
+    assert response.status_code == 200, response.content
+
+    automations = pydantic.parse_obj_as(List[Automation], response.json())
+
+    # updated is technically Optional, so assert it here to satisfy the type system
+    def by_updated(automation: Automation) -> DateTime:
+        assert automation.updated
+        return automation.updated
+
+    expected = sorted(some_workspace_automations, key=by_updated, reverse=True)
+    expected = expected[1:3]
+
+    assert automations == expected
+
+
 async def test_read_automations_filter_by_name_match(
     some_workspace_automations: List[Automation],
     client: AsyncClient,
@@ -731,30 +755,6 @@ async def test_read_automations_filter_by_name_mismatch(
     assert response.status_code == 200, response.content
 
     assert response.json() == []
-
-
-async def test_read_automations_page(
-    some_workspace_automations: List[Automation],
-    client: AsyncClient,
-    automations_url: str,
-) -> None:
-    response = await client.post(
-        f"{automations_url}/filter",
-        json={"limit": 2, "offset": 1, "sort": AutomationSort.UPDATED_DESC},
-    )
-    assert response.status_code == 200, response.content
-
-    automations = pydantic.parse_obj_as(List[Automation], response.json())
-
-    # updated is technically Optional, so assert it here to satisfy the type system
-    def by_updated(automation: Automation) -> DateTime:
-        assert automation.updated
-        return automation.updated
-
-    expected = sorted(some_workspace_automations, key=by_updated, reverse=True)
-    expected = expected[1:3]
-
-    assert automations == expected
 
 
 async def test_count_automations(
