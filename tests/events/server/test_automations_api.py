@@ -686,8 +686,11 @@ async def test_read_automations(
     response = await client.post(f"{automations_url}/filter")
 
     assert response.status_code == 200, response.content
+
     automations = pydantic.parse_obj_as(List[Automation], response.json())
+
     expected = sorted(some_workspace_automations, key=lambda a: a.name)
+
     assert automations == expected
 
 
