@@ -1,4 +1,5 @@
 import logging
+from typing import List
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -272,9 +273,10 @@ class TestTaskRetries:
 
         @flow
         async def test_flow():
-            return await flaky_function(return_state=True)
+            # return a tuple to avoid unpacking the state which would raise
+            return await flaky_function(return_state=True), ...
 
-        task_run_state = await test_flow()
+        task_run_state, _ = await test_flow()
         task_run_id = task_run_state.state_details.task_run_id
 
         if always_fail:
