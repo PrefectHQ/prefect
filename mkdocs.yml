@@ -254,6 +254,18 @@ nav:
                       - Jobs: integrations/prefect-databricks/jobs.md
                       - Rest: integrations/prefect-databricks/rest.md
                       - Flows: integrations/prefect-databricks/flows.md
+                - Email:
+                      - integrations/prefect-email/index.md
+                      - Credentials: integrations/prefect-email/credentials.md
+                      - Message: integrations/prefect-email/message.md
+
+                - Shell:
+                      - integrations/prefect-shell/index.md
+                      - Commands: integrations/prefect-shell/commands.md
+                - Slack:
+                      - integrations/prefect-slack/index.md
+                      - Credentials: integrations/prefect-slack/credentials.md
+                      - Messages: integrations/prefect-slack/messages.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:
