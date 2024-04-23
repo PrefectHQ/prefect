@@ -1,0 +1,1 @@
+::: prefect_email.message
