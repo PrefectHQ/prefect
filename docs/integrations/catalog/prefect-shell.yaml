@@ -1,6 +1,6 @@
 collectionName: prefect-shell
 author: Prefect
 authorUrl: https://prefect.io
-documentation: https://docs.prefect.io/integrations/prefect-shell/
+documentation: prefect-shell
 iconUrl: /img/collections/shell.png
 tag: Shell

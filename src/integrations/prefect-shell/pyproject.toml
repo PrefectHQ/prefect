@@ -33,9 +33,6 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = [
   "aiohttp",
-  "shell-cosmos",
-  "shell-storage-blob",
-  "shellml-core",
   "coverage",
   "interrogate",
   "mkdocs-gen-files",

@@ -1,21 +1,10 @@
 # Integrating shell commands into your dataflow with `prefect-shell`
 
 <p align="center">
-    <img src="https://user-images.githubusercontent.com/15331990/216169092-20cc6e77-ee3b-4aef-a8e7-02747eb5a549.png">
-    <br>
     <a href="https://pypi.python.org/pypi/prefect-shell/" alt="PyPI version">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-shell?color=0052FF&labelColor=090422"></a>
-    <a href="https://github.com/PrefectHQ/prefect-shell/" alt="Stars">
-        <img src="https://img.shields.io/github/stars/PrefectHQ/prefect-shell?color=0052FF&labelColor=090422" /></a>
     <a href="https://pepy.tech/badge/prefect-shell/" alt="Downloads">
         <img src="https://img.shields.io/pypi/dm/prefect-shell?color=0052FF&labelColor=090422" /></a>
-    <a href="https://github.com/PrefectHQ/prefect-shell/pulse" alt="Activity">
-        <img src="https://img.shields.io/github/commit-activity/m/PrefectHQ/prefect-shell?color=0052FF&labelColor=090422" /></a>
-    <br>
-    <a href="https://prefect-community.slack.com" alt="Slack">
-        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
-    <a href="https://discourse.prefect.io/" alt="Discourse">
-        <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse" /></a>
 </p>
 
 Visit the full docs [here](https://PrefectHQ.github.io/prefect-shell) to see additional examples and the API reference.
