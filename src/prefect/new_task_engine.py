@@ -13,6 +13,7 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
+    Union,
     cast,
 )
 from uuid import uuid4
