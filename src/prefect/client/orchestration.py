@@ -3164,7 +3164,7 @@ class PrefectClient:
                 id = None
         elif isinstance(id_or_name, UUID):
             id = id_or_name
-
+            
         if id:
             try:
                 automation = await self.read_automation(id)
