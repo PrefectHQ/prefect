@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/integration-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt
