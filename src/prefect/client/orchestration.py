@@ -3143,9 +3143,7 @@ class PrefectClient:
         response.raise_for_status()
         return pydantic.parse_obj_as(List[Automation], response.json())
 
-    async def find_automation(
-        self, id_or_name: str, exit_if_not_found: bool = True
-    ) -> Optional[Automation]:
+    async def find_automation(self, id_or_name: str) -> Optional[Automation]:
         try:
             id = UUID(id_or_name)
         except ValueError:

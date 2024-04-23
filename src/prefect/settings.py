@@ -1698,6 +1698,13 @@ PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
 Whether or not to allow streaming events out of via websockets.
 """
 
+PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
+    timedelta, default=timedelta(minutes=5)
+)
+"""
+How long to cache related resource data for emitting server-side vents
+"""
+
 # Deprecated settings ------------------------------------------------------------------
 
 
