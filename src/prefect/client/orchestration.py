@@ -3160,15 +3160,13 @@ class PrefectClient:
     ) -> Optional[Automation]:
         if isinstance(id_or_name, UUID):
             id = id_or_name
-        else:
-            try:
-                id = UUID(id_or_name)
-            except ValueError:
-                id = None
-
-        if id:
             automation = await self.read_automation(id)
             return automation
+        # else:
+        #     try:
+        #         id = str(id_or_name)
+        #     except ValueError:
+        #         id = None
 
         automations = await self.read_automations()
 

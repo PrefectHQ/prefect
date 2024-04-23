@@ -1,5 +1,31 @@
-from prefect.events.schemas.automations import AutomationCore
+from prefect.events.schemas.automations import (
+    Automation,
+    AutomationCore,
+    CompositeTrigger,
+    CompoundTrigger,
+    EventTrigger,
+    MetricTrigger,
+    MetricTriggerQuery,
+    Posture,
+    PrefectMetric,
+    ResourceTrigger,
+    SequenceTrigger,
+    Trigger,
+    TriggerTypes,
+)
 
-
-class Automation(AutomationCore):
-    pass
+__all__ = [
+    "AutomationCore",
+    "Automation",
+    "Trigger",
+    "ResourceTrigger",
+    "EventTrigger",
+    "MetricTrigger",
+    "MetricTriggerQuery",
+    "PrefectMetric",
+    "CompositeTrigger",
+    "CompoundTrigger",
+    "SequenceTrigger",
+    "TriggerTypes",
+    Posture,
+]
