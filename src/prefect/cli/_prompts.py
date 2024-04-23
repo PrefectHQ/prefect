@@ -195,11 +195,19 @@ def prompt_interval_schedule(console):
     """
     Prompt the user for an interval in seconds.
     """
+    default_seconds = 3600
+    # The interval value must be a timedelta object in order to pass validation as a `PositiveDuration` type in `IntervalSchedule`.
+    default_duration = timedelta(seconds=default_seconds)
+
+    # We show the default in the prompt message rather than enabling `show_default=True` here because `rich` displays timedeltas in hours
+    # rather than seconds, which would confuse users since we ask them to enter the interval in seconds.
     interval = IntervalValuePrompt.ask(
-        "[bold][green]?[/] Seconds between scheduled runs",
+        f"[bold][green]?[/] Seconds between scheduled runs ({default_seconds})",
         console=console,
-        default="3600",
+        default=default_duration,
+        show_default=False,
     )
+
     return IntervalSchedule(interval=interval)
 
 

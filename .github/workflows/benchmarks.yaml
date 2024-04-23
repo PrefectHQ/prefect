@@ -7,7 +7,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/python-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
       - requirements.txt
       - requirements-dev.txt
       - setup.cfg

@@ -115,7 +115,7 @@ async def create_deployment(
         elif deployment.work_queue_name:
             # If just a queue name was provided, ensure that the queue exists and
             # get its ID.
-            work_queue = await models.work_queues._ensure_work_queue_exists(
+            work_queue = await models.work_queues.ensure_work_queue_exists(
                 session=session, name=deployment.work_queue_name
             )
             deployment_dict["work_queue_id"] = work_queue.id
