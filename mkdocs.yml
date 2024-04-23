@@ -254,6 +254,9 @@ nav:
                       - Jobs: integrations/prefect-databricks/jobs.md
                       - Rest: integrations/prefect-databricks/rest.md
                       - Flows: integrations/prefect-databricks/flows.md
+                - Shell:
+                      - integrations/prefect-shell/index.md
+                      - Commands: integrations/prefect-shell/commands.md
                 - Slack:
                       - integrations/prefect-slack/index.md
                       - Credentials: integrations/prefect-slack/credentials.md
