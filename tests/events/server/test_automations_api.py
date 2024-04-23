@@ -678,6 +678,31 @@ async def test_read_automation_that_does_not_exist(
     assert "Automation not found" in response.content.decode()
 
 
+async def test_read_automation_by_name(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+) -> None:
+    response = await client.get(f"{automations_url}/name/hello")
+    assert response.status_code == 200, response.content
+
+    read_automation = Automation.parse_raw(response.content)
+    assert read_automation.id
+    assert read_automation.name == "hello"
+    assert read_automation.description == "world"
+    assert read_automation.enabled
+    assert read_automation.trigger == existing_automation.trigger
+
+
+async def test_read_automation_by_name_that_does_not_exist(
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.get(f"{automations_url}/name/does_not_exist")
+    assert response.status_code == 404, response.content
+    assert "Automation not found" in response.content.decode()
+
+
 async def test_read_automations(
     some_workspace_automations: List[Automation],
     client: AsyncClient,
