@@ -52,7 +52,7 @@ class AutomationFilterName(PrefectFilterBaseModel):
         description="Only include automations with names that match any of these strings",
     )
 
-    def _get_filter_list(self, db: PrefectDBInterface) -> list:
+    def _get_filter_list(self, db: PrefectDBInterface) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Automation.name.in_(self.any_))
