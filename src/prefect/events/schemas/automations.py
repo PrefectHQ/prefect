@@ -489,7 +489,6 @@ class Automation(AutomationCore):
             )
         """
         client, _ = get_or_create_client()
-        print(automation)
         automation = await client.update_automation(
             automation_id=automation_id, automation=automation
         )

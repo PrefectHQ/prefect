@@ -3136,10 +3136,9 @@ class PrefectClient:
         return UUID(response.json()["id"])
 
     async def update_automation(self, automation_id: UUID, automation: AutomationCore):
-        """Creates an automation in Prefect Cloud."""
+        """Updates an automation in Prefect Cloud."""
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
-
         response = await self._client.put(
             f"/automations/{automation_id}",
             json=automation.dict(json_compatible=True, exclude_unset=True),
@@ -3158,15 +3157,21 @@ class PrefectClient:
     async def find_automation(
         self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
     ) -> Optional[Automation]:
-        if isinstance(id_or_name, UUID):
+        if isinstance(id_or_name, str):
+            try:
+                id = UUID(id_or_name)
+            except ValueError:
+                id = None
+        elif isinstance(id_or_name, UUID):
             id = id_or_name
-            automation = await self.read_automation(id)
-            return automation
-        # else:
-        #     try:
-        #         id = str(id_or_name)
-        #     except ValueError:
-        #         id = None
+
+        if id:
+            try:
+                automation = await self.read_automation(id)
+                return automation
+            except prefect.exceptions.HTTPStatusError as e:
+                if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                    raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
 
         automations = await self.read_automations()
 
