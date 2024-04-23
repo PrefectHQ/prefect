@@ -6,7 +6,7 @@ Intended for internal use by the Prefect REST API.
 import contextlib
 import datetime
 from itertools import chain
-from typing import Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -19,7 +19,6 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMFlowRun
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MinimalFlowPolicy
 from prefect.server.orchestration.global_policy import GlobalFlowPolicy
@@ -35,6 +34,9 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
 
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMFlowRun
+
 
 @db_injector
 async def create_flow_run(
@@ -42,7 +44,7 @@ async def create_flow_run(
     session: AsyncSession,
     flow_run: schemas.core.FlowRun,
     orchestration_parameters: Optional[dict] = None,
-) -> ORMFlowRun:
+) -> "ORMFlowRun":
     """Creates a new flow run.
 
     If the provided flow run has a state attached, it will also be created.
@@ -153,7 +155,7 @@ async def read_flow_run(
     session: AsyncSession,
     flow_run_id: UUID,
     for_update: bool = False,
-) -> Optional[ORMFlowRun]:
+) -> Optional["ORMFlowRun"]:
     """
     Reads a flow run by id.
 
@@ -261,7 +263,7 @@ async def read_flow_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
-) -> Sequence[ORMFlowRun]:
+) -> Sequence["ORMFlowRun"]:
     """
     Read flow runs.
 

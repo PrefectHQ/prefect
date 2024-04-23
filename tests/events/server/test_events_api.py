@@ -31,12 +31,6 @@ else:
     import pydantic
 
 
-@pytest.fixture(autouse=True)
-def enable_events():
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
-        yield
-
-
 @pytest.fixture
 def filter(frozen_time: DateTime) -> EventFilter:
     return EventFilter(

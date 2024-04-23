@@ -44,13 +44,6 @@ from prefect.server.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
-
-
-@pytest.fixture(autouse=True)
-def events_enabled():
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
-        yield
 
 
 @pytest.fixture(autouse=True)
