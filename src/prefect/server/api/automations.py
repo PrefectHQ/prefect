@@ -279,6 +279,22 @@ async def read_automation(
     return automation
 
 
+@router.get("/name/{name:str}")
+async def read_automation_by_name(
+    name: str = Path(..., alias="name"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> Automation:
+    async with db.session_context() as session:
+        automation = await automations.read_automation_by_name(
+            session=session,
+            name=name,
+        )
+
+    if not automation:
+        raise ObjectNotFoundError("Automation not found")
+    return automation
+
+
 @router.get("/related-to/{resource_id:str}")
 async def read_automations_related_to_resource(
     resource_id: str = Path(..., alias="resource_id"),

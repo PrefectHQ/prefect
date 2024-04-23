@@ -78,6 +78,21 @@ async def read_automation(
 
 
 @db_injector
+async def read_automation_by_name(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    name: str,
+) -> Optional[Automation]:
+    result = await session.execute(
+        sa.select(db.Automation).where(db.Automation.name == name)
+    )
+    automation: db.Automation | None = result.scalars().first()
+    if not automation:
+        return None
+    return Automation.from_orm(automation)
+
+
+@db_injector
 async def read_automation_by_id(
     db: PrefectDBInterface, session: AsyncSession, automation_id: UUID
 ) -> Optional[Automation]:

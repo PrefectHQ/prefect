@@ -59,6 +59,57 @@ async def test_reading_automations_by_workspace_by_name(
     ]
 
 
+async def test_reading_automation_by_workspace_by_name(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
+    existing = await automations.read_automations_for_workspace(
+        session=automations_session,
+        sort=AutomationSort.NAME_ASC,
+    )
+    assert [automation.name for automation in existing] == [
+        "automation 1",
+        "automation 2",
+        "automation 3",
+        "automation 4",
+    ]
+
+    existing = await automations.read_automations_for_workspace(
+        session=automations_session,
+        sort=AutomationSort.NAME_DESC,
+    )
+    assert [automation.name for automation in existing] == [
+        "automation 4",
+        "automation 3",
+        "automation 2",
+        "automation 1",
+    ]
+
+
+async def test_reading_automation_by_name(
+    automations_session: AsyncSession,
+    existing_automation: Automation,
+):
+    found = await automations.read_automation_by_name(
+        session=automations_session,
+        name=existing_automation.name,
+    )
+    assert isinstance(found, Automation)
+    assert found == existing_automation
+    assert found.name == "a automation that is already here, thank you"
+
+
+async def test_reading_automation_by_name_not_found(
+    automations_session: AsyncSession,
+):
+    found = await automations.read_automation_by_name(
+        session=automations_session,
+        name="not found",
+    )
+
+    assert found is None
+
+
 async def test_reading_automations_by_workspace_paging(
     automations_session: AsyncSession,
     some_workspace_automations: Sequence[Automation],
