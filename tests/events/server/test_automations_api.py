@@ -684,7 +684,6 @@ async def test_read_automations(
     automations_url: str,
 ) -> None:
     response = await client.post(f"{automations_url}/filter")
-
     assert response.status_code == 200, response.content
 
     automations = pydantic.parse_obj_as(List[Automation], response.json())

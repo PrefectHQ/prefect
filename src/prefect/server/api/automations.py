@@ -253,7 +253,7 @@ async def read_automations(
             sort=sort,
             limit=limit,
             offset=offset,
-            automation_filter=automations,
+            automations_filter=automations,
         )
 
 
