@@ -44,6 +44,20 @@ class AutomationFilterCreated(PrefectFilterBaseModel):
         return filters
 
 
+class AutomationFilterName(PrefectFilterBaseModel):
+    """Filter by `Automation.created`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None,
+        description="Only include automations with names that match any of these strings",
+    )
+
+    def _get_filter_list(self, db: PrefectDBInterface) -> list:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Automation.name.in_(self.any_))
+
+
 class AutomationFilter(PrefectOperatorFilterBaseModel):
     created: Optional[AutomationFilterCreated] = Field(
         default=None, description="Filter criteria for `Automation.created`"
