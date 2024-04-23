@@ -678,6 +678,19 @@ async def test_read_automation_that_does_not_exist(
     assert "Automation not found" in response.content.decode()
 
 
+async def test_read_automations(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    response = await client.post(f"{automations_url}/filter")
+
+    assert response.status_code == 200, response.content
+    automations = pydantic.parse_obj_as(List[Automation], response.json())
+    expected = sorted(some_workspace_automations, key=lambda a: a.name)
+    assert automations == expected
+
+
 async def test_read_automations_filter_by_name_match(
     some_workspace_automations: List[Automation],
     client: AsyncClient,
