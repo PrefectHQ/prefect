@@ -91,7 +91,7 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_subflow_state(state)
         return state
 
-    async def result(self, raise_on_failure: bool = True) -> R | State | None:
+    async def result(self, raise_on_failure: bool = True) -> "R | State | None":
         return await self.state.result(raise_on_failure=raise_on_failure, fetch=True)
 
     async def handle_success(self, result: R) -> R:
@@ -138,7 +138,7 @@ class FlowRunEngine(Generic[P, R]):
 
     async def get_most_recent_flow_run_for_parent_task_run(
         self, client: PrefectClient, parent_task_run: TaskRun
-    ) -> FlowRun:
+    ) -> "FlowRun | None":
         """
         Get the most recent flow run associated with the provided parent task run.
 
@@ -267,7 +267,7 @@ async def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> R | None:
+) -> "R | None":
     """
     Runs a flow against the API.
 
