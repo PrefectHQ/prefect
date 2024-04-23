@@ -433,7 +433,7 @@ class TestFlowRetries:
         flow_run_count = 0
 
         @task
-        def child_task():
+        async def child_task():
             nonlocal child_task_run_count
             child_task_run_count += 1
 
@@ -444,21 +444,21 @@ class TestFlowRetries:
             return "hello"
 
         @flow
-        def child_flow():
+        async def child_flow():
             nonlocal child_flow_run_count
             child_flow_run_count += 1
-            return child_task()
+            return await child_task()
 
         @flow(retries=1)
-        def parent_flow():
+        async def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = child_flow()
+            state = await child_flow()
 
             return state
 
-        assert parent_flow() == "hello"
+        assert await parent_flow() == "hello"
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
         assert child_task_run_count == 2, "Child tasks should run again with child flow"

@@ -19,16 +19,18 @@ from typing_extensions import ParamSpec
 from prefect import Flow, Task, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.schemas.filters import FlowRunFilter
+from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultFactory
 from prefect.states import (
-    Completed,
     Pending,
     Running,
     State,
     exception_to_failed_state,
+    return_value_to_state,
 )
 from prefect.utilities.asyncutils import A, Async
 from prefect.utilities.engine import (
@@ -93,7 +95,12 @@ class FlowRunEngine(Generic[P, R]):
         return await self.state.result(raise_on_failure=raise_on_failure, fetch=True)
 
     async def handle_success(self, result: R) -> R:
-        await self.set_state(Completed())
+        result_factory = getattr(FlowRunContext.get(), "result_factory", None)
+        terminal_state = await return_value_to_state(
+            await resolve_futures_to_states(result),
+            result_factory=result_factory,
+        )
+        await self.set_state(terminal_state)
         return result
 
     async def handle_exception(
@@ -132,12 +139,24 @@ class FlowRunEngine(Generic[P, R]):
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
 
-        # this is a subflow run
         parent_task_run = None
+        # this is a subflow run
         if flow_run_ctx:
             parent_task_run = await self.create_subflow_task_run(
                 client=client, context=flow_run_ctx
             )
+            # If the parent task run already completed, return the last flow run
+            # associated with the parent task run. This prevents rerunning a completed
+            # flow run when the parent task run is rerun.
+            if parent_task_run.state.is_completed():
+                flow_runs = await client.read_flow_runs(
+                    flow_run_filter=FlowRunFilter(
+                        parent_task_run_id={"any_": [parent_task_run.id]}
+                    ),
+                    sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+                )
+                flow_run = flow_runs[-1]
+                return flow_run
 
         try:
             flow_run_name = _resolve_custom_flow_run_name(
