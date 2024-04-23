@@ -18,7 +18,7 @@ tags:
 
 # Integrations
 
-Prefect integrations are organized into collections of pre-built [tasks](/concepts/tasks/), [flows](/concepts/flows/), [blocks](/concepts/blocks/) and more that are installable as PyPI packages.
+You can install the following integrations of pre-built [tasks](/concepts/tasks/), [flows](/concepts/flows/), [blocks](/concepts/blocks/) and more as PyPI packages:
 
 <!-- The code below is a jinja2 template that will be rendered by generate_catalog.py -->
 <div class="collection-grid">
