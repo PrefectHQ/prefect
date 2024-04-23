@@ -91,7 +91,9 @@ class TestFlowRuns:
         state = await run_flow(bar, parameters=parameters, return_type="state")
 
         assert state.is_failed()
-        with pytest.raises(ParameterTypeError, match="is not a valid integer"):
+        with pytest.raises(
+            ParameterTypeError, match="Flow run received invalid parameters"
+        ):
             await state.result()
 
     async def test_flow_run_name(self, prefect_client):
@@ -192,24 +194,24 @@ class TestFlowRetries:
         flow_run_count = 0
 
         @task
-        def my_task():
+        async def my_task():
             nonlocal task_run_count
             task_run_count += 1
             return "hello"
 
         @flow(retries=1)
-        def foo():
+        async def foo():
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = my_task(return_state=True)
+            state = await my_task(return_state=True)
 
             if flow_run_count == 1:
                 raise ValueError()
 
-            return state.result()
+            return await state.result()
 
-        assert foo() == "hello"
+        assert await foo() == "hello"
         assert flow_run_count == 2
         assert task_run_count == 1
 
@@ -314,7 +316,7 @@ class TestFlowRetries:
         flow_run_count = 0
 
         @flow
-        def child_flow():
+        async def child_flow():
             nonlocal child_run_count
             child_run_count += 1
 
@@ -325,12 +327,12 @@ class TestFlowRetries:
             return "hello"
 
         @flow(retries=1)
-        def parent_flow():
+        async def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
-            return child_flow()
+            return await child_flow()
 
-        state = parent_flow._run()
+        state = await parent_flow._run()
         assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
@@ -352,16 +354,16 @@ class TestFlowRetries:
         flow_run_count = 0
 
         @flow
-        def child_flow():
+        async def child_flow():
             nonlocal child_run_count
             child_run_count += 1
             return "hello"
 
         @flow(retries=1)
-        def parent_flow():
+        async def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
-            child_result = child_flow()
+            child_result = await child_flow()
 
             # Fail on the first flow run but not the retry
             if flow_run_count == 1:
@@ -369,7 +371,7 @@ class TestFlowRetries:
 
             return child_result
 
-        assert parent_flow() == "hello"
+        assert await parent_flow() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 1, "Child flow should not run again"
 
@@ -431,7 +433,7 @@ class TestFlowRetries:
         flow_run_count = 0
 
         @task
-        def child_task():
+        async def child_task():
             nonlocal child_task_run_count
             child_task_run_count += 1
 
@@ -442,21 +444,21 @@ class TestFlowRetries:
             return "hello"
 
         @flow
-        def child_flow():
+        async def child_flow():
             nonlocal child_flow_run_count
             child_flow_run_count += 1
-            return child_task()
+            return await child_task()
 
         @flow(retries=1)
-        def parent_flow():
+        async def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = child_flow()
+            state = await child_flow()
 
             return state
 
-        assert parent_flow() == "hello"
+        assert await parent_flow() == "hello"
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
         assert child_task_run_count == 2, "Child tasks should run again with child flow"
@@ -502,24 +504,24 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert task_run_count == 4, "Task should use all of its retries every time"
 
-    def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries_cannot_exceed_retries(
+    async def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries_cannot_exceed_retries(
         self,
     ):
         task_run_count = 0
         flow_run_count = 0
 
         @task(retries=2)
-        def my_task():
+        async def my_task():
             nonlocal task_run_count
             task_run_count += 1
             raise ValueError("This task always fails")
 
         @flow(retries=1)
-        def my_flow():
+        async def my_flow():
             nonlocal flow_run_count
             flow_run_count += 1
 
-            fut = my_task()
+            fut = await my_task()
 
             # It is important that the flow run fails after the task run is created
             if flow_run_count == 1:
@@ -528,7 +530,9 @@ class TestFlowRetries:
             return fut
 
         with pytest.raises(ValueError, match="This task always fails"):
-            my_flow().result().result()
+            fut = await my_flow()
+            flow_result = await fut.result()
+            await flow_result.result()
 
         assert flow_run_count == 2
         assert task_run_count == 6, "Task should use all of its retries every time"
