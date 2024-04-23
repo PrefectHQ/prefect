@@ -248,6 +248,10 @@ nav:
                       - Container Instance Worker: integrations/prefect-azure/container_instance_worker.md
                       - Deployments:
                             - Steps: integrations/prefect-azure/deployments/steps.md
+                - Bitbucket:
+                      - integrations/prefect-bitbucket/index.md
+                      - Credentials: integrations/prefect-bitbucket/credentials.md
+                      - Repositories: integrations/prefect-bitbucket/repositories.md
                 - Databricks:
                       - integrations/prefect-databricks/index.md
                       - Credentials: integrations/prefect-databricks/credentials.md

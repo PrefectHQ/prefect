@@ -3,8 +3,8 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prefect-databricks"
-description = "Prefect integrations with Databricks"
+name = "prefect-bitbucket"
+description = "Prefect integrations for working with Bitbucket repositories."
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache License 2.0"}
@@ -27,11 +27,13 @@ classifiers = [
 ]
 dependencies = [
   "prefect>=2.14.10",
+  "atlassian-python-api>=3.32.1,!=3.41.5,!=3.41.6,!=3.41.7,!=3.41.8",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
+  "aiohttp",
   "coverage",
   "interrogate",
   "mkdocs-gen-files",
@@ -45,31 +47,30 @@ dev = [
   "pytest-asyncio",
   "pytest",
   "pytest-xdist",
-  "respx",
 ]
 
 [project.urls]
-Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-databricks"
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-bitbucket"
 
 [project.entry-points."prefect.collections"]
-prefect_databricks = "prefect_databricks"
+prefect_bitbucket = "prefect_bitbucket"
 
 [tool.setuptools_scm]
-version_file = "prefect_databricks/_version.py"
+version_file = "prefect_bitbucket/_version.py"
 root = "../../.."
-tag_regex = "^prefect-databricks-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-bitbucket-(?P<version>\\d+\\.\\d+\\.\\d+)$"
 fallback_version = "0.0.0"
-git_describe_command = 'git describe --dirty --tags --long --match "prefect-databricks-*[0-9]*"'
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-bitbucket-*[0-9]*"'
 
 [tool.interrogate]
 ignore-init-module = true
 ignore_init_method = true
-exclude = ["prefect_databricks/_version.py", "tests"]
+exclude = ["prefect_bitbucket/_version.py", "tests"]
 fail-under = 95
 omit-covered-files = true
 
 [tool.coverage.run]
-omit = ["tests/*", "prefect_databricks/_version.py"]
+omit = ["tests/*", "prefect_bitbucket/_version.py"]
 
 [tool.coverage.report]
 fail_under = 80
