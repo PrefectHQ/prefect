@@ -50,7 +50,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/PrefectHQ/prefect-bitbucket"
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-bitbucket"
 
 [project.entry-points."prefect.collections"]
 prefect_bitbucket = "prefect_bitbucket"

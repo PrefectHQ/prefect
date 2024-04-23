@@ -49,7 +49,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/PrefectHQ/prefect-shell"
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-shell"
 
 [project.entry-points."prefect.collections"]
 prefect_shell = "prefect_shell"
