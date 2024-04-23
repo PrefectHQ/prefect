@@ -64,7 +64,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/PrefectHQ/prefect-azure"
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-azure"
 
 [project.entry-points."prefect.collections"]
 prefect_azure = "prefect_azure"
