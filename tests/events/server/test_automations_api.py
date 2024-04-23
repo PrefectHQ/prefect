@@ -683,11 +683,13 @@ async def test_read_automation_by_name(
     automations_url: str,
     existing_automation: Automation,
 ) -> None:
-    response = await client.get(f"{automations_url}/name/hello")
+    response = await client.get(f"{automations_url}/name/{existing_automation.name}")
     assert response.status_code == 200, response.content
 
     read_automation = Automation.parse_raw(response.content)
-    assert read_automation.id
+
+    # read_automation = Automation.parse
+    assert read_automation.id == existing_automation.id
     assert read_automation.name == "hello"
     assert read_automation.description == "world"
     assert read_automation.enabled

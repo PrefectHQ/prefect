@@ -89,6 +89,7 @@ async def read_automation_by_name(
     automation: db.Automation | None = result.scalars().first()
     if not automation:
         return None
+
     return Automation.from_orm(automation)
 
 

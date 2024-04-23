@@ -292,6 +292,7 @@ async def read_automation_by_name(
 
     if not automation:
         raise ObjectNotFoundError("Automation not found")
+
     return automation
 
 

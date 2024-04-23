@@ -97,6 +97,7 @@ async def test_reading_automation_by_name(
     assert isinstance(found, Automation)
     assert found == existing_automation
     assert found.name == "a automation that is already here, thank you"
+    assert found.id == existing_automation.id
 
 
 async def test_reading_automation_by_name_not_found(

@@ -3188,6 +3188,7 @@ class PrefectClient:
         if response.status_code == 404:
             return None
         response.raise_for_status()
+
         return Automation.parse_obj(response.json())
 
     async def pause_automation(self, automation_id: UUID):
