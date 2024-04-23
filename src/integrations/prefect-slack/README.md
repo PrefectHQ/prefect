@@ -8,11 +8,11 @@
 
 ### Python setup
 
-Requires an installation of Python 3.7+
+Requires an installation of Python 3.8+
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 
-These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://orion-docs.prefect.io/).
+These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
 
 ### Installation
 
@@ -55,22 +55,4 @@ def example_send_message_flow():
    )
 
 example_send_message_flow()
-```
-
-## Resources
-
-If you encounter any bugs while using `prefect-slack`, feel free to open an issue in the [prefect-slack](https://github.com/PrefectHQ/prefect-slack) repository.
-
-If you have any questions or issues while using `prefect-slack`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack)
-
-## Development
-
-If you'd like to install a version of `prefect-slack` for development, first clone the repository and then perform an editable install with `pip`:
-
-```bash
-git clone https://github.com/PrefectHQ/prefect-slack.git
-
-cd prefect-slack/
-
-pip install -e ".[dev]"
 ```
