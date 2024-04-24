@@ -232,7 +232,7 @@ def preprocess_schema(schema):
         process_properties(schema["properties"], required_fields)
 
     if "definitions" in schema:  # Also process definitions for reused models
-        for definition in schema["definitions"].values():
+        for definition in (schema["definitions"] or {}).values():
             if "properties" in definition:
                 required_fields = definition.get("required", [])
                 process_properties(definition["properties"], required_fields)
