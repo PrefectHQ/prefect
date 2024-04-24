@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     Optional,
     Set,
+    TypeVar,
     Union,
 )
 from uuid import UUID, uuid4
@@ -66,6 +67,7 @@ from prefect.utilities.text import truncated_to
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
+T = TypeVar("T")
 
 
 async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
@@ -308,11 +310,11 @@ async def resolve_inputs(
 
 async def propose_state(
     client: PrefectClient,
-    state: State,
+    state: State[object],
     force: bool = False,
-    task_run_id: UUID = None,
-    flow_run_id: UUID = None,
-) -> State:
+    task_run_id: Optional[UUID] = None,
+    flow_run_id: Optional[UUID] = None,
+) -> State[object]:
     """
     Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
 

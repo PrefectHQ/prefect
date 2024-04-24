@@ -4,7 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Generic, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -113,7 +113,7 @@ class StateBaseModel(IDBaseModel):
         return schema_dict
 
 
-class State(StateBaseModel, Generic[R]):
+class State(StateBaseModel):
     """Represents the state of a run."""
 
     class Config:

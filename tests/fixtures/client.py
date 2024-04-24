@@ -17,6 +17,12 @@ async def prefect_client(
 
 
 @pytest.fixture
+def sync_prefect_client(test_database_connection_url):
+    with get_client(sync_client=True) as client:
+        yield client
+
+
+@pytest.fixture
 async def cloud_client(
     prefect_client: PrefectClient,
 ) -> AsyncGenerator[PrefectClient, None]:

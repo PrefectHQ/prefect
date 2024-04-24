@@ -16,7 +16,7 @@ from typing import (
 )
 from uuid import UUID
 
-from typing_extensions import Self
+from typing_extensions import ParamSpec, Self
 
 import prefect
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
@@ -63,6 +63,7 @@ def DEFAULT_STORAGE_KEY_FN():
 
 
 logger = get_logger("results")
+P = ParamSpec("P")
 R = TypeVar("R")
 
 
@@ -286,7 +287,7 @@ class ResultFactory(pydantic.BaseModel):
     @classmethod
     @inject_client
     async def from_autonomous_task(
-        cls: Type[Self], task: "Task", client: "PrefectClient" = None
+        cls: Type[Self], task: "Task[P, R]", client: "PrefectClient" = None
     ) -> Self:
         """
         Create a new result factory for an autonomous task.
