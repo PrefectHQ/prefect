@@ -4,6 +4,7 @@ Command line interface for working with automations.
 
 import functools
 from typing import Optional
+from uuid import UUID
 
 import orjson
 import typer
@@ -176,7 +177,7 @@ async def delete(
                 )
                 if not confirm_delete:
                     exit_with_error("Deletion aborted.")
-                await client.delete_automation(id)
+                await client.delete_automation(UUID(id))
                 exit_with_success(f"Deleted automation with id {id!r}")
             except PrefectHTTPStatusError:
                 exit_with_error(f"Automation with id {id!r} not found!")
