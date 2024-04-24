@@ -302,6 +302,10 @@ nav:
                       - integrations/prefect-slack/index.md
                       - Credentials: integrations/prefect-slack/credentials.md
                       - Messages: integrations/prefect-slack/messages.md
+                - Snowflake:
+                      - integrations/prefect-snowflake/index.md
+                      - Credentials: integrations/prefect-snowflake/credentials.md
+                      - Database: integrations/prefect-snowflake/database.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:
