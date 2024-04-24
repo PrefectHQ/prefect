@@ -9,6 +9,7 @@ import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from contextvars import copy_context
 from functools import partial, wraps
 from threading import Thread
 from typing import (
@@ -107,12 +108,18 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
         loop = asyncio.get_running_loop()
         if loop.is_running():
             with ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, coroutine)
+                # ensure context variables (like flowruncontext) are properly
+                # copied into the new frame
+                current_context = copy_context()
+                future = executor.submit(current_context.run, asyncio.run, coroutine)
                 return future.result()
         else:
             return asyncio.run(coroutine)
-    except RuntimeError:
-        return asyncio.run(coroutine)
+    except RuntimeError as exc:
+        if "no running event loop" in str(exc):
+            return asyncio.run(coroutine)
+        else:
+            raise
 
 
 async def run_sync_in_worker_thread(
