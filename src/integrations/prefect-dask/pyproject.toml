@@ -43,7 +43,7 @@ dev = [
   "mypy",
   "pillow",
   "pre-commit",
-  "pytest-asyncio",
+  "pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0",
   "pytest",
   "pytest-xdist",
 ]
