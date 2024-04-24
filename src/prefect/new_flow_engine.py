@@ -10,6 +10,7 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
+    Union,
     cast,
 )
 
@@ -92,7 +93,7 @@ class FlowRunEngine(Generic[P, R]):
         await self.set_subflow_state(state)
         return state
 
-    async def result(self, raise_on_failure: bool = True) -> "R | State | None":
+    async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         return await self.state.result(raise_on_failure=raise_on_failure, fetch=True)
 
     async def handle_success(self, result: R) -> R:
@@ -272,7 +273,7 @@ async def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> "R | None":
+) -> "Union[R, None]":
     """
     Runs a flow against the API.
 
