@@ -574,6 +574,9 @@ def create_app(
                 services.flow_run_notifications.FlowRunNotifications()
             )
 
+        if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
+            service_instances.append(services.foreman.Foreman())
+
         if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 

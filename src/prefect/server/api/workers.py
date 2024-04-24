@@ -22,6 +22,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
@@ -313,6 +314,12 @@ async def get_scheduled_flow_runs(
 
         if work_queue_names is None:
             work_queue_ids = None
+            ready_work_queue_ids = [
+                wq.id
+                for wq in await models.workers.read_work_queues(
+                    session=session, work_pool_id=work_pool_id
+                )
+            ]
         else:
             work_queue_ids = []
             for qn in work_queue_names:
@@ -323,6 +330,7 @@ async def get_scheduled_flow_runs(
                         work_queue_name=qn,
                     )
                 )
+            ready_work_queue_ids = work_queue_ids
 
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
@@ -333,14 +341,19 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-        background_tasks.add_task(
-            _record_work_queue_polls,
-            db=db,
-            work_pool_id=work_pool_id,
-            work_queue_names=work_queue_names,
-        )
+    background_tasks.add_task(
+        _record_work_queue_polls,
+        db=db,
+        work_pool_id=work_pool_id,
+        work_queue_names=work_queue_names,
+    )
 
-        return queue_response
+    background_tasks.add_task(
+        mark_deployments_ready,
+        work_queue_ids=ready_work_queue_ids,
+    )
+
+    return queue_response
 
 
 async def _record_work_queue_polls(

@@ -1139,26 +1139,6 @@ class TestUpdateDeployment:
         assert wq.work_pool == work_pool
 
 
-class TestUpdateDeploymentLastPolled:
-    async def test_updated_deployments_have_last_polled_of_now(
-        self, session, deployment
-    ):
-        current_deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment.id
-        )
-        assert current_deployment.last_polled is None
-
-        await models.deployments._update_deployment_last_polled(
-            session=session, deployment_ids=[deployment.id]
-        )
-
-        updated_deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment.id
-        )
-        assert updated_deployment.last_polled is not None
-        assert updated_deployment.last_polled > pendulum.now("UTC").subtract(minutes=1)
-
-
 @pytest.fixture
 async def deployment_schedules(
     session: AsyncSession,

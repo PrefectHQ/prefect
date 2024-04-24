@@ -8,7 +8,11 @@ from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient, NullEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.utilities.schemas import DateTimeTZ
-from prefect.settings import PREFECT_API_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_EXPERIMENTAL_EVENTS,
+    temporary_settings,
+)
 
 
 def test_emits_simple_event(asserting_events_worker: EventsWorker, reset_worker_events):
@@ -114,7 +118,7 @@ def test_does_not_set_follows_not_tight_timing(
 
 
 def test_noop_with_null_events_client():
-    with temporary_settings(updates={PREFECT_API_URL: None}):
+    with temporary_settings(updates={PREFECT_EXPERIMENTAL_EVENTS: False}):
         worker = EventsWorker.instance()
         assert worker.client_type == NullEventsClient
 

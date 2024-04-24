@@ -42,7 +42,9 @@ from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
+    PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
     PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
+    PREFECT_API_SERVICES_FOREMAN_ENABLED,
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
@@ -52,12 +54,14 @@ from prefect.settings import (
     PREFECT_CLI_WRAP_LINES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
     PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_PROFILES_PATH,
@@ -319,6 +323,7 @@ def pytest_sessionstart(session):
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             PREFECT_LOGGING_INTERNAL_LEVEL: "DEBUG",
+            PREFECT_LOGGING_SERVER_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
             # can be enabled by the `enable_api_log_handler` mark
             PREFECT_LOGGING_TO_API_ENABLED: False,
@@ -329,12 +334,17 @@ def pytest_sessionstart(session):
             PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
             PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
             PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
+            PREFECT_API_SERVICES_FOREMAN_ENABLED: False,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
             # Code is being executed in a unit test context
             PREFECT_UNIT_TEST_MODE: True,
+            # Events: disable the event persister, which may lock the DB during
+            # tests while writing events
+            PREFECT_EXPERIMENTAL_EVENTS: True,
+            PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
         },
         source=__file__,
     )
@@ -558,6 +568,12 @@ def disable_enhanced_cancellation():
             PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: 1,
         }
     ):
+        yield
+
+
+@pytest.fixture
+def events_disabled():
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
         yield
 
 

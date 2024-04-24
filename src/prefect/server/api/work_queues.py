@@ -1,6 +1,7 @@
 """
 Routes for interacting with work queue objects.
 """
+
 from typing import List, Optional
 from uuid import UUID
 
@@ -21,6 +22,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
@@ -148,13 +150,20 @@ async def read_work_queue_runs(
 
     # The Prefect UI often calls this route to see which runs are enqueued.
     # We do not want to record this as an actual poll event.
-    if not x_prefect_ui:
-        background_tasks.add_task(
-            _record_work_queue_polls,
-            db=db,
-            work_queue_id=work_queue_id,
-            agent_id=agent_id,
-        )
+    if x_prefect_ui:
+        return flow_runs
+
+    background_tasks.add_task(
+        _record_work_queue_polls,
+        db=db,
+        work_queue_id=work_queue_id,
+        agent_id=agent_id,
+    )
+
+    background_tasks.add_task(
+        mark_deployments_ready,
+        work_queue_ids=[work_queue_id],
+    )
 
     return flow_runs
 

@@ -5270,7 +5270,9 @@ class TestDeploymentTrigger:
                 triggers[0].as_automation()
             )
 
-        async def test_create_deployment_triggers_not_cloud_noop(self):
+        async def test_create_deployment_triggers_events_disabled_noop(
+            self, events_disabled
+        ):
             client = AsyncMock()
             client.server_type = ServerType.SERVER
 
