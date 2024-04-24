@@ -74,6 +74,26 @@ async def test_reading_automations_by_workspace_by_name_filtered_match(
     assert existing[0].name == "automation 2"
 
 
+async def test_reading_automations_by_workspace_by_name_filtered_match_many(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
+    existing = await automations.read_automations_for_workspace(
+        session=automations_session,
+        sort=AutomationSort.NAME_ASC,
+        automation_filter=filters.AutomationFilter(
+            name={"any_": ["automation 2", "automation 3"]}
+        ),
+    )
+
+    assert len(existing) == 2
+
+    assert [automation.name for automation in existing] == [
+        "automation 2",
+        "automation 3",
+    ]
+
+
 async def test_reading_automations_by_workspace_by_name_filtered_mismatch(
     automations_session: AsyncSession,
     some_workspace_automations: Sequence[Automation],
