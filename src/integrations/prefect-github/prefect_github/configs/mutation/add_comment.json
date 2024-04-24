@@ -1,0 +1,20 @@
+{
+  "addComment": [
+    "clientMutationId",
+    {
+      "commentEdge": [
+        "cursor"
+      ]
+    },
+    {
+      "subject": [
+        "id"
+      ]
+    },
+    {
+      "timelineEdge": [
+        "cursor"
+      ]
+    }
+  ]
+}

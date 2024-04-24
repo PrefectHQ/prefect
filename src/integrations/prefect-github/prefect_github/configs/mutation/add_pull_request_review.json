@@ -1,0 +1,36 @@
+{
+  "addPullRequestReview": [
+    "clientMutationId",
+    {
+      "pullRequestReview": [
+        "id",
+        "authorAssociation",
+        "body",
+        "bodyHTML",
+        "bodyText",
+        "createdAt",
+        "createdViaEmail",
+        "includesCreatedEdit",
+        "lastEditedAt",
+        "publishedAt",
+        "updatedAt",
+        "viewerDidAuthor",
+        "viewerCanDelete",
+        "viewerCanUpdate",
+        "viewerCannotUpdateReasons",
+        "databaseId",
+        "viewerCanReact",
+        "authorCanPushToRepository",
+        "resourcePath",
+        "state",
+        "submittedAt",
+        "url"
+      ]
+    },
+    {
+      "reviewEdge": [
+        "cursor"
+      ]
+    }
+  ]
+}
