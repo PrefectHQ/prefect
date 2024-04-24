@@ -9,8 +9,10 @@ from anyio import open_file
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.events.clients import PrefectCloudEventSubscriber
-from prefect.events.filters import EventFilter
+from prefect.events.clients import (
+    PrefectCloudAccountEventSubscriber,
+    PrefectCloudEventSubscriber,
+)
 
 events_app = PrefectTyper(name="events", help="Commands for working with events.")
 app.add_typer(events_app, aliases=["event"])
@@ -29,7 +31,12 @@ async def stream(
     output_file: str = typer.Option(
         None, "--output-file", help="File to write events to"
     ),
-    event_filter: str = typer.Option(None, "--event-filter", help="Event filter"),
+    account: bool = typer.Option(
+        False,
+        "--account",
+        help="Stream events for entire account, including audit logs",
+    ),
+    run_once: bool = typer.Option(False, "--run-once", help="Stream only one event"),
 ):
     """Subscribes to the event stream of a workspace, printing each event
     as it is received. By default, events are printed as JSON, but can be
@@ -38,22 +45,16 @@ async def stream(
     app.console.print("Subscribing to event stream...")
 
     try:
-        if event_filter:
-            try:
-                filter_dict = orjson.loads(event_filter)
-                constructed_event_filter = EventFilter(
-                    **filter_dict
-                )  # Construct the filter object
-            except orjson.JSONDecodeError:
-                exit_with_error("Invalid JSON format for filter specification")
-            except AttributeError:
-                exit_with_error("Invalid filter specification")
-
-        async with PrefectCloudEventSubscriber(
-            filter=constructed_event_filter
-        ) as subscriber:
+        Subscriber = (
+            PrefectCloudAccountEventSubscriber
+            if account
+            else PrefectCloudEventSubscriber
+        )
+        async with Subscriber() as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
+                if run_once:
+                    typer.Exit(0)
     except Exception as exc:
         handle_error(exc)
 
