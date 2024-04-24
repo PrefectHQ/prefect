@@ -3,15 +3,8 @@
 <p align="center">
     <a href="https://pypi.python.org/pypi/prefect-gitlab/" alt="PyPI version">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-gitlab?color=26272B&labelColor=090422"></a>
-    <a href="https://github.com/prefecthq/prefect-gitlab/" alt="Stars">
-        <img src="https://img.shields.io/github/stars/prefecthq/prefect-gitlab?color=26272B&labelColor=090422" /></a>
     <a href="https://pepy.tech/badge/prefect-gitlab/" alt="Downloads">
         <img src="https://img.shields.io/pypi/dm/prefect-gitlab?color=26272B&labelColor=090422" /></a>
-    <a href="https://github.com/prefecthq/prefect-gitlab/pulse" alt="Activity">
-        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect-gitlab?color=26272B&labelColor=090422" /></a>
-    <br>
-    <a href="https://prefect-community.slack.com" alt="Slack">
-        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=26272B&labelColor=090422&logo=slack" /></a>
 </p>
 
 ## Welcome!
