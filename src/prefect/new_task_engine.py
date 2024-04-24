@@ -258,6 +258,7 @@ class TaskRunEngine(Generic[P, R]):
         if task_run_ctx:
             task_inputs["wait_for"] = [TaskRunResult(id=task_run_ctx.task_run.id)]
 
+        # TODO: implement wait_for
         #        if wait_for:
         #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
@@ -284,7 +285,7 @@ class TaskRunEngine(Generic[P, R]):
     @asynccontextmanager
     async def enter_run_context(self, client: Optional[PrefectClient] = None):
         if client is None:
-            client = await self.get_client()
+            client = self.client
 
         self.task_run = await client.read_task_run(self.task_run.id)
 
@@ -302,10 +303,7 @@ class TaskRunEngine(Generic[P, R]):
     @asynccontextmanager
     async def start(self):
         """
-        - check for a cached state
-        - sets state to running
-        - initialize task run logger
-        - update task run name
+        Enters a client context and creates a task run if needed.
         """
         async with get_client() as client:
             self._client = client
@@ -325,12 +323,6 @@ class TaskRunEngine(Generic[P, R]):
             finally:
                 self._is_started = False
                 self._client = None
-
-    async def get_client(self):
-        if not self._is_started:
-            raise RuntimeError("Engine has not started.")
-        else:
-            return self._client
 
     def is_running(self) -> bool:
         if getattr(self, "task_run", None) is None:

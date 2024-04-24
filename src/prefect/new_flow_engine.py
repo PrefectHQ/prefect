@@ -76,10 +76,6 @@ class FlowRunEngine(Generic[P, R]):
             state = await self.set_state(new_state)
         return state
 
-    async def set_subflow_state(self, state: State) -> State:
-        """This appears to not be necessary"""
-        pass
-
     async def set_state(self, state: State) -> State:
         """ """
         # prevents any state-setting activity
@@ -90,7 +86,6 @@ class FlowRunEngine(Generic[P, R]):
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
-        await self.set_subflow_state(state)
         return state
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -203,7 +198,7 @@ class FlowRunEngine(Generic[P, R]):
     @asynccontextmanager
     async def enter_run_context(self, client: Optional[PrefectClient] = None):
         if client is None:
-            client = await self.get_client()
+            client = self.client
 
         self.flow_run = await client.read_flow_run(self.flow_run.id)
 
@@ -223,8 +218,7 @@ class FlowRunEngine(Generic[P, R]):
     @asynccontextmanager
     async def start(self):
         """
-        - sets state to running
-        - initialize flow run logger
+        Enters a client context and creates a flow run if needed.
         """
         async with get_client() as client:
             self._client = client
@@ -249,12 +243,6 @@ class FlowRunEngine(Generic[P, R]):
 
         self._is_started = False
         self._client = None
-
-    async def get_client(self):
-        if not self._is_started:
-            raise RuntimeError("Engine has not started.")
-        else:
-            return self._client
 
     def is_running(self) -> bool:
         if getattr(self, "flow_run", None) is None:
