@@ -1,0 +1,12 @@
+{
+  "removeStar": [
+    "clientMutationId",
+    {
+      "starrable": [
+        "id",
+        "stargazerCount",
+        "viewerHasStarred"
+      ]
+    }
+  ]
+}

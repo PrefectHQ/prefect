@@ -1,0 +1,483 @@
+{
+  "user": [
+    "id",
+    "avatarUrl",
+    "login",
+    "resourcePath",
+    "url",
+    {
+      "packages": [
+        "totalCount"
+      ]
+    },
+    {
+      "project": [
+        "id",
+        "closed",
+        "closedAt",
+        "viewerCanUpdate",
+        "body",
+        "bodyHTML",
+        "createdAt",
+        "databaseId",
+        "name",
+        "number",
+        "resourcePath",
+        "state",
+        "updatedAt",
+        "url"
+      ]
+    },
+    {
+      "projects": [
+        "totalCount"
+      ]
+    },
+    "projectsResourcePath",
+    "projectsUrl",
+    "viewerCanCreateProjects",
+    {
+      "projectNext": [
+        "id",
+        "closed",
+        "closedAt",
+        "viewerCanUpdate",
+        "createdAt",
+        "databaseId",
+        "description",
+        "number",
+        "public",
+        "resourcePath",
+        "shortDescription",
+        "title",
+        "updatedAt",
+        "url"
+      ]
+    },
+    {
+      "projectsNext": [
+        "totalCount"
+      ]
+    },
+    {
+      "projectV2": [
+        "closed",
+        "closedAt",
+        "viewerCanUpdate",
+        "id",
+        "createdAt",
+        "databaseId",
+        "number",
+        "public",
+        "readme",
+        "resourcePath",
+        "shortDescription",
+        "title",
+        "updatedAt",
+        "url"
+      ]
+    },
+    {
+      "projectsV2": [
+        "totalCount"
+      ]
+    },
+    {
+      "recentProjects": [
+        "totalCount"
+      ]
+    },
+    {
+      "repositoryDiscussions": [
+        "totalCount"
+      ]
+    },
+    {
+      "repositoryDiscussionComments": [
+        "totalCount"
+      ]
+    },
+    {
+      "repositories": [
+        "totalCount",
+        "totalDiskUsage"
+      ]
+    },
+    {
+      "repository": [
+        "id",
+        "projectsResourcePath",
+        "projectsUrl",
+        "viewerCanCreateProjects",
+        "viewerCanSubscribe",
+        "viewerSubscription",
+        "stargazerCount",
+        "viewerHasStarred",
+        "resourcePath",
+        "url",
+        "createdAt",
+        "description",
+        "descriptionHTML",
+        "forkCount",
+        "hasIssuesEnabled",
+        "hasProjectsEnabled",
+        "hasWikiEnabled",
+        "homepageUrl",
+        "isArchived",
+        "isFork",
+        "isInOrganization",
+        "isLocked",
+        "isMirror",
+        "isPrivate",
+        "isTemplate",
+        "lockReason",
+        "mirrorUrl",
+        "name",
+        "nameWithOwner",
+        "openGraphImageUrl",
+        "pushedAt",
+        "shortDescriptionHTML",
+        "updatedAt",
+        "usesCustomOpenGraphImage",
+        "visibility",
+        "allowUpdateBranch",
+        "autoMergeAllowed",
+        "databaseId",
+        "deleteBranchOnMerge",
+        "diskUsage",
+        "forkingAllowed",
+        "isBlankIssuesEnabled",
+        "isDisabled",
+        "isEmpty",
+        "isSecurityPolicyEnabled",
+        "isUserConfigurationRepository",
+        "mergeCommitAllowed",
+        "mergeCommitMessage",
+        "mergeCommitTitle",
+        "rebaseMergeAllowed",
+        "securityPolicyUrl",
+        "squashMergeAllowed",
+        "squashMergeCommitMessage",
+        "squashMergeCommitTitle",
+        "squashPrTitleUsedAsDefault",
+        "sshUrl",
+        "tempCloneToken",
+        "viewerCanAdminister",
+        "viewerCanUpdateTopics",
+        "viewerDefaultCommitEmail",
+        "viewerDefaultMergeMethod",
+        "viewerPermission",
+        "viewerPossibleCommitEmails",
+        "webCommitSignoffRequired"
+      ]
+    },
+    "anyPinnableItems",
+    "email",
+    {
+      "itemShowcase": [
+        "hasPinnedItems"
+      ]
+    },
+    "location",
+    "name",
+    {
+      "pinnableItems": [
+        "totalCount"
+      ]
+    },
+    {
+      "pinnedItems": [
+        "totalCount"
+      ]
+    },
+    "pinnedItemsRemaining",
+    "viewerCanChangePinnedItems",
+    "websiteUrl",
+    "estimatedNextSponsorsPayoutInCents",
+    "hasSponsorsListing",
+    "isSponsoredBy",
+    "isSponsoringViewer",
+    "monthlyEstimatedSponsorsIncomeInCents",
+    {
+      "sponsoring": [
+        "totalCount"
+      ]
+    },
+    {
+      "sponsors": [
+        "totalCount"
+      ]
+    },
+    {
+      "sponsorsActivities": [
+        "totalCount"
+      ]
+    },
+    {
+      "sponsorsListing": [
+        "id",
+        "createdAt",
+        "dashboardResourcePath",
+        "dashboardUrl",
+        "fullDescription",
+        "fullDescriptionHTML",
+        "isPublic",
+        "name",
+        "nextPayoutDate",
+        "resourcePath",
+        "shortDescription",
+        "slug",
+        "url"
+      ]
+    },
+    {
+      "sponsorshipForViewerAsSponsor": [
+        "id",
+        "createdAt",
+        "isOneTimePayment",
+        "isSponsorOptedIntoEmail",
+        "privacyLevel",
+        "tierSelectedAt"
+      ]
+    },
+    {
+      "sponsorshipForViewerAsSponsorable": [
+        "id",
+        "createdAt",
+        "isOneTimePayment",
+        "isSponsorOptedIntoEmail",
+        "privacyLevel",
+        "tierSelectedAt"
+      ]
+    },
+    {
+      "sponsorshipNewsletters": [
+        "totalCount"
+      ]
+    },
+    {
+      "sponsorshipsAsMaintainer": [
+        "totalCount",
+        "totalRecurringMonthlyPriceInCents",
+        "totalRecurringMonthlyPriceInDollars"
+      ]
+    },
+    {
+      "sponsorshipsAsSponsor": [
+        "totalCount",
+        "totalRecurringMonthlyPriceInCents",
+        "totalRecurringMonthlyPriceInDollars"
+      ]
+    },
+    "viewerCanSponsor",
+    "viewerIsSponsoring",
+    "bio",
+    "bioHTML",
+    "canReceiveOrganizationEmailsWhenNotificationsRestricted",
+    {
+      "commitComments": [
+        "totalCount"
+      ]
+    },
+    "company",
+    "companyHTML",
+    {
+      "contributionsCollection": [
+        "contributionYears",
+        "doesEndInCurrentMonth",
+        "earliestRestrictedContributionDate",
+        "endedAt",
+        "hasActivityInThePast",
+        "hasAnyContributions",
+        "hasAnyRestrictedContributions",
+        "isSingleDay",
+        "latestRestrictedContributionDate",
+        "restrictedContributionsCount",
+        "startedAt",
+        "totalCommitContributions",
+        "totalIssueContributions",
+        "totalPullRequestContributions",
+        "totalPullRequestReviewContributions",
+        "totalRepositoriesWithContributedCommits",
+        "totalRepositoriesWithContributedIssues",
+        "totalRepositoriesWithContributedPullRequestReviews",
+        "totalRepositoriesWithContributedPullRequests",
+        "totalRepositoryContributions"
+      ]
+    },
+    "createdAt",
+    "databaseId",
+    {
+      "followers": [
+        "totalCount"
+      ]
+    },
+    {
+      "following": [
+        "totalCount"
+      ]
+    },
+    {
+      "gist": [
+        "id",
+        "stargazerCount",
+        "viewerHasStarred",
+        "resourcePath",
+        "url",
+        "createdAt",
+        "description",
+        "isFork",
+        "isPublic",
+        "name",
+        "pushedAt",
+        "updatedAt"
+      ]
+    },
+    {
+      "gistComments": [
+        "totalCount"
+      ]
+    },
+    {
+      "gists": [
+        "totalCount"
+      ]
+    },
+    {
+      "interactionAbility": [
+        "expiresAt",
+        "limit",
+        "origin"
+      ]
+    },
+    "isBountyHunter",
+    "isCampusExpert",
+    "isDeveloperProgramMember",
+    "isEmployee",
+    "isFollowingViewer",
+    "isGitHubStar",
+    "isHireable",
+    "isSiteAdmin",
+    "isViewer",
+    {
+      "issueComments": [
+        "totalCount"
+      ]
+    },
+    {
+      "issues": [
+        "totalCount"
+      ]
+    },
+    {
+      "organization": [
+        "id",
+        "avatarUrl",
+        "login",
+        "resourcePath",
+        "url",
+        "projectsResourcePath",
+        "projectsUrl",
+        "viewerCanCreateProjects",
+        "anyPinnableItems",
+        "email",
+        "location",
+        "name",
+        "pinnedItemsRemaining",
+        "viewerCanChangePinnedItems",
+        "websiteUrl",
+        "estimatedNextSponsorsPayoutInCents",
+        "hasSponsorsListing",
+        "isSponsoredBy",
+        "isSponsoringViewer",
+        "monthlyEstimatedSponsorsIncomeInCents",
+        "viewerCanSponsor",
+        "viewerIsSponsoring",
+        "createdAt",
+        "databaseId",
+        "description",
+        "descriptionHTML",
+        "ipAllowListEnabledSetting",
+        "ipAllowListForInstalledAppsEnabledSetting",
+        "isVerified",
+        "membersCanForkPrivateRepositories",
+        "newTeamResourcePath",
+        "newTeamUrl",
+        "notificationDeliveryRestrictionEnabledSetting",
+        "organizationBillingEmail",
+        "requiresTwoFactorAuthentication",
+        "teamsResourcePath",
+        "teamsUrl",
+        "twitterUsername",
+        "updatedAt",
+        "viewerCanAdminister",
+        "viewerCanCreateRepositories",
+        "viewerCanCreateTeams",
+        "viewerIsAMember",
+        "viewerIsFollowing",
+        "webCommitSignoffRequired"
+      ]
+    },
+    "organizationVerifiedDomainEmails",
+    {
+      "organizations": [
+        "totalCount"
+      ]
+    },
+    {
+      "publicKeys": [
+        "totalCount"
+      ]
+    },
+    {
+      "pullRequests": [
+        "totalCount"
+      ]
+    },
+    {
+      "repositoriesContributedTo": [
+        "totalCount",
+        "totalDiskUsage"
+      ]
+    },
+    {
+      "savedReplies": [
+        "totalCount"
+      ]
+    },
+    {
+      "starredRepositories": [
+        "isOverLimit",
+        "totalCount"
+      ]
+    },
+    {
+      "status": [
+        "id",
+        "createdAt",
+        "emoji",
+        "emojiHTML",
+        "expiresAt",
+        "indicatesLimitedAvailability",
+        "message",
+        "updatedAt"
+      ]
+    },
+    {
+      "topRepositories": [
+        "totalCount",
+        "totalDiskUsage"
+      ]
+    },
+    "twitterUsername",
+    "updatedAt",
+    "viewerCanFollow",
+    "viewerIsFollowing",
+    {
+      "watching": [
+        "totalCount",
+        "totalDiskUsage"
+      ]
+    }
+  ]
+}

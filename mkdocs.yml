@@ -262,7 +262,18 @@ nav:
                       - integrations/prefect-email/index.md
                       - Credentials: integrations/prefect-email/credentials.md
                       - Message: integrations/prefect-email/message.md
-
+                - GitHub:
+                      - integrations/prefect-github/index.md
+                      - Credentials: integrations/prefect-github/credentials.md
+                      - Graphql: integrations/prefect-github/graphql.md
+                      - Mutations: integrations/prefect-github/mutations.md
+                      - Organization: integrations/prefect-github/organization.md
+                      - Repository: integrations/prefect-github/repository.md
+                      - Repository Owner: integrations/prefect-github/repository_owner.md
+                      - User: integrations/prefect-github/user.md
+                      - Utils: integrations/prefect-github/utils.md
+                      - Viewer: integrations/prefect-github/viewer.md
+                      - Graphql Schema: integrations/prefect-github/schemas/graphql_schema.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
