@@ -16,7 +16,6 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
-from prefect.exceptions import PrefectHTTPStatusError
 
 automations_app = PrefectTyper(
     name="automation",
@@ -172,15 +171,9 @@ async def delete(
             exit_with_error("Please provide either a name or an id.")
 
         if id:
-            try:
-                automation = await client.read_automation(id)
-                if not automation:
-                    exit_with_error(f"Automation with id {id!r} not found.")
-            except PrefectHTTPStatusError as exc:
-                if exc.response.status_code == 404:
-                    exit_with_error(f"Automation with id {id!r} not found.")
-                raise
-
+            automation = await client.read_automation(id)
+            if not automation:
+                exit_with_error(f"Automation with id {id!r} not found.")
             if not typer.confirm(
                 (f"Are you sure you want to delete automation with id {id!r}?"),
                 default=False,
@@ -204,5 +197,5 @@ async def delete(
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")
-            await client.delete_automation(automation.id)
+            await client.delete_automation(automation[0].id)
             exit_with_success(f"Deleted automation with name {name!r}")
