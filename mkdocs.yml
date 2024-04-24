@@ -252,6 +252,11 @@ nav:
                       - integrations/prefect-bitbucket/index.md
                       - Credentials: integrations/prefect-bitbucket/credentials.md
                       - Repositories: integrations/prefect-bitbucket/repositories.md
+                - Dask:
+                      - integrations/prefect-dask/index.md
+                      - Usage Guide: integrations/prefect-dask/usage_guide.md
+                      - Task Runners: integrations/prefect-dask/task_runners.md
+                      - Utils: integrations/prefect-dask/utils.md
                 - Databricks:
                       - integrations/prefect-databricks/index.md
                       - Credentials: integrations/prefect-databricks/credentials.md
