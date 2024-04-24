@@ -3239,7 +3239,6 @@ class PrefectClient:
         response = await self._client.post(
             "/automations/filter",
             json={
-                "limit": 1,
                 "sort": sorting.AutomationSort.UPDATED_DESC,
                 "automations": automation_filter.dict(json_compatible=True)
                 if automation_filter
