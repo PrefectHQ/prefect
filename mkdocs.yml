@@ -263,6 +263,15 @@ nav:
                       - Jobs: integrations/prefect-databricks/jobs.md
                       - Rest: integrations/prefect-databricks/rest.md
                       - Flows: integrations/prefect-databricks/flows.md
+                - Docker:
+                      - integrations/prefect-docker/index.md
+                      - Host: integrations/prefect-docker/host.md
+                      - Credentials: integrations/prefect-docker/credentials.md
+                      - Containers: integrations/prefect-docker/containers.md
+                      - Images: integrations/prefect-docker/images.md
+                      - Deployments:
+                            - Steps: integrations/prefect-docker/deployments/steps.md
+                      - Worker: integrations/prefect-docker/worker.md
                 - Email:
                       - integrations/prefect-email/index.md
                       - Credentials: integrations/prefect-email/credentials.md
