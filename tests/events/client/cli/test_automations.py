@@ -85,6 +85,20 @@ def various_automations(read_automations: mock.AsyncMock) -> List[Automation]:
             actions_on_trigger=[DoNothing()],
             actions_on_resolve=[PauseAutomation(automation_id=uuid4())],
         ),
+        Automation(
+            id=UUID("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+            name="A Metric one",
+            trigger=MetricTrigger(
+                metric=MetricTriggerQuery(
+                    name=PrefectMetric.successes,
+                    operator=MetricTriggerOperator.LT,
+                    threshold=0.78,
+                )
+            ),
+            actions=[CancelFlowRun()],
+            actions_on_trigger=[DoNothing()],
+            actions_on_resolve=[PauseAutomation(automation_id=uuid4())],
+        ),
     ]
     read_automations.return_value = automations
     return automations
@@ -287,7 +301,7 @@ def test_deleting_by_name(
     read_automations_by_name: mock.AsyncMock,
     various_automations: List[Automation],
 ):
-    read_automations_by_name.return_value = various_automations[0]
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "delete", "My First Reactive"],
         prompts_and_responses=[
@@ -303,6 +317,23 @@ def test_deleting_by_name(
     delete_automation.assert_awaited_once_with(
         mock.ANY, UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
     )
+
+
+def test_deleting_by_name_multiple_same_name(
+    delete_automation: mock.AsyncMock,
+    read_automations_by_name: mock.AsyncMock,
+    various_automations: List[Automation],
+):
+    read_automations_by_name.return_value = various_automations[:2]
+    invoke_and_assert(
+        ["automations", "delete", "A Metric one"],
+        expected_code=1,
+        expected_output_contains=[
+            "Multiple automations found with name 'A Metric one'. Please specify an id with the `--id` flag instead."
+        ],
+    )
+
+    delete_automation.assert_not_called()
 
 
 def test_deleting_by_id_not_found_is_a_noop(
