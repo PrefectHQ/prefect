@@ -1139,7 +1139,9 @@
                 "serviceAccount": "{{ service_account_name }}",
                 "maxRetries": "{{ max_retries }}",
                 "timeout": "{{ timeout }}",
-                "vpcAccess": "{{ vpc_connector_name }}",
+                "vpcAccess": {
+                  "connector": "{{ vpc_connector_name }}"
+                },
                 "containers": [
                   {
                     "env": [],
