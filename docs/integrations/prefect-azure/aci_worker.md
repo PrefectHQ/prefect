@@ -178,7 +178,7 @@ Then click Save.
 
 ## Step 6. Pick up a flow run with your new worker
 
-This guide uses ACR to store a Docker image containing your flow code. To do this, we will write a flow, then deploy it using `flow.deploy()`, which will copy flow code into a Docker image and push that image to an ACR registry.
+This guide uses ACR to store a Docker image containing your flow code. Write a flow, then deploy it using `flow.deploy()`, which will copy flow code into a Docker image and push that image to an ACR registry.
 
 ### 1. Log in to ACR
 
