@@ -17,7 +17,7 @@ Before starting this guide, make sure you have:
 
 Azure resource groups serve as containers for managing groupings of Azure resources.
 
-Replace `<resource-group-name>` with the name of your choosing, and `<location>` with a valid Azure location name, like `eastus`.
+Replace `<resource-group-name>` with the name of your choosing, and `<location>` with a valid Azure location name, such as`eastus`.
 
 ```bash
 export RG_NAME=<resource-group-name> && \
