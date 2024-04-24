@@ -56,6 +56,9 @@ jobs:
     environment: "prod"
     needs: build-pypi-dists
     runs-on: ubuntu-latest
+    permissions:
+      # this permission is mandatory for trusted publishing
+      id-token: write
 
     steps:
       - name: Download build artifacts
@@ -64,13 +67,5 @@ jobs:
           name: ${{ needs.build-pypi-dists.outputs.PACKAGE_NAME}}-pypi-dists
           path: "./dist"
 
-      - name: Determine secret key
-        run: |
-          PACKAGE_NAME=${{ needs.build-pypi-dists.outputs.PACKAGE_NAME }}
-          echo "SECRET_KEY=$(echo $PACKAGE_NAME | awk -F'-' '{ print "PYPI_" toupper($2) "_API_TOKEN" }')" >> $GITHUB_ENV
-
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets[env.SECRET_KEY] }}
-          name: ci
