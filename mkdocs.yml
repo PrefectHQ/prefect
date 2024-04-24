@@ -274,6 +274,10 @@ nav:
                       - Utils: integrations/prefect-github/utils.md
                       - Viewer: integrations/prefect-github/viewer.md
                       - Graphql Schema: integrations/prefect-github/schemas/graphql_schema.md
+                - Gitlab:
+                      - integrations/prefect-gitlab/index.md
+                      - Credentials: integrations/prefect-gitlab/credentials.md
+                      - Repositories: integrations/prefect-gitlab/repositories.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
