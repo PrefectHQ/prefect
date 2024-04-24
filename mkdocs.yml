@@ -262,7 +262,10 @@ nav:
                       - integrations/prefect-email/index.md
                       - Credentials: integrations/prefect-email/credentials.md
                       - Message: integrations/prefect-email/message.md
-
+                - Gitlab:
+                      - integrations/prefect-gitlab/index.md
+                      - Credentials: integrations/prefect-gitlab/credentials.md
+                      - Repositories: integrations/prefect-gitlab/repositories.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
