@@ -112,11 +112,11 @@ automation = Automation.create(
         )
 )
 print(automation)
-# d641c552-775c-4dc6-a31e-541cb11137a6
+# name='woodchonk' description='' enabled=True trigger=EventTrigger(type='event', match=ResourceSpecification(__root__={'genus': 'Marmota', 'species': 'monax'}), match_related=ResourceSpecification(__root__={}), after=set(), expect={'animal.walked'}, for_each=set(), posture=Posture.Reactive, threshold=3, within=datetime.timedelta(seconds=10)) actions=[CancelFlowRun(type='cancel-flow-run')] actions_on_trigger=[] actions_on_resolve=[] owner_resource=None id=UUID('d641c552-775c-4dc6-a31e-541cb11137a6')
   
 # reading the automation
 
-automation = Automation.read("d641c552-775c-4dc6-a31e-541cb11137a6")
+automation = Automation.read(id ="d641c552-775c-4dc6-a31e-541cb11137a6")
 or
 automation = Automation.read("woodchonk")
 
