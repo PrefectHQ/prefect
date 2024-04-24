@@ -278,6 +278,18 @@ nav:
                       - integrations/prefect-gitlab/index.md
                       - Credentials: integrations/prefect-gitlab/credentials.md
                       - Repositories: integrations/prefect-gitlab/repositories.md
+                - Kubernetes:
+                      - integrations/prefect-kubernetes/index.md
+                      - Credentials: integrations/prefect-kubernetes/credentials.md
+                      - Custom Objects: integrations/prefect-kubernetes/custom_objects.md
+                      - Deployments: integrations/prefect-kubernetes/deployments.md
+                      - Exceptions: integrations/prefect-kubernetes/exceptions.md
+                      - Flows: integrations/prefect-kubernetes/flows.md
+                      - Jobs: integrations/prefect-kubernetes/jobs.md
+                      - Pods: integrations/prefect-kubernetes/pods.md
+                      - Services: integrations/prefect-kubernetes/services.md
+                      - Utilities: integrations/prefect-kubernetes/utilities.md
+                      - Worker: integrations/prefect-kubernetes/worker.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
