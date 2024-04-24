@@ -252,6 +252,11 @@ nav:
                       - integrations/prefect-bitbucket/index.md
                       - Credentials: integrations/prefect-bitbucket/credentials.md
                       - Repositories: integrations/prefect-bitbucket/repositories.md
+                - Dask:
+                      - integrations/prefect-dask/index.md
+                      - Usage Guide: integrations/prefect-dask/usage_guide.md
+                      - Task Runners: integrations/prefect-dask/task_runners.md
+                      - Utils: integrations/prefect-dask/utils.md
                 - Databricks:
                       - integrations/prefect-databricks/index.md
                       - Credentials: integrations/prefect-databricks/credentials.md
@@ -278,6 +283,18 @@ nav:
                       - integrations/prefect-gitlab/index.md
                       - Credentials: integrations/prefect-gitlab/credentials.md
                       - Repositories: integrations/prefect-gitlab/repositories.md
+                - Kubernetes:
+                      - integrations/prefect-kubernetes/index.md
+                      - Credentials: integrations/prefect-kubernetes/credentials.md
+                      - Custom Objects: integrations/prefect-kubernetes/custom_objects.md
+                      - Deployments: integrations/prefect-kubernetes/deployments.md
+                      - Exceptions: integrations/prefect-kubernetes/exceptions.md
+                      - Flows: integrations/prefect-kubernetes/flows.md
+                      - Jobs: integrations/prefect-kubernetes/jobs.md
+                      - Pods: integrations/prefect-kubernetes/pods.md
+                      - Services: integrations/prefect-kubernetes/services.md
+                      - Utilities: integrations/prefect-kubernetes/utilities.md
+                      - Worker: integrations/prefect-kubernetes/worker.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
@@ -285,6 +302,10 @@ nav:
                       - integrations/prefect-slack/index.md
                       - Credentials: integrations/prefect-slack/credentials.md
                       - Messages: integrations/prefect-slack/messages.md
+                - Snowflake:
+                      - integrations/prefect-snowflake/index.md
+                      - Credentials: integrations/prefect-snowflake/credentials.md
+                      - Database: integrations/prefect-snowflake/database.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:

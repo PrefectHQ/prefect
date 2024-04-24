@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkQueue
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkQueue
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
@@ -33,7 +35,7 @@ async def create_work_pool(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_pool: schemas.core.WorkPool,
-) -> ORMWorkPool:
+) -> "ORMWorkPool":
     """
     Creates a work pool.
 
@@ -69,7 +71,7 @@ async def create_work_pool(
 @db_injector
 async def read_work_pool(
     db: PrefectDBInterface, session: AsyncSession, work_pool_id: UUID
-) -> Optional[ORMWorkPool]:
+) -> Optional["ORMWorkPool"]:
     """
     Reads a WorkPool by id.
 
@@ -88,7 +90,7 @@ async def read_work_pool(
 @db_injector
 async def read_work_pool_by_name(
     db: PrefectDBInterface, session: AsyncSession, work_pool_name: str
-) -> Optional[ORMWorkPool]:
+) -> Optional["ORMWorkPool"]:
     """
     Reads a WorkPool by name.
 
@@ -111,7 +113,7 @@ async def read_work_pools(
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     offset: int = None,
     limit: int = None,
-) -> Sequence[ORMWorkPool]:
+) -> Sequence["ORMWorkPool"]:
     """
     Read worker configs.
 
@@ -272,7 +274,7 @@ async def create_work_queue(
     session: AsyncSession,
     work_pool_id: UUID,
     work_queue: schemas.actions.WorkQueueCreate,
-) -> ORMWorkQueue:
+) -> "ORMWorkQueue":
     """
     Creates a work pool queue.
 
@@ -397,7 +399,7 @@ async def read_work_queues(
     work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-) -> Sequence[ORMWorkQueue]:
+) -> Sequence["ORMWorkQueue"]:
     """
     Read all work pool queues for a work pool. Results are ordered by ascending priority.
 
@@ -435,7 +437,7 @@ async def read_work_queue(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-) -> Optional[ORMWorkQueue]:
+) -> Optional["ORMWorkQueue"]:
     """
     Read a specific work pool queue.
 
@@ -456,7 +458,7 @@ async def read_work_queue_by_name(
     session: AsyncSession,
     work_pool_name: str,
     work_queue_name: str,
-) -> Optional[ORMWorkQueue]:
+) -> Optional["ORMWorkQueue"]:
     """
     Reads a WorkQueue by name.
 
@@ -574,7 +576,7 @@ async def read_workers(
     worker_filter: schemas.filters.WorkerFilter = None,
     limit: int = None,
     offset: int = None,
-) -> Sequence[ORMWorker]:
+) -> Sequence["ORMWorker"]:
     query = (
         sa.select(db.Worker)
         .where(db.Worker.work_pool_id == work_pool_id)
