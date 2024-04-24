@@ -23,6 +23,7 @@ the build step for a specific deployment.
             tag: "{{ build-image.tag }}"
     ```
 """
+
 import os
 import sys
 from pathlib import Path
@@ -33,7 +34,6 @@ import pendulum
 from docker.models.images import Image
 from typing_extensions import TypedDict
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     BuildError,
@@ -79,18 +79,10 @@ class PushDockerImageResult(TypedDict):
     additional_tags: Optional[str]
 
 
-@deprecated_parameter(
-    "push",
-    when=lambda y: y is True,
-    start_date="Jun 2023",
-    help="Use the `push_docker_image` step instead.",
-)
 def build_docker_image(
     image_name: str,
     dockerfile: str = "Dockerfile",
     tag: Optional[str] = None,
-    push: bool = False,
-    credentials: Optional[Dict] = None,
     additional_tags: Optional[List[str]] = None,
     **build_kwargs,
 ) -> BuildDockerImageResult:
@@ -106,9 +98,6 @@ def build_docker_image(
         dockerfile: The path to the Dockerfile used to build the image. If "auto" is
             passed, a temporary Dockerfile will be created to build the image.
         tag: The tag to apply to the built image.
-        push: DEPRECATED: Whether to push the built image to the registry.
-        credentials: A dictionary containing the username, password, and URL for the
-            registry to push the image to.
         additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
         **build_kwargs: Additional keyword arguments to pass to Docker when building
             the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
@@ -119,7 +108,7 @@ def build_docker_image(
             built image.
 
     Example:
-        Build and push a Docker image prior to creating a deployment:
+        Build a Docker image prior to creating a deployment:
         ```yaml
         build:
             - prefect_docker.deployments.steps.build_docker_image:
@@ -128,7 +117,7 @@ def build_docker_image(
                 tag: dev
         ```
 
-        Build and push a Docker image with multiple tags:
+        Build a Docker image with multiple tags:
         ```yaml
         build:
             - prefect_docker.deployments.steps.build_docker_image:
@@ -148,7 +137,6 @@ def build_docker_image(
                 image_name: repo-name/image-name
                 tag: dev
                 dockerfile: auto
-                push: false
         ```
 
 
@@ -160,7 +148,6 @@ def build_docker_image(
                 image_name: repo-name/image-name
                 tag: dev
                 dockerfile: Dockerfile
-                push: false
                 platform: amd64
         ```
     """  # noqa
@@ -232,30 +219,6 @@ def build_docker_image(
         additional_tags = additional_tags or []
         for tag_ in additional_tags:
             image.tag(repository=image_name, tag=tag_)
-
-        if push:
-            if credentials is not None:
-                client.login(
-                    username=credentials.get("username"),
-                    password=credentials.get("password"),
-                    registry=credentials.get("registry_url"),
-                    reauth=credentials.get("reauth", True),
-                )
-            events = client.api.push(
-                repository=image_name, tag=tag, stream=True, decode=True
-            )
-            try:
-                for event in events:
-                    if "status" in event:
-                        sys.stdout.write(event["status"])
-                        if "progress" in event:
-                            sys.stdout.write(" " + event["progress"])
-                        sys.stdout.write("\n")
-                        sys.stdout.flush()
-                    elif "error" in event:
-                        raise OSError(event["error"])
-            finally:
-                client.api.remove_image(image=f"{image_name}:{tag}", noprune=True)
 
     return {
         "image_name": image_name,

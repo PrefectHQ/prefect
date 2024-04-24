@@ -97,12 +97,11 @@ def mock_pendulum(monkeypatch):
             {
                 "image_name": "registry/repo",
                 "dockerfile": "Dockerfile.dev",
-                "push": True,
             },
             f"registry/repo:{FAKE_DEFAULT_TAG}",
         ),
         (
-            {"image_name": "registry/repo", "tag": "mytag", "push": True},
+            {"image_name": "registry/repo", "tag": "mytag"},
             "registry/repo:mytag",
         ),
         (
@@ -119,13 +118,6 @@ def mock_pendulum(monkeypatch):
             {
                 "image_name": "registry/repo",
                 "dockerfile": "auto",
-                "push": True,
-                "credentials": {
-                    "username": "user",
-                    "password": "pass",
-                    "registry_url": "https://registry.com",
-                    "reauth": True,
-                },
             },
             f"registry/repo:{FAKE_DEFAULT_TAG}",
         ),
@@ -133,13 +125,6 @@ def mock_pendulum(monkeypatch):
             {
                 "image_name": "registry/repo",
                 "dockerfile": "auto",
-                "push": True,
-                "credentials": {
-                    "username": "user",
-                    "password": "pass",
-                    "registry_url": "https://registry.com",
-                    "reauth": True,
-                },
                 "path": "path/to/context",
             },
             f"registry/repo:{FAKE_DEFAULT_TAG}",
@@ -165,8 +150,6 @@ def test_build_docker_image(
     image_name = kwargs.get("image_name")
     dockerfile = kwargs.get("dockerfile", "Dockerfile")
     tag = kwargs.get("tag", FAKE_DEFAULT_TAG)
-    push = kwargs.get("push", False)
-    credentials = kwargs.get("credentials", None)
     additional_tags = kwargs.get("additional_tags", None)
     path = kwargs.get("path", os.getcwd())
     result = build_docker_image(**kwargs)
@@ -204,31 +187,9 @@ def test_build_docker_image(
     )
 
     mock_docker_client.images.get.assert_called_once_with(FAKE_CONTAINER_ID)
-    if push:
-        mock_docker_client.api.push.assert_called_once_with(
-            repository=image_name,
-            tag=tag,
-            stream=True,
-            decode=True,
-        )
-        mock_docker_client.api.remove_image.assert_called_once_with(
-            image=expected_image, noprune=True
-        )
-    else:
-        mock_docker_client.api.push.assert_not_called()
 
     if auto_build:
         assert not Path("Dockerfile").exists()
-
-    if credentials:
-        mock_docker_client.login.assert_called_once_with(
-            username=credentials["username"],
-            password=credentials["password"],
-            registry=credentials["registry_url"],
-            reauth=credentials.get("reauth", True),
-        )
-    else:
-        mock_docker_client.login.assert_not_called()
 
 
 def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
@@ -245,7 +206,7 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
     try:
         result = build_docker_image(
-            image_name="local/repo", tag="test", dockerfile="auto", push=False
+            image_name="local/repo", tag="test", dockerfile="auto"
         )
         image: docker.models.images.Image = docker_client_with_cleanup.images.get(
             result["image"]
