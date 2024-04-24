@@ -1214,6 +1214,20 @@ PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
 this often. Defaults to `20`.
 """
 
+PREFECT_API_SERVICES_FOREMAN_ENABLED = Setting(bool, default=True)
+"""Whether or not to start the Foreman service in the server application."""
+
+PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS = Setting(float, default=15)
+"""The number of seconds to wait between each iteration of the Foreman loop which checks
+for offline workers and updates work pool status."""
+
+PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = Setting(
+    int, default=60
+)
+"""The number of seconds before a deployment is marked as not ready if it has not been
+polled."""
+
+
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -1577,6 +1591,11 @@ Whether or not to enable experimental task scheduling.
 PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 """
 Whether or not to enable experimental work queue status in-place of work queue health.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE = Setting(bool, default=False)
+"""
+Whether or not to enable experimental new engine.
 """
 
 

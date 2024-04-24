@@ -6,7 +6,6 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -18,6 +17,7 @@ from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect.server.schemas.core import (
     CreatedBy,
     FlowRunPolicy,
@@ -30,9 +30,8 @@ from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
 if TYPE_CHECKING:
-    import prefect.server.database.orm_models
+    from prefect.server.database.orm_models import ORMDeployment, ORMFlowRun, ORMWorker
 
-DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 60
 WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = 60
 
 
@@ -307,7 +306,7 @@ class FlowRunResponse(ORMBaseModel):
     )
 
     @classmethod
-    def from_orm(cls, orm_flow_run: "prefect.server.database.orm_models.ORMFlowRun"):
+    def from_orm(cls, orm_flow_run: "ORMFlowRun"):
         response = super().from_orm(orm_flow_run)
         if orm_flow_run.work_queue:
             response.work_queue_id = orm_flow_run.work_queue.id
@@ -437,28 +436,13 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ORMBaseModel):
     )
 
     @classmethod
-    def from_orm(
-        cls, orm_deployment: "prefect.server.database.orm_models.ORMDeployment"
-    ):
+    def from_orm(cls, orm_deployment: "ORMDeployment"):
         response = super().from_orm(orm_deployment)
 
         if orm_deployment.work_queue:
             response.work_queue_name = orm_deployment.work_queue.name
             if orm_deployment.work_queue.work_pool:
                 response.work_pool_name = orm_deployment.work_queue.work_pool.name
-
-        not_ready_horizon = datetime.datetime.now(
-            tz=datetime.timezone.utc
-        ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS)
-
-        if response.last_polled and response.last_polled > not_ready_horizon:
-            response.status = schemas.statuses.DeploymentStatus.READY
-        elif (
-            orm_deployment.work_queue
-            and orm_deployment.work_queue.last_polled
-            and orm_deployment.work_queue.last_polled > not_ready_horizon
-        ):
-            response.status = schemas.statuses.DeploymentStatus.READY
 
         # Populate `schedule` and `is_schedule_active` for backwards
         # compatibility with clients that do not support multiple
@@ -548,9 +532,7 @@ class WorkerResponse(schemas.core.Worker):
     )
 
     @classmethod
-    def from_orm(
-        cls, orm_worker: "prefect.server.database.orm_models.ORMWorker"
-    ) -> "WorkerResponse":
+    def from_orm(cls, orm_worker: "ORMWorker") -> "WorkerResponse":
         worker = super().from_orm(orm_worker)
         offline_horizon = datetime.datetime.now(
             tz=datetime.timezone.utc

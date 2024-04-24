@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID, uuid4
 
 import pendulum
@@ -13,18 +13,23 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMDeployment
+from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.models.events import deployment_status_event
+from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.server.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
+    PREFECT_EXPERIMENTAL_EVENTS,
 )
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMDeployment
 
 
 @db_injector
@@ -61,7 +66,7 @@ async def create_deployment(
     db: PrefectDBInterface,
     session: AsyncSession,
     deployment: schemas.core.Deployment,
-) -> Optional[ORMDeployment]:
+) -> Optional["ORMDeployment"]:
     """Upserts a deployment.
 
     Args:
@@ -177,6 +182,8 @@ async def update_deployment(
 
     """
 
+    from prefect.server.api.workers import WorkerLookups
+
     schedules = deployment.schedules
 
     # exclude_unset=True allows us to only update values provided by
@@ -262,7 +269,7 @@ async def update_deployment(
 @db_injector
 async def read_deployment(
     db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
-) -> Optional[ORMDeployment]:
+) -> Optional["ORMDeployment"]:
     """Reads a deployment by id.
 
     Args:
@@ -279,7 +286,7 @@ async def read_deployment(
 @db_injector
 async def read_deployment_by_name(
     db: PrefectDBInterface, session: AsyncSession, name: str, flow_name: str
-) -> Optional[ORMDeployment]:
+) -> Optional["ORMDeployment"]:
     """Reads a deployment by name.
 
     Args:
@@ -377,7 +384,7 @@ async def read_deployments(
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
-) -> Sequence[ORMDeployment]:
+) -> Sequence["ORMDeployment"]:
     """
     Read deployments.
 
@@ -782,21 +789,6 @@ async def check_work_queues_for_deployment(
 
 
 @db_injector
-async def _update_deployment_last_polled(
-    db: PrefectDBInterface, session: AsyncSession, deployment_ids: List[UUID]
-) -> None:
-    """
-    Update the last_polled for a list of deployment ids
-    """
-    query = (
-        sa.update(db.Deployment)
-        .where(db.Deployment.id.in_(deployment_ids))
-        .values(last_polled=pendulum.now("UTC"))
-    )
-    await session.execute(query)
-
-
-@db_injector
 async def create_deployment_schedules(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -938,3 +930,115 @@ async def delete_deployment_schedule(
     )
 
     return result.rowcount > 0
+
+
+@db_injector
+async def mark_deployments_ready(
+    db: PrefectDBInterface,
+    deployment_ids: Optional[Iterable[UUID]] = None,
+    work_queue_ids: Optional[Iterable[UUID]] = None,
+):
+    deployment_ids = deployment_ids or []
+    work_queue_ids = work_queue_ids or []
+
+    if not deployment_ids and not work_queue_ids:
+        return
+
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
+        result = await session.execute(
+            select(db.Deployment.id).where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                ),
+                db.Deployment.status == DeploymentStatus.NOT_READY,
+            )
+        )
+        unready_deployments = list(result.scalars().unique().all())
+
+        last_polled = pendulum.now("UTC")
+
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                )
+            )
+            .values(status=DeploymentStatus.READY, last_polled=last_polled)
+        )
+
+        if not unready_deployments:
+            return
+
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            return
+
+        async with PrefectServerEventsClient() as events:
+            for deployment_id in unready_deployments:
+                await events.emit(
+                    await deployment_status_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        status=DeploymentStatus.READY,
+                        occurred=last_polled,
+                    )
+                )
+
+
+@db_injector
+async def mark_deployments_not_ready(
+    db: PrefectDBInterface,
+    deployment_ids: Optional[Iterable[UUID]] = None,
+    work_queue_ids: Optional[Iterable[UUID]] = None,
+):
+    deployment_ids = deployment_ids or []
+    work_queue_ids = work_queue_ids or []
+
+    if not deployment_ids and not work_queue_ids:
+        return
+
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
+        result = await session.execute(
+            select(db.Deployment.id).where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                ),
+                db.Deployment.status == DeploymentStatus.READY,
+            )
+        )
+        ready_deployments = list(result.scalars().unique().all())
+
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                )
+            )
+            .values(status=DeploymentStatus.NOT_READY)
+        )
+
+        if not ready_deployments:
+            return
+
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            return
+
+        async with PrefectServerEventsClient() as events:
+            for deployment_id in ready_deployments:
+                await events.emit(
+                    await deployment_status_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        status=DeploymentStatus.NOT_READY,
+                        occurred=pendulum.now("UTC"),
+                    )
+                )

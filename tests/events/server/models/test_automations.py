@@ -59,6 +59,34 @@ async def test_reading_automations_by_workspace_by_name(
     ]
 
 
+async def test_reading_automations_by_workspace_by_name_filtered_match(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
+    existing = await automations.read_automations_for_workspace(
+        session=automations_session,
+        sort=AutomationSort.NAME_ASC,
+        automation_filter=filters.AutomationFilter(name={"any_": ["automation 2"]}),
+    )
+
+    assert len(existing) == 1
+
+    assert existing[0].name == "automation 2"
+
+
+async def test_reading_automations_by_workspace_by_name_filtered_mismatch(
+    automations_session: AsyncSession,
+    some_workspace_automations: Sequence[Automation],
+):
+    existing = await automations.read_automations_for_workspace(
+        session=automations_session,
+        sort=AutomationSort.NAME_ASC,
+        automation_filter=filters.AutomationFilter(name={"any_": ["automation 5"]}),
+    )
+
+    assert len(existing) == 0
+
+
 async def test_reading_automations_by_workspace_paging(
     automations_session: AsyncSession,
     some_workspace_automations: Sequence[Automation],
