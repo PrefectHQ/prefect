@@ -2138,11 +2138,9 @@ class TestAutomations:
             )
 
             assert read_route.called
-            assert len(read_automation) == 1
-            assert read_automation[0].id == UUID(created_automation["id"])
-            assert (
-                read_automation[0].name == automation.name == created_automation["name"]
-            )
+            assert isinstance(read_automation, AutomationCore)
+            assert read_automation.id == UUID(created_automation["id"])
+            assert read_automation.name == automation.name == created_automation["name"]
 
     async def test_read_automation_by_name_not_found(
         self, cloud_client, automation: AutomationCore
