@@ -248,6 +248,10 @@ nav:
                       - Container Instance Worker: integrations/prefect-azure/container_instance_worker.md
                       - Deployments:
                             - Steps: integrations/prefect-azure/deployments/steps.md
+                - Bitbucket:
+                      - integrations/prefect-bitbucket/index.md
+                      - Credentials: integrations/prefect-bitbucket/credentials.md
+                      - Repositories: integrations/prefect-bitbucket/repositories.md
                 - Databricks:
                       - integrations/prefect-databricks/index.md
                       - Credentials: integrations/prefect-databricks/credentials.md
@@ -258,7 +262,22 @@ nav:
                       - integrations/prefect-email/index.md
                       - Credentials: integrations/prefect-email/credentials.md
                       - Message: integrations/prefect-email/message.md
-
+                - GitHub:
+                      - integrations/prefect-github/index.md
+                      - Credentials: integrations/prefect-github/credentials.md
+                      - Graphql: integrations/prefect-github/graphql.md
+                      - Mutations: integrations/prefect-github/mutations.md
+                      - Organization: integrations/prefect-github/organization.md
+                      - Repository: integrations/prefect-github/repository.md
+                      - Repository Owner: integrations/prefect-github/repository_owner.md
+                      - User: integrations/prefect-github/user.md
+                      - Utils: integrations/prefect-github/utils.md
+                      - Viewer: integrations/prefect-github/viewer.md
+                      - Graphql Schema: integrations/prefect-github/schemas/graphql_schema.md
+                - Gitlab:
+                      - integrations/prefect-gitlab/index.md
+                      - Credentials: integrations/prefect-gitlab/credentials.md
+                      - Repositories: integrations/prefect-gitlab/repositories.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
