@@ -190,10 +190,14 @@ async def delete(
             exit_with_success(f"Deleted automation with id {id!r}")
 
         elif name:
-            automation = await client.read_automation_by_name(name=name)
+            automation = await client.read_automations_by_name(name=name)
             if not automation:
                 exit_with_error(
                     f"Automation {name!r} not found. You can also specify an id with the `--id` flag."
+                )
+            elif len(automation) > 1:
+                exit_with_error(
+                    f"Multiple automations found with name {name!r}. Please specify an id with the `--id` flag instead."
                 )
             if not typer.confirm(
                 (f"Are you sure you want to delete automation with name {name!r}?"),

@@ -274,9 +274,9 @@ def delete_automation() -> Generator[mock.AsyncMock, None, None]:
 
 
 @pytest.fixture
-def read_automation_by_name() -> Generator[mock.AsyncMock, None, None]:
+def read_automations_by_name() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
-        "prefect.client.orchestration.PrefectClient.read_automation_by_name",
+        "prefect.client.orchestration.PrefectClient.read_automations_by_name",
         autospec=True,
     ) as mock_read:
         yield mock_read
@@ -284,10 +284,10 @@ def read_automation_by_name() -> Generator[mock.AsyncMock, None, None]:
 
 def test_deleting_by_name(
     delete_automation: mock.AsyncMock,
-    read_automation_by_name: mock.AsyncMock,
+    read_automations_by_name: mock.AsyncMock,
     various_automations: List[Automation],
 ):
-    read_automation_by_name.return_value = various_automations[0]
+    read_automations_by_name.return_value = various_automations[0]
     invoke_and_assert(
         ["automations", "delete", "My First Reactive"],
         prompts_and_responses=[
@@ -305,9 +305,12 @@ def test_deleting_by_name(
     )
 
 
-def test_deleting_not_found_is_a_noop(
-    delete_automation: mock.AsyncMock, various_automations: List[Automation]
+def test_deleting_by_id_not_found_is_a_noop(
+    delete_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "delete", "Who dis?"],
         expected_code=1,
@@ -344,8 +347,9 @@ def test_deleting_by_id(
 
 def test_deleting_by_nonexistent_id(
     delete_automation: mock.AsyncMock,
-    various_automations: List[Automation],
+    read_automation: mock.AsyncMock,
 ):
+    read_automation.return_value = None
     invoke_and_assert(
         ["automations", "delete", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
         expected_code=1,
