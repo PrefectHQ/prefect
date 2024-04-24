@@ -96,11 +96,6 @@ from prefect.events.schemas.automations import EventTrigger
 from prefect.server.events.actions import CancelFlowRun
 
 # creating an automation
-from prefect.automations import Automation
-from prefect.events.schemas.automations import EventTrigger
-from datetime import timedelta
-from prefect.server.events.actions import CancelFlowRun
-
 automation = Automation.create(
   Automation(
     name="woodchonk",

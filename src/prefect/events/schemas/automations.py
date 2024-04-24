@@ -436,7 +436,7 @@ class Automation(AutomationCore):
 
     @classmethod
     @sync_compatible
-    async def create(cls: Type[Self], automation: Type[Self]) -> UUID:
+    async def create(cls: Self, automation: Type[Self]) -> UUID:
         """
         Create a new automation.
 
@@ -463,9 +463,7 @@ class Automation(AutomationCore):
 
     @classmethod
     @sync_compatible
-    async def update(
-        cls: Type[Self], automation_id: UUID, automation: Type[Self]
-    ) -> UUID:
+    async def update(cls: Self, automation_id: UUID, automation: Type[Self]) -> UUID:
         """
         Updates an existing automation.
 
@@ -496,7 +494,7 @@ class Automation(AutomationCore):
 
     @classmethod
     @sync_compatible
-    async def read(cls: Type[Self], id_or_name: str) -> Self:
+    async def read(cls: Self, id_or_name: str) -> Self:
         """
         Read an automation by ID or name.
         automation = Automation.read(id_or_name="woodchonk")
@@ -511,7 +509,7 @@ class Automation(AutomationCore):
 
     @classmethod
     @sync_compatible
-    async def delete(cls: Type[Self], automation_id: UUID):
+    async def delete(cls: Self, automation_id: UUID):
         """
         Delete an automation by ID.
         automation_to_delete = Automation.delete(automation_id="b3514963-02b1-47a5-93d1-6eeb131041cb")
@@ -522,7 +520,7 @@ class Automation(AutomationCore):
 
     @classmethod
     @sync_compatible
-    async def disable(cls: Type[Self], automation_id: UUID):
+    async def disable(cls: Self, automation_id: UUID):
         """
         Disable an automation by ID.
         automation_to_disable = Automation.disable(automation_id="b3514963-02b1-47a5-93d1-6eeb131041cb")
@@ -533,7 +531,7 @@ class Automation(AutomationCore):
 
     @classmethod
     @sync_compatible
-    async def enable(cls: Type[Self], automation_id: UUID):
+    async def enable(cls: Self, automation_id: UUID):
         """
         Enable an automation by ID.
         automation_to_enable = Automation.enable(automation_id="b3514963-02b1-47a5-93d1-6eeb131041cb")
