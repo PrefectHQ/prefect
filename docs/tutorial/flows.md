@@ -9,30 +9,19 @@ tags:
     - parameters
     - retries
 ---
-!!! note "Prerequisites"
-    This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-hosted server instance.
-    See the prerequisites section of the [tutorial](/tutorial/) for more details.
+# Master workflow automations: Build flows
 
-## What is a flow?
+This page in the [tutorial](/tutorial) shows how to build flows.
 
-[Flows](/concepts/flows/) are like functions.
-They can take inputs, perform work, and return an output.
-In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator.
-When a function becomes a flow, its behavior changes, giving it the following advantages:
+Flows are the core building blocks for defining and managing workflows as code within Prefect. They serve as containers for your workflow logic.
 
-- All runs of the flow have persistent [state](/concepts/states/). Transitions between states are recorded, allowing for flow execution to be observed and acted upon.
-- Input arguments can be type validated as workflow parameters.
-- Retries can be performed on failure.
-- Timeouts can be enforced to prevent unintentional, long-running workflows.
-- Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- They can easily be elevated to a [deployment](/concepts/deployments/), which exposes a remote API for interacting with it
+## Before you begin
 
-## Run your first flow
+Complete the [Before you begin section](/tutorial/).
 
-The simplest way to get started with Prefect is to annotate a Python function with the `@flow` decorator.
-The script below fetches statistics about the [main Prefect repository](https://github.com/PrefectHQ/prefect).
-Note that [httpx](https://www.python-httpx.org/) is an HTTP client library and a dependency of Prefect.
-Let's turn this function into a Prefect flow and run the script:
+## Create a flow
+
+The following function uses the [`httpx`](https://www.python-httpx.org/) Prefect dependency (an HTTP client library) and the `@flow` decorator to create a flow that fetches statistics about the [GitHub Prefect repository](https://github.com/PrefectHQ/prefect):
 
 ```python title="repo_info.py" hl_lines="2 5"
 import httpx
@@ -53,34 +42,30 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-Running this file will result in some interesting output:
+Running this file results in the following output:
 
 <div class="terminal">
 
 ```bash
-12:47:42.792 | INFO | prefect.engine - Created flow run 'ludicrous-warthog' for flow 'get-repo-info'
+12:47:42.792 | INFO | prefect.engine - Created flow run 'ludicrous-warthog' for
+        flow 'get-repo-info'
 PrefectHQ/prefect repository statistics 🤓:
 Stars 🌠 : 12146
 Forks 🍴 : 1245
-12:47:45.008 | INFO | Flow run 'ludicrous-warthog' - Finished in state Completed()
+12:47:45.008 | INFO | Flow run 'ludicrous-warthog' - Finished in state
+        Completed()
 ```
-
 </div>
-
-!!! tip "Flows can contain arbitrary Python"
-    As we can see above, flow definitions can contain arbitrary Python logic.
 
 ## Parameters
 
-As with any Python function, you can pass arguments to a flow.
-The positional and keyword arguments defined on your flow function are called [parameters](/concepts/flows/#parameters).
-Prefect will automatically perform type conversion using any provided type hints.
+You can pass positional and keyword arguments to a flow using parameters. Prefect automatically performs type conversion using any provided type hints.
+
 Let's make the repository a string parameter with a default value:
 
 ```python hl_lines="6 7 11" title="repo_info.py"
 import httpx
 from prefect import flow
-
 
 @flow
 def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
@@ -109,24 +94,25 @@ python repo_info.py
 
 Try passing `repo_name="missing-org/missing-repo"`.
 
-You should see
+You should see:
 
 <div class="terminal">
 
 ```bash
-HTTPStatusError: Client error '404 Not Found' for url '<https://api.github.com/repos/missing-org/missing-repo>'
+HTTPStatusError: Client error '404 Not Found' for url
+        '<https://api.github.com/repos/missing-org/missing-repo>'
 
 ```
 
 </div>
 
-Now navigate to your Prefect dashboard and compare the displays for these two runs.
+Now navigate to your [Prefect dashboard](link) and compare the displays for these two runs.
 
 ## Logging
 
-Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
-If we navigate to our dashboard and explore the runs we created above, we will notice that the repository statistics are not captured in the flow run logs.  
-Let's fix that by adding some [logging](/concepts/logs) to our flow:
+Prefect enables you to log a variety of useful information about your flow runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
+
+Add logging to your flow to track progress and debug errors:
 
 ```python hl_lines="2 11-14" title="repo_info.py"
 import httpx
@@ -145,7 +131,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
     logger.info(f"Forks 🍴 : %d", repo["forks_count"])
 ```
 
-Now the output looks more consistent _and_, more importantly, our statistics are stored in the Prefect backend and displayed in the UI for this flow run:
+Your output should look more consistent:
 
 <div class="terminal">
 ```bash
@@ -157,28 +143,11 @@ Now the output looks more consistent _and_, more importantly, our statistics are
 ```
 </div>
 
-!!! tip "`log_prints=True`"
-    We could have achieved the exact same outcome by using Prefect's convenient `log_prints` keyword argument in the `flow` decorator:
+## Handle unexpected errors
 
-    ```python
+If unexpected errors occur, such as the GitHub API is temporarily unavailable or rate limited, you can use [retries](/concepts/flows/#flow-settings) to help make your flow more resilient.
 
-    @flow(log_prints=True)
-    def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-        ...
-
-    ```
-
-!!! warning "Logging vs Artifacts"
-    The example above is for educational purposes.
-    In general, it is better to use [Prefect artifacts](/concepts/artifacts/) for storing metrics and output.
-    Logs are best for tracking progress and debugging errors.
-
-## Retries
-
-So far our script works, but in the future unexpected errors may occur.
-For example the GitHub API may be temporarily unavailable or rate limited.
-[Retries](/concepts/flows/#flow-settings) help make our flow more resilient.
-Let's add retry functionality to our example above:
+Let's add retry functionality to our example:
 
 ```python hl_lines="5" title="repo_info.py"
 import httpx
@@ -199,7 +168,7 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-## [Next: Tasks](/tutorial/tasks/)
+## Next steps
 
-As you have seen, adding a flow decorator converts our Python function to a resilient and observable workflow.
-In the next section, you'll supercharge this flow by using tasks to break down the workflow's complexity and make it more performant and observable - [click here to continue](/tutorial/tasks/).
+Now that you've created a simple flow that uses logging and handles retries, you're ready to 
+use [tasks](/tutorial/tasks/).
