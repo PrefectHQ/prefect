@@ -26,7 +26,7 @@ from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas
 from prefect.server.api.automations import FlowRunInfrastructureMissing
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.events import actions
+from prefect.server.events import actions, filters
 from prefect.server.events.models.automations import (
     create_automation,
     read_automations_related_to_resource,
@@ -715,6 +715,48 @@ async def test_read_automations_page(
     expected = expected[1:3]
 
     assert automations == expected
+
+
+async def test_read_automations_filter_by_name_match(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            name=filters.AutomationFilterName(any_=["automation 1", "automation 2"])
+        ).dict(json_compatible=True)
+    )
+
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+
+    assert response.status_code == 200, response.content
+
+    automations = pydantic.parse_obj_as(List[Automation], response.json())
+
+    expected = sorted(some_workspace_automations, key=lambda a: a.name)
+    expected = [a for a in expected if a.name in ["automation 1", "automation 2"]]
+
+    assert automations == expected
+    assert len(automations) == 2
+
+
+async def test_read_automations_filter_by_name_mismatch(
+    some_workspace_automations: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            name=filters.AutomationFilterName(any_=["nonexistentautomation"])
+        ).dict(json_compatible=True)
+    )
+
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+
+    assert response.status_code == 200, response.content
+
+    assert response.json() == []
 
 
 async def test_count_automations(

@@ -35,11 +35,14 @@ async def read_automations_for_workspace(
     sort: AutomationSort = AutomationSort.NAME_ASC,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
+    automation_filter: Optional[filters.AutomationFilter] = None,
 ) -> Sequence[Automation]:
     query = sa.select(db.Automation)
 
     query = query.order_by(db.Automation.sort_expression(sort))
 
+    if automation_filter:
+        query = query.where(automation_filter.as_sql_filter(db))
     if limit is not None:
         query = query.limit(limit)
     if offset is not None:
