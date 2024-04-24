@@ -1,0 +1,20 @@
+{
+  "addReaction": [
+    "clientMutationId",
+    {
+      "reaction": [
+        "id",
+        "content",
+        "createdAt",
+        "databaseId"
+      ]
+    },
+    {
+      "subject": [
+        "databaseId",
+        "id",
+        "viewerCanReact"
+      ]
+    }
+  ]
+}
