@@ -322,3 +322,26 @@ def test_deleting_not_found_is_a_noop(
     )
 
     delete_automation.assert_not_called()
+
+
+def test_deleting_by_id(
+    delete_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+):
+    invoke_and_assert(
+        ["automations", "delete", "--id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+        prompts_and_responses=[
+            (
+                "Are you sure you want to delete automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'?",
+                "y",
+            )
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Deleted automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
+    )
+
+    delete_automation.assert_awaited_once_with(
+        mock.ANY, UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    )
