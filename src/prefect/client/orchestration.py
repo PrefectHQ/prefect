@@ -3204,18 +3204,15 @@ class PrefectClient:
         response.raise_for_status()
         return Automation.parse_obj(response.json())
 
-    async def read_automation_by_name(self, name: str) -> Optional[Automation]:
+    async def read_automations_by_name(self, name: str) -> List[Automation]:
         """
         Query the Prefect API for an automation by name. Only automations matching the provided name will be returned.
-
-        If more than one automation matches the name, the most recently updated automation will be returned.
 
         Args:
             name: the name of the automation to query
 
         Returns:
-            an Automation model representation of the automation, or None if not found. If more than one automation
-            matches the name, the most recently updated automation will be returned.
+            a list of Automation model representations of the automations
         """
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
@@ -3234,14 +3231,7 @@ class PrefectClient:
 
         response.raise_for_status()
 
-        if not response.json():
-            return None
-
-        else:
-            # normally a `/filter` endpoint would return a list of objects, but read_x_by_name
-            # methods return a single object in all other methods in the client, so
-            # we're ensuring parity there
-            return Automation.parse_obj(response.json()[0])
+        return pydantic.parse_obj_as(List[Automation], response.json())
 
     async def pause_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
