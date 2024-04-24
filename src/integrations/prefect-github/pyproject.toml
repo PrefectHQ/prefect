@@ -3,11 +3,9 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
+name = "prefect-github"
 dependencies = ["sgqlc>=15.0", "prefect>=2.13.5"]
 dynamic = ["version"]
-
-[project.optional-dependencies]
-name = "prefect-github"
 description = "Prefect integrations interacting with GitHub"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -27,6 +25,8 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
+
+[project.optional-dependencies]
 dev = [
   "coverage",
   "interrogate",
