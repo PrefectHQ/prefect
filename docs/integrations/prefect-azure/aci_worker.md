@@ -42,7 +42,7 @@ In order for the worker to create, monitor, and delete the other Container Insta
 
 ### 1. Create a role
 
-The custom `Container Instances Contributor` role has all the permissions your worker will need to run flows in other Container Instances. Create it by running the following command:
+The custom `Container Instances Contributor` role has all the permissions your worker will need to run flows in other container instances. Create it by running the following command:
 
 ```bash
 az role definition create --role-definition '{
