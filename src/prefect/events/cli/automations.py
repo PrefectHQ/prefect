@@ -4,7 +4,6 @@ Command line interface for working with automations.
 
 import functools
 from typing import Optional
-from uuid import UUID
 
 import orjson
 import typer
@@ -171,28 +170,30 @@ async def delete(
     async with get_client() as client:
         if id:
             try:
-                confirm_delete = typer.confirm(
-                    (f"Are you sure you want to delete automation with id {id!r}?"),
-                    default=False,
-                )
-                if not confirm_delete:
-                    exit_with_error("Deletion aborted.")
-                await client.delete_automation(UUID(id))
-                exit_with_success(f"Deleted automation with id {id!r}")
-            except PrefectHTTPStatusError:
-                exit_with_error(f"Automation with id {id!r} not found!")
+                automation = await client.read_automation(id)
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    exit_with_error(f"Automation with id {id!r} not found.")
+                raise
+            if not automation:
+                exit_with_error(f"Automation with id {id!r} not found.")
+            if not typer.confirm(
+                (f"Are you sure you want to delete automation with id {id!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+            await client.delete_automation(id)
+            exit_with_success(f"Deleted automation with id {id!r}")
         elif name:
             automation = await client.read_automation_by_name(name=name)
             if not automation:
                 exit_with_error(
                     f"Automation {name!r} not found. You can also specify an id with the `--id` flag."
                 )
-            confirm_delete = typer.confirm(
+            if not typer.confirm(
                 (f"Are you sure you want to delete automation with name {name!r}?"),
                 default=False,
-            )
-
-            if not confirm_delete:
+            ):
                 exit_with_error("Deletion aborted.")
             await client.delete_automation(automation.id)
             exit_with_success(f"Deleted automation with name {name!r}")

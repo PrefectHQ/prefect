@@ -3244,7 +3244,6 @@ class PrefectClient:
         response = await self._client.delete(f"/automations/{automation_id}")
         if response.status_code == 404:
             return
-
         response.raise_for_status()
 
     async def read_resource_related_automations(
