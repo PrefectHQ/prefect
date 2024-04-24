@@ -1,6 +1,9 @@
 import asyncio
+import inspect
 import logging
-from contextlib import asynccontextmanager
+import signal
+import sys
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -8,6 +11,7 @@ from typing import (
     Callable,
     Coroutine,
     Dict,
+    Generator,
     Generic,
     Iterable,
     Literal,
@@ -40,7 +44,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import A, Async, is_async_fn
+from prefect.utilities.asyncutils import A, Async, is_async_fn, run_sync
 from prefect.utilities.engine import (
     _dynamic_key_for_task_run,
     _get_hook_name,
@@ -48,6 +52,9 @@ from prefect.utilities.engine import (
     collect_task_run_inputs,
     propose_state,
 )
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 @asynccontextmanager
@@ -63,13 +70,40 @@ async def timeout(
 
     try:
         yield
+    except asyncio.CancelledError as exc:
+        raise TimeoutError(f"Timeout exceeded {delay} seconds.") from exc
     finally:
         if timer_handle is not None:
             timer_handle.cancel()
 
 
-P = ParamSpec("P")
-R = TypeVar("R")
+@contextmanager
+def timeout_sync(delay: Optional[int]) -> Generator[None, None, None]:
+    if delay is None:
+        yield
+    else:
+        if sys.platform == "win32":
+            raise OSError("Synchronous timeout is not supported on Windows.")
+
+        if delay != int(delay):
+            raise ValueError(
+                "Timeout must be an integer number of seconds for synchronous tasks."
+            )
+
+        def signal_handler(signum, frame):
+            raise TimeoutError(f"Timeout exceeded {delay} seconds.")
+
+        # Set the signal handler for the alarm signal
+        original_handler = signal.signal(signal.SIGALRM, signal_handler)
+        # Schedule the alarm
+        signal.alarm(int(delay))
+        try:
+            yield
+        finally:
+            # Cancel the alarm
+            signal.alarm(0)
+            # Restore the original signal handler
+            signal.signal(signal.SIGALRM, original_handler)
 
 
 @dataclass
@@ -197,7 +231,12 @@ class TaskRunEngine(Generic[P, R]):
         return new_state
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
-        return await self.state.result(raise_on_failure=raise_on_failure)
+        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
+        if inspect.isawaitable(_result):
+            _result = await _result
+        return _result
 
     async def handle_success(self, result: R) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
@@ -300,6 +339,24 @@ class TaskRunEngine(Generic[P, R]):
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)
             yield
 
+    @contextmanager
+    def enter_run_context_sync(self, client: PrefectClient = None):
+        if client is None:
+            client = self.client
+
+        self.task_run = run_sync(client.read_task_run(self.task_run.id))
+
+        with TaskRunContext(
+            task=self.task,
+            log_prints=self.task.log_prints or False,
+            task_run=self.task_run,
+            parameters=self.parameters,
+            result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),
+            client=client,
+        ):
+            self.logger = task_run_logger(task_run=self.task_run, task=self.task)
+            yield
+
     @asynccontextmanager
     async def start(self):
         """
@@ -311,7 +368,6 @@ class TaskRunEngine(Generic[P, R]):
             try:
                 if not self.task_run:
                     self.task_run = await self.create_task_run(client)
-
                 yield self
             except Exception:
                 # regular exceptions are caught and re-raised to the user
@@ -323,6 +379,38 @@ class TaskRunEngine(Generic[P, R]):
             finally:
                 self._is_started = False
                 self._client = None
+
+    @contextmanager
+    def start_sync(self):
+        """
+        Enters a client context and creates a task run if needed.
+        """
+        client = get_client()
+        run_sync(client.__aenter__())
+        self._client = client
+        self._is_started = True
+        try:
+            if not self.task_run:
+                self.task_run = run_sync(self.create_task_run(client))
+            yield self
+        except Exception:
+            # regular exceptions are caught and re-raised to the user
+            raise
+        except BaseException as exc:
+            # BaseExceptions are caught and handled as crashes
+            run_sync(self.handle_crash(exc))
+            raise
+        finally:
+            # quickly close client
+            run_sync(client.__aexit__(None, None, None))
+            self._is_started = False
+            self._client = None
+
+    async def get_client(self):
+        if not self._is_started:
+            raise RuntimeError("Engine has not started.")
+        else:
+            return self._client
 
     def is_running(self) -> bool:
         if getattr(self, "task_run", None) is None:
@@ -357,10 +445,8 @@ async def run_task(
                 try:
                     # This is where the task is actually run.
                     async with timeout(run.task.timeout_seconds):
-                        if task.isasync:
-                            result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
-                        else:
-                            result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+                        result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+
                     # If the task run is successful, finalize it.
                     await run.handle_success(result)
                     if return_type == "result":
@@ -372,3 +458,35 @@ async def run_task(
         if return_type == "state":
             return run.state
         return await run.result()
+
+
+def run_task_sync(
+    task: Task[P, Coroutine[Any, Any, R]],
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> R | State | None:
+    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    # This is a context manager that keeps track of the run of the task run.
+    with engine.start_sync() as run:
+        run_sync(run.begin_run())
+
+        while run.is_running():
+            with run.enter_run_context_sync():
+                try:
+                    # This is where the task is actually run.
+                    with timeout_sync(run.task.timeout_seconds):
+                        result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+
+                    # If the task run is successful, finalize it.
+                    run_sync(run.handle_success(result))
+                    if return_type == "result":
+                        return result
+
+                except Exception as exc:
+                    run_sync(run.handle_exception(exc))
+
+        if return_type == "state":
+            return run.state
+        return run_sync(run.result())
