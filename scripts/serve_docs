@@ -27,7 +27,7 @@ fi
 cd "$(dirname "$0")/.."
 
 # Create a temporary virtual environment using uv
-uv venv "$temp_dir/.venv"
+uv venv "$temp_dir/.venv" --python 3.11 # ray[default] does not support Python 3.12 yet
 source "$temp_dir/.venv/bin/activate"
 
 # Install all integration libraries from src/integrations
