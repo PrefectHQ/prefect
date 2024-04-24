@@ -2129,7 +2129,7 @@ class TestAutomations:
 
             assert read_route.called
 
-    async def test_read_automation_by_name(
+    async def test_read_automations_by_name(
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
@@ -2138,16 +2138,18 @@ class TestAutomations:
             read_route = router.post("/automations/filter").mock(
                 return_value=httpx.Response(200, json=[created_automation])
             )
-            read_automation = await cloud_client.read_automation_by_name(
+            read_automation = await cloud_client.read_automations_by_name(
                 automation.name
             )
 
             assert read_route.called
-            assert isinstance(read_automation, AutomationCore)
-            assert read_automation.id == UUID(created_automation["id"])
-            assert read_automation.name == automation.name == created_automation["name"]
+            assert len(read_automation) == 1
+            assert read_automation[0].id == UUID(created_automation["id"])
+            assert (
+                read_automation[0].name == automation.name == created_automation["name"]
+            )
 
-    async def test_read_automation_by_name_not_found(
+    async def test_read_automations_by_name_not_found(
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
@@ -2158,13 +2160,13 @@ class TestAutomations:
                 return_value=httpx.Response(200, json=[])
             )
 
-            nonexistent_automation = await cloud_client.read_automation_by_name(
+            nonexistent_automation = await cloud_client.read_automations_by_name(
                 name="nonexistent"
             )
 
             assert read_route.called
 
-            assert nonexistent_automation is None
+            assert nonexistent_automation == []
 
     async def test_delete_owned_automations_not_cloud_runtime_error(
         self, prefect_client

@@ -59,7 +59,7 @@ async def test_reading_automations_by_workspace_by_name(
     ]
 
 
-async def test_reading_automation_by_workspace_by_name_filtered_match(
+async def test_reading_automations_by_workspace_by_name_filtered_match(
     automations_session: AsyncSession,
     some_workspace_automations: Sequence[Automation],
 ):
@@ -74,7 +74,7 @@ async def test_reading_automation_by_workspace_by_name_filtered_match(
     assert existing[0].name == "automation 2"
 
 
-async def test_reading_automation_by_workspace_by_name_filtered_mismatch(
+async def test_reading_automations_by_workspace_by_name_filtered_mismatch(
     automations_session: AsyncSession,
     some_workspace_automations: Sequence[Automation],
 ):
