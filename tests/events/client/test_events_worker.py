@@ -36,37 +36,38 @@ def test_emits_event_via_client(asserting_events_worker: EventsWorker, event: Ev
     assert asserting_events_worker._client.events == [event]
 
 
-def test_worker_instance_null_client_no_api_url():
+def test_worker_instance_null_client_events_disabled():
+    with temporary_settings(
+        updates={
+            PREFECT_API_URL: None,
+            PREFECT_EXPERIMENTAL_EVENTS: False,
+        }
+    ):
+        worker = EventsWorker.instance()
+        assert worker.client_type == NullEventsClient
+
+
+def test_worker_instance_ephemeral_client_no_api_url():
     with temporary_settings(updates={PREFECT_API_URL: None}):
         worker = EventsWorker.instance()
-        assert worker.client_type == NullEventsClient
+        assert worker.client_type == PrefectEphemeralEventsClient
 
 
-def test_worker_instance_null_client_non_cloud_api_url():
+def test_worker_instance_server_client_non_cloud_api_url():
     with temporary_settings(updates={PREFECT_API_URL: "http://localhost:8080/api"}):
         worker = EventsWorker.instance()
-        assert worker.client_type == NullEventsClient
+        assert worker.client_type == PrefectEventsClient
 
 
 def test_worker_instance_client_non_cloud_api_url_events_enabled():
-    with temporary_settings(
-        updates={
-            PREFECT_API_URL: "http://localhost:8080/api",
-            PREFECT_EXPERIMENTAL_EVENTS: True,
-        }
-    ):
+    with temporary_settings(updates={PREFECT_API_URL: "http://localhost:8080/api"}):
         worker = EventsWorker.instance()
         assert worker.client_type == PrefectEventsClient
 
 
 def test_worker_instance_ephemeral_prefect_events_client():
-    with temporary_settings(
-        updates={
-            PREFECT_EXPERIMENTAL_EVENTS: True,
-        }
-    ):
-        worker = EventsWorker.instance()
-        assert worker.client_type == PrefectEphemeralEventsClient
+    worker = EventsWorker.instance()
+    assert worker.client_type == PrefectEphemeralEventsClient
 
 
 async def test_includes_related_resources_from_run_context(
