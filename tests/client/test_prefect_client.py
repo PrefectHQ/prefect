@@ -2149,6 +2149,49 @@ class TestAutomations:
                 read_automation[0].name == automation.name == created_automation["name"]
             )
 
+    @pytest.fixture
+    def automation2(self):
+        return AutomationCore(
+            name="test-automation",
+            trigger=EventTrigger(
+                match={"flow_run_id": "234"},
+                posture=Posture.Reactive,
+                threshold=1,
+                within=0,
+            ),
+            actions=[],
+        )
+
+    async def test_read_automations_by_name_multiple_same_name(
+        self, cloud_client, automation: AutomationCore, automation2: AutomationCore
+    ):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            created_automation = automation.dict(json_compatible=True)
+            created_automation["id"] = str(uuid4())
+
+            created_automation2 = automation2.dict(json_compatible=True)
+            created_automation2["id"] = str(uuid4())
+
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(
+                    200, json=[created_automation, created_automation2]
+                )
+            )
+            read_automation = await cloud_client.read_automations_by_name(
+                automation.name
+            )
+
+            assert read_route.called
+            assert (
+                len(read_automation) == 2
+            ), "Expected two automations with the same name"
+            assert all(
+                [
+                    automation.name == created_automation["name"]
+                    for automation in read_automation
+                ]
+            ), "Expected all automations to have the same name"
+
     async def test_read_automations_by_name_not_found(
         self, cloud_client, automation: AutomationCore
     ):
