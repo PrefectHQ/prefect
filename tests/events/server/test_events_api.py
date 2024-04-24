@@ -23,7 +23,6 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -117,12 +116,13 @@ def last_events_page(
         yield query_next_page
 
 
-async def test_returns_404_when_events_are_disabled(client: AsyncClient):
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
-        response = await client.post(
-            "http://test/api/events/filter",
-            json={"filter": {}},
-        )
+async def test_returns_404_when_events_are_disabled(
+    client: AsyncClient, events_disabled: None
+):
+    response = await client.post(
+        "http://test/api/events/filter",
+        json={"filter": {}},
+    )
 
     assert response.status_code == 404, response.content
 

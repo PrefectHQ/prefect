@@ -572,6 +572,12 @@ def disable_enhanced_cancellation():
 
 
 @pytest.fixture
+def events_disabled():
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        yield
+
+
+@pytest.fixture
 def start_of_test() -> pendulum.DateTime:
     return pendulum.now("UTC")
 
