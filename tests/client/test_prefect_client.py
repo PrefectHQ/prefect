@@ -30,7 +30,12 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.orchestration import (
+    PrefectClient,
+    ServerType,
+    SyncPrefectClient,
+    get_client,
+)
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -2425,3 +2430,16 @@ class TestPrefectClientCsrfSupport:
             async with PrefectClient(hosted_api_server) as prefect_client:
                 assert prefect_client.server_type == ServerType.SERVER
                 assert not prefect_client._client.enable_csrf_support
+
+
+class TestSyncClient:
+    def test_get_sync_client(self):
+        client = get_client(sync_client=True)
+        assert isinstance(client, SyncPrefectClient)
+
+    def test_fixture_is_sync(self, sync_prefect_client):
+        assert isinstance(sync_prefect_client, SyncPrefectClient)
+
+    def test_hello(self, sync_prefect_client):
+        response = sync_prefect_client.hello()
+        assert response.json() == "👋"
