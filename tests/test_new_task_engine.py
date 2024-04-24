@@ -43,19 +43,19 @@ class TestTaskRunEngine:
         assert engine.task.name == "foo"
         assert engine.parameters == {}
 
-    async def test_get_client_raises_informative_error(self):
+    async def test_client_attribute_raises_informative_error(self):
         engine = TaskRunEngine(task=foo)
         with pytest.raises(RuntimeError, match="not started"):
-            await engine.get_client()
+            engine.client
 
-    async def test_get_client_returns_client_after_starting(self):
+    async def test_client_attr_returns_client_after_starting(self):
         engine = TaskRunEngine(task=foo)
         async with engine.start():
-            client = await engine.get_client()
+            client = engine.client
             assert isinstance(client, PrefectClient)
 
         with pytest.raises(RuntimeError, match="not started"):
-            await engine.get_client()
+            engine.client
 
 
 class TestTaskRuns:
