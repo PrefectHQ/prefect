@@ -286,7 +286,6 @@ def test_login_with_key_and_workspace_overrides_current_workspace(respx_mock):
     profiles = load_profiles()
     profiles.set_active("default")
     assert profiles.active_profile is not None
-    # set a different current workspace
     profiles.active_profile.settings[PREFECT_API_URL] = foo_workspace.api_url()
     assert profiles.active_profile.settings[PREFECT_API_URL] == foo_workspace.api_url()
 
