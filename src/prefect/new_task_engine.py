@@ -282,7 +282,7 @@ class TaskRunEngine(Generic[P, R]):
         return task_run
 
     @asynccontextmanager
-    async def enter_run_context(self, client: PrefectClient = None):
+    async def enter_run_context(self, client: Optional[PrefectClient] = None):
         if client is None:
             client = await self.get_client()
 

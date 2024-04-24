@@ -3338,8 +3338,8 @@ class SyncPrefectClient:
         self,
         api: Union[str, ASGIApp],
         *,
-        api_key: str = None,
-        api_version: str = None,
+        api_key: Optional[str] = None,
+        api_version: Optional[str] = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         self._prefect_client = PrefectClient(

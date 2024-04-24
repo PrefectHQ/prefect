@@ -105,7 +105,10 @@ class FlowRunEngine(Generic[P, R]):
         return result
 
     async def handle_exception(
-        self, exc: Exception, msg: str = None, result_factory: ResultFactory = None
+        self,
+        exc: Exception,
+        msg: Optional[str] = None,
+        result_factory: Optional[ResultFactory] = None,
     ) -> State:
         context = FlowRunContext.get()
         state = await exception_to_failed_state(
@@ -197,7 +200,7 @@ class FlowRunEngine(Generic[P, R]):
         return flow_run
 
     @asynccontextmanager
-    async def enter_run_context(self, client: PrefectClient = None):
+    async def enter_run_context(self, client: Optional[PrefectClient] = None):
         if client is None:
             client = await self.get_client()
 
