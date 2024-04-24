@@ -27,6 +27,15 @@ class TaskRunSort(AutoEnum):
     END_TIME_DESC = AutoEnum.auto()
 
 
+class AutomationSort(AutoEnum):
+    """Defines automation sorting options."""
+
+    CREATED_DESC = AutoEnum.auto()
+    UPDATED_DESC = AutoEnum.auto()
+    NAME_ASC = AutoEnum.auto()
+    NAME_DESC = AutoEnum.auto()
+
+
 class LogSort(AutoEnum):
     """Defines log sorting options."""
 

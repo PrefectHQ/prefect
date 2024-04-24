@@ -16,6 +16,33 @@ else:
     from pydantic import Field, PrivateAttr  # type: ignore
 
 
+class AutomationFilterCreated(PrefectBaseModel):
+    """Filter by `Automation.created`."""
+
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include automations created before this datetime",
+    )
+
+
+class AutomationFilterName(PrefectBaseModel):
+    """Filter by `Automation.created`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None,
+        description="Only include automations with names that match any of these strings",
+    )
+
+
+class AutomationFilter(PrefectBaseModel):
+    name: Optional[AutomationFilterName] = Field(
+        default=None, description="Filter criteria for `Automation.name`"
+    )
+    created: Optional[AutomationFilterCreated] = Field(
+        default=None, description="Filter criteria for `Automation.created`"
+    )
+
+
 class EventDataFilter(PrefectBaseModel, extra="forbid"):
     """A base class for filtering event data."""
 
