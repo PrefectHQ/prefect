@@ -3169,7 +3169,6 @@ class PrefectClient:
             f"/automations/{automation_id}",
             json=automation.dict(json_compatible=True, exclude_unset=True),
         )
-
         response.raise_for_status
 
     async def read_automations(self) -> List[Automation]:

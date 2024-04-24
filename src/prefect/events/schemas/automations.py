@@ -9,17 +9,14 @@ from typing import (
     Literal,
     Optional,
     Set,
-    Type,
     Union,
     cast,
 )
 from uuid import UUID
 
-from typing_extensions import Self, TypeAlias
+from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.utilities import get_or_create_client
-from prefect.utilities.asyncutils import sync_compatible
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, PrivateAttr, root_validator, validator
@@ -432,110 +429,4 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
 
 
 class Automation(AutomationCore):
-    id: Optional[UUID] = Field(default=None, description="The ID of this automation")
-
-    @classmethod
-    @sync_compatible
-    async def create(cls: Self, automation: Type[Self]) -> UUID:
-        """
-        Create a new automation.
-
-        auto_to_create = Automation(
-        name="woodchonk",
-        trigger=EventTrigger(
-            expect={"animal.walked"},
-            match={
-                "genus": "Marmota",
-                "species": "monax",
-            },
-            posture="Reactive",
-            threshold=3,
-            within=timedelta(seconds=10),
-        ),
-        actions=[CancelFlowRun()]
-        )
-        created_automation = Automation.create(auto_to_create)
-        """
-        client, _ = get_or_create_client()
-        automation = AutomationCore(**automation.dict(exclude={"id"}))
-        automation = await client.create_automation(automation=automation)
-        return automation if automation else None
-
-    @classmethod
-    @sync_compatible
-    async def update(cls: Self, automation_id: UUID, automation: Type[Self]) -> UUID:
-        """
-        Updates an existing automation.
-
-        auto_to_update = Automation(
-        name="woodchonk",
-        trigger=EventTrigger(
-            expect={"animal.walked"},
-            match={
-                "genus": "Marmota",
-                "species": "monax",
-            },
-            posture="Reactive",
-            threshold=3,
-            within=timedelta(seconds=10),
-        ),
-        actions=[CancelFlowRun()]
-        )
-        updated_automation = Automation.update_create
-            automation_id="b3514963-02b1-47a5-93d1-6eeb131041cb",
-            automation=auto_to_update
-            )
-        """
-        client, _ = get_or_create_client()
-        automation = await client.update_automation(
-            automation_id=automation_id, automation=automation
-        )
-        return automation if automation else None
-
-    @classmethod
-    @sync_compatible
-    async def read(cls: Self, id_or_name: str) -> Self:
-        """
-        Read an automation by ID or name.
-        automation = Automation.read(id_or_name="woodchonk")
-
-        or
-
-        automation = Automation.read(id_or_name="b3514963-02b1-47a5-93d1-6eeb131041cb")
-        """
-        client, _ = get_or_create_client()
-        automation = await client.find_automation(id_or_name=id_or_name)
-        return automation if automation else None
-
-    @classmethod
-    @sync_compatible
-    async def delete(cls: Self, automation_id: UUID):
-        """
-        Delete an automation by ID.
-        automation_to_delete = Automation.delete(automation_id="b3514963-02b1-47a5-93d1-6eeb131041cb")
-        """
-        client, _ = get_or_create_client()
-        automation = await client.delete_automation(automation_id=automation_id)
-        return automation if automation else None
-
-    @classmethod
-    @sync_compatible
-    async def disable(cls: Self, automation_id: UUID):
-        """
-        Disable an automation by ID.
-        automation_to_disable = Automation.disable(automation_id="b3514963-02b1-47a5-93d1-6eeb131041cb")
-        """
-        client, _ = get_or_create_client()
-        automation = await client.pause_automation(automation_id=automation_id)
-        return automation if automation else None
-
-    @classmethod
-    @sync_compatible
-    async def enable(cls: Self, automation_id: UUID):
-        """
-        Enable an automation by ID.
-        automation_to_enable = Automation.enable(automation_id="b3514963-02b1-47a5-93d1-6eeb131041cb")
-        """
-        client, _ = get_or_create_client()
-        automation = await client.resume_automation(automation_id=automation_id)
-        return automation if automation else None
+    id: UUID = Field(..., description="The ID of this automation")

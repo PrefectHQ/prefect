@@ -88,7 +88,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 
 ### Creating automations In Python code
 
-You can create and access any automation via the Python SDK via the `Automation` class and its methods.
+You can create and access any automation with the Python SDK's `Automation` class and its methods.
 
 ```python
 from prefect.automations import Automation
