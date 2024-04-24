@@ -8,6 +8,9 @@ class WorkPoolStatus(AutoEnum):
     NOT_READY = AutoEnum.auto()
     PAUSED = AutoEnum.auto()
 
+    def in_kebab_case(self) -> str:
+        return self.value.lower().replace("_", "-")
+
 
 class WorkerStatus(AutoEnum):
     """Enumeration of worker statuses."""
@@ -22,6 +25,9 @@ class DeploymentStatus(AutoEnum):
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
 
+    def in_kebab_case(self) -> str:
+        return self.value.lower().replace("_", "-")
+
 
 class WorkQueueStatus(AutoEnum):
     """Enumeration of work queue statuses."""
@@ -29,3 +35,6 @@ class WorkQueueStatus(AutoEnum):
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
     PAUSED = AutoEnum.auto()
+
+    def in_kebab_case(self) -> str:
+        return self.value.lower().replace("_", "-")

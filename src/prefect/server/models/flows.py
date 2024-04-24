@@ -3,7 +3,7 @@ Functions for interacting with flow ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -13,13 +13,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMFlow
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMFlow
 
 
 @db_injector
 async def create_flow(
     db: PrefectDBInterface, session: AsyncSession, flow: schemas.core.Flow
-) -> ORMFlow:
+) -> "ORMFlow":
     """
     Creates a new flow.
 
@@ -87,7 +89,7 @@ async def update_flow(
 @db_injector
 async def read_flow(
     db: PrefectDBInterface, session: AsyncSession, flow_id: UUID
-) -> Optional[ORMFlow]:
+) -> Optional["ORMFlow"]:
     """
     Reads a flow by id.
 
@@ -104,7 +106,7 @@ async def read_flow(
 @db_injector
 async def read_flow_by_name(
     db: PrefectDBInterface, session: AsyncSession, name: str
-) -> Optional[ORMFlow]:
+) -> Optional["ORMFlow"]:
     """
     Reads a flow by name.
 
@@ -187,7 +189,7 @@ async def read_flows(
     sort: schemas.sorting.FlowSort = schemas.sorting.FlowSort.NAME_ASC,
     offset: int = None,
     limit: int = None,
-) -> Sequence[ORMFlow]:
+) -> Sequence["ORMFlow"]:
     """
     Read multiple flows.
 
