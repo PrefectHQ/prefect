@@ -9,7 +9,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/python-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
+      - "tests/**/*.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt
@@ -20,7 +21,8 @@ on:
       - main
     paths:
       - .github/workflows/python-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
+      - "tests/**/*.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt
@@ -400,11 +402,12 @@ jobs:
   run-sqlalchemy-v1-tests:
     runs-on:
       group: oss-larger-runners
-    name: sqlalchemy v1, python:${{ matrix.python-version }}
+    name: sqlalchemy v1, ${{ matrix.database }} python:${{ matrix.python-version }}
     strategy:
       matrix:
         database:
           - "postgres:14"
+          - "sqlite"
         python-version:
           - "3.8"
           - "3.12"

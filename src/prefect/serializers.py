@@ -13,9 +13,10 @@ bytes to an object respectively.
 
 import abc
 import base64
-from typing import Any, Dict, Generic, Optional, TypeVar
+from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from typing_extensions import Literal, Self
+
 from prefect._internal.schemas.validators import (
     cast_type_names_to_serializers,
     validate_compressionlib,
@@ -24,20 +25,29 @@ from prefect._internal.schemas.validators import (
     validate_picklelib,
     validate_picklelib_version,
 )
+from prefect.pydantic import HAS_PYDANTIC_V2
+from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
+from prefect.utilities.importtools import from_qualified_name, to_qualified_name
+from prefect.utilities.pydantic import custom_pydantic_encoder
 
 if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import BaseModel
-    from pydantic.v1.json import pydantic_encoder
+    from pydantic.v1 import (
+        BaseModel,
+        Field,
+        ValidationError,
+        parse_obj_as,
+        root_validator,
+        validator,
+    )
 else:
-    import pydantic
-    from pydantic import BaseModel
-    from pydantic.json import pydantic_encoder
-
-from typing_extensions import Literal
-
-from prefect.utilities.importtools import from_qualified_name, to_qualified_name
-from prefect.utilities.pydantic import add_type_dispatch
+    from pydantic import (
+        BaseModel,
+        Field,
+        ValidationError,
+        parse_obj_as,
+        root_validator,
+        validator,
+    )
 
 D = TypeVar("D")
 
@@ -53,7 +63,7 @@ def prefect_json_object_encoder(obj: Any) -> Any:
     else:
         return {
             "__class__": to_qualified_name(obj.__class__),
-            "data": pydantic_encoder(obj),
+            "data": custom_pydantic_encoder({}, obj),
         }
 
 
@@ -63,20 +73,34 @@ def prefect_json_object_decoder(result: dict):
     with `prefect_json_object_encoder`
     """
     if "__class__" in result:
-        return pydantic.parse_obj_as(
-            from_qualified_name(result["__class__"]), result["data"]
-        )
+        return parse_obj_as(from_qualified_name(result["__class__"]), result["data"])
     elif "__exc_type__" in result:
         return from_qualified_name(result["__exc_type__"])(result["message"])
     else:
         return result
 
 
-@add_type_dispatch
+@register_base_type
 class Serializer(BaseModel, Generic[D], abc.ABC):
     """
     A serializer that can encode objects of type 'D' into bytes.
     """
+
+    def __init__(self, **data: Any) -> None:
+        type_string = get_dispatch_key(self) if type(self) != Serializer else "__base__"
+        data.setdefault("type", type_string)
+        super().__init__(**data)
+
+    def __new__(cls: Type[Self], **kwargs) -> Self:
+        if "type" in kwargs:
+            try:
+                subcls = lookup_type(cls, dispatch_key=kwargs["type"])
+            except KeyError as exc:
+                raise ValidationError(errors=[exc], model=cls)
+
+            return super().__new__(subcls)
+        else:
+            return super().__new__(cls)
 
     type: str
 
@@ -90,6 +114,10 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
 
     class Config:
         extra = "forbid"
+
+    @classmethod
+    def __dispatch_key__(cls):
+        return cls.__fields__.get("type").get_default()
 
 
 class PickleSerializer(Serializer):
@@ -107,11 +135,11 @@ class PickleSerializer(Serializer):
     picklelib: str = "cloudpickle"
     picklelib_version: str = None
 
-    @pydantic.validator("picklelib")
+    @validator("picklelib")
     def check_picklelib(cls, value):
         return validate_picklelib(value)
 
-    @pydantic.root_validator
+    @root_validator
     def check_picklelib_version(cls, values):
         return validate_picklelib_version(values)
 
@@ -135,16 +163,17 @@ class JSONSerializer(Serializer):
     """
 
     type: Literal["json"] = "json"
+
     jsonlib: str = "json"
-    object_encoder: Optional[str] = pydantic.Field(
+    object_encoder: Optional[str] = Field(
         default="prefect.serializers.prefect_json_object_encoder",
         description=(
             "An optional callable to use when serializing objects that are not "
             "supported by the JSON encoder. By default, this is set to a callable that "
-            "adds support for all types supported by Pydantic."
+            "adds support for all types supported by "
         ),
     )
-    object_decoder: Optional[str] = pydantic.Field(
+    object_decoder: Optional[str] = Field(
         default="prefect.serializers.prefect_json_object_decoder",
         description=(
             "An optional callable to use when deserializing objects. This callable "
@@ -153,14 +182,14 @@ class JSONSerializer(Serializer):
             "by our default `object_encoder`."
         ),
     )
-    dumps_kwargs: Dict[str, Any] = pydantic.Field(default_factory=dict)
-    loads_kwargs: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    dumps_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    loads_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
-    @pydantic.validator("dumps_kwargs")
+    @validator("dumps_kwargs")
     def dumps_kwargs_cannot_contain_default(cls, value):
         return validate_dump_kwargs(value)
 
-    @pydantic.validator("loads_kwargs")
+    @validator("loads_kwargs")
     def loads_kwargs_cannot_contain_object_hook(cls, value):
         return validate_load_kwargs(value)
 
@@ -200,11 +229,11 @@ class CompressedSerializer(Serializer):
     serializer: Serializer
     compressionlib: str = "lzma"
 
-    @pydantic.validator("serializer", pre=True)
+    @validator("serializer", pre=True)
     def validate_serializer(cls, value):
         return cast_type_names_to_serializers(value)
 
-    @pydantic.validator("compressionlib")
+    @validator("compressionlib")
     def check_compressionlib(cls, value):
         return validate_compressionlib(value)
 
@@ -225,7 +254,8 @@ class CompressedPickleSerializer(CompressedSerializer):
     """
 
     type: Literal["compressed/pickle"] = "compressed/pickle"
-    serializer: Serializer = pydantic.Field(default_factory=PickleSerializer)
+
+    serializer: Serializer = Field(default_factory=PickleSerializer)
 
 
 class CompressedJSONSerializer(CompressedSerializer):
@@ -234,4 +264,5 @@ class CompressedJSONSerializer(CompressedSerializer):
     """
 
     type: Literal["compressed/json"] = "compressed/json"
-    serializer: Serializer = pydantic.Field(default_factory=JSONSerializer)
+
+    serializer: Serializer = Field(default_factory=JSONSerializer)

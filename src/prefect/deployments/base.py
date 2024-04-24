@@ -1,5 +1,5 @@
 """
-Core primitives for managing Prefect projects.  Projects provide a minimally opinionated
+Core primitives for managing Prefect deployments via `prefect deploy`, providing a minimally opinionated
 build system for managing flows and deployments.
 
 To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
@@ -7,7 +7,6 @@ To get started, follow along with [the deloyments tutorial](/tutorials/deploymen
 
 import ast
 import asyncio
-import json
 import math
 import os
 import subprocess
@@ -18,60 +17,15 @@ from typing import Any, Dict, List, Optional, cast
 
 import anyio
 import yaml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
-
 from ruamel.yaml import YAML
 
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import IntervalSchedule
-from prefect.flows import load_flow_from_entrypoint
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
-from prefect.utilities.asyncutils import LazySemaphore, run_sync_in_worker_thread
+from prefect.utilities.asyncutils import LazySemaphore
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
 from prefect.utilities.templating import apply_values
-
-
-def find_prefect_directory(path: Path = None) -> Optional[Path]:
-    """
-    Given a path, recurses upward looking for .prefect/ directories.
-
-    Once found, returns absolute path to the ./prefect directory, which is assumed to reside within the
-    root for the current project.
-
-    If one is never found, `None` is returned.
-    """
-    path = Path(path or ".").resolve()
-    parent = path.parent.resolve()
-    while path != parent:
-        prefect_dir = path.joinpath(".prefect")
-        if prefect_dir.is_dir():
-            return prefect_dir
-
-        path = parent.resolve()
-        parent = path.parent.resolve()
-
-
-def set_prefect_hidden_dir(path: str = None) -> bool:
-    """
-    Creates default `.prefect/` directory if one does not already exist.
-    Returns boolean specifying whether or not a directory was created.
-
-    If a path is provided, the directory will be created in that location.
-    """
-    path = Path(path or ".") / ".prefect"
-
-    # use exists so that we dont accidentally overwrite a file
-    if path.exists():
-        return False
-    path.mkdir(mode=0o0700)
-    return True
 
 
 def create_default_prefect_yaml(
@@ -278,112 +232,8 @@ def initialize_project(
         files.append(".prefectignore")
     if create_default_prefect_yaml(".", name=project_name, contents=configuration):
         files.append("prefect.yaml")
-    if set_prefect_hidden_dir():
-        files.append(".prefect/")
 
     return files
-
-
-async def register_flow(entrypoint: str, force: bool = False):
-    """
-    Register a flow with this project from an entrypoint.
-
-    Args:
-        entrypoint (str): the entrypoint to the flow to register
-        force (bool, optional): whether or not to overwrite an existing flow with the same name
-
-    Raises:
-        ValueError: if `force` is `False` and registration would overwrite an existing flow
-    """
-    try:
-        fpath, obj_name = entrypoint.rsplit(":", 1)
-    except ValueError as exc:
-        if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = (
-                "Your flow entrypoint must include the name of the function that is"
-                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name> as your"
-                f" entrypoint. If you meant to specify '{entrypoint}' as the deployment"
-                f" name, try `prefect deploy -n {entrypoint}`."
-            )
-            raise ValueError(missing_flow_name_msg)
-        else:
-            raise exc
-
-    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
-
-    fpath = Path(fpath).absolute()
-    prefect_dir = find_prefect_directory()
-    if not prefect_dir:
-        raise FileNotFoundError(
-            "No .prefect directory could be found - run `prefect project"
-            " init` to create one."
-        )
-
-    entrypoint = f"{fpath.relative_to(prefect_dir.parent)!s}:{obj_name}"
-
-    flows_file = prefect_dir / "flows.json"
-    if flows_file.exists():
-        with flows_file.open(mode="r") as f:
-            flows = json.load(f)
-    else:
-        flows = {}
-
-    ## quality control
-    if flow.name in flows and flows[flow.name] != entrypoint:
-        if not force:
-            raise ValueError(
-                f"Conflicting entry found for flow with name {flow.name!r}.\nExisting"
-                f" entrypoint: {flows[flow.name]}\nAttempted entrypoint:"
-                f" {entrypoint}\n\nYou can try removing the existing entry for"
-                f" {flow.name!r} from your [yellow]~/.prefect/flows.json[/yellow]."
-            )
-
-    flows[flow.name] = entrypoint
-
-    with flows_file.open(mode="w") as f:
-        json.dump(flows, f, sort_keys=True, indent=2)
-
-    return flow
-
-
-def _copy_deployments_into_prefect_file():
-    """
-    Copy deployments from the `deloyment.yaml` file into the `prefect.yaml` file.
-
-    Used to migrate users from the old `prefect.yaml` + `deployment.yaml` structure
-    to a single `prefect.yaml` file.
-    """
-    prefect_file = Path("prefect.yaml")
-    deployment_file = Path("deployment.yaml")
-    if not deployment_file.exists() or not prefect_file.exists():
-        raise FileNotFoundError(
-            "Could not find `prefect.yaml` or `deployment.yaml` files."
-        )
-
-    with deployment_file.open(mode="r") as f:
-        raw_deployment_file_contents = f.read()
-        parsed_deployment_file_contents = yaml.safe_load(raw_deployment_file_contents)
-
-    deployments = parsed_deployment_file_contents.get("deployments")
-
-    with prefect_file.open(mode="a") as f:
-        # If deployment.yaml is empty, write an empty deployments list to prefect.yaml.
-        if not parsed_deployment_file_contents:
-            f.write("\n")
-            f.write(yaml.dump({"deployments": []}, sort_keys=False))
-        # If there is no 'deployments' key in deployment.yaml, assume that the
-        # entire file is a single deployment.
-        elif not deployments:
-            f.write("\n")
-            f.write(
-                yaml.dump(
-                    {"deployments": [parsed_deployment_file_contents]}, sort_keys=False
-                )
-            )
-        # Write all of deployment.yaml to prefect.yaml.
-        else:
-            f.write("\n")
-            f.write(raw_deployment_file_contents)
 
 
 def _format_deployment_for_saving_to_prefect_file(
@@ -409,7 +259,7 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedule"):
         if isinstance(deployment["schedule"], IntervalSchedule):
             deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
-        elif isinstance(deployment["schedule"], BaseModel):
+        else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
             deployment["schedule"] = deployment["schedule"].dict()
 
         if "is_schedule_active" in deployment:
@@ -424,7 +274,7 @@ def _format_deployment_for_saving_to_prefect_file(
                 schedule_config = _interval_schedule_to_dict(
                     deployment_schedule.schedule
                 )
-            elif isinstance(deployment_schedule.schedule, BaseModel):
+            else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
                 schedule_config = deployment_schedule.schedule.dict()
 
             schedule_config["active"] = deployment_schedule.active

@@ -80,8 +80,10 @@ from .fixtures.collections_registry import *
 from .fixtures.database import *
 from .fixtures.deprecation import *
 from .fixtures.docker import *
+from .fixtures.events import *
 from .fixtures.logging import *
 from .fixtures.storage import *
+from .fixtures.time import *
 
 
 def pytest_addoption(parser):

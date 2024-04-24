@@ -1,4 +1,4 @@
-"""Module containing implementation for deploying projects."""
+"""Module containing implementation for deploying flows."""
 
 import json
 import os
@@ -7,8 +7,15 @@ from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
+
+import typer
+import yaml
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from yaml.error import YAMLError
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -17,12 +24,8 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-import typer
-import yaml
-from rich.console import Console
-from rich.panel import Panel
-from yaml.error import YAMLError
 
+import prefect
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
 )
@@ -52,20 +55,18 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.deployments import find_prefect_directory, register_flow
+from prefect.deployments import initialize_project
 from prefect.deployments.base import (
-    _copy_deployments_into_prefect_file,
     _format_deployment_for_saving_to_prefect_file,
     _get_git_branch,
     _get_git_remote_origin_url,
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
-from prefect.events import DeploymentTriggerTypes
-from prefect.exceptions import ObjectNotFound
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import (
-    PREFECT_DEBUG_MODE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
@@ -82,6 +83,123 @@ from prefect.utilities.templating import (
 
 
 @app.command()
+async def init(
+    name: str = None,
+    recipe: str = None,
+    fields: List[str] = typer.Option(
+        None,
+        "-f",
+        "--field",
+        help=(
+            "One or more fields to pass to the recipe (e.g., image_name) in the format"
+            " of key=value."
+        ),
+    ),
+):
+    """
+    Initialize a new deployment configuration recipe.
+    """
+    inputs = {}
+    fields = fields or []
+    recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
+
+    for field in fields:
+        key, value = field.split("=")
+        inputs[key] = value
+
+    if not recipe and is_interactive():
+        recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
+        recipes = []
+
+        for r in recipe_paths.iterdir():
+            if r.is_dir() and (r / "prefect.yaml").exists():
+                with open(r / "prefect.yaml") as f:
+                    recipe_data = yaml.safe_load(f)
+                    recipe_name = r.name
+                    recipe_description = recipe_data.get(
+                        "description", "(no description available)"
+                    )
+                    recipe_dict = {
+                        "name": recipe_name,
+                        "description": recipe_description,
+                    }
+                    recipes.append(recipe_dict)
+
+        selected_recipe = prompt_select_from_table(
+            app.console,
+            "Would you like to initialize your deployment configuration with a recipe?",
+            columns=[
+                {"header": "Name", "key": "name"},
+                {"header": "Description", "key": "description"},
+            ],
+            data=recipes,
+            opt_out_message="No, I'll use the default deployment configuration.",
+            opt_out_response={},
+        )
+        if selected_recipe != {}:
+            recipe = selected_recipe["name"]
+
+    if recipe and (recipe_paths / recipe / "prefect.yaml").exists():
+        with open(recipe_paths / recipe / "prefect.yaml") as f:
+            recipe_inputs = yaml.safe_load(f).get("required_inputs") or {}
+
+        if recipe_inputs:
+            if set(recipe_inputs.keys()) < set(inputs.keys()):
+                # message to user about extra fields
+                app.console.print(
+                    (
+                        f"Warning: extra fields provided for {recipe!r} recipe:"
+                        f" '{', '.join(set(inputs.keys()) - set(recipe_inputs.keys()))}'"
+                    ),
+                    style="red",
+                )
+            elif set(recipe_inputs.keys()) > set(inputs.keys()):
+                table = Table(
+                    title=f"[red]Required inputs for {recipe!r} recipe[/red]",
+                )
+                table.add_column("Field Name", style="green", no_wrap=True)
+                table.add_column(
+                    "Description", justify="left", style="white", no_wrap=False
+                )
+                for field, description in recipe_inputs.items():
+                    if field not in inputs:
+                        table.add_row(field, description)
+
+                app.console.print(table)
+
+                for key, description in recipe_inputs.items():
+                    if key not in inputs:
+                        inputs[key] = typer.prompt(key)
+
+            app.console.print("-" * 15)
+
+    try:
+        files = [
+            f"[green]{fname}[/green]"
+            for fname in initialize_project(name=name, recipe=recipe, inputs=inputs)
+        ]
+    except ValueError as exc:
+        if "Unknown recipe" in str(exc):
+            exit_with_error(
+                f"Unknown recipe {recipe!r} provided - run [yellow]`prefect init"
+                "`[/yellow] to see all available recipes."
+            )
+        else:
+            raise
+
+    files = "\n".join(files)
+    empty_msg = (
+        f"Created project in [green]{Path('.').resolve()}[/green]; no new files"
+        " created."
+    )
+    file_msg = (
+        f"Created project in [green]{Path('.').resolve()}[/green] with the following"
+        f" new files:\n{files}"
+    )
+    app.console.print(file_msg if files else empty_msg)
+
+
+@app.command()
 async def deploy(
     entrypoint: str = typer.Argument(
         None,
@@ -89,12 +207,6 @@ async def deploy(
             "The path to a flow entrypoint within a project, in the form of"
             " `./path/to/file.py:flow_func_name`"
         ),
-    ),
-    flow_name: str = typer.Option(
-        None,
-        "--flow",
-        "-f",
-        help="DEPRECATED: The name of a registered flow to create a deployment for.",
     ),
     names: List[str] = typer.Option(
         None,
@@ -231,34 +343,12 @@ async def deploy(
         "--prefect-file",
         help="Specify a custom path to a prefect.yaml file",
     ),
-    ci: bool = typer.Option(
-        False,
-        "--ci",
-        help=(
-            "DEPRECATED: Please use the global '--no-prompt' flag instead: 'prefect"
-            " --no-prompt deploy'.\n\nRun this command in CI mode. This will disable"
-            " interactive prompts and will error if any required arguments are not"
-            " provided."
-        ),
-    ),
 ):
     """
     Deploy a flow from this project by creating a deployment.
 
     Should be run from a project root directory.
     """
-    if ci:
-        app.console.print(
-            generate_deprecation_message(
-                name="The `--ci` flag",
-                start_date="Jun 2023",
-                help=(
-                    "Please use the global `--no-prompt` flag instead: `prefect"
-                    " --no-prompt deploy`."
-                ),
-            ),
-            style="yellow",
-        )
 
     if variables is not None:
         app.console.print(
@@ -281,7 +371,6 @@ async def deploy(
 
     options = {
         "entrypoint": entrypoint,
-        "flow_name": flow_name,
         "description": description,
         "version": version,
         "tags": tags,
@@ -300,7 +389,7 @@ async def deploy(
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(
-            prefect_file=prefect_file, ci=ci
+            prefect_file=prefect_file,
         )
         parsed_names = []
         for name in names or []:
@@ -309,7 +398,9 @@ async def deploy(
             else:
                 parsed_names.append(name)
         deploy_configs = _pick_deploy_configs(
-            deploy_configs, parsed_names, deploy_all, ci
+            deploy_configs,
+            parsed_names,
+            deploy_all,
         )
 
         if len(deploy_configs) > 1:
@@ -326,7 +417,6 @@ async def deploy(
                 deploy_configs=deploy_configs,
                 actions=actions,
                 deploy_all=deploy_all,
-                ci=ci,
                 prefect_file=prefect_file,
             )
         else:
@@ -339,7 +429,6 @@ async def deploy(
                 deploy_config=deploy_configs[0] if deploy_configs else {},
                 actions=actions,
                 options=options,
-                ci=ci,
                 prefect_file=prefect_file,
             )
     except ValueError as exc:
@@ -351,7 +440,6 @@ async def _run_single_deploy(
     deploy_config: Dict,
     actions: Dict,
     options: Optional[Dict] = None,
-    ci: bool = False,
     client: PrefectClient = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
@@ -359,7 +447,7 @@ async def _run_single_deploy(
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
 
-    should_prompt_for_save = is_interactive() and not ci
+    should_prompt_for_save = is_interactive()
 
     deploy_config = _merge_with_default_deploy_config(deploy_config)
     deploy_config = _handle_deprecated_schedule_fields(deploy_config)
@@ -378,8 +466,8 @@ async def _run_single_deploy(
     # check for env var placeholders early so users can pass work pool names, etc.
     deploy_config = apply_values(deploy_config, os.environ, remove_notset=False)
 
-    if not deploy_config.get("flow_name") and not deploy_config.get("entrypoint"):
-        if not is_interactive() and not ci:
+    if not deploy_config.get("entrypoint"):
+        if not is_interactive():
             raise ValueError(
                 "An entrypoint must be provided:\n\n"
                 " \t[yellow]prefect deploy path/to/file.py:flow_function\n\n"
@@ -392,78 +480,24 @@ async def _run_single_deploy(
             " either an entrypoint or a flow name."
         )
 
-    # flow-name and entrypoint logic
-    flow = None
+    # entrypoint logic
     if deploy_config.get("entrypoint"):
-        try:
-            flow = await register_flow(deploy_config["entrypoint"])
-        except ModuleNotFoundError:
-            raise ValueError(
-                f"Could not find a flow at {deploy_config['entrypoint']}.\n\nPlease"
-                " ensure your entrypoint is in the format path/to/file.py:flow_fn_name"
-                " and the file name and flow function name are correct."
-            )
-        except FileNotFoundError:
-            if PREFECT_DEBUG_MODE:
-                app.console.print(
-                    "Could not find .prefect directory. Flow entrypoint will not be"
-                    " registered."
-                )
-            flow = await run_sync_in_worker_thread(
-                load_flow_from_entrypoint, deploy_config["entrypoint"]
-            )
-        deploy_config["flow_name"] = flow.name
-    elif deploy_config.get("flow_name"):
-        app.console.print(
-            generate_deprecation_message(
-                "The ability to deploy by flow name",
-                start_date="Jun 2023",
-                help=(
-                    "\nUse `prefect deploy ./path/to/file.py:flow_fn_name` to specify"
-                    " an entrypoint instead."
-                ),
-            )
-        )
-        prefect_dir = find_prefect_directory()
-        if not prefect_dir:
-            raise ValueError(
-                "No .prefect directory could be found - run [yellow]`prefect"
-                " init`[/yellow] to create one."
-            )
-        if not (prefect_dir / "flows.json").exists():
-            raise ValueError(
-                f"Flow {deploy_config['flow_name']!r} cannot be found;"
-                " run\n\t[yellow]prefect project register-flow"
-                " ./path/to/file.py:flow_fn_name[/yellow]\nto register its location."
-            )
-        with open(prefect_dir / "flows.json", "r") as f:
-            flows = json.load(f)
-
-        if deploy_config["flow_name"] not in flows:
-            raise ValueError(
-                f"Flow {deploy_config['flow_name']!r} cannot be found;"
-                " run\n\t[yellow]prefect project register-flow"
-                " ./path/to/file.py:flow_fn_name[/yellow]\nto register its location."
-            )
-
-        # set entrypoint from prior registration
-        deploy_config["entrypoint"] = flows[deploy_config["flow_name"]]
-
-    deployment_name = deploy_config.get("name")
-    if not deployment_name:
-        if not is_interactive() or ci:
-            raise ValueError("A deployment name must be provided.")
-        deploy_config["name"] = prompt("Deployment name", default="default")
-
-    # minor optimization in case we already loaded the flow
-    if not flow:
         flow = await run_sync_in_worker_thread(
             load_flow_from_entrypoint, deploy_config["entrypoint"]
         )
+        deploy_config["flow_name"] = flow.name
+
+    deployment_name = deploy_config.get("name")
+    if not deployment_name:
+        if not is_interactive():
+            raise ValueError("A deployment name must be provided.")
+        deploy_config["name"] = prompt("Deployment name", default="default")
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    deploy_config["schedules"] = _construct_schedules(deploy_config, ci=ci)
+    deploy_config["schedules"] = _construct_schedules(
+        deploy_config,
+    )
 
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
@@ -473,7 +507,7 @@ async def _run_single_deploy(
 
             # dont allow submitting to prefect-agent typed work pools
             if work_pool.type == "prefect-agent":
-                if not is_interactive() or ci:
+                if not is_interactive():
                     raise ValueError(
                         "Cannot create a project-style deployment with work pool of"
                         " type 'prefect-agent'. If you wish to use an agent with"
@@ -497,7 +531,7 @@ async def _run_single_deploy(
                 " work pool in the Prefect UI."
             )
     else:
-        if not is_interactive() or ci:
+        if not is_interactive():
             raise ValueError(
                 "A work pool is required to deploy this flow. Please specify a work"
                 " pool name via the '--pool' flag or in your prefect.yaml file."
@@ -510,12 +544,10 @@ async def _run_single_deploy(
 
     docker_build_steps = [
         "prefect_docker.deployments.steps.build_docker_image",
-        "prefect_docker.projects.steps.build_docker_image",
     ]
 
     docker_push_steps = [
         "prefect_docker.deployments.steps.push_docker_image",
-        "prefect_docker.projects.steps.push_docker_image",
     ]
 
     docker_build_step_exists = any(
@@ -573,7 +605,6 @@ async def _run_single_deploy(
     ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
     if (
         is_interactive()
-        and not ci
         and not (deploy_config.get("pull") or actions.get("pull"))
         and not docker_push_step_exists
         and confirm(
@@ -615,7 +646,6 @@ async def _run_single_deploy(
             app.console,
             deploy_config=deploy_config,
             actions=actions,
-            ci=ci,
         )
     )
 
@@ -676,7 +706,7 @@ async def _run_single_deploy(
         tags=deploy_config.get("tags", []),
         entrypoint=deploy_config.get("entrypoint"),
         pull_steps=pull_steps,
-        infra_overrides=get_from_dict(deploy_config, "work_pool.job_variables"),
+        job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
 
     await _create_deployment_triggers(client, deployment_id, triggers)
@@ -775,7 +805,6 @@ async def _run_multi_deploy(
     actions: Dict,
     names: Optional[List[str]] = None,
     deploy_all: bool = False,
-    ci: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
@@ -790,7 +819,7 @@ async def _run_multi_deploy(
         app.console.print("Deploying flows with selected deployment configurations...")
     for deploy_config in deploy_configs:
         if deploy_config.get("name") is None:
-            if not is_interactive() or ci:
+            if not is_interactive():
                 app.console.print(
                     "Discovered unnamed deployment. Skipping...", style="yellow"
                 )
@@ -807,21 +836,17 @@ async def _run_multi_deploy(
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
         app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
-        await _run_single_deploy(
-            deploy_config, actions, ci=ci, prefect_file=prefect_file
-        )
+        await _run_single_deploy(deploy_config, actions, prefect_file=prefect_file)
 
 
 def _construct_schedules(
     deploy_config: Dict,
-    ci: bool = False,
 ) -> List[MinimalDeploymentSchedule]:
     """
     Constructs a schedule from a deployment configuration.
 
     Args:
         deploy_config: A deployment configuration
-        ci: Disable interactive prompts if True
 
     Returns:
         A list of schedule objects
@@ -834,7 +859,7 @@ def _construct_schedules(
             for schedule_config in schedule_configs
         ]
     elif schedule_configs is NotSet:
-        if not ci and is_interactive():
+        if is_interactive():
             schedules = prompt_schedules(app.console)
         else:
             schedules = []
@@ -1039,7 +1064,6 @@ async def _check_for_build_docker_image_step(
         return None
 
     build_docker_image_steps = [
-        "prefect_docker.projects.steps.build_docker_image",  # legacy
         "prefect_docker.deployments.steps.build_docker_image",
     ]
     for build_docker_image_step in build_docker_image_steps:
@@ -1107,7 +1131,9 @@ async def _generate_actions_for_remote_flow_storage(
 
 
 async def _generate_default_pull_action(
-    console: Console, deploy_config: Dict, actions: List[Dict], ci: bool = False
+    console: Console,
+    deploy_config: Dict,
+    actions: List[Dict],
 ):
     build_docker_image_step = await _check_for_build_docker_image_step(
         deploy_config.get("build") or actions["build"]
@@ -1118,7 +1144,7 @@ async def _generate_default_pull_action(
             return await _generate_pull_step_for_build_docker_image(
                 console, deploy_config
             )
-        if is_interactive() and not ci:
+        if is_interactive():
             if not confirm(
                 "Does your Dockerfile have a line that copies the current working"
                 " directory into your image?"
@@ -1148,66 +1174,11 @@ async def _generate_default_pull_action(
         ]
 
 
-def _handle_deployment_yaml_copy(prefect_yaml_contents, ci):
-    """
-    Handle the deprecation of the deployment.yaml file by copying the
-    deployment configurations into the prefect.yaml file.
-
-    Remove this after December 2023.
-
-    Args:
-        prefect_yaml_contents: The contents of the prefect.yaml file
-        ci: Disables interactive mode if True
-    """
-    if is_interactive() and not ci and prefect_yaml_contents:
-        if confirm(
-            generate_deprecation_message(
-                "Using a `deployment.yaml` file with `prefect deploy`",
-                start_date="Jun 2023",
-                help=(
-                    "Would you like to copy the contents of your `deployment.yaml`"
-                    " file into your `prefect.yaml` file now?"
-                ),
-            )
-        ):
-            try:
-                _copy_deployments_into_prefect_file()
-                app.console.print(
-                    "Successfully copied your deployment configurations into your"
-                    " prefect.yaml file! Once you've verified that all your"
-                    " deployment configurations in your prefect.yaml file are"
-                    " correct, you can delete your deployment.yaml file."
-                )
-            except Exception:
-                app.console.print(
-                    "Encountered an error while copying deployments into"
-                    " prefect.yaml: {exc}"
-                )
-    else:
-        app.console.print(
-            generate_deprecation_message(
-                "Using a `deployment.yaml` file with `prefect deploy`",
-                start_date="Jun 2023",
-                help=(
-                    "Please use the `prefect.yaml` file instead by copying the"
-                    " contents of your `deployment.yaml` file into your"
-                    " `prefect.yaml` file."
-                ),
-            ),
-            style="yellow",
-        )
-
-
 def _load_deploy_configs_and_actions(
-    prefect_file: Path, ci: bool = False
+    prefect_file: Path,
 ) -> Tuple[List[Dict], Dict]:
     """
     Load deploy configs and actions from a deployment configuration YAML file.
-
-    Handles the deprecation of the deployment.yaml file.
-
-    Args:
-        ci: Disables interactive mode if True
 
     Returns:
         Tuple[List[Dict], Dict]: a tuple of deployment configurations and actions
@@ -1234,19 +1205,7 @@ def _load_deploy_configs_and_actions(
         "pull": prefect_yaml_contents.get("pull", []),
     }
 
-    # TODO: Remove this after December 2023
-    try:
-        with open("deployment.yaml", "r") as f:
-            deployment_yaml_contents = yaml.safe_load(f)
-            if not deployment_yaml_contents:
-                deploy_configs = [{}]
-            elif deployment_yaml_contents.get("deployments"):
-                deploy_configs = deployment_yaml_contents["deployments"]
-            else:
-                deploy_configs = [deployment_yaml_contents]
-        _handle_deployment_yaml_copy(prefect_yaml_contents, ci)
-    except FileNotFoundError:
-        deploy_configs = prefect_yaml_contents.get("deployments", [])
+    deploy_configs = prefect_yaml_contents.get("deployments", [])
 
     return deploy_configs, actions
 
@@ -1374,13 +1333,16 @@ def _parse_name_from_pattern(deploy_configs, name_pattern):
     return parsed_names
 
 
-def _handle_pick_deploy_with_name(deploy_configs, names, ci=False):
+def _handle_pick_deploy_with_name(
+    deploy_configs,
+    names,
+):
     matched_deploy_configs = []
     deployment_names = []
     for name in names:
         matching_deployments = _filter_matching_deploy_config(name, deploy_configs)
 
-        if len(matching_deployments) > 1 and is_interactive() and not ci:
+        if len(matching_deployments) > 1 and is_interactive():
             user_selected_matching_deployment = prompt_select_from_table(
                 app.console,
                 (
@@ -1411,7 +1373,11 @@ def _handle_pick_deploy_with_name(deploy_configs, names, ci=False):
     return matched_deploy_configs
 
 
-def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
+def _pick_deploy_configs(
+    deploy_configs,
+    names,
+    deploy_all,
+):
     """
     Return a list of deploy configs to deploy based on the given
     deploy configs, names, and deploy_all flag.
@@ -1420,7 +1386,6 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         deploy_configs: A list of deploy configs
         names: A list of names of deploy configs to deploy
         deploy_all: Whether to use all deploy configs
-        ci: Disables interactive mode if True
 
     Returns:
         List[Dict]: a list of deploy configs to deploy
@@ -1432,17 +1397,20 @@ def _pick_deploy_configs(deploy_configs, names, deploy_all, ci=False):
         return deploy_configs
 
     # e.g. `prefect --no-prompt deploy`
-    elif (not is_interactive() or ci) and len(deploy_configs) == 1 and len(names) <= 1:
+    elif not is_interactive() and len(deploy_configs) == 1 and len(names) <= 1:
         # No name is needed if there is only one deployment configuration
         # and we are not in interactive mode
         return deploy_configs
 
     # e.g. `prefect deploy -n flow-name/deployment-name -n deployment-name`
     elif len(names) >= 1:
-        return _handle_pick_deploy_with_name(deploy_configs, names, ci=ci)
+        return _handle_pick_deploy_with_name(
+            deploy_configs,
+            names,
+        )
 
     # e.g. `prefect deploy`
-    elif is_interactive() and not ci:
+    elif is_interactive():
         return _handle_pick_deploy_without_name(deploy_configs)
 
     # e.g `prefect --no-prompt deploy` where we have multiple deployment configurations
@@ -1635,17 +1603,26 @@ def _initialize_deployment_triggers(
 
 
 async def _create_deployment_triggers(
-    client: PrefectClient, deployment_id: UUID, triggers: List[DeploymentTriggerTypes]
+    client: PrefectClient,
+    deployment_id: UUID,
+    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]],
 ):
-    if client.server_type == ServerType.CLOUD:
-        # The triggers defined in the deployment spec are, essentially,
-        # anonymous and attempting truly sync them with cloud is not
-        # feasible. Instead, we remove all automations that are owned
-        # by the deployment, meaning that they were created via this
-        # mechanism below, and then recreate them.
-        await client.delete_resource_owned_automations(
-            f"prefect.deployment.{deployment_id}"
-        )
+    if client.server_type.supports_automations():
+        try:
+            # The triggers defined in the deployment spec are, essentially,
+            # anonymous and attempting truly sync them with cloud is not
+            # feasible. Instead, we remove all automations that are owned
+            # by the deployment, meaning that they were created via this
+            # mechanism below, and then recreate them.
+            await client.delete_resource_owned_automations(
+                f"prefect.deployment.{deployment_id}"
+            )
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                # This Prefect server does not support automations, so we can safely
+                # ignore this 404 and move on.
+                return
+            raise e
 
         for trigger in triggers:
             trigger.set_deployment_id(deployment_id)

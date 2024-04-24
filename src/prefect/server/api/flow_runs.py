@@ -40,7 +40,6 @@ from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
 from prefect.utilities import schema_tools
 
 logger = get_logger("server.api")
@@ -53,6 +52,7 @@ async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
+    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
@@ -65,7 +65,7 @@ async def create_flow_run(
     If no state is provided, the flow run will be created in a PENDING state.
     """
     # hydrate the input model into a full flow run / state model
-    flow_run = schemas.core.FlowRun(**flow_run.dict())
+    flow_run = schemas.core.FlowRun(**flow_run.dict(), created_by=created_by)
 
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
@@ -97,36 +97,40 @@ async def update_flow_run(
     Updates a flow run.
     """
     async with db.session_context(begin_transaction=True) as session:
-        if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES:
-            if flow_run.job_variables is not None:
-                this_run = await models.flow_runs.read_flow_run(
-                    session, flow_run_id=flow_run_id
+        if flow_run.job_variables is not None:
+            this_run = await models.flow_runs.read_flow_run(
+                session, flow_run_id=flow_run_id
+            )
+            if this_run is None:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
-                if this_run is None:
-                    raise HTTPException(
-                        status.HTTP_404_NOT_FOUND, detail="Flow run not found"
-                    )
-                if this_run.state.type != schemas.states.StateType.SCHEDULED:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Job variables for a flow run in state {this_run.state.type.name} cannot be updated",
-                    )
-                if this_run.deployment_id is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="A deployment for the flow run could not be found",
-                    )
-
-                deployment = await models.deployments.read_deployment(
-                    session=session, deployment_id=this_run.deployment_id
+            if not this_run.state:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail="Flow run state is required to update job variables but none exists",
                 )
-                if deployment is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="A deployment for the flow run could not be found",
-                    )
+            if this_run.state.type != schemas.states.StateType.SCHEDULED:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Job variables for a flow run in state {this_run.state.type.name} cannot be updated",
+                )
+            if this_run.deployment_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A deployment for the flow run could not be found",
+                )
 
-                await validate_job_variables_for_flow_run(flow_run, deployment, session)
+            deployment = await models.deployments.read_deployment(
+                session=session, deployment_id=this_run.deployment_id
+            )
+            if deployment is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A deployment for the flow run could not be found",
+                )
+
+            await validate_job_variables_for_flow_run(flow_run, deployment, session)
 
         result = await models.flow_runs.update_flow_run(
             session=session, flow_run=flow_run, flow_run_id=flow_run_id

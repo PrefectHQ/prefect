@@ -15,12 +15,16 @@ from uuid import UUID
 import orjson
 import pendulum
 
+from prefect._internal.compatibility.deprecated import (
+    DeprecatedInfraOverridesField,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.types import NonNegativeInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
+    from pydantic.v1 import Field, HttpUrl, root_validator, validator
 else:
-    from pydantic import Field, HttpUrl, conint, root_validator, validator
+    from pydantic import Field, HttpUrl, root_validator, validator
 
 from typing_extensions import Literal
 
@@ -142,7 +146,7 @@ class State(ObjectBaseModel, Generic[R]):
     type: StateType
     name: Optional[str] = Field(default=None)
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
-    message: Optional[str] = Field(default=None, example="Run started")
+    message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
         default=None,
@@ -410,7 +414,7 @@ class FlowRun(ObjectBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     state_id: Optional[UUID] = Field(
@@ -425,7 +429,7 @@ class FlowRun(ObjectBaseModel):
     deployment_version: Optional[str] = Field(
         default=None,
         description="The version of the deployment associated with this flow run.",
-        example="1.0",
+        examples=["1.0"],
     )
     work_queue_name: Optional[str] = Field(
         default=None, description="The work queue that handled this flow run."
@@ -433,7 +437,7 @@ class FlowRun(ObjectBaseModel):
     flow_version: Optional[str] = Field(
         default=None,
         description="The version of the flow executed in this flow run.",
-        example="1.0",
+        examples=["1.0"],
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
@@ -448,7 +452,7 @@ class FlowRun(ObjectBaseModel):
     context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
-        example={"my_var": "my_val"},
+        examples=[{"my_var": "my_val"}],
     )
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
@@ -456,7 +460,7 @@ class FlowRun(ObjectBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
@@ -523,12 +527,12 @@ class FlowRun(ObjectBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     state: Optional[State] = Field(
         default=None,
         description="The state of the flow run.",
-        example=State(type=StateType.COMPLETED),
+        examples=[State(type=StateType.COMPLETED)],
     )
     job_variables: Optional[dict] = Field(
         default=None, description="Job variables for the flow run."
@@ -639,7 +643,9 @@ class Constant(TaskRunInput):
 
 
 class TaskRun(ObjectBaseModel):
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: generate_slug(2), examples=["my-task-run"]
+    )
     flow_run_id: Optional[UUID] = Field(
         default=None, description="The flow run id of the task run."
     )
@@ -673,7 +679,7 @@ class TaskRun(ObjectBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
@@ -736,7 +742,7 @@ class TaskRun(ObjectBaseModel):
     state: Optional[State] = Field(
         default=None,
         description="The state of the flow run.",
-        example=State(type=StateType.COMPLETED),
+        examples=[State(type=StateType.COMPLETED)],
     )
 
     @validator("name", pre=True)
@@ -889,12 +895,12 @@ class Flow(ObjectBaseModel):
     """An ORM representation of flow data."""
 
     name: str = Field(
-        default=..., description="The name of the flow", example="my-flow"
+        default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     @validator("name", check_fields=False)
@@ -924,7 +930,7 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
-class Deployment(ObjectBaseModel):
+class Deployment(DeprecatedInfraOverridesField, ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")
@@ -949,9 +955,9 @@ class Deployment(ObjectBaseModel):
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Overrides to apply to the base infrastructure block at runtime.",
+        description="Overrides to apply to flow run infrastructure at runtime.",
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -964,7 +970,7 @@ class Deployment(ObjectBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     work_queue_name: Optional[str] = Field(
         default=None,
@@ -1183,10 +1189,10 @@ class WorkQueue(ObjectBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="An optional concurrency limit for the work queue."
     )
-    priority: conint(ge=1) = Field(
+    priority: PositiveInteger = Field(
         default=1,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -1300,10 +1306,10 @@ class FlowRunNotificationPolicy(ObjectBaseModel):
             " Valid variables include:"
             f" {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
         ),
-        example=(
+        examples=[
             "Flow run {flow_run_name} with id {flow_run_id} entered state"
             " {flow_run_state_name}."
-        ),
+        ],
     )
 
     @validator("message_template")
@@ -1346,7 +1352,7 @@ class WorkPool(ObjectBaseModel):
         default=False,
         description="Pausing the work pool stops the delivery of all work.",
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
     status: Optional[WorkPoolStatus] = Field(
@@ -1484,19 +1490,19 @@ class Variable(ObjectBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
     value: str = Field(
         default=...,
         description="The value of the variable",
-        example="my-value",
+        examples=["my_value"],
         max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of variable tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
 

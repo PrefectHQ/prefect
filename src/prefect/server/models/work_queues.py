@@ -4,11 +4,13 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
+from typing import Optional, Sequence
 from uuid import UUID
 
 import sqlalchemy as sa
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.server.database.orm_models import ORMFlowRun, ORMWorkQueue
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import parse_obj_as
@@ -20,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import (
@@ -30,12 +32,12 @@ from prefect.server.models.workers import (
 from prefect.server.schemas.states import StateType
 
 
-@inject_db
+@db_injector
 async def create_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue: schemas.core.WorkQueue,
-    db: PrefectDBInterface,
-):
+) -> ORMWorkQueue:
     """
     Inserts a WorkQueue.
 
@@ -109,16 +111,15 @@ async def create_work_queue(
             session=session,
             work_pool_id=data["work_pool_id"],
             new_priorities={model.id: work_queue.priority},
-            db=db,
         )
 
     return model
 
 
-@inject_db
+@db_injector
 async def read_work_queue(
-    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID
+) -> Optional[ORMWorkQueue]:
     """
     Reads a WorkQueue by id.
 
@@ -133,10 +134,10 @@ async def read_work_queue(
     return await session.get(db.WorkQueue, work_queue_id)
 
 
-@inject_db
+@db_injector
 async def read_work_queue_by_name(
-    session: AsyncSession, name: str, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, name: str
+) -> Optional[ORMWorkQueue]:
     """
     Reads a WorkQueue by id.
 
@@ -161,14 +162,14 @@ async def read_work_queue_by_name(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def read_work_queues(
     db: PrefectDBInterface,
     session: AsyncSession,
     offset: int = None,
     limit: int = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
-):
+) -> Sequence[ORMWorkQueue]:
     """
     Read WorkQueues.
 
@@ -178,7 +179,7 @@ async def read_work_queues(
         limit: Query limit
         work_queue_filter: only select work queues matching these filters
     Returns:
-        List[db.WorkQueue]: WorkQueues
+        Sequence[db.WorkQueue]: WorkQueues
     """
 
     query = select(db.WorkQueue).order_by(db.WorkQueue.name)
@@ -194,12 +195,12 @@ async def read_work_queues(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def update_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a WorkQueue by id.
@@ -226,9 +227,9 @@ async def update_work_queue(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def delete_work_queue(
-    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
+    db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID
 ) -> bool:
     """
     Delete a WorkQueue by id.
@@ -247,14 +248,14 @@ async def delete_work_queue(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def get_runs_in_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-    db: PrefectDBInterface,
     limit: int = None,
     scheduled_before: datetime.datetime = None,
-):
+) -> Sequence[ORMFlowRun]:
     """
     Get runs from a work queue.
 
@@ -287,20 +288,17 @@ async def get_runs_in_work_queue(
         return await _legacy_get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue_id,
-            db=db,
             scheduled_before=scheduled_before,
             limit=limit,
         )
 
 
-@inject_db
 async def _legacy_get_runs_in_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
-    db: PrefectDBInterface,
     scheduled_before: datetime.datetime = None,
     limit: int = None,
-):
+) -> Sequence[ORMFlowRun]:
     """
     DEPRECATED method for getting runs from a tag-based work queue
 
@@ -365,10 +363,7 @@ async def _legacy_get_runs_in_work_queue(
     )
 
 
-@inject_db
-async def _ensure_work_queue_exists(
-    session: AsyncSession, name: str, db: PrefectDBInterface
-):
+async def ensure_work_queue_exists(session: AsyncSession, name: str):
     """
     Checks if a work queue exists and creates it if it does not.
 
@@ -405,9 +400,8 @@ async def _ensure_work_queue_exists(
     return work_queue
 
 
-@inject_db
 async def read_work_queue_status(
-    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
+    session: AsyncSession, work_queue_id: UUID
 ) -> schemas.core.WorkQueueStatusDetail:
     """
     Get work queue status by id.

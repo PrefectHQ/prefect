@@ -6,14 +6,25 @@ Utilities for working with clients.
 # circular imports for decorators such as `inject_client` which are widely used.
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Tuple, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Optional,
+    Tuple,
+    TypeVar,
+    cast,
+)
 
-from typing_extensions import ParamSpec
+from typing_extensions import Concatenate, ParamSpec
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def get_or_create_client(
@@ -50,6 +61,17 @@ def get_or_create_client(
         from prefect.client.orchestration import get_client as get_httpx_client
 
         return get_httpx_client(), False
+
+
+def client_injector(
+    func: Callable[Concatenate["PrefectClient", P], Awaitable[R]],
+) -> Callable[P, Awaitable[R]]:
+    @wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        client, _ = get_or_create_client()
+        return await func(client, *args, **kwargs)
+
+    return wrapper
 
 
 def inject_client(

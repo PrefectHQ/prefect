@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prefect-email"
+description = "Prefect integrations for interacting with email."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache License 2.0"}
+keywords = ["prefect"]
+authors = [
+  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
+]
+classifiers = [
+  "Natural Language :: English",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+  "prefect>=2.14.10",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+  "aiohttp",
+  "coverage",
+  "interrogate",
+  "mkdocs-gen-files",
+  "mkdocs-material",
+  "mkdocs",
+  "mkdocstrings[python]",
+  "mock; python_version < '3.8'",
+  "mypy",
+  "pillow",
+  "pre-commit",
+  "pytest-asyncio",
+  "pytest",
+  "pytest-xdist",
+]
+
+[project.urls]
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-email"
+
+[project.entry-points."prefect.collections"]
+prefect_email = "prefect_email"
+
+[tool.setuptools_scm]
+version_file = "prefect_email/_version.py"
+root = "../../.."
+tag_regex = "^prefect-email-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+fallback_version = "0.0.0"
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-email-*[0-9]*"'
+
+[tool.interrogate]
+ignore-init-module = true
+ignore_init_method = true
+exclude = ["prefect_email/_version.py", "tests"]
+fail-under = 95
+omit-covered-files = true
+
+[tool.coverage.run]
+omit = ["tests/*", "prefect_email/_version.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

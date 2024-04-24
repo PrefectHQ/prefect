@@ -294,7 +294,7 @@ async def inspect(name: str):
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
-        if client.server_type == ServerType.CLOUD:
+        if client.server_type.supports_automations():
             deployment_json["automations"] = [
                 a.dict()
                 for a in await client.read_resource_related_automations(
@@ -1499,10 +1499,10 @@ async def build(
     except Exception as exc:
         exit_with_error(exc)
     app.console.print(f"Found flow {flow.name!r}", style="green")
-    infra_overrides = {}
+    job_variables = {}
     for override in overrides or []:
         key, value = override.split("=", 1)
-        infra_overrides[key] = value
+        job_variables[key] = value
 
     if infra_block:
         infrastructure = await Block.load(infra_block)
@@ -1595,7 +1595,7 @@ async def build(
         entrypoint=entrypoint,
         version=version,
         storage=storage,
-        infra_overrides=infra_overrides or {},
+        job_variables=job_variables or {},
     )
 
     if parameters:

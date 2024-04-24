@@ -295,6 +295,21 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.CompositeTriggerChildFiring
 
     @property
+    def AutomationEventFollower(self):
+        """A model capturing one event following another event"""
+        return self.orm.AutomationEventFollower
+
+    @property
+    def Event(self):
+        """An event model"""
+        return self.orm.Event
+
+    @property
+    def EventResource(self):
+        """An event resource model"""
+        return self.orm.EventResource
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns

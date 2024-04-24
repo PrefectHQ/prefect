@@ -445,7 +445,7 @@ class PrefectAgent:
         # attributes of the infrastructure block
         doc_dict = infra_document.dict()
         infra_dict = doc_dict.get("data", {})
-        for override, value in (deployment.infra_overrides or {}).items():
+        for override, value in (deployment.job_variables or {}).items():
             nested_fields = override.split(".")
             data = infra_dict
             for field in nested_fields[:-1]:

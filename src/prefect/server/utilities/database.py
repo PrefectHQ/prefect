@@ -503,6 +503,44 @@ def _json_contains_sqlite(element, compiler, **kwargs):
     return _json_contains_sqlite_fn(element.left, element.right, compiler, **kwargs)
 
 
+class json_extract(FunctionElement):
+    """
+    Platform independent json_extract operator, extracts a value from a JSON
+    field via key.
+
+    On postgres this is equivalent to the ->> operator.
+    https://www.postgresql.org/docs/current/functions-json.html
+    """
+
+    type = sa.Text()
+    name = "json_extract"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = False
+
+    def __init__(self, column: sa.Column, path: str, wrap_quotes: bool = False):
+        self.column = column
+        self.path = path
+        self.wrap_quotes = wrap_quotes
+        super().__init__()
+
+
+@compiles(json_extract, "postgresql")
+@compiles(json_extract)
+def _json_extract_postgresql(element, compiler, **kwargs):
+    return "%s ->> '%s'" % (compiler.process(element.column, **kwargs), element.path)
+
+
+@compiles(json_extract, "sqlite")
+def _json_extract_sqlite(element, compiler, **kwargs):
+    path = element.path.replace("'", "''")  # escape single quotes for JSON path
+    if element.wrap_quotes:
+        path = f'"{path}"'
+    return "JSON_EXTRACT(%s, '$.%s')" % (
+        compiler.process(element.column, **kwargs),
+        path,
+    )
+
+
 class json_has_any_key(FunctionElement):
     """
     Platform independent json_has_any_key operator.
@@ -622,7 +660,7 @@ def get_dialect(
         from prefect.server.utilities.database import get_dialect
 
         dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
-        if dialect == "sqlite":
+        if dialect.name == "sqlite":
             print("Using SQLite!")
         else:
             print("Using Postgres!")

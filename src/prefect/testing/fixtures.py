@@ -316,14 +316,19 @@ async def events_server(
 
 @pytest.fixture
 def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
+    return f"http://localhost:{unused_tcp_port}"
+
+
+@pytest.fixture
+def events_cloud_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
     return f"http://localhost:{unused_tcp_port}/accounts/A/workspaces/W"
 
 
 @pytest.fixture
-def mock_emit_events_to_cloud(monkeypatch) -> mock.Mock:
+def mock_should_emit_events(monkeypatch) -> mock.Mock:
     m = mock.Mock()
     m.return_value = True
-    monkeypatch.setattr("prefect.events.utilities.emit_events_to_cloud", m)
+    monkeypatch.setattr("prefect.events.utilities.should_emit_events", m)
     return m
 
 

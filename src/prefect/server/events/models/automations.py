@@ -1,10 +1,10 @@
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.dependencies import db_injector
@@ -16,6 +16,7 @@ from prefect.server.events.schemas.automations import (
     AutomationSort,
     AutomationUpdate,
 )
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
 
 @asynccontextmanager
@@ -34,11 +35,14 @@ async def read_automations_for_workspace(
     sort: AutomationSort = AutomationSort.NAME_ASC,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
+    automation_filter: Optional[filters.AutomationFilter] = None,
 ) -> Sequence[Automation]:
     query = sa.select(db.Automation)
 
     query = query.order_by(db.Automation.sort_expression(sort))
 
+    if automation_filter:
+        query = query.where(automation_filter.as_sql_filter(db))
     if limit is not None:
         query = query.limit(limit)
     if offset is not None:
@@ -92,7 +96,21 @@ async def read_automation_by_id(
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
-    pass  # TODO: implement this in a future PR
+    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
+        return
+
+    from prefect.server.events.triggers import automation_changed
+
+    loop = asyncio.get_event_loop()
+    sync_session = session.sync_session
+
+    def change_notification(session, **kwargs):
+        asyncio.run_coroutine_threadsafe(
+            automation_changed(automation.id, f"automation__{event}"),
+            loop=loop,
+        )
+
+    sa.event.listen(sync_session, "after_commit", change_notification, once=True)
 
 
 @db_injector
@@ -263,7 +281,7 @@ async def relate_automation_to_resource(
     owned_by_resource: bool,
 ) -> None:
     await session.execute(
-        postgres_insert(db.AutomationRelatedResource)
+        db.insert(db.AutomationRelatedResource)
         .values(
             automation_id=automation_id,
             resource_id=resource_id,

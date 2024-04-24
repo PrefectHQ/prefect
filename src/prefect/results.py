@@ -20,13 +20,6 @@ from typing_extensions import Self
 
 import prefect
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-
-else:
-    import pydantic
-
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingResult
@@ -46,7 +39,14 @@ from prefect.settings import (
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.pydantic import add_type_dispatch
+from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+
+else:
+    import pydantic
+
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
@@ -480,11 +480,26 @@ class ResultFactory(pydantic.BaseModel):
         return self.serializer.loads(blob.data)
 
 
-@add_type_dispatch
+@register_base_type
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
     artifact_type: Optional[str]
     artifact_description: Optional[str]
+
+    def __init__(self, **data: Any) -> None:
+        type_string = get_dispatch_key(self) if type(self) != BaseResult else "__base__"
+        data.setdefault("type", type_string)
+        super().__init__(**data)
+
+    def __new__(cls: Type[Self], **kwargs) -> Self:
+        if "type" in kwargs:
+            try:
+                subcls = lookup_type(cls, dispatch_key=kwargs["type"])
+            except KeyError as exc:
+                raise pydantic.ValidationError(errors=[exc], model=cls)
+            return super().__new__(subcls)
+        else:
+            return super().__new__(cls)
 
     _cache: Any = pydantic.PrivateAttr(NotSet)
 
@@ -510,6 +525,10 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     class Config:
         extra = "forbid"
+
+    @classmethod
+    def __dispatch_key__(cls, **kwargs):
+        return cls.__fields__.get("type").get_default()
 
 
 class UnpersistedResult(BaseResult):
@@ -713,7 +732,7 @@ class PersistedResultBlob(pydantic.BaseModel):
 
 class UnknownResult(BaseResult):
     """
-    Result type for unknown results. Typipcally used to represent the result
+    Result type for unknown results. Typically used to represent the result
     of tasks that were forced from a failure state into a completed state.
 
     The value for this result is always None and is not persisted to external

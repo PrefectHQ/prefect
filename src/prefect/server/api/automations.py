@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -22,7 +22,7 @@ from prefect.server.api.dependencies import LimitBody
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import actions
-from prefect.server.events.models import automations
+from prefect.server.events.models import automations as automations_models
 from prefect.server.events.schemas.automations import (
     Automation,
     AutomationCreate,
@@ -32,9 +32,27 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    PREFECT_EXPERIMENTAL_EVENTS,
+)
 
-router = PrefectRouter(prefix="/automations", tags=["Automations"])
+
+def automations_enabled() -> bool:
+    if not PREFECT_EXPERIMENTAL_EVENTS or not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Automations are not enabled. Please enable the"
+            " PREFECT_EXPERIMENTAL_EVENTS and"
+            " PREFECT_API_SERVICES_TRIGGERS_ENABLED settings.",
+        )
+
+
+router = PrefectRouter(
+    prefix="/automations",
+    tags=["Automations"],
+    dependencies=[Depends(automations_enabled)],
+)
 
 
 class FlowRunInfrastructureMissing(Exception):
@@ -74,7 +92,7 @@ async def _validate_run_deployment_action_against_pool_schema(
         work_pool = await wpc.read_work_pool(deployment.work_pool_name)
 
     default_vars = _get_base_config_defaults(work_pool.base_job_template)
-    deployment_vars = deployment.infra_overrides or {}
+    deployment_vars = deployment.job_variables or {}
     validate_values_conform_to_schema(
         {**default_vars, **deployment_vars, **job_variables},
         work_pool.base_job_template.get("variables", {}),
@@ -89,22 +107,21 @@ async def create_automation(
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
 
-    if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
-        errors = []
-        for action in automation.actions:
-            if (
-                isinstance(action, actions.RunDeployment)
-                and action.deployment_id is not None
-                and action.job_variables is not None
-                and action.job_variables != {}
-            ):
-                try:
-                    await _validate_run_deployment_action_against_pool_schema(
-                        deployment_id=action.deployment_id,
-                        job_variables=action.job_variables,
-                    )
-                except (ValueError, FlowRunInfrastructureMissing) as exc:
-                    errors.append(str(exc))
+    errors = []
+    for action in automation.actions:
+        if (
+            isinstance(action, actions.RunDeployment)
+            and action.deployment_id is not None
+            and action.job_variables is not None
+            and action.job_variables != {}
+        ):
+            try:
+                await _validate_run_deployment_action_against_pool_schema(
+                    deployment_id=action.deployment_id,
+                    job_variables=action.job_variables,
+                )
+            except (ValueError, FlowRunInfrastructureMissing) as exc:
+                errors.append(str(exc))
 
         if errors:
             raise HTTPException(
@@ -116,7 +133,7 @@ async def create_automation(
     owner_resource = automation_dict.pop("owner_resource", None)
 
     async with db.session_context(begin_transaction=True) as session:
-        created_automation = await automations.create_automation(
+        created_automation = await automations_models.create_automation(
             session=session,
             automation=Automation(
                 **automation_dict,
@@ -124,7 +141,7 @@ async def create_automation(
         )
 
         if owner_resource:
-            await automations.relate_automation_to_resource(
+            await automations_models.relate_automation_to_resource(
                 session,
                 automation_id=created_automation.id,
                 resource_id=owner_resource,
@@ -143,25 +160,24 @@ async def update_automation(
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
 
-    if PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES.value():
-        errors = []
-        for action in automation.actions:
-            if (
-                isinstance(action, actions.RunDeployment)
-                and action.deployment_id is not None
-                and action.job_variables is not None
-            ):
-                try:
-                    await _validate_run_deployment_action_against_pool_schema(
-                        deployment_id=action.deployment_id,
-                        job_variables=action.job_variables,
-                    )
-                except ValueError as exc:
-                    errors.append(str(exc))
-                except AssertionError:
-                    errors.append(
-                        "Unable to find required resources for automation update."
-                    )
+    errors = []
+    for action in automation.actions:
+        if (
+            isinstance(action, actions.RunDeployment)
+            and action.deployment_id is not None
+            and action.job_variables is not None
+        ):
+            try:
+                await _validate_run_deployment_action_against_pool_schema(
+                    deployment_id=action.deployment_id,
+                    job_variables=action.job_variables,
+                )
+            except ValueError as exc:
+                errors.append(str(exc))
+            except AssertionError:
+                errors.append(
+                    "Unable to find required resources for automation update."
+                )
         if errors:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -169,7 +185,7 @@ async def update_automation(
             )
 
     async with db.session_context(begin_transaction=True) as session:
-        updated = await automations.update_automation(
+        updated = await automations_models.update_automation(
             session=session,
             automation_update=automation,
             automation_id=automation_id,
@@ -190,7 +206,7 @@ async def patch_automation(
 ):
     try:
         async with db.session_context(begin_transaction=True) as session:
-            updated = await automations.update_automation(
+            updated = await automations_models.update_automation(
                 session=session,
                 automation_update=automation,
                 automation_id=automation_id,
@@ -214,7 +230,7 @@ async def delete_automation(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        deleted = await automations.delete_automation(
+        deleted = await automations_models.delete_automation(
             session=session,
             automation_id=automation_id,
         )
@@ -228,14 +244,16 @@ async def read_automations(
     sort: AutomationSort = Body(AutomationSort.NAME_ASC),
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
+    automations: Optional[AutomationFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Sequence[Automation]:
     async with db.session_context() as session:
-        return await automations.read_automations_for_workspace(
+        return await automations_models.read_automations_for_workspace(
             session=session,
             sort=sort,
             limit=limit,
             offset=offset,
+            automation_filter=automations,
         )
 
 
@@ -244,7 +262,7 @@ async def count_automations(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> int:
     async with db.session_context() as session:
-        return await automations.count_automations_for_workspace(session=session)
+        return await automations_models.count_automations_for_workspace(session=session)
 
 
 @router.get("/{id:uuid}")
@@ -253,7 +271,7 @@ async def read_automation(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Automation:
     async with db.session_context() as session:
-        automation = await automations.read_automation(
+        automation = await automations_models.read_automation(
             session=session,
             automation_id=automation_id,
         )
@@ -269,7 +287,7 @@ async def read_automations_related_to_resource(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Sequence[Automation]:
     async with db.session_context() as session:
-        return await automations.read_automations_related_to_resource(
+        return await automations_models.read_automations_related_to_resource(
             session=session,
             resource_id=resource_id,
         )
@@ -281,7 +299,7 @@ async def delete_automations_owned_by_resource(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        await automations.delete_automations_owned_by_resource(
+        await automations_models.delete_automations_owned_by_resource(
             session,
             resource_id=resource_id,
             automation_filter=AutomationFilter(

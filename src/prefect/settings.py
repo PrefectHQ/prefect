@@ -107,6 +107,10 @@ DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
+    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
 }
 
 
@@ -1367,16 +1371,6 @@ PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=Tru
 Whether or not to enable flow run states on the flow run graph.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect work pools.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect work pools are used.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
@@ -1550,16 +1544,6 @@ a task server should move a task from PENDING to RUNNING very quickly, so runs s
 PENDING for a while is a sign that the task server may have crashed.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=False)
-"""
-Whether or not to enable infrastructure overrides made on flow runs.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES = Setting(bool, default=True)
-"""
-Whether or not to warn infrastructure when experimental flow runs overrides are used.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
@@ -1677,6 +1661,48 @@ The maximum size of an Event when serialized to JSON
 PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
 """
 Whether or not to start the event debug logger service in the server application.
+"""
+
+PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the triggers service in the server application.
+"""
+
+PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
+"""
+The amount of time to retain expired automation buckets
+"""
+
+PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seconds=5))
+"""
+How frequently proactive automations are evaluated
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the event persister service in the server application.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE = Setting(int, default=20, gt=0)
+"""
+The number of events the event persister will attempt to insert in one batch.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, gt=0.0)
+"""
+The maximum number of seconds between flushes of the event persister.
+"""
+
+PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to allow streaming events out of via websockets.
+"""
+
+PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
+    timedelta, default=timedelta(minutes=5)
+)
+"""
+How long to cache related resource data for emitting server-side vents
 """
 
 # Deprecated settings ------------------------------------------------------------------

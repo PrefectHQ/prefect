@@ -3,8 +3,8 @@ from typing import Any, Dict, Union
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.server import models, schemas
+from prefect.utilities.schema_tools import ValidationError, validate
 
 
 def _get_base_config_defaults(base_config: dict):
@@ -71,19 +71,31 @@ async def validate_job_variables_for_flow_run(
         # base job template to validate job variables against
         return
 
+    variables_schema = deployment.work_queue.work_pool.base_job_template.get(
+        "variables"
+    )
+    if not variables_schema:
+        # There is no schema to validate.
+        return
+
     base_vars = _get_base_config_defaults(
         deployment.work_queue.work_pool.base_job_template
     )
     base_vars = await _resolve_default_references(base_vars, session)
     flow_run_vars = flow_run.job_variables or {}
-    job_vars = {**base_vars, **deployment.infra_overrides, **flow_run_vars}
+    job_vars = {**base_vars, **deployment.job_variables, **flow_run_vars}
+    variables_schema = deployment.work_queue.work_pool.base_job_template.get(
+        "variables"
+    )
 
     try:
-        validate_values_conform_to_schema(
+        validate(
             job_vars,
-            deployment.work_queue.work_pool.base_job_template.get("variables"),
+            variables_schema,
+            raise_on_error=True,
+            preprocess=True,
         )
-    except ValueError as exc:
+    except ValidationError as exc:
         if isinstance(flow_run, schemas.actions.FlowRunUpdate):
             error_msg = f"Error updating flow run: {exc}"
         else:

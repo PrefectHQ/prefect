@@ -1,12 +1,18 @@
+"""
+This file defines a `PrefectBaseModel` class that extends the `BaseModel` (imported from the internal compatibility layer).
+"""
 import typing
 
 from prefect._internal.pydantic._compat import (
     BaseModel,
+    ConfigDict,
     Field,
     FieldInfo,
     PrivateAttr,
     SecretStr,
+    ValidationError,
     field_validator,
+    model_validator,
 )
 
 
@@ -27,4 +33,7 @@ __all__ = [
     "PrivateAttr",
     "SecretStr",
     "field_validator",
+    "model_validator",
+    "ConfigDict",
+    "ValidationError",
 ]

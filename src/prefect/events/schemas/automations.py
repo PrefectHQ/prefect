@@ -1,4 +1,5 @@
 import abc
+import textwrap
 from datetime import timedelta
 from enum import Enum
 from typing import (
@@ -9,23 +10,24 @@ from typing import (
     Optional,
     Set,
     Union,
+    cast,
 )
 from uuid import UUID
 
 from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_trigger_within
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
+    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
     from pydantic.v1.fields import ModelField
 else:
-    from pydantic import Field, root_validator, validator
-    from pydantic.fields import ModelField
+    from pydantic import Field, PrivateAttr, root_validator, validator  # type: ignore
+    from pydantic.fields import ModelField  # type: ignore
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.events.actions import ActionTypes
+from prefect._internal.schemas.validators import validate_trigger_within
+from prefect.events.actions import ActionTypes, RunDeployment
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -44,6 +46,54 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     """
 
     type: str
+
+    @abc.abstractmethod
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+
+    # The following allows the regular Trigger class to be used when serving or
+    # deploying flows, analogous to how the Deployment*Trigger classes work
+
+    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
+
+    def set_deployment_id(self, deployment_id: UUID):
+        self._deployment_id = deployment_id
+
+    def owner_resource(self) -> Optional[str]:
+        return f"prefect.deployment.{self._deployment_id}"
+
+    def actions(self) -> List[ActionTypes]:
+        assert self._deployment_id
+        return [
+            RunDeployment(
+                source="selected",
+                deployment_id=self._deployment_id,
+                parameters=getattr(self, "parameters", None),
+                job_variables=getattr(self, "job_variables", None),
+            )
+        ]
+
+    def as_automation(self) -> "AutomationCore":
+        assert self._deployment_id
+
+        trigger: TriggerTypes = cast(TriggerTypes, self)
+
+        # This is one of the Deployment*Trigger classes, so translate it over to a
+        # plain Trigger
+        if hasattr(self, "trigger_type"):
+            trigger = self.trigger_type(**self.dict())
+
+        return AutomationCore(
+            name=(
+                getattr(self, "name", None)
+                or f"Automation for deployment {self._deployment_id}"
+            ),
+            description="",
+            enabled=getattr(self, "enabled", True),
+            trigger=trigger,
+            actions=self.actions(),
+            owner_resource=self.owner_resource(),
+        )
 
 
 class ResourceTrigger(Trigger, abc.ABC):
@@ -101,7 +151,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
     posture: Literal[Posture.Reactive, Posture.Proactive] = Field(  # type: ignore[valid-type]
-        ...,
+        Posture.Reactive,
         description=(
             "The posture of this trigger, either Reactive or Proactive.  Reactive "
             "triggers respond to the _presence_ of the expected events, while "
@@ -147,6 +197,28 @@ class EventTrigger(ResourceTrigger):
                 )
 
         return values
+
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        if self.posture == Posture.Reactive:
+            return textwrap.indent(
+                "\n".join(
+                    [
+                        f"Reactive: expecting {self.threshold} of {self.expect}",
+                    ],
+                ),
+                prefix="  " * indent,
+            )
+        else:
+            return textwrap.indent(
+                "\n".join(
+                    [
+                        f"Proactive: expecting {self.threshold} {self.expect} event "
+                        f"within {self.within}",
+                    ],
+                ),
+                prefix="  " * indent,
+            )
 
 
 class MetricTriggerOperator(Enum):
@@ -224,6 +296,18 @@ class MetricTrigger(ResourceTrigger):
         description="The metric query to evaluate for this trigger. ",
     )
 
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        m = self.metric
+        return textwrap.indent(
+            "\n".join(
+                [
+                    f"Metric: {m.name.value} {m.operator.value} {m.threshold} for {m.range}",
+                ]
+            ),
+            prefix="  " * indent,
+        )
+
 
 class CompositeTrigger(Trigger, abc.ABC):
     """
@@ -256,12 +340,46 @@ class CompoundTrigger(CompositeTrigger):
 
         return values
 
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        return textwrap.indent(
+            "\n".join(
+                [
+                    f"{str(self.require).capitalize()} of:",
+                    "\n".join(
+                        [
+                            trigger.describe_for_cli(indent=indent + 1)
+                            for trigger in self.triggers
+                        ]
+                    ),
+                ]
+            ),
+            prefix="  " * indent,
+        )
+
 
 class SequenceTrigger(CompositeTrigger):
     """A composite trigger that requires some number of triggers to have fired
     within the given time period in a specific order"""
 
     type: Literal["sequence"] = "sequence"
+
+    def describe_for_cli(self, indent: int = 0) -> str:
+        """Return a human-readable description of this trigger for the CLI"""
+        return textwrap.indent(
+            "\n".join(
+                [
+                    "In this order:",
+                    "\n".join(
+                        [
+                            trigger.describe_for_cli(indent=indent + 1)
+                            for trigger in self.triggers
+                        ]
+                    ),
+                ]
+            ),
+            prefix="  " * indent,
+        )
 
 
 TriggerTypes: TypeAlias = Union[
@@ -273,7 +391,7 @@ CompoundTrigger.update_forward_refs()
 SequenceTrigger.update_forward_refs()
 
 
-class Automation(PrefectBaseModel, extra="ignore"):
+class AutomationCore(PrefectBaseModel, extra="ignore"):
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 
@@ -310,5 +428,5 @@ class Automation(PrefectBaseModel, extra="ignore"):
     )
 
 
-class ExistingAutomation(Automation):
+class Automation(AutomationCore):
     id: UUID = Field(..., description="The ID of this automation")

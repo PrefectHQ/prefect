@@ -22,6 +22,7 @@ from ._compat import (
     Field,
     FieldInfo,
     field_validator,
+    model_validator,
 )
 
 from ._types import IncEx
@@ -41,4 +42,5 @@ __all__ = [
     "Field",
     "FieldInfo",
     "field_validator",
+    "model_validator",
 ]

@@ -1,3 +1,6 @@
+"""
+This initialization file makes the `BaseModel` and `PrefectBaseModel` classes available for import from the pydantic module within Prefect. This setup allows other parts of the Prefect codebase to use these models without needing to understand the underlying compatibility layer.
+"""
 import typing
 from prefect._internal.pydantic._flags import HAS_PYDANTIC_V2, USE_PYDANTIC_V2
 
@@ -13,6 +16,9 @@ if typing.TYPE_CHECKING:
         PrivateAttr,
         SecretStr,
         field_validator,
+        model_validator,
+        ConfigDict,
+        ValidationError,
     )
 
 __all__ = [
@@ -25,6 +31,9 @@ __all__ = [
     "validator",
     "root_validator",
     "field_validator",
+    "model_validator",
+    "ConfigDict",
+    "ValidationError",
 ]
 
 _dynamic_imports: "typing.Dict[str, typing.Tuple[str, str]]" = {
@@ -35,6 +44,9 @@ _dynamic_imports: "typing.Dict[str, typing.Tuple[str, str]]" = {
     "PrivateAttr": ("prefect.pydantic", ".main"),
     "SecretStr": ("prefect.pydantic", ".main"),
     "field_validator": ("prefect.pydantic", ".main"),
+    "model_validator": ("prefect.pydantic", ".main"),
+    "ConfigDict": ("prefect.pydantic", ".main"),
+    "ValidationError": ("prefect.pydantic", ".main"),
 }
 
 

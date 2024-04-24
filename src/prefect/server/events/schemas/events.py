@@ -19,9 +19,9 @@ import pendulum
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
+    from pydantic.v1 import AnyHttpUrl, Field, root_validator, validator
 else:
-    from pydantic import Field, root_validator, validator
+    from pydantic import AnyHttpUrl, Field, root_validator, validator
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
@@ -179,17 +179,41 @@ class Event(PrefectBaseModel):
         return self.resource.get(label)
 
 
-class ReceivedEvent(Event):
+class ReceivedEvent(Event, extra="ignore", orm_mode=True):
     """The server-side view of an event that has happened to a Resource after it has
     been received by the server"""
-
-    class Config:
-        orm_mode = True
 
     received: DateTimeTZ = Field(
         default_factory=lambda: pendulum.now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
+
+    def as_database_row(self) -> Dict[str, Any]:
+        row = self.dict()
+        row["resource_id"] = self.resource.id
+        row["recorded"] = pendulum.now("UTC")
+        row["related_resource_ids"] = [related.id for related in self.related]
+        return row
+
+    def as_database_resource_rows(self) -> List[Dict[str, Any]]:
+        def without_id_and_role(resource: Resource) -> Dict[str, str]:
+            d: Dict[str, str] = resource.dict()["__root__"]
+            d.pop("prefect.resource.id", None)
+            d.pop("prefect.resource.role", None)
+            return d
+
+        return [
+            {
+                "occurred": self.occurred,
+                "resource_id": resource.id,
+                "resource_role": (
+                    resource.role if isinstance(resource, RelatedResource) else ""
+                ),
+                "resource": without_id_and_role(resource),
+                "event_id": self.id,
+            }
+            for resource in [self.resource, *self.related]
+        ]
 
 
 def matches(expected: str, value: Optional[str]) -> bool:
@@ -285,3 +309,30 @@ class ResourceSpecification(PrefectBaseModel):
 
     def deepcopy(self) -> "ResourceSpecification":
         return ResourceSpecification.parse_obj(copy.deepcopy(self.__root__))
+
+
+class EventPage(PrefectBaseModel):
+    """A single page of events returned from the API, with an optional link to the
+    next page of results"""
+
+    events: List[ReceivedEvent] = Field(
+        ..., description="The Events matching the query"
+    )
+    total: int = Field(..., description="The total number of matching Events")
+    next_page: Optional[AnyHttpUrl] = Field(
+        ..., description="The URL for the next page of results, if there are more"
+    )
+
+
+class EventCount(PrefectBaseModel):
+    """The count of events with the given filter value"""
+
+    value: str = Field(..., description="The value to use for filtering")
+    label: str = Field(..., description="The value to display for this count")
+    count: int = Field(..., description="The count of matching events")
+    start_time: DateTimeTZ = Field(
+        ..., description="The start time of this group of events"
+    )
+    end_time: DateTimeTZ = Field(
+        ..., description="The end time of this group of events"
+    )

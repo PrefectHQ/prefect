@@ -77,12 +77,14 @@ def test_sets_follows_tight_timing(
         event="planet.destroyed",
         resource={"prefect.resource.id": "milky-way.sol.earth"},
     )
+    assert destroyed_event
 
     read_event = emit_event(
         event="vogon.poetry.read",
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
         follows=destroyed_event,
     )
+    assert read_event
 
     asserting_events_worker.drain()
     assert read_event.follows == destroyed_event.id
@@ -96,6 +98,7 @@ def test_does_not_set_follows_not_tight_timing(
         occurred=pendulum.now("UTC") - timedelta(minutes=10),
         resource={"prefect.resource.id": "milky-way.sol.earth"},
     )
+    assert destroyed_event
 
     # These events are more than 5m apart so the `follows` property of the
     # emitted event shouldn't be set.
@@ -104,6 +107,7 @@ def test_does_not_set_follows_not_tight_timing(
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
         follows=destroyed_event,
     )
+    assert read_event
 
     asserting_events_worker.drain()
     assert read_event.follows is None
@@ -123,9 +127,9 @@ def test_noop_with_null_events_client():
         )
 
 
-def test_noop_with_non_cloud_client(mock_emit_events_to_cloud: mock.Mock):
+def test_noop_with_non_cloud_client(mock_should_emit_events: mock.Mock):
     with temporary_settings(updates={PREFECT_API_URL: "http://localhost:4242"}):
-        mock_emit_events_to_cloud.return_value = None
+        mock_should_emit_events.return_value = None
 
         assert (
             emit_event(

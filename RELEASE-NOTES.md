@@ -1,5 +1,173 @@
 # Prefect Release Notes
 
+## Release 2.18.0
+
+### Breaking Changes
+- Remove deprecated ability to run `prefect deploy` with `deployment.yaml` file — https://github.com/PrefectHQ/prefect/pull/12731
+- Remove deprecated ability to pass `-f/--flow` as option to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12732
+- Remove deprecated `projects` from `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12737
+- Remove deprecated `--ci` option from `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12740
+
+### Enhancements
+- Improve account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
+
+### Fixes
+- Raise clearer flow validation error — https://github.com/PrefectHQ/prefect/pull/12715
+- Exclude job_variables when exclude=None — https://github.com/PrefectHQ/prefect/pull/12712
+- Remove experimental flags on infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/12742
+
+### Experimental
+
+#### Pydantic V2 Compatibility
+- Introduce self-validating types — https://github.com/PrefectHQ/prefect/pull/12707
+- Refactor `field_validator` and `model_validator` to map Pydantic kwargs between versions — https://github.com/PrefectHQ/prefect/pull/12676
+- Fix type-hinting for self-validating fields — https://github.com/PrefectHQ/prefect/pull/12710
+- Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
+
+ 
+#### Events and Automations
+- Implement the `run-deployment` automation action — https://github.com/PrefectHQ/prefect/pull/12677
+- Implement the `send-notification` action — https://github.com/PrefectHQ/prefect/pull/12693
+- Make `TriggeredAction.firing` required — https://github.com/PrefectHQ/prefect/pull/12697
+- Add an Actions service — https://github.com/PrefectHQ/prefect/pull/12699
+- Implement the `call-webhook` action and adds all Action client-side schemata — https://github.com/PrefectHQ/prefect/pull/12728
+- Implement `change-flow-run-state`, `cancel-flow-run`, and `suspend-flow-run` — https://github.com/PrefectHQ/prefect/pull/12730
+- Add functions for querying and counting events — https://github.com/PrefectHQ/prefect/pull/12696
+- Implement the `pause-deployment` and `resume-deployment` actions — https://github.com/PrefectHQ/prefect/pull/12733
+- Add `/events/filter` and `/events/count-by` route trees — https://github.com/PrefectHQ/prefect/pull/12736
+- Allow for creating automations via deployments when experimental events is on — https://github.com/PrefectHQ/prefect/pull/12701
+- Add ability to stream out events via websocket — https://github.com/PrefectHQ/prefect/pull/12744
+- Implement the `pause-automation` and `resume-automation` actions — https://github.com/PrefectHQ/prefect/pull/12738
+- Add automations CLI — https://github.com/PrefectHQ/prefect/pull/12754
+- Rename `prefect-cloud.*` events and labels to `prefect.*` — https://github.com/PrefectHQ/prefect/pull/12755
+- Add ability to emit events to an ephemeral Prefect server — https://github.com/PrefectHQ/prefect/pull/12762
+- Disable `events` and `automations` API routes when experimental events setting is not enabled — https://github.com/PrefectHQ/prefect/pull/12777
+- Add compatibility tests for client and server triggers and actions — https://github.com/PrefectHQ/prefect/pull/12778
+- Disable the automations integration flows for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/12784
+- Add pause and resume the work pool and work queue actions — https://github.com/PrefectHQ/prefect/pull/12735
+- Add helper functions for creating an events client or subscriber — https://github.com/PrefectHQ/prefect/pull/12759
+- Add default posture to `EventTrigger` schema — https://github.com/PrefectHQ/prefect/pull/12764
+ - Fix writing events for SQLite + SQLAlchemy<2 — https://github.com/PrefectHQ/prefect/pull/12679
+
+### Documentation
+- Update `prefect.yaml` example in work pools concepts page — https://github.com/PrefectHQ/prefect/pull/12695
+- Fix typo in Quickstart — https://github.com/PrefectHQ/prefect/pull/12729
+- Simplify quickstart — https://github.com/PrefectHQ/prefect/pull/12725
+- Add `.serve`, `.deploy`, and composite trigger examples to deployment triggers docs — https://github.com/PrefectHQ/prefect/pull/12743
+- Update automations images — https://github.com/PrefectHQ/prefect/pull/12752
+- Simplify tutorial — https://github.com/PrefectHQ/prefect/pull/12765
+- Remove disclaimer for Python 3.12 experimental support — https://github.com/PrefectHQ/prefect/pull/12771
+- Clarify deployment trigger examples — https://github.com/PrefectHQ/prefect/pull/12782
+- Remove Prefect-managed integration libraries to be archived from the integrations catalog — https://github.com/PrefectHQ/prefect/pull/12781
+- Fix broken link to push work pool guide — https://github.com/PrefectHQ/prefect/pull/12748
+- Fix minor restructure to improve legibility of work pools tutorial — https://github.com/PrefectHQ/prefect/pull/12747
+- Fix `typing` import and typos in tasks tutorial — https://github.com/PrefectHQ/prefect/pull/12746
+- Simplify installation — https://github.com/PrefectHQ/prefect/pull/12772
+- Fix import syntax in `variables.Variable` example — https://github.com/PrefectHQ/prefect/pull/12727
+- Fix typo in How-to Guide document — https://github.com/PrefectHQ/prefect/pull/12761
+
+
+## New Contributors
+* @hboehmer-IW made their first contribution in https://github.com/PrefectHQ/prefect/pull/12721
+* @avriiil made their first contribution in https://github.com/PrefectHQ/prefect/pull/12748
+* @takashimakazuki made their first contribution in https://github.com/PrefectHQ/prefect/pull/12761
+  
+### Integrations
+- Add support for a capacity provider — https://github.com/PrefectHQ/prefect-aws/pull/407
+- Improve error handling for task creation — https://github.com/PrefectHQ/prefect-aws/pull/406
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.17.1...2.18.0
+
+## Release 2.17.1
+
+### Fixes
+- Fix events storage import — https://github.com/PrefectHQ/prefect/pull/12681
+- Remove `opentelemetry` import — https://github.com/PrefectHQ/prefect/pull/12684
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.17.0...2.17.1
+
+## Release 2.17.0
+
+### Manage Prefect variables via the Python SDK
+
+Prefect variables are useful for storing and reusing data and configuration between and across workflows; and previously you could only create and update variables via the Prefect UI. With this release, you can now get and set Prefect variables directly in your Python code with the new `Variable.set` and `Variable.get` methods!
+
+For an example of reading and writing variable values in Python see the following example:
+
+```python
+from prefect.variables import Variable
+
+# set a variable
+variable = Variable.set(name="the_answer", value="42")
+
+# get a variable
+answer = Variable.get('the_answer')
+print(answer.value)
+# 42
+
+# get a variable with a default value
+answer = Variable.get('not_the_answer', default='42')
+print(answer.value)
+# 42
+
+# update a variable
+answer = Variable.set(name="the_answer", value="43", overwrite=True)
+print(answer.value)
+#43
+```
+
+Refer to the [docs](https://docs.prefect.io/latest/guides/variables/#accessing-variables) for more information and see the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
+
+### Enhancements
+- Allow flows inside tasks 
+    — https://github.com/PrefectHQ/prefect/pull/12559
+    — https://github.com/PrefectHQ/prefect/pull/12607
+- Add `User-Agent` header containing the running Prefect version — https://github.com/PrefectHQ/prefect/pull/12601
+- Adds deployment version to the flow run object — https://github.com/PrefectHQ/prefect/pull/12591
+
+### Fixes
+- Transition flow runs without active infrastructure directly to cancelled — https://github.com/PrefectHQ/prefect/pull/12582
+- Remove duplicate CLI output when reauthorizing with `prefect cloud login` — https://github.com/PrefectHQ/prefect/pull/12664
+- Add `blob_storage` extra as requirement for Azure `prefect.yaml` recipes — https://github.com/PrefectHQ/prefect/pull/12333
+- Exclude Typer 0.12.2 from solver — https://github.com/PrefectHQ/prefect/pull/12618
+- Correct `schedules`/`is_schedule_active` deprecation windows — https://github.com/PrefectHQ/prefect/pull/12616
+
+### Experimental / In-Flight Features
+
+#### Pydantic V2 Compatibility
+- Add `pydantic` V2 compatible `field_validator`  — https://github.com/PrefectHQ/prefect/pull/12576
+- Add `pydantic` V2 `model_validator` — https://github.com/PrefectHQ/prefect/pull/12635
+- Expose `field_validator` in `pydantic` compatibility layer — https://github.com/PrefectHQ/prefect/pull/12608
+- Add `ConfigDict` to `pydantic` compatibility layer — https://github.com/PrefectHQ/prefect/pull/12629
+- Add `model_fields_set` to `pydantic` compatibility layer — https://github.com/PrefectHQ/prefect/pull/12654
+- Map `copy_on_model_validation` to `revalidate_instances` in `pydantic` compatibility layer — https://github.com/PrefectHQ/prefect/pull/12644
+
+#### Events and Automations
+- Enable `EventsWorker` to emit events to Prefect servers — https://github.com/PrefectHQ/prefect/pull/12637
+- Add ORM models and database migrations for events storage — https://github.com/PrefectHQ/prefect/pull/12651
+- Add automations API — https://github.com/PrefectHQ/prefect/pull/12620
+- Add reactive and composite triggers — https://github.com/PrefectHQ/prefect/pull/12650
+- Add proactive triggers — https://github.com/PrefectHQ/prefect/pull/12660
+- Add `EventPersister` service to store received events - https://github.com/PrefectHQ/prefect/pull/12662
+
+### Deprecations
+- Remove expired deprecations from `prefect/__init__.py` — https://github.com/PrefectHQ/prefect/pull/12613
+
+### Documentation
+- Update references to deployment schedules — https://github.com/PrefectHQ/prefect/pull/12595
+- Add missing navigation items for `prefect shell` CLI command — https://github.com/PrefectHQ/prefect/pull/12598
+- Update formatting for `prefect shell` CLI command — https://github.com/PrefectHQ/prefect/pull/12606
+- Add comment to blocks concept page when using `SecretStr` with `pydantic` V2  — https://github.com/PrefectHQ/prefect/pull/12632
+- Fix name format in `run_deployment` docstring — https://github.com/PrefectHQ/prefect/pull/12628
+- Add documentation for flow run job variables — https://github.com/PrefectHQ/prefect/pull/12490
+- Add example of retrieving an artifact in Python code — https://github.com/PrefectHQ/prefect/pull/12666
+
+### Contributors
+- @hainenber
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.16.9...2.17.0
+
 ## Release 2.16.9
 
 ### `prefect deploy` with `-jv/--job-variable` option

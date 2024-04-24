@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -10,6 +10,7 @@ else:
 import pytest
 
 from prefect._internal.compatibility.deprecated import (
+    DeprecatedInfraOverridesField,
     PrefectDeprecationWarning,
     deprecated_callable,
     deprecated_class,
@@ -191,3 +192,143 @@ def test_deprecated_class():
     ):
         obj = MyClass()
         assert isinstance(obj, MyClass)
+
+
+class TestDeprecatedInfraOverridesField:
+    @pytest.fixture
+    def my_deployment_model(self):
+        class MyDeployment(DeprecatedInfraOverridesField, pydantic.BaseModel):
+            name: str
+            job_variables: Optional[Dict[str, Any]] = pydantic.Field(
+                default_factory=dict,
+                description="Overrides to apply to my deployment infrastructure at runtime.",
+            )
+
+        return MyDeployment
+
+    @pytest.mark.parametrize(
+        "job_variable_kwarg",
+        [
+            {"infra_overrides": {"foo": "bar"}},
+            {"job_variables": {"foo": "bar"}},
+        ],
+    )
+    def test_exposes_infra_overrides_as_job_variables(
+        self, my_deployment_model, job_variable_kwarg
+    ):
+        deployment = my_deployment_model(name="test", **job_variable_kwarg)
+        assert deployment.job_variables == {"foo": "bar"}
+        assert deployment.infra_overrides == {"foo": "bar"}
+
+        json = deployment.dict()
+        assert json["infra_overrides"] == {"foo": "bar"}
+
+    def test_infra_overrides_sets_job_variables(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+            job_variables={"foo": "bar"},
+        )
+        assert my_deployment.job_variables == {"foo": "bar"}
+        assert my_deployment.infra_overrides == {"foo": "bar"}
+
+        my_deployment.infra_overrides = {"set_by": "infra_overrides"}
+        assert my_deployment.job_variables == {"set_by": "infra_overrides"}
+        assert my_deployment.infra_overrides == {"set_by": "infra_overrides"}
+
+        json_dict = my_deployment.dict()
+        assert json_dict["infra_overrides"] == {"set_by": "infra_overrides"}
+
+    def test_job_variables_sets_infra_overrides(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+            job_variables={"foo": "bar"},
+        )
+        assert my_deployment.job_variables == {"foo": "bar"}
+        assert my_deployment.infra_overrides == {"foo": "bar"}
+
+        my_deployment.job_variables = {"set_by": "job_variables"}
+        assert my_deployment.job_variables == {"set_by": "job_variables"}
+        assert my_deployment.infra_overrides == {"set_by": "job_variables"}
+
+        json_dict = my_deployment.dict()
+        assert json_dict["infra_overrides"] == {"set_by": "job_variables"}
+
+    def test_job_variables_can_unset_infra_overrides(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+            job_variables={"foo": "bar"},
+        )
+        assert my_deployment.job_variables == {"foo": "bar"}
+        assert my_deployment.infra_overrides == {"foo": "bar"}
+
+        my_deployment.job_variables = None
+        assert my_deployment.job_variables is None
+        assert my_deployment.infra_overrides is None
+
+        json_dict = my_deployment.dict()
+        assert json_dict["infra_overrides"] is None
+
+    def test_infra_overrides_can_unset_job_variables(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+            job_variables={"foo": "bar"},
+        )
+        assert my_deployment.job_variables == {"foo": "bar"}
+        assert my_deployment.infra_overrides == {"foo": "bar"}
+
+        my_deployment.infra_overrides = None
+        assert my_deployment.job_variables is None
+        assert my_deployment.infra_overrides is None
+
+        json_dict = my_deployment.dict()
+        assert json_dict["infra_overrides"] is None
+
+    def test_job_variables_not_serialized(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+            job_variables={"foo": "bar"},
+        )
+        assert my_deployment.job_variables == {"foo": "bar"}
+        assert my_deployment.infra_overrides == {"foo": "bar"}
+
+        json_dict = my_deployment.dict()
+        assert "job_variables" not in json_dict
+        assert json_dict["infra_overrides"] == {"foo": "bar"}
+
+    def test_handles_setting_none(self, my_deployment_model):
+        my_deployment = my_deployment_model(
+            name="test",
+        )
+        my_deployment.infra_overrides = None
+        my_deployment.job_variables = None
+
+        json_dict = my_deployment.dict()
+        assert "job_variables" not in json_dict
+        assert json_dict["infra_overrides"] is None
+
+    def test_does_not_override_description_if_none_set(self, my_deployment_model):
+        assert "description" not in my_deployment_model.schema()
+
+    def test_preserves_description_if_present(self):
+        class MyModel(DeprecatedInfraOverridesField, pydantic.BaseModel):
+            """Hey mom"""
+
+            name: str
+            job_variables: Optional[Dict[str, Any]] = pydantic.Field(
+                default_factory=dict,
+                description="Overrides to apply to my deployment infrastructure at runtime.",
+            )
+
+        assert MyModel.schema()["description"] == "Hey mom"
+
+    def test_excludes_job_variables_if_excludes_is_none(self):
+        class MyModel(DeprecatedInfraOverridesField, pydantic.BaseModel):
+            name: str
+            job_variables: Optional[Dict[str, Any]] = pydantic.Field(
+                default_factory=dict,
+                description="Overrides to apply to my deployment infrastructure at runtime.",
+            )
+
+        serialized = MyModel(name="hey").dict(exclude=None)
+        assert "job_variables" not in serialized
+        assert serialized["infra_overrides"] == {}

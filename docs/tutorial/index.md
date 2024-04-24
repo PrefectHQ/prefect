@@ -15,59 +15,62 @@ search:
 ---
 # Tutorial Overview
 
-This tutorial provides a guided walk-through of Prefect core concepts and instructions on how to use them.
+Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines.
+You define workflows as Python code and Prefect handles the rest.
 
-By the end of this tutorial you will have:
+Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
+It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 
-1. [Created a flow](/tutorial/flows/)
-2. [Added tasks to it](/tutorial/tasks/)
-3. [Deployed and run the flow locally](/tutorial/deployments/)
-4. [Created a work pool and run the flow remotely](/tutorial/work-pools/)
+This tutorial provides a guided walk-through of Prefect's core concepts and instructions on how to use them.
+
+You will:
+
+1. [Create a flow](/tutorial/flows/)
+2. [Add tasks to it](/tutorial/tasks/)
+3. [Deploy and run the flow locally](/tutorial/deployments/)
+4. [Create a work pool and run the flow on remote infrastructure](/tutorial/work-pools/)
 
 These four topics will get most users to their first production deployment.
 
 Advanced users that need more governance and control of their workflow infrastructure can go one step further by:
 
-5. [Using a worker-based deployment](/tutorial/workers/)
+5.[Using a worker-based deployment](/tutorial/workers/)
 
-If you're looking for examples of more advanced operations (like [deploying on Kubernetes](/guides/deployment/kubernetes/)), check out Prefect's [guides](/guides/).
+If you're looking for examples of more advanced operations (such as [deploying on Kubernetes](/guides/deployment/kubernetes/)), check out Prefect's [guides](/guides/).
+
+Compared to the [Quickstart](/getting-started/quickstart/), this tutorial is a more in-depth guide to Prefect's functionality.
+You will also see how to customize the Docker image where your flow runs and learn how to run flows on your own infrastructure.
 
 ## Prerequisites
 
-1. Before you start, make sure you have Python installed, then install Prefect: `pip install -U prefect`
+Before you start, make sure you have Python installed in a virtual environment.
+Then install Prefect:
 
-See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
+<div class="terminal">
+```bash
+pip install -U prefect
+```
+</div>
 
-2. To use Prefect, you need to self-host a Prefect server or connect to [Prefect Cloud](https://app.prefect.cloud).
+See the [install guide](/getting-started/installation/) for more detailed instructions.
 
-To get the most out of this tutorial, we recommend using Prefect Cloud.
-Sign up for a forever free [Prefect Cloud account](/cloud/) or accept your organization's invite to join their Prefect Cloud account.
+To get the most out of Prefect, you need to connect to a forever-free [Prefect Cloud](https://app.prefect.cloud) account.
 
 1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
 1. Use the `prefect cloud login` CLI command to [authenticate to Prefect Cloud](/cloud/users/api-keys/) from your environment.
 
 <div class="terminal">
-
 ```bash
 prefect cloud login
 ```
-
 </div>
 
 Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
 
+If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/cloud/users/api-keys/) to learn how to authenticate with a manually created API key.
+
 As an alternative to using Prefect Cloud, you can self-host a [Prefect server instance](/host/).
 If you choose this option, run `prefect server start` to start a local Prefect server instance.
-
-## What is Prefect?
-
-Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines.
-With Prefect, you define workflows as Python code and let it handle the rest.
-
-Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
-It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
-
-Just bring your Python code, sprinkle in a few decorators, and go!
 
 ## [First steps: Flows](/tutorial/flows/)
 

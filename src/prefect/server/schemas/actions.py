@@ -9,12 +9,14 @@ from uuid import UUID, uuid4
 
 import jsonschema
 
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.types import NonNegativeInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, conint, root_validator, validator
+    from pydantic.v1 import Field, HttpUrl, root_validator, validator
 else:
-    from pydantic import Field, HttpUrl, conint, root_validator, validator
+    from pydantic import Field, HttpUrl, root_validator, validator
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
@@ -90,12 +92,12 @@ class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
     name: str = Field(
-        default=..., description="The name of the flow", example="my-flow"
+        default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     @validator("name", check_fields=False)
@@ -109,7 +111,7 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     @validator("name", check_fields=False)
@@ -135,7 +137,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
 
 
-class DeploymentCreate(ActionBaseModel):
+class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
     @root_validator
@@ -147,7 +149,9 @@ class DeploymentCreate(ActionBaseModel):
         return remove_old_deployment_fields(values)
 
     name: str = Field(
-        default=..., description="The name of the deployment.", example="my-deployment"
+        default=...,
+        description="The name of the deployment.",
+        examples=["my-deployment"],
     )
     flow_id: UUID = Field(
         default=..., description="The ID of the flow associated with the deployment."
@@ -179,7 +183,7 @@ class DeploymentCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of deployment tags.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     pull_steps: Optional[List[dict]] = Field(None)
 
@@ -188,7 +192,7 @@ class DeploymentCreate(ActionBaseModel):
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
@@ -199,14 +203,14 @@ class DeploymentCreate(ActionBaseModel):
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides for the flow's infrastructure configuration.",
     )
 
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
-        and infra_overrides conforms to the specified schema.
+        and job_variables conforms to the specified schema.
         """
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -221,7 +225,7 @@ class DeploymentCreate(ActionBaseModel):
                     if "default" in v and k in required:
                         required.remove(k)
 
-            jsonschema.validate(self.infra_overrides, variables_schema)
+            jsonschema.validate(self.job_variables, variables_schema)
 
     @validator("parameters")
     def _validate_parameters_conform_to_schema(cls, value, values):
@@ -232,7 +236,7 @@ class DeploymentCreate(ActionBaseModel):
         return validate_parameter_openapi_schema(value, values)
 
 
-class DeploymentUpdate(ActionBaseModel):
+class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
     @root_validator(pre=True)
@@ -261,16 +265,19 @@ class DeploymentUpdate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of deployment tags.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
-        example="my-work-pool",
+        examples=["my-work-pool"],
     )
     path: Optional[str] = Field(None)
-    infra_overrides: Optional[Dict[str, Any]] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Overrides for the flow's infrastructure configuration.",
+    )
     entrypoint: Optional[str] = Field(None)
     manifest_path: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
@@ -282,9 +289,12 @@ class DeploymentUpdate(ActionBaseModel):
         ),
     )
 
+    class Config:
+        allow_population_by_field_name = True
+
     def check_valid_configuration(self, base_job_template: dict):
         """Check that the combination of base_job_template defaults
-        and infra_overrides conforms to the specified schema.
+        and job_variables conforms to the specified schema.
         """
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -300,7 +310,7 @@ class DeploymentUpdate(ActionBaseModel):
                         required.remove(k)
 
         if variables_schema is not None:
-            jsonschema.validate(self.infra_overrides, variables_schema)
+            jsonschema.validate(self.job_variables, variables_schema)
 
 
 class FlowRunUpdate(ActionBaseModel):
@@ -341,8 +351,6 @@ class StateCreate(ActionBaseModel):
         description="The details of the state to create",
     )
 
-    # DEPRECATED
-
     timestamp: Optional[DateTimeTZ] = Field(
         default=None,
         repr=False,
@@ -367,7 +375,9 @@ class TaskRunCreate(ActionBaseModel):
         default=None, description="The state of the task run to create"
     )
 
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: generate_slug(2), examples=["my-task-run"]
+    )
     flow_run_id: Optional[UUID] = Field(
         default=None, description="The flow run id of the task run."
     )
@@ -401,7 +411,7 @@ class TaskRunCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     task_inputs: Dict[
         str,
@@ -429,7 +439,9 @@ class TaskRunCreate(ActionBaseModel):
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: generate_slug(2), examples=["my-task-run"]
+    )
 
     @validator("name", pre=True)
     def set_name(cls, name):
@@ -449,7 +461,7 @@ class FlowRunCreate(ActionBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     flow_version: Optional[str] = Field(
@@ -471,7 +483,7 @@ class FlowRunCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the flow run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     idempotency_key: Optional[str] = Field(
         None,
@@ -513,7 +525,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     parameters: Dict[str, Any] = Field(default_factory=dict)
     context: Dict[str, Any] = Field(default_factory=dict)
@@ -525,7 +537,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the flow run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     idempotency_key: Optional[str] = Field(
         None,
@@ -774,7 +786,7 @@ class WorkPoolCreate(ActionBaseModel):
         default=False,
         description="Pausing the work pool stops the delivery of all work.",
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
 
@@ -793,7 +805,7 @@ class WorkPoolUpdate(ActionBaseModel):
     description: Optional[str] = Field(None)
     is_paused: Optional[bool] = Field(None)
     base_job_template: Optional[Dict[str, Any]] = Field(None)
-    concurrency_limit: Optional[conint(ge=0)] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
 
     _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
         validate_base_job_template
@@ -814,10 +826,10 @@ class WorkQueueCreate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         None, description="The work queue's concurrency limit."
     )
-    priority: Optional[conint(ge=1)] = Field(
+    priority: Optional[PositiveInteger] = Field(
         None,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -845,8 +857,8 @@ class WorkQueueUpdate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(None)
-    priority: Optional[conint(ge=1)] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
+    priority: Optional[PositiveInteger] = Field(None)
     last_polled: Optional[DateTimeTZ] = Field(None)
 
     # DEPRECATED
@@ -881,10 +893,10 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
             " Valid variables include:"
             f" {listrepr(sorted(schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
         ),
-        example=(
+        examples=[
             "Flow run {flow_run_name} with id {flow_run_id} entered state"
             " {flow_run_state_name}."
-        ),
+        ],
     )
 
     @validator("message_template")
@@ -986,19 +998,19 @@ class VariableCreate(ActionBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
     value: str = Field(
         default=...,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of variable tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     # validators
@@ -1011,19 +1023,19 @@ class VariableUpdate(ActionBaseModel):
     name: Optional[str] = Field(
         default=None,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
     value: Optional[str] = Field(
         default=None,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(
         default=None,
         description="A list of variable tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     # validators

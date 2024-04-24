@@ -33,13 +33,16 @@ Provide a name for the key and an expiration date.
 
 ![Creating an API key in the Cloud UI.](/img/ui/cloud-new-api-key.png)
 
-Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
+!!! warning
+    Note that an API key cannot be revealed again in the UI after it is generated, so copy the key to a secure location.
 
 ## Log into Prefect Cloud with an API Key
 
+<div class="terminal">
 ```bash
 prefect cloud login -k '<my-api-key>'
 ```
+</div>
 
 ## Service account API keys <span class="badge pro"></span><span class="badge custom"></span>
 

@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -20,15 +21,15 @@ import httpcore
 import httpx
 import pendulum
 
-from prefect._internal.compatibility.experimental import (
-    EXPERIMENTAL_WARNING,
-    ExperimentalFeature,
-    experiment_enabled,
+from prefect._internal.compatibility.deprecated import (
+    handle_deprecated_infra_overrides_parameter,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas import sorting
+from prefect.events import filters
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_WARN,
-    PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES,
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    PREFECT_EXPERIMENTAL_EVENTS,
 )
 
 if HAS_PYDANTIC_V2:
@@ -130,7 +131,7 @@ from prefect.client.schemas.sorting import (
     TaskRunSort,
 )
 from prefect.deprecated.data_documents import DataDocument
-from prefect.events.schemas.automations import Automation, ExistingAutomation
+from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -157,6 +158,12 @@ class ServerType(AutoEnum):
     EPHEMERAL = AutoEnum.auto()
     SERVER = AutoEnum.auto()
     CLOUD = AutoEnum.auto()
+
+    def supports_automations(self) -> bool:
+        if self == ServerType.CLOUD:
+            return True
+
+        return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
 
 def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
@@ -565,21 +572,6 @@ class PrefectClient:
         Returns:
             The flow run model
         """
-        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Flow run job variables",
-                        group="flow_run_infra_overrides",
-                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-
         parameters = parameters or {}
         context = context or {}
         state = state or prefect.states.Scheduled()
@@ -700,21 +692,6 @@ class PrefectClient:
         Returns:
             an `httpx.Response` object from the PATCH request
         """
-        if job_variables is not None and experiment_enabled("flow_run_infra_overrides"):
-            if (
-                PREFECT_EXPERIMENTAL_WARN
-                and PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES
-            ):
-                warnings.warn(
-                    EXPERIMENTAL_WARNING.format(
-                        feature="Flow run job variables",
-                        group="flow_run_infra_overrides",
-                        help="To use this feature, update your workers to Prefect 2.16.4 or later. ",
-                    ),
-                    ExperimentalFeature,
-                    stacklevel=3,
-                )
-
         params = {}
         if flow_version is not None:
             params["flow_version"] = flow_version
@@ -1590,12 +1567,13 @@ class PrefectClient:
         path: str = None,
         entrypoint: str = None,
         infrastructure_document_id: UUID = None,
-        infra_overrides: Optional[Dict[str, Any]] = None,
+        infra_overrides: Optional[Dict[str, Any]] = None,  # for backwards compat
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
         enforce_parameter_schema: Optional[bool] = None,
+        job_variables: Optional[Dict[str, Any]] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1610,6 +1588,10 @@ class PrefectClient:
                 used for the deployed flow
             infrastructure_document_id: an reference to the infrastructure block document
                 to use for this deployment
+            job_variables: A dictionary of dot delimited infrastructure overrides that
+                will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
+                `namespace='prefect'`. This argument was previously named `infra_overrides`.
+                Both arguments are supported for backwards compatibility.
 
         Raises:
             httpx.RequestError: if the deployment was not created for any reason
@@ -1617,6 +1599,7 @@ class PrefectClient:
         Returns:
             the ID of the deployment in the backend
         """
+        jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
 
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
@@ -1631,7 +1614,7 @@ class PrefectClient:
             entrypoint=entrypoint,
             manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides=infra_overrides or {},
+            job_variables=jv,
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             paused=paused,
@@ -1708,7 +1691,7 @@ class PrefectClient:
             parameters=deployment.parameters,
             storage_document_id=deployment.storage_document_id,
             infrastructure_document_id=deployment.infrastructure_document_id,
-            infra_overrides=deployment.infra_overrides,
+            job_variables=deployment.job_variables,
             enforce_parameter_schema=deployment.enforce_parameter_schema,
         )
 
@@ -2989,34 +2972,6 @@ class PrefectClient:
         response.raise_for_status()
         return response.json()
 
-    async def create_automation(self, automation: Automation) -> UUID:
-        """Creates an automation in Prefect Cloud."""
-        if self.server_type != ServerType.CLOUD:
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
-
-        response = await self._client.post(
-            "/automations/",
-            json=automation.dict(json_compatible=True),
-        )
-
-        return UUID(response.json()["id"])
-
-    async def read_resource_related_automations(
-        self, resource_id: str
-    ) -> List[ExistingAutomation]:
-        if self.server_type != ServerType.CLOUD:
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
-
-        response = await self._client.get(f"/automations/related-to/{resource_id}")
-        response.raise_for_status()
-        return pydantic.parse_obj_as(List[ExistingAutomation], response.json())
-
-    async def delete_resource_owned_automations(self, resource_id: str):
-        if self.server_type != ServerType.CLOUD:
-            raise RuntimeError("Automations are only supported for Prefect Cloud.")
-
-        await self._client.delete(f"/automations/owned-by/{resource_id}")
-
     async def increment_concurrency_slots(
         self, names: List[str], slots: int, mode: str
     ) -> httpx.Response:
@@ -3155,6 +3110,158 @@ class PrefectClient:
         """
         response = await self._client.delete(f"/flow_runs/{flow_run_id}/input/{key}")
         response.raise_for_status()
+
+    def _raise_for_unsupported_automations(self) -> NoReturn:
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            raise RuntimeError(
+                "The current server and client configuration does not support "
+                "events.  Enable experimental events support with the "
+                "PREFECT_EXPERIMENTAL_EVENTS setting."
+            )
+        else:
+            raise RuntimeError(
+                "The current server and client configuration does not support "
+                "automations.  Enable experimental automations with the "
+                "PREFECT_API_SERVICES_TRIGGERS_ENABLED setting."
+            )
+
+    async def create_automation(self, automation: AutomationCore) -> UUID:
+        """Creates an automation in Prefect Cloud."""
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.post(
+            "/automations/",
+            json=automation.dict(json_compatible=True),
+        )
+
+        return UUID(response.json()["id"])
+
+    async def read_automations(self) -> List[Automation]:
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.post("/automations/filter")
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[Automation], response.json())
+
+    async def find_automation(self, id_or_name: str) -> Optional[Automation]:
+        try:
+            id = UUID(id_or_name)
+        except ValueError:
+            id = None
+
+        if id:
+            automation = await self.read_automation(id)
+            if automation:
+                return automation
+
+        automations = await self.read_automations()
+
+        # Look for it by an exact name
+        for automation in automations:
+            if automation.name == id_or_name:
+                return automation
+
+        # Look for it by a case-insensitive name
+        for automation in automations:
+            if automation.name.lower() == id_or_name.lower():
+                return automation
+
+        return None
+
+    async def read_automation(self, automation_id: UUID) -> Optional[Automation]:
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.get(f"/automations/{automation_id}")
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return Automation.parse_obj(response.json())
+
+    async def read_automation_by_name(self, name: str) -> Optional[Automation]:
+        """
+        Query the Prefect API for an automation by name. Only automations matching the provided name will be returned.
+
+        If more than one automation matches the name, the most recently updated automation will be returned.
+
+        Args:
+            name: the name of the automation to query
+
+        Returns:
+            an Automation model representation of the automation, or None if not found. If more than one automation
+            matches the name, the most recently updated automation will be returned.
+        """
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+        automation_filter = filters.AutomationFilter(name=dict(any_=[name]))
+
+        response = await self._client.post(
+            "/automations/filter",
+            json={
+                "limit": 1,
+                "sort": sorting.AutomationSort.UPDATED_DESC,
+                "automations": automation_filter.dict(json_compatible=True)
+                if automation_filter
+                else None,
+            },
+        )
+
+        response.raise_for_status()
+
+        if not response.json():
+            return None
+
+        else:
+            # normally a `/filter` endpoint would return a list of objects, but read_x_by_name
+            # methods return a single object in all other methods in the client, so
+            # we're ensuring parity there
+            return Automation.parse_obj(response.json()[0])
+
+    async def pause_automation(self, automation_id: UUID):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.patch(
+            f"/automations/{automation_id}", json={"enabled": False}
+        )
+        response.raise_for_status()
+
+    async def resume_automation(self, automation_id: UUID):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.patch(
+            f"/automations/{automation_id}", json={"enabled": True}
+        )
+        response.raise_for_status()
+
+    async def delete_automation(self, automation_id: UUID):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.delete(f"/automations/{automation_id}")
+        if response.status_code == 404:
+            return
+
+        response.raise_for_status()
+
+    async def read_resource_related_automations(
+        self, resource_id: str
+    ) -> List[Automation]:
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        response = await self._client.get(f"/automations/related-to/{resource_id}")
+        response.raise_for_status()
+        return pydantic.parse_obj_as(List[Automation], response.json())
+
+    async def delete_resource_owned_automations(self, resource_id: str):
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+
+        await self._client.delete(f"/automations/owned-by/{resource_id}")
 
     async def __aenter__(self):
         """

@@ -6,6 +6,7 @@ import pytest
 import sqlalchemy as sa
 from prefect._vendor.starlette import status
 
+from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import DeploymentCreate, DeploymentUpdate
 from prefect.server.utilities.database import get_dialect
@@ -76,33 +77,35 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             storage_document_id=storage_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["name"] == "My Deployment"
-        assert response.json()["version"] == "mint"
-        assert response.json()["path"] == "/"
-        assert response.json()["entrypoint"] == "/file.py:flow"
-        assert response.json()["storage_document_id"] == str(storage_document_id)
-        assert response.json()["infrastructure_document_id"] == str(
-            infrastructure_document_id
+
+        deployment_response = DeploymentResponse(**response.json())
+        assert deployment_response.name == "My Deployment"
+        assert deployment_response.version == "mint"
+        assert deployment_response.path == "/"
+        assert deployment_response.entrypoint == "/file.py:flow"
+        assert deployment_response.storage_document_id == storage_document_id
+        assert (
+            deployment_response.infrastructure_document_id == infrastructure_document_id
         )
-        assert response.json()["infra_overrides"] == {"cpu": 24}
-        deployment_id = response.json()["id"]
-        assert response.json()["status"] == "NOT_READY"
+        assert deployment_response.job_variables == {"cpu": 24}
+        assert deployment_response.status == "NOT_READY"
 
         deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment_id
+            session=session, deployment_id=deployment_response.id
         )
-        assert str(deployment.id) == deployment_id
+        assert deployment.id == deployment_response.id
         assert deployment.name == "My Deployment"
         assert deployment.tags == ["foo"]
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
         assert deployment.storage_document_id == storage_document_id
+        assert deployment.job_variables == {"cpu": 24}
 
     async def test_create_deployment_with_single_schedule(
         self,
@@ -580,28 +583,29 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
             work_queue_name=work_queue_1.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["name"] == "My Deployment"
-        assert response.json()["version"] == "mint"
-        assert response.json()["path"] == "/"
-        assert response.json()["entrypoint"] == "/file.py:flow"
-        assert response.json()["infrastructure_document_id"] == str(
-            infrastructure_document_id
+
+        deployment_response = DeploymentResponse(**response.json())
+        assert deployment_response.name == "My Deployment"
+        assert deployment_response.version == "mint"
+        assert deployment_response.path == "/"
+        assert deployment_response.entrypoint == "/file.py:flow"
+        assert (
+            deployment_response.infrastructure_document_id == infrastructure_document_id
         )
-        assert response.json()["infra_overrides"] == {"cpu": 24}
-        assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_queue_name"] == work_queue_1.name
-        deployment_id = response.json()["id"]
+        assert deployment_response.job_variables == {"cpu": 24}
+        assert deployment_response.work_pool_name == work_pool.name
+        assert deployment_response.work_queue_name == work_queue_1.name
 
         deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment_id
+            session=session, deployment_id=deployment_response.id
         )
-        assert str(deployment.id) == deployment_id
+        assert deployment.id == deployment_response.id
         assert deployment.name == "My Deployment"
         assert deployment.tags == ["foo"]
         assert deployment.flow_id == flow.id
@@ -629,27 +633,29 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["name"] == "My Deployment"
-        assert response.json()["version"] == "mint"
-        assert response.json()["path"] == "/"
-        assert response.json()["entrypoint"] == "/file.py:flow"
-        assert response.json()["infrastructure_document_id"] == str(
-            infrastructure_document_id
+
+        deployment_response = DeploymentResponse(**response.json())
+        assert deployment_response.name == "My Deployment"
+        assert deployment_response.version == "mint"
+        assert deployment_response.path == "/"
+        assert deployment_response.entrypoint == "/file.py:flow"
+        assert (
+            deployment_response.infrastructure_document_id == infrastructure_document_id
         )
-        assert response.json()["infra_overrides"] == {"cpu": 24}
-        assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_queue_name"] == default_queue.name
-        deployment_id = response.json()["id"]
+        assert deployment_response.job_variables == {"cpu": 24}
+        assert deployment_response.work_pool_name == work_pool.name
+        assert deployment_response.work_queue_name == default_queue.name
 
         deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment_id
+            session=session, deployment_id=deployment_response.id
         )
-        assert str(deployment.id) == deployment_id
+
+        assert deployment.id == deployment_response.id
         assert deployment.name == "My Deployment"
         assert deployment.tags == ["foo"]
         assert deployment.flow_id == flow.id
@@ -674,7 +680,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
             work_queue_name="new-queue",
         ).dict(json_compatible=True)
@@ -763,7 +769,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides=overrides,
+            job_variables=overrides,
             work_pool_name=work_pool.name,
         ).dict(json_compatible=True)
 
@@ -853,7 +859,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides=overrides,
+            job_variables=overrides,
             work_pool_name=work_pool.name,
         ).dict(json_compatible=True)
 
@@ -877,7 +883,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name=work_pool.name,
             work_queue_name="new-work-pool-queue",
         ).dict(json_compatible=True)
@@ -916,7 +922,7 @@ class TestCreateDeployment:
             tags=["foo"],
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 24},
+            job_variables={"cpu": 24},
             work_pool_name="imaginary-work-pool",
             work_queue_name="default",
         ).dict(json_compatible=True)
