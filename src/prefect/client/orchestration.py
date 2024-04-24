@@ -2163,7 +2163,7 @@ class PrefectClient:
         dynamic_key: str,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
-        state: Optional[prefect.states.State[object]] = None,
+        state: Optional[prefect.states.State[R]] = None,
         task_inputs: Optional[
             Dict[
                 str,
@@ -3378,7 +3378,7 @@ class SyncPrefectClient:
         dynamic_key: str,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
-        state: Optional[prefect.states.State[object]] = None,
+        state: Optional[prefect.states.State[R]] = None,
         task_inputs: Optional[
             Dict[
                 str,
