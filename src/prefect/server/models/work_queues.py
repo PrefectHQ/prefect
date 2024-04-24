@@ -4,13 +4,12 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 from uuid import UUID
 
 import sqlalchemy as sa
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.server.database.orm_models import ORMFlowRun, ORMWorkQueue
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import parse_obj_as
@@ -31,13 +30,16 @@ from prefect.server.models.workers import (
 )
 from prefect.server.schemas.states import StateType
 
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMFlowRun, ORMWorkQueue
+
 
 @db_injector
 async def create_work_queue(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_queue: schemas.core.WorkQueue,
-) -> ORMWorkQueue:
+) -> "ORMWorkQueue":
     """
     Inserts a WorkQueue.
 
@@ -119,7 +121,7 @@ async def create_work_queue(
 @db_injector
 async def read_work_queue(
     db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID
-) -> Optional[ORMWorkQueue]:
+) -> Optional["ORMWorkQueue"]:
     """
     Reads a WorkQueue by id.
 
@@ -137,7 +139,7 @@ async def read_work_queue(
 @db_injector
 async def read_work_queue_by_name(
     db: PrefectDBInterface, session: AsyncSession, name: str
-) -> Optional[ORMWorkQueue]:
+) -> Optional["ORMWorkQueue"]:
     """
     Reads a WorkQueue by id.
 
@@ -169,7 +171,7 @@ async def read_work_queues(
     offset: int = None,
     limit: int = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
-) -> Sequence[ORMWorkQueue]:
+) -> Sequence["ORMWorkQueue"]:
     """
     Read WorkQueues.
 
@@ -255,7 +257,7 @@ async def get_runs_in_work_queue(
     work_queue_id: UUID,
     limit: int = None,
     scheduled_before: datetime.datetime = None,
-) -> Sequence[ORMFlowRun]:
+) -> Sequence["ORMFlowRun"]:
     """
     Get runs from a work queue.
 
@@ -298,7 +300,7 @@ async def _legacy_get_runs_in_work_queue(
     work_queue_id: UUID,
     scheduled_before: datetime.datetime = None,
     limit: int = None,
-) -> Sequence[ORMFlowRun]:
+) -> Sequence["ORMFlowRun"]:
     """
     DEPRECATED method for getting runs from a tag-based work queue
 

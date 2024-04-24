@@ -7,6 +7,7 @@ import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import timedelta
 from typing import (
+    TYPE_CHECKING,
     AsyncGenerator,
     Collection,
     Dict,
@@ -27,7 +28,6 @@ from typing_extensions import Literal, TypeAlias
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMAutomationBucket
 from prefect.server.events import messaging
 from prefect.server.events.actions import ActionTypes
 from prefect.server.events.models.automations import (
@@ -54,6 +54,10 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
 
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMAutomationBucket
+
+
 logger = get_logger(__name__)
 
 AutomationID: TypeAlias = UUID
@@ -68,10 +72,10 @@ MAX_DEPTH_OF_PRECEDING_EVENT = 20
 async def evaluate(
     session: AsyncSession,
     trigger: EventTrigger,
-    bucket: ORMAutomationBucket,
+    bucket: "ORMAutomationBucket",
     now: DateTime,
     triggering_event: Optional[ReceivedEvent],
-) -> Optional[ORMAutomationBucket]:
+) -> Optional["ORMAutomationBucket"]:
     """Evaluates an Automation, either triggered by a specific event or proactively
     on a time interval.  Evaluating a Automation updates the associated counters for
     each automation, and will fire the associated action if it has met the threshold."""
@@ -424,7 +428,7 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0):
 
             async with automations_session() as session:
                 try:
-                    bucket: Optional[ORMAutomationBucket] = None
+                    bucket: Optional["ORMAutomationBucket"] = None
 
                     if trigger.after and trigger.starts_after(event.event):
                         # When an event matches both the after and expect, each event
@@ -627,7 +631,7 @@ async def read_buckets_for_automation(
     session: AsyncSession,
     trigger: Trigger,
     batch_size: int = AUTOMATION_BUCKET_BATCH_SIZE,
-) -> AsyncGenerator[ORMAutomationBucket, None]:
+) -> AsyncGenerator["ORMAutomationBucket", None]:
     """Yields buckets for the given automation and trigger in batches."""
     offset = 0
 
@@ -661,7 +665,7 @@ async def read_bucket(
     session: AsyncSession,
     trigger: Trigger,
     bucketing_key: Tuple[str, ...],
-) -> Optional[ORMAutomationBucket]:
+) -> Optional["ORMAutomationBucket"]:
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
     return await read_bucket_by_trigger_id(
@@ -679,7 +683,7 @@ async def read_bucket_by_trigger_id(
     automation_id: UUID,
     trigger_id: UUID,
     bucketing_key: Tuple[str, ...],
-) -> Optional[ORMAutomationBucket]:
+) -> Optional["ORMAutomationBucket"]:
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
     query = sa.select(db.AutomationBucket).where(
@@ -699,10 +703,10 @@ async def read_bucket_by_trigger_id(
 async def increment_bucket(
     db: PrefectDBInterface,
     session: AsyncSession,
-    bucket: ORMAutomationBucket,
+    bucket: "ORMAutomationBucket",
     count: int,
     last_event: Optional[ReceivedEvent],
-) -> ORMAutomationBucket:
+) -> "ORMAutomationBucket":
     """Adds the given count to the bucket, returning the new bucket"""
     additional_updates: dict = {"last_event": last_event} if last_event else {}
     await session.execute(
@@ -749,7 +753,7 @@ async def start_new_bucket(
     end: DateTime,
     count: int,
     triggered_at: Optional[DateTime] = None,
-) -> ORMAutomationBucket:
+) -> "ORMAutomationBucket":
     """Ensures that a bucket with the given start and end exists with the given count,
     returning the new bucket"""
     automation = trigger.automation
@@ -801,7 +805,7 @@ async def ensure_bucket(
     end: DateTime,
     last_event: Optional[ReceivedEvent],
     initial_count: int = 0,
-) -> ORMAutomationBucket:
+) -> "ORMAutomationBucket":
     """Ensures that a bucket has been started for the given automation and key,
     returning the current bucket.  Will not modify the existing bucket."""
     automation = trigger.automation
@@ -839,7 +843,7 @@ async def ensure_bucket(
 
 @db_injector
 async def remove_bucket(
-    db: PrefectDBInterface, session: AsyncSession, bucket: ORMAutomationBucket
+    db: PrefectDBInterface, session: AsyncSession, bucket: "ORMAutomationBucket"
 ):
     """Removes the given bucket from the database"""
     await session.execute(

@@ -55,7 +55,6 @@ from prefect.server.events.clients import (
     PrefectServerEventsAPIClient,
     PrefectServerEventsClient,
 )
-from prefect.server.events.jinja_filters import all_filters
 from prefect.server.events.schemas.events import Event, RelatedResource, Resource
 from prefect.server.events.schemas.labelling import LabelDiver
 from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
@@ -98,9 +97,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from prefect.server.events.schemas.automations import TriggeredAction
 
 logger = get_logger(__name__)
-
-# Register our notification-related filters
-register_user_template_filters(all_filters)
 
 
 class ActionFailed(Exception):
@@ -319,8 +315,21 @@ class JinjaTemplateAction(ExternalDataAction):
 
     _object_cache: Dict[str, TemplateContextObject] = PrivateAttr(default_factory=dict)
 
+    _registered_filters: ClassVar[bool] = False
+
+    @classmethod
+    def _register_filters_if_needed(cls) -> None:
+        if not cls._registered_filters:
+            # Register our event-related filters
+            from prefect.server.events.jinja_filters import all_filters
+
+            register_user_template_filters(all_filters)
+            cls._registered_filters = True
+
     @classmethod
     def validate_template(cls, template: str, field_name: str) -> str:
+        cls._register_filters_if_needed()
+
         try:
             validate_user_template(template)
         except (jinja2.exceptions.TemplateSyntaxError, TemplateSecurityError) as exc:
@@ -532,6 +541,8 @@ class JinjaTemplateAction(ExternalDataAction):
     async def _render(
         self, templates: List[str], triggered_action: "TriggeredAction"
     ) -> List[str]:
+        self._register_filters_if_needed()
+
         context = await self._template_context(templates, triggered_action)
 
         return await asyncio.gather(

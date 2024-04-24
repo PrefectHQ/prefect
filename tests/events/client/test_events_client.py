@@ -22,7 +22,7 @@ from prefect.testing.fixtures import Puppeteer, Recorder
 
 
 @pytest.fixture
-def no_viable_settings():
+def no_viable_settings(events_disabled):
     with temporary_settings(
         {
             PREFECT_API_URL: "https://locally/api",

@@ -30,6 +30,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
 
@@ -395,25 +396,33 @@ async def task_run_states(session, task_run, task_run_state):
     return [task_run_state, scheduled_task_run_state, running_task_run_state]
 
 
+# The client-side blocks created below will emit events that may end up interfering with
+# other tests by either causing the DB to be locked or by emitting spurious events.
+# Thus we're selectively disabling events around those .save calls.
+
+
 @pytest.fixture
 async def storage_document_id(prefect_client, tmpdir):
-    return await LocalFileSystem(basepath=str(tmpdir)).save(
-        name=f"local-test-{uuid.uuid4()}", client=prefect_client
-    )
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        return await LocalFileSystem(basepath=str(tmpdir)).save(
+            name=f"local-test-{uuid.uuid4()}", client=prefect_client
+        )
 
 
 @pytest.fixture
 async def infrastructure_document_id(prefect_client):
-    return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=prefect_client
-    )
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        return await Process(env={"MY_TEST_VARIABLE": 1})._save(
+            is_anonymous=True, client=prefect_client
+        )
 
 
 @pytest.fixture
 async def infrastructure_document_id_2(prefect_client):
-    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=prefect_client
-    )
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
+            is_anonymous=True, client=prefect_client
+        )
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 from uuid import UUID
 
 import pendulum
@@ -8,8 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMCompositeTriggerChildFiring
 from prefect.server.events.schemas.automations import CompositeTrigger, Firing
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMCompositeTriggerChildFiring
 
 
 @db_injector
@@ -65,7 +67,7 @@ async def get_child_firings(
     db: PrefectDBInterface,
     session: AsyncSession,
     trigger: CompositeTrigger,
-) -> Sequence[ORMCompositeTriggerChildFiring]:
+) -> Sequence["ORMCompositeTriggerChildFiring"]:
     result = await session.execute(
         sa.select(db.CompositeTriggerChildFiring).filter(
             db.CompositeTriggerChildFiring.automation_id == trigger.automation.id,

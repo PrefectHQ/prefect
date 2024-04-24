@@ -2,7 +2,7 @@ from functools import wraps
 from pathlib import Path
 from threading import Lock
 
-import prefect
+import prefect.server
 
 ALEMBIC_LOCK = Lock()
 

@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMVariable
 from prefect.server.schemas import filters, sorting
 from prefect.server.schemas.actions import VariableCreate, VariableUpdate
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMVariable
 
 
 @db_injector
@@ -16,7 +18,7 @@ async def create_variable(
     db: PrefectDBInterface,
     session: AsyncSession,
     variable: VariableCreate,
-) -> ORMVariable:
+) -> "ORMVariable":
     """
     Create a variable
 
@@ -39,7 +41,7 @@ async def read_variable(
     db: PrefectDBInterface,
     session: AsyncSession,
     variable_id: UUID,
-) -> Optional[ORMVariable]:
+) -> Optional["ORMVariable"]:
     """
     Reads a variable by id.
     """
@@ -55,7 +57,7 @@ async def read_variable_by_name(
     db: PrefectDBInterface,
     session: AsyncSession,
     name: str,
-) -> Optional[ORMVariable]:
+) -> Optional["ORMVariable"]:
     """
     Reads a variable by name.
     """
@@ -74,7 +76,7 @@ async def read_variables(
     sort: sorting.VariableSort = sorting.VariableSort.NAME_ASC,
     offset: int = None,
     limit: int = None,
-) -> Sequence[ORMVariable]:
+) -> Sequence["ORMVariable"]:
     """
     Read variables, applying filers.
     """

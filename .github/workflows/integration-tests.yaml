@@ -163,6 +163,7 @@ jobs:
           --publish 4200:4200
           ${{ matrix.extra_docker_run_options }}
           --env PREFECT_EXPERIMENTAL_EVENTS=True
+          --env PREFECT_LOGGING_SERVER_LEVEL=DEBUG
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           ${{ matrix.server_command || 'prefect server start --analytics-off' }} --host 0.0.0.0
 
@@ -181,6 +182,11 @@ jobs:
           TEST_CLIENT_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           ./scripts/run-integration-flows.py flows/
 
+      - name: Show server@${{ matrix.prefect-version }} logs
+        if: always()
+        run: |
+          docker logs "prefect-server-${{ matrix.prefect-version }}" || echo "No logs available"
+
       - name: Turn off CSRF protection for older clients.
         if: ${{ matrix.server-disable-csrf }}
         run: |
@@ -190,6 +196,7 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_EXPERIMENTAL_EVENTS: True
+          PREFECT_LOGGING_SERVER_LEVEL: DEBUG
         run: |
           # First, we must stop the server container if it exists
           # TODO: Once we have `prefect server stop` we can run these tests first and the
@@ -197,7 +204,7 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6989
           docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
-          prefect server start --analytics-off&
+          prefect server start --analytics-off > server-logs.txt 2>&1 &
           ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
@@ -213,3 +220,8 @@ jobs:
           ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
+
+      - name: Show server@dev logs
+        if: always()
+        run: |
+          cat server-logs.txt || echo "No logs available"

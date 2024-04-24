@@ -1,14 +1,19 @@
-from typing import Any, Dict, Generator, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Sequence, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+else:
+    import pydantic
+
 from prefect.logging.loggers import get_logger
 from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMEvent
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import EventFilter, EventOrder
 from prefect.server.events.schemas.events import EventCount, ReceivedEvent
@@ -21,10 +26,8 @@ from prefect.server.events.storage import (
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMEvent
 
 logger = get_logger(__name__)
 
@@ -33,7 +36,7 @@ logger = get_logger(__name__)
 def build_distinct_queries(
     db: PrefectDBInterface,
     events_filter: EventFilter,
-) -> List[sa.Column[ORMEvent]]:
+) -> List[sa.Column["ORMEvent"]]:
     distinct_fields: List[str] = []
     if events_filter.resource and events_filter.resource.distinct:
         distinct_fields.append("resource_id")
@@ -129,7 +132,7 @@ async def read_events(
     events_filter: EventFilter,
     limit: "int | None" = None,
     offset: "int | None" = None,
-) -> Sequence[ORMEvent]:
+) -> Sequence["ORMEvent"]:
     """
     Read events from the Postgres database.
 

@@ -2070,8 +2070,8 @@ class TestAutomations:
             actions=[],
         )
 
-    async def test_create_not_cloud_runtime_error(
-        self, prefect_client, automation: AutomationCore
+    async def test_create_not_enabled_runtime_error(
+        self, events_disabled, prefect_client, automation: AutomationCore
     ):
         with pytest.raises(
             RuntimeError,
@@ -2168,8 +2168,8 @@ class TestAutomations:
 
             assert nonexistent_automation == []
 
-    async def test_delete_owned_automations_not_cloud_runtime_error(
-        self, prefect_client
+    async def test_delete_owned_automations_not_enabled_runtime_error(
+        self, events_disabled, prefect_client
     ):
         with pytest.raises(
             RuntimeError,

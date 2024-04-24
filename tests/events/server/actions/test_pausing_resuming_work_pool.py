@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import List
+from typing import TYPE_CHECKING, List
 from uuid import UUID, uuid4
 
 import pytest
@@ -16,7 +16,6 @@ else:
     from pydantic import ValidationError
 
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMWorkPool
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (
@@ -30,6 +29,9 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import workers
 from prefect.server.schemas.actions import WorkPoolCreate
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMWorkPool
 
 
 def test_source_determines_if_work_pool_id_is_required_or_allowed():
@@ -47,7 +49,7 @@ def test_source_determines_if_work_pool_id_is_required_or_allowed():
 
 
 @pytest.fixture
-async def work_pool(session: AsyncSession) -> ORMWorkPool:
+async def work_pool(session: AsyncSession) -> "ORMWorkPool":
     """An unpaused work pool"""
     work_pool = await workers.create_work_pool(
         session=session,
@@ -61,7 +63,7 @@ async def work_pool(session: AsyncSession) -> ORMWorkPool:
 
 @pytest.fixture
 def pause_work_pool_on_scream_n_shout(
-    work_pool: ORMWorkPool,
+    work_pool: "ORMWorkPool",
 ) -> Automation:
     return Automation(
         name="If someone screams n shouts, then pause the work pool already!",
@@ -84,7 +86,7 @@ def pause_work_pool_on_scream_n_shout(
 
 @pytest.fixture
 def scream_n_shout(
-    work_pool: ORMWorkPool,
+    work_pool: "ORMWorkPool",
     start_of_test: DateTime,
 ) -> ReceivedEvent:
     return ReceivedEvent(
@@ -126,7 +128,7 @@ def triggered_pause_action(
     )
 
 
-async def _get_work_pool(work_pool_id: UUID, session) -> ORMWorkPool:
+async def _get_work_pool(work_pool_id: UUID, session) -> "ORMWorkPool":
     work_pool = await workers.read_work_pool(session=session, work_pool_id=work_pool_id)
     assert work_pool is not None
     return work_pool
@@ -134,7 +136,7 @@ async def _get_work_pool(work_pool_id: UUID, session) -> ORMWorkPool:
 
 async def test_pausing_work_pool(
     triggered_pause_action: TriggeredAction,
-    work_pool: ORMWorkPool,
+    work_pool: "ORMWorkPool",
     session: AsyncSession,
 ):
     assert work_pool.is_paused is False
@@ -198,7 +200,7 @@ def triggered_pause_action_with_source_inferred(
 
 async def test_pausing_inferred_work_pool(
     triggered_pause_action_with_source_inferred: TriggeredAction,
-    work_pool: ORMWorkPool,
+    work_pool: "ORMWorkPool",
     session: AsyncSession,
 ):
     assert work_pool.is_paused is False
@@ -269,7 +271,7 @@ async def test_inferring_work_pool_requires_recognizable_resource_id(
 
 async def test_pausing_publishes_success_event(
     triggered_pause_action: TriggeredAction,
-    work_pool: ORMWorkPool,
+    work_pool: "ORMWorkPool",
 ):
     action = triggered_pause_action.action
 
@@ -306,8 +308,8 @@ async def test_pausing_publishes_success_event(
 # -----------------------------------------------------
 @pytest.fixture
 async def paused_work_pool(
-    db: PrefectDBInterface, work_pool: ORMWorkPool, session: AsyncSession
-) -> ORMWorkPool:
+    db: PrefectDBInterface, work_pool: "ORMWorkPool", session: AsyncSession
+) -> "ORMWorkPool":
     work_pool = await session.get(db.WorkPool, work_pool.id)
     work_pool.is_paused = True
     await session.commit()
@@ -318,7 +320,7 @@ async def paused_work_pool(
 
 @pytest.fixture
 def resume_work_pool_on_scream_n_shout(
-    paused_work_pool: ORMWorkPool,
+    paused_work_pool: "ORMWorkPool",
 ) -> Automation:
     return Automation(
         name="If someone screams n shouts, then resume/unpause the work pool already!",
@@ -364,7 +366,7 @@ def triggered_resume_action(
 
 async def test_resuming_work_pool(
     triggered_resume_action: TriggeredAction,
-    paused_work_pool: ORMWorkPool,
+    paused_work_pool: "ORMWorkPool",
     session: AsyncSession,
 ):
     assert paused_work_pool.is_paused is True
@@ -416,7 +418,7 @@ def triggered_resume_action_with_source_inferred(
 
 async def test_resuming_inferred_work_pool(
     triggered_resume_action_with_source_inferred: TriggeredAction,
-    paused_work_pool: ORMWorkPool,
+    paused_work_pool: "ORMWorkPool",
     session: AsyncSession,
 ):
     assert paused_work_pool.is_paused is True
@@ -487,7 +489,7 @@ async def test_resuming_with_inferred_work_pool_requires_recognizable_resource_i
 
 async def test_resuming_publishes_success_event(
     triggered_resume_action: TriggeredAction,
-    paused_work_pool: ORMWorkPool,
+    paused_work_pool: "ORMWorkPool",
 ):
     action = triggered_resume_action.action
 
