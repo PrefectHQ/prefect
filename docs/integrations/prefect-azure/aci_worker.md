@@ -151,7 +151,7 @@ This will be your `IDENTITY_ID`. You can get it from your terminal by running `e
 
 ### ACRManagedIdentity
 
-This is required for your flow code containers to be pulled from ACR. It consists of
+ACRManagedIdentity is required for your flow code containers to be pulled from ACR. It consists of the following:
 
 - Identity: the same `IDENTITY_ID` as above, as a string
 ```
