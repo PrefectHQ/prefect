@@ -252,9 +252,8 @@ pip install -e ".[dev]"
 ```
 4. Make desired changes
 5. Add tests
-6. Insert an entry to [CHANGELOG.md](https://github.com/PrefectHQ/prefect-dask/blob/main/CHANGELOG.md)
-7. Install `pre-commit` to perform quality checks prior to commit:
+6. Install `pre-commit` to perform quality checks prior to commit:
 ```
 pre-commit install
 ```
-8. `git commit`, `git push`, and create a pull request
+7. `git commit`, `git push`, and create a pull request
