@@ -144,7 +144,7 @@ class FlowRunEngine(Generic[P, R]):
 
     async def get_most_recent_flow_run_for_parent_task_run(
         self, client: PrefectClient, parent_task_run: TaskRun
-    ) -> "FlowRun | None":
+    ) -> "Union[FlowRun, None]":
         """
         Get the most recent flow run associated with the provided parent task run.
 
