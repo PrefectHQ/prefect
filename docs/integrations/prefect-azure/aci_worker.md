@@ -166,7 +166,7 @@ ACRManagedIdentity is required for your flow code containers to be pulled from A
 
 ### Subscription ID and Resource Group Name
 
-Both the subscription ID and resource group name can be found in in the `RG_SCOPE` environment variable created earlier in the guide, viewed by running `echo $RG_SCOPE`:
+Both the subscription ID and resource group name can be found in in the `RG_SCOPE` environment variable created earlier in the guide. View their values by running `echo $RG_SCOPE`:
 
 ```
 /subscriptions/<subscription-id>/resourceGroups/<resource-group-name>
