@@ -164,7 +164,7 @@ ACRManagedIdentity is required for your flow code containers to be pulled from A
 
 ![Configuring an ACI work pool's ACR Managed Identity.](/img/guides/aci-worker-acridentity.png)
 
-### Subscription ID and Resource Group Name
+### Subscription ID and resource group name
 
 Both the subscription ID and resource group name can be found in in the `RG_SCOPE` environment variable created earlier in the guide. View their values by running `echo $RG_SCOPE`:
 
