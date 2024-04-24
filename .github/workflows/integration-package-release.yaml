@@ -52,10 +52,13 @@ jobs:
           path: "./src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}/dist"
 
   publish-pypi-dists:
-    name: Publish to TestPyPI
+    name: Publish to PyPI
     environment: "prod"
     needs: build-pypi-dists
     runs-on: ubuntu-latest
+    permissions:
+      # this permission is mandatory for trusted publishing
+      id-token: write
 
     steps:
       - name: Download build artifacts
@@ -66,7 +69,3 @@ jobs:
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          name: ci

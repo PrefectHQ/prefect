@@ -25,6 +25,8 @@ from prefect._internal.compatibility.deprecated import (
     handle_deprecated_infra_overrides_parameter,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas import sorting
+from prefect.events import filters
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_EVENTS,
@@ -3143,9 +3145,7 @@ class PrefectClient:
         response.raise_for_status()
         return pydantic.parse_obj_as(List[Automation], response.json())
 
-    async def find_automation(
-        self, id_or_name: str, exit_if_not_found: bool = True
-    ) -> Optional[Automation]:
+    async def find_automation(self, id_or_name: str) -> Optional[Automation]:
         try:
             id = UUID(id_or_name)
         except ValueError:
@@ -3179,6 +3179,45 @@ class PrefectClient:
             return None
         response.raise_for_status()
         return Automation.parse_obj(response.json())
+
+    async def read_automation_by_name(self, name: str) -> Optional[Automation]:
+        """
+        Query the Prefect API for an automation by name. Only automations matching the provided name will be returned.
+
+        If more than one automation matches the name, the most recently updated automation will be returned.
+
+        Args:
+            name: the name of the automation to query
+
+        Returns:
+            an Automation model representation of the automation, or None if not found. If more than one automation
+            matches the name, the most recently updated automation will be returned.
+        """
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+        automation_filter = filters.AutomationFilter(name=dict(any_=[name]))
+
+        response = await self._client.post(
+            "/automations/filter",
+            json={
+                "limit": 1,
+                "sort": sorting.AutomationSort.UPDATED_DESC,
+                "automations": automation_filter.dict(json_compatible=True)
+                if automation_filter
+                else None,
+            },
+        )
+
+        response.raise_for_status()
+
+        if not response.json():
+            return None
+
+        else:
+            # normally a `/filter` endpoint would return a list of objects, but read_x_by_name
+            # methods return a single object in all other methods in the client, so
+            # we're ensuring parity there
+            return Automation.parse_obj(response.json()[0])
 
     async def pause_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():

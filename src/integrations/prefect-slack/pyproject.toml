@@ -50,7 +50,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/PrefectHQ/prefect-slack"
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-slack"
 
 [project.entry-points."prefect.collections"]
 prefect_slack = "prefect_slack"
