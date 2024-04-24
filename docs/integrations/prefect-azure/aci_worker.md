@@ -38,7 +38,7 @@ You can check that the scope is correct before moving on by running `echo $RG_SC
 
 ## Step 2. Prepare ACI permissions
 
-In order for the worker to create, monitor, and delete the other Container Instances in which flows will run, we'll need to create a **custom role** and an **identity**, and then affiliate that role to the identity with a **role assignment**. When we start our worker, we'll assign that identity to the Container Instance it's running in.
+In order for the worker to create, monitor, and delete the other container instances in which flows will run, we'll need to create a **custom role** and an **identity**, and then affiliate that role to the identity with a **role assignment**. When we start our worker, we'll assign that identity to the container instance it's running in.
 
 ### 1. Create a role
 
@@ -48,7 +48,7 @@ The custom `Container Instances Contributor` role has all the permissions your w
 az role definition create --role-definition '{
   "Name": "Container Instances Contributor",
   "IsCustom": true,
-  "Description": "Can create, delete, and monitor Container Instances.",
+  "Description": "Can create, delete, and monitor container instances.",
   "Actions": [
     "Microsoft.ContainerInstance/containerGroups/read",
     "Microsoft.ContainerInstance/containerGroups/write",
@@ -102,7 +102,7 @@ az role assignment create \
     --scope $RG_SCOPE
 ```
 
-## Step 3. Create the worker Container Instance
+## Step 3. Create the worker container instance
 
 Before running this command, set your `PREFECT_API_URL` and `PREFECT_API_KEY` as environment variables:
 
