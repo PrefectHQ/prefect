@@ -519,6 +519,9 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
@@ -538,6 +541,9 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_pending()
         mock_infrastructure_run.assert_called_once()
@@ -554,6 +560,9 @@ class TestInfrastructureIntegration:
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
+
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.infrastructure_pid == "id-1234"
@@ -735,6 +744,9 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
@@ -779,6 +791,9 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
@@ -812,6 +827,9 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         agent.logger.error.assert_called_once_with(
             f"Infrastructure returned without reporting flow run '{flow_run.id}' "
             "as started or raising an error. This behavior is not expected and "
@@ -838,6 +856,9 @@ class TestInfrastructureIntegration:
             [deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
+
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
 
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
@@ -888,6 +909,9 @@ class TestInfrastructureIntegration:
             [deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
+
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
 
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(

@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import timedelta
-from typing import AsyncGenerator, Sequence
+from typing import TYPE_CHECKING, AsyncGenerator, Sequence
 from uuid import UUID, uuid4
 
 import pendulum
@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMEventResource
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.services import event_persister
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
@@ -23,6 +22,9 @@ if HAS_PYDANTIC_V2:
     from pydantic.v1 import ValidationError
 else:
     from pydantic import ValidationError
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMEventResource
 
 
 @db_injector
@@ -47,7 +49,7 @@ async def get_event(db: PrefectDBInterface, id: UUID) -> "ReceivedEvent | None":
 
 async def get_resources(
     session: AsyncSession, id: UUID, db: PrefectDBInterface
-) -> Sequence[ORMEventResource]:
+) -> Sequence["ORMEventResource"]:
     result = await session.execute(
         sa.select(db.EventResource)
         .where(db.EventResource.event_id == id)
