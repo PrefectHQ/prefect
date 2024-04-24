@@ -360,3 +360,5 @@ def test_deleting_by_nonexistent_id(
             "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
         ],
     )
+
+    delete_automation.assert_not_called()

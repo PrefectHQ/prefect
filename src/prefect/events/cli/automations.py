@@ -168,15 +168,19 @@ async def delete(
     """
 
     async with get_client() as client:
+        if not id and not name:
+            exit_with_error("Please provide either a name or an id.")
+
         if id:
             try:
                 automation = await client.read_automation(id)
+                if not automation:
+                    exit_with_error(f"Automation with id {id!r} not found.")
             except PrefectHTTPStatusError as exc:
                 if exc.response.status_code == 404:
                     exit_with_error(f"Automation with id {id!r} not found.")
                 raise
-            if not automation:
-                exit_with_error(f"Automation with id {id!r} not found.")
+
             if not typer.confirm(
                 (f"Are you sure you want to delete automation with id {id!r}?"),
                 default=False,
@@ -184,6 +188,7 @@ async def delete(
                 exit_with_error("Deletion aborted.")
             await client.delete_automation(id)
             exit_with_success(f"Deleted automation with id {id!r}")
+
         elif name:
             automation = await client.read_automation_by_name(name=name)
             if not automation:
@@ -197,5 +202,3 @@ async def delete(
                 exit_with_error("Deletion aborted.")
             await client.delete_automation(automation.id)
             exit_with_success(f"Deleted automation with name {name!r}")
-        else:
-            exit_with_error("Please provide either a name or an id.")
