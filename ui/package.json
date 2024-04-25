@@ -6,7 +6,7 @@
     "serve": "vite --host",
     "build": "vite build",
     "lint": "eslint src --ext .js,.ts,.vue",
-    "lint:fix": "eslint src --fix --debug",
+    "lint:fix": "eslint src --fix",
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
