@@ -328,7 +328,8 @@ class Task(Generic[P, R]):
         self.cache_result_in_memory = cache_result_in_memory
 
         if (
-            timeout_seconds is not None
+            PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value()
+            and timeout_seconds is not None
             and not self.isasync
             and int(timeout_seconds) != timeout_seconds
         ):
