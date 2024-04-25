@@ -374,6 +374,7 @@ async def login(
     profiles = load_profiles()
     current_profile = get_settings_context().profile
     env_var_api_key = PREFECT_API_KEY.value()
+    selected_workspace = None
 
     if env_var_api_key and key and env_var_api_key != key:
         exit_with_error(
@@ -483,6 +484,7 @@ async def login(
         # Search for the given workspace
         for workspace in workspaces:
             if workspace.handle == workspace_handle:
+                selected_workspace = workspace
                 break
         else:
             if workspaces:
@@ -516,7 +518,8 @@ async def login(
             )
         if selected_workspace is None:
             exit_with_error("No workspace selected.")
-    else:
+
+    elif not selected_workspace and not workspace_handle:
         if current_workspace:
             selected_workspace = current_workspace
         elif len(workspaces) > 0:
