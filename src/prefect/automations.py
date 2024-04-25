@@ -82,7 +82,7 @@ class Automation(AutomationCore):
             return Automation(**automation[0].dict()) if automation else None
 
     @sync_compatible
-    async def delete(self: Self):
+    async def delete(self: Self) -> Optional[Self]:
         """
         auto = Automation.read(id = 123)
         auto.delete()
