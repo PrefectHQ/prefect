@@ -45,7 +45,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useFlowRunsFilter, PrefectStateNames, useFlowRunsFilterFromRoute } from '@prefecthq/prefect-ui-library'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useFlowRunsFilter, useFlowRunsFilterFromRoute } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
   import { useRouter } from 'vue-router'
