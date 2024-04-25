@@ -37,7 +37,7 @@
 - Improve wording on integrations index page — https://github.com/PrefectHQ/prefect/pull/12852
 
 #### Prefect UI Library
-- `FormattedDate` component to display accessible, long-form timestamps consistently. 
+- Add `FormattedDate` component to display accessible, long-form timestamps consistently
 - Update modal buttons and add auto-close to the parameters and job variable modals — https://github.com/PrefectHQ/prefect-ui-library/pull/2320
 - Add flow run list information density — https://github.com/PrefectHQ/prefect-ui-library/pull/2321
 - Fix "Run a deployment" action not populating the default parameters from the deployment — https://github.com/PrefectHQ/prefect-ui-library/pull/2322
@@ -46,7 +46,6 @@
 - Use correct icon colors for non-destructive actions in the UI  — https://github.com/PrefectHQ/prefect-ui-library/pull/2328
 
 ### Integrations
-
 #### Prefect CGP
 - Remove API ref to nonexistent Google Cloud Run V2 page — https://github.com/PrefectHQ/prefect-gcp/pull/260
 - Fix VPC access for Cloud v2 worker — https://github.com/PrefectHQ/prefect-gcp/pull/266
