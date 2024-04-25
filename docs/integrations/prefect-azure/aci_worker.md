@@ -124,12 +124,12 @@ This container instance uses default networking and security settings. For advan
 
 ## Step 4. Create an ACR registry
 
-In order to build and push images containing flow code to Azure, we'll need a container registry. Create one with the following command, replacing `<container-registry-name>` with the registry name of your choosing:
+In order to build and push images containing flow code to Azure, we'll need a container registry. Create one with the following command, replacing `<registry-name>` with the registry name of your choosing:
 
 ```bash
-export REGISTRY_NAME=<registry-name> \
+export REGISTRY_NAME=<registry-name> && \
 az acr create --resource-group $RG_NAME \
-  --name $REGSITRY_NAME --sku Basic
+  --name <registry-name> --sku Basic
 ```
 
 ## Step 5. Update your ACI work pool configuration
