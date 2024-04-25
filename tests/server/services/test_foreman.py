@@ -512,12 +512,14 @@ class TestForemanWorkQueueService:
         #     len(events) == 4
         # )  # 2 work queue status events and 2 work pool status events
 
+        assert {(event.resource.id, event.resource.name) for event in events} == {
+            (f"prefect.work-queue.{wq_1.id}", wq_1.name),
+            (f"prefect.work-queue.{wq_2.id}", wq_2.name),
+        }
+
         # check work queue 1 status event emitted
         wq_status_event_wp_1 = events[0]
         assert wq_status_event_wp_1.event == "prefect.work-queue.not-ready"
-        assert wq_status_event_wp_1.resource.id == f"prefect.work-queue.{wq_1.id}"
-
-        assert wq_status_event_wp_1.resource.name == wq_1.name
         assert (
             wq_status_event_wp_1.related[0]["prefect.resource.id"]
             == f"prefect.work-pool.{ready_work_pool.id}"
@@ -531,9 +533,6 @@ class TestForemanWorkQueueService:
         # check work queue 2 status event emitted
         wq_status_event_wp_2 = events[1]
         assert wq_status_event_wp_2.event == "prefect.work-queue.not-ready"
-        assert wq_status_event_wp_2.resource.id == f"prefect.work-queue.{wq_2.id}"
-
-        assert wq_status_event_wp_2.resource.name == wq_2.name
         assert (
             wq_status_event_wp_2.related[0]["prefect.resource.id"]
             == f"prefect.work-pool.{ready_work_pool.id}"
