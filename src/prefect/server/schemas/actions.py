@@ -860,6 +860,9 @@ class WorkQueueUpdate(ActionBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(None)
     priority: Optional[PositiveInteger] = Field(None)
     last_polled: Optional[DateTimeTZ] = Field(None)
+    status: Optional[schemas.statuses.WorkQueueStatus] = Field(
+        default=None, description="The current status of the work queue."
+    )
 
     # DEPRECATED
 

@@ -2,7 +2,6 @@
 Routes for interacting with work queue objects.
 """
 
-from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -23,6 +22,10 @@ import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.work_queues import (
+    emit_work_queue_status_event,
+    mark_work_queues_ready,
+)
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
@@ -314,12 +317,13 @@ async def get_scheduled_flow_runs(
 
         if work_queue_names is None:
             work_queue_ids = None
-            ready_work_queue_ids = [
+            polled_work_queue_ids = [
                 wq.id
                 for wq in await models.workers.read_work_queues(
                     session=session, work_pool_id=work_pool_id
                 )
             ]
+            ready_work_queue_ids = polled_work_queue_ids
         else:
             work_queue_ids = []
             for qn in work_queue_names:
@@ -330,6 +334,7 @@ async def get_scheduled_flow_runs(
                         work_queue_name=qn,
                     )
                 )
+            polled_work_queue_ids = work_queue_ids
             ready_work_queue_ids = work_queue_ids
 
         queue_response = await models.workers.get_scheduled_flow_runs(
@@ -342,10 +347,9 @@ async def get_scheduled_flow_runs(
         )
 
     background_tasks.add_task(
-        _record_work_queue_polls,
-        db=db,
-        work_pool_id=work_pool_id,
-        work_queue_names=work_queue_names,
+        mark_work_queues_ready,
+        polled_work_queue_ids=polled_work_queue_ids,
+        ready_work_queue_ids=ready_work_queue_ids,
     )
 
     background_tasks.add_task(
@@ -354,42 +358,6 @@ async def get_scheduled_flow_runs(
     )
 
     return queue_response
-
-
-async def _record_work_queue_polls(
-    db: PrefectDBInterface,
-    work_pool_id: UUID,
-    work_queue_names: List[str],
-):
-    """
-    Records that a set of work queues have been polled.
-
-    If no work queue names are provided, all work queues in the work pool are recorded as polled.
-    """
-    async with db.session_context(
-        begin_transaction=True, with_for_update=True
-    ) as session:
-        work_queue_filter = (
-            schemas.filters.WorkQueueFilter(
-                name=schemas.filters.WorkQueueFilterName(any_=work_queue_names)
-            )
-            if work_queue_names
-            else None
-        )
-        work_queues = await models.workers.read_work_queues(
-            session=session,
-            work_pool_id=work_pool_id,
-            work_queue_filter=work_queue_filter,
-        )
-
-        for work_queue in work_queues:
-            await models.workers.update_work_queue(
-                session=session,
-                work_queue_id=work_queue.id,
-                work_queue=schemas.actions.WorkQueueUpdate(
-                    last_polled=datetime.now(tz=timezone.utc)
-                ),
-            )
 
 
 # -----------------------------------------------------
@@ -517,6 +485,7 @@ async def update_work_queue(
             session=session,
             work_queue_id=work_queue_id,
             work_queue=work_queue,
+            emit_status_change=emit_work_queue_status_event,
         )
 
 
