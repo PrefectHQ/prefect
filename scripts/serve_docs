@@ -30,12 +30,9 @@ cd "$(dirname "$0")/.."
 uv venv "$temp_dir/.venv"
 source "$temp_dir/.venv/bin/activate"
 
-# Install all integration libraries from src/integrations
+# Install all integration libraries from src/integrations and core dev dependencies as editable
 integration_packages=$(find src/integrations -name "pyproject.toml" -exec dirname {} \;)
-uv pip install $integration_packages
-
-# Install the prefect package in editable mode
-uv pip install -e ".[dev]"
+uv pip install $integration_packages -e ".[dev]"
 
 # Build and serve the docs
 mkdocs serve -a localhost:8000
