@@ -42,6 +42,7 @@ from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS
 from prefect.utilities import schema_tools
 
 logger = get_logger("server.api")
@@ -463,16 +464,17 @@ async def resume_flow_run(
                 ),
             )
 
-            async with PrefectServerEventsClient() as events:
-                await events.emit(
-                    await flow_run_input_created_event(
-                        session,
-                        pendulum.now("UTC"),
-                        flow_run_id,
-                        keyset["response"],
-                        input_value,
+            if PREFECT_EXPERIMENTAL_EVENTS:
+                async with PrefectServerEventsClient() as events:
+                    await events.emit(
+                        await flow_run_input_created_event(
+                            session,
+                            pendulum.now("UTC"),
+                            flow_run_id,
+                            keyset["response"],
+                            input_value,
+                        )
                     )
-                )
 
         # set the 201 if a new state was created
         if orchestration_result.state and orchestration_result.state.timestamp >= now:
@@ -628,11 +630,12 @@ async def create_flow_run_input(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
 
-        async with PrefectServerEventsClient() as events:
-            event = await flow_run_input_created_event(
-                session, pendulum.now("UTC"), flow_run_id, key, value.decode()
-            )
-            await events.emit(event)
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            async with PrefectServerEventsClient() as events:
+                event = await flow_run_input_created_event(
+                    session, pendulum.now("UTC"), flow_run_id, key, value.decode()
+                )
+                await events.emit(event)
 
 
 @router.post("/{id}/input/filter")
