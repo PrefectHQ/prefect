@@ -54,10 +54,6 @@ def event_loop(request):
     finally:
         loop.close()
 
-    # Workaround for failures in pytest_asyncio 0.17;
-    # see https://github.com/pytest-dev/pytest-asyncio/issues/257
-    policy.set_event_loop(loop)
-
 
 @pytest.fixture(scope="module")
 def machine_ray_instance():
@@ -175,15 +171,18 @@ def ray_task_runner_with_temporary_cluster(
     )
 
 
+task_runner_setups = [
+    default_ray_task_runner,
+    ray_task_runner_with_inprocess_cluster,
+    ray_task_runner_with_temporary_cluster,
+]
+
+if sys.version_info >= (3, 10):
+    task_runner_setups.append(ray_task_runner_with_existing_cluster)
+
+
 class TestRayTaskRunner(TaskRunnerStandardTestSuite):
-    @pytest.fixture(
-        params=[
-            default_ray_task_runner,
-            ray_task_runner_with_existing_cluster,
-            ray_task_runner_with_inprocess_cluster,
-            ray_task_runner_with_temporary_cluster,
-        ]
-    )
+    @pytest.fixture(params=task_runner_setups)
     def task_runner(self, request):
         yield request.getfixturevalue(
             request.param._pytestfixturefunction.name or request.param.__name__
