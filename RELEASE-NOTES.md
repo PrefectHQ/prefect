@@ -40,12 +40,12 @@
 
 #### Prefect UI Library
 - Feature: `FormattedDate` component — https://github.com/PrefectHQ/prefect-ui-library/pull/2329
-- Enhancement: Update modal buttons and add auto-close to the parameters and job variable modals — https://github.com/PrefectHQ/prefect-ui-library/pull/2320
-- Enhancement: flow run list information density — https://github.com/PrefectHQ/prefect-ui-library/pull/2321
+- Update modal buttons and add auto-close to the parameters and job variable modals — https://github.com/PrefectHQ/prefect-ui-library/pull/2320
+- Add flow run list information density — https://github.com/PrefectHQ/prefect-ui-library/pull/2321
 - Fix "Run a deployment" action not populating the default parameters from the deployment — https://github.com/PrefectHQ/prefect-ui-library/pull/2322
 - Fix schema form properties with no default value from defaulting to `null` (`None`) — https://github.com/PrefectHQ/prefect-ui-library/pull/2323
 - Update date-fns and date-fns-tz — https://github.com/PrefectHQ/prefect-ui-library/pull/2319
-- Use correct icon colors for non-destructive actions.  — https://github.com/PrefectHQ/prefect-ui-library/pull/2328
+- Use correct icon colors for non-destructive actions in the UI  — https://github.com/PrefectHQ/prefect-ui-library/pull/2328
 - Feature: `FormattedDate` component — https://github.com/PrefectHQ/prefect-ui-library/pull/2329
 
 #### Prefect CGP
