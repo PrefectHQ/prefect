@@ -12,7 +12,7 @@ PYTHON_VERSIONS = [
 ]
 
 SKIP_VERSIONS = {
-    "prefect-ray": ["3.12"],
+    "prefect-ray": ["3.8", "3.12"],
 }
 
 
