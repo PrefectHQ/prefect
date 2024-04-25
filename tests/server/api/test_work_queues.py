@@ -7,6 +7,7 @@ import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.events.clients import AssertingEventsClient
+from prefect.server.schemas.statuses import WorkQueueStatus
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -37,12 +38,7 @@ async def paused_work_queue(session: AsyncSession):
             name="wq-xyz", description="All about my work queue"
         ),
     )
-    new_data = schemas.actions.WorkQueueUpdate(status="PAUSED")
-    await models.work_queues.update_work_queue(
-        session=session,
-        work_queue_id=work_queue.id,
-        work_queue=new_data,
-    )
+    work_queue.status = WorkQueueStatus.PAUSED
     await session.commit()
     return work_queue
 
@@ -55,13 +51,7 @@ async def not_ready_work_queue(session):
             name="wq-abc", description="All about my work queue"
         ),
     )
-
-    new_data = schemas.actions.WorkQueueUpdate(status="NOT_READY")
-    await models.work_queues.update_work_queue(
-        session=session,
-        work_queue_id=work_queue.id,
-        work_queue=new_data,
-    )
+    work_queue.status = WorkQueueStatus.NOT_READY
     await session.commit()
     return work_queue
 
@@ -74,13 +64,7 @@ async def ready_work_queue(session: AsyncSession):
             name="wq-zzz", description="All about my work queue"
         ),
     )
-
-    new_data = schemas.actions.WorkQueueUpdate(status="READY")
-    await models.work_queues.update_work_queue(
-        session=session,
-        work_queue_id=work_queue.id,
-        work_queue=new_data,
-    )
+    work_queue.status = WorkQueueStatus.READY
     await session.commit()
     return work_queue
 
