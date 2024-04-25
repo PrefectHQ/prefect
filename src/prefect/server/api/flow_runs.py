@@ -628,11 +628,11 @@ async def create_flow_run_input(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
 
-    async with PrefectServerEventsClient() as events:
-        event = await flow_run_input_created_event(
-            session, pendulum.now("UTC"), flow_run_id, key, value.decode()
-        )
-        await events.emit(event)
+        async with PrefectServerEventsClient() as events:
+            event = await flow_run_input_created_event(
+                session, pendulum.now("UTC"), flow_run_id, key, value.decode()
+            )
+            await events.emit(event)
 
 
 @router.post("/{id}/input/filter")
