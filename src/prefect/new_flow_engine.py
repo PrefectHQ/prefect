@@ -149,15 +149,16 @@ class FlowRunEngine(Generic[P, R]):
         if parent_task_run.state.is_final() and not (
             rerunning and not parent_task_run.state.is_completed()
         ):
-            # If the parent task run already completed, return the last flow run
-            # associated with the parent task run. This prevents rerunning a completed
-            # flow run when the parent task run is rerun.
-            if most_recent_flow_run := (
-                await self.get_most_recent_flow_run_for_parent_task_run(
-                    client=client, parent_task_run=parent_task_run
-                )
-            ):
-                return most_recent_flow_run
+            # return the most recent flow run, if it exists
+            flow_runs = await client.read_flow_runs(
+                flow_run_filter=FlowRunFilter(
+                    parent_task_run_id={"any_": [parent_task_run.id]}
+                ),
+                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+                limit=1,
+            )
+            if flow_runs:
+                return flow_runs[-1]
 
     async def create_subflow_task_run(
         self, client: PrefectClient, context: FlowRunContext
@@ -184,28 +185,6 @@ class FlowRunEngine(Generic[P, R]):
             state=Pending(),
         )
         return parent_task_run
-
-    async def get_most_recent_flow_run_for_parent_task_run(
-        self, client: PrefectClient, parent_task_run: TaskRun
-    ) -> "Union[FlowRun, None]":
-        """
-        Get the most recent flow run associated with the provided parent task run.
-
-        Args:
-            - An orchestration client
-            - The parent task run to get the most recent flow run for
-
-        Returns:
-            The most recent flow run associated with the parent task run or `None` if
-            no flow runs are found
-        """
-        flow_runs = await client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                parent_task_run_id={"any_": [parent_task_run.id]}
-            ),
-            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-        )
-        return flow_runs[-1] if flow_runs else None
 
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
