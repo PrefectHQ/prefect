@@ -61,6 +61,7 @@ dev = [
   "pandas",
   "pillow",
   "pre-commit",
+  "pyarrow",
   "pytest-asyncio",
   "pytest-xdist",
   "pytest",
