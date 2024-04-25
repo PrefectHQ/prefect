@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prefect-dbt"
+description = "Prefect integrations for working with dbt"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache License 2.0" }
+keywords = ["prefect"]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
+classifiers = [
+  "Natural Language :: English",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+  "prefect>=2.16.6",
+  "dbt_core>=1.1.1",
+  "prefect_shell>=0.1.4",
+  "sgqlc>=16.0.0",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+snowflake = ["prefect-snowflake>=0.2.4", "dbt-snowflake"]
+bigquery = ["prefect-gcp[bigquery]>=0.1.8", "dbt-bigquery"]
+postgres = ["prefect-sqlalchemy>=0.2.1", "dbt-postgres"]
+all_extras = [
+  "dbt-bigquery",
+  "dbt-postgres",
+  "dbt-snowflake",
+  "prefect-gcp[bigquery]>=0.1.8",
+  "prefect-snowflake>=0.2.4",
+  "prefect-sqlalchemy>=0.2.1",
+]
+dev = [
+  "coverage",
+  "dbt-bigquery",
+  "dbt-postgres",
+  "dbt-snowflake",
+  "interrogate",
+  "mkdocs-gen-files",
+  "mkdocs-material",
+  "mkdocs",
+  "mkdocstrings[python]",
+  "mock; python_version < '3.8'",
+  "mypy",
+  "pillow",
+  "pre-commit",
+  "prefect-gcp[bigquery]>=0.1.8",
+  "prefect-snowflake>=0.2.4",
+  "prefect-sqlalchemy>=0.2.1",
+  "pytest-asyncio",
+  "pytest-xdist",
+  "pytest",
+  "respx",
+]
+
+[project.urls]
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dbt"
+
+[project.entry-points."prefect.collections"]
+prefect_dbt = "prefect_dbt"
+
+[tool.setuptools_scm]
+version_file = "prefect_dbt/_version.py"
+root = "../../.."
+tag_regex = "^prefect-dbt-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+fallback_version = "0.0.0"
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-dbt-*[0-9]*"'
+
+[tool.interrogate]
+ignore-init-module = true
+ignore_init_method = true
+exclude = ["prefect_dbt/_version.py", "tests"]
+fail-under = 95
+omit-covered-files = true
+
+[tool.coverage.run]
+omit = ["tests/*", "prefect_dbt/_version.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
