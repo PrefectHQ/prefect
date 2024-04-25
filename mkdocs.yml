@@ -241,7 +241,7 @@ nav:
                 - AWS:
                       - integrations/prefect-aws/index.md
                       - Guides:
-                        - Setting up an ECS Worker: integrations/prefect-aws/ecs_guide.md
+                            - Setting up an ECS Worker: integrations/prefect-aws/ecs_guide.md
                       - Batch: integrations/prefect-aws/batch.md
                       - Client Waiter: integrations/prefect-aws/client_waiter.md
                       - Credentials: integrations/prefect-aws/credentials.md
@@ -250,7 +250,7 @@ nav:
                       - Glue Job: integrations/prefect-aws/glue_job.md
                       - Lambda: integrations/prefect-aws/lambda_function.md
                       - Deployments:
-                        - Steps: integrations/prefect-aws/deployments/steps.md
+                            - Steps: integrations/prefect-aws/deployments/steps.md
                       - S3: integrations/prefect-aws/s3.md
                       - Secrets Manager: integrations/prefect-aws/secrets_manager.md
                 - Azure:
@@ -292,6 +292,20 @@ nav:
                       - integrations/prefect-email/index.md
                       - Credentials: integrations/prefect-email/credentials.md
                       - Message: integrations/prefect-email/message.md
+                - GCP:
+                      - integrations/prefect-gcp/index.md
+                      - Google Cloud Run Execution Guide: integrations/prefect-gcp/gcp-worker-guide.md
+                      - Credentials: integrations/prefect-gcp/credentials.md
+                      - Cloud Storage: integrations/prefect-gcp/cloud_storage.md
+                      - BigQuery: integrations/prefect-gcp/bigquery.md
+                      - Secret Manager: integrations/prefect-gcp/secret_manager.md
+                      - Cloud Run: integrations/prefect-gcp/cloud_run.md
+                      - AI Platform: integrations/prefect-gcp/aiplatform.md
+                      - Deployment Steps: integrations/prefect-gcp/deployments/steps.md
+                      - Workers:
+                            - Cloud Run: integrations/prefect-gcp/cloud_run_worker.md
+                            - Cloud Run V2: cintegrations/prefect-gcp/loud_run_worker_v2.md
+                            - Vertex AI: integrations/prefect-gcp/vertex_worker.md
                 - GitHub:
                       - integrations/prefect-github/index.md
                       - Credentials: integrations/prefect-github/credentials.md
