@@ -12,9 +12,9 @@ SLEEP_TIME = 3 if os.environ.get("CI") else 1
 
 
 def test_sync_task_timeout_in_sync_flow():
-    @prefect.task(timeout_seconds=0.1)
+    @prefect.task(timeout_seconds=1)
     def sleep_task():
-        time.sleep(SLEEP_TIME)
+        time.sleep(SLEEP_TIME + 0.5)
 
     @prefect.flow
     def parent_flow():
@@ -27,9 +27,9 @@ def test_sync_task_timeout_in_sync_flow():
 
 
 async def test_sync_task_timeout_in_async_flow():
-    @prefect.task(timeout_seconds=0.1)
+    @prefect.task(timeout_seconds=1)
     def sleep_task():
-        time.sleep(SLEEP_TIME)
+        time.sleep(SLEEP_TIME + 0.5)
 
     @prefect.flow
     async def parent_flow():
