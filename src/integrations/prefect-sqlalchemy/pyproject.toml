@@ -28,6 +28,8 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+  "aiosqlite",
+  "asyncpg",
   "coverage",
   "interrogate",
   "mkdocs-gen-files",
@@ -38,9 +40,10 @@ dev = [
   "mypy",
   "pillow",
   "pre-commit",
+  "psycopg2",
   "pytest-asyncio",
-  "pytest",
   "pytest-xdist",
+  "pytest",
 ]
 
 [project.urls]
