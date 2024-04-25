@@ -360,9 +360,12 @@ class TestForemanWorkQueueService:
                 db.WorkQueue.name == name,
             )
             .values(last_polled=pendulum.now("UTC"))
-            .returning(db.WorkQueue)
         )
-        result = await session.execute(stmt)
+        await session.execute(stmt)
+
+        result = await session.execute(
+            sa.select(db.WorkQueue).where(db.WorkQueue.name == name)
+        )
         return result.scalars().all()
 
     async def test_foreman_updates_status_for_late_last_polled_time(
