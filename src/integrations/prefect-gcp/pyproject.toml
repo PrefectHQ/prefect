@@ -1,0 +1,98 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prefect-gcp"
+description = "Prefect integrations for interacting with Google Cloud Platform."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache License 2.0" }
+keywords = ["prefect"]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
+classifiers = [
+  "Natural Language :: English",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+  "prefect>=2.16.4",
+  "google-api-python-client>=2.20.0",
+  "google-cloud-storage>=2.0.0",
+  "tenacity>=8.0.0",
+  "python-slugify>=8.0.0",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+cloud_storage = ["google-cloud-storage"]
+bigquery = ["google-cloud-bigquery", "google-cloud-bigquery-storage"]
+secret_manager = ["google-cloud-secret-manager"]
+aiplatform = ["google-cloud-aiplatform"]
+all_extras = [
+  "google-cloud-storage",
+  "google-cloud-bigquery",
+  "google-cloud-bigquery-storage",
+  "google-cloud-secret-manager",
+  "google-cloud-aiplatform",
+]
+dev = [
+  "coverage",
+  "google-cloud-aiplatform",
+  "google-cloud-bigquery-storage",
+  "google-cloud-bigquery",
+  "google-cloud-secret-manager",
+  "google-cloud-storage",
+  "interrogate",
+  "mkdocs-gen-files",
+  "mkdocs-material",
+  "mkdocs",
+  "mkdocstrings[python]",
+  "mock; python_version < '3.8'",
+  "mypy",
+  "pandas",
+  "pillow",
+  "pre-commit",
+  "pyarrow",
+  "pytest-asyncio",
+  "pytest-xdist",
+  "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-gcp"
+
+[project.entry-points."prefect.collections"]
+prefect_gcp = "prefect_gcp"
+
+[tool.setuptools_scm]
+version_file = "prefect_gcp/_version.py"
+root = "../../.."
+tag_regex = "^prefect-gcp-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+fallback_version = "0.0.0"
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-gcp-*[0-9]*"'
+
+[tool.interrogate]
+ignore-init-module = true
+ignore_init_method = true
+exclude = ["prefect_gcp/_version.py", "tests"]
+fail-under = 95
+omit-covered-files = true
+
+[tool.coverage.run]
+omit = ["tests/*", "prefect_gcp/_version.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
