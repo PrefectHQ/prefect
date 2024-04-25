@@ -17,14 +17,7 @@ from prefect.events.schemas.automations import (
     Posture,
     PrefectMetric,
 )
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
-
-
-@pytest.fixture(autouse=True, scope="module")
-def enable_events():
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
-        yield
 
 
 @pytest.fixture
