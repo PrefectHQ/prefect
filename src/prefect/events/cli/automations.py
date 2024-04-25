@@ -131,6 +131,7 @@ async def inspect(
     """
     if not id and not name:
         exit_with_error("Please provide either a name or an id.")
+
     if name:
         async with get_client() as client:
             automation = await client.read_automations_by_name(name=name)
@@ -142,22 +143,20 @@ async def inspect(
             try:
                 uuid_id = UUID(id)
                 automation = await client.read_automation(uuid_id)
-            except PrefectHTTPStatusError:
-                exit_with_error(f"Automation with id {id!r} not found.")
-            except ValueError:
+            except (PrefectHTTPStatusError, ValueError):
                 exit_with_error(f"Automation with id {id!r} not found.")
 
-    if yaml:
-        if automation:
-            automation_list = [a.dict(json_compatible=True) for a in automation]
-            app.console.print(pyyaml.dump(automation_list, sort_keys=False))
-
-    elif json:
-        if automation:
-            automation_list = [a.dict(json_compatible=True) for a in automation]
-        app.console.print(
-            orjson.dumps(automation_list, option=orjson.OPT_INDENT_2).decode()
-        )
+    if yaml or json:
+        if isinstance(automation, list):
+            automation = [a.dict(json_compatible=True) for a in automation]
+        elif isinstance(automation, dict):
+            automation = automation.dict(json_compatible=True)
+        if yaml:
+            app.console.print(pyyaml.dump(automation, sort_keys=False))
+        elif json:
+            app.console.print(
+                orjson.dumps(automation, option=orjson.OPT_INDENT_2).decode()
+            )
     else:
         app.console.print(Pretty(automation))
 
