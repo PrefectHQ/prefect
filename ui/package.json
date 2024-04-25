@@ -19,7 +19,7 @@
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
     "tailwindcss": "3.4.3",
-    "vue": "3.4.21",
+    "vue": "3.4.23",
     "vue-router": "4.3.0"
   },
   "devDependencies": {
@@ -30,7 +30,7 @@
     "eslint": "^8.57.0",
     "ts-node": "10.9.2",
     "typescript": "^5.4.4",
-    "vite": "5.2.8",
+    "vite": "5.2.10",
     "vue-tsc": "^2.0.11"
   }
 }
