@@ -42,7 +42,7 @@ class Automation(AutomationCore):
         return automation if automation else None
 
     @sync_compatible
-    async def update(self: Self) -> Self:
+    async def update(self: Self):
         """
         Updates an existing automation.
         auto = Automation.read(id = 123)
@@ -52,7 +52,7 @@ class Automation(AutomationCore):
 
         client, _ = get_or_create_client()
         automation = AutomationCore(**self.dict(exclude={"id", "owner_resource"}))
-        automation = await client.update_automation(
+        await client.update_automation(
             automation_id=self.id, automation=automation
         )
 
