@@ -33,6 +33,17 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
+cloud_storage = ["google-cloud-storage"]
+bigquery = ["google-cloud-bigquery", "google-cloud-bigquery-storage"]
+secret_manager = ["google-cloud-secret-manager"]
+aiplatform = ["google-cloud-aiplatform"]
+all_extras = [
+  "google-cloud-storage",
+  "google-cloud-bigquery",
+  "google-cloud-bigquery-storage",
+  "google-cloud-secret-manager",
+  "google-cloud-aiplatform",
+]
 dev = [
   "coverage",
   "interrogate",
@@ -47,6 +58,12 @@ dev = [
   "pytest-asyncio",
   "pytest",
   "pytest-xdist",
+  "google-cloud-storage",
+  "google-cloud-bigquery",
+  "google-cloud-bigquery-storage",
+  "google-cloud-secret-manager",
+  "google-cloud-aiplatform",
+
 ]
 
 [project.urls]
