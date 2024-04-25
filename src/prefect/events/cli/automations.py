@@ -3,8 +3,10 @@ Command line interface for working with automations.
 """
 
 import functools
+from typing import Optional
 
 import orjson
+import typer
 import yaml as pyyaml
 from rich.pretty import Pretty
 from rich.table import Table
@@ -149,15 +151,51 @@ async def pause(id_or_name: str):
 
 @automations_app.command()
 @requires_automations
-async def delete(id_or_name: str):
-    """Delete an automation."""
+async def delete(
+    name: Optional[str] = typer.Argument(None, help="An automation's name"),
+    id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
+):
+    """Delete an automation.
+
+    Arguments:
+        name: the name of the automation to delete
+        id: the id of the automation to delete
+
+    Examples:
+        $ prefect automation delete "my-automation"
+        $ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    """
+
     async with get_client() as client:
-        automation = await client.find_automation(id_or_name)
+        if not id and not name:
+            exit_with_error("Please provide either a name or an id.")
 
-    if not automation:
-        exit_with_success(f"Automation {id_or_name!r} not found.")
+        if id:
+            automation = await client.read_automation(id)
+            if not automation:
+                exit_with_error(f"Automation with id {id!r} not found.")
+            if not typer.confirm(
+                (f"Are you sure you want to delete automation with id {id!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+            await client.delete_automation(id)
+            exit_with_success(f"Deleted automation with id {id!r}")
 
-    async with get_client() as client:
-        await client.delete_automation(automation.id)
-
-    exit_with_success(f"Deleted automation {automation.name!r} ({automation.id})")
+        elif name:
+            automation = await client.read_automations_by_name(name=name)
+            if not automation:
+                exit_with_error(
+                    f"Automation {name!r} not found. You can also specify an id with the `--id` flag."
+                )
+            elif len(automation) > 1:
+                exit_with_error(
+                    f"Multiple automations found with name {name!r}. Please specify an id with the `--id` flag instead."
+                )
+            if not typer.confirm(
+                (f"Are you sure you want to delete automation with name {name!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+            await client.delete_automation(automation[0].id)
+            exit_with_success(f"Deleted automation with name {name!r}")
