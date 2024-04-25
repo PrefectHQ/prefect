@@ -1,5 +1,64 @@
 # Prefect Release Notes
 
+## Release 2.18.1
+
+### Fixes
+- Fix improper context access for nested async task outside of flow — https://github.com/PrefectHQ/prefect/pull/12810
+- Fix using default interval schedule in `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12833
+- Fix a bug in the schema validationUpdate where definitions are falsy — https://github.com/PrefectHQ/prefect/pull/12880
+- Allow `prefect cloud login` to override current workspace — https://github.com/PrefectHQ/prefect/pull/12867
+- Remove extra quotes in `prefect deployment run --watch` — https://github.com/PrefectHQ/prefect/pull/12894
+
+### Experimental
+
+#### Events and Automations
+- Support filtering by automation name:
+    - https://github.com/PrefectHQ/prefect/pull/12850
+    - https://github.com/PrefectHQ/prefect/pull/12884
+    - https://github.com/PrefectHQ/prefect/pull/12887
+- Add support for using the "normal" Trigger classes for flow.serve and .deploy — https://github.com/PrefectHQ/prefect/pull/12789
+- Add an account-level event subscriber — https://github.com/PrefectHQ/prefect/pull/12808
+- Emit flow run state change events — https://github.com/PrefectHQ/prefect/pull/12825
+- Emit deployment status persistence and events — https://github.com/PrefectHQ/prefect/pull/12853
+- Enable Event Streaming from PrefectCloudEventSubscriber via CLI  — https://github.com/PrefectHQ/prefect/pull/12796
+- Update `prefect automation delete` — https://github.com/PrefectHQ/prefect/pull/12876
+
+#### Engine
+- New experimental engine for tasks and flows with improved readability and extensibility — https://github.com/PrefectHQ/prefect/pull/12856
+
+### Documentation
+- Improve installation instructions  — https://github.com/PrefectHQ/prefect/pull/12783
+- Quickstart and other documentation improvements  — https://github.com/PrefectHQ/prefect/pull/12798
+- Migrate `prefect-azure` docs to Integrations section of the Prefect docs — https://github.com/PrefectHQ/prefect/pull/12794
+- Update storage guide credentials blocks — https://github.com/PrefectHQ/prefect/pull/12819
+- Remove `server` import recommendations — https://github.com/PrefectHQ/prefect/pull/12823
+- Remove link to removed API page — https://github.com/PrefectHQ/prefect/pull/12824
+- Add Azure Container Instances worker guide — https://github.com/PrefectHQ/prefect/pull/12846
+- Better wording on integrations index page — https://github.com/PrefectHQ/prefect/pull/12852
+
+### Integrations
+
+#### Prefect UI Library
+- Update date-fns and date-fns-tz — https://github.com/PrefectHQ/prefect-ui-library/pull/2319
+- Enhancement: Update modal buttons and add auto-close to the parameters and job variable modals — https://github.com/PrefectHQ/prefect-ui-library/pull/2320
+- Enhancement: flow run list information density — https://github.com/PrefectHQ/prefect-ui-library/pull/2321
+- Fix "Run a deployment" action not populating the default parameters from the deployment — https://github.com/PrefectHQ/prefect-ui-library/pull/2322
+- Fix schema form properties with no default value from defaulting to `null` (`None`) — https://github.com/PrefectHQ/prefect-ui-library/pull/2323
+- Use correct icon colors for non-destructive actions.  — https://github.com/PrefectHQ/prefect-ui-library/pull/2328
+- Feature: `FormattedDate` component — https://github.com/PrefectHQ/prefect-ui-library/pull/2329
+- Release 2.8.14 — https://github.com/PrefectHQ/prefect-ui-library/pull/2330
+
+#### Prefect CGP
+- Remove API ref to nonexistent Google Cloud Run V2 page — https://github.com/PrefectHQ/prefect-gcp/pull/260
+- Fix VPC access for Cloud v2 worker — https://github.com/PrefectHQ/prefect-gcp/pull/266
+- Handle case where `vpc` isn't in job template — https://github.com/PrefectHQ/prefect-gcp/pull/267
+
+## New Contributors
+* @keizobabybear made their first contribution in https://github.com/PrefectHQ/prefect/pull/12852
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.18.0...2.18.1
+
+
 ## Release 2.18.0
 
 ### Breaking Changes
