@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import time
 from typing import List
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
@@ -677,3 +679,31 @@ class TestSyncAsyncTasks:
 
         result = await run_task(async_task)
         assert result == 42
+
+
+class TestTimeout:
+    async def test_timeout_async_task(self):
+        @task(timeout_seconds=0.1)
+        async def async_task():
+            await asyncio.sleep(2)
+
+        with pytest.raises(TimeoutError):
+            await run_task(async_task)
+
+    async def test_timeout_sync_task(self):
+        @task(timeout_seconds=1)
+        def sync_task():
+            time.sleep(2)
+
+        with pytest.raises(TimeoutError):
+            run_task_sync(sync_task)
+
+    async def test_float_timeout_not_allowed_for_sync_task(self):
+        """
+        Signals-based timeouts must have integer intervals
+        """
+        with pytest.raises(ValueError, match="Timeout must be an integer"):
+
+            @task(timeout_seconds=1.5)
+            def sync_task():
+                pass
