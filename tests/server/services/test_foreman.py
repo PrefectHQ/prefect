@@ -469,11 +469,13 @@ class TestForemanWorkQueueService:
         """
         Foreman should be able to update the status of multiple work queues.
         """
+        now = pendulum.now("UTC")
+
         wq_1 = await self.create_work_queue(
             session,
             ready_work_pool,
             status=schemas.statuses.WorkQueueStatus.READY,
-            last_polled=pendulum.now("UTC")
+            last_polled=now
             - timedelta(seconds=Foreman()._work_queue_last_polled_timeout_seconds + 5),
         )
         assert wq_1.status == schemas.statuses.WorkQueueStatus.READY
@@ -482,7 +484,7 @@ class TestForemanWorkQueueService:
             session,
             ready_work_pool,
             status=schemas.statuses.WorkQueueStatus.READY,
-            last_polled=pendulum.now("UTC")
+            last_polled=now
             - timedelta(seconds=Foreman()._work_queue_last_polled_timeout_seconds + 4),
         )
         assert wq_2.status == schemas.statuses.WorkQueueStatus.READY
@@ -499,6 +501,8 @@ class TestForemanWorkQueueService:
         wq_response_2 = await client.get(f"/work_queues/{wq_2.id}")
         assert wq_response_2.status_code == 200
         assert wq_response_2.json()["status"] == "NOT_READY"
+
+        assert wq_response_1.json()["last_polled"] < wq_response_2.json()["last_polled"]
 
         events = [event for item in AssertingEventsClient.all for event in item.events]
 

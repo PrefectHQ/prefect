@@ -665,6 +665,7 @@ class TestUpdateWorkQueue:
             work_queue_id=work_queue.id,
             work_queue=new_data,
         )
+        await session.commit()
         return work_queue
 
     @pytest.fixture
