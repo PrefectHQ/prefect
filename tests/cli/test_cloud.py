@@ -268,6 +268,38 @@ def test_login_with_non_interactive_missing_args(args):
     )
 
 
+def test_login_with_key_and_workspace_overrides_current_workspace(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
+        )
+    )
+
+    # Set up a current profile with a different workspace
+    profiles = load_profiles()
+    profiles.set_active("default")
+    assert profiles.active_profile is not None
+    profiles.active_profile.settings[PREFECT_API_URL] = foo_workspace.api_url()
+    assert profiles.active_profile.settings[PREFECT_API_URL] == foo_workspace.api_url()
+
+    invoke_and_assert(
+        ["cloud", "login", "--key", "new_key", "--workspace", "test/bar"],
+        expected_code=0,
+        expected_output="Authenticated with Prefect Cloud! Using workspace 'test/bar'.",
+    )
+
+    settings = load_current_profile().settings
+    assert settings[PREFECT_API_KEY] == "new_key"
+    assert settings[PREFECT_API_URL] == bar_workspace.api_url()
+
+
 @pytest.mark.usefixtures("interactive_console")
 def test_login_with_key_and_no_workspaces(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
