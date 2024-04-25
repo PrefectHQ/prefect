@@ -63,11 +63,11 @@ class Automation(AutomationCore):
     ) -> Self:
         """
         Read an automation by ID or name.
-        automation = Automation.read(id_or_name="woodchonk")
+        automation = Automation.read(name="woodchonk")
 
         or
 
-        automation = Automation.read(id_or_name="b3514963-02b1-47a5-93d1-6eeb131041cb")
+        automation = Automation.read(id=UUID("b3514963-02b1-47a5-93d1-6eeb131041cb"))
         """
         if id and name:
             raise ValueError("Only one of id or name can be provided")
