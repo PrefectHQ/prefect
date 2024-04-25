@@ -279,6 +279,23 @@ nav:
                       - Jobs: integrations/prefect-databricks/jobs.md
                       - Rest: integrations/prefect-databricks/rest.md
                       - Flows: integrations/prefect-databricks/flows.md
+                - dbt:
+                      - integrations/prefect-dbt/index.md
+                      - Cloud:
+                            - Credentials: integrations/prefect-dbt/cloud/credentials.md
+                            - Jobs: integrations/prefect-dbt/cloud/jobs.md
+                            - Runs: integrations/prefect-dbt/cloud/runs.md
+                            - Clients: integrations/prefect-dbt/cloud/clients.md
+                            - Models: integrations/prefect-dbt/cloud/models.md
+                            - Utils: integrations/prefect-dbt/cloud/utils.md
+                      - CLI:
+                            - Credentials: integrations/prefect-dbt/cli/credentials.md
+                            - Commands: integrations/prefect-dbt/cli/commands.md
+                            - Configs:
+                                  - Base: integrations/prefect-dbt/cli/configs/base.md
+                                  - BigQuery: integrations/prefect-dbt/cli/configs/bigquery.md
+                                  - Postgres: integrations/prefect-dbt/cli/configs/postgres.md
+                                  - Snowflake: integrations/prefect-dbt/cli/configs/snowflake.md
                 - Docker:
                       - integrations/prefect-docker/index.md
                       - Host: integrations/prefect-docker/host.md
@@ -348,6 +365,10 @@ nav:
                       - integrations/prefect-snowflake/index.md
                       - Credentials: integrations/prefect-snowflake/credentials.md
                       - Database: integrations/prefect-snowflake/database.md
+                - SQLAlchemy:
+                      - integrations/prefect-sqlalchemy/index.md
+                      - Credentials: integrations/prefect-sqlalchemy/credentials.md
+                      - Database: integrations/prefect-sqlalchemy/database.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:

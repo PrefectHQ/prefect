@@ -3,8 +3,10 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prefect-shell"
-description = "Prefect integrations for interacting with shell commands."
+name = "prefect-sqlalchemy"
+dependencies = ["sqlalchemy>=1.4.31,<3", "prefect>=2.13.5"]
+dynamic = ["version"]
+description = "Prefect integrations for working with databases"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "Apache License 2.0" }
@@ -23,12 +25,11 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=2.14.10"]
-dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-  "aiohttp",
+  "aiosqlite",
+  "asyncpg",
   "coverage",
   "interrogate",
   "mkdocs-gen-files",
@@ -39,33 +40,34 @@ dev = [
   "mypy",
   "pillow",
   "pre-commit",
+  "psycopg2",
   "pytest-asyncio",
-  "pytest",
   "pytest-xdist",
+  "pytest",
 ]
 
 [project.urls]
-Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-shell"
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-sqlalchemy"
 
 [project.entry-points."prefect.collections"]
-prefect_shell = "prefect_shell"
+prefect_sqlalchemy = "prefect_sqlalchemy"
 
 [tool.setuptools_scm]
-version_file = "prefect_shell/_version.py"
+version_file = "prefect_sqlalchemy/_version.py"
 root = "../../.."
-tag_regex = "^prefect-shell-(?P<version>\\d+\\.\\d+\\.\\d+)$"
-fallback_version = "0.2.0"
-git_describe_command = 'git describe --dirty --tags --long --match "prefect-shell-*[0-9]*"'
+tag_regex = "^prefect-sqlalchemy-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+fallback_version = "0.0.0"
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-sqlalchemy-*[0-9]*"'
 
 [tool.interrogate]
 ignore-init-module = true
 ignore_init_method = true
-exclude = ["prefect_shell/_version.py", "tests"]
+exclude = ["prefect_sqlalchemy/_version.py", "tests"]
 fail-under = 95
 omit-covered-files = true
 
 [tool.coverage.run]
-omit = ["tests/*", "prefect_shell/_version.py"]
+omit = ["tests/*", "prefect_sqlalchemy/_version.py"]
 
 [tool.coverage.report]
 fail_under = 80
