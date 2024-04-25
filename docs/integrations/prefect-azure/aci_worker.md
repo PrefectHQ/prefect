@@ -50,13 +50,9 @@ az role definition create --role-definition '{
   "IsCustom": true,
   "Description": "Can create, delete, and monitor container instances.",
   "Actions": [
-    "Microsoft.ContainerInstance/containerGroups/read",
-    "Microsoft.ContainerInstance/containerGroups/write",
-    "Microsoft.ContainerInstance/containerGroups/delete",
-    "Microsoft.ContainerInstance/containerGroups/restart/action",
-    "Microsoft.ContainerInstance/containerGroups/stop/action",
-    "Microsoft.ContainerInstance/containerGroups/refreshDelegatedResourceIdentity/action",
-    "Microsoft.ContainerInstance/containerGroups/start/action"
+    "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
+    "Microsoft.Resources/deployments/*",
+    "Microsoft.ContainerInstance/containerGroups/*"
   ],
   "NotActions": [
   ],
@@ -71,11 +67,11 @@ az role definition create --role-definition '{
 Create a user-managed identity with the following command, replacing `<identity-name>` with the name you'd like to use for the identity:
 
 ```bash
-export $IDENTITY_NAME=<identity_name> && \
+export IDENTITY_NAME=<identity_name> && \
 az identity create -g $RG_NAME -n $IDENTITY_NAME
 ```
 
-We'll also need to save the principal id and full object id of the identity for the role assignment and container creation steps, respectively:
+We'll also need to save the principal ID and full object ID of the identity for the role assignment and container creation steps, respectively:
 
 ```bash
 IDENTITY_PRINCIPAL_ID=$(az identity list --query "[?name=='$IDENTITY_NAME'].principalId" --output tsv) && \
@@ -88,7 +84,7 @@ Now let's assign the `Container Instances Contributor` role we created earlier t
 
 ```bash
 az role assignment create \
-    --assignee $IDENTITY_ID \
+    --assignee $IDENTITY_PRINCIPAL_ID \
     --role "Container Instances Contributor" \
     --scope $RG_SCOPE
 ```
@@ -97,7 +93,7 @@ Since we'll be using ACR to host a custom Docker image containing a Prefect flow
 
 ```bash
 az role assignment create \
-    --assignee $IDENTITY_ID \
+    --assignee $IDENTITY_PRINCIPAL_ID \
     --role "AcrPull" \
     --scope $RG_SCOPE
 ```
@@ -116,7 +112,7 @@ Replace `<work-pool-name>` with the name of the ACI work pool you want to create
 
 ```bash
 az container create \
-    --name "<work-pool-name>" \
+    --name <work-pool-name> \
     --resource-group $RG_NAME \
     --assign-identity $IDENTITY_ID \
     --image "prefecthq/prefect:2-python3.11" \
@@ -131,8 +127,9 @@ This container instance uses default networking and security settings. For advan
 In order to build and push images containing flow code to Azure, we'll need a container registry. Create one with the following command, replacing `<container-registry-name>` with the registry name of your choosing:
 
 ```bash
+export REGISTRY_NAME=<registry-name> \
 az acr create --resource-group $RG_NAME \
-  --name <container-registry-name> --sku Basic
+  --name $REGSITRY_NAME --sku Basic
 ```
 
 ## Step 5. Update your ACI work pool configuration
@@ -182,14 +179,14 @@ This guide uses ACR to store a Docker image containing your flow code. Write a f
 
 ### 1. Log in to ACR
 
-Use the following commands to log in to ACR. Be sure to replace `<registry-name>` in both commands with the name of your ACR registry:
+Use the following commands to log in to ACR:
 
 ```
-TOKEN=$(az acr login --name <registry-name> --expose-token --output tsv --query accessToken)
+TOKEN=$(az acr login --name $REGISTRY_NAME --expose-token --output tsv --query accessToken)
 ```
 
 ```
-docker login <registry-name>.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password-stdin <<< $TOKEN
+docker login $REGISTRY_NAME.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password-stdin <<< $TOKEN
 ```
 
 
