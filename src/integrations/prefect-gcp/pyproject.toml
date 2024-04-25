@@ -46,6 +46,11 @@ all_extras = [
 ]
 dev = [
   "coverage",
+  "google-cloud-aiplatform",
+  "google-cloud-bigquery-storage",
+  "google-cloud-bigquery",
+  "google-cloud-secret-manager",
+  "google-cloud-storage",
   "interrogate",
   "mkdocs-gen-files",
   "mkdocs-material",
@@ -53,17 +58,12 @@ dev = [
   "mkdocstrings[python]",
   "mock; python_version < '3.8'",
   "mypy",
+  "pandas",
   "pillow",
   "pre-commit",
   "pytest-asyncio",
-  "pytest",
   "pytest-xdist",
-  "google-cloud-storage",
-  "google-cloud-bigquery",
-  "google-cloud-bigquery-storage",
-  "google-cloud-secret-manager",
-  "google-cloud-aiplatform",
-
+  "pytest",
 ]
 
 [project.urls]
