@@ -630,7 +630,7 @@ async def create_flow_run_input(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
 
-        if not PREFECT_EXPERIMENTAL_EVENTS:
+        if PREFECT_EXPERIMENTAL_EVENTS:
             async with PrefectServerEventsClient() as events:
                 event = await flow_run_input_created_event(
                     session, pendulum.now("UTC"), flow_run_id, key, value.decode()
