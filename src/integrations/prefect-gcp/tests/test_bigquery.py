@@ -182,7 +182,7 @@ class TestBigQueryWarehouse:
         assert bigquery_warehouse._connection is not None
         bigquery_warehouse.close()
         assert bigquery_warehouse._unique_cursors == {}
-        mock_connection._connection.close.assert_called_once()
+        mock_connection.close.assert_called_once()
         assert bigquery_warehouse._connection is None
 
     def test_context_management(self, gcp_credentials):
