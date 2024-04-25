@@ -362,6 +362,10 @@ nav:
                       - integrations/prefect-snowflake/index.md
                       - Credentials: integrations/prefect-snowflake/credentials.md
                       - Database: integrations/prefect-snowflake/database.md
+                - SQLAlchemy:
+                      - integrations/prefect-sqlalchemy/index.md
+                      - Credentials: integrations/prefect-sqlalchemy/credentials.md
+                      - Database: integrations/prefect-sqlalchemy/database.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:
