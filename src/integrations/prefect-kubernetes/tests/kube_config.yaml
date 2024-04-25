@@ -1,0 +1,13 @@
+apiVersion: v1
+clusters:
+- cluster: {server: 'https://localhost:9443'}
+  name: test
+contexts:
+- context: {cluster: test, user: test}
+  name: test
+current-context: test
+kind: Config
+preferences: {}
+users:
+- name: test
+  user: {token: testtoken}

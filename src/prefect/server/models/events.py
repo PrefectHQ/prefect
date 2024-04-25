@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, MutableMapping, Optional, Set, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import pendulum
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,7 @@ from prefect.server.database.orm_models import (
 )
 from prefect.server.events.schemas.events import Event
 from prefect.server.models import deployments
+from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL
 from prefect.utilities.text import truncated_to
 
@@ -106,10 +108,6 @@ async def _flow_run_related_resources_from_orm(
                 session,
                 task_run_id=flow_run.parent_task_run_id,
             )
-
-        print(task_run)
-        if task_run:
-            print("events", task_run.id, task_run.tags)
 
         resource_data = _as_resource_data(
             flow_run, flow, deployment, work_queue, work_pool, task_run
@@ -285,3 +283,73 @@ def _timing_is_tight(
         return bool(-TIGHT_TIMING < (occurred - initial_state.timestamp) < TIGHT_TIMING)
 
     return False
+
+
+async def deployment_status_event(
+    session: AsyncSession,
+    deployment_id: UUID,
+    status: DeploymentStatus,
+    occurred: pendulum.DateTime,
+) -> Event:
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    flow = await models.flows.read_flow(session=session, flow_id=deployment.flow_id)
+    work_queue = (
+        await models.workers.read_work_queue(
+            session=session,
+            work_queue_id=deployment.work_queue_id,
+        )
+        if deployment.work_queue_id
+        else None
+    )
+
+    work_pool = (
+        await models.workers.read_work_pool(
+            session=session,
+            work_pool_id=work_queue.work_pool_id,
+        )
+        if work_queue and work_queue.work_pool_id
+        else None
+    )
+
+    related_work_queue_and_pool_info = []
+
+    if flow is not None:
+        related_work_queue_and_pool_info.append(
+            {
+                "prefect.resource.id": f"prefect.flow.{flow.id}",
+                "prefect.resource.name": flow.name,
+                "prefect.resource.role": "flow",
+            }
+        )
+
+    if work_queue is not None:
+        related_work_queue_and_pool_info.append(
+            {
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            }
+        )
+
+    if work_pool is not None:
+        related_work_queue_and_pool_info.append(
+            {
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.name": work_pool.name,
+                "prefect.work-pool.type": work_pool.type,
+                "prefect.resource.role": "work-pool",
+            }
+        )
+
+    return Event(
+        occurred=occurred,
+        event=f"prefect.deployment.{status.in_kebab_case()}",
+        resource={
+            "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+            "prefect.resource.name": f"{deployment.name}",
+        },
+        related=related_work_queue_and_pool_info,
+        id=uuid4(),
+    )
