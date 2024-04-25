@@ -13,8 +13,9 @@
     CumulativeTaskRunsCard,
     FlowRunHistoryCard,
     subscriptionIntervalKey,
-    mapper
-    , useWorkspaceDashboardFilterFromRoute, DateRangeSelect
+    mapper,
+    useWorkspaceDashboardFilterFromRoute,
+    DateRangeSelect
   } from '@prefecthq/prefect-ui-library'
   import { secondsInDay, secondsToMilliseconds } from 'date-fns'
   import { computed, provide, toRefs } from 'vue'
