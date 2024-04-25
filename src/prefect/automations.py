@@ -5,8 +5,39 @@ from pydantic import Field
 from typing_extensions import Self
 
 from prefect.client.utilities import get_or_create_client
-from prefect.events.schemas.automations import AutomationCore
+from prefect.events.schemas.automations import (
+    AutomationCore,
+    CompositeTrigger,
+    CompoundTrigger,
+    EventTrigger,
+    MetricTrigger,
+    MetricTriggerOperator,
+    MetricTriggerQuery,
+    Posture,
+    PrefectMetric,
+    ResourceSpecification,
+    ResourceTrigger,
+    SequenceTrigger,
+    Trigger,
+)
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
+
+__all__ = [
+    "AutomationCore",
+    "EventTrigger",
+    "ResourceTrigger",
+    "Posture",
+    "Trigger",
+    "ResourceSpecification",
+    "MetricTriggerOperator",
+    "MetricTrigger",
+    "PrefectMetric",
+    "CompositeTrigger",
+    "SequenceTrigger",
+    "CompoundTrigger",
+    "MetricTriggerQuery",
+]
 
 
 class Automation(AutomationCore):
@@ -52,9 +83,7 @@ class Automation(AutomationCore):
 
         client, _ = get_or_create_client()
         automation = AutomationCore(**self.dict(exclude={"id", "owner_resource"}))
-        await client.update_automation(
-            automation_id=self.id, automation=automation
-        )
+        await client.update_automation(automation_id=self.id, automation=automation)
 
     @classmethod
     @sync_compatible
@@ -82,33 +111,45 @@ class Automation(AutomationCore):
             return Automation(**automation[0].dict()) if automation else None
 
     @sync_compatible
-    async def delete(self: Self) -> Optional[Self]:
+    async def delete(self: Self) -> bool:
         """
         auto = Automation.read(id = 123)
         auto.delete()
         """
-        client, _ = get_or_create_client()
-        automation = await client.delete_automation(self.id)
-        return automation if automation else None
+        try:
+            client, _ = get_or_create_client()
+            await client.delete_automation(self.id)
+            return True
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return False
 
     @sync_compatible
-    async def disable(self: Self):
+    async def disable(self: Self) -> bool:
         """
         Disable an automation.
         auto = Automation.read(id = 123)
         auto.disable()
         """
-        client, _ = get_or_create_client()
-        automation = await client.pause_automation(self.id)
-        return automation if automation else None
+        try:
+            client, _ = get_or_create_client()
+            await client.pause_automation(self.id)
+            return True
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return False
 
     @sync_compatible
-    async def enable(self: Self):
+    async def enable(self: Self) -> bool:
         """
         Enable an automation.
         auto = Automation.read(id = 123)
         auto.enable()
         """
-        client, _ = get_or_create_client()
-        automation = await client.resume_automation(self.id)
-        return automation if automation else None
+        try:
+            client, _ = get_or_create_client()
+            await client.resume_automation("asd")
+            return True
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return False

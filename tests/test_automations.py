@@ -119,9 +119,9 @@ async def test_update_automation(automation_spec):
     created_auto = await Automation.read(id=auto_to_create.id)
 
     created_auto.name = "goodbye"
-    created_auto.update()
+    await created_auto.update()
 
-    updated_auto = await Automation.read(id=auto_to_create.id)
+    updated_auto = await Automation.read(id=created_auto.id)
     assert updated_auto.name == "goodbye"
 
 
