@@ -80,8 +80,7 @@ import ray
 from ray.exceptions import RayTaskError
 
 from prefect.futures import PrefectFuture
-from prefect.server.schemas.states import State
-from prefect.states import exception_to_crashed_state
+from prefect.states import State, exception_to_crashed_state
 from prefect.task_runners import BaseTaskRunner, R, TaskConcurrencyType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import visit_collection
