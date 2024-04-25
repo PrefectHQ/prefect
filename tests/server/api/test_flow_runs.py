@@ -1827,6 +1827,7 @@ class TestFlowRunInput:
 
     async def test_create_flow_run_input_sends_event(
         self,
+        flow,
         flow_run,
         client: AsyncClient,
         session: AsyncSession,
@@ -1863,9 +1864,9 @@ class TestFlowRunInput:
             ),
             RelatedResource.parse_obj(
                 {
-                    "prefect.resource.id": f"prefect.flow.{flow_run.id}",
+                    "prefect.resource.id": f"prefect.flow.{flow.id}",
                     "prefect.resource.role": "flow",
-                    "prefect.resource.name": flow_run.name,
+                    "prefect.resource.name": flow.name,
                 }
             ),
         ]

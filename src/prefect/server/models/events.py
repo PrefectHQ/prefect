@@ -285,6 +285,52 @@ def _timing_is_tight(
     return False
 
 
+async def flow_run_input_created_event(
+    session: AsyncSession,
+    occurred: pendulum.DateTime,
+    flow_run_id: UUID,
+    flow_run_input_key: str,
+    value: str,
+) -> Event:
+    flow_run = await models.flow_runs.read_flow_run(
+        session=session, flow_run_id=flow_run_id
+    )
+    if flow_run:
+        flow = await models.flows.read_flow(session=session, flow_id=flow_run.flow_id)
+
+    related = []
+
+    if flow_run is not None:
+        related.append(
+            {
+                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                "prefect.resource.name": flow_run.name,
+                "prefect.resource.role": "flow-run",
+            }
+        )
+
+    if flow is not None:
+        related.append(
+            {
+                "prefect.resource.id": f"prefect.flow.{flow.id}",
+                "prefect.resource.name": str(flow.name),
+                "prefect.resource.role": "flow",
+            }
+        )
+
+    return Event(
+        occurred=occurred,
+        event="prefect.flow-run-input.created",
+        resource={
+            "prefect.resource.id": f"prefect.flow-run-input.{flow_run_input_key}",
+            "prefect.resource.name": flow_run_input_key,
+            "value": value,
+        },
+        id=uuid4(),
+        related=related,
+    )
+
+
 async def deployment_status_event(
     session: AsyncSession,
     deployment_id: UUID,

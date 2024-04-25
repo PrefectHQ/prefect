@@ -29,7 +29,9 @@ from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_flow_run
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import FlowRunGraphTooLarge
+from prefect.server.models.events import flow_run_input_created_event
 from prefect.server.models.flow_runs import (
     DependencyResult,
     read_flow_run_graph,
@@ -613,6 +615,12 @@ async def create_flow_run_input(
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
+
+        async with PrefectServerEventsClient() as events:
+            event = await flow_run_input_created_event(
+                session, pendulum.now("UTC"), flow_run_id, key, value.decode()
+            )
+            await events.emit(event)
 
 
 @router.post("/{id}/input/filter")
