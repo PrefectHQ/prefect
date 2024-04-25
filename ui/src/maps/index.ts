@@ -1,7 +1,7 @@
 import { maps as designMaps } from '@prefecthq/prefect-ui-library'
+import { mapCsrfTokenResponseToCsrfToken } from '@/maps/csrfToken'
 import { mapFlagResponseToFeatureFlag } from '@/maps/featureFlag'
 import { mapSettingsResponseToSettings } from '@/maps/uiSettings'
-import { mapCsrfTokenResponseToCsrfToken } from '@/maps/csrfToken'
 
 export const maps = {
   ...designMaps,

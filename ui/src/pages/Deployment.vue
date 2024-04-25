@@ -58,7 +58,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { PrefectStateNames, DeploymentDescription, FlowRunListItem, DeploymentDetails, DeploymentDescriptionEmptyState, PageHeadingDeployment, ParametersTable, DeploymentDeprecatedMessage, useTabs, useWorkspaceApi, useFlowRunsFilter, prefectStateNames, DeploymentConfiguration, useNextFlowRun, FlowRunFilteredList } from '@prefecthq/prefect-ui-library'
+  import { DeploymentDescription, FlowRunListItem, DeploymentDetails, DeploymentDescriptionEmptyState, PageHeadingDeployment, ParametersTable, DeploymentDeprecatedMessage, useTabs, useWorkspaceApi, useFlowRunsFilter, prefectStateNames, DeploymentConfiguration, useNextFlowRun, FlowRunFilteredList } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -80,8 +80,8 @@
 
   const computedTabs = computed(() => [
     { label: 'Details', hidden: media.xl },
-    { label: 'Runs',  },
-    { label: 'Upcoming',  },
+    { label: 'Runs' },
+    { label: 'Upcoming' },
     { label: 'Parameters', hidden: deployment.value?.deprecated },
     { label: 'Configuration', hidden: deployment.value?.deprecated },
     { label: 'Description' },
