@@ -453,14 +453,26 @@ async def resume_flow_run(
         ):
             # The state change is accepted, go ahead and store the validated
             # run input.
+            input_value = orjson.dumps(run_input).decode("utf-8")
             await models.flow_run_input.create_flow_run_input(
                 session=session,
                 flow_run_input=schemas.core.FlowRunInput(
                     flow_run_id=flow_run_id,
                     key=keyset["response"],
-                    value=orjson.dumps(run_input).decode("utf-8"),
+                    value=input_value,
                 ),
             )
+
+            async with PrefectServerEventsClient() as events:
+                await events.emit(
+                    await flow_run_input_created_event(
+                        session,
+                        pendulum.now("UTC"),
+                        flow_run_id,
+                        keyset["response"],
+                        input_value,
+                    )
+                )
 
         # set the 201 if a new state was created
         if orchestration_result.state and orchestration_result.state.timestamp >= now:
@@ -616,11 +628,11 @@ async def create_flow_run_input(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
                 )
 
-        async with PrefectServerEventsClient() as events:
-            event = await flow_run_input_created_event(
-                session, pendulum.now("UTC"), flow_run_id, key, value.decode()
-            )
-            await events.emit(event)
+    async with PrefectServerEventsClient() as events:
+        event = await flow_run_input_created_event(
+            session, pendulum.now("UTC"), flow_run_id, key, value.decode()
+        )
+        await events.emit(event)
 
 
 @router.post("/{id}/input/filter")

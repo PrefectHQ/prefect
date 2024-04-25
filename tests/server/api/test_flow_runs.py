@@ -1390,6 +1390,56 @@ class TestResumeFlowrun:
             "Error hydrating run input: Invalid JSON"
         )
 
+    async def test_resume_flow_run_waiting_for_input_valid_data_sends_event(
+        self,
+        client,
+        flow,
+        paused_flow_run_waiting_for_input,
+        start_of_test: pendulum.DateTime,
+    ):
+        input_key = (
+            paused_flow_run_waiting_for_input.state.state_details.run_input_keyset[
+                "response"
+            ]
+        )
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input.id}/resume",
+            json={"run_input": {"approved": True}},
+        )
+
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        assert AssertingEventsClient.last
+        (event,) = AssertingEventsClient.last.events
+
+        assert event.event == "prefect.flow-run-input.created"
+        assert start_of_test <= event.occurred <= pendulum.now("UTC")
+        assert event.resource == Resource.parse_obj(
+            {
+                "prefect.resource.id": f"prefect.flow-run-input.{input_key}",
+                "prefect.resource.name": input_key,
+                "value": orjson.dumps({"approved": True}).decode(),
+            }
+        )
+        assert event.related == [
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{paused_flow_run_waiting_for_input.id}",
+                    "prefect.resource.role": "flow-run",
+                    "prefect.resource.name": paused_flow_run_waiting_for_input.name,
+                }
+            ),
+            RelatedResource.parse_obj(
+                {
+                    "prefect.resource.id": f"prefect.flow.{flow.id}",
+                    "prefect.resource.role": "flow",
+                    "prefect.resource.name": flow.name,
+                }
+            ),
+        ]
+
 
 class TestSetFlowRunState:
     async def test_set_flow_run_state(self, flow_run, client, session):
