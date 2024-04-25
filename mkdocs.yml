@@ -351,6 +351,9 @@ nav:
                       - Services: integrations/prefect-kubernetes/services.md
                       - Utilities: integrations/prefect-kubernetes/utilities.md
                       - Worker: integrations/prefect-kubernetes/worker.md
+                - Ray:
+                      - integrations/prefect-ray/index.md
+                      - Task Runners: integrations/prefect-ray/task-runners.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
