@@ -123,6 +123,7 @@ class Automation(AutomationCore):
         except PrefectHTTPStatusError as exc:
             if exc.response.status_code == 404:
                 return False
+            raise
 
     @sync_compatible
     async def disable(self: Self) -> bool:
@@ -138,6 +139,7 @@ class Automation(AutomationCore):
         except PrefectHTTPStatusError as exc:
             if exc.response.status_code == 404:
                 return False
+            raise
 
     @sync_compatible
     async def enable(self: Self) -> bool:
@@ -153,3 +155,4 @@ class Automation(AutomationCore):
         except PrefectHTTPStatusError as exc:
             if exc.response.status_code == 404:
                 return False
+            raise
