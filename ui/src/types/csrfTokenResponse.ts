@@ -1,5 +1,5 @@
 export type CsrfTokenResponse = {
-    token: string
-    expiration: Date
+  token: string,
+  expiration: string,
 }
 
