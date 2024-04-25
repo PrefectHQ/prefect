@@ -240,6 +240,7 @@ nav:
           - Libraries:
                 - Azure:
                       - integrations/prefect-azure/index.md
+                      - ACI Worker Guide: integrations/prefect-azure/aci_worker.md
                       - Credentials: integrations/prefect-azure/credentials.md
                       - Blob Storage: integrations/prefect-azure/blob_storage.md
                       - Cosmos DB: integrations/prefect-azure/cosmos_db.md
