@@ -19,18 +19,18 @@ class Automation(AutomationCore):
         Create a new automation.
 
         auto_to_create = Automation(
-        name="woodchonk",
-        trigger=EventTrigger(
-            expect={"animal.walked"},
-            match={
-                "genus": "Marmota",
-                "species": "monax",
-            },
-            posture="Reactive",
-            threshold=3,
-            within=timedelta(seconds=10),
-        ),
-        actions=[CancelFlowRun()]
+            name="woodchonk",
+            trigger=EventTrigger(
+                expect={"animal.walked"},
+                match={
+                    "genus": "Marmota",
+                    "species": "monax",
+                },
+                posture="Reactive",
+                threshold=3,
+                within=timedelta(seconds=10),
+            ),
+            actions=[CancelFlowRun()]
         )
         created_automation = Automation.create(auto_to_create)
         """
