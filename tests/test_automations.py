@@ -2,7 +2,8 @@ import pytest
 
 import prefect.exceptions
 from prefect import flow
-from prefect.automations import Automation, EventTrigger, Posture
+from prefect.automations import Automation
+from prefect.events.schemas.automations import EventTrigger, Posture
 from prefect.server.events import ResourceSpecification
 from prefect.server.events.actions import DoNothing
 from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
@@ -113,14 +114,14 @@ async def test_read_automation_by_name(automation):
     assert model.actions[0] == DoNothing(type="do-nothing")
 
 
-async def test_update_automation(automation):
-    auto = await Automation.read(id=automation.id)
-    auto.name = "goodbye"
-    print(auto)
-    auto.update()
+async def test_update_automation(automation_spec):
+    auto_to_create = await Automation.create(automation=automation_spec)
+    created_auto = await Automation.read(id=auto_to_create.id)
 
-    updated_auto = await Automation.read(id=automation.id)
-    print(updated_auto)
+    created_auto.name = "goodbye"
+    created_auto.update()
+
+    updated_auto = await Automation.read(id=auto_to_create.id)
     assert updated_auto.name == "goodbye"
 
 
@@ -160,3 +161,13 @@ async def test_delete_automation(automation):
     await Automation.delete(automation)
     with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
         await Automation.read(id=automation.id)
+
+
+async def test_read_automation_by_name_no_name():
+    with pytest.raises(ValueError, match="One of id or name must be provided"):
+        await Automation.read()
+
+
+async def test_read_auto_by_id_and_name(automation):
+    with pytest.raises(ValueError, match="Only one of id or name can be provided"):
+        await Automation.read(id=automation.id, name=automation.name)
