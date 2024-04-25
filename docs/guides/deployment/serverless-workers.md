@@ -40,7 +40,7 @@ This is a brief overview of the options to run workflows on serverless infrastru
 For in-depth guides, see the Prefect integration libraries:
 
 - [AWS ECS guide in the `prefect-aws` docs](https://prefecthq.github.io/prefect-aws/ecs_guide/)
-- Azure Container Instances guide (forthcoming)
+- [Azure Container Instances guide](/integrations/prefect-azure/aci_worker/)
 - [Google Cloud Run guide in the `prefect-gcp` docs](https://prefecthq.github.io/prefect-gcp/gcp-worker-guide/).
 - For Google Vertex AI, follow the Cloud Run guide, substituting *Google Vertex AI* where *Google Cloud Run* is mentioned.
 
