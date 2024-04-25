@@ -1053,7 +1053,7 @@ async def run(
     )
     if watch:
         watch_interval = 5 if watch_interval is None else watch_interval
-        app.console.print(f"Watching flow run '{flow_run.name!r}'...")
+        app.console.print(f"Watching flow run {flow_run.name!r}...")
         finished_flow_run = await wait_for_flow_run(
             flow_run.id,
             timeout=watch_timeout,
