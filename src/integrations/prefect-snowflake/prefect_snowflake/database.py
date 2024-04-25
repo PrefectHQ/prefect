@@ -52,7 +52,7 @@ class SnowflakeConnector(DatabaseBlock):
         ```python
         from prefect_snowflake.database import SnowflakeConnector
 
-        snowflake_connector = SnowflakeConnector.load("BLOCK_NAME"):
+        snowflake_connector = SnowflakeConnector.load("BLOCK_NAME")
         ```
 
         Insert data into database and fetch results.
