@@ -54,13 +54,6 @@ def event_loop(request):
     finally:
         loop.close()
 
-<<<<<<< HEAD
-=======
-    # Workaround for failures in pytest_asyncio 0.17;
-    # see https://github.com/pytest-dev/pytest-asyncio/issues/257
-    policy.set_event_loop(loop)
-
->>>>>>> d36984494 (get outta here)
 
 @pytest.fixture(scope="module")
 def machine_ray_instance():
@@ -68,7 +61,6 @@ def machine_ray_instance():
     Starts a ray instance for the current machine
     """
     subprocess.check_call(
-<<<<<<< HEAD
         [
             "ray",
             "start",
@@ -77,9 +69,6 @@ def machine_ray_instance():
             "False",
             "--disable-usage-stats",
         ],
-=======
-        ["ray", "start", "--head", "--include-dashboard", "False"],
->>>>>>> d36984494 (get outta here)
         cwd=str(prefect.__development_base_path__),
     )
     try:
@@ -182,7 +171,6 @@ def ray_task_runner_with_temporary_cluster(
     )
 
 
-<<<<<<< HEAD
 task_runner_setups = [
     default_ray_task_runner,
     ray_task_runner_with_inprocess_cluster,
@@ -195,17 +183,6 @@ if sys.version_info >= (3, 10):
 
 class TestRayTaskRunner(TaskRunnerStandardTestSuite):
     @pytest.fixture(params=task_runner_setups)
-=======
-class TestRayTaskRunner(TaskRunnerStandardTestSuite):
-    @pytest.fixture(
-        params=[
-            default_ray_task_runner,
-            ray_task_runner_with_existing_cluster,
-            ray_task_runner_with_inprocess_cluster,
-            ray_task_runner_with_temporary_cluster,
-        ]
-    )
->>>>>>> d36984494 (get outta here)
     def task_runner(self, request):
         yield request.getfixturevalue(
             request.param._pytestfixturefunction.name or request.param.__name__
