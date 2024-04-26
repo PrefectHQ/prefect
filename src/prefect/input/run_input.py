@@ -582,7 +582,9 @@ def receive_input(
     # the signature is the same as here:
     #   Union[Type[R], Type[T], pydantic.BaseModel],
     # Seems like a possible mypy bug, so we'll ignore the type check here.
-    input_cls = run_input_subclass_from_type(input_type)  # type: ignore[arg-type]
+    input_cls: Union[
+        Type[AutomaticRunInput[T]], Type[R]
+    ] = run_input_subclass_from_type(input_type)  # type: ignore[arg-type]
 
     if issubclass(input_cls, AutomaticRunInput):
         return input_cls.receive(

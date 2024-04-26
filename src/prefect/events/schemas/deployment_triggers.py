@@ -48,7 +48,7 @@ from .automations import (
 from .events import ResourceSpecification
 
 
-class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
+class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-arg]
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.

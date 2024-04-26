@@ -43,7 +43,7 @@ class AutomationFilter(PrefectBaseModel):
     )
 
 
-class EventDataFilter(PrefectBaseModel, extra="forbid"):
+class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-arg]
     """A base class for filtering event data."""
 
     _top_level_filter: "EventFilter | None" = PrivateAttr(None)
