@@ -211,7 +211,7 @@ def test_inspecting_by_name_not_found(
     )
 
 
-def test_inspecting_in_json(
+def test_inspecting_by_name_in_json(
     various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
 ):
     read_automations_by_name.return_value = [various_automations[0]]
@@ -223,7 +223,26 @@ def test_inspecting_in_json(
     assert loaded[0]["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 
 
-def test_inspecting_in_yaml(
+def test_inspecting_by_id_in_json(
+    various_automations: List[Automation], read_automation: mock.AsyncMock
+):
+    read_automation.return_value = various_automations[1]
+    result = invoke_and_assert(
+        [
+            "automations",
+            "inspect",
+            "--id",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "--json",
+        ],
+        expected_code=0,
+    )
+    loaded = orjson.loads(result.output)
+    assert loaded["name"] == "My Other Reactive Automation"
+    assert loaded["id"] == "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+
+
+def test_inspecting_by_name_in_yaml(
     various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
 ):
     read_automations_by_name.return_value = [various_automations[0]]
@@ -233,6 +252,25 @@ def test_inspecting_in_yaml(
     loaded = yaml.safe_load(result.output)
     assert loaded[0]["name"] == "My First Reactive"
     assert loaded[0]["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+
+
+def test_inspecting_by_id_in_yaml(
+    various_automations: List[Automation], read_automation: mock.AsyncMock
+):
+    read_automation.return_value = various_automations[1]
+    result = invoke_and_assert(
+        [
+            "automations",
+            "inspect",
+            "--id",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "--yaml",
+        ],
+        expected_code=0,
+    )
+    loaded = yaml.safe_load(result.output)
+    assert loaded["name"] == "My Other Reactive Automation"
+    assert loaded["id"] == "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 
 
 @pytest.fixture
