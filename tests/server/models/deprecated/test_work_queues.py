@@ -1,4 +1,5 @@
 """Tests deprecated tag-based matching systems for work queues"""
+
 from uuid import uuid4
 
 import pendulum
@@ -306,7 +307,7 @@ class TestGetRunsInWorkQueue:
     ):
         # should only return SCHEDULED runs before NOW with
         # a deployment_id
-        runs = await models.work_queues.get_runs_in_work_queue(
+        _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
             scheduled_before=pendulum.now("UTC"),
@@ -314,7 +315,7 @@ class TestGetRunsInWorkQueue:
         assert {run.id for run in runs} == {flow_run_1_id, flow_run_2_id}
 
         # should respect limit param
-        limited_runs = await models.work_queues.get_runs_in_work_queue(
+        _, limited_runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
             scheduled_before=pendulum.now("UTC"),
@@ -325,7 +326,7 @@ class TestGetRunsInWorkQueue:
 
         # should respect scheduled before param
         # (turns out pendulum does not actually let you go back far enough but you get the idea)
-        runs_from_babylon = await models.work_queues.get_runs_in_work_queue(
+        _, runs_from_babylon = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
             scheduled_before=pendulum.now("UTC").subtract(years=2000),
@@ -341,7 +342,7 @@ class TestGetRunsInWorkQueue:
     ):
         # should only return SCHEDULED runs before NOW with
         # a deployment_id and tags ["tb12"]
-        runs = await models.work_queues.get_runs_in_work_queue(
+        _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=tb12_work_queue.id,
             scheduled_before=pendulum.now("UTC"),
@@ -366,7 +367,7 @@ class TestGetRunsInWorkQueue:
                 ),
             ),
         )
-        runs = await models.work_queues.get_runs_in_work_queue(
+        _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=deployment_work_queue.id,
             scheduled_before=pendulum.now("UTC"),
@@ -380,13 +381,12 @@ class TestGetRunsInWorkQueue:
                 filter=schemas.core.QueueFilter(deployment_ids=[uuid4()]),
             ),
         )
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=bad_deployment_work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-            )
-        ) == []
+        _, runs = await models.work_queues.get_runs_in_work_queue(
+            session=session,
+            work_queue_id=bad_deployment_work_queue.id,
+            scheduled_before=pendulum.now("UTC"),
+        )
+        assert runs == []
 
     async def test_get_runs_in_work_queue_uses_union_of_filter_criteria(self, session):
         # tags "tb12" will match but the deployment ids should not match any flow runs
@@ -399,13 +399,12 @@ class TestGetRunsInWorkQueue:
                 ),
             ),
         )
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=conflicting_filter_work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-            )
-        ) == []
+        _, runs = await models.work_queues.get_runs_in_work_queue(
+            session=session,
+            work_queue_id=conflicting_filter_work_queue.id,
+            scheduled_before=pendulum.now("UTC"),
+        )
+        assert runs == []
 
     async def test_get_runs_in_work_queue_respects_concurrency_limit(
         self,
@@ -414,7 +413,7 @@ class TestGetRunsInWorkQueue:
         flow_run_1_id,
         flow_run_2_id,
     ):
-        runs = await models.work_queues.get_runs_in_work_queue(
+        _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
             scheduled_before=pendulum.now("UTC"),
@@ -429,24 +428,22 @@ class TestGetRunsInWorkQueue:
         )
         # since there is one PENDING and one RUNNING flow run, no runs
         # should be returned
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-            )
-        ) == []
+        _, runs = await models.work_queues.get_runs_in_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            scheduled_before=pendulum.now("UTC"),
+        )
+        assert runs == []
 
         # since there is one PENDING and one RUNNING flow run, no runs
         # should be returned, even if a larger limit has been provided
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-                limit=9001,
-            )
-        ) == []
+        _, runs = await models.work_queues.get_runs_in_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            scheduled_before=pendulum.now("UTC"),
+            limit=9001,
+        )
+        assert runs == []
 
         # increase the concurrency limit
         await models.work_queues.update_work_queue(
@@ -456,7 +453,7 @@ class TestGetRunsInWorkQueue:
         )
         # since there is one PENDING and one RUNNING flow run, one
         # flow run should be returned
-        runs = await models.work_queues.get_runs_in_work_queue(
+        _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
             scheduled_before=pendulum.now("UTC"),
@@ -475,11 +472,12 @@ class TestGetRunsInWorkQueue:
             work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=0),
         )
 
-        await models.work_queues.get_runs_in_work_queue(
+        _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
             scheduled_before=pendulum.now("UTC"),
-        ) == []
+        )
+        assert runs == []
 
     async def test_get_runs_in_work_queue_raises_object_not_found_error(self, session):
         with pytest.raises(ObjectNotFoundError):
