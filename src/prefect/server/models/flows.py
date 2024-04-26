@@ -3,12 +3,13 @@ Functions for interacting with flow ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence, TypeVar, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector
@@ -16,6 +17,9 @@ from prefect.server.database.interface import PrefectDBInterface
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMFlow
+
+
+T = TypeVar("T", bound=tuple)
 
 
 @db_injector
@@ -53,7 +57,7 @@ async def create_flow(
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    model = result.scalar()
+    model = result.scalar_one()
     return model
 
 
@@ -125,13 +129,13 @@ async def read_flow_by_name(
 @db_injector
 async def _apply_flow_filters(
     db: PrefectDBInterface,
-    query,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-):
+    query: Select[T],
+    flow_filter: Union[schemas.filters.FlowFilter, None] = None,
+    flow_run_filter: Union[schemas.filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None,
+    deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None,
+    work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None,
+) -> Select[T]:
     """
     Applies filters to a flow query as a combination of EXISTS subqueries.
     """
@@ -181,14 +185,14 @@ async def _apply_flow_filters(
 async def read_flows(
     db: PrefectDBInterface,
     session: AsyncSession,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    flow_filter: Union[schemas.filters.FlowFilter, None] = None,
+    flow_run_filter: Union[schemas.filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None,
+    deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None,
+    work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None,
     sort: schemas.sorting.FlowSort = schemas.sorting.FlowSort.NAME_ASC,
-    offset: int = None,
-    limit: int = None,
+    offset: Union[int, None] = None,
+    limit: Union[int, None] = None,
 ) -> Sequence["ORMFlow"]:
     """
     Read multiple flows.
@@ -232,11 +236,11 @@ async def read_flows(
 async def count_flows(
     db: PrefectDBInterface,
     session: AsyncSession,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    flow_filter: Union[schemas.filters.FlowFilter, None] = None,
+    flow_run_filter: Union[schemas.filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None,
+    deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None,
+    work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None,
 ) -> int:
     """
     Count flows.
@@ -265,7 +269,7 @@ async def count_flows(
     )
 
     result = await session.execute(query)
-    return result.scalar()
+    return result.scalar_one()
 
 
 @db_injector
