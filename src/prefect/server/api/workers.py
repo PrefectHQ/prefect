@@ -2,7 +2,7 @@
 Routes for interacting with work queue objects.
 """
 
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -26,8 +26,12 @@ from prefect.server.models.work_queues import (
     emit_work_queue_status_event,
     mark_work_queues_ready,
 )
+from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMWorkQueue
 
 router = PrefectRouter(
     prefix="/work_pools",
@@ -85,13 +89,13 @@ class WorkerLookups:
 
         return work_pool.default_queue_id
 
-    async def _get_work_queue_id_from_name(
+    async def _get_work_queue_from_name(
         self,
         session: AsyncSession,
         work_pool_name: str,
         work_queue_name: str,
         create_queue_if_not_found: bool = False,
-    ) -> UUID:
+    ) -> "ORMWorkQueue":
         """
         Given a work pool name and work pool queue name, return the ID of the
         queue. Used for translating user-facing APIs (which are name-based) to
@@ -120,7 +124,22 @@ class WorkerLookups:
                 work_queue=schemas.actions.WorkQueueCreate(name=work_queue_name),
             )
 
-        return work_queue.id
+        return work_queue
+
+    async def _get_work_queue_id_from_name(
+        self,
+        session: AsyncSession,
+        work_pool_name: str,
+        work_queue_name: str,
+        create_queue_if_not_found: bool = False,
+    ) -> UUID:
+        queue = await self._get_work_queue_from_name(
+            session=session,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            create_queue_if_not_found=create_queue_if_not_found,
+        )
+        return queue.id
 
 
 # -----------------------------------------------------
@@ -310,33 +329,32 @@ async def get_scheduled_flow_runs(
     """
     Load scheduled runs for a worker
     """
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context() as session:
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
             session=session, work_pool_name=work_pool_name
         )
 
         if not work_queue_names:
-            work_queue_ids = None
-            polled_work_queue_ids = [
-                wq.id
-                for wq in await models.workers.read_work_queues(
+            work_queues = list(
+                await models.workers.read_work_queues(
                     session=session, work_pool_id=work_pool_id
                 )
-            ]
-            ready_work_queue_ids = polled_work_queue_ids
+            )
+            # None here instructs get_scheduled_flow_runs to use the default behavior
+            # of just operating on all work queues of the pool
+            work_queue_ids = None
         else:
-            work_queue_ids = []
-            for qn in work_queue_names:
-                work_queue_ids.append(
-                    await worker_lookups._get_work_queue_id_from_name(
-                        session=session,
-                        work_pool_name=work_pool_name,
-                        work_queue_name=qn,
-                    )
+            work_queues = [
+                await worker_lookups._get_work_queue_from_name(
+                    session=session,
+                    work_pool_name=work_pool_name,
+                    work_queue_name=name,
                 )
-            polled_work_queue_ids = work_queue_ids
-            ready_work_queue_ids = work_queue_ids
+                for name in work_queue_names
+            ]
+            work_queue_ids = [wq.id for wq in work_queues]
 
+    async with db.session_context(begin_transaction=True) as session:
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
             work_pool_ids=[work_pool_id],
@@ -345,6 +363,11 @@ async def get_scheduled_flow_runs(
             scheduled_after=scheduled_after,
             limit=limit,
         )
+
+    polled_work_queue_ids = [wq.id for wq in work_queues]
+    ready_work_queue_ids = [
+        wq.id for wq in work_queues if wq.status != WorkQueueStatus.READY
+    ]
 
     background_tasks.add_task(
         mark_work_queues_ready,
