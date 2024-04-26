@@ -334,6 +334,22 @@ def test_pausing_by_id(
     )
 
 
+def test_pausing_by_id_not_found(
+    pause_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = None
+    invoke_and_assert(
+        ["automations", "pause", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
+        ],
+    )
+
+    pause_automation.assert_not_awaited()
+
+
 @pytest.fixture
 def resume_automation() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(
