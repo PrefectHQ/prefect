@@ -50,7 +50,6 @@ class FlowRunEngine(Generic[P, R]):
     flow: Flow[P, Coroutine[Any, Any, R]]
     parameters: Optional[Dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
-    is_subflow: bool = False
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
     short_circuit: bool = False
@@ -193,8 +192,6 @@ class FlowRunEngine(Generic[P, R]):
 
         # this is a subflow run
         if flow_run_ctx:
-            self.is_subflow = True
-
             # get the parent task run
             parent_task_run = await self.create_subflow_task_run(
                 client=client, context=flow_run_ctx
