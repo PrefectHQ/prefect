@@ -25,6 +25,7 @@ from prefect import Task, get_client
 from prefect._internal.concurrency.cancellation import (
     AlarmCancelScope,
     AsyncCancelScope,
+    CancelledError,
 )
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
@@ -55,6 +56,24 @@ from prefect.utilities.engine import (
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+@asynccontextmanager
+async def timeout(seconds: float):
+    try:
+        with AsyncCancelScope(timeout=seconds):
+            yield
+    except CancelledError:
+        raise TimeoutError(f"Task timed out after {seconds} second(s).")
+
+
+@contextmanager
+def timeout_sync(seconds: float):
+    try:
+        with AlarmCancelScope(timeout=seconds):
+            yield
+    except CancelledError:
+        raise TimeoutError(f"Task timed out after {seconds} second(s).")
 
 
 @dataclass
@@ -395,7 +414,7 @@ async def run_task(
             async with run.enter_run_context():
                 try:
                     # This is where the task is actually run.
-                    async with AsyncCancelScope(timeout=run.task.timeout_seconds):
+                    async with timeout(run.task.timeout_seconds):
                         result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
 
                     # If the task run is successful, finalize it.
@@ -427,7 +446,7 @@ def run_task_sync(
             with run.enter_run_context_sync():
                 try:
                     # This is where the task is actually run.
-                    with AlarmCancelScope(timeout=run.task.timeout_seconds):
+                    with timeout_sync(run.task.timeout_seconds):
                         result = cast(R, task.fn(**(parameters or {})))  # type: ignore
 
                     # If the task run is successful, finalize it.
