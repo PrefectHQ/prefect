@@ -236,6 +236,13 @@ def pull_request(root: Path = DEFAULT_ROOT, dry_run: bool = False, draft: bool =
 
 
 @app.command()
+def list_collections():
+    """Lists all Prefect-managed collections"""
+    for collection in prefect_collections():
+        print(collection)
+
+
+@app.command()
 def test(root: Path = DEFAULT_ROOT, forge_ahead: bool = True):
     """Runs tests on all repositories"""
     with _default_profile():
