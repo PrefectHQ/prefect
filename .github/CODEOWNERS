@@ -22,3 +22,6 @@ mkdocs.insiders.yml                  @PrefectHQ/docs
 /src/prefect/events                   @chrisguidry
 /src/prefect/server/events            @chrisguidry
 /tests/events                         @chrisguidry
+
+# integrations
+/src/integrations             @desertaxle @zzstoatzz
