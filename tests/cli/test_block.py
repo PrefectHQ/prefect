@@ -237,7 +237,7 @@ def test_inspecting_a_block():
     )
 
 
-def test_inspecting_a_block_malfomed_slug():
+def test_inspecting_a_block_malformed_slug():
     invoke_and_assert(
         ["block", "inspect", "chonk-block"],
         expected_code=1,
@@ -259,7 +259,7 @@ def test_deleting_a_block():
     )
 
 
-def test_deleting_a_block_malfomed_slug():
+def test_deleting_a_block_malformed_slug():
     invoke_and_assert(
         ["block", "delete", "chonk-block"],
         expected_code=1,
