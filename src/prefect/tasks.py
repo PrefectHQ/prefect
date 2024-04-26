@@ -1073,12 +1073,6 @@ class Task(Generic[P, R]):
             >>> my_task.serve()
         """
 
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING:
-            raise ValueError(
-                "Task's `serve` method is an experimental feature and must be enabled with "
-                "`prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=True`"
-            )
-
         from prefect.task_server import serve
 
         serve(self, task_runner=task_runner)
