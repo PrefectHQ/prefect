@@ -10,34 +10,22 @@ tags:
     - subflows
 ---
 
-## What is a task?
+In this page of the tutorial, you create a flow with tasks, subflows, retries, logging, caching, and concurrent execution.
 
-A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator called within a flow.
-You can think of a flow as a recipe for connecting a known sequence of tasks together.
-Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand and control at a more granular level.  
-When a function becomes a task, it can be executed concurrently and its return value can be cached.
+## Key points
 
-Flows and tasks share some common features:
+* Tasks represent individual units of work within a flow that you can execute concurrently.
+* You can only call tasks from within a flow. Tasks can't call other tasks directly.
+* Not all flow functions need to be tasks. Use them only when their features provide a benefit.
 
-* Both are defined easily using their respective decorator, which accepts settings for that flow / task (see all [task settings](/concepts/tasks/#task-arguments) / [flow settings](/concepts/flows/#flow-settings)).
-* Each can be given a `name`, `description` and `tags` for organization and bookkeeping.
-* Both provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
+## Build tasks
 
-Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/concepts/tasks/#retries), [caching](/concepts/tasks/#caching), and [concurrency](/concepts/task-runners/#using-a-task-runner).
-
-!!! warning "Tasks must be called from flows"
-    All tasks must be called from within a flow. Tasks may not call other tasks directly.
-
-!!! note "When to use tasks"
-    Not all functions in a flow need be tasks. Use them only when their features are useful.
-
-Let's take our flow from before and move the request into a task:
+You can build a task by using the `@task` decorator and calling it within a flow:
 
 ```python hl_lines="2 5-9 15" title="repo_info.py"
 import httpx
 from prefect import flow, task
 from typing import Optional
-
 
 @task
 def get_url(url: str, params: Optional[dict[str, any]] = None):
@@ -58,7 +46,7 @@ if __name__ == "__main__":
     get_repo_info()
 ```
 
-Running the flow in your terminal will result in something like this:
+Running the flow in your terminal results in the following:
 
 <div class="terminal">
 ```bash
@@ -73,14 +61,19 @@ Running the flow in your terminal will result in something like this:
 ```
 </div>
 
-And you should now see this task run tracked in the UI as well.
+You should also be able to see this task and its dependencies in the flow run graph in the UI.
 
-## Caching
+## Reuse tasking results
 
-Tasks support the ability to cache their return value.
-Caching allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to reproduce with every flow run, or reuse cached results if the inputs to a task have not changed.
+Using tasks, you can efficiently reuse task results that are expensive to reproduce with every flow run or if the inputs to a task remain unchanged.
 
-To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. You can define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/api-ref/prefect/tasks/#prefect.tasks.task_input_hash). Let's add caching to our `get_url` task:
+To enable caching:
+
+* Import the Prefect [`task_input_hash`](/api-ref/prefect/tasks/#prefect.tasks.task_input_hash) library.
+* Specify a `cache_key_fn` function that returns a cache key — on your task. 
+* Optionally provide a `cache_expiration timedelta` indicating when the cache expires.
+
+Let's add caching to our `get_url` task:
 
 ```python hl_lines="2 4 7"
 import httpx
@@ -99,18 +92,15 @@ def get_url(url: str, params: Optional[dict[str, any]] = None):
     return response.json()
 ```
 
-You can test this caching behavior by using a personal repository as your workflow parameter - give it a star, or remove a star and see how the output of this task changes (or doesn't) by running your flow multiple times.
+You can test this caching behavior by using a personal repository as your workflow parameter - give it a star, or remove a star - and see how the output of this task changes (or doesn't) by running your flow multiple times.
 
 !!! warning "Task results and caching"
     Task results are cached in memory during a flow run and persisted to your home directory by default.
     Prefect Cloud only stores the cache key, not the data itself.
 
-## Concurrency
+## Execute multiple tasks asynchronously
 
-Tasks enable concurrency, allowing you to execute multiple tasks asynchronously.
-This concurrency can greatly enhance the efficiency and performance of your workflows.
-Let's expand our script to calculate the average open issues per user.
-This will require making more requests:
+Let's expand our script to calculate the average open issues per user. This requires making more requests:
 
 ```python hl_lines="14-24 30-31 35" title="repo_info.py"
 import httpx
@@ -210,12 +200,9 @@ Average open issues per user 💌 : 2.27
 
 </div>
 
-## Subflows
+## Organize multiple tasks
 
-Not only can you call tasks within a flow, but you can also call other flows!
-Child flows are called [subflows](/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
-
-Subflows are a great way to organize your workflows and offer more visibility within the UI.
+Subflows are a great way to organize multiple tasks and offer more visibility within the UI.
 
 Let's add a `flow` decorator to our `get_open_issues` function:
 
@@ -234,9 +221,8 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
     return [i for p in issues for i in p.result()]
 ```
 
-Whenever we run the parent flow, a new run will be generated for related functions within that as well. Not only is this run tracked as a subflow run of the main flow, but you can also inspect it independently in the UI!
+Parent flow runs trigger subflow runs that are trackable and inspectable indepedently in the UI.
 
-## [Next: Deployments](/tutorial/deployments/)
+## Next steps
 
-We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution.
-In the next section, we'll see how we can deploy this flow in order to run it on a schedule and/or external infrastructure - [click here to learn how to create your first deployment](/tutorial/deployments/).
+We now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution. In the next section, run your flow on a schedule or external infrastructure by [deploying your flow](/tutorial/deployments/).
