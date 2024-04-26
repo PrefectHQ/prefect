@@ -6,12 +6,12 @@
     "serve": "vite --host",
     "build": "vite build",
     "lint": "eslint src --ext .js,.ts,.vue",
-    "lint:fix": "eslint src --fix --debug",
+    "lint:fix": "eslint src --fix",
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@prefecthq/prefect-design": "2.7.15",
-    "@prefecthq/prefect-ui-library": "2.8.16",
+    "@prefecthq/prefect-ui-library": "2.8.17",
     "@prefecthq/vue-charts": "2.0.3",
     "@prefecthq/vue-compositions": "1.11.4",
     "@types/lodash.debounce": "4.0.9",
