@@ -17,6 +17,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
+from prefect.events.schemas.automations import Automation
 from prefect.exceptions import PrefectHTTPStatusError
 
 automations_app = PrefectTyper(
@@ -149,7 +150,7 @@ async def inspect(
     if yaml or json:
         if isinstance(automation, list):
             automation = [a.dict(json_compatible=True) for a in automation]
-        elif isinstance(automation, dict):
+        elif isinstance(automation, Automation):
             automation = automation.dict(json_compatible=True)
         if yaml:
             app.console.print(pyyaml.dump(automation, sort_keys=False))
