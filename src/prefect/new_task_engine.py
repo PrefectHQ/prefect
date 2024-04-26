@@ -399,7 +399,7 @@ async def run_task(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> "Union[R, State, None]":
+) -> Union[R, State, None]:
     """
     Runs a task against the API.
 
@@ -436,7 +436,7 @@ def run_task_sync(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> R | State | None:
+) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
     # This is a context manager that keeps track of the run of the task run.
     with engine.start_sync() as run:
