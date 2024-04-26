@@ -179,17 +179,41 @@ async def resume(id_or_name: str):
 
 @automations_app.command(aliases=["disable"])
 @requires_automations
-async def pause(id_or_name: str):
+async def pause(
+    name: Optional[str] = typer.Argument(None, help="An automation's name"),
+    id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
+):
     """Pause an automation."""
-    async with get_client() as client:
-        automation = await client.find_automation(id_or_name)
-        if not automation:
-            exit_with_error(f"Automation {id_or_name!r} not found.")
+    if not id and not name:
+        exit_with_error("Please provide either a name or an id.")
 
-    async with get_client() as client:
-        await client.pause_automation(automation.id)
+    if name:
+        async with get_client() as client:
+            automation = await client.read_automations_by_name(name=name)
+            if not automation:
+                exit_with_error(f"Automation {name!r} not found.")
+            if len(automation) > 1:
+                if not typer.confirm(
+                    f"Multiple automations found with name {name!r}. Do you want to pause all of them?",
+                    default=False,
+                ):
+                    exit_with_error("Pause aborted.")
 
-    exit_with_success(f"Paused automation {automation.name!r} ({automation.id})")
+            for a in automation:
+                await client.pause_automation(a.id)
+            exit_with_success(
+                f"Paused automation(s) with name {name!r} and id(s) {', '.join([repr(str(a.id)) for a in automation])}"
+            )
+
+    elif id:
+        async with get_client() as client:
+            try:
+                uuid_id = UUID(id)
+                automation = await client.read_automation(uuid_id)
+            except (PrefectHTTPStatusError, ValueError):
+                exit_with_error(f"Automation with id {id!r} not found.")
+            await client.pause_automation(automation.id)
+            exit_with_success(f"Paused automation with id {str(automation.id)!r}")
 
 
 @automations_app.command()
