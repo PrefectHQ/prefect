@@ -78,9 +78,9 @@ from uuid import UUID
 
 import distributed
 
+from prefect.client.schemas.objects import State
 from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture
-from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.task_runners import BaseTaskRunner, R, TaskConcurrencyType
 from prefect.utilities.collections import visit_collection
