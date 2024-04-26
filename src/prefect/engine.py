@@ -163,6 +163,7 @@ from prefect.logging.loggers import (
 from prefect.results import ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -2433,7 +2434,12 @@ if __name__ == "__main__":
         exit(1)
 
     try:
-        enter_flow_run_engine_from_subprocess(flow_run_id)
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+            from prefect.new_flow_engine import run_flow
+
+            asyncio.run(run_flow(flow_run_id=flow_run_id))
+        else:
+            enter_flow_run_engine_from_subprocess(flow_run_id)
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator:"
