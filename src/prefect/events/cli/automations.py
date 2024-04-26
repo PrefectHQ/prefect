@@ -218,7 +218,7 @@ async def pause(
             for a in automation:
                 await client.pause_automation(a.id)
             exit_with_success(
-                f"Paused automation(s) with name {name!r} and id(s) {', '.join([repr(str(a.id)) for a in automation])}"
+                f"Paused automation(s) with name {name!r} and id(s) {', '.join([repr(str(a.id)) for a in automation])}."
             )
 
     elif id:
