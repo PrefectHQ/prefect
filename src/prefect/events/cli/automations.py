@@ -183,7 +183,21 @@ async def pause(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
     id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
 ):
-    """Pause an automation."""
+    """
+    Pause an automation.
+
+    Arguments:
+
+            name: the name of the automation to pause
+
+            id: the id of the automation to pause
+
+    Examples:
+
+        $ prefect automation pause "my-automation"
+
+        $ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    """
     if not id and not name:
         exit_with_error("Please provide either a name or an id.")
 
