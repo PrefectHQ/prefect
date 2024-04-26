@@ -309,7 +309,7 @@ def test_pausing_by_name_not_found(
     invoke_and_assert(
         ["automations", "pause", "Wha?"],
         expected_code=1,
-        expected_output_contains=["Automation 'Wha?' not found"],
+        expected_output_contains=["Automation with name 'Wha?' not found"],
     )
 
     pause_automation.assert_not_awaited()
