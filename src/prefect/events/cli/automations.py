@@ -164,17 +164,57 @@ async def inspect(
 
 @automations_app.command(aliases=["enable"])
 @requires_automations
-async def resume(id_or_name: str):
-    """Resume an automation."""
-    async with get_client() as client:
-        automation = await client.find_automation(id_or_name)
-        if not automation:
-            exit_with_error(f"Automation {id_or_name!r} not found.")
+async def resume(
+    name: Optional[str] = typer.Argument(None, help="An automation's name"),
+    id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
+):
+    """
+    Resume an automation.
 
-    async with get_client() as client:
-        await client.resume_automation(automation.id)
+    Arguments:
 
-    exit_with_success(f"Resumed automation {automation.name!r} ({automation.id})")
+            name: the name of the automation to resume
+
+            id: the id of the automation to resume
+
+    Examples:
+
+            $ prefect automation resume "my-automation"
+
+            $ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    """
+    if not id and not name:
+        exit_with_error("Please provide either a name or an id.")
+
+    if name:
+        async with get_client() as client:
+            automation = await client.read_automations_by_name(name=name)
+            if not automation:
+                exit_with_error(
+                    f"Automation with name {name!r} not found. You can also specify an id with the `--id` flag."
+                )
+            if len(automation) > 1:
+                if not typer.confirm(
+                    f"Multiple automations found with name {name!r}. Do you want to resume all of them?",
+                    default=False,
+                ):
+                    exit_with_error("Resume aborted.")
+
+            for a in automation:
+                await client.resume_automation(a.id)
+            exit_with_success(
+                f"Resumed automation(s) with name {name!r} and id(s) {', '.join([repr(str(a.id)) for a in automation])}."
+            )
+
+    elif id:
+        async with get_client() as client:
+            try:
+                uuid_id = UUID(id)
+                automation = await client.read_automation(uuid_id)
+            except (PrefectHTTPStatusError, ValueError):
+                exit_with_error(f"Automation with id {id!r} not found.")
+            await client.resume_automation(automation.id)
+            exit_with_success(f"Resumed automation with id {str(automation.id)!r}.")
 
 
 @automations_app.command(aliases=["disable"])
