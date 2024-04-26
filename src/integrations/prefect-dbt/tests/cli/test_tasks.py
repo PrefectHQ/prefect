@@ -5,14 +5,20 @@ from dbt.cli.main import dbtRunnerResult
 from dbt.contracts.files import FileHash
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.results import RunExecutionResult, RunResult
-from prefect_dbt.cli.tasks import dbt_build_task
+from prefect_dbt.cli.tasks import (
+    dbt_build_task,
+    dbt_run_task,
+    dbt_seed_task,
+    dbt_snapshot_task,
+    dbt_test_task,
+)
 
 from prefect import flow
 from prefect.artifacts import Artifact
 
 
 @pytest.fixture
-async def mock_dbt_runner_invoke_success():
+async def mock_dbt_runner_model_success():
     return dbtRunnerResult(
         success=True,
         exception=None,
@@ -47,9 +53,9 @@ async def mock_dbt_runner_invoke_success():
 
 
 @pytest.fixture()
-def dbt_runner_result(monkeypatch, mock_dbt_runner_invoke_success):
+def dbt_runner_result(monkeypatch, mock_dbt_runner_model_success):
     _mock_dbt_runner_invoke_success = MagicMock(
-        return_value=mock_dbt_runner_invoke_success
+        return_value=mock_dbt_runner_model_success
     )
     monkeypatch.setattr(
         "dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_invoke_success
@@ -66,6 +72,78 @@ def test_dbt_build_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     def test_flow():
         return dbt_build_task(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            artifact_key="foo",
+            create_artifact=True,
+        )
+
+    test_flow()
+    assert (a := Artifact.get(key="foo"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# DBT Build Task Summary")
+    assert "my_first_dbt_model" in a.data
+
+
+@pytest.mark.usefixtures("dbt_runner_result")
+def test_dbt_test_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+    @flow
+    def test_flow():
+        return dbt_test_task(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            artifact_key="foo",
+            create_artifact=True,
+        )
+
+    test_flow()
+    assert (a := Artifact.get(key="foo"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# DBT Build Task Summary")
+    assert "my_first_dbt_model" in a.data
+
+
+@pytest.mark.usefixtures("dbt_runner_result")
+def test_dbt_snapshot_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+    @flow
+    def test_flow():
+        return dbt_snapshot_task(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            artifact_key="foo",
+            create_artifact=True,
+        )
+
+    test_flow()
+    assert (a := Artifact.get(key="foo"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# DBT Build Task Summary")
+    assert "my_first_dbt_model" in a.data
+
+
+@pytest.mark.usefixtures("dbt_runner_result")
+def test_dbt_seed_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+    @flow
+    def test_flow():
+        return dbt_seed_task(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            artifact_key="foo",
+            create_artifact=True,
+        )
+
+    test_flow()
+    assert (a := Artifact.get(key="foo"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# DBT Build Task Summary")
+    assert "my_first_dbt_model" in a.data
+
+
+@pytest.mark.usefixtures("dbt_runner_result")
+def test_dbt_run_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+    @flow
+    def test_flow():
+        return dbt_run_task(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             artifact_key="foo",
