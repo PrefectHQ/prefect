@@ -16,9 +16,7 @@ search:
 This page of the tutorial covers scheduling workflows with Prefect by deploying flows.
 
 !!! note "Reminder to connect to Prefect Cloud or a self-hosted Prefect server instance"
-    Some features in this tutorial, such as scheduling, require you to be connected to a Prefect server.
-    If using a self-hosted setup, run `prefect server start` to run both the webserver and UI.
-    If using Prefect Cloud, make sure you have [successfully authenticated your local environment](/cloud/cloud-quickstart/).
+    For more information, see the Before you begin section in [Tutorials](/tutorial/).
 
 ## Deployment benefits
 
