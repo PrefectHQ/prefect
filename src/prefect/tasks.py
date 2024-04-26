@@ -327,13 +327,6 @@ class Task(Generic[P, R]):
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
 
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value()
-            and timeout_seconds is not None
-            and not self.isasync
-            and int(timeout_seconds) != timeout_seconds
-        ):
-            raise ValueError("Timeout must be an integer for synchronous tasks")
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
         # different function. This is to detect the case where two or more tasks

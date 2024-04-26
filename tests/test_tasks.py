@@ -46,7 +46,7 @@ def comparable_inputs(d):
 
 @pytest.fixture
 def timeout_test_flow():
-    @task(timeout_seconds=1)
+    @task(timeout_seconds=0.1)
     def times_out(x):
         time.sleep(2)
         return x

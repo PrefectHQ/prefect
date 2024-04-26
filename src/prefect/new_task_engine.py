@@ -1,17 +1,13 @@
 import asyncio
 import inspect
 import logging
-import signal
-import sys
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
-    Generator,
     Generic,
     Iterable,
     Literal,
@@ -26,6 +22,10 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
+from prefect._internal.concurrency.cancellation import (
+    AlarmCancelScope,
+    AsyncCancelScope,
+)
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunResult
@@ -55,55 +55,6 @@ from prefect.utilities.engine import (
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-
-@asynccontextmanager
-async def timeout(
-    delay: Optional[float], *, loop: Optional[asyncio.AbstractEventLoop] = None
-) -> AsyncGenerator[None, None]:
-    loop = loop or asyncio.get_running_loop()
-    task = asyncio.current_task(loop=loop)
-    timer_handle: Optional[asyncio.TimerHandle] = None
-
-    if delay is not None and task is not None:
-        timer_handle = loop.call_later(delay, task.cancel)
-
-    try:
-        yield
-    except asyncio.CancelledError as exc:
-        raise TimeoutError(f"Timeout exceeded {delay} seconds.") from exc
-    finally:
-        if timer_handle is not None:
-            timer_handle.cancel()
-
-
-@contextmanager
-def timeout_sync(delay: Optional[int]) -> Generator[None, None, None]:
-    if delay is None:
-        yield
-    else:
-        if sys.platform == "win32":
-            raise OSError("Synchronous timeout is not supported on Windows.")
-
-        if delay != int(delay):
-            raise ValueError(
-                "Timeout must be an integer number of seconds for synchronous tasks."
-            )
-
-        def signal_handler(signum, frame):
-            raise TimeoutError(f"Timeout exceeded {delay} seconds.")
-
-        # Set the signal handler for the alarm signal
-        original_handler = signal.signal(signal.SIGALRM, signal_handler)
-        # Schedule the alarm
-        signal.alarm(int(delay))
-        try:
-            yield
-        finally:
-            # Cancel the alarm
-            signal.alarm(0)
-            # Restore the original signal handler
-            signal.signal(signal.SIGALRM, original_handler)
 
 
 @dataclass
@@ -444,7 +395,7 @@ async def run_task(
             async with run.enter_run_context():
                 try:
                     # This is where the task is actually run.
-                    async with timeout(run.task.timeout_seconds):
+                    async with AsyncCancelScope(timeout=run.task.timeout_seconds):
                         result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
 
                     # If the task run is successful, finalize it.
@@ -476,7 +427,7 @@ def run_task_sync(
             with run.enter_run_context_sync():
                 try:
                     # This is where the task is actually run.
-                    with timeout_sync(run.task.timeout_seconds):
+                    with AlarmCancelScope(timeout=run.task.timeout_seconds):
                         result = cast(R, task.fn(**(parameters or {})))  # type: ignore
 
                     # If the task run is successful, finalize it.
