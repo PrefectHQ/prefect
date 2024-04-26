@@ -354,11 +354,6 @@ async def get_scheduled_flow_runs(
             ]
             work_queue_ids = [wq.id for wq in work_queues]
 
-        polled_work_queue_ids = [wq.id for wq in work_queues]
-        ready_work_queue_ids = [
-            wq.id for wq in work_queues if wq.status != WorkQueueStatus.READY
-        ]
-
     async with db.session_context(begin_transaction=True) as session:
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
@@ -368,6 +363,11 @@ async def get_scheduled_flow_runs(
             scheduled_after=scheduled_after,
             limit=limit,
         )
+
+    polled_work_queue_ids = [wq.id for wq in work_queues]
+    ready_work_queue_ids = [
+        wq.id for wq in work_queues if wq.status != WorkQueueStatus.READY
+    ]
 
     background_tasks.add_task(
         mark_work_queues_ready,
