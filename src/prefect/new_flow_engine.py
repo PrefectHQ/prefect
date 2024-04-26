@@ -355,7 +355,7 @@ async def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> "Union[R, None]":
+) -> Union[R, None]:
     """
     Runs a flow against the API.
 
@@ -390,7 +390,7 @@ def run_flow_sync(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> R | None:
+) -> Union[R, None]:
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
     # This is a context manager that keeps track of the state of the flow run.
     with engine.start_sync() as run:
