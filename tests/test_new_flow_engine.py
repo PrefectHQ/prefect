@@ -162,22 +162,20 @@ class TestFlowRuns:
         @task
         def task_2():
             flow_3()
-            # tracker["task_2"] = TaskRunContext.get().task_run.id
 
         @flow
         def flow_1():
             task_2()
-            # tracker["flow_1"] = FlowRunContext.get().flow_run.id
 
         flow_1()
 
         # retrieve the flow 3 subflow run
         l3 = await prefect_client.read_flow_run(tracker["flow_3"])
         # retrieve the dummy task for the flow 3 subflow run
-        l3_parent = await prefect_client.read_task_run(l3.parent_task_run_id)
+        l3_dummy = await prefect_client.read_task_run(l3.parent_task_run_id)
 
         # assert the parent of the dummy task is task 2
-        assert l3_parent.task_inputs["__parent__"].id == tracker["task_2"]
+        assert l3_dummy.task_inputs["__parent__"].id == tracker["task_2"]
 
 
 class TestFlowRetries:
