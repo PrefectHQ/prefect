@@ -1227,6 +1227,12 @@ PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = Setting(
 """The number of seconds before a deployment is marked as not ready if it has not been
 polled."""
 
+PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = Setting(
+    int, default=60
+)
+"""The number of seconds before a work queue is marked as not ready if it has not been
+polled."""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
