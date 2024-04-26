@@ -157,7 +157,7 @@ def test_inspecting_by_id(
     read_automation.return_value = various_automations[1]
 
     invoke_and_assert(
-        ["automations", "inspect", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"],
+        ["automations", "inspect", "--id", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"],
         expected_code=0,
         expected_output_contains=[
             "Automation(",
@@ -172,7 +172,22 @@ def test_inspecting_by_id(
     )
 
 
-def test_inspecting_by_name(various_automations: List[Automation]):
+def test_inspecting_by_id_not_found(
+    various_automations: List[Automation],
+):
+    invoke_and_assert(
+        ["automations", "inspect", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
+        ],
+    )
+
+
+def test_inspecting_by_name(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "inspect", "My First Reactive"],
         expected_code=0,
@@ -185,7 +200,10 @@ def test_inspecting_by_name(various_automations: List[Automation]):
     )
 
 
-def test_inspecting_not_found(various_automations: List[Automation]):
+def test_inspecting_by_name_not_found(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "inspect", "What is this?"],
         expected_code=1,
@@ -193,22 +211,28 @@ def test_inspecting_not_found(various_automations: List[Automation]):
     )
 
 
-def test_inspecting_in_json(various_automations: List[Automation]):
+def test_inspecting_in_json(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = [various_automations[0]]
     result = invoke_and_assert(
         ["automations", "inspect", "My First Reactive", "--json"], expected_code=0
     )
     loaded = orjson.loads(result.output)
-    assert loaded["name"] == "My First Reactive"
-    assert loaded["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    assert loaded[0]["name"] == "My First Reactive"
+    assert loaded[0]["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 
 
-def test_inspecting_in_yaml(various_automations: List[Automation]):
+def test_inspecting_in_yaml(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = [various_automations[0]]
     result = invoke_and_assert(
         ["automations", "inspect", "My First Reactive", "--yaml"], expected_code=0
     )
     loaded = yaml.safe_load(result.output)
-    assert loaded["name"] == "My First Reactive"
-    assert loaded["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    assert loaded[0]["name"] == "My First Reactive"
+    assert loaded[0]["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 
 
 @pytest.fixture
