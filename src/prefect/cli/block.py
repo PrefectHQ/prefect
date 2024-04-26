@@ -222,6 +222,10 @@ async def block_delete(
             except ObjectNotFound:
                 exit_with_error(f"Deployment {block_id!r} not found!")
         elif slug is not None:
+            if "/" not in slug:
+                exit_with_error(
+                    f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
+                )
             block_type_slug, block_document_name = slug.split("/")
             try:
                 block_document = await client.read_block_document_by_name(
@@ -289,6 +293,10 @@ async def block_inspect(
             except ObjectNotFound:
                 exit_with_error(f"Deployment {block_id!r} not found!")
         elif slug is not None:
+            if "/" not in slug:
+                exit_with_error(
+                    f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
+                )
             block_type_slug, block_document_name = slug.split("/")
             try:
                 block_document = await client.read_block_document_by_name(
