@@ -3,11 +3,13 @@ import threading
 import time
 import uuid
 from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
 from functools import partial, wraps
 
 import anyio
 import pytest
 
+from prefect.context import ContextModel
 from prefect.utilities.asyncutils import (
     GatherIncomplete,
     LazySemaphore,
@@ -20,6 +22,7 @@ from prefect.utilities.asyncutils import (
     is_async_gen_fn,
     run_async_from_worker_thread,
     run_async_in_new_loop,
+    run_sync,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
@@ -453,3 +456,27 @@ async def test_lazy_semaphore_initialization():
         assert lazy_semaphore._semaphore._value == initial_value - 1
 
     assert lazy_semaphore._semaphore._value == initial_value
+
+
+class MyVar(ContextModel):
+    __var__ = ContextVar("my_var")
+    x: int = 1
+
+
+class TestRunSyncContextVars:
+    def test_context_carries_to_async_frame(self):
+        """
+        Ensures that ContextVars set in a parent scope of `run_sync` are automatically
+        carried over to the async frame.
+        """
+
+        async def load_var():
+            return MyVar.get().x
+
+        async def parent():
+            with MyVar(x=42):
+                return run_sync(load_var())
+
+        # this has to be run via asyncio.run because
+        # otherwise the context is maintained automatically
+        assert asyncio.run(parent()) == 42
