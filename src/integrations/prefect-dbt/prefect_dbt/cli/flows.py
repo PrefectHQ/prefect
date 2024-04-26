@@ -2,16 +2,10 @@ from pathlib import Path  # noqa: I001
 from typing import Optional, Union
 
 from dbt.cli.main import dbtRunner
-from dbt.events.base_types import EventMsg
 from prefect_dbt.cli.credentials import DbtCliProfile
 from prefect_dbt.cli.tasks import create_dbt_artifact, dbt_build_task
 
 from prefect import flow, get_run_logger
-
-
-def wrap_dbt_events(event: EventMsg):
-    if event.info.name == "NodeStart":
-        print(event.info.code)
 
 
 @flow
@@ -25,7 +19,7 @@ def dbt_flow(
     artifact_key: str = "dbt-flow-summary",
 ):
     logger = get_run_logger()
-    dbt_client = dbtRunner(callbacks=[wrap_dbt_events])
+    dbt_client = dbtRunner()
     results = dbt_build_task(
         profiles_dir=profiles_dir,
         project_dir=project_dir,
