@@ -7,11 +7,9 @@ name = "prefect-shell"
 description = "Prefect integrations for interacting with shell commands."
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
@@ -25,9 +23,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = [
-  "prefect>=2.14.10",
-]
+dependencies = ["prefect>=2.14.10"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -58,7 +54,7 @@ prefect_shell = "prefect_shell"
 version_file = "prefect_shell/_version.py"
 root = "../../.."
 tag_regex = "^prefect-shell-(?P<version>\\d+\\.\\d+\\.\\d+)$"
-fallback_version = "0.0.0"
+fallback_version = "0.2.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-shell-*[0-9]*"'
 
 [tool.interrogate]

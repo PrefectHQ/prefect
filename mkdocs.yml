@@ -238,8 +238,24 @@ nav:
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
           - Libraries:
+                - AWS:
+                      - integrations/prefect-aws/index.md
+                      - Guides:
+                            - Setting up an ECS Worker: integrations/prefect-aws/ecs_guide.md
+                      - Batch: integrations/prefect-aws/batch.md
+                      - Client Waiter: integrations/prefect-aws/client_waiter.md
+                      - Credentials: integrations/prefect-aws/credentials.md
+                      - ECS Worker: integrations/prefect-aws/ecs_worker.md
+                      - ECS (deprecated): integrations/prefect-aws/ecs.md
+                      - Glue Job: integrations/prefect-aws/glue_job.md
+                      - Lambda: integrations/prefect-aws/lambda_function.md
+                      - Deployments:
+                            - Steps: integrations/prefect-aws/deployments/steps.md
+                      - S3: integrations/prefect-aws/s3.md
+                      - Secrets Manager: integrations/prefect-aws/secrets_manager.md
                 - Azure:
                       - integrations/prefect-azure/index.md
+                      - ACI Worker Guide: integrations/prefect-azure/aci_worker.md
                       - Credentials: integrations/prefect-azure/credentials.md
                       - Blob Storage: integrations/prefect-azure/blob_storage.md
                       - Cosmos DB: integrations/prefect-azure/cosmos_db.md
@@ -263,6 +279,23 @@ nav:
                       - Jobs: integrations/prefect-databricks/jobs.md
                       - Rest: integrations/prefect-databricks/rest.md
                       - Flows: integrations/prefect-databricks/flows.md
+                - dbt:
+                      - integrations/prefect-dbt/index.md
+                      - Cloud:
+                            - Credentials: integrations/prefect-dbt/cloud/credentials.md
+                            - Jobs: integrations/prefect-dbt/cloud/jobs.md
+                            - Runs: integrations/prefect-dbt/cloud/runs.md
+                            - Clients: integrations/prefect-dbt/cloud/clients.md
+                            - Models: integrations/prefect-dbt/cloud/models.md
+                            - Utils: integrations/prefect-dbt/cloud/utils.md
+                      - CLI:
+                            - Credentials: integrations/prefect-dbt/cli/credentials.md
+                            - Commands: integrations/prefect-dbt/cli/commands.md
+                            - Configs:
+                                  - Base: integrations/prefect-dbt/cli/configs/base.md
+                                  - BigQuery: integrations/prefect-dbt/cli/configs/bigquery.md
+                                  - Postgres: integrations/prefect-dbt/cli/configs/postgres.md
+                                  - Snowflake: integrations/prefect-dbt/cli/configs/snowflake.md
                 - Docker:
                       - integrations/prefect-docker/index.md
                       - Host: integrations/prefect-docker/host.md
@@ -276,6 +309,20 @@ nav:
                       - integrations/prefect-email/index.md
                       - Credentials: integrations/prefect-email/credentials.md
                       - Message: integrations/prefect-email/message.md
+                - GCP:
+                      - integrations/prefect-gcp/index.md
+                      - Google Cloud Run Execution Guide: integrations/prefect-gcp/gcp-worker-guide.md
+                      - Credentials: integrations/prefect-gcp/credentials.md
+                      - Cloud Storage: integrations/prefect-gcp/cloud_storage.md
+                      - BigQuery: integrations/prefect-gcp/bigquery.md
+                      - Secret Manager: integrations/prefect-gcp/secret_manager.md
+                      - Cloud Run: integrations/prefect-gcp/cloud_run.md
+                      - AI Platform: integrations/prefect-gcp/aiplatform.md
+                      - Deployment Steps: integrations/prefect-gcp/deployments/steps.md
+                      - Workers:
+                            - Cloud Run: integrations/prefect-gcp/cloud_run_worker.md
+                            - Cloud Run V2: cintegrations/prefect-gcp/loud_run_worker_v2.md
+                            - Vertex AI: integrations/prefect-gcp/vertex_worker.md
                 - GitHub:
                       - integrations/prefect-github/index.md
                       - Credentials: integrations/prefect-github/credentials.md
@@ -304,6 +351,9 @@ nav:
                       - Services: integrations/prefect-kubernetes/services.md
                       - Utilities: integrations/prefect-kubernetes/utilities.md
                       - Worker: integrations/prefect-kubernetes/worker.md
+                - Ray:
+                      - integrations/prefect-ray/index.md
+                      - Task Runners: integrations/prefect-ray/task-runners.md
                 - Shell:
                       - integrations/prefect-shell/index.md
                       - Commands: integrations/prefect-shell/commands.md
@@ -315,6 +365,10 @@ nav:
                       - integrations/prefect-snowflake/index.md
                       - Credentials: integrations/prefect-snowflake/credentials.md
                       - Database: integrations/prefect-snowflake/database.md
+                - SQLAlchemy:
+                      - integrations/prefect-sqlalchemy/index.md
+                      - Credentials: integrations/prefect-sqlalchemy/credentials.md
+                      - Database: integrations/prefect-sqlalchemy/database.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:

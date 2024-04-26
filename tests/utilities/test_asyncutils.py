@@ -3,11 +3,13 @@ import threading
 import time
 import uuid
 from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
 from functools import partial, wraps
 
 import anyio
 import pytest
 
+from prefect.context import ContextModel
 from prefect.utilities.asyncutils import (
     GatherIncomplete,
     LazySemaphore,
@@ -506,3 +508,24 @@ class TestRunSync:
 
         with pytest.raises(ValueError, match="test-42"):
             asyncio.run(bar())
+
+    def test_context_carries_to_async_frame(self):
+        """
+        Ensures that ContextVars set in a parent scope of `run_sync` are automatically
+        carried over to the async frame.
+        """
+
+        class MyVar(ContextModel):
+            __var__ = ContextVar("my_var")
+            x: int = 1
+
+        async def load_var():
+            return MyVar.get().x
+
+        async def parent():
+            with MyVar(x=42):
+                return run_sync(load_var())
+
+        # this has to be run via asyncio.run because
+        # otherwise the context is maintained automatically
+        assert asyncio.run(parent()) == 42

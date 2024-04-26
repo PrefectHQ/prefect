@@ -125,9 +125,57 @@ class FlowRunEngine(Generic[P, R]):
             state = await self.set_state(Running())
         return state
 
+    async def load_subflow_run(
+        self, parent_task_run: TaskRun, client: PrefectClient, context: FlowRunContext
+    ) -> Union[FlowRun, None]:
+        """
+        This method attempts to load an existing flow run for a subflow task
+        run, if appropriate.
+
+        If the parent task run is in a final but not COMPLETED state, and not
+        being rerun, then we attempt to load an existing flow run instead of
+        creating a new one. This will prevent the engine from running the
+        subflow again.
+
+        If no existing flow run is found, or if the subflow should be rerun,
+        then no flow run is returned.
+        """
+
+        # check if the parent flow run is rerunning
+        rerunning = (
+            context.flow_run.run_count > 1
+            if getattr(context, "flow_run", None)
+            else False
+        )
+
+        # if the parent task run is in a final but not completed state, and
+        # not rerunning, then retrieve the most recent flow run instead of
+        # creating a new one. This effectively loads a cached flow run for
+        # situations where we are confident the flow should not be run
+        # again.
+        if parent_task_run.state.is_final() and not (
+            rerunning and not parent_task_run.state.is_completed()
+        ):
+            # return the most recent flow run, if it exists
+            flow_runs = await client.read_flow_runs(
+                flow_run_filter=FlowRunFilter(
+                    parent_task_run_id={"any_": [parent_task_run.id]}
+                ),
+                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+                limit=1,
+            )
+            if flow_runs:
+                return flow_runs[-1]
+
     async def create_subflow_task_run(
         self, client: PrefectClient, context: FlowRunContext
     ) -> TaskRun:
+        """
+        Adds a task to a parent flow run that represents the execution of a subflow run.
+
+        The task run is referred to as the "parent task run" of the subflow and will be kept
+        in sync with the subflow run's state by the orchestration engine.
+        """
         dummy_task = Task(
             name=self.flow.name, fn=self.flow.fn, version=self.flow.version
         )
@@ -145,47 +193,23 @@ class FlowRunEngine(Generic[P, R]):
         )
         return parent_task_run
 
-    async def get_most_recent_flow_run_for_parent_task_run(
-        self, client: PrefectClient, parent_task_run: TaskRun
-    ) -> "Union[FlowRun, None]":
-        """
-        Get the most recent flow run associated with the provided parent task run.
-
-        Args:
-            - An orchestration client
-            - The parent task run to get the most recent flow run for
-
-        Returns:
-            The most recent flow run associated with the parent task run or `None` if
-            no flow runs are found
-        """
-        flow_runs = await client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                parent_task_run_id={"any_": [parent_task_run.id]}
-            ),
-            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-        )
-        return flow_runs[-1] if flow_runs else None
-
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
 
         parent_task_run = None
+
         # this is a subflow run
         if flow_run_ctx:
+            # get the parent task run
             parent_task_run = await self.create_subflow_task_run(
                 client=client, context=flow_run_ctx
             )
-            # If the parent task run already completed, return the last flow run
-            # associated with the parent task run. This prevents rerunning a completed
-            # flow run when the parent task run is rerun.
-            most_recent_flow_run = (
-                await self.get_most_recent_flow_run_for_parent_task_run(
-                    client=client, parent_task_run=parent_task_run
-                )
-            )
-            if most_recent_flow_run:
-                return most_recent_flow_run
+
+            # check if there is already a flow run for this subflow
+            if subflow_run := await self.load_subflow_run(
+                parent_task_run=parent_task_run, client=client, context=flow_run_ctx
+            ):
+                return subflow_run
 
         try:
             flow_run_name = _resolve_custom_flow_run_name(
