@@ -733,7 +733,7 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def serve(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         interval: Optional[
             Union[
                 Iterable[Union[int, float, datetime.timedelta]],
