@@ -4,6 +4,7 @@ Command line interface for working with automations.
 
 import functools
 from typing import Optional
+from uuid import UUID
 
 import orjson
 import typer
@@ -16,6 +17,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
+from prefect.exceptions import PrefectHTTPStatusError
 
 automations_app = PrefectTyper(
     name="automation",
@@ -98,23 +100,63 @@ async def ls():
 
 @automations_app.command()
 @requires_automations
-async def inspect(id_or_name: str, yaml: bool = False, json: bool = False):
-    """Inspect an automation."""
-    async with get_client() as client:
-        automation = await client.find_automation(id_or_name)
-        if not automation:
-            exit_with_error(f"Automation {id_or_name!r} not found.")
+async def inspect(
+    name: Optional[str] = typer.Argument(None, help="An automation's name"),
+    id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
+    yaml: bool = typer.Option(False, "--yaml", help="Output as YAML"),
+    json: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
+    """
+    Inspect an automation.
 
-    if yaml:
-        app.console.print(
-            pyyaml.dump(automation.dict(json_compatible=True), sort_keys=False)
-        )
-    elif json:
-        app.console.print(
-            orjson.dumps(
-                automation.dict(json_compatible=True), option=orjson.OPT_INDENT_2
-            ).decode()
-        )
+    Arguments:
+
+        name: the name of the automation to inspect
+
+        id: the id of the automation to inspect
+
+        yaml: output as YAML
+
+        json: output as JSON
+
+    Examples:
+
+        $ prefect automation inspect "my-automation"
+
+        $ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+
+        $ prefect automation inspect "my-automation" --yaml
+
+        $ prefect automation inspect "my-automation" --json
+    """
+    if not id and not name:
+        exit_with_error("Please provide either a name or an id.")
+
+    if name:
+        async with get_client() as client:
+            automation = await client.read_automations_by_name(name=name)
+            if not automation:
+                exit_with_error(f"Automation {name!r} not found.")
+
+    elif id:
+        async with get_client() as client:
+            try:
+                uuid_id = UUID(id)
+                automation = await client.read_automation(uuid_id)
+            except (PrefectHTTPStatusError, ValueError):
+                exit_with_error(f"Automation with id {id!r} not found.")
+
+    if yaml or json:
+        if isinstance(automation, list):
+            automation = [a.dict(json_compatible=True) for a in automation]
+        elif isinstance(automation, dict):
+            automation = automation.dict(json_compatible=True)
+        if yaml:
+            app.console.print(pyyaml.dump(automation, sort_keys=False))
+        elif json:
+            app.console.print(
+                orjson.dumps(automation, option=orjson.OPT_INDENT_2).decode()
+            )
     else:
         app.console.print(Pretty(automation))
 
