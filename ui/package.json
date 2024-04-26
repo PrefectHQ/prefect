@@ -6,12 +6,12 @@
     "serve": "vite --host",
     "build": "vite build",
     "lint": "eslint src --ext .js,.ts,.vue",
-    "lint:fix": "eslint src --fix --debug",
+    "lint:fix": "eslint src --fix",
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "2.7.12",
-    "@prefecthq/prefect-ui-library": "2.8.13",
+    "@prefecthq/prefect-design": "2.7.15",
+    "@prefecthq/prefect-ui-library": "2.8.16",
     "@prefecthq/vue-charts": "2.0.3",
     "@prefecthq/vue-compositions": "1.11.4",
     "@types/lodash.debounce": "4.0.9",
@@ -19,7 +19,7 @@
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
     "tailwindcss": "3.4.3",
-    "vue": "3.4.21",
+    "vue": "3.4.23",
     "vue-router": "4.3.0"
   },
   "devDependencies": {
@@ -29,8 +29,8 @@
     "autoprefixer": "10.4.19",
     "eslint": "^8.57.0",
     "ts-node": "10.9.2",
-    "typescript": "^5.4.4",
-    "vite": "5.2.8",
-    "vue-tsc": "^2.0.11"
+    "typescript": "^5.4.5",
+    "vite": "5.2.10",
+    "vue-tsc": "^2.0.14"
   }
 }

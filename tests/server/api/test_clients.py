@@ -3,7 +3,7 @@ Tests for the server-side orchestration API client, used by server-side services
 interact with the Prefect API.
 """
 
-from typing import AsyncGenerator, List
+from typing import TYPE_CHECKING, AsyncGenerator, List
 from unittest import mock
 from uuid import uuid4
 
@@ -12,10 +12,12 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.api.clients import OrchestrationClient
-from prefect.server.database.orm_models import ORMDeployment, ORMVariable
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
 from prefect.server.schemas.responses import DeploymentResponse
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMDeployment, ORMVariable
 
 
 @pytest.fixture
@@ -25,7 +27,7 @@ async def orchestration_client() -> AsyncGenerator[OrchestrationClient, None]:
 
 
 async def test_read_deployment(
-    deployment: ORMDeployment, orchestration_client: OrchestrationClient
+    deployment: "ORMDeployment", orchestration_client: OrchestrationClient
 ):
     from_api = await orchestration_client.read_deployment(deployment.id)
     assert isinstance(from_api, DeploymentResponse)
@@ -68,7 +70,7 @@ async def variables(
 
 
 async def test_read_variables(
-    variables: List[ORMVariable],
+    variables: List["ORMVariable"],
     orchestration_client: OrchestrationClient,
 ):
     from_api = await orchestration_client.read_workspace_variables()
@@ -81,7 +83,7 @@ async def test_read_variables(
 
 
 async def test_read_variables_across_pages(
-    variables: List[ORMVariable],
+    variables: List["ORMVariable"],
     orchestration_client: OrchestrationClient,
 ):
     orchestration_client.VARIABLE_PAGE_SIZE = 3
@@ -95,7 +97,7 @@ async def test_read_variables_across_pages(
 
 
 async def test_read_variables_subset(
-    variables: List[ORMVariable],
+    variables: List["ORMVariable"],
     orchestration_client: OrchestrationClient,
 ):
     orchestration_client.VARIABLE_PAGE_SIZE = 3
@@ -116,7 +118,7 @@ async def test_read_variables_empty(
 
 
 async def test_read_variables_subset_none_requested(
-    variables: List[ORMVariable],
+    variables: List["ORMVariable"],
     orchestration_client: OrchestrationClient,
 ):
     from_api = await orchestration_client.read_workspace_variables(names=[])
