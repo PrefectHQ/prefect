@@ -237,6 +237,14 @@ def test_inspecting_a_block():
     )
 
 
+def test_inspecting_a_block_malformed_slug():
+    invoke_and_assert(
+        ["block", "inspect", "chonk-block"],
+        expected_code=1,
+        expected_output_contains="'chonk-block' is not valid. Slug must contain a '/'",
+    )
+
+
 def test_deleting_a_block():
     system.JSON(value="don't delete me please").save("pleasedonterase")
 
@@ -248,6 +256,14 @@ def test_deleting_a_block():
     invoke_and_assert(
         ["block", "inspect", "json/pleasedonterase"],
         expected_code=1,
+    )
+
+
+def test_deleting_a_block_malformed_slug():
+    invoke_and_assert(
+        ["block", "delete", "chonk-block"],
+        expected_code=1,
+        expected_output_contains="'chonk-block' is not valid. Slug must contain a '/'",
     )
 
 
