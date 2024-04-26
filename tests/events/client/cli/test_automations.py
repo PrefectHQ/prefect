@@ -282,12 +282,17 @@ def pause_automation() -> Generator[mock.AsyncMock, None, None]:
 
 
 def test_pausing_by_name(
-    pause_automation: mock.AsyncMock, various_automations: List[Automation]
+    pause_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "pause", "My First Reactive"],
         expected_code=0,
-        expected_output_contains=["Paused automation 'My First Reactive'"],
+        expected_output_contains=[
+            "Paused automation(s) with name 'My First Reactive' and id(s) 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
     )
 
     pause_automation.assert_awaited_once_with(
@@ -295,9 +300,12 @@ def test_pausing_by_name(
     )
 
 
-def test_pausing_not_found(
-    pause_automation: mock.AsyncMock, various_automations: List[Automation]
+def test_pausing_by_name_not_found(
+    pause_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "pause", "Wha?"],
         expected_code=1,
@@ -305,6 +313,25 @@ def test_pausing_not_found(
     )
 
     pause_automation.assert_not_awaited()
+
+
+def test_pausing_by_id(
+    pause_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = various_automations[0]
+    invoke_and_assert(
+        ["automations", "pause", "--id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+        expected_code=0,
+        expected_output_contains=[
+            "Paused automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
+    )
+
+    pause_automation.assert_awaited_once_with(
+        mock.ANY, UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    )
 
 
 @pytest.fixture
