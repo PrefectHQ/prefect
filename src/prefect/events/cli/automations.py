@@ -191,7 +191,9 @@ async def pause(
         async with get_client() as client:
             automation = await client.read_automations_by_name(name=name)
             if not automation:
-                exit_with_error(f"Automation {name!r} not found.")
+                exit_with_error(
+                    f"Automation with name {name!r} not found. You can also specify an id with the `--id` flag."
+                )
             if len(automation) > 1:
                 if not typer.confirm(
                     f"Multiple automations found with name {name!r}. Do you want to pause all of them?",
@@ -213,7 +215,7 @@ async def pause(
             except (PrefectHTTPStatusError, ValueError):
                 exit_with_error(f"Automation with id {id!r} not found.")
             await client.pause_automation(automation.id)
-            exit_with_success(f"Paused automation with id {str(automation.id)!r}")
+            exit_with_success(f"Paused automation with id {str(automation.id)!r}.")
 
 
 @automations_app.command()
