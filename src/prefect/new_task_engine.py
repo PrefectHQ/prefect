@@ -256,7 +256,7 @@ class TaskRunEngine(Generic[P, R]):
         # anticipate nested runs
         task_run_ctx = TaskRunContext.get()
         if task_run_ctx:
-            task_inputs["wait_for"] = [TaskRunResult(id=task_run_ctx.task_run.id)]
+            task_inputs["__parent__"] = [TaskRunResult(id=task_run_ctx.task_run.id)]
 
         # TODO: implement wait_for
         #        if wait_for:

@@ -184,8 +184,38 @@ class TestTaskRuns:
 
         # assertions on inner
         inner_run = await prefect_client.read_task_run(a)
-        assert "wait_for" in inner_run.task_inputs
-        assert inner_run.task_inputs["wait_for"][0].id == b
+        assert "__parent__" in inner_run.task_inputs
+        assert inner_run.task_inputs["__parent__"][0].id == b
+
+    async def test_multiple_nested_tasks_track_parent(self, prefect_client):
+        @task
+        def level_3():
+            return TaskRunContext.get().task_run.id
+
+        @task
+        def level_2():
+            id_3 = level_3()
+            return TaskRunContext.get().task_run.id, id_3
+
+        @task
+        def level_1():
+            id_2, id_3 = level_2()
+            return TaskRunContext.get().task_run.id, id_2, id_3
+
+        @flow
+        def f():
+            return level_1()
+
+        id1, id2, id3 = f()
+        assert id1 != id2 != id3
+
+        for id_, parent_id in [(id3, id2), (id2, id1)]:
+            run = await prefect_client.read_task_run(id_)
+            assert "__parent__" in run.task_inputs
+            assert run.task_inputs["__parent__"][0].id == parent_id
+
+        run = await prefect_client.read_task_run(id1)
+        assert "__parent__" not in run.task_inputs
 
     async def test_task_runs_respect_result_persistence(self, prefect_client):
         @task(persist_result=False)
