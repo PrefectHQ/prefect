@@ -9,9 +9,11 @@ import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
+    Mapped,
     as_declarative,
     declarative_mixin,
     declared_attr,
+    mapped_column,
     synonym,
 )
 from sqlalchemy.sql.expression import ColumnElement
@@ -343,7 +345,7 @@ class ORMArtifactCollection:
         nullable=False,
     )
 
-    latest_id = sa.Column(UUID(), nullable=False)
+    latest_id: Mapped[UUID] = mapped_column(sa.Column(UUID(), nullable=False))
 
     task_run_id = sa.Column(
         UUID(),

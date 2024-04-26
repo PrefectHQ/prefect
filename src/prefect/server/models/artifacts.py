@@ -1,21 +1,25 @@
+from typing import TypeVar, Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import actions, filters, sorting
 from prefect.server.schemas.core import Artifact
 
+T = TypeVar("T", bound=tuple)
 
-@inject_db
+
 async def _insert_into_artifact_collection(
-    session: sa.orm.Session,
-    artifact: Artifact,
     db: PrefectDBInterface,
-    now: pendulum.DateTime = None,
+    session: AsyncSession,
+    artifact: Artifact,
+    now: Union[pendulum.DateTime, None] = None,
 ):
     """
     Inserts a new artifact into the artifact_collection table or updates it.
@@ -58,7 +62,7 @@ async def _insert_into_artifact_collection(
                 f"Artifact {artifact.id} was not inserted into the artifact collection"
                 " table."
             )
-    if model is None:
+    else:
         raise ValueError(
             f"Artifact {artifact.id} was not inserted into the artifact collection"
             " table."
@@ -67,12 +71,11 @@ async def _insert_into_artifact_collection(
     return model
 
 
-@inject_db
 async def _insert_into_artifact(
-    session: sa.orm.Session,
-    artifact: Artifact,
     db: PrefectDBInterface,
-    now: pendulum.DateTime = None,
+    session: AsyncSession,
+    artifact: Artifact,
+    now: Union[pendulum.DateTime, None] = None,
 ) -> Artifact:
     """
     Inserts a new artifact into the artifact table.
@@ -93,38 +96,36 @@ async def _insert_into_artifact(
     )
 
     result = await session.execute(query)
-    model = result.scalar()
-
-    return model
+    return result.scalar_one()
 
 
-@inject_db
+@db_injector
 async def create_artifact(
-    session: sa.orm.Session,
-    artifact: Artifact,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    artifact: Artifact,
 ):
     now = pendulum.now("UTC")
 
     if artifact.key is not None:
         await _insert_into_artifact_collection(
-            session=session, now=now, db=db, artifact=artifact
+            db=db, session=session, now=now, artifact=artifact
         )
 
     result = await _insert_into_artifact(
+        db=db,
         session=session,
         now=now,
-        db=db,
         artifact=artifact,
     )
 
     return result
 
 
-@inject_db
+@db_injector
 async def read_latest_artifact(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: AsyncSession,
     key: str,
 ):
     """
@@ -142,11 +143,11 @@ async def read_latest_artifact(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def read_artifact(
-    session: sa.orm.Session,
-    artifact_id: UUID,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    artifact_id: UUID,
 ):
     """
     Reads an artifact by id.
@@ -158,16 +159,15 @@ async def read_artifact(
     return result.scalar()
 
 
-@inject_db
 async def _apply_artifact_filters(
-    query,
     db: PrefectDBInterface,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    artifact_filter: filters.ArtifactFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
-):
+    query: Select[T],
+    flow_run_filter: Union[filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[filters.TaskRunFilter, None] = None,
+    artifact_filter: Union[filters.ArtifactFilter, None] = None,
+    deployment_filter: Union[filters.DeploymentFilter, None] = None,
+    flow_filter: Union[filters.FlowFilter, None] = None,
+) -> Select[T]:
     """Applies filters to an artifact query as a combination of EXISTS subqueries."""
     if artifact_filter:
         query = query.where(artifact_filter.as_sql_filter(db))
@@ -204,16 +204,15 @@ async def _apply_artifact_filters(
     return query
 
 
-@inject_db
 async def _apply_artifact_collection_filters(
-    query,
     db: PrefectDBInterface,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    artifact_filter: filters.ArtifactCollectionFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
-):
+    query: Select[T],
+    flow_run_filter: Union[filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[filters.TaskRunFilter, None] = None,
+    artifact_filter: Union[filters.ArtifactCollectionFilter, None] = None,
+    deployment_filter: Union[filters.DeploymentFilter, None] = None,
+    flow_filter: Union[filters.FlowFilter, None] = None,
+) -> Select[T]:
     """Applies filters to an artifact collection query as a combination of EXISTS subqueries."""
     if artifact_filter:
         query = query.where(artifact_filter.as_sql_filter(db))
@@ -250,17 +249,17 @@ async def _apply_artifact_collection_filters(
     return query
 
 
-@inject_db
+@db_injector
 async def read_artifacts(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
-    offset: int = None,
-    limit: int = None,
-    artifact_filter: filters.ArtifactFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    session: AsyncSession,
+    offset: Union[int, None] = None,
+    limit: Union[int, None] = None,
+    artifact_filter: Union[filters.ArtifactFilter, None] = None,
+    flow_run_filter: Union[filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[filters.TaskRunFilter, None] = None,
+    deployment_filter: Union[filters.DeploymentFilter, None] = None,
+    flow_filter: Union[filters.FlowFilter, None] = None,
     sort: sorting.ArtifactSort = sorting.ArtifactSort.ID_DESC,
 ):
     """
@@ -280,8 +279,8 @@ async def read_artifacts(
     query = sa.select(db.Artifact).order_by(sort.as_sql_sort(db))
 
     query = await _apply_artifact_filters(
-        query,
         db=db,
+        query=query,
         artifact_filter=artifact_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
@@ -298,17 +297,17 @@ async def read_artifacts(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def read_latest_artifacts(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
-    offset: int = None,
-    limit: int = None,
-    artifact_filter: filters.ArtifactCollectionFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    session: AsyncSession,
+    offset: Union[int, None] = None,
+    limit: Union[int, None] = None,
+    artifact_filter: Union[filters.ArtifactCollectionFilter, None] = None,
+    flow_run_filter: Union[filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[filters.TaskRunFilter, None] = None,
+    deployment_filter: Union[filters.DeploymentFilter, None] = None,
+    flow_filter: Union[filters.FlowFilter, None] = None,
     sort: sorting.ArtifactCollectionSort = sorting.ArtifactCollectionSort.ID_DESC,
 ):
     """
@@ -327,8 +326,8 @@ async def read_latest_artifacts(
     """
     query = sa.select(db.ArtifactCollection).order_by(sort.as_sql_sort(db))
     query = await _apply_artifact_collection_filters(
-        query,
         db=db,
+        query=query,
         artifact_filter=artifact_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
@@ -345,15 +344,15 @@ async def read_latest_artifacts(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def count_artifacts(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
-    artifact_filter: filters.ArtifactFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    session: AsyncSession,
+    artifact_filter: Union[filters.ArtifactFilter, None] = None,
+    flow_run_filter: Union[filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[filters.TaskRunFilter, None] = None,
+    deployment_filter: Union[filters.DeploymentFilter, None] = None,
+    flow_filter: Union[filters.FlowFilter, None] = None,
 ) -> int:
     """
     Counts artifacts.
@@ -366,8 +365,8 @@ async def count_artifacts(
     query = sa.select(sa.func.count(db.Artifact.id))
 
     query = await _apply_artifact_filters(
-        query,
         db=db,
+        query=query,
         artifact_filter=artifact_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
@@ -379,15 +378,15 @@ async def count_artifacts(
     return result.scalar_one()
 
 
-@inject_db
+@db_injector
 async def count_latest_artifacts(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
-    artifact_filter: filters.ArtifactCollectionFilter = None,
-    flow_run_filter: filters.FlowRunFilter = None,
-    task_run_filter: filters.TaskRunFilter = None,
-    deployment_filter: filters.DeploymentFilter = None,
-    flow_filter: filters.FlowFilter = None,
+    session: AsyncSession,
+    artifact_filter: Union[filters.ArtifactCollectionFilter, None] = None,
+    flow_run_filter: Union[filters.FlowRunFilter, None] = None,
+    task_run_filter: Union[filters.TaskRunFilter, None] = None,
+    deployment_filter: Union[filters.DeploymentFilter, None] = None,
+    flow_filter: Union[filters.FlowFilter, None] = None,
 ) -> int:
     """
     Counts artifacts.
@@ -400,8 +399,8 @@ async def count_latest_artifacts(
     query = sa.select(sa.func.count(db.ArtifactCollection.id))
 
     query = await _apply_artifact_collection_filters(
-        query,
         db=db,
+        query=query,
         artifact_filter=artifact_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
@@ -413,12 +412,12 @@ async def count_latest_artifacts(
     return result.scalar_one()
 
 
-@inject_db
+@db_injector
 async def update_artifact(
-    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    session: AsyncSession,
     artifact_id: UUID,
     artifact: actions.ArtifactUpdate,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Updates an artifact by id.
@@ -452,11 +451,11 @@ async def update_artifact(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def delete_artifact(
-    session: sa.orm.Session,
-    artifact_id: UUID,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    artifact_id: UUID,
 ) -> bool:
     """
     Deletes an artifact by id.
