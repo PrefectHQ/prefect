@@ -32,6 +32,8 @@ from prefect.utilities.names import generate_slug
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMDeployment, ORMFlowRun, ORMWorker
 
+WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = 60
+
 
 class SetStateStatus(AutoEnum):
     """Enumerates return statuses for setting run states."""
@@ -471,6 +473,17 @@ class WorkQueueResponse(schemas.core.WorkQueue):
         response = super().from_orm(orm_work_queue)
         if orm_work_queue.work_pool:
             response.work_pool_name = orm_work_queue.work_pool.name
+
+        if response.is_paused:
+            response.status = schemas.statuses.WorkQueueStatus.PAUSED
+        else:
+            unready_at = datetime.datetime.now(
+                tz=datetime.timezone.utc
+            ) - datetime.timedelta(seconds=WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS)
+            if response.last_polled and response.last_polled > unready_at:
+                response.status = schemas.statuses.WorkQueueStatus.READY
+            else:
+                response.status = schemas.statuses.WorkQueueStatus.NOT_READY
         return response
 
 

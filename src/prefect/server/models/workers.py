@@ -4,15 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import (
-    TYPE_CHECKING,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-)
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -23,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.schemas.statuses import WorkQueueStatus
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkQueue
@@ -498,8 +489,6 @@ async def update_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
-    emit_status_change: Optional[Callable[["ORMWorkQueue"], Awaitable[None]]] = None,
-    default_status: WorkQueueStatus = WorkQueueStatus.NOT_READY,
 ) -> bool:
     """
     Update a work pool queue.
@@ -508,45 +497,12 @@ async def update_work_queue(
         session (AsyncSession): a database session
         work_queue_id (UUID): a work pool queue ID
         work_queue (schemas.actions.WorkQueueUpdate): a WorkQueue model
-        emit_status_change: function to call when work queue
-            status is changed
 
     Returns:
         bool: whether or not the WorkQueue was updated
 
     """
-    from prefect.server.models.work_queues import is_last_polled_recent
-
     update_values = work_queue.dict(shallow=True, exclude_unset=True)
-
-    if "is_paused" in update_values:
-        if (wq := await session.get(db.WorkQueue, work_queue_id)) is None:
-            return False
-
-        # Only update the status to paused if it's not already paused. This ensures a work queue that is already
-        # paused will not get a status update if it's paused again
-        if update_values.get("is_paused") and wq.status != WorkQueueStatus.PAUSED:
-            update_values["status"] = WorkQueueStatus.PAUSED
-
-        # If unpausing, only update status if it's currently paused. This ensures a work queue that is already
-        # unpaused will not get a status update if it's unpaused again
-        if (
-            update_values.get("is_paused") is False
-            and wq.status == WorkQueueStatus.PAUSED
-        ):
-            # Default status if unpaused
-            update_values["status"] = default_status
-
-            # Determine source of last_polled: update_data or database
-            if "last_polled" in update_values:
-                last_polled = update_values["last_polled"]
-            else:
-                last_polled = wq.last_polled
-
-            # Check if last polled is recent and set status to READY if so
-            if is_last_polled_recent(last_polled):
-                update_values["status"] = schemas.statuses.WorkQueueStatus.READY
-
     update_stmt = (
         sa.update(db.WorkQueue)
         .where(db.WorkQueue.id == work_queue_id)
@@ -554,23 +510,14 @@ async def update_work_queue(
     )
     result = await session.execute(update_stmt)
 
-    updated = result.rowcount > 0
-
-    if updated:
-        if "priority" in update_values or "status" in update_values:
-            updated_work_queue = await session.get(db.WorkQueue, work_queue_id)
-
-            if "priority" in update_values:
-                await bulk_update_work_queue_priorities(
-                    session,
-                    work_pool_id=updated_work_queue.work_pool_id,
-                    new_priorities={work_queue_id: update_values["priority"]},
-                )
-
-            if "status" in update_values and emit_status_change:
-                await emit_status_change(work_queue=updated_work_queue)
-
-    return updated
+    if result.rowcount > 0 and "priority" in update_values:
+        work_queue = await session.get(db.WorkQueue, work_queue_id)
+        await bulk_update_work_queue_priorities(
+            session,
+            work_pool_id=work_queue.work_pool_id,
+            new_priorities={work_queue_id: update_values["priority"]},
+        )
+    return result.rowcount > 0
 
 
 @db_injector

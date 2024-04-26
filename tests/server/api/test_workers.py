@@ -1,10 +1,8 @@
-from datetime import timedelta
 from typing import List
 
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.server.schemas.statuses import WorkQueueStatus
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -13,13 +11,11 @@ else:
 
 import pytest
 from prefect._vendor.starlette import status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
-from prefect.server.events.clients import AssertingEventsClient
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -31,14 +27,6 @@ RESERVED_POOL_NAMES = [
     "prefectpool",
     "prefect-pool",
 ]
-
-
-@pytest.fixture(autouse=True)
-def patch_events_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "prefect.server.models.work_queues.PrefectServerEventsClient",
-        AssertingEventsClient,
-    )
 
 
 @pytest.fixture
@@ -67,17 +55,6 @@ async def invalid_work_pool(session):
     )
     await session.commit()
     return work_pool
-
-
-def assert_status_events(resource_name: str, events: List[str]):
-    found_events = [
-        event for item in AssertingEventsClient.all for event in item.events
-    ]
-    assert len(events) == len(found_events)
-
-    for i, event in enumerate(events):
-        assert event == found_events[i].event
-        assert found_events[i].resource.name == resource_name
 
 
 class TestCreateWorkPool:
@@ -652,31 +629,6 @@ class TestReadWorkQueue:
 
 
 class TestUpdateWorkQueue:
-    @pytest.fixture
-    async def paused_work_queue(self, session: AsyncSession):
-        work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.actions.WorkQueueCreate(
-                name="wq-xyz", description="All about my work queue"
-            ),
-        )
-        work_queue.status = WorkQueueStatus.PAUSED
-        await session.commit()
-        return work_queue
-
-    @pytest.fixture
-    async def ready_work_queue(self, session: AsyncSession):
-        work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.actions.WorkQueueCreate(
-                name="wq-zzz", description="All about my work queue"
-            ),
-        )
-
-        work_queue.status = WorkQueueStatus.READY
-        await session.commit()
-        return work_queue
-
     async def test_update_work_queue(self, client, work_pool):
         # Create work pool queue
         create_response = await client.post(
@@ -707,343 +659,6 @@ class TestUpdateWorkQueue:
         assert result.name == "updated-test-queue"
         assert result.description == "updated test queue"
         assert result.is_paused
-
-    async def test_update_work_queue_to_paused(
-        self,
-        client,
-        work_queue_1,
-        work_pool,
-    ):
-        assert work_queue_1.is_paused is False
-        assert work_queue_1.concurrency_limit is None
-        assert work_queue_1.status == "NOT_READY"
-
-        new_data = schemas.actions.WorkQueueUpdate(
-            is_paused=True, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=new_data,
-        )
-
-        assert response.status_code == 204
-
-        response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-
-        assert response.json()["is_paused"] is True
-        assert response.json()["concurrency_limit"] == 3
-        assert response.json()["status"] == "PAUSED"
-
-        assert_status_events(work_queue_1.name, ["prefect.work-queue.paused"])
-
-    async def test_update_work_queue_to_paused_sets_paused_status(
-        self,
-        client,
-        work_queue_1,
-        work_pool,
-    ):
-        assert work_queue_1.status == "NOT_READY"
-
-        new_data = schemas.actions.WorkQueueUpdate(
-            is_paused=True, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=new_data,
-        )
-
-        assert response.status_code == 204
-
-        response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-
-        assert response.json()["is_paused"] is True
-        assert response.json()["concurrency_limit"] == 3
-
-        work_queue_response = await client.get(
-            f"/work_queues/{work_queue_1.id}",
-        )
-
-        assert work_queue_response.status_code == 200
-        assert work_queue_response.json()["status"] == "PAUSED"
-
-        assert_status_events(work_queue_1.name, ["prefect.work-queue.paused"])
-
-    async def test_update_work_queue_to_paused_when_already_paused_does_not_emit_event(
-        self,
-        client,
-        paused_work_queue,
-    ):
-        assert paused_work_queue.status == "PAUSED"
-
-        new_data = schemas.actions.WorkQueueUpdate(
-            is_paused=True,
-            concurrency_limit=3,  # type: ignore
-        ).dict(json_compatible=True, exclude_unset=True)
-        work_queue_response = await client.patch(
-            f"/work_queues/{paused_work_queue.id}",
-            json=new_data,
-        )
-
-        assert work_queue_response.status_code == 204
-
-        work_queue_response = await client.get(f"/work_queues/{paused_work_queue.id}")
-
-        assert work_queue_response.json()["is_paused"] is True
-        assert work_queue_response.json()["concurrency_limit"] == 3
-        assert work_queue_response.status_code == 200
-        assert work_queue_response.json()["status"] == "PAUSED"
-
-        # ensure no events emitted for already paused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
-
-    async def test_update_work_queue_to_unpaused_when_already_unpaused_does_not_emit_event(
-        self,
-        client,
-        ready_work_queue,
-    ):
-        assert ready_work_queue.status == "READY"
-
-        new_data = schemas.actions.WorkQueueUpdate(
-            is_paused=False,
-            concurrency_limit=3,  # type: ignore
-        ).dict(json_compatible=True, exclude_unset=True)
-        work_queue_response = await client.patch(
-            f"/work_queues/{ready_work_queue.id}",
-            json=new_data,
-        )
-
-        assert work_queue_response.status_code == 204
-
-        work_queue_response = await client.get(f"/work_queues/{ready_work_queue.id}")
-
-        assert work_queue_response.json()["is_paused"] is False
-        assert work_queue_response.json()["concurrency_limit"] == 3
-        assert work_queue_response.status_code == 200
-        assert work_queue_response.json()["status"] == "READY"
-
-        # ensure no events emitted for already unpaused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
-
-    async def test_update_work_queue_to_unpaused_with_no_last_polled_sets_not_ready_status(
-        self,
-        client,
-        work_queue_1,
-        work_pool,
-    ):
-        # first, pause the work pool queue with no last_polled
-        pause_data = schemas.actions.WorkQueueUpdate(is_paused=True).dict(  # type: ignore
-            json_compatible=True, exclude_unset=True
-        )
-
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=pause_data,
-        )
-        assert response.status_code == 204
-        response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-        paused_work_queue_response = response.json()
-        assert paused_work_queue_response["status"] == "PAUSED"
-        assert paused_work_queue_response["is_paused"] is True
-        assert paused_work_queue_response["last_polled"] is None
-
-        AssertingEventsClient.assert_emitted_event_with(
-            event="prefect.work-queue.paused",
-            resource={
-                "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
-                "prefect.resource.name": work_queue_1.name,
-            },
-            related=[
-                {
-                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-                    "prefect.resource.name": work_pool.name,
-                    "prefect.work-pool.type": work_pool.type,
-                    "prefect.resource.role": "work-pool",
-                }
-            ],
-        )
-
-        # now unpause the work pool queue with no last_polled
-        unpause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
-            is_paused=False, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=unpause_data,
-        )
-        assert response.status_code == 204
-        unpaused_data_response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-        assert unpaused_data_response.json()["is_paused"] is False
-        assert unpaused_data_response.json()["concurrency_limit"] == 3
-        assert unpaused_data_response.json()["status"] == "NOT_READY"
-        assert unpaused_data_response.json()["last_polled"] is None
-
-        AssertingEventsClient.assert_emitted_event_with(
-            event="prefect.work-queue.not-ready",
-            resource={
-                "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
-                "prefect.resource.name": work_queue_1.name,
-            },
-            related=[
-                {
-                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-                    "prefect.resource.name": work_pool.name,
-                    "prefect.work-pool.type": work_pool.type,
-                    "prefect.resource.role": "work-pool",
-                }
-            ],
-        )
-
-    async def test_update_work_queue_to_unpaused_with_expired_last_polled_sets_not_ready_status(
-        self,
-        client,
-        work_queue_1,
-        work_pool,
-    ):
-        # first, pause the work pool queue with a expired last_polled
-        pause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
-            last_polled=pendulum.now("UTC") - timedelta(minutes=2), is_paused=True
-        ).dict(json_compatible=True, exclude_unset=True)
-
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=pause_data,
-        )
-        assert response.status_code == 204
-        response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-        paused_work_queue_response = response.json()
-        assert paused_work_queue_response["status"] == "PAUSED"
-        assert paused_work_queue_response["is_paused"] is True
-        assert paused_work_queue_response["last_polled"] is not None
-
-        AssertingEventsClient.assert_emitted_event_with(
-            event="prefect.work-queue.paused",
-            resource={
-                "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
-                "prefect.resource.name": work_queue_1.name,
-            },
-            related=[
-                {
-                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-                    "prefect.resource.name": work_pool.name,
-                    "prefect.work-pool.type": work_pool.type,
-                    "prefect.resource.role": "work-pool",
-                }
-            ],
-        )
-
-        # now unpause the work pool queue with expired last_polled
-        unpause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
-            is_paused=False, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=unpause_data,
-        )
-        assert response.status_code == 204
-        unpaused_data_response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-        assert unpaused_data_response.json()["is_paused"] is False
-        assert unpaused_data_response.json()["concurrency_limit"] == 3
-        assert unpaused_data_response.json()["status"] == "NOT_READY"
-
-        AssertingEventsClient.assert_emitted_event_with(
-            event="prefect.work-queue.not-ready",
-            resource={
-                "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
-                "prefect.resource.name": work_queue_1.name,
-            },
-            related=[
-                {
-                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-                    "prefect.resource.name": work_pool.name,
-                    "prefect.work-pool.type": work_pool.type,
-                    "prefect.resource.role": "work-pool",
-                }
-            ],
-        )
-
-    async def test_update_work_queue_to_unpaused_with_recent_last_polled_sets_ready_status(
-        self,
-        client,
-        work_queue_1,
-        work_pool,
-    ):
-        # first, pause the work pool queue with a recent last_polled
-        pause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
-            last_polled=pendulum.now("UTC"), is_paused=True
-        ).dict(json_compatible=True, exclude_unset=True)
-
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=pause_data,
-        )
-        assert response.status_code == 204
-        response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-        paused_work_queue_response = response.json()
-        assert paused_work_queue_response["status"] == "PAUSED"
-        assert paused_work_queue_response["last_polled"] is not None
-        assert paused_work_queue_response["is_paused"] is True
-
-        AssertingEventsClient.assert_emitted_event_with(
-            event="prefect.work-queue.paused",
-            resource={
-                "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
-                "prefect.resource.name": work_queue_1.name,
-            },
-            related=[
-                {
-                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-                    "prefect.resource.name": work_pool.name,
-                    "prefect.work-pool.type": work_pool.type,
-                    "prefect.resource.role": "work-pool",
-                }
-            ],
-        )
-
-        # now unpause a recently polled work pool queue
-        unpause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
-            is_paused=False, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
-        response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-            json=unpause_data,
-        )
-        assert response.status_code == 204
-        unpaused_data_response = await client.get(
-            f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
-        )
-        assert unpaused_data_response.json()["is_paused"] is False
-        assert unpaused_data_response.json()["concurrency_limit"] == 3
-        assert unpaused_data_response.json()["status"] == "READY"
-
-        AssertingEventsClient.assert_emitted_event_with(
-            event="prefect.work-queue.ready",
-            resource={
-                "prefect.resource.id": f"prefect.work-queue.{work_queue_1.id}",
-                "prefect.resource.name": work_queue_1.name,
-            },
-            related=[
-                {
-                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-                    "prefect.resource.name": work_pool.name,
-                    "prefect.work-pool.type": work_pool.type,
-                    "prefect.resource.role": "work-pool",
-                }
-            ],
-        )
 
 
 class TestWorkPoolStatus:

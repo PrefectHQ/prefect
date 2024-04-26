@@ -300,15 +300,12 @@ class TestGetRunsInWorkQueue:
     async def test_get_runs_in_queue(
         self, session, work_queue, work_queue_2, scheduled_flow_runs, running_flow_runs
     ):
-        queue1, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session, work_queue_id=work_queue.id
         )
-        queue2, runs_wq2 = await models.work_queues.get_runs_in_work_queue(
+        runs_wq2 = await models.work_queues.get_runs_in_work_queue(
             session=session, work_queue_id=work_queue_2.id
         )
-
-        assert queue1.id == work_queue.id
-        assert queue2.id == work_queue_2.id
 
         assert len(runs_wq1) == len(runs_wq2) == 3
         assert all(r.work_queue_name == work_queue.name for r in runs_wq1)
@@ -324,7 +321,7 @@ class TestGetRunsInWorkQueue:
         running_flow_runs,
         limit,
     ):
-        _, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session, work_queue_id=work_queue.id, limit=limit
         )
         assert len(runs_wq1) == limit
@@ -332,7 +329,7 @@ class TestGetRunsInWorkQueue:
     async def test_get_runs_in_queue_scheduled_before(
         self, session, work_queue, scheduled_flow_runs, running_flow_runs
     ):
-        _, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
             scheduled_before=pendulum.now("UTC"),
@@ -356,7 +353,7 @@ class TestGetRunsInWorkQueue:
             work_queue=schemas.actions.WorkQueueUpdate(is_paused=True),
         )
 
-        _, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session, work_queue_id=work_queue.id
         )
         assert runs_wq1 == []
@@ -378,7 +375,7 @@ class TestGetRunsInWorkQueue:
             ),
         )
 
-        _, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session, work_queue_id=work_queue.id
         )
 
@@ -405,7 +402,7 @@ class TestGetRunsInWorkQueue:
             ),
         )
 
-        _, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session, work_queue_id=work_queue.id, limit=limit
         )
 

@@ -353,39 +353,3 @@ async def deployment_status_event(
         related=related_work_queue_and_pool_info,
         id=uuid4(),
     )
-
-
-async def work_queue_status_event(
-    session: AsyncSession,
-    work_queue: "ORMWorkQueue",
-    occurred: pendulum.DateTime,
-) -> Event:
-    related_work_pool_info: List[Dict[str, Any]] = []
-
-    if work_queue.work_pool_id:
-        work_pool = await models.workers.read_work_pool(
-            session=session,
-            work_pool_id=work_queue.work_pool_id,
-        )
-
-        if work_pool and work_pool.id and work_pool.name:
-            related_work_pool_info.append(
-                {
-                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
-                    "prefect.resource.name": work_pool.name,
-                    "prefect.work-pool.type": work_pool.type,
-                    "prefect.resource.role": "work-pool",
-                }
-            )
-
-    return Event(
-        occurred=occurred,
-        event=f"prefect.work-queue.{work_queue.status.in_kebab_case()}",
-        resource={
-            "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
-            "prefect.resource.name": work_queue.name,
-            "prefect.resource.role": "work-queue",
-        },
-        related=related_work_pool_info,
-        id=uuid4(),
-    )

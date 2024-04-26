@@ -516,7 +516,7 @@ Any type of trigger may be composed into higher-order composite triggers, includ
     {
       "type": "event",
       "posture": "Reactive",
-      "expect": ["prefect.work-pool.not-ready"],
+      "expect": ["prefect.work-pool.not_ready"],
       "match": {
         "prefect.resource.name": "kubernetes-workers",
       }
@@ -611,7 +611,7 @@ For creating deployments with triggers in Python, the trigger types `DeploymentE
 
 ```python
 from prefect import flow
-from prefect.events import DeploymentEventTrigger
+from prefect.events import DeploymentEventTrigger 
 
 
 @flow(log_prints=True)
