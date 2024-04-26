@@ -359,12 +359,17 @@ def resume_automation() -> Generator[mock.AsyncMock, None, None]:
 
 
 def test_resuming_by_name(
-    resume_automation: mock.AsyncMock, various_automations: List[Automation]
+    resume_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "resume", "My First Reactive"],
         expected_code=0,
-        expected_output_contains=["Resumed automation 'My First Reactive'"],
+        expected_output_contains=[
+            "Resumed automation(s) with name 'My First Reactive' and id(s) 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
     )
 
     resume_automation.assert_awaited_once_with(
@@ -372,13 +377,50 @@ def test_resuming_by_name(
     )
 
 
-def test_resuming_not_found(
-    resume_automation: mock.AsyncMock, various_automations: List[Automation]
+def test_resuming_by_name_not_found(
+    resume_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "resume", "Wha?"],
         expected_code=1,
-        expected_output_contains=["Automation 'Wha?' not found"],
+        expected_output_contains=["Automation with name 'Wha?' not found"],
+    )
+
+    resume_automation.assert_not_awaited()
+
+
+def test_resuming_by_id(
+    resume_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = various_automations[0]
+    invoke_and_assert(
+        ["automations", "resume", "--id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+        expected_code=0,
+        expected_output_contains=[
+            "Resumed automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
+    )
+
+    resume_automation.assert_awaited_once_with(
+        mock.ANY, UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    )
+
+
+def test_resuming_by_id_not_found(
+    resume_automation: mock.AsyncMock, read_automation: mock.AsyncMock
+):
+    read_automation.return_value = None
+    invoke_and_assert(
+        ["automations", "resume", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
+        ],
     )
 
     resume_automation.assert_not_awaited()
