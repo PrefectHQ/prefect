@@ -2,6 +2,8 @@ name: Verify prefect-client build
 
 on:
   pull_request:
+    branches:
+      - main
     paths:
       - "**/*.py"
       - requirements.txt
@@ -10,6 +12,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "**/*.py"
+      - requirements.txt
+      - requirements-client.txt
+      - setup.cfg
   workflow_call:
     inputs:
       upload-artifacts:
