@@ -71,7 +71,7 @@ class LabelDiver:
             raise AttributeError
 
 
-class Labelled(PrefectBaseModel, extra="ignore"):
+class Labelled(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg]
     """An object defined by string labels and values"""
 
     __root__: Dict[str, str]
