@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from google.cloud.aiplatform.gapic import JobServiceClient
 from prefect_gcp import GcpCredentials
-from prefect_gcp.credentials import ClientType
+from prefect_gcp.credentials import ClientType, _get_job_service_client_cached
 
 from prefect import flow, task
 from prefect.blocks.core import Block
@@ -155,6 +155,31 @@ def test_get_job_service_client(service_account_info, oauth2_credentials):
         assert isinstance(client, JobServiceClient)
 
     test_flow()
+
+
+def test_get_job_service_client_cached(service_account_info, oauth2_credentials):
+    """
+    Test to ensure that _get_job_service_client_cached function returns the same instance
+    for multiple calls with the same parameters and properly utilizes lru_cache.
+    """
+    _get_job_service_client_cached.cache_clear()
+
+    project = "test_project"
+    credentials = GcpCredentials(
+        service_account_info=service_account_info,
+        project=project,
+    )
+
+    assert (
+        _get_job_service_client_cached.cache_info().hits == 0
+    ), "Initial call count should be 0"
+
+    credentials.get_job_service_client(client_options={})
+    credentials.get_job_service_client(client_options={})
+    credentials.get_job_service_client(client_options={})
+
+    assert _get_job_service_client_cached.cache_info().misses == 1
+    assert _get_job_service_client_cached.cache_info().hits == 2
 
 
 class MockTargetConfigs(Block):

@@ -4,6 +4,7 @@ import functools
 import json
 from enum import Enum
 from pathlib import Path
+from threading import Lock
 from typing import Any, Dict, Optional, Union
 
 import google.auth
@@ -39,6 +40,13 @@ try:
     from google.cloud.aiplatform.gapic import JobServiceClient
 except ModuleNotFoundError:
     pass
+
+try:
+    from google.api_core.client_options import ClientOptions, from_dict
+except ModuleNotFoundError:
+    pass
+
+_LOCK = Lock()
 
 
 def _raise_help_msg(key: str):
@@ -79,6 +87,23 @@ class ClientType(Enum):
     AIPLATFORM = "job_service"  # vertex ai
 
 
+@functools.lru_cache(maxsize=8, typed=True)
+def _get_job_service_client_cached(ctx, client_options: tuple) -> JobServiceClient:
+    """
+    Gets an authenticated Job Service client for Vertex AI.
+
+    Returns:
+        An authenticated Job Service client.
+    """
+    with _LOCK:
+        client_options = dict(client_options)
+        credentials = ctx.get_credentials_from_service_account()
+        job_service_client = JobServiceClient(
+            credentials=credentials, client_options=client_options
+        )
+    return job_service_client
+
+
 class GcpCredentials(CredentialsBlock):
     """
     Block used to manage authentication with GCP. Google authentication is
@@ -116,6 +141,16 @@ class GcpCredentials(CredentialsBlock):
     )
 
     _service_account_email: Optional[str] = None
+
+    def __hash__(self):
+        return hash(
+            (
+                hash(self.service_account_file),
+                hash(frozenset(self.service_account_info.dict().items())),
+                hash(self.project),
+                hash(self._service_account_email),
+            )
+        )
 
     @root_validator
     def _provide_one_service_account_source(cls, values):
@@ -412,7 +447,7 @@ class GcpCredentials(CredentialsBlock):
 
     @_raise_help_msg("aiplatform")
     def get_job_service_client(
-        self, client_options: Dict[str, Any] = None
+        self, client_options: Union[Dict[str, Any], ClientOptions] = None
     ) -> "JobServiceClient":
         """
         Gets an authenticated Job Service client for Vertex AI.
@@ -462,8 +497,9 @@ class GcpCredentials(CredentialsBlock):
             example_get_client_flow()
             ```
         """
-        credentials = self.get_credentials_from_service_account()
-        job_service_client = JobServiceClient(
-            credentials=credentials, client_options=client_options
+        if isinstance(client_options, dict):
+            client_options = from_dict(client_options)
+
+        return _get_job_service_client_cached(
+            self, tuple(client_options.__dict__.items())
         )
-        return job_service_client

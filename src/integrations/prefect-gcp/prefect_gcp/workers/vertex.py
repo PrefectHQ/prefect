@@ -409,35 +409,42 @@ class VertexAIWorker(BaseWorker):
         job_name = configuration.job_name
 
         job_spec = self._build_job_spec(configuration)
-        with configuration.credentials.get_job_service_client(
+        job_service_client = configuration.credentials.get_job_service_client(
             client_options=client_options
-        ) as job_service_client:
-            job_run = await self._create_and_begin_job(
-                job_name, job_spec, job_service_client, configuration, logger
-            )
+        )
 
-            if task_status:
-                task_status.started(job_run.name)
+        job_run = await run_sync_in_worker_thread(
+            self._create_and_begin_job,
+            job_name,
+            job_spec,
+            job_service_client,
+            configuration,
+            logger,
+        )
 
-            final_job_run = await self._watch_job_run(
-                job_name=job_name,
-                full_job_name=job_run.name,
-                job_service_client=job_service_client,
-                current_state=job_run.state,
-                until_states=(
-                    JobState.JOB_STATE_SUCCEEDED,
-                    JobState.JOB_STATE_FAILED,
-                    JobState.JOB_STATE_CANCELLED,
-                    JobState.JOB_STATE_EXPIRED,
-                ),
-                configuration=configuration,
-                logger=logger,
-                timeout=int(
-                    datetime.timedelta(
-                        hours=configuration.job_spec["maximum_run_time_hours"]
-                    ).total_seconds()
-                ),
-            )
+        if task_status:
+            task_status.started(job_run.name)
+
+        final_job_run = await run_sync_in_worker_thread(
+            self._watch_job_run,
+            job_name=job_name,
+            full_job_name=job_run.name,
+            job_service_client=job_service_client,
+            current_state=job_run.state,
+            until_states=(
+                JobState.JOB_STATE_SUCCEEDED,
+                JobState.JOB_STATE_FAILED,
+                JobState.JOB_STATE_CANCELLED,
+                JobState.JOB_STATE_EXPIRED,
+            ),
+            configuration=configuration,
+            logger=logger,
+            timeout=int(
+                datetime.timedelta(
+                    hours=configuration.job_spec["maximum_run_time_hours"]
+                ).total_seconds()
+            ),
+        )
 
         error_msg = final_job_run.error.message
 
@@ -485,7 +492,7 @@ class VertexAIWorker(BaseWorker):
         )
         return job_spec
 
-    async def _create_and_begin_job(
+    def _create_and_begin_job(
         self,
         job_name: str,
         job_spec: "CustomJobSpec",
@@ -504,7 +511,7 @@ class VertexAIWorker(BaseWorker):
         )
 
         # run job
-        logger.info(f"Job {job_name!r} starting to run ")
+        logger.info(f"Creating job {job_name!r}")
 
         project = configuration.project
         resource_name = f"projects/{project}/locations/{configuration.region}"
@@ -513,20 +520,22 @@ class VertexAIWorker(BaseWorker):
             stop=stop_after_attempt(3), wait=wait_fixed(1) + wait_random(0, 3)
         )
 
-        custom_job_run = await run_sync_in_worker_thread(
-            retry_policy(job_service_client.create_custom_job),
+        create_custom_job_with_retries = retry_policy(
+            job_service_client.create_custom_job
+        )
+        custom_job_run = create_custom_job_with_retries(
             parent=resource_name,
             custom_job=custom_job,
         )
 
         logger.info(
-            f"Job {job_name!r} has successfully started; "
-            f"the full job name is {custom_job_run.name!r}"
+            f"Job {job_name!r} created. "
+            f"The full job name is {custom_job_run.name!r}"
         )
 
         return custom_job_run
 
-    async def _watch_job_run(
+    def _watch_job_run(
         self,
         job_name: str,
         full_job_name: str,  # different from job_name
@@ -539,14 +548,19 @@ class VertexAIWorker(BaseWorker):
     ) -> "CustomJob":
         """
         Polls job run to see if status changed.
+
+        State changes reported by the Vertex AI API may sometimes be inaccurate
+        immediately upon startup, but should eventually report a correct running
+        and then terminal state. The minimum training duration for a custom job is
+        30 seconds, so short-lived jobs may be marked as successful some time
+        after a flow run has completed.
         """
         state = JobState.JOB_STATE_UNSPECIFIED
         last_state = current_state
         t0 = time.time()
 
         while state not in until_states:
-            job_run = await run_sync_in_worker_thread(
-                job_service_client.get_custom_job,
+            job_run = job_service_client.get_custom_job(
                 name=full_job_name,
             )
             state = job_run.state
@@ -557,7 +571,7 @@ class VertexAIWorker(BaseWorker):
                     .replace("state", "state is now:")
                 )
                 # results in "New job state is now: succeeded"
-                logger.info(f"{job_name} has new {state_label}")
+                logger.debug(f"{job_name} has new {state_label}")
                 last_state = state
             else:
                 # Intermittently, the job will not be described. We want to respect the
@@ -621,14 +635,14 @@ class VertexAIWorker(BaseWorker):
         client_options = ClientOptions(
             api_endpoint=f"{configuration.region}-aiplatform.googleapis.com"
         )
-        with configuration.credentials.get_job_service_client(
+        job_service_client = configuration.credentials.get_job_service_client(
             client_options=client_options
-        ) as job_service_client:
-            await run_sync_in_worker_thread(
-                self._stop_job,
-                client=job_service_client,
-                vertex_job_name=infrastructure_pid,
-            )
+        )
+        await run_sync_in_worker_thread(
+            self._stop_job,
+            client=job_service_client,
+            vertex_job_name=infrastructure_pid,
+        )
 
     def _stop_job(self, client: "JobServiceClient", vertex_job_name: str):
         """

@@ -383,7 +383,7 @@ class VertexAICustomTrainingJob(Infrastructure):
         )
         return job_spec
 
-    async def _create_and_begin_job(
+    def _create_and_begin_job(
         self, job_spec: "CustomJobSpec", job_service_client: "JobServiceClient"
     ) -> "CustomJob":
         """
@@ -398,8 +398,8 @@ class VertexAICustomTrainingJob(Infrastructure):
 
         # run job
         self.logger.info(
-            f"{self._log_prefix}: Job {self.job_name!r} starting to run "
-            f"the command {' '.join(self.command)!r} in region "
+            f"{self._log_prefix}: Creating job {self.job_name!r} "
+            f"with command {' '.join(self.command)!r} in region "
             f"{self.region!r} using image {self.image!r}"
         )
 
@@ -410,20 +410,22 @@ class VertexAICustomTrainingJob(Infrastructure):
             stop=stop_after_attempt(3), wait=wait_fixed(1) + wait_random(0, 3)
         )
 
-        custom_job_run = await run_sync_in_worker_thread(
-            retry_policy(job_service_client.create_custom_job),
+        create_custom_job_with_retries = retry_policy(
+            job_service_client.create_custom_job
+        )
+        custom_job_run = create_custom_job_with_retries(
             parent=resource_name,
             custom_job=custom_job,
         )
 
         self.logger.info(
-            f"{self._log_prefix}: Job {self.job_name!r} has successfully started; "
-            f"the full job name is {custom_job_run.name!r}"
+            f"{self._log_prefix}: Job {self.job_name!r} created. "
+            f"The full job name is {custom_job_run.name!r}"
         )
 
         return custom_job_run
 
-    async def _watch_job_run(
+    def _watch_job_run(
         self,
         full_job_name: str,  # different from self.job_name
         job_service_client: "JobServiceClient",
@@ -433,14 +435,19 @@ class VertexAICustomTrainingJob(Infrastructure):
     ) -> "CustomJob":
         """
         Polls job run to see if status changed.
+
+        State changes reported by the Vertex AI API may sometimes be inaccurate
+        immediately upon startup, but should eventually report a correct running
+        and then terminal state. The minimum training duration for a custom job is
+        30 seconds, so short-lived jobs may be marked as successful some time
+        after a flow run has completed.
         """
         state = JobState.JOB_STATE_UNSPECIFIED
         last_state = current_state
         t0 = time.time()
 
         while state not in until_states:
-            job_run = await run_sync_in_worker_thread(
-                job_service_client.get_custom_job,
+            job_run = job_service_client.get_custom_job(
                 name=full_job_name,
             )
             state = job_run.state
@@ -451,7 +458,7 @@ class VertexAICustomTrainingJob(Infrastructure):
                     .replace("state", "state is now:")
                 )
                 # results in "New job state is now: succeeded"
-                self.logger.info(
+                self.logger.debug(
                     f"{self._log_prefix}: {self.job_name} has new {state_label}"
                 )
                 last_state = state
@@ -488,26 +495,31 @@ class VertexAICustomTrainingJob(Infrastructure):
         )
 
         job_spec = self._build_job_spec()
-        with self.gcp_credentials.get_job_service_client(
+        job_service_client = self.gcp_credentials.get_job_service_client(
             client_options=client_options
-        ) as job_service_client:
-            job_run = await self._create_and_begin_job(job_spec, job_service_client)
+        )
+        job_run = await run_sync_in_worker_thread(
+            self._create_and_begin_job,
+            job_spec,
+            job_service_client,
+        )
 
-            if task_status:
-                task_status.started(self.job_name)
+        if task_status:
+            task_status.started(self.job_name)
 
-            final_job_run = await self._watch_job_run(
-                full_job_name=job_run.name,
-                job_service_client=job_service_client,
-                current_state=job_run.state,
-                until_states=(
-                    JobState.JOB_STATE_SUCCEEDED,
-                    JobState.JOB_STATE_FAILED,
-                    JobState.JOB_STATE_CANCELLED,
-                    JobState.JOB_STATE_EXPIRED,
-                ),
-                timeout=self.maximum_run_time.total_seconds(),
-            )
+        final_job_run = await run_sync_in_worker_thread(
+            self._watch_job_run,
+            full_job_name=job_run.name,
+            job_service_client=job_service_client,
+            current_state=job_run.state,
+            until_states=(
+                JobState.JOB_STATE_SUCCEEDED,
+                JobState.JOB_STATE_FAILED,
+                JobState.JOB_STATE_CANCELLED,
+                JobState.JOB_STATE_EXPIRED,
+            ),
+            timeout=self.maximum_run_time.total_seconds(),
+        )
 
         error_msg = final_job_run.error.message
         if error_msg:
@@ -534,15 +546,15 @@ class VertexAICustomTrainingJob(Infrastructure):
         client_options = ClientOptions(
             api_endpoint=f"{self.region}-aiplatform.googleapis.com"
         )
-        with self.gcp_credentials.get_job_service_client(
+        job_service_client = self.gcp_credentials.get_job_service_client(
             client_options=client_options
-        ) as job_service_client:
-            await run_sync_in_worker_thread(
-                self._kill_job,
-                job_service_client=job_service_client,
-                full_job_name=identifier,
-            )
-            self.logger.info(f"Requested to cancel {identifier}...")
+        )
+        await run_sync_in_worker_thread(
+            self._kill_job,
+            job_service_client=job_service_client,
+            full_job_name=identifier,
+        )
+        self.logger.info(f"Requested to cancel {identifier}...")
 
     def _kill_job(
         self, job_service_client: "JobServiceClient", full_job_name: str
