@@ -8,7 +8,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import ParameterTypeError
 from prefect.new_flow_engine import FlowRunEngine, run_flow, run_flow_sync
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
@@ -161,6 +161,7 @@ class TestFlowRuns:
 
         @task
         def task_2():
+            tracker["task_2"] = TaskRunContext.get().task_run.id
             flow_3()
 
         @flow
@@ -175,7 +176,7 @@ class TestFlowRuns:
         l3_dummy = await prefect_client.read_task_run(l3.parent_task_run_id)
 
         # assert the parent of the dummy task is task 2
-        assert l3_dummy.task_inputs["__parents__"].id == tracker["task_2"]
+        assert l3_dummy.task_inputs["__parents__"][0].id == tracker["task_2"]
 
 
 class TestFlowRunsSync:
