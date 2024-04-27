@@ -447,7 +447,7 @@ class TaskRunEngine(Generic[P, R]):
         return getattr(self, "task_run").state.is_pending()
 
 
-async def run_task(
+async def run_async_task(
     task: Task[P, Coroutine[Any, Any, R]],
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
@@ -484,7 +484,7 @@ async def run_task(
         return await run.result()
 
 
-def run_task_sync(
+def run_sync_task(
     task: Task[P, Coroutine[Any, Any, R]],
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
@@ -516,7 +516,7 @@ def run_task_sync(
         return run_sync(run.result())
 
 
-async def run_task_generator(
+async def run_async_generator_task(
     task: Task[P, Coroutine[Any, Any, R]],
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
@@ -559,7 +559,7 @@ async def run_task_generator(
         await run.result()
 
 
-def run_task_sync_generator(
+def run_sync_generator_task(
     task: Task[P, Coroutine[Any, Any, R]],
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
@@ -606,3 +606,30 @@ def run_task_sync_generator(
         if return_type == "state":
             return run.state
         return run_sync(run.result())
+
+
+def run_task(
+    task: Task[P, Coroutine[Any, Any, R]],
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> Union[R, State, None]:
+    """
+    Runs a task by choosing the appropriate handler based on the task's function type.
+    """
+    kwargs = dict(
+        task=task,
+        task_run=task_run,
+        parameters=parameters,
+        wait_for=wait_for,
+        return_type=return_type,
+    )
+    if inspect.isasyncgenfunction(task.fn):
+        return run_async_generator_task(**kwargs)
+    elif inspect.isgeneratorfunction(task.fn):
+        return run_sync_generator_task(**kwargs)
+    elif inspect.iscoroutinefunction(task.fn):
+        return run_async_task(**kwargs)
+    else:
+        return run_sync_task(**kwargs)

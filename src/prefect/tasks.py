@@ -588,28 +588,14 @@ class Task(Generic[P, R]):
 
         # new engine currently only compatible with async tasks
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import (
-                run_task,
-                run_task_generator,
-                run_task_sync,
-                run_task_sync_generator,
-            )
+            from prefect.new_task_engine import run_task
 
-            run_kwargs = dict(
+            return run_task(
                 task=self,
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
             )
-            if self.isasync:
-                if inspect.isasyncgenfunction(self.fn):
-                    return run_task_generator(**run_kwargs)
-                else:
-                    return run_task(**run_kwargs)
-            elif inspect.isgeneratorfunction(self.fn):
-                return run_task_sync_generator(**run_kwargs)
-            else:
-                return run_task_sync(**run_kwargs)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()

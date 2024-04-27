@@ -333,13 +333,13 @@ class FlowRunEngine(Generic[P, R]):
         return getattr(self, "flow_run").state.is_pending()
 
 
-async def run_flow(
+async def run_async_flow(
     flow: Task[P, Coroutine[Any, Any, R]],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, None]:
+) -> Union[R, State, None]:
     """
     Runs a flow against the API.
 
@@ -368,13 +368,13 @@ async def run_flow(
         return await run.result()
 
 
-def run_flow_sync(
+def run_sync_flow(
     flow: Task[P, Coroutine[Any, Any, R]],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, None]:
+) -> Union[R, State, None]:
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
     # This is a context manager that keeps track of the state of the flow run.
     with engine.start_sync() as run:
@@ -395,3 +395,23 @@ def run_flow_sync(
         if return_type == "state":
             return run.state
         return run_sync(run.result())
+
+
+def run_flow(
+    flow: Task[P, Coroutine[Any, Any, R]],
+    flow_run: Optional[FlowRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> Union[R, State, None]:
+    kwargs = dict(
+        flow=flow,
+        flow_run=flow_run,
+        parameters=parameters,
+        wait_for=wait_for,
+        return_type=return_type,
+    )
+    if inspect.iscoroutinefunction(flow.fn):
+        return run_async_flow(**kwargs)
+    else:
+        return run_sync_flow(**kwargs)

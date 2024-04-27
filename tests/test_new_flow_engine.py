@@ -10,7 +10,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import ParameterTypeError
-from prefect.new_flow_engine import FlowRunEngine, run_flow, run_flow_sync
+from prefect.new_flow_engine import FlowRunEngine, run_async_flow, run_sync_flow
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
 
@@ -58,7 +58,7 @@ class TestFlowRuns:
         async def foo():
             return 42
 
-        result = await run_flow(foo)
+        result = await run_async_flow(foo)
 
         assert result == 42
 
@@ -68,7 +68,7 @@ class TestFlowRuns:
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
-        result = await run_flow(bar, parameters=parameters)
+        result = await run_async_flow(bar, parameters=parameters)
 
         assert result == (42, "nate")
 
@@ -78,7 +78,7 @@ class TestFlowRuns:
             return x
 
         parameters = get_call_parameters(bar.fn, tuple(), dict(x="42"))
-        result = await run_flow(bar, parameters=parameters)
+        result = await run_async_flow(bar, parameters=parameters)
 
         assert result == 42
 
@@ -88,7 +88,7 @@ class TestFlowRuns:
             return x
 
         parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
-        state = await run_flow(bar, parameters=parameters, return_type="state")
+        state = await run_async_flow(bar, parameters=parameters, return_type="state")
 
         assert state.is_failed()
         with pytest.raises(
@@ -101,7 +101,7 @@ class TestFlowRuns:
         async def foo(x):
             return FlowRunContext.get().flow_run.id
 
-        result = await run_flow(foo, parameters=dict(x="blue"))
+        result = await run_async_flow(foo, parameters=dict(x="blue"))
         run = await prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
@@ -113,7 +113,7 @@ class TestFlowRuns:
         async def my_log_flow():
             get_run_logger().critical("hey yall")
 
-        result = await run_flow(my_log_flow)
+        result = await run_async_flow(my_log_flow)
 
         assert result is None
         record = caplog.records[0]
@@ -129,7 +129,7 @@ class TestFlowRuns:
         async def foo():
             return FlowRunContext.get().flow_run.id
 
-        result = await run_flow(foo)
+        result = await run_async_flow(foo)
         run = await prefect_client.read_flow_run(result)
 
         assert run.state_type == StateType.COMPLETED
@@ -144,7 +144,7 @@ class TestFlowRuns:
             raise ValueError("xyz")
 
         with pytest.raises(ValueError, match="xyz"):
-            await run_flow(foo)
+            await run_async_flow(foo)
 
         run = await prefect_client.read_flow_run(ID)
 
@@ -185,7 +185,7 @@ class TestFlowRunsSync:
         def foo():
             return 42
 
-        result = run_flow_sync(foo)
+        result = run_sync_flow(foo)
 
         assert result == 42
 
@@ -195,7 +195,7 @@ class TestFlowRunsSync:
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
-        result = run_flow_sync(bar, parameters=parameters)
+        result = run_sync_flow(bar, parameters=parameters)
 
         assert result == (42, "nate")
 
@@ -205,7 +205,7 @@ class TestFlowRunsSync:
             return x
 
         parameters = get_call_parameters(bar.fn, tuple(), dict(x="42"))
-        result = run_flow_sync(bar, parameters=parameters)
+        result = run_sync_flow(bar, parameters=parameters)
 
         assert result == 42
 
@@ -215,7 +215,7 @@ class TestFlowRunsSync:
             return x
 
         parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
-        state = run_flow_sync(bar, parameters=parameters, return_type="state")
+        state = run_sync_flow(bar, parameters=parameters, return_type="state")
 
         assert state.is_failed()
         with pytest.raises(
@@ -228,7 +228,7 @@ class TestFlowRunsSync:
         def foo(x):
             return FlowRunContext.get().flow_run.id
 
-        result = run_flow_sync(foo, parameters=dict(x="blue"))
+        result = run_sync_flow(foo, parameters=dict(x="blue"))
         run = await prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
@@ -240,7 +240,7 @@ class TestFlowRunsSync:
         def my_log_flow():
             get_run_logger().critical("hey yall")
 
-        result = run_flow_sync(my_log_flow)
+        result = run_sync_flow(my_log_flow)
 
         assert result is None
         record = caplog.records[0]
@@ -256,7 +256,7 @@ class TestFlowRunsSync:
         def foo():
             return FlowRunContext.get().flow_run.id
 
-        result = run_flow_sync(foo)
+        result = run_sync_flow(foo)
         run = await prefect_client.read_flow_run(result)
 
         assert run.state_type == StateType.COMPLETED
@@ -271,7 +271,7 @@ class TestFlowRunsSync:
             raise ValueError("xyz")
 
         with pytest.raises(ValueError, match="xyz"):
-            run_flow_sync(foo)
+            run_sync_flow(foo)
 
         run = await prefect_client.read_flow_run(ID)
 
