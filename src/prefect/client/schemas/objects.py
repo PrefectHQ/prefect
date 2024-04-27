@@ -687,7 +687,9 @@ class TaskRun(ObjectBaseModel):
     task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
         default_factory=dict,
         description=(
-            "Tracks the source of inputs to a task run. Used for internal bookkeeping."
+            "Tracks the source of inputs to a task run. Used for internal bookkeeping. "
+            "Note the special __parents__ key, used to indicate a parent/child "
+            "relationship that may or may not include an input or wait_for semantic."
         ),
     )
     state_type: Optional[StateType] = Field(

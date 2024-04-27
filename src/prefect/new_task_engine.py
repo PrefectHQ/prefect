@@ -262,10 +262,16 @@ class TaskRunEngine(Generic[P, R]):
             k: await collect_task_run_inputs(v) for k, v in self.parameters.items()
         }
 
-        # anticipate nested runs
+        # check if this task has a parent task run and add the parent to a
+        # special __parents__ key in the inputs. A task run is only considered a
+        # parent if it is in the same flow run (because otherwise presumably the
+        # child is in a subflow, so the subflow serves as the parent)
         task_run_ctx = TaskRunContext.get()
-        if task_run_ctx:
-            task_inputs["wait_for"] = [TaskRunResult(id=task_run_ctx.task_run.id)]
+        if (
+            task_run_ctx
+            and task_run_ctx.task_run.flow_run_id == flow_run_ctx.flow_run.id
+        ):
+            task_inputs["__parents__"] = [TaskRunResult(id=task_run_ctx.task_run.id)]
 
         # TODO: implement wait_for
         #        if wait_for:
