@@ -184,8 +184,8 @@ class TestTaskRuns:
 
         # assertions on inner
         inner_run = await prefect_client.read_task_run(a)
-        assert "__parent__" in inner_run.task_inputs
-        assert inner_run.task_inputs["__parent__"][0].id == b
+        assert "__parents__" in inner_run.task_inputs
+        assert inner_run.task_inputs["__parents__"][0].id == b
 
     async def test_multiple_nested_tasks_track_parent(self, prefect_client):
         @task
@@ -211,11 +211,84 @@ class TestTaskRuns:
 
         for id_, parent_id in [(id3, id2), (id2, id1)]:
             run = await prefect_client.read_task_run(id_)
-            assert "__parent__" in run.task_inputs
-            assert run.task_inputs["__parent__"][0].id == parent_id
+            assert "__parents__" in run.task_inputs
+            assert run.task_inputs["__parents__"][0].id == parent_id
 
         run = await prefect_client.read_task_run(id1)
-        assert "__parent__" not in run.task_inputs
+        assert "__parents__" not in run.task_inputs
+
+    async def test_tasks_in_subflow_do_not_track_subflow_dummy_task_as_parent(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Ensures that tasks in a subflow do not track the subflow's dummy task as
+        a parent.
+
+        Setup:
+            Flow (level_1)
+            -> calls a subflow (level_2)
+            -> which calls a task (level_3)
+
+        We want to make sure that level_3 does not track level_2's dummy task as
+        a parent.
+
+        This shouldn't happen in the current engine because no context is
+        actually opened for the dummy task.
+        """
+
+        @task
+        def level_3():
+            return TaskRunContext.get().task_run.id
+
+        @flow
+        def level_2():
+            return level_3()
+
+        @flow
+        def level_1():
+            return level_2()
+
+        level_3_id = level_1()
+
+        tr = await prefect_client.read_task_run(level_3_id)
+        assert "__parents__" not in tr.task_inputs
+
+    async def test_tasks_in_subflow_do_not_track_subflow_dummy_task_parent_as_parent(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Ensures that tasks in a subflow do not track the subflow's dummy task as
+        a parent.
+
+        Setup:
+            Flow (level_1)
+            -> calls a task (level_2)
+            -> which calls a subflow (level_3)
+            -> which calls a task (level_4)
+
+        We want to make sure that level_4 does not track level_2 as a parent.
+        """
+
+        @task
+        def level_4():
+            return TaskRunContext.get().task_run.id
+
+        @flow
+        def level_3():
+            return level_4()
+
+        @task
+        def level_2():
+            return level_3()
+
+        @flow
+        def level_1():
+            return level_2()
+
+        level_4_id = level_1()
+
+        tr = await prefect_client.read_task_run(level_4_id)
+        assert "__parents__" not in tr.task_inputs
 
     async def test_task_runs_respect_result_persistence(self, prefect_client):
         @task(persist_result=False)

@@ -175,7 +175,7 @@ class TestFlowRuns:
         l3_dummy = await prefect_client.read_task_run(l3.parent_task_run_id)
 
         # assert the parent of the dummy task is task 2
-        assert l3_dummy.task_inputs["__parent__"].id == tracker["task_2"]
+        assert l3_dummy.task_inputs["__parents__"].id == tracker["task_2"]
 
 
 class TestFlowRetries:
