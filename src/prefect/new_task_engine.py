@@ -5,11 +5,14 @@ from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
+    Generator,
     Generic,
     Iterable,
+    List,
     Literal,
     Optional,
     TypeVar,
@@ -51,6 +54,7 @@ from prefect.utilities.engine import (
     _get_hook_name,
     _resolve_custom_task_run_name,
     collect_task_run_inputs,
+    link_state_to_result,
     propose_state,
 )
 
@@ -250,17 +254,21 @@ class TaskRunEngine(Generic[P, R]):
         self.logger.debug("Crash details:", exc_info=exc)
         await self.set_state(state, force=True)
 
-    async def create_task_run(self, client: PrefectClient) -> TaskRun:
-        flow_run_ctx = FlowRunContext.get()
-        try:
-            task_run_name = _resolve_custom_task_run_name(self.task, self.parameters)
-        except TypeError:
-            task_run_name = None
+    def infer_parent_task_runs(
+        self, flow_run_ctx: FlowRunContext
+    ) -> List[TaskRunResult]:
+        """
+        Infer parent task runs.
 
-        # prep input tracking
-        task_inputs = {
-            k: await collect_task_run_inputs(v) for k, v in self.parameters.items()
-        }
+        1. Check if this task is running inside an existing task run context in
+           the same flow run. If so, this is a nested task and the existing task
+           run is a parent.
+        2. Check if any of the inputs to this task correspond to states that are
+           still running. If so, consider those task runs as parents. Note this
+           under normal circumstances this probably only applies to values that
+           were yielded from generator tasks.
+        """
+        parents = []
 
         # check if this task has a parent task run based on running in another
         # task run's existing context. A task run is only considered a parent if
@@ -271,17 +279,47 @@ class TaskRunEngine(Generic[P, R]):
         if task_run_ctx:
             # there is no flow run
             if not flow_run_ctx:
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=task_run_ctx.task_run.id)
-                ]
+                parents.append(TaskRunResult(id=task_run_ctx.task_run.id))
             # there is a flow run and the task run is in the same flow run
             elif (
                 flow_run_ctx
                 and task_run_ctx.task_run.flow_run_id == flow_run_ctx.flow_run.id
             ):
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=task_run_ctx.task_run.id)
-                ]
+                parents.append(TaskRunResult(id=task_run_ctx.task_run.id))
+
+        # parent dependency tracking: for every provided parameter value, try to
+        # load the corresponding task run state. If the task run state is still
+        # running, we consider it a parent task run. Note this is only done if
+        # there is an active flow run context because dependencies are only
+        # tracked within the same flow run.
+        if flow_run_ctx:
+            for v in self.parameters.values():
+                if isinstance(v, State):
+                    upstream_state = v
+                else:
+                    upstream_state = flow_run_ctx.task_run_results.get(id(v))
+                if upstream_state and upstream_state.is_running():
+                    parents.append(
+                        TaskRunResult(id=upstream_state.state_details.task_run_id)
+                    )
+
+        return parents
+
+    async def create_task_run(self, client: PrefectClient) -> TaskRun:
+        flow_run_ctx = FlowRunContext.get()
+        try:
+            task_run_name = _resolve_custom_task_run_name(self.task, self.parameters)
+        except TypeError:
+            task_run_name = None
+
+        # upstream dependency tracking: for every provided parameter value, try
+        # to load the corresponding task run state
+        task_inputs = {
+            k: await collect_task_run_inputs(v) for k, v in self.parameters.items()
+        }
+
+        if task_parents := self.infer_parent_task_runs(flow_run_ctx):
+            task_inputs["__parents__"] = task_parents
 
         # TODO: implement wait_for
         #        if wait_for:
@@ -469,6 +507,98 @@ def run_task_sync(
                     run_sync(run.handle_success(result))
                     if return_type == "result":
                         return result
+
+                except Exception as exc:
+                    run_sync(run.handle_exception(exc))
+
+        if return_type == "state":
+            return run.state
+        return run_sync(run.result())
+
+
+async def run_task_generator(
+    task: Task[P, Coroutine[Any, Any, R]],
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> AsyncGenerator[Union[R, State, None], None]:
+    if return_type != "result":
+        raise ValueError("Return type can not be specified for async generators.")
+    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    # This is a context manager that keeps track of the run of the task run.
+    async with engine.start() as run:
+        await run.begin_run()
+
+        while run.is_running():
+            async with run.enter_run_context():
+                try:
+                    # This is where the task is actually run.
+                    async with timeout(run.task.timeout_seconds):
+                        try:
+                            gen = task.fn(**(parameters or {}))
+                            while True:
+                                # can't use anext < 3.10
+                                gen_result = await gen.__anext__()
+                                # link the current state to the result for dependency tracking
+                                #
+                                # TODO: this could grow the task_run_result
+                                # dictionary in an unbounded way, so finding a
+                                # way to periodically clean it up (using
+                                # weakrefs or similar) would be good
+                                link_state_to_result(run.state, gen_result)
+                                yield gen_result
+
+                        except (StopAsyncIteration, GeneratorExit):
+                            await run.handle_success(None)
+
+                except Exception as exc:
+                    await run.handle_exception(exc)
+
+        # call this to raise exceptions after retries are exhausted
+        await run.result()
+
+
+def run_task_sync_generator(
+    task: Task[P, Coroutine[Any, Any, R]],
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> Generator[Union[R, State, None], None, None]:
+    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    # This is a context manager that keeps track of the run of the task run.
+    with engine.start_sync() as run:
+        run_sync(run.begin_run())
+
+        while run.is_running():
+            with run.enter_run_context_sync():
+                try:
+                    # This is where the task is actually run.
+                    with timeout_sync(run.task.timeout_seconds):
+                        try:
+                            gen = task.fn(**(parameters or {}))
+                            # yield in a while loop instead of `yield from` to
+                            # handle StopIteration
+                            while True:
+                                gen_result = next(gen)
+                                # link the current state to the result for dependency tracking
+                                #
+                                # TODO: this could grow the task_run_result
+                                # dictionary in an unbounded way, so finding a
+                                # way to periodically clean it up (using
+                                # weakrefs or similar) would be good
+                                link_state_to_result(run.state, gen_result)
+                                yield gen_result
+
+                        except (StopIteration, GeneratorExit) as exc:
+                            if isinstance(exc, StopIteration):
+                                result = exc.value
+                            else:
+                                result = None
+                            run_sync(run.handle_success(result))
+                            if return_type == "result":
+                                return result
 
                 except Exception as exc:
                     run_sync(run.handle_exception(exc))

@@ -457,7 +457,7 @@ class TestTaskRunsSync:
 
         # assertions on inner
         inner_run = await prefect_client.read_task_run(a)
-        assert "wait_for" in inner_run.task_inputs
+        assert "__parents__" in inner_run.task_inputs
 
     async def test_task_runs_respect_result_persistence(self, prefect_client):
         @task(persist_result=False)
@@ -800,3 +800,279 @@ class TestTimeout:
 
         with pytest.raises(TimeoutError):
             run_task_sync(sync_task)
+
+
+class TestGenerators:
+    async def test_generator_task(self):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        def g():
+            yield 1
+            yield 2
+
+        gen = g()
+        assert next(gen) == 1
+        assert next(gen) == 2
+        with pytest.raises(StopIteration):
+            next(gen)
+
+    async def test_generator_task_states(self, prefect_client: PrefectClient):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        def g():
+            yield TaskRunContext.get().task_run.id
+            yield 2
+
+        gen = g()
+        tr_id = next(gen)
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_running()
+
+        # exhaust the generator
+        for _ in gen:
+            pass
+
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_completed()
+
+    async def test_generator_task_with_return(self):
+        """
+        If a generator returns, the return value is trapped
+        in its StopIteration error
+        """
+
+        @task
+        def g():
+            yield 1
+            return 2
+
+        gen = g()
+        assert next(gen) == 1
+        with pytest.raises(StopIteration) as exc_info:
+            next(gen)
+        assert exc_info.value.value == 2
+
+    async def test_generator_task_with_exception(self):
+        @task
+        def g():
+            yield 1
+            raise ValueError("xyz")
+
+        gen = g()
+        assert next(gen) == 1
+        with pytest.raises(ValueError, match="xyz"):
+            next(gen)
+
+    async def test_generator_task_with_exception_is_failed(
+        self, prefect_client: PrefectClient
+    ):
+        @task
+        def g():
+            yield TaskRunContext.get().task_run.id
+            raise ValueError("xyz")
+
+        gen = g()
+        tr_id = next(gen)
+        with pytest.raises(ValueError, match="xyz"):
+            next(gen)
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_failed()
+
+    async def test_generator_parent_tracking(self, prefect_client: PrefectClient):
+        """ """
+
+        @task(task_run_name="gen-1000")
+        def g():
+            yield 1000
+
+        @task
+        def f(x):
+            return TaskRunContext.get().task_run.id
+
+        @flow
+        def parent_tracking():
+            for val in g():
+                tr_id = f(val)
+            return tr_id
+
+        tr_id = parent_tracking()
+        tr = await prefect_client.read_task_run(tr_id)
+        assert "x" in tr.task_inputs
+        assert "__parents__" in tr.task_inputs
+        # the parent run and upstream 'x' run are the same
+        assert tr.task_inputs["__parents__"][0].id == tr.task_inputs["x"][0].id
+        # the parent run is "gen-1000"
+        gen_id = tr.task_inputs["__parents__"][0].id
+        gen_tr = await prefect_client.read_task_run(gen_id)
+        assert gen_tr.name == "gen-1000"
+
+    async def test_generator_retries(self):
+        """
+        Test that a generator can retry and will re-emit its events
+        """
+
+        @task(retries=2)
+        def g():
+            yield 1
+            yield 2
+            raise ValueError()
+
+        values = []
+        try:
+            for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2, 1, 2, 1, 2]
+
+    async def test_generator_doesnt_retry_on_generator_exception(self):
+        """
+        Test that a generator doesn't retry for normal generator exceptions like StopIteration
+        """
+
+        @task(retries=2)
+        def g():
+            yield 1
+            yield 2
+
+        values = []
+        try:
+            for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2]
+
+
+class TestAsyncGenerators:
+    async def test_generator_task(self):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        async def g():
+            yield 1
+            yield 2
+
+        counter = 0
+        async for val in g():
+            if counter == 0:
+                assert val == 1
+            if counter == 1:
+                assert val == 2
+            assert counter <= 1
+            counter += 1
+
+    async def test_generator_task_states(self, prefect_client: PrefectClient):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        async def g():
+            yield TaskRunContext.get().task_run.id
+
+        async for val in g():
+            tr_id = val
+            tr = await prefect_client.read_task_run(tr_id)
+            assert tr.state.is_running()
+
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_completed()
+
+    async def test_generator_task_with_exception(self):
+        @task
+        async def g():
+            yield 1
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            async for val in g():
+                assert val == 1
+
+    async def test_generator_task_with_exception_is_failed(
+        self, prefect_client: PrefectClient
+    ):
+        @task
+        async def g():
+            yield TaskRunContext.get().task_run.id
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            async for val in g():
+                tr_id = val
+
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_failed()
+
+    async def test_generator_parent_tracking(self, prefect_client: PrefectClient):
+        """ """
+
+        @task(task_run_name="gen-1000")
+        async def g():
+            yield 1000
+
+        @task
+        async def f(x):
+            return TaskRunContext.get().task_run.id
+
+        @flow
+        async def parent_tracking():
+            async for val in g():
+                tr_id = await f(val)
+            return tr_id
+
+        tr_id = await parent_tracking()
+        tr = await prefect_client.read_task_run(tr_id)
+        assert "x" in tr.task_inputs
+        assert "__parents__" in tr.task_inputs
+        # the parent run and upstream 'x' run are the same
+        assert tr.task_inputs["__parents__"][0].id == tr.task_inputs["x"][0].id
+        # the parent run is "gen-1000"
+        gen_id = tr.task_inputs["__parents__"][0].id
+        gen_tr = await prefect_client.read_task_run(gen_id)
+        assert gen_tr.name == "gen-1000"
+
+    async def test_generator_retries(self):
+        """
+        Test that a generator can retry and will re-emit its events
+        """
+
+        @task(retries=2)
+        async def g():
+            yield 1
+            yield 2
+            raise ValueError()
+
+        values = []
+        try:
+            async for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2, 1, 2, 1, 2]
+
+    async def test_generator_doesnt_retry_on_generator_exception(self):
+        """
+        Test that a generator doesn't retry for normal generator exceptions like StopIteration
+        """
+
+        @task(retries=2)
+        async def g():
+            yield 1
+            yield 2
+
+        values = []
+        try:
+            async for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2]

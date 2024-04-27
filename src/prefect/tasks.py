@@ -256,7 +256,9 @@ class Task(Generic[P, R]):
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
-        self.isasync = inspect.iscoroutinefunction(self.fn)
+        self.isasync = inspect.iscoroutinefunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
 
         if not name:
             if not hasattr(self.fn, "__name__"):
@@ -586,7 +588,12 @@ class Task(Generic[P, R]):
 
         # new engine currently only compatible with async tasks
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import run_task, run_task_sync
+            from prefect.new_task_engine import (
+                run_task,
+                run_task_generator,
+                run_task_sync,
+                run_task_sync_generator,
+            )
 
             run_kwargs = dict(
                 task=self,
@@ -595,8 +602,12 @@ class Task(Generic[P, R]):
                 return_type=return_type,
             )
             if self.isasync:
-                # this returns an awaitable coroutine
-                return run_task(**run_kwargs)
+                if inspect.isasyncgenfunction(self.fn):
+                    return run_task_generator(**run_kwargs)
+                else:
+                    return run_task(**run_kwargs)
+            elif inspect.isgeneratorfunction(self.fn):
+                return run_task_sync_generator(**run_kwargs)
             else:
                 return run_task_sync(**run_kwargs)
 
