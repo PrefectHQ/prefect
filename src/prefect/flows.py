@@ -733,7 +733,7 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def serve(
         self,
-        name: str,
+        name: Optional[str] = None,
         interval: Optional[
             Union[
                 Iterable[Union[int, float, datetime.timedelta]],
@@ -764,7 +764,7 @@ class Flow(Generic[P, R]):
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
         Args:
-            name: The name to give the created deployment.
+            name: The name to give the created deployment. Defaults to the name of the flow.
             interval: An interval on which to execute the deployment. Accepts a number or a
                 timedelta object to create a single schedule. If a number is given, it will be
                 interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
@@ -827,10 +827,13 @@ class Flow(Generic[P, R]):
         """
         from prefect.runner import Runner
 
-        # Handling for my_flow.serve(__file__)
-        # Will set name to name of file where my_flow.serve() without the extension
-        # Non filepath strings will pass through unchanged
-        name = Path(name).stem
+        if not name:
+            name = self.name
+        else:
+            # Handling for my_flow.serve(__file__)
+            # Will set name to name of file where my_flow.serve() without the extension
+            # Non filepath strings will pass through unchanged
+            name = Path(name).stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
         deployment_id = await runner.add_flow(
