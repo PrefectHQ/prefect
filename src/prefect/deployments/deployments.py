@@ -773,7 +773,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
 
     @sync_compatible
     async def upload_to_storage(
-        self, storage_block: str = None, ignore_file: str = ".prefectignore"
+        self, storage_block: str = None, ignore_file: str = ".prefectignore", local_path: str = None,
     ) -> Optional[int]:
         """
         Uploads the workflow this deployment represents using a provided storage block;
@@ -799,7 +799,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
 
             # upload current directory to storage location
             file_count = await self.storage.put_directory(
-                ignore_file=ignore_file, to_path=self.path
+                ignore_file=ignore_file, local_path=local_path, to_path=self.path
             )
         elif self.storage:
             if "put-directory" not in self.storage.get_block_capabilities():
@@ -809,7 +809,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
                 )
 
             file_count = await self.storage.put_directory(
-                ignore_file=ignore_file, to_path=self.path
+                ignore_file=ignore_file, local_path=local_path, to_path=self.path
             )
 
         # persists storage now in case it contains secret values
@@ -820,7 +820,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
 
     @sync_compatible
     async def apply(
-        self, upload: bool = False, work_queue_concurrency: int = None
+        self, upload: bool = False, work_queue_concurrency: int = None, storage_local_path: str = None,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -846,7 +846,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
                 )
 
             if upload:
-                await self.upload_to_storage()
+                await self.upload_to_storage(local_path=storage_local_path)
 
             if self.work_queue_name and work_queue_concurrency is not None:
                 try:
@@ -937,6 +937,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
         apply: bool = False,
         load_existing: bool = True,
         schedules: Optional[FlexibleScheduleList] = None,
+        storage_local_path: str = None,
         **kwargs,
     ) -> "Deployment":
         """
@@ -964,6 +965,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
                     the schedule is active or not.
                   - An instance of one of the predefined schedule types:
                     `IntervalSchedule`, `CronSchedule`, or `RRuleSchedule`.
+            storage_from_path: The path to the storage
             **kwargs: other keyword arguments to pass to the constructor for the
                 `Deployment` class
         """
@@ -1031,7 +1033,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
                 deployment.storage
                 and "put-directory" in deployment.storage.get_block_capabilities()
             ):
-                await deployment.upload_to_storage(ignore_file=ignore_file)
+                await deployment.upload_to_storage(ignore_file=ignore_file, local_path=storage_local_path)
 
         if output:
             await deployment.to_yaml(output)

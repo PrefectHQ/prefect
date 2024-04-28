@@ -1124,6 +1124,13 @@ async def apply(
             " storage."
         ),
     ),
+    storage_local_path: str = typer.Option(
+        None,
+        "--storage-local-path",
+        help=(
+            "Uploads this dir all files to storage, default is `pwd`"
+        ),
+    ),
     work_queue_concurrency: int = typer.Option(
         None,
         "--limit",
@@ -1163,7 +1170,7 @@ async def apply(
                     deployment.storage
                     and "put-directory" in deployment.storage.get_block_capabilities()
                 ):
-                    file_count = await deployment.upload_to_storage()
+                    file_count = await deployment.upload_to_storage(local_path=storage_local_path)
                     if file_count:
                         app.console.print(
                             (
@@ -1381,6 +1388,13 @@ async def build(
         help=(
             "A flag that, when provided, skips uploading this deployment's files to"
             " remote storage."
+        ),
+    ),
+    storage_local_path: str = typer.Option(
+        None,
+        "--storage-local-path",
+        help=(
+            "Uploads this dir all files to storage, default is `pwd`"
         ),
     ),
     cron: str = typer.Option(
@@ -1625,6 +1639,7 @@ async def build(
         output=deployment_loc,
         skip_upload=skip_upload,
         apply=False,
+        storage_local_path=storage_local_path,
         **init_kwargs,
     )
     app.console.print(
@@ -1642,7 +1657,7 @@ async def build(
             deployment.storage
             and "put-directory" in deployment.storage.get_block_capabilities()
         ):
-            file_count = await deployment.upload_to_storage()
+            file_count = await deployment.upload_to_storage(local_path=storage_local_path)
             if file_count:
                 app.console.print(
                     (
