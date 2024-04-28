@@ -41,6 +41,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.utilities.asyncutils import A, Async, is_async_fn
+from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
     _dynamic_key_for_task_run,
     _get_hook_name,
@@ -348,6 +349,8 @@ async def run_task(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    call_args, call_kwargs = parameters_to_args_kwargs(task.fn, parameters or {})
+
     async with engine.start() as run:
         # This is a context manager that keeps track of the run of the task run.
         await run.begin_run()
@@ -358,9 +361,9 @@ async def run_task(
                     # This is where the task is actually run.
                     async with timeout(run.task.timeout_seconds):
                         if task.isasync:
-                            result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                            result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
                         else:
-                            result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+                            result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
                     # If the task run is successful, finalize it.
                     await run.handle_success(result)
                     if return_type == "result":
