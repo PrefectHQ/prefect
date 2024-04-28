@@ -551,8 +551,8 @@ async def test_stop_after_group_creation_success(
     running_worker_container_group,
 ):
     async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
-        # if provisioning was successful, the container group should
-        # eventually be deleted
+        # if provisioning was successful, and keep_container_group is enabled,
+        # the container group should be stopped instead of deleted
         monkeypatch.setattr(
             aci_worker,
             "_wait_for_task_container_start",
