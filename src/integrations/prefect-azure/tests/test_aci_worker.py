@@ -542,6 +542,30 @@ async def test_delete_after_group_creation_success(
     mock_aci_client.container_groups.begin_delete.assert_called_once()
 
 
+async def test_stop_after_group_creation_success(
+    mock_prefect_client,
+    worker_flow_run,
+    job_configuration,
+    mock_aci_client,
+    monkeypatch,
+    running_worker_container_group,
+):
+    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
+        # if provisioning was successful, the container group should
+        # eventually be deleted
+        monkeypatch.setattr(
+            aci_worker,
+            "_wait_for_task_container_start",
+            Mock(return_value=running_worker_container_group),
+        )
+
+        job_configuration.keep_container_group = True
+
+        await aci_worker.run(worker_flow_run, job_configuration)
+
+    mock_aci_client.container_groups.stop.assert_called_once()
+
+
 async def test_delete_after_after_exception(
     mock_prefect_client,
     worker_flow_run,

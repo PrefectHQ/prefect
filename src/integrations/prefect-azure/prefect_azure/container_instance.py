@@ -324,6 +324,11 @@ class AzureContainerInstanceJob(Infrastructure):
             "the state of an Azure Container Instances task."
         ),
     )
+    keep_container_group: bool = Field(
+        default=False,
+        title="Keep Container Group After Completion",
+        description="Keep the completed container group on Azure.",
+    )
 
     @sync_compatible
     async def run(
@@ -383,7 +388,13 @@ class AzureContainerInstanceJob(Infrastructure):
                 raise RuntimeError(f"{self._log_prefix}: Container creation failed.")
 
         finally:
-            if created_container_group:
+            if created_container_group and self.keep_container_group:
+                self.logger.info(f"{self._log_prefix}: Stopping container group...")
+                aci_client.container_groups.stop(
+                    resource_group_name=self.resource_group_name,
+                    container_group_name=container_group.name,
+                )
+            elif created_container_group:
                 await self._wait_for_container_group_deletion(
                     aci_client, created_container_group
                 )
