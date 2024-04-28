@@ -419,7 +419,7 @@ class TaskRunnerStandardTestSuite(ABC):
         reason="Timeout is unsupported on Windows",
     )
     def test_sync_task_timeout(self, task_runner):
-        @task(timeout_seconds=0.1)
+        @task(timeout_seconds=1)
         def my_timeout_task():
             time.sleep(2)
             return 42
