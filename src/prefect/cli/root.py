@@ -7,7 +7,9 @@ import platform
 import sys
 
 import pendulum
+import rich.console
 import typer
+from rich.theme import Theme
 
 import prefect
 import prefect.context
@@ -18,6 +20,7 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
+    PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_TEST_MODE,
 )
@@ -74,9 +77,14 @@ def main(
             exit(1)
 
     # Configure the output console after loading the profile
-
-    app.console.is_interactive = prompt
-    app.console.soft_wrap = not PREFECT_CLI_WRAP_LINES.value()
+    app.console = rich.console.Console(
+        highlight=False,
+        color_system="auto" if PREFECT_CLI_COLORS else None,
+        theme=Theme({"prompt.choices": "bold blue"}),
+        # `soft_wrap` disables wrapping when `True`
+        soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
+        force_interactive=prompt,
+    )
 
     if not PREFECT_TEST_MODE:
         # When testing, this entrypoint can be called multiple times per process which
