@@ -294,7 +294,6 @@ async def run_flow(
     """
 
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
-    call_args, call_kwargs = parameters_to_args_kwargs(flow.fn, parameters or {})
 
     async with engine.start() as run:
         # This is a context manager that keeps track of the state of the flow run.
@@ -304,6 +303,9 @@ async def run_flow(
             async with run.enter_run_context():
                 try:
                     # This is where the flow is actually run.
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        flow.fn, run.parameters or {}
+                    )
                     if flow.isasync:
                         result = cast(R, await flow.fn(*call_args, **call_kwargs))  # type: ignore
                     else:

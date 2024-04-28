@@ -349,7 +349,6 @@ async def run_task(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
-    call_args, call_kwargs = parameters_to_args_kwargs(task.fn, parameters or {})
 
     async with engine.start() as run:
         # This is a context manager that keeps track of the run of the task run.
@@ -360,6 +359,9 @@ async def run_task(
                 try:
                     # This is where the task is actually run.
                     async with timeout(run.task.timeout_seconds):
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            task.fn, run.parameters or {}
+                        )
                         if task.isasync:
                             result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
                         else:
