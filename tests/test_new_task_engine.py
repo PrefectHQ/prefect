@@ -60,7 +60,7 @@ class TestTaskRunEngine:
             engine.client
 
 
-class TestTaskRuns:
+class TestTaskRunsAsync:
     async def test_basic(self):
         @task
         async def foo():
@@ -274,6 +274,32 @@ class TestTaskRunsSync:
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
         result = run_task_sync(bar, parameters=parameters)
         assert result == (42, "nate")
+
+    def test_with_args(self):
+        @task
+        def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = f(*args)
+        assert result == args
+
+    def test_with_kwargs(self):
+        @task
+        def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = f(**kwargs)
+        assert result == kwargs
+
+    def test_with_args_kwargs(self):
+        @task
+        def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
 
     async def test_task_run_name(self, prefect_client):
         @task(task_run_name="name is {x}")
