@@ -458,17 +458,66 @@ async def test_lazy_semaphore_initialization():
     assert lazy_semaphore._semaphore._value == initial_value
 
 
-class MyVar(ContextModel):
-    __var__ = ContextVar("my_var")
-    x: int = 1
+class TestRunSync:
+    def test_run_sync(self):
+        async def foo():
+            return 42
 
+        assert run_sync(foo()) == 42
 
-class TestRunSyncContextVars:
+    def test_run_sync_error(self):
+        async def foo():
+            raise ValueError("test-42")
+
+        with pytest.raises(ValueError, match="test-42"):
+            run_sync(foo())
+
+    def test_nested_run_sync(self):
+        async def foo():
+            return 42
+
+        async def bar():
+            return run_sync(foo())
+
+        assert run_sync(bar()) == 42
+
+    def test_run_sync_in_async(self):
+        async def foo():
+            return 42
+
+        async def bar():
+            return run_sync(foo())
+
+        assert asyncio.run(bar()) == 42
+
+    async def test_run_sync_in_async_with_await(self):
+        async def foo():
+            return 42
+
+        async def bar():
+            return run_sync(foo())
+
+        await bar() == 42
+
+    def test_run_sync_in_async_error(self):
+        async def foo():
+            raise ValueError("test-42")
+
+        async def bar():
+            return run_sync(foo())
+
+        with pytest.raises(ValueError, match="test-42"):
+            asyncio.run(bar())
+
     def test_context_carries_to_async_frame(self):
         """
         Ensures that ContextVars set in a parent scope of `run_sync` are automatically
         carried over to the async frame.
         """
+
+        class MyVar(ContextModel):
+            __var__ = ContextVar("my_var")
+            x: int = 1
 
         async def load_var():
             return MyVar.get().x
