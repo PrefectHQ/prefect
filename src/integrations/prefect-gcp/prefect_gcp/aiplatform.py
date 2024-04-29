@@ -54,7 +54,7 @@ Examples:
     job.preview()
     ```
 """  # noqa
-
+import asyncio
 import datetime
 import re
 import shlex
@@ -68,7 +68,7 @@ from pydantic import VERSION as PYDANTIC_VERSION
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.exceptions import InfrastructureNotFound
 from prefect.infrastructure import Infrastructure, InfrastructureResult
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 
 if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import Field
@@ -82,7 +82,7 @@ from typing_extensions import Literal
 # if google-cloud-aiplatform is not installed
 try:
     from google.api_core.client_options import ClientOptions
-    from google.cloud.aiplatform.gapic import JobServiceClient
+    from google.cloud.aiplatform.gapic import JobServiceAsyncClient
     from google.cloud.aiplatform_v1.types.custom_job import (
         ContainerSpec,
         CustomJob,
@@ -383,8 +383,10 @@ class VertexAICustomTrainingJob(Infrastructure):
         )
         return job_spec
 
-    def _create_and_begin_job(
-        self, job_spec: "CustomJobSpec", job_service_client: "JobServiceClient"
+    async def _create_and_begin_job(
+        self,
+        job_spec: "CustomJobSpec",
+        job_service_async_client: "JobServiceAsyncClient",
     ) -> "CustomJob":
         """
         Builds a custom job and begins running it.
@@ -411,9 +413,9 @@ class VertexAICustomTrainingJob(Infrastructure):
         )
 
         create_custom_job_with_retries = retry_policy(
-            job_service_client.create_custom_job
+            job_service_async_client.create_custom_job
         )
-        custom_job_run = create_custom_job_with_retries(
+        custom_job_run = await create_custom_job_with_retries(
             parent=resource_name,
             custom_job=custom_job,
         )
@@ -425,10 +427,10 @@ class VertexAICustomTrainingJob(Infrastructure):
 
         return custom_job_run
 
-    def _watch_job_run(
+    async def _watch_job_run(
         self,
         full_job_name: str,  # different from self.job_name
-        job_service_client: "JobServiceClient",
+        job_service_async_client: "JobServiceAsyncClient",
         current_state: "JobState",
         until_states: Tuple["JobState"],
         timeout: int = None,
@@ -447,7 +449,7 @@ class VertexAICustomTrainingJob(Infrastructure):
         t0 = time.time()
 
         while state not in until_states:
-            job_run = job_service_client.get_custom_job(
+            job_run = await job_service_async_client.get_custom_job(
                 name=full_job_name,
             )
             state = job_run.state
@@ -473,7 +475,7 @@ class VertexAICustomTrainingJob(Infrastructure):
                     f"Timed out after {elapsed_time}s while watching job for states "
                     "{until_states!r}"
                 )
-            time.sleep(self.job_watch_poll_interval)
+            await asyncio.sleep(self.job_watch_poll_interval)
 
         return job_run
 
@@ -495,22 +497,20 @@ class VertexAICustomTrainingJob(Infrastructure):
         )
 
         job_spec = self._build_job_spec()
-        job_service_client = self.gcp_credentials.get_job_service_client(
+        job_service_async_client = self.gcp_credentials.get_job_service_async_client(
             client_options=client_options
         )
-        job_run = await run_sync_in_worker_thread(
-            self._create_and_begin_job,
+        job_run = await self._create_and_begin_job(
             job_spec,
-            job_service_client,
+            job_service_async_client,
         )
 
         if task_status:
             task_status.started(self.job_name)
 
-        final_job_run = await run_sync_in_worker_thread(
-            self._watch_job_run,
+        final_job_run = await self._watch_job_run(
             full_job_name=job_run.name,
-            job_service_client=job_service_client,
+            job_service_async_client=job_service_async_client,
             current_state=job_run.state,
             until_states=(
                 JobState.JOB_STATE_SUCCEEDED,
@@ -546,18 +546,17 @@ class VertexAICustomTrainingJob(Infrastructure):
         client_options = ClientOptions(
             api_endpoint=f"{self.region}-aiplatform.googleapis.com"
         )
-        job_service_client = self.gcp_credentials.get_job_service_client(
+        job_service_async_client = self.gcp_credentials.get_job_service_async_client(
             client_options=client_options
         )
-        await run_sync_in_worker_thread(
-            self._kill_job,
-            job_service_client=job_service_client,
+        await self._kill_job(
+            job_service_async_client=job_service_async_client,
             full_job_name=identifier,
         )
         self.logger.info(f"Requested to cancel {identifier}...")
 
-    def _kill_job(
-        self, job_service_client: "JobServiceClient", full_job_name: str
+    async def _kill_job(
+        self, job_service_async_client: "JobServiceAsyncClient", full_job_name: str
     ) -> None:
         """
         Thin wrapper around Job.delete, wrapping a try/except since
@@ -566,7 +565,7 @@ class VertexAICustomTrainingJob(Infrastructure):
         """
         cancel_custom_job_request = CancelCustomJobRequest(name=full_job_name)
         try:
-            job_service_client.cancel_custom_job(
+            await job_service_async_client.cancel_custom_job(
                 request=cancel_custom_job_request,
             )
         except Exception as exc:

@@ -157,11 +157,12 @@ class TestVertexAIWorker:
             job_config.prepare_for_flow_run(flow_run, None, None)
             result = await worker.run(flow_run=flow_run, configuration=job_config)
             assert (
-                job_config.credentials.job_service_client.create_custom_job.call_count
+                job_config.credentials.job_service_async_client.create_custom_job.call_count
                 == 1
             )
             assert (
-                job_config.credentials.job_service_client.get_custom_job.call_count == 1
+                job_config.credentials.job_service_async_client.get_custom_job.call_count
+                == 1
             )
             assert result == VertexAIWorkerResult(
                 status_code=0, identifier="mock_display_name"
@@ -171,7 +172,7 @@ class TestVertexAIWorker:
         job_config.prepare_for_flow_run(flow_run, None, None)
         error_msg = "something went kablooey"
         error_job_display_name = "catastrophization"
-        job_config.credentials.job_service_client.get_custom_job.return_value = (
+        job_config.credentials.job_service_async_client.get_custom_job.return_value = (
             MagicMock(
                 name="error_mock_name",
                 state=JobState.JOB_STATE_FAILED,
@@ -184,17 +185,18 @@ class TestVertexAIWorker:
                 await worker.run(flow_run=flow_run, configuration=job_config)
 
             assert (
-                job_config.credentials.job_service_client.create_custom_job.call_count
+                job_config.credentials.job_service_async_client.create_custom_job.call_count
                 == 1
             )
             assert (
-                job_config.credentials.job_service_client.get_custom_job.call_count == 1
+                job_config.credentials.job_service_async_client.get_custom_job.call_count
+                == 1
             )
 
     async def test_cancelled_worker_run(self, flow_run, job_config):
         job_config.prepare_for_flow_run(flow_run, None, None)
         job_display_name = "a-job-well-done"
-        job_config.credentials.job_service_client.get_custom_job.return_value = (
+        job_config.credentials.job_service_async_client.get_custom_job.return_value = (
             MagicMock(
                 name="cancelled_mock_name",
                 state=JobState.JOB_STATE_CANCELLED,
@@ -205,18 +207,19 @@ class TestVertexAIWorker:
         async with VertexAIWorker("test-pool") as worker:
             result = await worker.run(flow_run=flow_run, configuration=job_config)
             assert (
-                job_config.credentials.job_service_client.create_custom_job.call_count
+                job_config.credentials.job_service_async_client.create_custom_job.call_count
                 == 1
             )
             assert (
-                job_config.credentials.job_service_client.get_custom_job.call_count == 1
+                job_config.credentials.job_service_async_client.get_custom_job.call_count
+                == 1
             )
             assert result == VertexAIWorkerResult(
                 status_code=1, identifier=job_display_name
             )
 
     async def test_kill_infrastructure(self, flow_run, job_config):
-        mock = job_config.credentials.job_service_client.create_custom_job
+        mock = job_config.credentials.job_service_async_client.create_custom_job
         # the CancelCustomJobRequest class seems to reject a MagicMock value
         # so here, we'll use a SimpleNamespace as the mocked return values
         mock.return_value = SimpleNamespace(
@@ -229,14 +232,14 @@ class TestVertexAIWorker:
                     result = await tg.start(worker.run, flow_run, job_config)
                 await worker.kill_infrastructure(result, job_config)
 
-            mock = job_config.credentials.job_service_client.cancel_custom_job
+            mock = job_config.credentials.job_service_async_client.cancel_custom_job
             assert mock.call_count == 1
             mock.assert_called_with(request=CancelCustomJobRequest(name="foobar"))
 
     async def test_kill_infrastructure_no_grace_seconds(
         self, flow_run, job_config, caplog
     ):
-        mock = job_config.credentials.job_service_client.create_custom_job
+        mock = job_config.credentials.job_service_async_client.create_custom_job
         mock.return_value = SimpleNamespace(
             name="bazzbar", state=JobState.JOB_STATE_PENDING
         )
@@ -258,10 +261,11 @@ class TestVertexAIWorker:
             else:
                 raise AssertionError("Expected message not found.")
 
+    @pytest.mark.asyncio
     async def test_kill_infrastructure_not_found(self, job_config):
         async with VertexAIWorker("test-pool") as worker:
-            job_config.credentials.job_service_client.cancel_custom_job.side_effect = (
-                Exception("does not exist")
+            job_config.credentials.job_service_async_client.cancel_custom_job.side_effect = Exception(
+                "does not exist"
             )
             with pytest.raises(
                 InfrastructureNotFound, match="Cannot stop Vertex AI job"

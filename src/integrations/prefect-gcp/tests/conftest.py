@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from google.api_core.exceptions import NotFound as ApiCoreNotFound
@@ -250,6 +250,10 @@ def mock_credentials(monkeypatch):
         "prefect_gcp.credentials.google.auth",  # noqa
         mock_auth,
     )
+    monkeypatch.setattr(
+        "prefect_gcp.credentials.Credentials.from_service_account_info.universe_domain",  # noqa
+        "fake_universe_domain",
+    )
     return mock_credentials
 
 
@@ -271,7 +275,30 @@ def job_service_client():
 
 
 @pytest.fixture
-def gcp_credentials(monkeypatch, google_auth, mock_credentials, job_service_client):
+def job_service_async_client():
+    job_service_client_async_mock = AsyncMock()
+    custom_run = AsyncMock(name="mock_name")
+    job_service_client_async_mock.create_custom_job.return_value = custom_run
+
+    error = MagicMock(message="")
+    custom_run_final = AsyncMock(
+        name="mock_name",
+        state=JobState.JOB_STATE_SUCCEEDED,
+        error=error,
+        display_name="mock_display_name",
+    )
+    job_service_client_async_mock.get_custom_job.return_value = custom_run_final
+    return job_service_client_async_mock
+
+
+@pytest.fixture
+def gcp_credentials(
+    monkeypatch,
+    google_auth,
+    mock_credentials,
+    job_service_client,
+    job_service_async_client,
+):
     gcp_credentials_mock = GcpCredentials(project="gcp_credentials_project")
     gcp_credentials_mock._service_account_email = "my_service_account_email"
 
@@ -279,6 +306,10 @@ def gcp_credentials(monkeypatch, google_auth, mock_credentials, job_service_clie
     gcp_credentials_mock.secret_manager_client = SecretManagerClient()
     gcp_credentials_mock.job_service_client = job_service_client
     gcp_credentials_mock.job_service_client.__enter__.return_value = job_service_client
+    gcp_credentials_mock.job_service_async_client = job_service_async_client
+    gcp_credentials_mock.job_service_client.__enter__.return_value = (
+        job_service_async_client
+    )
 
     gcp_credentials_mock.get_cloud_storage_client = (
         lambda *args, **kwargs: gcp_credentials_mock.cloud_storage_client
@@ -289,6 +320,9 @@ def gcp_credentials(monkeypatch, google_auth, mock_credentials, job_service_clie
     )
     gcp_credentials_mock.get_job_service_client = (
         lambda *args, **kwargs: gcp_credentials_mock.job_service_client
+    )
+    gcp_credentials_mock.get_job_service_async_client = (
+        lambda *args, **kwargs: gcp_credentials_mock.job_service_async_client
     )
     return gcp_credentials_mock
 
