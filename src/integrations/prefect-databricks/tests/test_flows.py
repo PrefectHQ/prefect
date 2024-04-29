@@ -132,6 +132,7 @@ class TestJobsRunsSubmitAndWaitForCompletion:
         result, jobs_runs_metadata = await jobs_runs_submit_and_wait_for_completion(
             databricks_credentials=databricks_credentials,
             run_name="prefect-job",
+            return_metadata=True,
             tasks=[
                 {
                     "notebook_task": {
@@ -159,7 +160,7 @@ class TestJobsRunsSubmitAndWaitForCompletion:
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"metadata": {"cell": "output"}}))
 
-        result, jobs_runs_metadata = await jobs_runs_submit_and_wait_for_completion(
+        result = await jobs_runs_submit_and_wait_for_completion(
             databricks_credentials=databricks_credentials,
             run_name="prefect-job",
             tasks=[
@@ -176,25 +177,6 @@ class TestJobsRunsSubmitAndWaitForCompletion:
             poll_frequency_seconds=1,
         )
         assert result == {"prefect-task": {}}
-        assert jobs_runs_metadata == {
-            "run_id": 36108,
-            "state": {
-                "life_cycle_state": "TERMINATED",
-                "state_message": "",
-                "result_state": "SUCCESS",
-            },
-            "tasks": [
-                {
-                    "run_id": 36260,
-                    "task_key": "prefect-task",
-                    "state": {
-                        "life_cycle_state": "TERMINATED",
-                        "result_state": "",
-                        "state_message": "SUCCESS",
-                    },
-                }
-            ],
-        }
 
     @pytest.mark.respx(assert_all_called=True)
     @pytest.mark.parametrize("result_state", ["FAILED", "TIMEDOUT", "CANCELED"])
@@ -378,7 +360,7 @@ class TestJobsRunsSubmitAndWaitForCompletion:
             headers={"Authorization": "Bearer testing_token"},
         ).mock(return_value=Response(200, json={"notebook_output": {"cell": "output"}}))
 
-        result, jobs_runs_metadata = await jobs_runs_submit_and_wait_for_completion(
+        result = await jobs_runs_submit_and_wait_for_completion(
             databricks_credentials=databricks_credentials,
             tasks=[
                 {
