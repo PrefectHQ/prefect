@@ -53,6 +53,9 @@ def dbt_build_task(
 
     Example:
     ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_build_task
+
         @flow
         def dbt_test_flow():
             dbt_build_task(
@@ -122,6 +125,9 @@ def dbt_run_task(
 
     Example:
     ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_run_task
+
         @flow
         def dbt_test_flow():
             dbt_run_task(
@@ -192,9 +198,12 @@ def dbt_test_task(
 
     Example:
     ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_test_task
+
         @flow
         def dbt_test_flow():
-            dbt_run_task(
+            dbt_test_task(
                 project_dir="/Users/test/my_dbt_project_dir"
             )
     ```
@@ -261,6 +270,9 @@ def dbt_snapshot_task(
 
     Example:
     ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_snapshot_task
+
         @flow
         def dbt_test_flow():
             dbt_snapshot_task(
@@ -330,6 +342,9 @@ def dbt_seed_task(
 
     Example:
     ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_seed_task
+
         @flow
         def dbt_test_flow():
             dbt_seed_task(
