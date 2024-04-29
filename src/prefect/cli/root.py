@@ -74,9 +74,7 @@ def main(
             exit(1)
 
     # Configure the output console after loading the profile
-
-    app.console.is_interactive = prompt
-    app.console.soft_wrap = not PREFECT_CLI_WRAP_LINES.value()
+    app.setup_console(soft_wrap=PREFECT_CLI_WRAP_LINES.value(), prompt=prompt)
 
     if not PREFECT_TEST_MODE:
         # When testing, this entrypoint can be called multiple times per process which
