@@ -43,9 +43,9 @@ __all__ = [
 class Automation(AutomationCore):
     id: Optional[UUID] = Field(default=None, description="The ID of this automation")
 
-    @classmethod
+    # @classmethod
     @sync_compatible
-    async def create(cls: Self, automation: Self) -> Self:
+    async def create(self: dict) -> Self:
         """
         Create a new automation.
 
@@ -66,7 +66,7 @@ class Automation(AutomationCore):
         created_automation = Automation.create(auto_to_create)
         """
         client, _ = get_or_create_client()
-        automation = AutomationCore(**automation.dict(exclude={"id"}))
+        automation = AutomationCore(**self)
         automation_id = await client.create_automation(automation=automation)
         automation = await client.read_automation(automation_id=automation_id)
         automation = Automation(**automation.dict())
