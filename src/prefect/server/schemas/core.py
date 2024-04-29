@@ -3,23 +3,21 @@ Full schemas of Prefect REST API objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+from typing_extensions import Literal, Self
 
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import NonNegativeInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
 else:
     from pydantic import BaseModel, Field, HttpUrl, root_validator, validator
 
-from typing_extensions import Literal
-
 import prefect.server.database
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     list_length_50_or_less,
@@ -35,13 +33,18 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
 )
 from prefect.server.schemas import schedules, states
+from prefect.server.schemas.statuses import WorkPoolStatus
 from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMWorkPool
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
@@ -1066,6 +1069,10 @@ class WorkPool(ORMBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    status: Optional[WorkPoolStatus] = Field(
+        default=None, description="The current status of the work pool."
+    )
+
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
     default_queue_id: UUID = Field(
@@ -1079,6 +1086,13 @@ class WorkPool(ORMBaseModel):
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):
         return validate_default_queue_id_not_none(v)
+
+    @classmethod
+    def from_orm(cls, work_pool: "ORMWorkPool") -> Self:
+        parsed: WorkPool = super().from_orm(work_pool)
+        if work_pool.type == "prefect-agent":
+            parsed.status = None
+        return parsed
 
 
 class Worker(ORMBaseModel):

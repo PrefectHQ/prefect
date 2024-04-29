@@ -70,7 +70,6 @@ from prefect.server.schemas.responses import (
     FlowRunResponse,
     OrchestrationResult,
     StateAcceptDetails,
-    WorkPoolResponse,
     WorkQueueWithStatus,
 )
 from prefect.server.schemas.states import Scheduled, State, StateType, Suspended
@@ -432,7 +431,7 @@ class JinjaTemplateAction(ExternalDataAction):
             ),
             "prefect.task-run": (TaskRun, [orchestration_client.read_task_run_raw]),
             "prefect.work-pool": (
-                WorkPoolResponse,
+                WorkPool,
                 [orchestration_client.read_work_pool_raw],
             ),
             "prefect.work-queue": (

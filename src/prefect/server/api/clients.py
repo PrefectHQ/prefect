@@ -18,8 +18,9 @@ else:
 
 from prefect.client.base import PrefectHttpxClient
 from prefect.logging import get_logger
+from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
-from prefect.server.schemas.responses import DeploymentResponse, WorkPoolResponse
+from prefect.server.schemas.responses import DeploymentResponse
 
 logger = get_logger(__name__)
 
@@ -120,11 +121,11 @@ class OrchestrationClient(BaseClient):
             json={"work_pools": {"id": {"any_": [str(work_pool_id)]}}},
         )
 
-    async def read_work_pool(self, work_pool_id: UUID) -> Optional[WorkPoolResponse]:
+    async def read_work_pool(self, work_pool_id: UUID) -> Optional[WorkPool]:
         response = await self.read_work_pool_raw(work_pool_id)
         response.raise_for_status()
 
-        pools = pydantic.parse_obj_as(List[WorkPoolResponse], response.json())
+        pools = pydantic.parse_obj_as(List[WorkPool], response.json())
         return pools[0] if pools else None
 
     async def read_work_queue_raw(self, work_queue_id: UUID) -> Response:
@@ -207,7 +208,7 @@ class WorkPoolsOrchestrationClient(BaseClient):
     async def __aenter__(self) -> Self:
         return self
 
-    async def read_work_pool(self, work_pool_name: str) -> WorkPoolResponse:
+    async def read_work_pool(self, work_pool_name: str) -> WorkPool:
         """
         Reads information for a given work pool
         Args:
@@ -219,7 +220,7 @@ class WorkPoolsOrchestrationClient(BaseClient):
         try:
             response = await self._http_client.get(f"/work_pools/{work_pool_name}")
             response.raise_for_status()
-            return pydantic.parse_obj_as(WorkPoolResponse, response.json())
+            return pydantic.parse_obj_as(WorkPool, response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise ObjectNotFound(http_exc=e) from e

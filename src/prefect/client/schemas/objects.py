@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
     from prefect.results import BaseResult
 
+
 R = TypeVar("R")
 
 
