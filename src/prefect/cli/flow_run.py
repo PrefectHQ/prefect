@@ -66,7 +66,7 @@ async def ls(
 
         flow_name: Name of the flow
 
-        limit: Maximum number of flow runs to list
+        limit: Maximum number of flow runs to list. Defaults to 15.
 
         state: Name of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'PAUSED', 'SUSPENDED', 'AWAITINGRETRY', 'RETRYING', and 'LATE'.
 
@@ -78,9 +78,9 @@ async def ls(
 
     $ prefect flow-runs ls --state Running --state late
 
-    $ prefect flow-runs ls --state_type RUNNING
+    $ prefect flow-runs ls --state-type RUNNING
 
-    $ prefect flow-runs ls --state_type RUNNING --state_type FAILED
+    $ prefect flow-runs ls --state-type RUNNING --state-type FAILED
     """
 
     # Handling `state` and `state_type` argument validity in the function instead of by specifying
