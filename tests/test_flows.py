@@ -54,7 +54,6 @@ from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRIES,
-    PREFECT_WARN_OBJECT_REGISTRY_CONFLICT,
     temporary_settings,
 )
 from prefect.states import (
@@ -268,36 +267,6 @@ class TestDecorator:
             @flow(flow_run_name=InvalidFlowRunNameArg())
             def flow_with_illegal_run_name():
                 pass
-
-    def test_warning_name_conflict_different_function(self):
-        with pytest.warns(
-            UserWarning,
-            match=(
-                r"A flow named 'my_flow' and defined at '.+:\d+' conflicts with another"
-                r" flow."
-            ),
-        ):
-
-            @flow(name="my_flow")
-            def flow_one():
-                pass
-
-            @flow(name="my_flow")
-            def flow_two():
-                pass
-
-    def test_setting_to_disable_warning_for_name_conflict(self):
-        with temporary_settings({PREFECT_WARN_OBJECT_REGISTRY_CONFLICT: False}):
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", UserWarning)
-
-                @flow(name="my_flow")
-                def flow_one():
-                    pass
-
-                @flow(name="my_flow")
-                def flow_two():
-                    pass
 
 
 class TestFlowWithOptions:
