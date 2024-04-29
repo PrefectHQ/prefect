@@ -143,7 +143,6 @@ class Foreman(LoopService):
                 },
             )
 
-        assert isinstance(result, sa.CursorResult)
         if result.rowcount:
             self.logger.info(f"Marked {result.rowcount} workers as offline.")
 
