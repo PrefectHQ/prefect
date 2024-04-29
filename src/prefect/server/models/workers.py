@@ -13,7 +13,7 @@ from typing import (
     Optional,
     Sequence,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
@@ -23,6 +23,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.clients import PrefectServerEventsClient
+from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 
 if TYPE_CHECKING:
@@ -60,6 +63,13 @@ async def create_work_pool(
     """
 
     pool = db.WorkPool(**work_pool.dict())
+
+    if pool.type != "prefect-agent":
+        if pool.is_paused:
+            pool.status = schemas.statuses.WorkPoolStatus.PAUSED
+        else:
+            pool.status = schemas.statuses.WorkPoolStatus.NOT_READY
+
     session.add(pool)
     await session.flush()
 
@@ -178,6 +188,12 @@ async def update_work_pool(
     session: AsyncSession,
     work_pool_id: UUID,
     work_pool: schemas.actions.WorkPoolUpdate,
+    emit_status_change: Optional[
+        Callable[
+            [UUID, pendulum.DateTime, "ORMWorkPool", "ORMWorkPool"],
+            Awaitable[None],
+        ]
+    ],
 ) -> bool:
     """
     Update a WorkPool by id.
@@ -186,6 +202,8 @@ async def update_work_pool(
         session (AsyncSession): A database session
         work_pool_id (UUID): a WorkPool id
         worker: the work queue data
+        emit_status_change: function to call when work pool
+            status is changed
 
     Returns:
         bool: whether or not the worker was updated
@@ -194,13 +212,62 @@ async def update_work_pool(
     # the user, ignoring any defaults on the model
     update_data = work_pool.dict(shallow=True, exclude_unset=True)
 
+    current_work_pool = await read_work_pool(session=session, work_pool_id=work_pool_id)
+    if not current_work_pool:
+        raise ObjectNotFoundError
+
+    # Remove this from the session so we have a copy of the current state before we
+    # update it; this will give us something to compare against when emitting events
+    session.expunge(current_work_pool)
+
+    if current_work_pool.type != "prefect-agent":
+        if update_data.get("is_paused"):
+            update_data["status"] = schemas.statuses.WorkPoolStatus.PAUSED
+
+        if update_data.get("is_paused") is False:
+            # If the work pool has any online workers, set the status to READY
+            # Otherwise set it to, NOT_READY
+            workers = await read_workers(
+                session=session,
+                work_pool_id=work_pool_id,
+                worker_filter=schemas.filters.WorkerFilter(
+                    status=schemas.filters.WorkerFilterStatus(
+                        any_=[schemas.statuses.WorkerStatus.ONLINE]
+                    )
+                ),
+            )
+            if len(workers) > 0:
+                update_data["status"] = schemas.statuses.WorkPoolStatus.READY
+            else:
+                update_data["status"] = schemas.statuses.WorkPoolStatus.NOT_READY
+
+    if "status" in update_data:
+        update_data["last_status_event_id"] = uuid4()
+        update_data["last_transitioned_status_at"] = pendulum.now("UTC")
+
     update_stmt = (
         sa.update(db.WorkPool)
         .where(db.WorkPool.id == work_pool_id)
         .values(**update_data)
     )
     result = await session.execute(update_stmt)
-    return result.rowcount > 0
+
+    updated = result.rowcount > 0
+    if updated:
+        wp = await read_work_pool(session=session, work_pool_id=work_pool_id)
+
+        assert wp is not None
+        assert current_work_pool is not wp
+
+        if "status" in update_data and emit_status_change:
+            await emit_status_change(
+                event_id=update_data["last_status_event_id"],  # type: ignore
+                occurred=update_data["last_transitioned_status_at"],
+                pre_update_work_pool=current_work_pool,
+                work_pool=wp,
+            )
+
+    return updated
 
 
 @db_injector
@@ -679,6 +746,7 @@ async def worker_heartbeat(
     # Values that can and will change between heartbeats
     update_values = dict(
         last_heartbeat_time=now,
+        status=schemas.statuses.WorkerStatus.ONLINE,
     )
     if heartbeat_interval_seconds is not None:
         update_values["heartbeat_interval_seconds"] = heartbeat_interval_seconds
@@ -725,3 +793,23 @@ async def delete_worker(
     )
 
     return result.rowcount > 0
+
+
+async def emit_work_pool_status_event(
+    event_id: UUID,
+    occurred: pendulum.DateTime,
+    pre_update_work_pool: Optional["ORMWorkPool"],
+    work_pool: "ORMWorkPool",
+):
+    if not work_pool.status:
+        return
+
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_pool_status_event(
+                event_id=event_id,
+                occurred=occurred,
+                pre_update_work_pool=pre_update_work_pool,
+                work_pool=work_pool,
+            )
+        )

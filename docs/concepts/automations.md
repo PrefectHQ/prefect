@@ -516,7 +516,7 @@ Any type of trigger may be composed into higher-order composite triggers, includ
     {
       "type": "event",
       "posture": "Reactive",
-      "expect": ["prefect.work-pool.not-ready"],
+      "expect": ["prefect.work-pool.not_ready"],
       "match": {
         "prefect.resource.name": "kubernetes-workers",
       }

@@ -1221,6 +1221,16 @@ PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS = Setting(float, default=15)
 """The number of seconds to wait between each iteration of the Foreman loop which checks
 for offline workers and updates work pool status."""
 
+
+PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE = Setting(int, default=3)
+"The number of heartbeats that must be missed before a worker is marked as offline."
+
+PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS = Setting(
+    int, default=30
+)
+"""The number of seconds to use for online/offline evaluation if a worker's heartbeat
+interval is not set."""
+
 PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = Setting(
     int, default=60
 )

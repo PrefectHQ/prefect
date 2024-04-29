@@ -1626,6 +1626,25 @@ class WorkerFilterWorkPoolId(PrefectFilterBaseModel):
         return filters
 
 
+class WorkerFilterStatus(PrefectFilterBaseModel):
+    """Filter by `Worker.status`."""
+
+    any_: Optional[List[schemas.statuses.WorkerStatus]] = Field(
+        default=None, description="A list of worker statuses to include"
+    )
+    not_any_: Optional[List[schemas.statuses.WorkerStatus]] = Field(
+        default=None, description="A list of worker statuses to exclude"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Worker.status.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.Worker.status.notin_(self.not_any_))
+        return filters
+
+
 class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
     """Filter by `Worker.last_heartbeat_time`."""
 
@@ -1661,6 +1680,10 @@ class WorkerFilter(PrefectOperatorFilterBaseModel):
     last_heartbeat_time: Optional[WorkerFilterLastHeartbeatTime] = Field(
         default=None,
         description="Filter criteria for `Worker.last_heartbeat_time`",
+    )
+
+    status: Optional[WorkerFilterStatus] = Field(
+        default=None, description="Filter criteria for `Worker.status`"
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
