@@ -1,6 +1,7 @@
+from uuid import UUID
+
 import pytest
 
-import prefect.exceptions
 from prefect import flow
 from prefect.automations import Automation
 from prefect.events.schemas.automations import EventTrigger, Posture
@@ -159,7 +160,7 @@ async def test_automations_work_in_async_flows(automation_spec):
 
 async def test_delete_automation(automation):
     await Automation.delete(automation)
-    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
+    with pytest.raises(ValueError):
         await Automation.read(id=automation.id)
 
 
@@ -171,3 +172,13 @@ async def test_read_automation_by_name_no_name():
 async def test_read_auto_by_id_and_name(automation):
     with pytest.raises(ValueError, match="Only one of id or name can be provided"):
         await Automation.read(id=automation.id, name=automation.name)
+
+
+async def test_nonexistent_id_raises_value_error():
+    with pytest.raises(ValueError):
+        await Automation.read(id=UUID("6d222a09-3c68-42d4-b019-bd331a3abb88"))
+
+
+async def test_nonexistent_name_raises_value_error():
+    with pytest.raises(ValueError):
+        await Automation.read(name="nonexistent_name")

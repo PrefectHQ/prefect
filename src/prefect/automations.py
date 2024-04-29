@@ -104,11 +104,18 @@ class Automation(AutomationCore):
             raise ValueError("One of id or name must be provided")
         client, _ = get_or_create_client()
         if id:
-            automation = await client.read_automation(automation_id=id)
-            return Automation(**automation.dict()) if automation else None
+            try:
+                automation = await client.read_automation(automation_id=id)
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    raise ValueError(f"Automation with ID {id} not found")
+            return Automation(**automation.dict())
         else:
             automation = await client.read_automations_by_name(name=name)
-            return Automation(**automation[0].dict()) if automation else None
+            if len(automation) > 0:
+                return Automation(**automation[0].dict()) if automation else None
+            else:
+                raise ValueError(f"Automation with name {name} not found")
 
     @sync_compatible
     async def delete(self: Self) -> bool:
