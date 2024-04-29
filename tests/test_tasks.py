@@ -54,17 +54,37 @@ def fails_with_new_engine(func):
     @wraps(func)
     def sync_wrapper(*args, **kwargs):
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            return pytest.xfail("This test fails with the new engine")(func)(
-                *args, **kwargs
-            )
+            try:
+                func(*args, **kwargs)
+                pytest.fail(
+                    "Test passed unexpectedly with the new engine", pytrace=False
+                )
+            except (
+                Exception,
+                anyio._backends._asyncio.ExceptionGroup,
+                pytest.fail.Exception,
+            ):
+                pytest.xfail(
+                    "This test fails with the new engine",
+                )
         return func(*args, **kwargs)
 
     @wraps(func)
     async def async_wrapper(*args, **kwargs):
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            return await pytest.xfail("This test fails with the new engine")(func)(
-                *args, **kwargs
-            )
+            try:
+                await func(*args, **kwargs)
+                pytest.fail(
+                    "Test passed unexpectedly with the new engine", pytrace=False
+                )
+            except (
+                Exception,
+                anyio._backends._asyncio.ExceptionGroup,
+                pytest.fail.Exception,
+            ):
+                pytest.xfail(
+                    "This test fails with the new engine",
+                )
         return await func(*args, **kwargs)
 
     if asyncio.iscoroutinefunction(func):
@@ -993,7 +1013,6 @@ class TestTaskRetries:
             "Completed",
         ]
 
-    @fails_with_new_engine
     async def test_task_retries_receive_latest_task_run_in_context(self):
         contexts: List[TaskRunContext] = []
 
@@ -1259,7 +1278,6 @@ class TestTaskCaching:
         assert second_state.name == "Completed"
         assert second_state.result() != first_state.result()
 
-    @fails_with_new_engine
     def test_cache_hits_wo_refresh_cache(self):
         @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=False)
         def foo(x):
@@ -1274,7 +1292,6 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert second_state.result() == first_state.result()
 
-    @fails_with_new_engine
     def test_tasks_refresh_cache_setting(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
@@ -2023,7 +2040,6 @@ class TestTaskInputs:
             x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_state_upstream_wrapped_with_allow_failure(
         self, prefect_client
     ):
@@ -2231,7 +2247,6 @@ class TestTaskInputs:
 
 
 class TestSubflowWaitForTasks:
-    @fails_with_new_engine
     def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
@@ -2252,7 +2267,6 @@ class TestSubflowWaitForTasks:
         assert subflow_state.is_pending()
         assert subflow_state.name == "NotReady"
 
-    @fails_with_new_engine
     def test_downstream_runs_if_upstream_succeeds(self):
         @flow
         def foo(x):
@@ -2524,7 +2538,6 @@ class TestTaskRunLogs:
         assert "NameError" in error_log
         assert "x + y" in error_log
 
-    @fails_with_new_engine
     async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @task
         def my_task():
@@ -2726,7 +2739,6 @@ class TestTaskWithOptions:
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
 
-    @fails_with_new_engine
     def test_with_options_refresh_cache(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
@@ -3371,7 +3383,6 @@ class TestTaskConstructorValidation:
                 raise RuntimeError("try again!")
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set(prefect_client):
     @task(task_run_name="fixed-name")
     def my_task(name):
@@ -3389,7 +3400,6 @@ async def test_task_run_name_is_set(prefect_client):
     assert task_run.name == "fixed-name"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_kwargs_including_defaults(prefect_client):
     @task(task_run_name="{name}-wuz-{where}")
     def my_task(name, where="here"):
@@ -3407,7 +3417,6 @@ async def test_task_run_name_is_set_with_kwargs_including_defaults(prefect_clien
     assert task_run.name == "chris-wuz-here"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function(prefect_client):
     def generate_task_run_name():
         return "is-this-a-bird"
@@ -3480,7 +3489,6 @@ async def test_task_run_name_is_set_with_function_not_returning_string(prefect_c
         my_flow("anon")
 
 
-@fails_with_new_engine
 async def test_sets_run_name_once():
     generate_task_run_name = MagicMock(return_value="some-string")
     mocked_task_method = MagicMock(side_effect=RuntimeError("Oh-no!, anyway"))
@@ -3500,7 +3508,6 @@ async def test_sets_run_name_once():
     assert generate_task_run_name.call_count == 1
 
 
-@fails_with_new_engine
 async def test_sets_run_name_once_per_call():
     generate_task_run_name = MagicMock(return_value="some-string")
     mocked_task_method = MagicMock()
@@ -3935,7 +3942,6 @@ class TestTaskHooksOnFailure:
 
 
 class TestNestedTasks:
-    @fails_with_new_engine
     def test_nested_task(self):
         @task
         def inner_task():
@@ -4217,7 +4223,6 @@ class TestNestedTasks:
         assert await inner_state1.result() == 4
         assert await inner_state2.result() == 4
 
-    @fails_with_new_engine
     def test_nested_task_with_retries(self):
         count = 0
 
@@ -4240,7 +4245,6 @@ class TestNestedTasks:
         assert result == "Failed"
         assert count == 2
 
-    @fails_with_new_engine
     def test_nested_task_with_retries_on_inner_and_outer_task(self):
         count = 0
 
