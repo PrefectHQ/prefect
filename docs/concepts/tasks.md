@@ -32,7 +32,7 @@ Tasks are special because they receive metadata about upstream dependencies and 
 
 Tasks also take advantage of automatic Prefect [logging](/concepts/logs/) to capture details about task runs such as runtime, tags, and final state.
 
-You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. Tasks may be called from other tasks from within a flow, from within a subflow, or (as of `prefect 2.18.x`) from within another task.
+You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. Tasks may be called from other tasks, from within a flow, from within a subflow, or (as of `prefect 2.18.x`) from within another task.
 
 **Calling a task from a flow**
 
