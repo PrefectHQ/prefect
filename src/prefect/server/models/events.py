@@ -389,3 +389,49 @@ async def work_queue_status_event(
         related=related_work_pool_info,
         id=uuid4(),
     )
+
+
+async def work_pool_status_event(
+    event_id: UUID,
+    occurred: pendulum.DateTime,
+    pre_update_work_pool: Optional["ORMWorkPool"],
+    work_pool: "ORMWorkPool",
+):
+    assert work_pool.status
+
+    return Event(
+        id=event_id,
+        occurred=occurred,
+        # TODO: this should be
+        # event=f"prefect.work-pool.{work_pool.status.in_kebab_case()}",
+        event=f"prefect.work-pool.{work_pool.status.value.lower()}",
+        resource={
+            "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+            "prefect.resource.name": work_pool.name,
+            "prefect.work-pool.type": work_pool.type,
+        },
+        follows=_get_recent_preceding_work_pool_event_id(pre_update_work_pool),
+    )
+
+
+def _get_recent_preceding_work_pool_event_id(
+    work_pool: Optional["ORMWorkPool"],
+) -> Optional[UUID]:
+    """
+    Returns the preceding event ID if the work pool transitioned status
+    recently to help ensure correct event ordering.
+    """
+    if not work_pool:
+        return None
+
+    time_since_last_event = timedelta(hours=24)
+    if work_pool.last_transitioned_status_at:
+        time_since_last_event = (
+            pendulum.now("UTC") - work_pool.last_transitioned_status_at
+        )
+
+    return (
+        work_pool.last_status_event_id
+        if time_since_last_event < timedelta(minutes=10)
+        else None
+    )
