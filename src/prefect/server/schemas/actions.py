@@ -9,9 +9,7 @@ from uuid import UUID, uuid4
 
 import jsonschema
 
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import NonNegativeInteger, PositiveInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, HttpUrl, root_validator, validator
@@ -19,6 +17,7 @@ else:
     from pydantic import Field, HttpUrl, root_validator, validator
 
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     get_or_create_state_name,
@@ -40,6 +39,7 @@ from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
