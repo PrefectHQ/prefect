@@ -408,8 +408,8 @@ async def run_task(
     """
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
 
+    # This is a context manager that keeps track of the run of the task run.
     async with engine.start() as run:
-        # This is a context manager that keeps track of the run of the task run.
         await run.begin_run()
 
         while run.is_running():
@@ -420,7 +420,7 @@ async def run_task(
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
                         )
-                        result = cast(R, await task.fn(**(parameters or {})))  # type: ignore
+                        result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
 
                     # If the task run is successful, finalize it.
                     await run.handle_success(result)
@@ -443,6 +443,7 @@ def run_task_sync(
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+
     # This is a context manager that keeps track of the run of the task run.
     with engine.start_sync() as run:
         run_sync(run.begin_run())
@@ -452,7 +453,10 @@ def run_task_sync(
                 try:
                     # This is where the task is actually run.
                     with timeout_sync(run.task.timeout_seconds):
-                        result = cast(R, task.fn(**(parameters or {})))  # type: ignore
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            task.fn, run.parameters or {}
+                        )
+                        result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
                     # If the task run is successful, finalize it.
                     run_sync(run.handle_success(result))

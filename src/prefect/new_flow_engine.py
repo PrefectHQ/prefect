@@ -365,8 +365,8 @@ async def run_flow(
 
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
 
+    # This is a context manager that keeps track of the state of the flow run.
     async with engine.start() as run:
-        # This is a context manager that keeps track of the state of the flow run.
         await run.begin_run()
 
         while run.is_running():
@@ -376,7 +376,7 @@ async def run_flow(
                     call_args, call_kwargs = parameters_to_args_kwargs(
                         flow.fn, run.parameters or {}
                     )
-                    result = cast(R, await flow.fn(**(run.parameters or {})))  # type: ignore
+                    result = cast(R, await flow.fn(*call_args, **call_kwargs))  # type: ignore
                     # If the flow run is successful, finalize it.
                     await run.handle_success(result)
 
@@ -397,6 +397,7 @@ def run_flow_sync(
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, None]:
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
+
     # This is a context manager that keeps track of the state of the flow run.
     with engine.start_sync() as run:
         run_sync(run.begin_run())
@@ -405,7 +406,10 @@ def run_flow_sync(
             with run.enter_run_context_sync():
                 try:
                     # This is where the flow is actually run.
-                    result = cast(R, flow.fn(**(run.parameters or {})))  # type: ignore
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        flow.fn, run.parameters or {}
+                    )
+                    result = cast(R, flow.fn(*call_args, **call_kwargs))  # type: ignore
                     # If the flow run is successful, finalize it.
                     run_sync(run.handle_success(result))
 
