@@ -106,7 +106,7 @@ class Automation(AutomationCore):
                 automation = await client.read_automation(automation_id=id)
             except PrefectHTTPStatusError as exc:
                 if exc.response.status_code == 404:
-                    raise ValueError(f"Automation with ID {id} not found")
+                    raise ValueError(f"Automation with ID {id!r} not found")
             return Automation(**automation.dict())
         else:
             automation = await client.read_automations_by_name(name=name)
