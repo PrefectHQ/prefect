@@ -90,19 +90,19 @@ class StateType(AutoEnum):
 
 
 class StateName(AutoEnum):
-    SCHEDULED = AutoEnum.auto()
-    PENDING = AutoEnum.auto()
-    RUNNING = AutoEnum.auto()
-    COMPLETED = AutoEnum.auto()
-    FAILED = AutoEnum.auto()
-    CANCELLED = AutoEnum.auto()
-    CRASHED = AutoEnum.auto()
-    PAUSED = AutoEnum.auto()
-    CANCELLING = AutoEnum.auto()
-    SUSPENDED = AutoEnum.auto()
-    AWAITINGRETRY = AutoEnum.auto()
-    RETRYING = AutoEnum.auto()
-    LATE = AutoEnum.auto()
+    SCHEDULED = "Scheduled"
+    PENDING = "Pending"
+    RUNNING = "Running"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
+    CANCELLED = "Cancelled"
+    CRASHED = "Crashed"
+    PAUSED = "Paused"
+    CANCELLING = "Cancelling"
+    SUSPENDED = "Suspended"
+    AWAITINGRETRY = "AwaitingRetry"
+    RETRYING = "Retrying"
+    LATE = "Late"
 
 
 class WorkPoolStatus(AutoEnum):
