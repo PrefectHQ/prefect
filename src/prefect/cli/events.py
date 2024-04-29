@@ -12,7 +12,9 @@ from prefect.cli.root import app
 from prefect.events.clients import (
     PrefectCloudAccountEventSubscriber,
     PrefectCloudEventSubscriber,
+    PrefectEventSubscriber,
 )
+from prefect.settings import PREFECT_API_URL, PREFECT_EXPERIMENTAL_EVENTS
 
 events_app = PrefectTyper(name="events", help="Commands for working with events.")
 app.add_typer(events_app, aliases=["event"])
@@ -45,12 +47,17 @@ async def stream(
     app.console.print("Subscribing to event stream...")
 
     try:
-        Subscriber = (
-            PrefectCloudAccountEventSubscriber
-            if account
-            else PrefectCloudEventSubscriber
-        )
-        async with Subscriber() as subscriber:
+        if account:
+            SubscriberType = PrefectCloudAccountEventSubscriber
+        else:
+            if PREFECT_EXPERIMENTAL_EVENTS.value() and (
+                (api_url := PREFECT_API_URL.value()) is None
+                or not api_url.startswith("https://api.prefect.cloud")
+            ):
+                SubscriberType = PrefectEventSubscriber
+            else:
+                SubscriberType = PrefectCloudEventSubscriber
+        async with SubscriberType() as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
                 if run_once:
