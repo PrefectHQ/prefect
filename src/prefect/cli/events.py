@@ -30,10 +30,9 @@ class StreamFormat(str, Enum):
 def get_event_subscriber_type_for_context(
     account: bool,
 ) -> Type[PrefectEventSubscriber]:
-    experimental_events_enabled = PREFECT_EXPERIMENTAL_EVENTS.value()
     api_url = PREFECT_API_URL.value()
 
-    if experimental_events_enabled and (api_url is None or "/account" not in api_url):
+    if PREFECT_EXPERIMENTAL_EVENTS and (api_url is None or "/account" not in api_url):
         return PrefectEventSubscriber
     return (
         PrefectCloudAccountEventSubscriber if account else PrefectCloudEventSubscriber
