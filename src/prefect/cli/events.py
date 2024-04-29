@@ -9,6 +9,7 @@ from anyio import open_file
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
+from prefect.events import Event
 from prefect.events.clients import (
     PrefectCloudAccountEventSubscriber,
     PrefectCloudEventSubscriber,
@@ -66,11 +67,13 @@ async def stream(
         handle_error(exc)
 
 
-async def handle_event(event, format, output_file):
+async def handle_event(event: Event, format: StreamFormat, output_file: str):
     if format == StreamFormat.json:
         event_data = orjson.dumps(event.dict(), default=str).decode()
     elif format == StreamFormat.text:
         event_data = f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
+    else:
+        raise ValueError(f"Invalid format: {format}")
     if output_file:
         async with open_file(output_file, "a") as f:
             await f.write(event_data + "\n")
