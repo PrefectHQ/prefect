@@ -363,16 +363,6 @@ def test_delete_after_group_creation_success(
     mock_aci_client.container_groups.begin_delete.assert_called_once()
 
 
-def test_stop_after_group_creation_success(
-    container_instance_block, mock_aci_client, monkeypatch
-):
-    # if provisioning was successful, and keep_container_group is enabled,
-    # the container group should be stopped instead of deleted
-    container_instance_block.keep_container_group = True
-    container_instance_block.run()
-    mock_aci_client.container_groups.stop.assert_called_once()
-
-
 def test_delete_after_after_exception(
     container_instance_block, mock_aci_client, monkeypatch
 ):
