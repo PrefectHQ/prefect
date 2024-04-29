@@ -54,7 +54,7 @@ async def automation():
         actions=[DoNothing()],
     )
 
-    model = await Automation.create(automation=automation_to_create)
+    model = await automation_to_create.create()
     return model
 
 
@@ -116,7 +116,7 @@ async def test_read_automation_by_name(automation):
 
 
 async def test_update_automation(automation_spec):
-    auto_to_create = await Automation.create(automation=automation_spec)
+    auto_to_create = await automation_spec.create()
     created_auto = await Automation.read(id=auto_to_create.id)
 
     created_auto.name = "goodbye"
@@ -141,21 +141,23 @@ async def test_enable_automation(automation):
 async def test_automations_work_in_sync_flows(automation_spec):
     @flow
     def create_automation():
-        auto = Automation.create(automation=automation_spec)
-        return auto
+        created_automation = automation_spec.create()
+        return created_automation
 
     auto = create_automation()
     assert isinstance(auto, Automation)
+    assert auto.id is not None
 
 
 async def test_automations_work_in_async_flows(automation_spec):
     @flow
     async def create_automation():
-        auto = await Automation.create(automation=automation_spec)
-        return auto
+        created_automation = await automation_spec.create()
+        return created_automation
 
-    res = await create_automation()
-    assert isinstance(res, Automation)
+    auto = await create_automation()
+    assert isinstance(auto, Automation)
+    assert auto.id is not None
 
 
 async def test_delete_automation(automation):

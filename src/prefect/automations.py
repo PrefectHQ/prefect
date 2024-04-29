@@ -45,7 +45,7 @@ class Automation(AutomationCore):
 
     # @classmethod
     @sync_compatible
-    async def create(self: dict) -> Self:
+    async def create(self: Self) -> Self:
         """
         Create a new automation.
 
@@ -63,20 +63,18 @@ class Automation(AutomationCore):
             ),
             actions=[CancelFlowRun()]
         )
-        created_automation = Automation.create(auto_to_create)
+        created_automation = auto_to_create.create()
         """
         client, _ = get_or_create_client()
-        automation = AutomationCore(**self)
-        automation_id = await client.create_automation(automation=automation)
-        automation = await client.read_automation(automation_id=automation_id)
-        automation = Automation(**automation.dict())
-        return automation if automation else None
+        automation = AutomationCore(**self.dict(exclude={"id"}))
+        self.id = await client.create_automation(automation=automation)
+        return self
 
     @sync_compatible
     async def update(self: Self):
         """
         Updates an existing automation.
-        auto = Automation.read(id = 123)
+        auto = Automation.read(id=123)
         auto.name = "new name"
         auto.update()
         """
