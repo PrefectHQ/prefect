@@ -36,7 +36,7 @@ You can define your tasks within the same file as your flow definition, or you c
 
 **Calling a task from a flow**
 
-Use the `@task` decorator to designate a function as a task. Calling the task from within a flow function creates a new task run:
+Use the `@task` decorator to designate a function as a task. Calling the task creates a new task run:
 
 ```python hl_lines="3-5"
 from prefect import flow, task
@@ -47,6 +47,22 @@ def my_task():
 
 @flow
 def my_flow():
+    my_task()
+```
+
+**Calling a task from another task**
+
+As of `prefect 2.18.x`, you can call a task from within another task:
+
+```python
+from prefect import task
+
+@task
+def my_task():
+    print("Hello, I'm a task")
+
+@task(log_prints=True)
+def my_parent_task():
     my_task()
 ```
 
