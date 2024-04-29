@@ -86,7 +86,6 @@ async def ls(
     state_filter = {}
     if state:
         upper_cased_states = [s.upper() for s in state]
-        # Upper case to check `StateName` enum membership
         if not all(s in StateName.__members__ for s in upper_cased_states):
             exit_with_error(
                 f"Invalid state name. Options are {', '.join([name.value for name in StateName])}."
