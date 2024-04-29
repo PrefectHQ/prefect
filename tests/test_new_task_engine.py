@@ -457,7 +457,8 @@ class TestTaskRunsSync:
 
         # assertions on inner
         inner_run = await prefect_client.read_task_run(a)
-        assert "wait_for" in inner_run.task_inputs
+        assert "__parents__" in inner_run.task_inputs
+        assert inner_run.task_inputs["__parents__"][0].id == b
 
     async def test_task_runs_respect_result_persistence(self, prefect_client):
         @task(persist_result=False)
