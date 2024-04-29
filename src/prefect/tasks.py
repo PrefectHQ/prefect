@@ -901,14 +901,13 @@ class Task(Generic[P, R]):
                 return from_sync.wait_for_call_in_loop_thread(
                     create_autonomous_task_run_call
                 )
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context:
-            if self.isasync:
-                return self._submit_async(
-                    parameters=parameters,
-                    flow_run_context=flow_run_context,
-                    wait_for=wait_for,
-                    return_state=return_state,
-                )
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context and self.isasync:
+            return self._submit_async(
+                parameters=parameters,
+                flow_run_context=flow_run_context,
+                wait_for=wait_for,
+                return_state=return_state,
+            )
 
         else:
             return enter_task_run_engine(
