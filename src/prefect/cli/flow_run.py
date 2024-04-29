@@ -19,7 +19,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import StateName, StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
@@ -57,19 +57,42 @@ async def ls(
     flow_name: List[str] = typer.Option(None, help="Name of the flow"),
     limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
     state: List[str] = typer.Option(None, help="Name of the flow run's state"),
-    state_type: List[StateType] = typer.Option(
-        None, help="Type of the flow run's state"
-    ),
+    state_type: List[str] = typer.Option(None, help="Type of the flow run's state"),
 ):
     """
-    View recent flow runs or flow runs for specific flows
+    View recent flow runs or flow runs for specific flows.
+
+    Arguments:
+        flow_name: Name of the flow
+        limit: Maximum number of flow runs to list
+        state: Name of the flow run's state. Can be provided multiple times. Options are
+            'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING',
+            'CANCELLED', 'PAUSED', 'SUSPENDED', 'AWAITINGRETRY', 'RETRYING', and 'LATE'.
+        state_type: Type of the flow run's state. Can be provided multiple times. Options are
+            'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED',
+            'CRASHED', and 'PAUSED'.
+
+    Examples:
+    $ prefect flow-runs ls --state Running
+    $ prefect flow-runs ls --state Running --state late
+    $ prefect flow-runs ls --state_type RUNNING
+    $ prefect flow-runs ls --state_type RUNNING --state_type FAILED
     """
 
     state_filter = {}
     if state:
-        state_filter["name"] = {"any_": state}
+        if not all(s.upper() in StateName.__members__ for s in state):
+            exit_with_error(
+                f"Invalid state. Options are {', '.join(StateName.__members__)}"
+            )
+        state_filter["name"] = {"any_": [s.upper() for s in state]}
     if state_type:
-        state_filter["type"] = {"any_": state_type}
+        if not all(s.upper() in StateType.__members__ for s in state_type):
+            exit_with_error(
+                f"Invalid state type. Options are {', '.join(StateType.__members__)}"
+            )
+
+        state_filter["type"] = {"any_": [s.upper() for s in state_type]}
 
     async with get_client() as client:
         flow_runs = await client.read_flow_runs(
