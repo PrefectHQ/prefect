@@ -115,7 +115,7 @@ class Automation(AutomationCore):
             if len(automation) > 0:
                 return Automation(**automation[0].dict()) if automation else None
             else:
-                raise ValueError(f"Automation with name {name} not found")
+                raise ValueError(f"Automation with name {name!r} not found")
 
     @sync_compatible
     async def delete(self: Self) -> bool:
