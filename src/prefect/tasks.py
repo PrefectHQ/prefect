@@ -22,18 +22,22 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Set,
     TypeVar,
     Union,
     cast,
     overload,
 )
+from uuid import uuid4
 
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.schemas import TaskRun
-from prefect.context import FlowRunContext, PrefectObjectRegistry
+from prefect.client.schemas.objects import TaskRunInput
+from prefect.context import FlowRunContext, PrefectObjectRegistry, TagsContext
 from prefect.futures import PrefectFuture
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
@@ -41,7 +45,7 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
-from prefect.states import State
+from prefect.states import Pending, State
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
@@ -64,6 +68,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
+
+logger = get_logger("tasks")
 
 
 def task_input_hash(
@@ -531,6 +537,53 @@ class Task(Generic[P, R]):
             viz_return_value=viz_return_value or self.viz_return_value,
         )
 
+    async def create_run(
+        self,
+        flow_run_context: FlowRunContext,
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]],
+        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> TaskRun:
+        # TODO: Investigate if we can replace create_task_run on the task run engine
+        # with this method. Would require updating to work without the flow run context.
+        from prefect.utilities.engine import (
+            _dynamic_key_for_task_run,
+            collect_task_run_inputs,
+        )
+
+        dynamic_key = _dynamic_key_for_task_run(flow_run_context, self)
+        task_inputs = {
+            k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        }
+        if wait_for:
+            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+
+        # Join extra task inputs
+        extra_task_inputs = extra_task_inputs or {}
+        for k, extras in extra_task_inputs.items():
+            task_inputs[k] = task_inputs[k].union(extras)
+
+        flow_run_logger = get_run_logger(flow_run_context)
+
+        task_run = await flow_run_context.client.create_task_run(
+            task=self,
+            name=f"{self.name} - {dynamic_key}",
+            flow_run_id=flow_run_context.flow_run.id,
+            dynamic_key=dynamic_key,
+            state=Pending(),
+            extra_tags=TagsContext.get().current_tags,
+            task_inputs=task_inputs,
+        )
+
+        if flow_run_context.flow_run:
+            flow_run_logger.info(
+                f"Created task run {task_run.name!r} for task {self.name!r}"
+            )
+        else:
+            logger.info(f"Created task run {task_run.name!r} for task {self.name!r}")
+
+        return task_run
+
     @overload
     def __call__(
         self: "Task[P, NoReturn]",
@@ -828,6 +881,7 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
         return_type = "state" if return_state else "future"
+        flow_run_context = FlowRunContext.get()
 
         task_viz_tracker = get_task_viz_tracker()
         if task_viz_tracker:
@@ -835,10 +889,7 @@ class Task(Generic[P, R]):
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
 
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
-            and not FlowRunContext.get()
-        ):
+        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
             create_autonomous_task_run_call = create_call(
                 create_autonomous_task_run, task=self, parameters=parameters
             )
@@ -850,15 +901,73 @@ class Task(Generic[P, R]):
                 return from_sync.wait_for_call_in_loop_thread(
                     create_autonomous_task_run_call
                 )
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context:
+            if self.isasync:
+                return self._submit_async(
+                    parameters=parameters,
+                    flow_run_context=flow_run_context,
+                    wait_for=wait_for,
+                    return_state=return_state,
+                )
+            else:
+                raise NotImplementedError(
+                    "Submitting sync tasks is not yet supported in the new engine"
+                )
 
-        return enter_task_run_engine(
-            self,
+        else:
+            return enter_task_run_engine(
+                self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=None,  # Use the flow's task runner
+                mapped=False,
+            )
+
+    async def _submit_async(
+        self,
+        parameters: Dict[str, Any],
+        flow_run_context: FlowRunContext,
+        wait_for: Optional[Iterable[PrefectFuture]],
+        return_state: bool,
+    ):
+        from prefect.new_task_engine import run_task
+
+        task_runner = flow_run_context.task_runner
+
+        task_run = await self.create_run(
+            flow_run_context=flow_run_context,
             parameters=parameters,
             wait_for=wait_for,
-            return_type=return_type,
-            task_runner=None,  # Use the flow's task runner
-            mapped=False,
         )
+
+        future = PrefectFuture(
+            name=task_run.name,
+            key=uuid4(),
+            task_runner=task_runner,
+            asynchronous=(self.isasync and flow_run_context.flow.isasync),
+        )
+        future.task_run = task_run
+        flow_run_context.task_run_futures.append(future)
+        await task_runner.submit(
+            key=future.key,
+            call=partial(
+                run_task,
+                task=self,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type="state",
+            ),
+        )
+        # TODO: I don't like this. Can we move responsibility for creating the future
+        # and setting this anyio.Event to the task runner?
+        future._submitted.set()
+
+        if return_state:
+            return await future._wait()
+        else:
+            return future
 
     @overload
     def map(
