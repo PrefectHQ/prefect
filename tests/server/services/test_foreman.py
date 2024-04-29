@@ -279,7 +279,7 @@ class TestForeman:
         assert len(events) == 1
 
         event = events[0]
-        assert event.event == "prefect.work-pool.not-ready"
+        assert event.event == "prefect.work-pool.not_ready"
         assert event.resource.id == f"prefect.work-pool.{ready_work_pool.id}"
         assert event.resource.name == ready_work_pool.name
         assert event.resource["prefect.work-pool.type"] == "test"
@@ -470,11 +470,11 @@ class TestForeman:
         for event in events:
             print(event.id, event.follows, event.event, event.resource.id)
 
-        assert events[0].event == "prefect.work-pool.not-ready"
+        assert events[0].event == "prefect.work-pool.not_ready"
         assert events[0].follows is None
         assert events[1].event == "prefect.work-pool.ready"
         assert events[1].follows == events[0].id
-        assert events[2].event == "prefect.work-pool.not-ready"
+        assert events[2].event == "prefect.work-pool.not_ready"
         assert events[2].follows == events[1].id
 
     async def test_status_update_when_deployment_has_old_last_polled_time(

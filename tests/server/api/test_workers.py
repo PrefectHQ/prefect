@@ -101,7 +101,7 @@ class TestCreateWorkPool:
         )
         assert model.name == "Pool 1"
 
-        assert_status_events("Pool 1", ["prefect.work-pool.not-ready"])
+        assert_status_events("Pool 1", ["prefect.work-pool.not_ready"])
 
     async def test_create_work_pool_with_options(self, client):
         response = await client.post(
@@ -326,7 +326,7 @@ class TestUpdateWorkPool:
         )
 
         assert_status_events(
-            work_pool.name, ["prefect.work-pool.paused", "prefect.work-pool.not-ready"]
+            work_pool.name, ["prefect.work-pool.paused", "prefect.work-pool.not_ready"]
         )
 
     async def test_unpause_work_pool_with_online_workers(self, client, work_pool):
