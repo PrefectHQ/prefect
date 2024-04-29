@@ -1,5 +1,6 @@
 import asyncio
-from contextlib import asynccontextmanager
+import inspect
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -15,6 +16,8 @@ from typing import (
 )
 
 import anyio
+import anyio._backends._asyncio
+from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
 from prefect import Flow, Task, get_client
@@ -33,7 +36,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import A, Async
+from prefect.utilities.asyncutils import A, Async, run_sync
 from prefect.utilities.engine import (
     _dynamic_key_for_task_run,
     _resolve_custom_flow_run_name,
@@ -89,7 +92,12 @@ class FlowRunEngine(Generic[P, R]):
         return state
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
-        return await self.state.result(raise_on_failure=raise_on_failure, fetch=True)
+        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
+        if inspect.isawaitable(_result):
+            _result = await _result
+        return _result
 
     async def handle_success(self, result: R) -> R:
         result_factory = getattr(FlowRunContext.get(), "result_factory", None)
@@ -117,9 +125,57 @@ class FlowRunEngine(Generic[P, R]):
             state = await self.set_state(Running())
         return state
 
+    async def load_subflow_run(
+        self, parent_task_run: TaskRun, client: PrefectClient, context: FlowRunContext
+    ) -> Union[FlowRun, None]:
+        """
+        This method attempts to load an existing flow run for a subflow task
+        run, if appropriate.
+
+        If the parent task run is in a final but not COMPLETED state, and not
+        being rerun, then we attempt to load an existing flow run instead of
+        creating a new one. This will prevent the engine from running the
+        subflow again.
+
+        If no existing flow run is found, or if the subflow should be rerun,
+        then no flow run is returned.
+        """
+
+        # check if the parent flow run is rerunning
+        rerunning = (
+            context.flow_run.run_count > 1
+            if getattr(context, "flow_run", None)
+            else False
+        )
+
+        # if the parent task run is in a final but not completed state, and
+        # not rerunning, then retrieve the most recent flow run instead of
+        # creating a new one. This effectively loads a cached flow run for
+        # situations where we are confident the flow should not be run
+        # again.
+        if parent_task_run.state.is_final() and not (
+            rerunning and not parent_task_run.state.is_completed()
+        ):
+            # return the most recent flow run, if it exists
+            flow_runs = await client.read_flow_runs(
+                flow_run_filter=FlowRunFilter(
+                    parent_task_run_id={"any_": [parent_task_run.id]}
+                ),
+                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+                limit=1,
+            )
+            if flow_runs:
+                return flow_runs[-1]
+
     async def create_subflow_task_run(
         self, client: PrefectClient, context: FlowRunContext
     ) -> TaskRun:
+        """
+        Adds a task to a parent flow run that represents the execution of a subflow run.
+
+        The task run is referred to as the "parent task run" of the subflow and will be kept
+        in sync with the subflow run's state by the orchestration engine.
+        """
         dummy_task = Task(
             name=self.flow.name, fn=self.flow.fn, version=self.flow.version
         )
@@ -137,47 +193,23 @@ class FlowRunEngine(Generic[P, R]):
         )
         return parent_task_run
 
-    async def get_most_recent_flow_run_for_parent_task_run(
-        self, client: PrefectClient, parent_task_run: TaskRun
-    ) -> "Union[FlowRun, None]":
-        """
-        Get the most recent flow run associated with the provided parent task run.
-
-        Args:
-            - An orchestration client
-            - The parent task run to get the most recent flow run for
-
-        Returns:
-            The most recent flow run associated with the parent task run or `None` if
-            no flow runs are found
-        """
-        flow_runs = await client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                parent_task_run_id={"any_": [parent_task_run.id]}
-            ),
-            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-        )
-        return flow_runs[-1] if flow_runs else None
-
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
 
         parent_task_run = None
+
         # this is a subflow run
         if flow_run_ctx:
+            # get the parent task run
             parent_task_run = await self.create_subflow_task_run(
                 client=client, context=flow_run_ctx
             )
-            # If the parent task run already completed, return the last flow run
-            # associated with the parent task run. This prevents rerunning a completed
-            # flow run when the parent task run is rerun.
-            most_recent_flow_run = (
-                await self.get_most_recent_flow_run_for_parent_task_run(
-                    client=client, parent_task_run=parent_task_run
-                )
-            )
-            if most_recent_flow_run:
-                return most_recent_flow_run
+
+            # check if there is already a flow run for this subflow
+            if subflow_run := await self.load_subflow_run(
+                parent_task_run=parent_task_run, client=client, context=flow_run_ctx
+            ):
+                return subflow_run
 
         try:
             flow_run_name = _resolve_custom_flow_run_name(
@@ -215,6 +247,33 @@ class FlowRunEngine(Generic[P, R]):
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
             yield
 
+    @contextmanager
+    def enter_run_context_sync(self, client: Optional[PrefectClient] = None):
+        if client is None:
+            client = self.client
+
+        self.flow_run = run_sync(client.read_flow_run(self.flow_run.id))
+
+        # if running in a completely synchronous frame, anyio will not detect the
+        # backend to use for the task group
+        try:
+            task_group = anyio.create_task_group()
+        except AsyncLibraryNotFoundError:
+            task_group = anyio._backends._asyncio.TaskGroup()
+
+        with FlowRunContext(
+            flow=self.flow,
+            log_prints=self.flow.log_prints or False,
+            flow_run=self.flow_run,
+            parameters=self.parameters,
+            client=client,
+            background_tasks=task_group,
+            result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+            task_runner=self.flow.task_runner,
+        ):
+            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+            yield
+
     @asynccontextmanager
     async def start(self):
         """
@@ -238,11 +297,46 @@ class FlowRunEngine(Generic[P, R]):
                         result_factory=await ResultFactory.from_flow(self.flow),
                     )
                     self.short_circuit = True
+            try:
+                yield self
+            finally:
+                self._is_started = False
+                self._client = None
 
+    @contextmanager
+    def start_sync(self):
+        """
+        Enters a client context and creates a flow run if needed.
+        """
+
+        client = get_client()
+        run_sync(client.__aenter__())
+        self._client = client
+        self._is_started = True
+
+        if not self.flow_run:
+            self.flow_run = run_sync(self.create_flow_run(client))
+
+        # validate prior to context so that context receives validated params
+        if self.flow.should_validate_parameters:
+            try:
+                self.parameters = self.flow.validate_parameters(self.parameters)
+            except Exception as exc:
+                run_sync(
+                    self.handle_exception(
+                        exc,
+                        msg="Validation of flow parameters failed with error",
+                        result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                    )
+                )
+                self.short_circuit = True
+        try:
             yield self
-
-        self._is_started = False
-        self._client = None
+        finally:
+            # quickly close client
+            run_sync(client.__aexit__(None, None, None))
+            self._is_started = False
+            self._client = None
 
     def is_running(self) -> bool:
         if getattr(self, "flow_run", None) is None:
@@ -261,7 +355,7 @@ async def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> "Union[R, None]":
+) -> Union[R, None]:
     """
     Runs a flow against the API.
 
@@ -277,10 +371,7 @@ async def run_flow(
             async with run.enter_run_context():
                 try:
                     # This is where the flow is actually run.
-                    if flow.isasync:
-                        result = cast(R, await flow.fn(**(run.parameters or {})))  # type: ignore
-                    else:
-                        result = cast(R, flow.fn(**(run.parameters or {})))  # type: ignore
+                    result = cast(R, await flow.fn(**(run.parameters or {})))  # type: ignore
                     # If the flow run is successful, finalize it.
                     await run.handle_success(result)
 
@@ -291,3 +382,32 @@ async def run_flow(
         if return_type == "state":
             return run.state
         return await run.result()
+
+
+def run_flow_sync(
+    flow: Task[P, Coroutine[Any, Any, R]],
+    flow_run: Optional[FlowRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> Union[R, None]:
+    engine = FlowRunEngine[P, R](flow, parameters, flow_run)
+    # This is a context manager that keeps track of the state of the flow run.
+    with engine.start_sync() as run:
+        run_sync(run.begin_run())
+
+        while run.is_running():
+            with run.enter_run_context_sync():
+                try:
+                    # This is where the flow is actually run.
+                    result = cast(R, flow.fn(**(run.parameters or {})))  # type: ignore
+                    # If the flow run is successful, finalize it.
+                    run_sync(run.handle_success(result))
+
+                except Exception as exc:
+                    # If the flow fails, and we have retries left, set the flow to retrying.
+                    run_sync(run.handle_exception(exc))
+
+        if return_type == "state":
+            return run.state
+        return run_sync(run.result())
