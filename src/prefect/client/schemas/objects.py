@@ -89,6 +89,22 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
+class StateName(AutoEnum):
+    SCHEDULED = AutoEnum.auto()
+    PENDING = AutoEnum.auto()
+    RUNNING = AutoEnum.auto()
+    COMPLETED = AutoEnum.auto()
+    FAILED = AutoEnum.auto()
+    CANCELLED = AutoEnum.auto()
+    CRASHED = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
+    CANCELLING = AutoEnum.auto()
+    SUSPENDED = AutoEnum.auto()
+    AWAITINGRETRY = AutoEnum.auto()
+    RETRYING = AutoEnum.auto()
+    LATE = AutoEnum.auto()
+
+
 class WorkPoolStatus(AutoEnum):
     """Enumeration of work pool statuses."""
 
