@@ -43,7 +43,6 @@ __all__ = [
 class Automation(AutomationCore):
     id: Optional[UUID] = Field(default=None, description="The ID of this automation")
 
-    # @classmethod
     @sync_compatible
     async def create(self: Self) -> Self:
         """
