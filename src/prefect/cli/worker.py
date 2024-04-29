@@ -252,7 +252,7 @@ async def _check_work_queues_paused(
         - work_queues (Optional[List[str]]): the names of the work queues to check
 
     Returns:
-        - bool: True if all work queues are paused, False otherwise
+        - bool: True if work queues are paused, False otherwise
     """
     try:
         work_queues_filter = (
