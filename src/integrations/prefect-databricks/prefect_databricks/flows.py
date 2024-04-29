@@ -21,6 +21,9 @@ from prefect_databricks.models.jobs import (
     RunSubmitTaskSettings,
 )
 
+JobMetadata = Dict[str, Any]
+NotebookOutput = Dict[str, Any]
+
 
 class DatabricksJobTerminated(Exception):
     """Raised when Databricks jobs runs submit terminates"""
@@ -67,7 +70,7 @@ async def jobs_runs_submit_and_wait_for_completion(
     access_control_list: Optional[List[AccessControlRequest]] = None,
     return_metadata: bool = False,
     **jobs_runs_submit_kwargs: Dict[str, Any],
-) -> Union[Dict, Tuple[Dict, Any]]:
+) -> Union[NotebookOutput, Tuple[NotebookOutput, JobMetadata]]:
     """
     Flow that triggers a job run and waits for the triggered run to complete.
 
@@ -179,7 +182,7 @@ async def jobs_runs_submit_and_wait_for_completion(
         max_wait_seconds: Maximum number of seconds to wait for the entire flow to complete.
         poll_frequency_seconds: Number of seconds to wait in between checks for
             run completion.
-        return_metadata: When True, method will return a tuple of notebook outputs as well as
+        return_metadata: When True, method will return a tuple of notebook output as well as
             job run metadata; by default though, the method only returns notebook output
         **jobs_runs_submit_kwargs: Additional keyword arguments to pass to `jobs_runs_submit`.
 
@@ -188,7 +191,7 @@ async def jobs_runs_submit_and_wait_for_completion(
         * task_notebook_outputs: dictionary of task keys to its corresponding notebook output;
           this is the only object returned by default from this method
         * jobs_runs_metadata: dictionary containing IDs of the jobs runs tasks; this is only
-          return if `return_metadata=True`.
+          returned if `return_metadata=True`.
 
     Examples:
         Submit jobs runs and wait.
