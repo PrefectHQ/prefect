@@ -1,5 +1,6 @@
 import asyncio
 from enum import Enum
+from typing import Type
 
 import orjson
 import typer
@@ -9,10 +10,13 @@ from anyio import open_file
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
+from prefect.events import Event
 from prefect.events.clients import (
     PrefectCloudAccountEventSubscriber,
     PrefectCloudEventSubscriber,
+    PrefectEventSubscriber,
 )
+from prefect.settings import PREFECT_API_URL, PREFECT_EXPERIMENTAL_EVENTS
 
 events_app = PrefectTyper(name="events", help="Commands for working with events.")
 app.add_typer(events_app, aliases=["event"])
@@ -21,6 +25,19 @@ app.add_typer(events_app, aliases=["event"])
 class StreamFormat(str, Enum):
     json = "json"
     text = "text"
+
+
+def get_event_subscriber_type_for_context(
+    account: bool,
+) -> Type[PrefectEventSubscriber]:
+    experimental_events_enabled = PREFECT_EXPERIMENTAL_EVENTS.value()
+    api_url = PREFECT_API_URL.value()
+
+    if experimental_events_enabled and (api_url is None or "/account" not in api_url):
+        return PrefectEventSubscriber
+    return (
+        PrefectCloudAccountEventSubscriber if account else PrefectCloudEventSubscriber
+    )
 
 
 @events_app.command()
@@ -42,14 +59,10 @@ async def stream(
     as it is received. By default, events are printed as JSON, but can be
     printed as text by passing `--format text`.
     """
-    app.console.print("Subscribing to event stream...")
 
     try:
-        Subscriber = (
-            PrefectCloudAccountEventSubscriber
-            if account
-            else PrefectCloudEventSubscriber
-        )
+        Subscriber = get_event_subscriber_type_for_context(account)
+        app.console.print("Subscribing to event stream...")
         async with Subscriber() as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
@@ -59,11 +72,13 @@ async def stream(
         handle_error(exc)
 
 
-async def handle_event(event, format, output_file):
+async def handle_event(event: Event, format: StreamFormat, output_file: str):
     if format == StreamFormat.json:
         event_data = orjson.dumps(event.dict(), default=str).decode()
     elif format == StreamFormat.text:
         event_data = f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
+    else:
+        raise ValueError(f"Unknown format: {format}")
     if output_file:
         async with open_file(output_file, "a") as f:
             await f.write(event_data + "\n")
