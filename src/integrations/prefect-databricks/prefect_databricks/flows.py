@@ -4,7 +4,7 @@ Module containing flows for interacting with Databricks
 
 import asyncio
 from logging import Logger
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from prefect import flow, get_run_logger
 from prefect_databricks import DatabricksCredentials
@@ -66,7 +66,7 @@ async def jobs_runs_submit_and_wait_for_completion(
     idempotency_token: Optional[str] = None,
     access_control_list: Optional[List[AccessControlRequest]] = None,
     **jobs_runs_submit_kwargs: Dict[str, Any],
-) -> Dict:
+) -> Tuple[Dict, Any]:
     """
     Flow that triggers a job run and waits for the triggered run to complete.
 
@@ -181,7 +181,9 @@ async def jobs_runs_submit_and_wait_for_completion(
         **jobs_runs_submit_kwargs: Additional keyword arguments to pass to `jobs_runs_submit`.
 
     Returns:
-        A dictionary of task keys to its corresponding notebook output.
+        A tuple comprised of
+        * task_notebook_outputs: dictionary of task keys to its corresponding notebook output.
+        * jobs_runs_metadata: dictionary containing IDs of the jobs runs tasks.
 
     Examples:
         Submit jobs runs and wait.
@@ -290,7 +292,7 @@ async def jobs_runs_submit_and_wait_for_completion(
                 run_name,
                 multi_task_jobs_runs_id,
             )
-            return task_notebook_outputs
+            return task_notebook_outputs, jobs_runs_metadata
         else:
             raise DatabricksJobTerminated(
                 f"Databricks Jobs Runs Submit "
