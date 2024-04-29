@@ -79,20 +79,32 @@ async def ls(
     $ prefect flow-runs ls --state_type RUNNING --state_type FAILED
     """
 
+    # Handling `state` and `state_type` argument validity in the function instead of by specifying
+    # List[StateType] and List[StateName] in the type hints, allows users to provide
+    # case-insensitive arguments for `state` and `state_type`.
+
     state_filter = {}
     if state:
-        if not all(s.upper() in StateName.__members__ for s in state):
+        upper_cased_states = [s.upper() for s in state]
+        # Upper case to check `StateName` enum membership
+        if not all(s in StateName.__members__ for s in upper_cased_states):
             exit_with_error(
-                f"Invalid state. Options are {', '.join(StateName.__members__)}"
+                f"Invalid state name. Options are {', '.join([name.value for name in StateName])}."
             )
-        state_filter["name"] = {"any_": [s.upper() for s in state]}
+        # `FlowRun.state_name` is expected to be capitalized, so retrieve the `StateName` enum value
+        state_filter["name"] = {
+            "any_": [StateName[s].value for s in upper_cased_states]
+        }
     if state_type:
-        if not all(s.upper() in StateType.__members__ for s in state_type):
+        upper_cased_states = [s.upper() for s in state_type]
+        if not all(s in StateType.__members__ for s in upper_cased_states):
             exit_with_error(
-                f"Invalid state type. Options are {', '.join(StateType.__members__)}"
+                f"Invalid state type. Options are {', '.join(StateType.__members__)}."
             )
 
-        state_filter["type"] = {"any_": [s.upper() for s in state_type]}
+        state_filter["type"] = {
+            "any_": [StateType[s].value for s in upper_cased_states]
+        }
 
     async with get_client() as client:
         flow_runs = await client.read_flow_runs(
