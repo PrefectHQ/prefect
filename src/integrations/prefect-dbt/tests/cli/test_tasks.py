@@ -99,7 +99,7 @@ def test_dbt_test_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     test_flow()
     assert (a := Artifact.get(key="foo"))
     assert a.type == "markdown"
-    assert a.data.startswith("# DBT Build Task Summary")
+    assert a.data.startswith("# DBT Test Task Summary")
     assert "my_first_dbt_model" in a.data
 
 
@@ -117,7 +117,7 @@ def test_dbt_snapshot_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     test_flow()
     assert (a := Artifact.get(key="foo"))
     assert a.type == "markdown"
-    assert a.data.startswith("# DBT Build Task Summary")
+    assert a.data.startswith("# DBT Snapshot Task Summary")
     assert "my_first_dbt_model" in a.data
 
 
@@ -135,7 +135,7 @@ def test_dbt_seed_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     test_flow()
     assert (a := Artifact.get(key="foo"))
     assert a.type == "markdown"
-    assert a.data.startswith("# DBT Build Task Summary")
+    assert a.data.startswith("# DBT Seed Task Summary")
     assert "my_first_dbt_model" in a.data
 
 
@@ -153,5 +153,5 @@ def test_dbt_run_task_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     test_flow()
     assert (a := Artifact.get(key="foo"))
     assert a.type == "markdown"
-    assert a.data.startswith("# DBT Build Task Summary")
+    assert a.data.startswith("# DBT Run Task Summary")
     assert "my_first_dbt_model" in a.data
