@@ -25,7 +25,7 @@ Flows and tasks share some common features:
 
 Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/concepts/tasks/#retries), [caching](/concepts/tasks/#caching), and [concurrency](/concepts/task-runners/#using-a-task-runner).
 
-!!! warning "Tasks may be called from other tasks"
+!!! tip "Tasks may be called from other tasks"
     As of `prefect 2.18.x`, tasks can be called from within other tasks. This removes the need to use subflows for simple task composition.
 
 !!! note "When to use tasks"
