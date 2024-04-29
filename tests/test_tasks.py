@@ -31,6 +31,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
+    PREFECT_WARN_OBJECT_REGISTRY_CONFLICT,
     temporary_settings,
 )
 from prefect.states import State
@@ -2779,9 +2780,22 @@ class TestTaskRegistration:
             def task_two():
                 pass
 
+    def test_setting_to_disable_warning_for_name_conflict(self):
+        with temporary_settings({PREFECT_WARN_OBJECT_REGISTRY_CONFLICT: False}):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+
+                @task(name="my_task")
+                def task_one():
+                    pass
+
+                @task(name="my_task")
+                def task_two():
+                    pass
+
     def test_no_warning_name_conflict_task_with_options(self):
         with warnings.catch_warnings():
-            warnings.simplefilter("error")
+            warnings.simplefilter("error", UserWarning)
 
             @task(name="my_task")
             def task_one():

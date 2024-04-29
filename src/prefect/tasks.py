@@ -40,6 +40,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_WARN_OBJECT_REGISTRY_CONFLICT,
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
@@ -335,10 +336,14 @@ class Task(Generic[P, R]):
         # `with_options`, which should not result in a warning.
         registry = PrefectObjectRegistry.get()
 
-        if registry and any(
-            other
-            for other in registry.get_instances(Task)
-            if other.name == self.name and id(other.fn) != id(self.fn)
+        if (
+            registry
+            and any(
+                other
+                for other in registry.get_instances(Task)
+                if other.name == self.name and id(other.fn) != id(self.fn)
+            )
+            and PREFECT_WARN_OBJECT_REGISTRY_CONFLICT.value()
         ):
             try:
                 file = inspect.getsourcefile(self.fn)
@@ -351,7 +356,8 @@ class Task(Generic[P, R]):
                 f"A task named {self.name!r} and defined at '{file}:{line_number}' "
                 "conflicts with another task. Consider specifying a unique `name` "
                 "parameter in the task definition:\n\n "
-                "`@task(name='my_unique_name', ...)`"
+                "`@task(name='my_unique_name', ...)`\n\nTo disable this warning,"
+                " set PREFECT_WARN_OBJECT_REGISTRY_CONFLICT=false"
             )
         self.on_completion = on_completion
         self.on_failure = on_failure

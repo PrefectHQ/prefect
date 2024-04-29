@@ -1730,6 +1730,12 @@ PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
 How long to cache related resource data for emitting server-side vents
 """
 
+PREFECT_WARN_OBJECT_REGISTRY_CONFLICT = Setting(bool, default=True)
+"""
+Whether to print a warning when a flow or task is defined with the same name as
+an existing object in the flow/task registry.
+"""
+
 # Deprecated settings ------------------------------------------------------------------
 
 

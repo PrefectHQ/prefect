@@ -91,6 +91,7 @@ from prefect.settings import (
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
+    PREFECT_WARN_OBJECT_REGISTRY_CONFLICT,
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
@@ -347,10 +348,14 @@ class Flow(Generic[P, R]):
         # Check for collision in the registry
         registry = PrefectObjectRegistry.get()
 
-        if registry and any(
-            other
-            for other in registry.get_instances(Flow)
-            if other.name == self.name and id(other.fn) != id(self.fn)
+        if (
+            registry
+            and any(
+                other
+                for other in registry.get_instances(Flow)
+                if other.name == self.name and id(other.fn) != id(self.fn)
+            )
+            and PREFECT_WARN_OBJECT_REGISTRY_CONFLICT.value()
         ):
             file = inspect.getsourcefile(self.fn)
             line_number = inspect.getsourcelines(self.fn)[1]
@@ -358,7 +363,8 @@ class Flow(Generic[P, R]):
                 f"A flow named {self.name!r} and defined at '{file}:{line_number}' "
                 "conflicts with another flow. Consider specifying a unique `name` "
                 "parameter in the flow definition:\n\n "
-                "`@flow(name='my_unique_name', ...)`"
+                "`@flow(name='my_unique_name', ...)`\n\nTo disable this warning,"
+                " set PREFECT_WARN_OBJECT_REGISTRY_CONFLICT=false"
             )
         self.on_completion = on_completion
         self.on_failure = on_failure
