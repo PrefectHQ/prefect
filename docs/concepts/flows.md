@@ -35,9 +35,6 @@ Flows may be defined within modules and imported for use as subflows in your flo
 
 [Deployments](/concepts/deployments/) elevate individual workflows from functions that you call manually to API-managed entities.
 
-!!! warning "Tasks must be called from flows"
-    All tasks must be called from within a flow. Tasks may not be called from other tasks.
-
 ## Flow runs
 
 A _flow run_ represents a single execution of the flow.
