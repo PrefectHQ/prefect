@@ -909,10 +909,6 @@ class Task(Generic[P, R]):
                     wait_for=wait_for,
                     return_state=return_state,
                 )
-            else:
-                raise NotImplementedError(
-                    "Submitting sync tasks is not yet supported in the new engine"
-                )
 
         else:
             return enter_task_run_engine(
