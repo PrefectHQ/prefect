@@ -80,7 +80,7 @@ async def handle_event(event: Event, format: StreamFormat, output_file: str):
     else:
         raise ValueError(f"Unknown format: {format}")
     if output_file:
-        async with open_file(output_file, "a") as f:
+        async with open_file(output_file, "a") as f:  # type: ignore
             await f.write(event_data + "\n")
     else:
         print(event_data)
