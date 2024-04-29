@@ -63,19 +63,23 @@ async def ls(
     View recent flow runs or flow runs for specific flows.
 
     Arguments:
+
         flow_name: Name of the flow
+
         limit: Maximum number of flow runs to list
-        state: Name of the flow run's state. Can be provided multiple times. Options are
-            'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING',
-            'CANCELLED', 'PAUSED', 'SUSPENDED', 'AWAITINGRETRY', 'RETRYING', and 'LATE'.
-        state_type: Type of the flow run's state. Can be provided multiple times. Options are
-            'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED',
-            'CRASHED', and 'PAUSED'.
+
+        state: Name of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'PAUSED', 'SUSPENDED', 'AWAITINGRETRY', 'RETRYING', and 'LATE'.
+
+        state_type: Type of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'CRASHED', and 'PAUSED'.
 
     Examples:
+
     $ prefect flow-runs ls --state Running
+
     $ prefect flow-runs ls --state Running --state late
+
     $ prefect flow-runs ls --state_type RUNNING
+
     $ prefect flow-runs ls --state_type RUNNING --state_type FAILED
     """
 
@@ -118,6 +122,9 @@ async def ls(
                 flow_filter=FlowFilter(id={"any_": [run.flow_id for run in flow_runs]})
             )
         }
+
+        if not flow_runs:
+            exit_with_success("No flow runs found.")
 
     table = Table(title="Flow Runs")
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
