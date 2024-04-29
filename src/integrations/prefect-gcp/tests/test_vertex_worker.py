@@ -261,7 +261,6 @@ class TestVertexAIWorker:
             else:
                 raise AssertionError("Expected message not found.")
 
-    @pytest.mark.asyncio
     async def test_kill_infrastructure_not_found(self, job_config):
         async with VertexAIWorker("test-pool") as worker:
             job_config.credentials.job_service_async_client.cancel_custom_job.side_effect = Exception(
