@@ -149,39 +149,39 @@ def test_ls_flow_name_filter(
     )
 
 
-# @pytest.mark.parametrize(
-#     "state_type_1, state_type_2",
-#     [
-#         ("completed", "running"),
-#         ("COMPLETED", "RUNNING"),
-#         ("Completed", "Running"),
-#     ],
-# )
-# def test_ls_state_type_filter(
-#     scheduled_flow_run,
-#     completed_flow_run,
-#     running_flow_run,
-#     late_flow_run,
-#     state_type_1,
-#     state_type_2,
-# ):
-#     result = invoke_and_assert(
-#         command=[
-#             "flow-run",
-#             "ls",
-#             "--state-type",
-#             state_type_1,
-#             "--state-type",
-#             state_type_2,
-#         ],
-#         expected_code=0,
-#     )
+@pytest.mark.parametrize(
+    "state_type_1, state_type_2",
+    [
+        ("completed", "running"),
+        ("COMPLETED", "RUNNING"),
+        ("Completed", "Running"),
+    ],
+)
+def test_ls_state_type_filter(
+    scheduled_flow_run,
+    completed_flow_run,
+    running_flow_run,
+    late_flow_run,
+    state_type_1,
+    state_type_2,
+):
+    result = invoke_and_assert(
+        command=[
+            "flow-run",
+            "ls",
+            "--state-type",
+            state_type_1,
+            "--state-type",
+            state_type_2,
+        ],
+        expected_code=0,
+    )
 
-#     assert_flow_runs_in_result(
-#         result,
-#         expected=[running_flow_run, completed_flow_run],
-#         unexpected=[scheduled_flow_run, late_flow_run],
-#     )
+    assert_flow_runs_in_result(
+        result,
+        expected=[running_flow_run, completed_flow_run],
+        unexpected=[scheduled_flow_run, late_flow_run],
+    )
 
 
 def test_ls_state_type_filter_invalid_raises():
