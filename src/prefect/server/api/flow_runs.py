@@ -3,10 +3,9 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-import jsonschema
 import orjson
 import pendulum
 import sqlalchemy as sa
@@ -27,6 +26,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
+from prefect.server.api.validation import validate_job_variables_for_flow_run
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge
@@ -40,6 +40,7 @@ from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.utilities import schema_tools
 
 logger = get_logger("server.api")
 
@@ -51,7 +52,8 @@ async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
-    orchestration_parameters: dict = Depends(
+    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -63,7 +65,7 @@ async def create_flow_run(
     If no state is provided, the flow run will be created in a PENDING state.
     """
     # hydrate the input model into a full flow run / state model
-    flow_run = schemas.core.FlowRun(**flow_run.dict())
+    flow_run = schemas.core.FlowRun(**flow_run.dict(), created_by=created_by)
 
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
@@ -95,6 +97,41 @@ async def update_flow_run(
     Updates a flow run.
     """
     async with db.session_context(begin_transaction=True) as session:
+        if flow_run.job_variables is not None:
+            this_run = await models.flow_runs.read_flow_run(
+                session, flow_run_id=flow_run_id
+            )
+            if this_run is None:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+                )
+            if not this_run.state:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail="Flow run state is required to update job variables but none exists",
+                )
+            if this_run.state.type != schemas.states.StateType.SCHEDULED:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Job variables for a flow run in state {this_run.state.type.name} cannot be updated",
+                )
+            if this_run.deployment_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A deployment for the flow run could not be found",
+                )
+
+            deployment = await models.deployments.read_deployment(
+                session=session, deployment_id=this_run.deployment_id
+            )
+            if deployment is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A deployment for the flow run could not be found",
+                )
+
+            await validate_job_variables_for_flow_run(flow_run, deployment, session)
+
         result = await models.flow_runs.update_flow_run(
             session=session, flow_run=flow_run, flow_run_id=flow_run_id
         )
@@ -300,7 +337,7 @@ async def resume_flow_run(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
@@ -331,6 +368,20 @@ async def resume_flow_run(
         if keyset:
             run_input = run_input or {}
 
+            try:
+                hydration_context = await schema_tools.HydrationContext.build(
+                    session=session, raise_on_error=True
+                )
+                run_input = schema_tools.hydrate(run_input, hydration_context) or {}
+            except schema_tools.HydrationError as exc:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason=f"Error hydrating run input: {exc}",
+                    ),
+                )
+
             schema_json = await models.flow_run_input.read_flow_run_input(
                 session=session, flow_run_id=flow_run.id, key=keyset["schema"]
             )
@@ -356,13 +407,21 @@ async def resume_flow_run(
                 )
 
             try:
-                jsonschema.validate(run_input, schema)
-            except (jsonschema.ValidationError, jsonschema.SchemaError) as exc:
+                schema_tools.validate(run_input, schema, raise_on_error=True)
+            except schema_tools.ValidationError as exc:
                 return OrchestrationResult(
                     state=state,
                     status=schemas.responses.SetStateStatus.REJECT,
                     details=schemas.responses.StateAbortDetails(
-                        reason=f"Run input validation failed: {exc.message}"
+                        reason=f"Reason: {exc}"
+                    ),
+                )
+            except schema_tools.CircularSchemaRefError:
+                return OrchestrationResult(
+                    state=state,
+                    status=schemas.responses.SetStateStatus.REJECT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Invalid schema: Unable to validate schema with circular references.",
                     ),
                 )
 
@@ -485,7 +544,7 @@ async def set_flow_run_state(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),

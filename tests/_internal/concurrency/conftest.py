@@ -1,5 +1,6 @@
 import threading
 import time
+from typing import List
 
 import pytest
 
@@ -29,7 +30,7 @@ def check_thread_leak():
 
         # Give leaked threads a 5 second grace period to teardown
         if time.time() > start + 5:
-            lines: list[str] = [f"{len(bad_threads)} thread(s) were leaked from test\n"]
+            lines: List[str] = [f"{len(bad_threads)} thread(s) were leaked from test\n"]
             lines += [
                 f"\t{hex(thread.ident)} - {thread.name}\n" for thread in bad_threads
             ]

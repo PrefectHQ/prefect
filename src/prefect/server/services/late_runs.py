@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.models as models
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.orchestration.core_policy import MarkLateRunsPolicy
 from prefect.server.schemas import states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import (
@@ -111,12 +113,15 @@ class MarkLateRuns(LoopService):
 
         Pass-through method for overrides.
         """
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run.id,
-            state=states.Late(scheduled_time=flow_run.next_scheduled_start_time),
-            force=True,
-        )
+        try:
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=states.Late(scheduled_time=flow_run.next_scheduled_start_time),
+                flow_policy=MarkLateRunsPolicy,  # type: ignore
+            )
+        except ObjectNotFoundError:
+            return  # flow run was deleted, ignore it
 
 
 if __name__ == "__main__":

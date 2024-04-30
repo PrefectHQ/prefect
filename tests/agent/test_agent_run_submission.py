@@ -1,5 +1,6 @@
 import datetime
 import inspect
+import uuid
 from typing import Generator
 from unittest.mock import MagicMock
 
@@ -87,11 +88,8 @@ async def test_agent_with_work_queue(prefect_client, deployment):
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await prefect_client.read_work_queue_by_name(
-        deployment.work_queue_name
-    )
     work_queue_runs = await prefect_client.get_runs_in_work_queue(
-        work_queue.id, scheduled_before=pendulum.now("UTC").add(seconds=10)
+        deployment.work_queue.id, scheduled_before=pendulum.now("UTC").add(seconds=10)
     )
     work_queue_flow_run_ids = {run.id for run in work_queue_runs}
 
@@ -99,7 +97,7 @@ async def test_agent_with_work_queue(prefect_client, deployment):
     # Should not include runs without deployments
     assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
 
-    agent = PrefectAgent(work_queues=[work_queue.name], prefetch_seconds=10)
+    agent = PrefectAgent(work_queues=[deployment.work_queue.name], prefetch_seconds=10)
 
     async with agent:
         agent.submit_run = AsyncMock()  # do not actually run anything
@@ -140,11 +138,8 @@ async def test_agent_with_work_queue_and_limit(prefect_client, deployment):
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await prefect_client.read_work_queue_by_name(
-        deployment.work_queue_name
-    )
     work_queue_runs = await prefect_client.get_runs_in_work_queue(
-        work_queue.id, scheduled_before=pendulum.now("UTC").add(seconds=10)
+        deployment.work_queue.id, scheduled_before=pendulum.now("UTC").add(seconds=10)
     )
     work_queue_runs.sort(key=lambda run: run.next_scheduled_start_time)
     work_queue_flow_run_ids = [run.id for run in work_queue_runs]
@@ -153,7 +148,9 @@ async def test_agent_with_work_queue_and_limit(prefect_client, deployment):
     # Should not include runs without deployments
     assert set(work_queue_flow_run_ids) == set(flow_run_ids[1:4])
 
-    agent = PrefectAgent(work_queues=[work_queue.name], prefetch_seconds=10, limit=2)
+    agent = PrefectAgent(
+        work_queues=[deployment.work_queue.name], prefetch_seconds=10, limit=2
+    )
 
     async with agent:
         agent.submit_run = AsyncMock()  # do not actually run anything
@@ -176,23 +173,23 @@ async def test_agent_with_work_queue_and_limit(prefect_client, deployment):
 async def test_agent_matches_work_queues_dynamically(
     session, work_queue, prefect_caplog
 ):
-    name = "wq-1"
-    assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
+    assert await models.work_queues.read_work_queue_by_name(
+        session=session, name=work_queue.name
+    )
     async with PrefectAgent(work_queue_prefix=["wq-"]) as agent:
-        assert name not in agent.work_queues
+        assert work_queue.name not in agent.work_queues
         await agent.get_and_submit_flow_runs()
-        assert name in agent.work_queues
+        assert work_queue.name in agent.work_queues
 
-    assert f"Matched new work queues: {name}" in prefect_caplog.text
+    assert "Matched new work queues:" in prefect_caplog.text
+    assert work_queue.name in prefect_caplog.text
 
 
-async def test_agent_matches_multiple_work_queues_dynamically(
-    session, prefect_client, prefect_caplog
-):
+async def test_agent_matches_multiple_work_queues_dynamically(prefect_client):
     prod1 = "prod-deployment-1"
     prod2 = "prod-deployment-2"
     prod3 = "prod-deployment-3"
-    dev1 = "dev-data-producer"
+    dev1 = "dev-data-producer-1"
     await prefect_client.create_work_queue(name=prod1)
     await prefect_client.create_work_queue(name=prod2)
 
@@ -215,11 +212,9 @@ async def test_agent_matches_multiple_work_queues_dynamically(
         ), "work queue matcher should not match partial names"
 
 
-async def test_agent_matches_multiple_work_queue_prefixes(
-    session, prefect_client, prefect_caplog
-):
-    prod = "prod-deployment"
-    dev = "dev-data-producer"
+async def test_agent_matches_multiple_work_queue_prefixes(prefect_client):
+    prod = "prod-deployment-4"
+    dev = "dev-data-producer-2"
     await prefect_client.create_work_queue(name=prod)
     await prefect_client.create_work_queue(name=dev)
 
@@ -233,26 +228,29 @@ async def test_agent_matches_multiple_work_queue_prefixes(
 async def test_matching_work_queues_handes_work_queue_deletion(
     session, work_queue, prefect_client, prefect_caplog
 ):
-    name = "wq-1"
-    assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
+    assert await models.work_queues.read_work_queue_by_name(
+        session=session, name=work_queue.name
+    )
     async with PrefectAgent(work_queue_prefix=["wq-"]) as agent:
         await agent.get_and_submit_flow_runs()
-        assert name in agent.work_queues
+        assert work_queue.name in agent.work_queues
 
         # bypass work_queue caching
         agent._work_queue_cache_expiration = pendulum.now("UTC") - pendulum.duration(
             minutes=1
         )
+        assert "Matched new work queues:" in prefect_caplog.text
+        assert work_queue.name in prefect_caplog.text
         await prefect_client.delete_work_queue_by_id(work_queue.id)
         await agent.get_and_submit_flow_runs()
-        assert name not in agent.work_queues
-
-    assert f"Matched new work queues: {name}" in prefect_caplog.text
-    assert f"Work queues no longer matched: {name}" in prefect_caplog.text
+        assert work_queue.name not in agent.work_queues
+        assert (
+            f"Work queues no longer matched: {work_queue.name}" in prefect_caplog.text
+        )
 
 
 async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog):
-    name = "hello-there"
+    name = f"hello-there-{uuid.uuid4()}"
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name
     )
@@ -268,7 +266,7 @@ async def test_agent_creates_work_queue_if_doesnt_exist_in_work_pool(
     work_pool,
     prefect_caplog,
 ):
-    name = "hello-there"
+    name = f"hello-there-{uuid.uuid4()}"
     assert not await models.workers.read_work_queue_by_name(
         session=session, work_pool_name=work_pool.name, work_queue_name=name
     )
@@ -286,11 +284,15 @@ async def test_agent_creates_work_queue_if_doesnt_exist_in_work_pool(
 async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
     session, prefect_caplog, prefect_client: PrefectClient
 ):
-    await prefect_client.create_work_pool(
-        WorkPoolCreate(name=DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent")
+    default_work_pool = await prefect_client.read_work_pool(
+        DEFAULT_AGENT_WORK_POOL_NAME
     )
+    if not default_work_pool:
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name=DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent")
+        )
 
-    name = "hello-there"
+    name = f"hello-there-{uuid.uuid4()}"
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name
     )
@@ -315,7 +317,7 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
     would attempt to create it, but only one would create it successfully; the
     others would get an error because it already exists. In that case, we want to handle the error gracefully.
     """
-    name = "hello-there"
+    name = f"hello-there-{uuid.uuid4()}"
     assert not await models.workers.read_work_queue_by_name(
         session=session, work_queue_name=name, work_pool_name=work_pool.name
     )
@@ -338,9 +340,7 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
 
 
 async def test_agent_caches_work_queues(prefect_client, deployment, monkeypatch):
-    work_queue = await prefect_client.read_work_queue_by_name(
-        deployment.work_queue_name
-    )
+    work_queue = await prefect_client.read_work_queue(deployment.work_queue.id)
 
     async def read_queue(name, work_pool_name=None):
         return work_queue
@@ -365,9 +365,7 @@ async def test_agent_with_work_queue_name_survives_queue_deletion(
     prefect_client, deployment
 ):
     """Ensure that cached work queues don't create errors if deleted"""
-    work_queue = await prefect_client.read_work_queue_by_name(
-        deployment.work_queue_name
-    )
+    work_queue = await prefect_client.read_work_queue(deployment.work_queue.id)
 
     async with PrefectAgent(
         work_queues=[work_queue.name], prefetch_seconds=10
@@ -521,6 +519,9 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
@@ -540,6 +541,9 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_pending()
         mock_infrastructure_run.assert_called_once()
@@ -556,6 +560,9 @@ class TestInfrastructureIntegration:
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
+
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.infrastructure_pid == "id-1234"
@@ -737,6 +744,9 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
@@ -781,6 +791,9 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
@@ -814,6 +827,9 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         agent.logger.error.assert_called_once_with(
             f"Infrastructure returned without reporting flow run '{flow_run.id}' "
             "as started or raising an error. This behavior is not expected and "
@@ -840,6 +856,9 @@ class TestInfrastructureIntegration:
             [deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
+
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
 
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
@@ -891,6 +910,9 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
+        # Read the deployment back because it will have been updated by polling
+        deployment = await prefect_client.read_deployment(deployment.id)
+
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
@@ -905,34 +927,32 @@ class TestInfrastructureIntegration:
 
 
 async def test_agent_displays_message_on_work_queue_pause(
-    prefect_client, prefect_caplog, deployment
+    prefect_client, prefect_caplog, deployment_in_default_work_pool
 ):
-    work_queue = await prefect_client.read_work_queue_by_name(
-        deployment.work_queue_name
-    )
-
     async with PrefectAgent(
-        work_queues=[deployment.work_queue_name], prefetch_seconds=10
+        work_queues=[deployment_in_default_work_pool.work_queue.name],
+        prefetch_seconds=10,
     ) as agent:
         agent.submit_run = AsyncMock()  # do not actually run
 
         await agent.get_and_submit_flow_runs()
 
         assert (
-            f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
+            f"Work queue {deployment_in_default_work_pool.work_queue.name!r} ({deployment_in_default_work_pool.work_queue.id}) is paused."
             not in prefect_caplog.text
         ), "Message should not be displayed before pausing"
 
-        await prefect_client.update_work_queue(work_queue.id, is_paused=True)
+        await prefect_client.update_work_queue(
+            deployment_in_default_work_pool.work_queue.id, is_paused=True
+        )
 
         # clear agent cache
         agent._work_queue_cache_expiration = pendulum.now("UTC")
 
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
-
         assert (
-            f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
+            f"Work queue {deployment_in_default_work_pool.work_queue.name!r} ({deployment_in_default_work_pool.work_queue.id}) is paused."
             in prefect_caplog.text
         )
 

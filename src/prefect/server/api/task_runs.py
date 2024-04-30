@@ -2,11 +2,11 @@
 Routes for interacting with task run objects.
 """
 
-import asyncio
 import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 from uuid import UUID
 
+import anyio
 import pendulum
 from prefect._vendor.fastapi import (
     Body,
@@ -17,27 +17,22 @@ from prefect._vendor.fastapi import (
     WebSocket,
     status,
 )
-from typing_extensions import Self
+from prefect._vendor.starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
-from prefect.server.database.dependencies import inject_db, provide_database_interface
+from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
-from prefect.server.schemas import filters, states
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
-    PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE,
-    PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE,
-)
 
 logger = get_logger("server.api")
 
@@ -50,7 +45,7 @@ async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> schemas.core.TaskRun:
@@ -80,15 +75,6 @@ async def create_task_run(
         response.status_code = status.HTTP_201_CREATED
 
     new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(model)
-
-    # Place autonomously scheduled task runs onto a notification queue for the websocket
-    if (
-        PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
-        and new_task_run.flow_run_id is None
-        and new_task_run.state
-        and new_task_run.state.is_scheduled()
-    ):
-        await TaskQueue.enqueue(new_task_run)
 
     return new_task_run
 
@@ -247,7 +233,7 @@ async def set_task_run_state(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
-    orchestration_parameters: dict = Depends(
+    orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> OrchestrationResult:
@@ -279,134 +265,6 @@ async def set_task_run_state(
     return orchestration_result
 
 
-class TaskQueue:
-    _task_queues: Dict[str, Self] = {}
-    _scheduled_tasks_already_restored: bool = False
-
-    default_scheduled_max_size: int = (
-        PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE.value()
-    )
-    default_retry_max_size: int = PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE.value()
-
-    _queue_size_configs: Dict[str, Tuple[int, int]] = {}
-
-    task_key: str
-    _scheduled_queue: asyncio.Queue
-    _retry_queue: asyncio.Queue
-
-    @classmethod
-    async def enqueue(cls, task_run: schemas.core.TaskRun) -> None:
-        await cls.for_key(task_run.task_key).put(task_run)
-
-    @classmethod
-    def configure_task_key(
-        cls,
-        task_key: str,
-        scheduled_size: Optional[int] = None,
-        retry_size: Optional[int] = None,
-    ):
-        scheduled_size = scheduled_size or cls.default_scheduled_max_size
-        retry_size = retry_size or cls.default_retry_max_size
-        cls._queue_size_configs[task_key] = (scheduled_size, retry_size)
-
-    @classmethod
-    def for_key(cls, task_key: str) -> Self:
-        if task_key not in cls._task_queues:
-            sizes = cls._queue_size_configs.get(
-                task_key, (cls.default_scheduled_max_size, cls.default_retry_max_size)
-            )
-            cls._task_queues[task_key] = cls(task_key, *sizes)
-        return cls._task_queues[task_key]
-
-    @classmethod
-    def reset(cls) -> None:
-        """A unit testing utility to reset the state of the task queues subsystem"""
-        cls._task_queues.clear()
-        cls._scheduled_tasks_already_restored = False
-
-    def __init__(self, task_key: str, scheduled_queue_size: int, retry_queue_size: int):
-        self.task_key = task_key
-        self._scheduled_queue = asyncio.Queue(maxsize=scheduled_queue_size)
-        self._retry_queue = asyncio.Queue(maxsize=retry_queue_size)
-
-    async def get(self) -> schemas.core.TaskRun:
-        # First, check if there's anything in the retry queue
-        try:
-            return self._retry_queue.get_nowait()
-        except asyncio.QueueEmpty:
-            return await self._scheduled_queue.get()
-
-    def get_nowait(self) -> schemas.core.TaskRun:
-        # First, check if there's anything in the retry queue
-        try:
-            return self._retry_queue.get_nowait()
-        except asyncio.QueueEmpty:
-            return self._scheduled_queue.get_nowait()
-
-    async def put(self, task_run: schemas.core.TaskRun) -> None:
-        await self._scheduled_queue.put(task_run)
-
-    async def retry(self, task_run: schemas.core.TaskRun) -> None:
-        await self._retry_queue.put(task_run)
-
-    @classmethod
-    @inject_db
-    async def restore_scheduled_tasks_if_necessary(cls, db: PrefectDBInterface):
-        """Restores scheduled task runs from the database, if necessary."""
-        if cls._scheduled_tasks_already_restored:
-            return
-
-        cls._scheduled_tasks_already_restored = True
-
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            return
-
-        async with db.session_context() as session:
-            task_runs = await models.task_runs.read_task_runs(
-                session=session,
-                task_run_filter=filters.TaskRunFilter(
-                    flow_run_id=filters.TaskRunFilterFlowRunId(is_null_=True),
-                    state=filters.TaskRunFilterState(
-                        type=filters.TaskRunFilterStateType(
-                            any_=[states.StateType.SCHEDULED]
-                        )
-                    ),
-                ),
-            )
-
-        if not task_runs:
-            return
-
-        for task_run_model in task_runs:
-            task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(
-                task_run_model
-            )
-            await cls.for_key(task_run.task_key).retry(task_run)
-
-        logger.info("Restored %s scheduled task runs", len(task_runs))
-
-
-class MultiQueue:
-    """A queue that can pull tasks from from any of a number of task queues"""
-
-    _queues: List[TaskQueue]
-
-    def __init__(self, task_keys: List[str]):
-        self._queues = [TaskQueue.for_key(task_key) for task_key in task_keys]
-
-    async def get(self) -> schemas.core.TaskRun:
-        """Gets the next task_run from any of the given queues"""
-        await TaskQueue.restore_scheduled_tasks_if_necessary()
-
-        while True:
-            for queue in self._queues:
-                try:
-                    return queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    continue
-            await asyncio.sleep(0.01)
-
-
 @router.websocket("/subscriptions/scheduled")
 async def scheduled_task_subscription(websocket: WebSocket):
     websocket = await subscriptions.accept_prefect_socket(websocket)
@@ -415,23 +273,41 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
     try:
         subscription = await websocket.receive_json()
-        task_keys = subscription.get("keys", [])
-        if not task_keys:
-            return await websocket.close()
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-        return await websocket.close()
+        return
+
+    if subscription.get("type") != "subscribe":
+        return await websocket.close(
+            code=4001, reason="Protocol violation: expected 'subscribe' message"
+        )
+
+    task_keys = subscription.get("keys", [])
+    if not task_keys:
+        return await websocket.close(
+            code=4001, reason="Protocol violation: expected 'keys' in subscribe message"
+        )
 
     subscribed_queue = MultiQueue(task_keys)
 
     while True:
-        task_run = await subscribed_queue.get()
+        try:
+            with anyio.fail_after(5):
+                task_run = await subscribed_queue.get()
+        except TimeoutError:
+            continue
 
         try:
             await websocket.send_json(task_run.dict(json_compatible=True))
 
             acknowledgement = await websocket.receive_json()
-            if acknowledgement.get("type") != "ack":
-                return await websocket.close()
+            ack_type = acknowledgement.get("type")
+            if ack_type != "ack":
+                if ack_type == "quit":
+                    return await websocket.close()
+
+                raise WebSocketDisconnect(
+                    code=4001, reason="Protocol violation: expected 'ack' message"
+                )
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue

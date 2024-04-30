@@ -1,5 +1,5 @@
 ---
-description: Learn the basics of adding tasks to our flow.
+description: Learn the basics of writing tasks.
 tags:
     - tutorial
     - getting started
@@ -12,7 +12,7 @@ tags:
 
 ## What is a task?
 
-A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator called within a flow.
+A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator.
 You can think of a flow as a recipe for connecting a known sequence of tasks together.
 Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand and control at a more granular level.  
 When a function becomes a task, it can be executed concurrently and its return value can be cached.
@@ -25,8 +25,8 @@ Flows and tasks share some common features:
 
 Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/concepts/tasks/#retries), [caching](/concepts/tasks/#caching), and [concurrency](/concepts/task-runners/#using-a-task-runner).
 
-!!! warning "Tasks must be called from flows"
-    All tasks must be called from within a flow. Tasks may not call other tasks directly.
+!!! tip "Tasks may be called from other tasks"
+    As of `prefect 2.18.x`, tasks can be called from within other tasks. This removes the need to use subflows for simple task composition.
 
 !!! note "When to use tasks"
     Not all functions in a flow need be tasks. Use them only when their features are useful.
@@ -36,10 +36,11 @@ Let's take our flow from before and move the request into a task:
 ```python hl_lines="2 5-9 15" title="repo_info.py"
 import httpx
 from prefect import flow, task
+from typing import Optional
 
 
 @task
-def get_url(url: str, params: dict = None):
+def get_url(url: str, params: Optional[dict[str, any]] = None):
     response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -86,12 +87,13 @@ import httpx
 from datetime import timedelta
 from prefect import flow, task, get_run_logger
 from prefect.tasks import task_input_hash
+from typing import Optional
 
 
 @task(cache_key_fn=task_input_hash, 
       cache_expiration=timedelta(hours=1),
       )
-def get_url(url: str, params: dict = None):
+def get_url(url: str, params: Optional[dict[str, any]] = None):
     response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -115,10 +117,11 @@ import httpx
 from datetime import timedelta
 from prefect import flow, task
 from prefect.tasks import task_input_hash
+from typing import Optional
 
 
 @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
-def get_url(url: str, params: dict = None):
+def get_url(url: str, params: Optional[dict[str, any]] = None):
     response = httpx.get(url, params=params)
     response.raise_for_status()
     return response.json()

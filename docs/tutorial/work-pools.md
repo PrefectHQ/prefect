@@ -5,7 +5,6 @@ tags:
     - orchestration
     - flow runs
     - deployments
-    - schedules
     - tutorial
 search:
   boost: 2
@@ -144,7 +143,17 @@ Alternatively, you could store your flow code in cloud provider storage such as 
     In the example above, we store our code in a GitHub repository.
     If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
 
-Run the script again and you should see a message in the CLI that your deployment was created with instructions for how to run it.
+Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
+
+<div class="terminal">
+
+```bash
+python repo_info.py
+```
+
+</div>
+
+You should see a message in the CLI that your deployment was created with instructions for how to run it.
 
 <div class="terminal">
 
@@ -155,7 +164,7 @@ Successfully created/updated all deployments!
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
 ┃ Name                              ┃ Status  ┃ Details ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ get-repo-info/my-first-deployment  | applied │         │
+│ get-repo-info/my-first-deployment | applied │         │
 └───────────────────────────────────┴─────────┴─────────┘
 
 To schedule a run for this deployment, use the following command:
@@ -175,16 +184,6 @@ Click the **Run** button to trigger a run of your deployment.
 Because this deployment was configured with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
 
 View the logs in the UI.
-
-Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
-
-<div class="terminal">
-
-```bash
-python repo_info.py
-```
-
-</div>
 
 ### Schedule a deployment run
 
@@ -209,8 +208,8 @@ Prefect Cloud's push work pools are a popular option in those cases.
 
 Serverless push work pools scale infinitely and provide more configuration options than Prefect Managed work pools.
 
-Prefect provides push work pools for AWS ECS on Fargate, Azure Container Instances, and Google Cloud Run.
-You will need to have an account with sufficient permissions on the cloud provider that you want to use.
+Prefect provides push work pools for AWS ECS on Fargate, Azure Container Instances, Google Cloud Run, and Modal.
+To use a push work pool, you will need an account with sufficient permissions on the cloud provider that you want to use.
 We'll use GCP for this example.
 
 Setting up the cloud provider pieces for infrastructure can be tricky and time consuming.
@@ -246,7 +245,7 @@ prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-po
 
 </div>
 
-Using the `--provision-infra` flag will allow you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
+Using the `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
 In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist.
 In your Prefect workspace, this command will create a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) for storing the service account key.
 
@@ -311,12 +310,15 @@ if __name__ == "__main__":
     my_flow.deploy(                                                            
         name="my-deployment",
         work_pool_name="above-ground",
+        cron="0 1 * * *",
         image=DeploymentImage(
             name="my-image:latest",
             platform="linux/amd64",
         )
     )
 ```
+
+Run the script to create the deployment on the Prefect Cloud server.
 
 Running this script will build a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to your repository.
 
@@ -326,7 +328,10 @@ Running this script will build a Docker image with the tag `<region>-docker.pkg.
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
 Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
 
-See the [Push Work Pool guide](/guides/push-work-pools/) for more details and example commands for each cloud provider.
+Also note that the `cron` argument will schedule the deployment to run at 1am every day. 
+See the [schedules](/concepts/schedules/) docs for more information on scheduling options.
+
+See the [Push Work Pool guide](/guides/deployment/push-work-pools/) for more details and example commands for each cloud provider.
 
 ## Next step
 

@@ -4,20 +4,49 @@ from uuid import UUID
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.events.schemas import Event, Resource, ResourceSpecification
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.utilities.collections import AutoEnum
+
+from .schemas.events import Event, Resource, ResourceSpecification
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
+    from pydantic.v1 import Field, PrivateAttr
 else:
-    from pydantic import Field
+    from pydantic import Field, PrivateAttr  # type: ignore
 
 
-class EventDataFilter(PrefectBaseModel):
+class AutomationFilterCreated(PrefectBaseModel):
+    """Filter by `Automation.created`."""
+
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include automations created before this datetime",
+    )
+
+
+class AutomationFilterName(PrefectBaseModel):
+    """Filter by `Automation.created`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None,
+        description="Only include automations with names that match any of these strings",
+    )
+
+
+class AutomationFilter(PrefectBaseModel):
+    name: Optional[AutomationFilterName] = Field(
+        default=None, description="Filter criteria for `Automation.name`"
+    )
+    created: Optional[AutomationFilterCreated] = Field(
+        default=None, description="Filter criteria for `Automation.created`"
+    )
+
+
+class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-arg]
     """A base class for filtering event data."""
 
-    class Config:
-        extra = "forbid"
+    _top_level_filter: "EventFilter | None" = PrivateAttr(None)
 
     def get_filters(self) -> List["EventDataFilter"]:
         return [
@@ -103,6 +132,10 @@ class EventResourceFilter(EventDataFilter):
     )
     labels: Optional[ResourceSpecification] = Field(
         None, description="Only include events for resources with these labels"
+    )
+    distinct: bool = Field(
+        False,
+        description="Only include events for distinct resources",
     )
 
     def includes(self, event: Event) -> bool:
@@ -190,9 +223,14 @@ class EventIDFilter(EventDataFilter):
         return True
 
 
+class EventOrder(AutoEnum):
+    ASC = "ASC"
+    DESC = "DESC"
+
+
 class EventFilter(EventDataFilter):
     occurred: EventOccurredFilter = Field(
-        default_factory=EventOccurredFilter,
+        default_factory=lambda: EventOccurredFilter(),
         description="Filter criteria for when the events occurred",
     )
     event: Optional[EventNameFilter] = Field(
@@ -209,6 +247,11 @@ class EventFilter(EventDataFilter):
         None, description="Filter criteria for the related resources of the event"
     )
     id: EventIDFilter = Field(
-        default_factory=EventIDFilter,
+        default_factory=lambda: EventIDFilter(id=[]),
         description="Filter criteria for the events' ID",
+    )
+
+    order: EventOrder = Field(
+        EventOrder.DESC,
+        description="The order to return filtered events",
     )

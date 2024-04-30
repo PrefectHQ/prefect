@@ -8,7 +8,7 @@ search:
   boost: 2
 ---
 
-# CI/CD with Prefect
+# CI/CD With Prefect
 
 Many organizations deploy Prefect workflows via their CI/CD process.
 Each organization has their own unique CI/CD setup, but a common pattern is to use CI/CD to manage Prefect [deployments](/concepts/deployments).
@@ -216,7 +216,8 @@ After pushing commits to your repository, GitHub will automatically trigger a ru
 
 You can view the logs from each workflow step as they run. The `Prefect Deploy` step will include output about your image build and push, and the creation/update of your deployment.
 
-```
+<div class="terminal">
+```bash
 Successfully built image '***/cicd-example:latest'
 
 Successfully pushed image '***/cicd-example:latest'
@@ -229,6 +230,98 @@ Successfully created/updated all deployments!
 ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
 │ hello/my-deployment │ applied │         │
 └─────────────────────┴─────────┴─────────┘
+```
+</div>
+
+## Advanced example
+
+In more complex scenarios, CI/CD processes often need to accommodate several additional considerations to enable a smooth development workflow:
+
+- Making code available in different environments as it advances through stages of development
+- Handling independent deployment of distinct groupings of work, as in a monorepo
+- Efficiently using build time to avoid repeated work
+
+This [example repository](https://github.com/kevingrismore/cicd-example-workspaces) demonstrates how each of these considerations can be addressed using a combination of Prefect's and GitHub's capabilities.
+
+### Deploying to multiple workspaces
+
+Which deployment processes should run are automatically selected when changes are pushed depending on two conditions:
+
+```yaml
+on:
+  push:
+    branches:
+      - stg
+      - main
+    paths:
+      - "project_1/**"
+```
+
+1. **`branches:`** - which branch has changed. This will ultimately select which Prefect workspace a deployment is created or updated in. In this example, changes on the `stg` branch will deploy flows to a staging workspace, and changes on the `main` branch will deploy flows to a production workspace.
+2. **`paths:`** - which project folders' files have changed. Since each project folder contains its own flows, dependencies, and `prefect.yaml`, it represents a complete set of logic and configuration that can be deployed independently. Each project in this repository gets its own GitHub Actions workflow YAML file.
+
+The `prefect.yaml` file in each project folder depends on environment variables that are dictated by the selected job in each CI/CD workflow, enabling external code storage for Prefect deployments that is clearly separated across projects and environments.
+
+```
+  .
+  ├── cicd-example-workspaces-prod  # production bucket
+  │   ├── project_1
+  │   └── project_2
+  └── cicd-example-workspaces-stg  # staging bucket
+      ├── project_1
+      └── project_2  
+```
+
+Since the deployments in this example use S3 for code storage, it's important that push steps place flow files in separate locations depending upon their respective environment and project so no deployment overwrites another deployment's files.
+
+### Caching build dependencies
+
+Since building Docker images and installing Python dependencies are essential parts of the deployment process, it's useful to rely on caching to skip repeated build steps.
+
+The `setup-python` action offers [caching options](https://github.com/actions/setup-python#caching-packages-dependencies) so Python packages do not have to be downloaded on repeat workflow runs.
+
+```yaml
+- name: Setup Python
+  uses: actions/setup-python@v5
+  with:
+    python-version: "3.11"
+    cache: "pip"
+```
+
+```
+Using cached prefect-2.16.1-py3-none-any.whl (2.9 MB)
+Using cached prefect_aws-0.4.10-py3-none-any.whl (61 kB)
+```
+
+The `build-push-action` for building Docker images also offers [caching options for GitHub Actions](https://docs.docker.com/build/cache/backends/gha/). If you are not using GitHub, other remote [cache backends](https://docs.docker.com/build/cache/backends/) are available as well.
+
+```yaml
+- name: Build and push
+  id: build-docker-image
+  env:
+      GITHUB_SHA: ${{ steps.get-commit-hash.outputs.COMMIT_HASH }}
+  uses: docker/build-push-action@v5
+  with:
+    context: ${{ env.PROJECT_NAME }}/
+    push: true
+    tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.PROJECT_NAME }}:${{ env.GITHUB_SHA }}-stg
+    cache-from: type=gha
+    cache-to: type=gha,mode=max
+```
+
+```
+importing cache manifest from gha:***
+DONE 0.1s
+
+[internal] load build context
+transferring context: 70B done
+DONE 0.0s
+
+[2/3] COPY requirements.txt requirements.txt
+CACHED
+
+[3/3] RUN pip install -r requirements.txt
+CACHED
 ```
 
 ## Prefect GitHub Actions

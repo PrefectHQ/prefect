@@ -39,6 +39,7 @@ settings to be dynamically modified on retrieval. This allows us to make setting
 dependent on the value of other settings or perform other dynamic effects.
 
 """
+
 import logging
 import os
 import string
@@ -50,6 +51,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Generic,
     Iterable,
     List,
@@ -66,6 +68,7 @@ from urllib.parse import urlparse
 import toml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import (
@@ -100,6 +103,15 @@ T = TypeVar("T")
 
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
+
+REMOVED_EXPERIMENTAL_FLAGS = {
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
+    "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
+    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
+    "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
+}
 
 
 class Setting(Generic[T]):
@@ -570,6 +582,14 @@ PREFECT_UNIT_TEST_MODE = Setting(
 This variable only exists to facilitate unit testing. If `True`,
 code is executing in a unit test context. Defaults to `False`.
 """
+PREFECT_UNIT_TEST_LOOP_DEBUG = Setting(
+    bool,
+    default=True,
+)
+"""
+If `True` turns on debug mode for the unit testing event loop.
+Defaults to `False`.
+"""
 
 PREFECT_TEST_SETTING = Setting(
     Any,
@@ -589,6 +609,16 @@ PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
 This is recommended only during development, e.g. when using self-signed certificates.
 """
 
+PREFECT_API_SSL_CERT_FILE = Setting(
+    str,
+    default=os.environ.get("SSL_CERT_FILE"),
+)
+"""
+This configuration settings option specifies the path to an SSL certificate file.
+When set, it allows the application to use the specified certificate for secure communication.
+If left unset, the setting will default to the value provided by the `SSL_CERT_FILE` environment variable.
+"""
+
 PREFECT_API_URL = Setting(
     str,
     default=None,
@@ -597,6 +627,15 @@ PREFECT_API_URL = Setting(
 If provided, the URL of a hosted Prefect API. Defaults to `None`.
 
 When using Prefect Cloud, this will include an account and workspace.
+"""
+
+PREFECT_SILENCE_API_URL_MISCONFIGURATION = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+we would like to silence this warning so we will set it to `FALSE`.
 """
 
 PREFECT_API_KEY = Setting(
@@ -643,6 +682,21 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
 429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
 may result in unexpected behavior.
+"""
+
+PREFECT_CLIENT_CSRF_SUPPORT_ENABLED = Setting(bool, default=True)
+"""
+Determines if CSRF token handling is active in the Prefect client for API
+requests.
+
+When enabled (`True`), the client automatically manages CSRF tokens by
+retrieving, storing, and including them in applicable state-changing requests
+(POST, PUT, PATCH, DELETE) to the API.
+
+Disabling this setting (`False`) means the client will not handle CSRF tokens,
+which might be suitable for environments where CSRF protection is disabled.
+
+Defaults to `True`, ensuring CSRF protection is enabled by default.
 """
 
 PREFECT_CLOUD_API_URL = Setting(
@@ -1137,7 +1191,7 @@ this often. Defaults to `5`.
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
-    default=timedelta(seconds=5),
+    default=timedelta(seconds=15),
 )
 """The late runs service will mark runs as late after they
 have exceeded their scheduled start time by this many seconds. Defaults
@@ -1159,6 +1213,36 @@ PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
 """The cancellation cleanup service will look non-terminal tasks and subflows
 this often. Defaults to `20`.
 """
+
+PREFECT_API_SERVICES_FOREMAN_ENABLED = Setting(bool, default=True)
+"""Whether or not to start the Foreman service in the server application."""
+
+PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS = Setting(float, default=15)
+"""The number of seconds to wait between each iteration of the Foreman loop which checks
+for offline workers and updates work pool status."""
+
+
+PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE = Setting(int, default=3)
+"The number of heartbeats that must be missed before a worker is marked as offline."
+
+PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS = Setting(
+    int, default=30
+)
+"""The number of seconds to use for online/offline evaluation if a worker's heartbeat
+interval is not set."""
+
+PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = Setting(
+    int, default=60
+)
+"""The number of seconds before a deployment is marked as not ready if it has not been
+polled."""
+
+PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = Setting(
+    int, default=60
+)
+"""The number of seconds before a work queue is marked as not ready if it has not been
+polled."""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
@@ -1193,6 +1277,33 @@ greater than the load balancer's idle timeout.
 
 Note this setting only applies when calling `prefect server start`; if hosting the
 API with another tool you will need to configure this there instead.
+"""
+
+PREFECT_SERVER_CSRF_PROTECTION_ENABLED = Setting(bool, default=False)
+"""
+Controls the activation of CSRF protection for the Prefect server API.
+
+When enabled (`True`), the server enforces CSRF validation checks on incoming
+state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
+token to be included in the request headers or body. This adds a layer of
+security by preventing unauthorized or malicious sites from making requests on
+behalf of authenticated users.
+
+It is recommended to enable this setting in production environments where the
+API is exposed to web clients to safeguard against CSRF attacks.
+
+Note: Enabling this setting requires corresponding support in the client for
+CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
+"""
+
+PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(timedelta, default=timedelta(hours=1))
+"""
+Specifies the duration for which a CSRF token remains valid after being issued
+by the server.
+
+The default expiration time is set to 1 hour, which offers a reasonable
+compromise. Adjust this setting based on your specific security requirements
+and usage patterns.
 """
 
 PREFECT_UI_ENABLED = Setting(
@@ -1275,14 +1386,19 @@ PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES = Setting(int, default=10000)
 The maximum size of a flow run graph on the v2 API
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
+PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS = Setting(int, default=10000)
 """
-Whether or not to enable experimental Prefect work pools.
+The maximum number of artifacts to show on a flow run graph on the v2 API
 """
 
-PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
 """
-Whether or not to warn when experimental Prefect work pools are used.
+Whether or not to enable artifacts on the flow run graph.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
+"""
+Whether or not to enable flow run states on the flow run graph.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
@@ -1339,6 +1455,16 @@ PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INPUT = Setting(bool, default=True)
 """
 Whether or not to enable flow run input.
 """
+
+
+# Prefect Events feature flags
+
+PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
+"""
+Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
+will always emit events during flow and task runs regardless of this setting.
+"""
+
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
@@ -1406,6 +1532,14 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 """
 The port the worker's webserver should bind to.
 """
+
+PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
+    str,
+    default="local-file-system/prefect-task-scheduling",
+)
+"""The `block-type/block-document` slug of a block to use as the default storage
+for autonomous tasks."""
+
 PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS = Setting(
     bool,
     default=True,
@@ -1430,11 +1564,20 @@ PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE = Setting(
 The maximum number of retries to queue for submission.
 """
 
+PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
+    timedelta,
+    default=timedelta(seconds=30),
+)
+"""
+How long before a PENDING task are made available to another task server.  In practice,
+a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task server may have crashed.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental worker webserver endpoints.
 """
-
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=True)
 """
@@ -1461,10 +1604,16 @@ PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
 Whether or not to enable experimental task scheduling.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 """
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
+
+PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE = Setting(bool, default=False)
+"""
+Whether or not to enable experimental new engine.
+"""
+
 
 # Defaults -----------------------------------------------------------------------------
 
@@ -1508,13 +1657,100 @@ The directory to serve static files from. This should be used when running into 
 when attempting to serve the UI from the default directory (for example when running in a Docker container)
 """
 
+# Messaging system settings
+
+PREFECT_MESSAGING_BROKER = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which message broker implementation to use for the messaging system, should point to a
+module that exports a Publisher and Consumer class.
+"""
+
+PREFECT_MESSAGING_CACHE = Setting(
+    str, default="prefect.server.utilities.messaging.memory"
+)
+"""
+Which cache implementation to use for the events system.  Should point to a module that
+exports a Cache class.
+"""
+
+
+# Events settings
+
+PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE = Setting(int, default=500)
+"""
+The maximum number of labels a resource may have.
+"""
+
+PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES = Setting(int, default=500)
+"""
+The maximum number of related resources an Event may have.
+"""
+
+PREFECT_EVENTS_MAXIMUM_SIZE_BYTES = Setting(int, default=1_500_000)
+"""
+The maximum size of an Event when serialized to JSON
+"""
+
+PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the event debug logger service in the server application.
+"""
+
+PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the triggers service in the server application.
+"""
+
+PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
+"""
+The amount of time to retain expired automation buckets
+"""
+
+PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seconds=5))
+"""
+How frequently proactive automations are evaluated
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the event persister service in the server application.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE = Setting(int, default=20, gt=0)
+"""
+The number of events the event persister will attempt to insert in one batch.
+"""
+
+PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, gt=0.0)
+"""
+The maximum number of seconds between flushes of the event persister.
+"""
+
+PREFECT_EVENTS_RETENTION_PERIOD = Setting(timedelta, default=timedelta(days=7))
+"""
+The amount of time to retain events in the database.
+"""
+
+PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to allow streaming events out of via websockets.
+"""
+
+PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
+    timedelta, default=timedelta(minutes=5)
+)
+"""
+How long to cache related resource data for emitting server-side vents
+"""
 
 # Deprecated settings ------------------------------------------------------------------
 
 
 # Collect all defined settings ---------------------------------------------------------
 
-SETTING_VARIABLES = {
+SETTING_VARIABLES: Dict[str, Any] = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
 
@@ -1588,7 +1824,8 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
-        values = warn_on_misconfigured_api_url(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
         return values
 
     def copy_with_update(
@@ -1762,10 +1999,10 @@ def get_default_settings() -> Settings:
 
 @contextmanager
 def temporary_settings(
-    updates: Mapping[Setting, Any] = None,
-    set_defaults: Mapping[Setting, Any] = None,
-    restore_defaults: Iterable[Setting] = None,
-) -> Settings:
+    updates: Optional[Mapping[Setting[T], Any]] = None,
+    set_defaults: Optional[Mapping[Setting[T], Any]] = None,
+    restore_defaults: Optional[Iterable[Setting[T]]] = None,
+) -> Generator[Settings, None, None]:
     """
     Temporarily override the current settings by entering a new profile.
 
@@ -1812,20 +2049,7 @@ class Profile(BaseModel):
 
     @validator("settings", pre=True)
     def map_names_to_settings(cls, value):
-        if value is None:
-            return value
-
-        # Cast string setting names to variables
-        validated = {}
-        for setting, val in value.items():
-            if isinstance(setting, str) and setting in SETTING_VARIABLES:
-                validated[SETTING_VARIABLES[setting]] = val
-            elif isinstance(setting, Setting):
-                validated[setting] = val
-            else:
-                raise ValueError(f"Unknown setting {setting!r}.")
-
-        return validated
+        return validate_settings(value)
 
     def validate_settings(self) -> None:
         """
@@ -2017,6 +2241,26 @@ class ProfilesCollection:
         )
 
 
+def _handle_removed_flags(
+    profile_name: str, settings: Dict[str, Any]
+) -> Dict[str, Any]:
+    to_remove = [name for name in settings if name in REMOVED_EXPERIMENTAL_FLAGS]
+
+    for name in to_remove:
+        warnings.warn(
+            (
+                f"Experimental flag {name!r} has been removed, please "
+                f"update your {profile_name!r} profile."
+            ),
+            UserWarning,
+            stacklevel=3,
+        )
+
+        settings.pop(name)
+
+    return settings
+
+
 def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
     Read profiles from a path into a new `ProfilesCollection`.
@@ -2033,10 +2277,10 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
     active_profile = contents.get("active")
     raw_profiles = contents.get("profiles", {})
 
-    profiles = [
-        Profile(name=name, settings=settings, source=path)
-        for name, settings in raw_profiles.items()
-    ]
+    profiles = []
+    for name, settings in raw_profiles.items():
+        settings = _handle_removed_flags(name, settings)
+        profiles.append(Profile(name=name, settings=settings, source=path))
 
     return ProfilesCollection(profiles, active=active_profile)
 

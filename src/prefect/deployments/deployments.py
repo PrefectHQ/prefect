@@ -19,29 +19,51 @@ import yaml
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, parse_obj_as, validator
+    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
 else:
-    from pydantic import BaseModel, Field, parse_obj_as, validator
+    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-from prefect._internal.compatibility.experimental import experimental_field
+from prefect._internal.compatibility.deprecated import (
+    DeprecatedInfraOverridesField,
+    deprecated_callable,
+    deprecated_class,
+    deprecated_parameter,
+    handle_deprecated_infra_overrides_parameter,
+)
+from prefect._internal.schemas.validators import (
+    handle_openapi_schema,
+    infrastructure_must_have_capabilities,
+    reconcile_schedules,
+    storage_must_have_capabilities,
+    validate_automation_names,
+    validate_deprecated_schedule_fields,
+)
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import PrefectClient, ServerType, get_client
-from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME, FlowRun
+from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import (
+    FlowRun,
+    MinimalDeploymentSchedule,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
+from prefect.deployments.schedules import (
+    FlexibleScheduleList,
+)
 from prefect.deployments.steps.core import run_steps
-from prefect.events.schemas import DeploymentTrigger
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
-from prefect.logging.loggers import flow_run_logger
+from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -49,8 +71,15 @@ from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
 
+logger = get_logger("deployments")
+
 
 @sync_compatible
+@deprecated_parameter(
+    "infra_overrides",
+    start_date="Apr 2024",
+    help="Use `job_variables` instead.",
+)
 @inject_client
 async def run_deployment(
     name: Union[str, UUID],
@@ -64,6 +93,8 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
+    infra_overrides: Optional[dict] = None,
+    job_variables: Optional[dict] = None,
 ) -> FlowRun:
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -82,7 +113,7 @@ async def run_deployment(
 
     Args:
         name: The deployment id or deployment name in the form:
-            `<slugified-flow-name>/<slugified-deployment-name>`
+            `"flow name/deployment name"`
         parameters: Parameter overrides for this flow run. Merged with the deployment
             defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
@@ -101,12 +132,17 @@ async def run_deployment(
             the default work queue for the deployment.
         as_subflow: Whether to link the flow run as a subflow of the current
             flow or task run.
+        job_variables: A dictionary of dot delimited infrastructure overrides that
+            will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
+            `namespace='prefect'`
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
 
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
+
+    jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
 
     parameters = parameters or {}
 
@@ -183,6 +219,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
+        job_variables=jv,
     )
 
     flow_run_id = flow_run.id
@@ -215,11 +252,27 @@ async def load_flow_from_flow_run(
     is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
-    logger = flow_run_logger(flow_run)
+
+    if deployment.entrypoint is None:
+        raise ValueError(
+            f"Deployment {deployment.id} does not have an entrypoint and can not be run."
+        )
+
+    run_logger = flow_run_logger(flow_run)
 
     runner_storage_base_path = storage_base_path or os.environ.get(
         "PREFECT__STORAGE_BASE_PATH"
     )
+
+    # If there's no colon, assume it's a module path
+    if ":" not in deployment.entrypoint:
+        run_logger.debug(
+            f"Importing flow code from module path {deployment.entrypoint}"
+        )
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, deployment.entrypoint
+        )
+        return flow
 
     if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
@@ -241,19 +294,17 @@ async def load_flow_from_flow_run(
             if runner_storage_base_path and deployment.path
             else deployment.path
         )
-        logger.info(f"Downloading flow code from storage at {from_path!r}")
+        run_logger.info(f"Downloading flow code from storage at {from_path!r}")
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
         output = await run_steps(deployment.pull_steps)
         if output.get("directory"):
-            logger.debug(f"Changing working directory to {output['directory']!r}")
+            run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    logger.debug(f"Importing flow code from '{import_path}'")
-
     # for backwards compat
     if deployment.manifest_path:
         with open(deployment.manifest_path, "r") as f:
@@ -261,10 +312,14 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
+    run_logger.debug(f"Importing flow code from '{import_path}'")
+
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
+
     return flow
 
 
+@deprecated_callable(start_date="Mar 2024")
 def load_deployments_from_yaml(
     path: str,
 ) -> PrefectObjectRegistry:
@@ -288,13 +343,20 @@ def load_deployments_from_yaml(
     return registry
 
 
-@experimental_field(
-    "work_pool_name",
-    group="work_pools",
-    when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use `flow.deploy` to deploy your flows instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
 )
-class Deployment(BaseModel):
+class Deployment(DeprecatedInfraOverridesField, BaseModel):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `flow.deploy`, which offers enhanced functionality and better a better user experience.
+    For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+
     A Prefect Deployment definition, used for specifying and building deployments.
 
     Args:
@@ -305,8 +367,9 @@ class Deployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags
             are used only for organizational purposes. For delegating work to agents,
             see `work_queue_name`.
-        schedule: A schedule to run this deployment on, once registered
-        is_schedule_active: Whether or not the schedule is active
+        schedule: A schedule to run this deployment on, once registered (deprecated)
+        is_schedule_active: Whether or not the schedule is active (deprecated)
+        schedules: A list of schedules to run this deployment on
         work_queue_name: The work queue that will handle this deployment's runs
         work_pool_name: The work pool for the deployment
         flow_name: The name of the flow this deployment encapsulates
@@ -315,7 +378,7 @@ class Deployment(BaseModel):
         infrastructure: An optional infrastructure block used to configure
             infrastructure for runs; if not provided, will default to running this
             deployment in Agent subprocesses
-        infra_overrides: A dictionary of dot delimited infrastructure overrides that
+        job_variables: A dictionary of dot delimited infrastructure overrides that
             will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
             `namespace='prefect'`
         storage: An optional remote storage block used to store and retrieve this
@@ -357,7 +420,7 @@ class Deployment(BaseModel):
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
-        ...     infra_overrides=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
+        ...     job_variables=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
         >>> )
         >>> deployment.apply()
 
@@ -379,7 +442,13 @@ class Deployment(BaseModel):
             "tags",
             "parameters",
             "schedule",
+            "schedules",
             "is_schedule_active",
+            # The `infra_overrides` field has been renamed to `job_variables`.
+            # We will continue writing it in the YAML file as `infra_overrides`
+            # instead of `job_variables` for better backwards compat, but we'll
+            # accept either `job_variables` or `infra_overrides` when we read
+            # the file.
             "infra_overrides",
         ]
 
@@ -429,10 +498,16 @@ class Deployment(BaseModel):
                 # write the field
                 yaml.dump({field: yaml_dict[field]}, f, sort_keys=False)
 
-            # write non-editable fields
+            # write non-editable fields, excluding `job_variables` because we'll
+            # continue writing it as `infra_overrides` for better backwards compat
+            # with the existing file format.
             f.write("\n###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
             yaml.dump(
-                {k: v for k, v in yaml_dict.items() if k not in self._editable_fields},
+                {
+                    k: v
+                    for k, v in yaml_dict.items()
+                    if k not in self._editable_fields and k != "job_variables"
+                },
                 f,
                 sort_keys=False,
             )
@@ -459,6 +534,18 @@ class Deployment(BaseModel):
             ] = self.infrastructure.get_block_type_slug()
         return all_fields
 
+    @classmethod
+    def _validate_schedule(cls, value):
+        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
+        if value:
+            rrule_value = getattr(value, "rrule", None)
+            if rrule_value and "COUNT" in rrule_value.upper():
+                raise ValueError(
+                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
+                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
+                    " number of flow runs."
+                )
+
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
     description: Optional[str] = Field(
@@ -471,7 +558,11 @@ class Deployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedule: SCHEDULE_TYPES = None
+    schedule: Optional[SCHEDULE_TYPES] = Field(default=None)
+    schedules: List[MinimalDeploymentSchedule] = Field(
+        default_factory=list,
+        description="The schedules to run this deployment on.",
+    )
     is_schedule_active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
@@ -493,7 +584,7 @@ class Deployment(BaseModel):
         ),
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
-    infra_overrides: Dict[str, Any] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
@@ -519,7 +610,7 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
     timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
-    triggers: List[DeploymentTrigger] = Field(
+    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -533,70 +624,28 @@ class Deployment(BaseModel):
     )
 
     @validator("infrastructure", pre=True)
-    def infrastructure_must_have_capabilities(cls, value):
-        if isinstance(value, dict):
-            if "_block_type_slug" in value:
-                # Replace private attribute with public for dispatch
-                value["block_type_slug"] = value.pop("_block_type_slug")
-            block = Block(**value)
-        elif value is None:
-            return value
-        else:
-            block = value
-
-        if "run-infrastructure" not in block.get_block_capabilities():
-            raise ValueError(
-                "Infrastructure block must have 'run-infrastructure' capabilities."
-            )
-        return block
+    def validate_infrastructure_capabilities(cls, value):
+        return infrastructure_must_have_capabilities(value)
 
     @validator("storage", pre=True)
-    def storage_must_have_capabilities(cls, value):
-        if isinstance(value, dict):
-            block_type = Block.get_block_class_from_key(value.pop("_block_type_slug"))
-            block = block_type(**value)
-        elif value is None:
-            return value
-        else:
-            block = value
-
-        capabilities = block.get_block_capabilities()
-        if "get-directory" not in capabilities:
-            raise ValueError(
-                "Remote Storage block must have 'get-directory' capabilities."
-            )
-        return block
+    def validate_storage(cls, value):
+        return storage_must_have_capabilities(value)
 
     @validator("parameter_openapi_schema", pre=True)
-    def handle_openapi_schema(cls, value):
-        """
-        This method ensures setting a value of `None` is handled gracefully.
-        """
-        if value is None:
-            return ParameterSchema()
-        return value
+    def validate_parameter_openapi_schema(cls, value):
+        return handle_openapi_schema(value)
 
     @validator("triggers")
-    def validate_automation_names(cls, field_value, values, field, config):
-        """Ensure that each trigger has a name for its automation if none is provided."""
-        for i, trigger in enumerate(field_value, start=1):
-            if trigger.name is None:
-                trigger.name = f"{values['name']}__automation_{i}"
+    def validate_triggers(cls, field_value, values):
+        return validate_automation_names(field_value, values)
 
-        return field_value
+    @root_validator(pre=True)
+    def validate_schedule(cls, values):
+        return validate_deprecated_schedule_fields(values, logger)
 
-    @validator("schedule")
-    def validate_schedule(cls, value):
-        """We do not support COUNT-based (# of occurrences) RRule schedules for deployments."""
-        if value:
-            rrule_value = getattr(value, "rrule", None)
-            if rrule_value and "COUNT" in rrule_value.upper():
-                raise ValueError(
-                    "RRule schedules with `COUNT` are not supported. Please use `UNTIL`"
-                    " or the `/deployments/{id}/schedule` endpoint to schedule a fixed"
-                    " number of flow runs."
-                )
-        return value
+    @root_validator(pre=True)
+    def validate_backwards_compatibility_for_schedule(cls, values):
+        return reconcile_schedules(cls, values)
 
     @classmethod
     @sync_compatible
@@ -651,11 +700,39 @@ class Deployment(BaseModel):
                         "timestamp",
                         "triggers",
                         "enforce_parameter_schema",
+                        "schedules",
+                        "schedule",
+                        "is_schedule_active",
                     }
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
                     setattr(self, field, new_value)
+
+                if "schedules" not in self.__fields_set__:
+                    self.schedules = [
+                        MinimalDeploymentSchedule(
+                            **schedule.dict(include={"schedule", "active"})
+                        )
+                        for schedule in deployment.schedules
+                    ]
+
+                # The API server generates the "schedule" field from the
+                # current list of schedules, so if the user has locally set
+                # "schedules" to anything, we should avoid sending "schedule"
+                # and let the API server generate a new value if necessary.
+                if "schedules" in self.__fields_set__:
+                    self.schedule = None
+                    self.is_schedule_active = None
+                else:
+                    # The user isn't using "schedules," so we should
+                    # populate "schedule" and "is_schedule_active" from the
+                    # API's version of the deployment, unless the user gave
+                    # us these fields in __init__().
+                    if "schedule" not in self.__fields_set__:
+                        self.schedule = deployment.schedule
+                    if "is_schedule_active" not in self.__fields_set__:
+                        self.is_schedule_active = deployment.is_schedule_active
 
                 if "infrastructure" not in self.__fields_set__:
                     if deployment.infrastructure_document_id:
@@ -784,6 +861,24 @@ class Deployment(BaseModel):
                     res.id, concurrency_limit=work_queue_concurrency
                 )
 
+            if self.schedule:
+                logger.info(
+                    "Interpreting the deprecated `schedule` field as an entry in "
+                    "`schedules`."
+                )
+                schedules = [
+                    DeploymentScheduleCreate(
+                        schedule=self.schedule, active=self.is_schedule_active
+                    )
+                ]
+            elif self.schedules:
+                schedules = [
+                    DeploymentScheduleCreate(**schedule.dict())
+                    for schedule in self.schedules
+                ]
+            else:
+                schedules = None
+
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
             deployment_id = await client.create_deployment(
@@ -792,7 +887,7 @@ class Deployment(BaseModel):
                 work_queue_name=self.work_queue_name,
                 work_pool_name=self.work_pool_name,
                 version=self.version,
-                schedule=self.schedule,
+                schedules=schedules,
                 is_schedule_active=self.is_schedule_active,
                 parameters=self.parameters,
                 description=self.description,
@@ -800,22 +895,30 @@ class Deployment(BaseModel):
                 manifest_path=self.manifest_path,  # allows for backwards YAML compat
                 path=self.path,
                 entrypoint=self.entrypoint,
-                infra_overrides=self.infra_overrides,
+                job_variables=self.job_variables,
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=self.parameter_openapi_schema.dict(),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
-            if client.server_type == ServerType.CLOUD:
-                # The triggers defined in the deployment spec are, essentially,
-                # anonymous and attempting truly sync them with cloud is not
-                # feasible. Instead, we remove all automations that are owned
-                # by the deployment, meaning that they were created via this
-                # mechanism below, and then recreate them.
-                await client.delete_resource_owned_automations(
-                    f"prefect.deployment.{deployment_id}"
-                )
+            if client.server_type.supports_automations():
+                try:
+                    # The triggers defined in the deployment spec are, essentially,
+                    # anonymous and attempting truly sync them with cloud is not
+                    # feasible. Instead, we remove all automations that are owned
+                    # by the deployment, meaning that they were created via this
+                    # mechanism below, and then recreate them.
+                    await client.delete_resource_owned_automations(
+                        f"prefect.deployment.{deployment_id}"
+                    )
+                except PrefectHTTPStatusError as e:
+                    if e.response.status_code == 404:
+                        # This Prefect server does not support automations, so we can safely
+                        # ignore this 404 and move on.
+                        return deployment_id
+                    raise e
+
                 for trigger in self.triggers:
                     trigger.set_deployment_id(deployment_id)
                     await client.create_automation(trigger.as_automation())
@@ -833,6 +936,7 @@ class Deployment(BaseModel):
         ignore_file: str = ".prefectignore",
         apply: bool = False,
         load_existing: bool = True,
+        schedules: Optional[FlexibleScheduleList] = None,
         **kwargs,
     ) -> "Deployment":
         """
@@ -852,6 +956,14 @@ class Deployment(BaseModel):
             load_existing: if True, load any settings that may already be configured for
                 the named deployment server-side (e.g., schedules, default parameter
                 values, etc.)
+            schedules: An optional list of schedules. Each item in the list can be:
+                  - An instance of `MinimalDeploymentSchedule`.
+                  - A dictionary with a `schedule` key, and optionally, an
+                    `active` key. The `schedule` key should correspond to a
+                    schedule type, and `active` is a boolean indicating whether
+                    the schedule is active or not.
+                  - An instance of one of the predefined schedule types:
+                    `IntervalSchedule`, `CronSchedule`, or `RRuleSchedule`.
             **kwargs: other keyword arguments to pass to the constructor for the
                 `Deployment` class
         """
@@ -860,7 +972,17 @@ class Deployment(BaseModel):
 
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
-        deployment = cls(name=name, **kwargs)
+
+        deployment_args = {
+            "name": name,
+            "flow_name": flow.name,
+            **kwargs,
+        }
+
+        if schedules is not None:
+            deployment_args["schedules"] = schedules
+
+        deployment = cls(**deployment_args)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
             ## first see if an entrypoint can be determined

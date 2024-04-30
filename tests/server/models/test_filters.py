@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import timedelta
 from uuid import uuid4
@@ -12,6 +13,7 @@ else:
     import pydantic
 
 import pytest
+from sqlalchemy.exc import InterfaceError
 
 from prefect.client import get_client
 from prefect.server import models
@@ -19,9 +21,31 @@ from prefect.server.schemas import actions, core, filters, schedules, states
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def clear_db():
-    """Prevent automatic database-clearing behavior after every test"""
-    pass  # noqa
+async def clear_db(db):
+    """Clear DB only once before running tests in this module."""
+    max_retries = 3
+    retry_delay = 1
+
+    for attempt in range(max_retries):
+        try:
+            async with db.session_context(begin_transaction=True) as session:
+                await session.execute(db.Agent.__table__.delete())
+                await session.execute(db.WorkPool.__table__.delete())
+
+                for table in reversed(db.Base.metadata.sorted_tables):
+                    await session.execute(table.delete())
+                break
+        except InterfaceError:
+            if attempt < max_retries - 1:
+                print(
+                    "Connection issue. Retrying entire deletion operation"
+                    f" ({attempt + 1}/{max_retries})..."
+                )
+                await asyncio.sleep(retry_delay)
+            else:
+                raise
+
+    yield
 
 
 d_1_1_id = uuid4()
@@ -89,6 +113,7 @@ async def data(flow_function, db):
                 manifest_path="file.json",
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
+                paused=False,
             )
         )
         d_1_2 = await create_deployment(
@@ -98,6 +123,7 @@ async def data(flow_function, db):
                 manifest_path="file.json",
                 flow_id=f_1.id,
                 is_schedule_active=False,
+                paused=True,
                 work_queue_name="test-queue-for-filters",
             )
         )
@@ -109,6 +135,7 @@ async def data(flow_function, db):
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
+                paused=False,
                 work_queue_id=wp.default_queue_id,
             )
         )

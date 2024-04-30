@@ -15,8 +15,10 @@ async def client(app):
     """
     Yield a test client for testing the api
     """
-
-    async with httpx.AsyncClient(app=app, base_url="https://test/api") as async_client:
+    transport = ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="https://test/api"
+    ) as async_client:
         yield async_client
 
 
@@ -27,8 +29,9 @@ async def client_with_unprotected_block_api(app):
     """
     api_version = "0.8.0"
     version_header = {"X-PREFECT-API-VERSION": api_version}
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(
-        app=app, base_url="https://test/api", headers=version_header
+        transport=transport, base_url="https://test/api", headers=version_header
     ) as async_client:
         yield async_client
 

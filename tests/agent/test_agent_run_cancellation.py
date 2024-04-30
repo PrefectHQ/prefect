@@ -1,4 +1,5 @@
-from typing import Generator
+import uuid
+from typing import TYPE_CHECKING, Generator
 from unittest.mock import call
 
 import anyio
@@ -7,10 +8,9 @@ import pytest
 from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import Deployment
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure
-from prefect.server.database.orm_models import ORMDeployment
-from prefect.server.schemas.core import Deployment
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
@@ -27,6 +27,9 @@ from prefect.states import (
 )
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMDeployment
 
 
 @pytest.fixture
@@ -45,7 +48,7 @@ def legacy_named_cancelling_state(**kwargs):
 
 
 async def _create_test_deployment_from_orm(
-    prefect_client: PrefectClient, orm_deployment: ORMDeployment, **kwargs
+    prefect_client: PrefectClient, orm_deployment: "ORMDeployment", **kwargs
 ) -> Deployment:
     api_deployment = Deployment.from_orm(orm_deployment)
     updated_deployment = api_deployment.copy(update=kwargs)
@@ -54,11 +57,13 @@ async def _create_test_deployment_from_orm(
         **updated_deployment.dict(
             exclude=api_deployment._reset_fields().union(
                 {
+                    "schedules",
                     "is_schedule_active",
                     "created_by",
                     "updated_by",
                     "work_queue_id",
                     "last_polled",
+                    "infra_overrides",
                 }
             )
         )
@@ -76,7 +81,7 @@ async def _create_test_deployment_from_orm(
 )
 async def test_agent_cancel_run_called_for_cancelling_run(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     cancelling_constructor,
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -109,7 +114,7 @@ async def test_agent_cancel_run_called_for_cancelling_run(
     ],
 )
 async def test_agent_cancel_run_not_called_for_other_states(
-    prefect_client: PrefectClient, deployment: ORMDeployment, state
+    prefect_client: PrefectClient, deployment: "ORMDeployment", state
 ):
     await prefect_client.create_flow_run_from_deployment(
         deployment.id,
@@ -130,10 +135,11 @@ async def test_agent_cancel_run_not_called_for_other_states(
 )
 async def test_agent_cancel_run_called_for_cancelling_run_with_multiple_work_queues(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     cancelling_constructor,
 ):
-    deployment.work_queue_name = "foo"
+    work_queue = f"foo-{uuid.uuid4()}"
+    deployment.work_queue_name = work_queue
     await prefect_client.update_deployment(deployment)
 
     flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -141,7 +147,11 @@ async def test_agent_cancel_run_called_for_cancelling_run_with_multiple_work_que
         state=cancelling_constructor(),
     )
 
-    async with PrefectAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(
+        # one existing and one non-existing work queue
+        work_queues=[work_queue, str(uuid.uuid4())],
+        prefetch_seconds=10,
+    ) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
@@ -153,14 +163,16 @@ async def test_agent_cancel_run_called_for_cancelling_run_with_multiple_work_que
 )
 async def test_agent_cancel_run_called_for_each_cancelling_run_in_multiple_work_queues(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     cancelling_constructor,
 ):
+    wq1 = f"foo-{uuid.uuid4()}"
+    wq2 = f"bar-{uuid.uuid4()}"
     deployment_foo = await _create_test_deployment_from_orm(
-        prefect_client, deployment, work_queue_name="foo"
+        prefect_client, deployment, work_queue_name=wq1
     )
     deployment_bar = await _create_test_deployment_from_orm(
-        prefect_client, deployment, work_queue_name="bar"
+        prefect_client, deployment, work_queue_name=wq2
     )
 
     flow_run_foo = await prefect_client.create_flow_run_from_deployment(
@@ -172,7 +184,7 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_multiple_work_
         state=cancelling_constructor(),
     )
 
-    async with PrefectAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(work_queues=[wq1, wq2], prefetch_seconds=10) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
@@ -185,7 +197,7 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_multiple_work_
     "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
 )
 async def test_agent_cancel_run_called_for_each_cancelling_run_in_a_work_queue(
-    prefect_client: PrefectClient, deployment: ORMDeployment, cancelling_constructor
+    prefect_client: PrefectClient, deployment: "ORMDeployment", cancelling_constructor
 ):
     deployment_foo = await _create_test_deployment_from_orm(
         prefect_client, deployment, work_queue_name="foo"
@@ -258,7 +270,7 @@ def mock_infrastructure_kill(monkeypatch) -> Generator[AsyncMock, None, None]:
 )
 async def test_agent_cancel_run_kills_run_with_infrastructure_pid(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     mock_infrastructure_kill: AsyncMock,
     cancelling_constructor,
 ):
@@ -284,7 +296,7 @@ async def test_agent_cancel_run_kills_run_with_infrastructure_pid(
 )
 async def test_agent_cancel_run_with_missing_infrastructure_pid(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     mock_infrastructure_kill: AsyncMock,
     caplog,
     cancelling_constructor,
@@ -321,7 +333,7 @@ async def test_agent_cancel_run_with_missing_infrastructure_pid(
 )
 async def test_agent_cancel_run_updates_state_type(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     cancelling_constructor,
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -348,7 +360,7 @@ async def test_agent_cancel_run_updates_state_type(
 )
 async def test_agent_cancel_run_preserves_other_state_properties(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     cancelling_constructor,
 ):
     expected_changed_fields = {"type", "name", "timestamp", "id"}
@@ -376,7 +388,7 @@ async def test_agent_cancel_run_preserves_other_state_properties(
 )
 async def test_agent_cancel_run_with_infrastructure_not_available_during_kill(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     mock_infrastructure_kill: AsyncMock,
     caplog,
     cancelling_constructor,
@@ -418,7 +430,7 @@ async def test_agent_cancel_run_with_infrastructure_not_available_during_kill(
 )
 async def test_agent_cancel_run_with_infrastructure_not_found_during_kill(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     mock_infrastructure_kill: AsyncMock,
     caplog,
     cancelling_constructor,
@@ -459,7 +471,7 @@ async def test_agent_cancel_run_with_infrastructure_not_found_during_kill(
 )
 async def test_agent_cancel_run_with_unknown_error_during_kill(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     mock_infrastructure_kill: AsyncMock,
     caplog,
     cancelling_constructor,
@@ -499,7 +511,7 @@ async def test_agent_cancel_run_with_unknown_error_during_kill(
 )
 async def test_agent_cancel_run_without_infrastructure_support_for_kill(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     caplog,
     monkeypatch,
     cancelling_constructor,
@@ -541,7 +553,7 @@ async def test_agent_cancel_run_without_infrastructure_support_for_kill(
 )
 async def test_agent_started_in_work_pool_without_work_queue_puts_flow_run_into_cancelled_state(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     caplog,
     cancelling_constructor,
     work_pool,
@@ -567,7 +579,7 @@ async def test_agent_started_in_work_pool_without_work_queue_puts_flow_run_into_
 )
 async def test_agent_started_in_different_work_pool_without_work_queue_does_not_cancel_flow_run(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     caplog,
     cancelling_constructor,
 ):
@@ -591,7 +603,7 @@ async def test_agent_started_in_different_work_pool_without_work_queue_does_not_
 )
 async def test_agent_started_in_different_work_pool_with_same_work_queue_name_does_not_cancel_flow_run(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     caplog,
     cancelling_constructor,
 ):
@@ -599,7 +611,7 @@ async def test_agent_started_in_different_work_pool_with_same_work_queue_name_do
         deployment.id,
         state=cancelling_constructor(),
     )
-    assert flow_run.work_pool_name == "test-work-pool"
+    assert flow_run.work_pool_name == deployment.work_queue.work_pool.name
 
     async with PrefectAgent(
         work_pool_name="another-work-pool",
@@ -618,7 +630,7 @@ async def test_agent_started_in_different_work_pool_with_same_work_queue_name_do
 )
 async def test_agent_started_in_same_work_pool_with_same_work_queue_name_cancels_flow_run(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     caplog,
     cancelling_constructor,
 ):
@@ -626,7 +638,7 @@ async def test_agent_started_in_same_work_pool_with_same_work_queue_name_cancels
         deployment.id,
         state=cancelling_constructor(),
     )
-    assert flow_run.work_pool_name == "test-work-pool"
+    assert flow_run.work_pool_name == deployment.work_queue.work_pool.name
 
     async with PrefectAgent(
         work_pool_name=flow_run.work_pool_name,
@@ -646,7 +658,7 @@ async def test_agent_started_in_same_work_pool_with_same_work_queue_name_cancels
 )
 async def test_agent_started_in_same_work_pool_with_different_work_queue_name_does_not_cancel_flow_run(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     caplog,
     cancelling_constructor,
 ):
@@ -654,7 +666,7 @@ async def test_agent_started_in_same_work_pool_with_different_work_queue_name_do
         deployment.id,
         state=cancelling_constructor(),
     )
-    assert flow_run.work_queue_name == "wq-1"
+    assert flow_run.work_queue_name == deployment.work_queue.name
 
     async with PrefectAgent(
         work_pool_name=flow_run.work_pool_name,
@@ -673,7 +685,7 @@ async def test_agent_started_in_same_work_pool_with_different_work_queue_name_do
 )
 async def test_agent_started_without_work_pool_does_not_cancel_flow_run_in_nondefault_work_pool(
     prefect_client: PrefectClient,
-    deployment: ORMDeployment,
+    deployment: "ORMDeployment",
     caplog,
     cancelling_constructor,
 ):
@@ -681,11 +693,11 @@ async def test_agent_started_without_work_pool_does_not_cancel_flow_run_in_nonde
         deployment.id,
         state=cancelling_constructor(),
     )
-    assert flow_run.work_queue_name == "wq-1"
-    assert flow_run.work_pool_name == "test-work-pool"
+    assert flow_run.work_queue_name == deployment.work_queue.name
+    assert flow_run.work_pool_name == deployment.work_queue.work_pool.name
 
     async with PrefectAgent(
-        work_queues=["wq-1"],
+        work_queues=[deployment.work_queue.name],
         prefetch_seconds=10,
     ) as agent:
         assert agent.work_pool_name is None
@@ -701,7 +713,7 @@ async def test_agent_started_without_work_pool_does_not_cancel_flow_run_in_nonde
 )
 async def test_agent_started_with_nondefault_work_pool_does_not_cancel_flow_run_in_default_work_pool(
     prefect_client: PrefectClient,
-    deployment_in_default_work_pool: ORMDeployment,
+    deployment_in_default_work_pool: "ORMDeployment",
     caplog,
     cancelling_constructor,
 ):
@@ -709,12 +721,12 @@ async def test_agent_started_with_nondefault_work_pool_does_not_cancel_flow_run_
         deployment_in_default_work_pool.id,
         state=cancelling_constructor(),
     )
-    assert flow_run.work_queue_name == "wq-1"
+    assert flow_run.work_queue_name == deployment_in_default_work_pool.work_queue.name
     assert flow_run.work_pool_name == "default-agent-pool"
 
     async with PrefectAgent(
-        work_pool_name="test-work-pool",
-        work_queues=["wq-1"],
+        work_pool_name=f"non-default-{uuid.uuid4()}",
+        work_queues=[deployment_in_default_work_pool.work_queue.name],
         prefetch_seconds=10,
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -729,7 +741,7 @@ async def test_agent_started_with_nondefault_work_pool_does_not_cancel_flow_run_
 )
 async def test_agent_skips_cancellation_when_enhanced_cancellation_is_enabled(
     prefect_client: PrefectClient,
-    deployment_2: ORMDeployment,
+    deployment_2: "ORMDeployment",
     cancelling_constructor,
     enable_enhanced_cancellation,
     caplog,

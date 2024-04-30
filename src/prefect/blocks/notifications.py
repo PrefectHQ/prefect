@@ -1,7 +1,9 @@
+import logging
 from abc import ABC
 from typing import Dict, List, Optional
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.logging import LogEavesdropper
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import AnyHttpUrl, Field, SecretStr
@@ -10,7 +12,7 @@ else:
 
 from typing_extensions import Literal
 
-from prefect.blocks.abstract import NotificationBlock
+from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.fields import SecretDict
 from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
@@ -60,11 +62,18 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         self._start_apprise_client(self.url)
 
     @sync_compatible
-    @instrument_instance_method_call()
-    async def notify(self, body: str, subject: Optional[str] = None):
-        await self._apprise_client.async_notify(
-            body=body, title=subject, notify_type=self.notify_type
-        )
+    @instrument_instance_method_call
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+    ):
+        with LogEavesdropper("apprise", level=logging.DEBUG) as eavesdropper:
+            result = await self._apprise_client.async_notify(
+                body=body, title=subject, notify_type=self.notify_type
+            )
+        if not result and self._raise_on_failure:
+            raise NotificationError(log=eavesdropper.text())
 
 
 class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
@@ -77,7 +86,7 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
         default=...,
         title="Webhook URL",
         description="Incoming webhook URL used to send notifications.",
-        example="https://hooks.example.com/XXX",
+        examples=["https://hooks.example.com/XXX"],
     )
 
 
@@ -105,7 +114,7 @@ class SlackWebhook(AppriseNotificationBlock):
         default=...,
         title="Webhook URL",
         description="Slack incoming webhook URL used to send notifications.",
-        example="https://hooks.slack.com/XXX",
+        examples=["https://hooks.slack.com/XXX"],
     )
 
 
@@ -131,9 +140,9 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         ...,
         title="Webhook URL",
         description="The Teams incoming webhook URL used to send notifications.",
-        example=(
+        examples=[
             "https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ"
-        ),
+        ],
     )
 
 
@@ -222,7 +231,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     custom_details: Optional[Dict[str, str]] = Field(
         default=None,
         description="Additional details to include as part of the payload.",
-        example='{"disk_space_left": "145GB"}',
+        examples=['{"disk_space_left": "145GB"}'],
     )
 
     def block_initialization(self) -> None:
@@ -283,14 +292,14 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     from_phone_number: str = Field(
         default=...,
         description="The valid Twilio phone number to send the message from.",
-        example="18001234567",
+        examples=["18001234567"],
     )
 
     to_phone_numbers: List[str] = Field(
         default=...,
         description="A list of valid Twilio phone number(s) to send the message to.",
         # not wrapped in brackets because of the way UI displays examples; in code should be ["18004242424"]
-        example="18004242424",
+        examples=["18004242424"],
     )
 
     def block_initialization(self) -> None:
@@ -366,7 +375,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
             "A comma-separated list of tags you can associate with your Opsgenie"
             " message."
         ),
-        example='["tag1", "tag2"]',
+        examples=['["tag1", "tag2"]'],
     )
 
     priority: Optional[str] = Field(
@@ -388,7 +397,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     details: Optional[Dict[str, str]] = Field(
         default=None,
         description="Additional details composed of key/values pairs.",
-        example='{"key1": "value1", "key2": "value2"}',
+        examples=['{"key1": "value1", "key2": "value2"}'],
     )
 
     def block_initialization(self) -> None:
@@ -445,7 +454,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     hostname: str = Field(
         default=...,
         description="The hostname of your Mattermost server.",
-        example="Mattermost.example.com",
+        examples=["Mattermost.example.com"],
     )
 
     token: SecretStr = Field(
@@ -617,7 +626,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     url: str = Field(
         title="Webhook URL",
         description="The webhook URL.",
-        example="https://hooks.slack.com/XXX",
+        examples=["https://hooks.slack.com/XXX"],
     )
 
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
@@ -631,10 +640,10 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         default=None,
         title="JSON Data",
         description="Send json data as payload.",
-        example=(
+        examples=[
             '{"text": "{{subject}}\\n{{body}}", "title": "{{name}}", "token":'
             ' "{{tokenFromSecrets}}"}'
-        ),
+        ],
     )
     form_data: Optional[Dict[str, str]] = Field(
         default=None,
@@ -642,10 +651,10 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         description=(
             "Send form data as payload. Should not be used together with _JSON Data_."
         ),
-        example=(
+        examples=[
             '{"text": "{{subject}}\\n{{body}}", "title": "{{name}}", "token":'
             ' "{{tokenFromSecrets}}"}'
-        ),
+        ],
     )
 
     headers: Optional[Dict[str, str]] = Field(None, description="Custom headers.")
@@ -659,7 +668,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         default_factory=lambda: SecretDict(dict()),
         title="Custom Secret Values",
         description="A dictionary of secret values to be substituted in other configs.",
-        example='{"tokenFromSecrets":"SomeSecretToken"}',
+        examples=['{"tokenFromSecrets":"SomeSecretToken"}'],
     )
 
     def _build_request_args(self, body: str, subject: Optional[str]):
@@ -708,14 +717,18 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     @sync_compatible
-    @instrument_instance_method_call()
+    @instrument_instance_method_call
     async def notify(self, body: str, subject: Optional[str] = None):
         import httpx
 
+        request_args = self._build_request_args(body, subject)
+        cookies = request_args.pop("cookies", None)
         # make request with httpx
-        client = httpx.AsyncClient(headers={"user-agent": "Prefect Notifications"})
+        client = httpx.AsyncClient(
+            headers={"user-agent": "Prefect Notifications"}, cookies=cookies
+        )
         async with client:
-            resp = await client.request(**self._build_request_args(body, subject))
+            resp = await client.request(**request_args)
         resp.raise_for_status()
 
 
@@ -749,14 +762,14 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     sender_email: str = Field(
         title="Sender email id",
         description="The sender email id.",
-        example="test-support@gmail.com",
+        examples=["test-support@gmail.com"],
     )
 
     to_emails: List[str] = Field(
         default=...,
         title="Recipient emails",
         description="Email ids of all recipients.",
-        example='"recipient1@gmail.com"',
+        examples=['"recipient1@gmail.com"'],
     )
 
     def block_initialization(self) -> None:

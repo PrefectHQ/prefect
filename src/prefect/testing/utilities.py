@@ -1,6 +1,7 @@
-""""
+"""
 Internal utilities for tests.
 """
+
 import sys
 import warnings
 from contextlib import ExitStack, contextmanager
@@ -119,12 +120,19 @@ def kubernetes_environments_equal(
 
 
 @contextmanager
-def assert_does_not_warn():
+def assert_does_not_warn(ignore_warnings=[]):
     """
-    Converts warnings to errors within this context to assert warnings are not raised.
+    Converts warnings to errors within this context to assert warnings are not raised,
+    except for those specified in ignore_warnings.
+
+    Parameters:
+    - ignore_warnings: List of warning types to ignore. Example: [DeprecationWarning, UserWarning]
     """
     with warnings.catch_warnings():
         warnings.simplefilter("error")
+        for warning_type in ignore_warnings:
+            warnings.filterwarnings("ignore", category=warning_type)
+
         try:
             yield
         except Warning as warning:

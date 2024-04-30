@@ -2,6 +2,7 @@
 Implementation of the `Call` data structure for transport of deferred function calls
 and low-level management of call execution.
 """
+
 import abc
 import asyncio
 import concurrent.futures
@@ -10,6 +11,7 @@ import contextvars
 import dataclasses
 import inspect
 import threading
+import weakref
 from concurrent.futures._base import (
     CANCELLED,
     CANCELLED_AND_NOTIFIED,
@@ -18,7 +20,6 @@ from concurrent.futures._base import (
 )
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
-import greenback
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency import logger
@@ -33,21 +34,30 @@ from prefect._internal.concurrency.event_loop import get_running_loop
 T = TypeVar("T")
 P = ParamSpec("P")
 
-
-# Tracks the current call being executed
-current_call: contextvars.ContextVar["Call"] = contextvars.ContextVar("current_call")
+# Tracks the current call being executed. Note that storing the `Call`
+# object for an async call directly in the contextvar appears to create a
+# memory leak, despite the fact that we `reset` when leaving the context
+# that sets this contextvar. A weakref avoids the leak and works because a)
+# we already have strong references to the `Call` objects in other places
+# and b) this is used for performance optimizations where we have fallback
+# behavior if this weakref is garbage collected. A fix for issue #10952.
+current_call: contextvars.ContextVar["weakref.ref[Call]"] = (  # novm
+    contextvars.ContextVar("current_call")
+)
 
 # Create a strong reference to tasks to prevent destruction during execution errors
 _ASYNC_TASK_REFS = set()
 
 
 def get_current_call() -> Optional["Call"]:
-    return current_call.get(None)
+    call_ref = current_call.get(None)
+    if call_ref:
+        return call_ref()
 
 
 @contextlib.contextmanager
 def set_current_call(call: "Call"):
-    token = current_call.set(call)
+    token = current_call.set(weakref.ref(call))
     try:
         yield
     finally:
@@ -181,6 +191,29 @@ class Future(concurrent.futures.Future):
         finally:
             # Break a reference cycle with the exception in self._exception
             self = None
+
+    def _invoke_callbacks(self):
+        """
+        Invoke our done callbacks and clean up cancel scopes and cancel
+        callbacks. Fixes a memory leak that hung on to Call objects,
+        preventing garbage collection of Futures.
+
+        A fix for #10952.
+        """
+        if self._done_callbacks:
+            done_callbacks = self._done_callbacks[:]
+            self._done_callbacks[:] = []
+
+            for callback in done_callbacks:
+                try:
+                    callback(self)
+                except Exception:
+                    logger.exception("exception calling callback for %r", self)
+
+        self._cancel_callbacks = []
+        if self._cancel_scope:
+            self._cancel_scope._callbacks = []
+            self._cancel_scope = None
 
 
 @dataclasses.dataclass
@@ -348,14 +381,6 @@ class Call(Generic[T]):
             logger.debug("Finished call %r", self)  # noqa: F821
 
     async def _run_async(self, coro):
-        from prefect._internal.concurrency.threads import in_global_loop
-
-        # Ensure the greenback portal is shimmed for this task so we can safely call
-        # back into async code from sync code if the user does something silly; avoid
-        # this overhead for our internal event loop
-        if not in_global_loop():
-            await greenback.ensure_portal()
-
         cancel_scope = None
         try:
             with set_current_call(self):

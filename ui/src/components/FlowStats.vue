@@ -11,14 +11,14 @@
 <script lang="ts" setup>
   import {
     CumulativeTaskRunsCard,
-    TimeSpanFilter,
     FlowRunHistoryCard,
     subscriptionIntervalKey,
-    mapper
+    mapper,
+    useWorkspaceDashboardFilterFromRoute,
+    DateRangeSelect
   } from '@prefecthq/prefect-ui-library'
   import { secondsInDay, secondsToMilliseconds } from 'date-fns'
   import { computed, provide, toRefs } from 'vue'
-  import { useWorkspaceDashboardFilterFromRoute, DateRangeSelect } from '@prefecthq/prefect-ui-library'
 
   const props = defineProps<{
     flowId: string,
@@ -28,12 +28,12 @@
 
   const filter = useWorkspaceDashboardFilterFromRoute({
     range: { type: 'span', seconds: -secondsInDay },
-    tags: []
+    tags: [],
   })
 
   const flowStats = computed(() => ({
     flowId: flowId.value,
-    range: filter.range
+    range: filter.range,
   }))
 
   provide(subscriptionIntervalKey, {

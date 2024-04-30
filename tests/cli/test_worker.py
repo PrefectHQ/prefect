@@ -67,6 +67,7 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
     with respx.mock(
         assert_all_mocked=False, base_url=PREFECT_API_URL.value()
     ) as respx_mock:
+        respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
         respx_mock.route(path__startswith="/work_pools/").pass_through()
         respx_mock.route(path__startswith="/flow_runs/").pass_through()
         respx_mock.get("/collections/views/aggregate-worker-metadata").mock(
@@ -212,6 +213,90 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_with_specified_work_queues_paused(monkeypatch, process_work_pool):
+    mock_worker = MagicMock()
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+
+    invoke_and_assert(
+        command=[
+            "work-queue",
+            "pause",
+            "default",
+            "--pool",
+            process_work_pool.name,
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Work queue 'default' in work pool {process_work_pool.name!r} paused"
+        ],
+    )
+
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            process_work_pool.name,
+            "--work-queue",
+            "default",
+            "--run-once",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Specified work queue(s) in the work pool {process_work_pool.name!r} are currently paused.",
+        ],
+    )
+
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name=process_work_pool.name,
+        work_queues=["default"],
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_with_all_work_queues_paused(monkeypatch, process_work_pool):
+    mock_worker = MagicMock()
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+
+    invoke_and_assert(
+        command=[
+            "work-queue",
+            "pause",
+            "default",
+            "--pool",
+            process_work_pool.name,
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Work queue 'default' in work pool {process_work_pool.name!r} paused"
+        ],
+    )
+
+    invoke_and_assert(
+        command=["worker", "start", "-p", process_work_pool.name, "--run-once"],
+        expected_code=0,
+        expected_output_contains=[
+            f"All work queues in the work pool {process_work_pool.name!r} are currently paused.",
+        ],
+    )
+
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name=process_work_pool.name,
+        work_queues=None,
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -232,7 +317,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=30,
         limit=None,
         heartbeat_interval_seconds=30,
@@ -260,7 +345,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=100,
         limit=None,
         heartbeat_interval_seconds=30,
@@ -289,7 +374,7 @@ def test_start_worker_with_limit(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
-        work_queues=[],
+        work_queues=None,
         prefetch_seconds=10,
         limit=5,
         heartbeat_interval_seconds=30,
@@ -355,6 +440,29 @@ async def test_worker_discovers_work_pool_type(
         work_pool_name=process_work_pool.name
     )
     assert workers[0].name == "test-worker"
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+async def test_worker_start_fails_informatively_with_bad_type(
+    process_work_pool, prefect_client: PrefectClient
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "-p",
+            process_work_pool.name,
+            "-t",
+            "not-a-real-type",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Could not find a package for worker type",
+            "Unable to start worker. Please ensure you have the necessary"
+            " dependencies installed to run your desired worker type.",
+        ],
+    )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")

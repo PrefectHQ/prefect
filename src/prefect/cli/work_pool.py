@@ -259,7 +259,7 @@ async def ls(
             str(pool.id),
             (
                 f"[red]{pool.concurrency_limit}"
-                if pool.concurrency_limit
+                if pool.concurrency_limit is not None
                 else "[blue]None"
             ),
         ]
@@ -285,10 +285,9 @@ async def inspect(
     async with get_client() as client:
         try:
             pool = await client.read_work_pool(work_pool_name=name)
-        except ObjectNotFound as exc:
-            exit_with_error(exc)
-
-        app.console.print(Pretty(pool))
+            app.console.print(Pretty(pool))
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {name!r} not found!")
 
 
 @work_pool_app.command()

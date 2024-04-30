@@ -214,6 +214,9 @@ class EventLoopThread(Portal):
         for call in self._on_shutdown:
             await self._run_call(call)
 
+        # Empty the list to allow calls to be garbage collected. Issue #10338.
+        self._on_shutdown = []
+
     async def _run_call(self, call: Call) -> None:
         task = call.run()
         if task is not None:
@@ -257,12 +260,11 @@ def in_global_loop() -> bool:
     """
     Check if called from the global loop.
     """
-    loop = get_running_loop()
-    if GLOBAL_LOOP is None or not loop:
+    if GLOBAL_LOOP is None:
         # Avoid creating a global loop if there isn't one
         return False
 
-    return GLOBAL_LOOP._loop == loop
+    return get_global_loop()._loop == get_running_loop()
 
 
 def wait_for_global_loop_exit(timeout: Optional[float] = None) -> None:

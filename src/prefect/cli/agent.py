@@ -1,9 +1,10 @@
 """
 Command line interface for working with agent services
 """
+
 import os
 from functools import partial
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import anyio
@@ -15,6 +16,7 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
+from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.exceptions import ObjectNotFound
 from prefect.settings import (
     PREFECT_AGENT_PREFETCH_SECONDS,
@@ -25,7 +27,12 @@ from prefect.utilities.processutils import setup_signal_handlers_agent
 from prefect.utilities.services import critical_service_loop
 
 agent_app = PrefectTyper(
-    name="agent", help="Commands for starting and interacting with agent processes."
+    name="agent",
+    help="Commands for starting and interacting with agent processes.",
+    deprecated=True,
+    deprecated_name="agent",
+    deprecated_start_date="Mar 2024",
+    deprecated_help="Use `prefect worker start` instead. Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/. ",
 )
 app.add_typer(agent_app)
 
@@ -115,6 +122,25 @@ async def start(
             ),
             style="blue",
         )
+    if work_pool_name:
+        is_queues_paused = await _check_work_queues_paused(
+            work_pool_name=work_pool_name,
+            work_queues=work_queues,
+        )
+        if is_queues_paused:
+            queue_scope = (
+                "The 'default' work queue"
+                if not work_queues
+                else "Specified work queue(s)"
+            )
+            app.console.print(
+                (
+                    f"{queue_scope} in the work pool {work_pool_name!r} is currently"
+                    " paused. This agent will not execute any flow runs until the work"
+                    " queue(s) are unpaused."
+                ),
+                style="yellow",
+            )
 
     if not work_queues and not tags and not work_queue_prefix and not work_pool_name:
         exit_with_error("No work queues provided!", style="red")
@@ -219,3 +245,31 @@ async def start(
             )
 
     app.console.print("Agent stopped!")
+
+
+async def _check_work_queues_paused(
+    work_pool_name: str, work_queues: Optional[List[str]]
+) -> bool:
+    """
+    Check if the default work queue in the work pool is paused. If work queues are specified,
+    only those work queues are checked.
+
+    Args:
+        - work_pool_name (str): the name of the work pool to check
+        - work_queues (Optional[List[str]]): the names of the work queues to check
+
+    Returns:
+        - bool: True if work queues are paused, False otherwise
+    """
+    work_queues_list = work_queues or ["default"]
+    try:
+        work_queues_filter = WorkQueueFilter(
+            name=WorkQueueFilterName(any_=work_queues_list)
+        )
+        async with get_client() as client:
+            wqs = await client.read_work_queues(
+                work_pool_name=work_pool_name, work_queue_filter=work_queues_filter
+            )
+            return all(queue.is_paused for queue in wqs) if wqs else False
+    except ObjectNotFound:
+        return False

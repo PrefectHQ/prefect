@@ -16,6 +16,7 @@ WARNING: Prefect settings cannot be modified in async fixtures.
     fixture, a sync fixture must be defined that consumes the async fixture to perform
     the settings context change. See `test_database_connection_url` for example.
 """
+
 import asyncio
 import logging
 import pathlib
@@ -23,7 +24,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Generator, Optional
+from typing import AsyncGenerator, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
@@ -41,7 +42,9 @@ from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
+    PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
     PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
+    PREFECT_API_SERVICES_FOREMAN_ENABLED,
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
@@ -51,16 +54,20 @@ from prefect.settings import (
     PREFECT_CLI_WRAP_LINES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
     PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
+    PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_UNIT_TEST_LOOP_DEBUG,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
@@ -75,9 +82,12 @@ from .fixtures.api import *
 from .fixtures.client import *
 from .fixtures.collections_registry import *
 from .fixtures.database import *
+from .fixtures.deprecation import *
 from .fixtures.docker import *
+from .fixtures.events import *
 from .fixtures.logging import *
 from .fixtures.storage import *
+from .fixtures.time import *
 
 
 def pytest_addoption(parser):
@@ -121,6 +131,9 @@ def pytest_addoption(parser):
     )
 
 
+EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = ["tests/utilities", "tests/agent"]
+
+
 def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
@@ -138,16 +151,17 @@ def pytest_collection_modifyitems(session, config, items):
                 )
 
     exclude_services = set(config.getoption("--exclude-service"))
-    for item in items:
-        item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
-        excluded_services = item_services.intersection(exclude_services)
-        if excluded_services:
-            item.add_marker(
-                pytest.mark.skip(
-                    "Excluding tests for service(s): "
-                    f"{', '.join(repr(s) for s in excluded_services)}."
+    if exclude_services:
+        for item in items:
+            item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
+            excluded_services = item_services.intersection(exclude_services)
+            if excluded_services:
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Excluding tests for service(s): "
+                        f"{', '.join(repr(s) for s in excluded_services)}."
+                    )
                 )
-            )
 
     only_run_service_tests = config.getoption("--only-services")
     if only_run_service_tests:
@@ -186,6 +200,14 @@ def pytest_collection_modifyitems(session, config, items):
                 )
         return
 
+    for item in items:
+        # Check if the test file is not in the excluded list
+        if not any(
+            excluded in item.nodeid for excluded in EXCLUDE_FROM_CLEAR_DB_AUTO_MARK
+        ):
+            # Apply the custom mark to clear the database prior to the test
+            item.add_marker(pytest.mark.clear_db)
+
 
 @pytest.fixture(scope="session")
 def event_loop(request):
@@ -214,12 +236,14 @@ def event_loop(request):
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
-    loop.set_debug(True)
+
+    if PREFECT_UNIT_TEST_LOOP_DEBUG.value():
+        loop.set_debug(True)
+
     loop.slow_callback_duration = 0.25
 
     try:
         yield loop
-
     finally:
         loop.close()
 
@@ -299,6 +323,7 @@ def pytest_sessionstart(session):
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             PREFECT_LOGGING_INTERNAL_LEVEL: "DEBUG",
+            PREFECT_LOGGING_SERVER_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
             # can be enabled by the `enable_api_log_handler` mark
             PREFECT_LOGGING_TO_API_ENABLED: False,
@@ -309,12 +334,17 @@ def pytest_sessionstart(session):
             PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
             PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
             PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
+            PREFECT_API_SERVICES_FOREMAN_ENABLED: False,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
             # Code is being executed in a unit test context
             PREFECT_UNIT_TEST_MODE: True,
+            # Events: disable the event persister, which may lock the DB during
+            # tests while writing events
+            PREFECT_EXPERIMENTAL_EVENTS: True,
+            PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
         },
         source=__file__,
     )
@@ -360,7 +390,7 @@ def safety_check_settings():
 @pytest.fixture(scope="session", autouse=True)
 async def generate_test_database_connection_url(
     worker_id: str,
-) -> Generator[Optional[str], None, None]:
+) -> AsyncGenerator[Optional[str], None]:
     """Prepares an alternative test database URL, if necessary, for the current
     connection URL.
 
@@ -497,6 +527,12 @@ def caplog(caplog):
     yield caplog
 
 
+@pytest.fixture(autouse=True)
+def disable_csrf_protection():
+    with temporary_settings({PREFECT_SERVER_CSRF_PROTECTION_ENABLED: False}):
+        yield
+
+
 @pytest.fixture
 def enable_workers():
     with temporary_settings(
@@ -532,6 +568,12 @@ def disable_enhanced_cancellation():
             PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: 1,
         }
     ):
+        yield
+
+
+@pytest.fixture
+def events_disabled():
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
         yield
 
 

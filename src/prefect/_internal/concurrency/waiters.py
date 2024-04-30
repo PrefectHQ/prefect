@@ -9,9 +9,9 @@ import contextlib
 import inspect
 import queue
 import threading
-import weakref
 from collections import deque
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
+from weakref import WeakKeyDictionary
 
 import anyio
 
@@ -24,34 +24,37 @@ T = TypeVar("T")
 
 
 # Waiters are stored in a stack for each thread
-_WAITERS_BY_THREAD: "weakref.WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
-    weakref.WeakKeyDictionary()
+_WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
+    WeakKeyDictionary()
 )
 
 
-def get_waiter_for_thread(thread: threading.Thread) -> Optional["Waiter"]:
+def get_waiter_for_thread(
+    thread: threading.Thread, parent_call: Optional[Call] = None
+) -> Optional["Waiter"]:
     """
-    Get the current waiter for a thread.
+    Get the current waiter for a thread and an optional parent call.
 
-    Returns `None` if one does not exist.
+    To avoid assigning outer callbacks to inner waiters in the case of nested calls,
+    the parent call is used to determine which waiter to return. If a parent call is
+    not provided, we return the most recently created waiter (last in the stack).
+
+    see https://github.com/PrefectHQ/prefect/issues/12036
+
+    Returns `None` if no active waiter is found for the thread.
     """
-    waiters = _WAITERS_BY_THREAD.get(thread)
 
-    if waiters:
-        idx = -1
-        while abs(idx) <= len(waiters):
-            try:
-                waiter = waiters[idx]
-                if not waiter.call_is_done():
-                    return waiter
-                idx = idx - 1
-            # It is possible that items are being added or removed
-            # from the deque, so the index we're using may not always
-            # be valid.
-            except IndexError:
-                break
+    waiters: "Optional[deque[Waiter]]" = _WAITERS_BY_THREAD.get(thread)
 
-    return None
+    if waiters and (active_waiters := [w for w in waiters if not w.call_is_done()]):
+        if parent_call and (
+            matching_waiter := next(
+                (w for w in active_waiters if w._call == parent_call), None
+            )
+        ):  # if exists an active waiter responsible for the parent call, return it
+            return matching_waiter
+        else:  # otherwise, return the most recently created waiter
+            return active_waiters[-1]
 
 
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):

@@ -45,7 +45,7 @@ Currently, you can render three artifact types: links, Markdown, and tables.
 
 To create a link artifact, use the `create_link_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_link_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run.
 
 ```python
 from prefect import flow, task
@@ -112,7 +112,7 @@ An optional `description` could also be added for context.
 
 To create a Markdown artifact, you can use the `create_markdown_artifact()` function.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_markdown_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the Artifacts tab of the associated flow run or task run.
 
 !!! warning "Don't indent Markdown"
     Markdown in mult-line strings must be unindented to be interpreted correctly.
@@ -178,7 +178,7 @@ As with all artifacts, you'll be able to view the associated flow run or task ru
 
 You can create a table artifact by calling `create_table_artifact()`.
 To create multiple versions of the same artifact and/or view them on the Artifacts page of the Prefect UI, provide a `key` argument to the `create_table_artifact()` function to track an artifact's history over time.
-Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run."
+Without a `key`, the artifact will only be visible in the artifacts tab of the associated flow run or task run.
 
 !!! note
     The `create_table_artifact()` function accepts a `table` argument, which can be provided as either a list of lists, a list of dictionaries, or a dictionary of lists.
@@ -211,7 +211,7 @@ You can create one anywhere in a Python script and see it in the Prefect UI.
 ### Reading artifacts
 
 In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time.
-Additionally, you can inspect all versions of an artifact with a given key by running:
+Additionally, you can inspect all versions of an artifact with a given key from the CLI by running:
 
 ```bash
 prefect artifact inspect <my_key>
@@ -224,6 +224,17 @@ prefect artifact ls
 ```
 
 You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/read_artifacts_api_accounts__account_id__workspaces__workspace_id__artifacts_filter_post) to programmatically filter your results.
+
+### Fetching artifacts
+
+In Python code, you can retrieve an existing artifact with the `Artifact.get` class method:
+
+```python
+from prefect.artifacts import Artifact
+
+my_retrieved_artifact = Artifact.get("my_artifact_key")
+
+```
 
 ### Deleting artifacts
 

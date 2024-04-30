@@ -1,6 +1,6 @@
 ruff
 cairosvg
-codespell
+codespell>=2.2.6
 ddtrace
 # Pin IPython to 8.12 when building on Python 3.8
 # https://github.com/ipython/ipython/blob/main/README.rst
@@ -14,7 +14,7 @@ mkdocstrings-python
 mike
 mock; python_version < '3.8'
 moto >= 5
-mypy
+mypy >= 1.9.0
 numpy
 pillow
 pre-commit
@@ -31,6 +31,11 @@ pytkdocs >= 0.14.2
 pyyaml
 requests
 setuptools != 60.9.0; python_version < '3.8'
+vermin
 virtualenv
 watchfiles
 respx
+
+# type stubs
+types-cachetools
+types-PyYAML

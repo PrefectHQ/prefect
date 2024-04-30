@@ -15,7 +15,6 @@ cp -rf ./ $TMPDIR
 cd $TMPDIR/src/prefect
 
 # delete the files we don't need
-rm artifacts.py
 rm -rf cli/
 rm -rf deployments/recipes/
 rm -rf deployments/templates
@@ -33,6 +32,7 @@ rm -rf server/utilities
 # replace old build files with client build files
 cd $TMPDIR
 cp client/setup.py .
+cp client/README.md .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally

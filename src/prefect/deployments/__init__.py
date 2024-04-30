@@ -1,9 +1,7 @@
 import prefect.deployments.base
 import prefect.deployments.steps
 from prefect.deployments.base import (
-    find_prefect_directory,
     initialize_project,
-    register_flow,
 )
 
 from prefect.deployments.deployments import (
@@ -12,4 +10,9 @@ from prefect.deployments.deployments import (
     load_deployments_from_yaml,
     Deployment,
 )
-from prefect.deployments.runner import RunnerDeployment, deploy, DeploymentImage
+from prefect.deployments.runner import (
+    RunnerDeployment,
+    deploy,
+    DeploymentImage,
+    EntrypointType,
+)

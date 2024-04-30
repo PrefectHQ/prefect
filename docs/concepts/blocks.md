@@ -267,7 +267,7 @@ Here's an example of an `AWSCredentials` block that uses `SecretStr`:
 from typing import Optional
 
 from prefect.blocks.core import Block
-from pydantic import SecretStr
+from pydantic import SecretStr  # if pydantic version >= 2.0, use: from pydantic.v1 import SecretStr
 
 class AWSCredentials(Block):
     aws_access_key_id: Optional[str] = None
@@ -461,7 +461,7 @@ Blocks can be registered from a Python module available in the current virtual e
 
 <div class="terminal">
 ```bash
-$ prefect block register --module prefect_aws.credentials
+prefect block register --module prefect_aws.credentials
 ```
 </div>
 
@@ -471,7 +471,7 @@ Or, if a block has been created in a `.py` file, the block can also be registere
 
 <div class="terminal">
 ```bash
-$ prefect block register --file my_block.py
+prefect block register --file my_block.py
 ```
 </div>
 

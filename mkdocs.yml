@@ -33,8 +33,8 @@ markdown_extensions:
           permalink: true
     - pymdownx.snippets
     - pymdownx.emoji:
-          emoji_index: !!python/name:materialx.emoji.twemoji
-          emoji_generator: !!python/name:materialx.emoji.to_svg
+          emoji_index: !!python/name:material.extensions.emoji.twemoji
+          emoji_generator: !!python/name:material.extensions.emoji.to_svg
 theme:
     name: material
     custom_dir: docs/overrides
@@ -130,6 +130,25 @@ extra:
                       Thank you for your feedback! Feel free to
                       <a href="https://github.com/PrefectHQ/prefect/issues/new?assignees=&labels=docs%2Cstatus%3Atriage&projects=&template=4_docs_change.yaml"
                       target="_blank"> open an issue </a> with more detail.
+    # social:
+    #     - icon: fontawesome/brands/slack
+    #       link: https://www.prefect.io/slack/
+    #     - icon: fontawesome/brands/discourse
+    #       link: https://discourse.prefect.io/
+    #     - icon: fontawesome/brands/youtube
+    #       link: https://www.youtube.com/c/PrefectIO/videos
+    #     - icon: fontawesome/regular/newspaper
+    #       link: https://prefect.io/guide/
+    #     - icon: fontawesome/brands/twitter
+    #       link: https://twitter.com/PrefectIO
+    #     - icon: fontawesome/brands/linkedin
+    #       link: https://www.linkedin.com/company/prefect/
+    #     - icon: fontawesome/brands/github
+    #       link: https://github.com/PrefectHQ/prefect
+    #     - icon: fontawesome/brands/docker
+    #       link: https://hub.docker.com/r/prefecthq/prefect/
+    #     - icon: fontawesome/brands/python
+    #       link: https://pypi.org/project/prefect/
 
 nav:
     - Getting Started:
@@ -158,6 +177,7 @@ nav:
                 - Webhooks: guides/webhooks.md
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - CI/CD: guides/ci-cd.md
+                - Specifying Upstream Dependencies: guides/specifying-upstream-dependencies.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
@@ -168,6 +188,7 @@ nav:
                 - Logging: guides/logs.md
                 - Troubleshooting: guides/troubleshooting.md
                 - Managed Execution: guides/managed-execution.md
+                - Shell Commands: guides/cli-shell.md
           - Work Pools:
                 - Deploying Flows to Work pools and Workers: guides/prefect-deploy.md
                 - Upgrade from Agents to Workers: guides/upgrade-guide-agents-to-workers.md
@@ -177,6 +198,7 @@ nav:
                 - Serverless Work Pools with Workers: guides/deployment/serverless-workers.md
                 - Daemonize Processes: guides/deployment/daemonize.md
                 - Custom Workers: guides/deployment/developing-a-new-worker-type.md
+                - Job Variable Overrides: guides/deployment/overriding-job-variables.md
     - Concepts:
           - concepts/index.md
           - Flows: concepts/flows.md
@@ -215,12 +237,145 @@ nav:
           - integrations/index.md
           - Using Integrations: integrations/usage.md
           - Contributing Integrations: integrations/contribute.md
+          - Libraries:
+                - AWS:
+                      - integrations/prefect-aws/index.md
+                      - Guides:
+                            - Setting up an ECS Worker: integrations/prefect-aws/ecs_guide.md
+                      - Batch: integrations/prefect-aws/batch.md
+                      - Client Waiter: integrations/prefect-aws/client_waiter.md
+                      - Credentials: integrations/prefect-aws/credentials.md
+                      - ECS Worker: integrations/prefect-aws/ecs_worker.md
+                      - ECS (deprecated): integrations/prefect-aws/ecs.md
+                      - Glue Job: integrations/prefect-aws/glue_job.md
+                      - Lambda: integrations/prefect-aws/lambda_function.md
+                      - Deployments:
+                            - Steps: integrations/prefect-aws/deployments/steps.md
+                      - S3: integrations/prefect-aws/s3.md
+                      - Secrets Manager: integrations/prefect-aws/secrets_manager.md
+                - Azure:
+                      - integrations/prefect-azure/index.md
+                      - ACI Worker Guide: integrations/prefect-azure/aci_worker.md
+                      - Credentials: integrations/prefect-azure/credentials.md
+                      - Blob Storage: integrations/prefect-azure/blob_storage.md
+                      - Cosmos DB: integrations/prefect-azure/cosmos_db.md
+                      - ML Datastore: integrations/prefect-azure/ml_datastore.md
+                      - Container Instance Block: integrations/prefect-azure/container_instance.md
+                      - Container Instance Worker: integrations/prefect-azure/container_instance_worker.md
+                      - Deployments:
+                            - Steps: integrations/prefect-azure/deployments/steps.md
+                - Bitbucket:
+                      - integrations/prefect-bitbucket/index.md
+                      - Credentials: integrations/prefect-bitbucket/credentials.md
+                      - Repositories: integrations/prefect-bitbucket/repositories.md
+                - Dask:
+                      - integrations/prefect-dask/index.md
+                      - Usage Guide: integrations/prefect-dask/usage_guide.md
+                      - Task Runners: integrations/prefect-dask/task_runners.md
+                      - Utils: integrations/prefect-dask/utils.md
+                - Databricks:
+                      - integrations/prefect-databricks/index.md
+                      - Credentials: integrations/prefect-databricks/credentials.md
+                      - Jobs: integrations/prefect-databricks/jobs.md
+                      - Rest: integrations/prefect-databricks/rest.md
+                      - Flows: integrations/prefect-databricks/flows.md
+                - dbt:
+                      - integrations/prefect-dbt/index.md
+                      - Cloud:
+                            - Credentials: integrations/prefect-dbt/cloud/credentials.md
+                            - Jobs: integrations/prefect-dbt/cloud/jobs.md
+                            - Runs: integrations/prefect-dbt/cloud/runs.md
+                            - Clients: integrations/prefect-dbt/cloud/clients.md
+                            - Models: integrations/prefect-dbt/cloud/models.md
+                            - Utils: integrations/prefect-dbt/cloud/utils.md
+                      - CLI:
+                            - Credentials: integrations/prefect-dbt/cli/credentials.md
+                            - Commands: integrations/prefect-dbt/cli/commands.md
+                            - Configs:
+                                  - Base: integrations/prefect-dbt/cli/configs/base.md
+                                  - BigQuery: integrations/prefect-dbt/cli/configs/bigquery.md
+                                  - Postgres: integrations/prefect-dbt/cli/configs/postgres.md
+                                  - Snowflake: integrations/prefect-dbt/cli/configs/snowflake.md
+                - Docker:
+                      - integrations/prefect-docker/index.md
+                      - Host: integrations/prefect-docker/host.md
+                      - Credentials: integrations/prefect-docker/credentials.md
+                      - Containers: integrations/prefect-docker/containers.md
+                      - Images: integrations/prefect-docker/images.md
+                      - Deployments:
+                            - Steps: integrations/prefect-docker/deployments/steps.md
+                      - Worker: integrations/prefect-docker/worker.md
+                - Email:
+                      - integrations/prefect-email/index.md
+                      - Credentials: integrations/prefect-email/credentials.md
+                      - Message: integrations/prefect-email/message.md
+                - GCP:
+                      - integrations/prefect-gcp/index.md
+                      - Google Cloud Run Execution Guide: integrations/prefect-gcp/gcp-worker-guide.md
+                      - Credentials: integrations/prefect-gcp/credentials.md
+                      - Cloud Storage: integrations/prefect-gcp/cloud_storage.md
+                      - BigQuery: integrations/prefect-gcp/bigquery.md
+                      - Secret Manager: integrations/prefect-gcp/secret_manager.md
+                      - Cloud Run: integrations/prefect-gcp/cloud_run.md
+                      - AI Platform: integrations/prefect-gcp/aiplatform.md
+                      - Deployment Steps: integrations/prefect-gcp/deployments/steps.md
+                      - Workers:
+                            - Cloud Run: integrations/prefect-gcp/cloud_run_worker.md
+                            - Cloud Run V2: cintegrations/prefect-gcp/loud_run_worker_v2.md
+                            - Vertex AI: integrations/prefect-gcp/vertex_worker.md
+                - GitHub:
+                      - integrations/prefect-github/index.md
+                      - Credentials: integrations/prefect-github/credentials.md
+                      - Graphql: integrations/prefect-github/graphql.md
+                      - Mutations: integrations/prefect-github/mutations.md
+                      - Organization: integrations/prefect-github/organization.md
+                      - Repository: integrations/prefect-github/repository.md
+                      - Repository Owner: integrations/prefect-github/repository_owner.md
+                      - User: integrations/prefect-github/user.md
+                      - Utils: integrations/prefect-github/utils.md
+                      - Viewer: integrations/prefect-github/viewer.md
+                      - Graphql Schema: integrations/prefect-github/schemas/graphql_schema.md
+                - Gitlab:
+                      - integrations/prefect-gitlab/index.md
+                      - Credentials: integrations/prefect-gitlab/credentials.md
+                      - Repositories: integrations/prefect-gitlab/repositories.md
+                - Kubernetes:
+                      - integrations/prefect-kubernetes/index.md
+                      - Credentials: integrations/prefect-kubernetes/credentials.md
+                      - Custom Objects: integrations/prefect-kubernetes/custom_objects.md
+                      - Deployments: integrations/prefect-kubernetes/deployments.md
+                      - Exceptions: integrations/prefect-kubernetes/exceptions.md
+                      - Flows: integrations/prefect-kubernetes/flows.md
+                      - Jobs: integrations/prefect-kubernetes/jobs.md
+                      - Pods: integrations/prefect-kubernetes/pods.md
+                      - Services: integrations/prefect-kubernetes/services.md
+                      - Utilities: integrations/prefect-kubernetes/utilities.md
+                      - Worker: integrations/prefect-kubernetes/worker.md
+                - Ray:
+                      - integrations/prefect-ray/index.md
+                      - Task Runners: integrations/prefect-ray/task-runners.md
+                - Shell:
+                      - integrations/prefect-shell/index.md
+                      - Commands: integrations/prefect-shell/commands.md
+                - Slack:
+                      - integrations/prefect-slack/index.md
+                      - Credentials: integrations/prefect-slack/credentials.md
+                      - Messages: integrations/prefect-slack/messages.md
+                - Snowflake:
+                      - integrations/prefect-snowflake/index.md
+                      - Credentials: integrations/prefect-snowflake/credentials.md
+                      - Database: integrations/prefect-snowflake/database.md
+                - SQLAlchemy:
+                      - integrations/prefect-sqlalchemy/index.md
+                      - Credentials: integrations/prefect-sqlalchemy/credentials.md
+                      - Database: integrations/prefect-sqlalchemy/database.md
     - API Reference:
           - api-ref/index.md
           - Python SDK:
                 - api-ref/python/index.md
                 - "prefect.agent": api-ref/prefect/agent.md
                 - "prefect.artifacts": api-ref/prefect/artifacts.md
+                - "prefect.automations": api-ref/prefect/automations.md
                 - "prefect.blocks":
                       - "core": api-ref/prefect/blocks/core.md
                       - "fields": api-ref/prefect/blocks/fields.md
@@ -231,8 +386,6 @@ nav:
                 - "prefect.client":
                       - "base": api-ref/prefect/client/base.md
                       - "cloud": api-ref/prefect/client/cloud.md
-                      - "collections": api-ref/prefect/client/collections.md
-                      - "constants": api-ref/prefect/client/constants.md
                       - "orchestration": api-ref/prefect/client/orchestration.md
                       - "schemas": api-ref/prefect/client/schemas.md
                       - "utilities": api-ref/prefect/client/utilities.md
@@ -241,6 +394,7 @@ nav:
                       - "artifact": api-ref/prefect/cli/artifact.md
                       - "block": api-ref/prefect/cli/block.md
                       - "cloud": api-ref/prefect/cli/cloud.md
+                      - "cloud": api-ref/prefect/cli/cloud.webhook.md
                       - "concurrency_limit": api-ref/prefect/cli/concurrency_limit.md
                       - "config": api-ref/prefect/cli/config.md
                       - "deploy": api-ref/prefect/cli/deploy.md
@@ -253,6 +407,7 @@ nav:
                       - "project": api-ref/prefect/cli/project.md
                       - "root": api-ref/prefect/cli/root.md
                       - "server": api-ref/prefect/cli/server.md
+                      - "shell": api-ref/prefect/cli/shell.md
                       - "variable": api-ref/prefect/cli/variable.md
                       - "work_pool": api-ref/prefect/cli/work_pool.md
                       - "work_queue": api-ref/prefect/cli/work_queue.md
@@ -260,7 +415,6 @@ nav:
                 - "prefect.context": api-ref/prefect/context.md
                 - "prefect.concurrency":
                       - "asyncio": api-ref/prefect/concurrency/asyncio.md
-                      - "common": api-ref/prefect/concurrency/common.md
                       - "events": api-ref/prefect/concurrency/events.md
                       - "services": api-ref/prefect/concurrency/services.md
                       - "sync": api-ref/prefect/concurrency/sync.md
@@ -289,11 +443,6 @@ nav:
                       - "highlighters": api-ref/prefect/logging/highlighters.md
                       - "loggers": api-ref/prefect/logging/loggers.md
                 - "prefect.manifests": api-ref/prefect/manifests.md
-                - "prefect.packaging":
-                      - "base": api-ref/prefect/packaging/base.md
-                      - "docker": api-ref/prefect/packaging/docker.md
-                      - "file": api-ref/prefect/packaging/file.md
-                      - "serializers": api-ref/prefect/packaging/serializers.md
                 - "prefect.runner":
                       - "runner": api-ref/prefect/runner/runner.md
                       - "server": api-ref/prefect/runner/server.md
@@ -331,7 +480,6 @@ nav:
                       - "slugify": api-ref/prefect/utilities/slugify.md
                       - "templating": api-ref/prefect/utilities/templating.md
                       - "text": api-ref/prefect/utilities/text.md
-                      - "validation": api-ref/prefect/utilities/validation.md
                       - "visualization": api-ref/prefect/utilities/visualization.md
                 - "prefect.variables": api-ref/prefect/variables.md
                 - "prefect.workers":
@@ -348,17 +496,20 @@ nav:
                 - api-ref/server/index.md
                 - "API":
                       - "server.api.admin": api-ref/server/api/admin.md
+                      - "server.api.csrf_token": api-ref/server/api/csrf_token.md
                       - "server.api.dependencies": api-ref/server/api/dependencies.md
                       - "server.api.deployments": api-ref/server/api/deployments.md
                       - "server.api.flows": api-ref/server/api/flows.md
                       - "server.api.flow_runs": api-ref/server/api/flow_runs.md
                       - "server.api.flow_run_states": api-ref/server/api/flow_run_states.md
+                      - "server.api.middleware": api-ref/server/api/middleware.md
                       - "server.api.run_history": api-ref/server/api/run_history.md
                       - "server.api.saved_searches": api-ref/server/api/saved_searches.md
                       - "server.api.server": api-ref/server/api/server.md
                       - "server.api.task_runs": api-ref/server/api/task_runs.md
                       - "server.api.task_run_states": api-ref/server/api/task_run_states.md
                 - "Models":
+                      - "server.models.csrf_token": api-ref/server/models/csrf_token.md
                       - "server.models.flows": api-ref/server/models/flows.md
                       - "server.models.flow_runs": api-ref/server/models/flow_runs.md
                       - "server.models.flow_run_states": api-ref/server/models/flow_run_states.md
@@ -392,22 +543,3 @@ nav:
           - Contributing: contributing/overview.md
           - Style: contributing/style.md
           - Versioning: contributing/versioning.md
-social:
-    - icon: fontawesome/brands/slack
-      link: https://www.prefect.io/slack/
-    - icon: fontawesome/brands/discourse
-      link: https://discourse.prefect.io/
-    - icon: fontawesome/brands/youtube
-      link: https://www.youtube.com/c/PrefectIO/videos
-    - icon: fontawesome/regular/newspaper
-      link: https://prefect.io/guide/
-    - icon: fontawesome/brands/twitter
-      link: https://twitter.com/PrefectIO
-    - icon: fontawesome/brands/linkedin
-      link: https://www.linkedin.com/company/prefect/
-    - icon: fontawesome/brands/github
-      link: https://github.com/PrefectHQ/prefect
-    - icon: fontawesome/brands/docker
-      link: https://hub.docker.com/r/prefecthq/prefect/
-    - icon: fontawesome/brands/python
-      link: https://pypi.org/project/prefect/

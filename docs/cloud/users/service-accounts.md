@@ -9,7 +9,7 @@ search:
   boost: 2
 ---
 
-# Service Accounts <span class="badge cloud"></span>  <span class="badge pro"> </span> <span class="badge enterprise"></span>
+# Service Accounts <span class="badge cloud"></span>  <span class="badge pro"> </span> <span class="badge custom"></span>
 
 Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account.
 Service accounts are typically used to configure API access for running workers or executing deployment flow runs on remote infrastructure.
@@ -36,9 +36,6 @@ See [workspace sharing](/cloud/workspaces/#workspace-sharing) for more informati
 
 !!! note "Service account roles"
     Service accounts are created at the account level, and can then be added to workspaces within the account.
-
-    A service account may only be a Member of an account. 
-    It can never be an account Admin. 
     You may apply any valid _workspace-level_ role to a service account.
 
 ## Create a service account
@@ -54,9 +51,10 @@ Within your account, on the **Service Accounts** page, select the **+** icon to 
 
 Select **Create** to create the new service account.
 
-Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
+!!! warning
+    Note that an API key cannot be revealed again in the UI after it is generated, so copy the key to a secure location.
 
 You can change the API key and expiration for a service account by rotating the API key.
-Select **Rotate API Key** from the menu on the left side of the service account's information on this page.
+Select **Rotate API Key** from the menu on the left side of the service account's information on this page. Optionally, you can set a period of time for your old service account key to remain active.
 
 To delete a service account, select **Remove** from the menu on the left side of the service account's information.

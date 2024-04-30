@@ -13,7 +13,15 @@ mkdocs.yml                           @PrefectHQ/docs
 mkdocs.insiders.yml                  @PrefectHQ/docs
 
 # orchestration rules / policies
-/src/prefect/server/orchestration     @PrefectHQ/open-source 
+/src/prefect/server/orchestration     @PrefectHQ/open-source
 
 # database configuration / models
 /src/prefect/server/database          @PrefectHQ/open-source
+
+# the events subsystem, while it's being ported
+/src/prefect/events                   @chrisguidry
+/src/prefect/server/events            @chrisguidry
+/tests/events                         @chrisguidry
+
+# integrations
+/src/integrations             @desertaxle @zzstoatzz

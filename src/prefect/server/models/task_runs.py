@@ -4,6 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 import pendulum
@@ -17,7 +18,10 @@ from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.orchestration.core_policy import MinimalTaskPolicy
+from prefect.server.orchestration.core_policy import (
+    AutonomousTaskPolicy,
+    MinimalTaskPolicy,
+)
 from prefect.server.orchestration.global_policy import GlobalTaskPolicy
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import TaskOrchestrationContext
@@ -31,7 +35,7 @@ async def create_task_run(
     session: sa.orm.Session,
     task_run: schemas.core.TaskRun,
     db: PrefectDBInterface,
-    orchestration_parameters: dict = None,
+    orchestration_parameters: Optional[Dict[str, Any]] = None,
 ):
     """
     Creates a new task run.
@@ -53,7 +57,7 @@ async def create_task_run(
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:
         insert_stmt = (
-            (await db.insert(db.TaskRun))
+            db.insert(db.TaskRun)
             .values(
                 created=now,
                 **task_run.dict(
@@ -331,6 +335,54 @@ async def count_task_runs(
     return result.scalar()
 
 
+async def count_task_runs_by_state(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+) -> schemas.states.CountByState:
+    """
+    Count task runs by state.
+
+    Args:
+        session: a database session
+        flow_filter: only count task runs whose flows match these filters
+        flow_run_filter: only count task runs whose flow runs match these filters
+        task_run_filter: only count task runs that match these filters
+        deployment_filter: only count task runs whose deployments match these filters
+    Returns:
+        schemas.states.CountByState: count of task runs by state
+    """
+
+    base_query = (
+        select(
+            db.TaskRun.state_type,
+            sa.func.count(sa.text("*")).label("count"),
+        )
+        .select_from(db.TaskRun)
+        .group_by(db.TaskRun.state_type)
+    )
+
+    query = await _apply_task_run_filters(
+        base_query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
+    )
+
+    result = await session.execute(query)
+
+    counts = schemas.states.CountByState()
+
+    for row in result:
+        setattr(counts, row.state_type, row.count)
+
+    return counts
+
+
 @inject_db
 async def delete_task_run(
     session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
@@ -358,7 +410,7 @@ async def set_task_run_state(
     state: schemas.states.State,
     force: bool = False,
     task_policy: BaseOrchestrationPolicy = None,
-    orchestration_parameters: dict = None,
+    orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated task run state.
@@ -392,7 +444,9 @@ async def set_task_run_state(
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
 
-    if force or task_policy is None:
+    if run.flow_run_id is None:
+        task_policy = AutonomousTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
+    elif force or task_policy is None:
         task_policy = MinimalTaskPolicy
 
     orchestration_rules = task_policy.compile_transition_rules(*intended_transition)

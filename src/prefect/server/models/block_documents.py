@@ -2,8 +2,9 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Prefect REST API.
 """
+
 from copy import copy
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
@@ -13,7 +14,6 @@ import prefect.server.models as models
 from prefect.server import schemas
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMBlockDocument
 from prefect.server.schemas.actions import BlockDocumentReferenceCreate
 from prefect.server.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.server.schemas.filters import BlockSchemaFilter
@@ -21,6 +21,9 @@ from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 from prefect.utilities.names import obfuscate
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMBlockDocument
 
 
 @inject_db
@@ -152,7 +155,7 @@ async def read_block_document_by_id(
 async def _construct_full_block_document(
     session: AsyncSession,
     block_documents_with_references: List[
-        Tuple[ORMBlockDocument, Optional[str], Optional[UUID]]
+        Tuple["ORMBlockDocument", Optional[str], Optional[UUID]]
     ],
     parent_block_document: Optional[BlockDocument] = None,
     include_secrets: bool = False,
@@ -625,7 +628,7 @@ async def create_block_document_reference(
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
     db: PrefectDBInterface,
 ):
-    insert_stmt = (await db.insert(db.BlockDocumentReference)).values(
+    insert_stmt = db.insert(db.BlockDocumentReference).values(
         **block_document_reference.dict(
             shallow=True, exclude_unset=True, exclude={"created", "updated"}
         )

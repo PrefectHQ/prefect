@@ -25,11 +25,13 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
+from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
     setup_logging,
 )
+from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
@@ -45,6 +47,7 @@ from prefect.logging.loggers import (
 )
 from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
+    PREFECT_API_KEY,
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_MARKUP,
@@ -58,6 +61,7 @@ from prefect.settings import (
 )
 from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.names import obfuscate
 
 
 @pytest.fixture
@@ -1236,6 +1240,127 @@ class TestJsonFormatter:
         assert len(deserialized["exc_info"]["traceback"]) > 0
 
 
+class TestObfuscateApiKeyFilter:
+    def test_filters_current_api_key(self):
+        test_api_key = "hi-hello-im-an-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg=test_api_key,
+                args=None,
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
+
+    def test_current_api_key_is_not_logged(self, caplog):
+        test_api_key = "hot-dog-theres-a-logger-this-is-my-big-chance-for-stardom"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            logger = get_logger("test")
+            logger.info(test_api_key)
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    def test_current_api_key_is_not_logged_from_flow(self, caplog):
+        test_api_key = "i-am-a-plaintext-api-key-and-i-dream-of-being-logged-one-day"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+
+            @flow
+            def test_flow():
+                logger = get_run_logger()
+                logger.info(test_api_key)
+
+            test_flow()
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    def test_current_api_key_is_not_logged_from_flow_log_prints(self, caplog):
+        test_api_key = "i-am-a-sneaky-little-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+
+            @flow(log_prints=True)
+            def test_flow():
+                print(test_api_key)
+
+            test_flow()
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    def test_current_api_key_is_not_logged_from_task(self, caplog):
+        test_api_key = "i-am-jacks-security-risk"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+
+            @task
+            def test_task():
+                logger = get_run_logger()
+                logger.info(test_api_key)
+
+            @flow
+            def test_flow():
+                test_task()
+
+            test_flow()
+
+        assert test_api_key not in caplog.text
+        assert obfuscate(test_api_key) in caplog.text
+
+    @pytest.mark.parametrize(
+        "raw_log_record,expected_log_record",
+        [
+            (
+                ["super-mega-admin-key", "in", "a", "list"],
+                ["********", "in", "a", "list"],
+            ),
+            (
+                {"super-mega-admin-key": "in", "a": "dict"},
+                {"********": "in", "a": "dict"},
+            ),
+            (
+                {
+                    "key1": "some_value",
+                    "key2": [
+                        {"nested_key": "api_key: super-mega-admin-key"},
+                        "another_value",
+                    ],
+                },
+                {
+                    "key1": "some_value",
+                    "key2": [
+                        {"nested_key": "api_key: ********"},
+                        "another_value",
+                    ],
+                },
+            ),
+        ],
+    )
+    def test_redact_substr_from_collections(
+        self, caplog, raw_log_record, expected_log_record
+    ):
+        """
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/12139
+        """
+
+        @flow()
+        def test_log_list():
+            logger = get_run_logger()
+            logger.info(raw_log_record)
+
+        with temporary_settings({PREFECT_API_KEY: "super-mega-admin-key"}):
+            test_log_list()
+
+        assert str(expected_log_record) in caplog.text
+
+
 def test_log_in_flow(caplog):
     msg = "Hello world!"
 
@@ -1446,3 +1571,16 @@ def test_log_adapter_get_child(flow_run):
     child_logger = logger.getChild("child", {"goodnight": "moon"})
     assert child_logger.logger.name == "prefect.parent.child"
     assert child_logger.extra == {"hello": "world", "goodnight": "moon"}
+
+
+def test_eavesdropping():
+    logging.getLogger("my_logger").debug("This is before the context")
+
+    with LogEavesdropper("my_logger", level=logging.INFO) as eavesdropper:
+        logging.getLogger("my_logger").info("Hello, world!")
+        logging.getLogger("my_logger.child_module").warning("Another one!")
+        logging.getLogger("my_logger").debug("Not this one!")
+
+    logging.getLogger("my_logger").debug("This is after the context")
+
+    assert eavesdropper.text() == "[INFO]: Hello, world!\n[WARNING]: Another one!"

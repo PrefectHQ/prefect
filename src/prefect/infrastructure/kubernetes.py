@@ -1,6 +1,13 @@
+"""
+DEPRECATION WARNING:
+
+This module is deprecated as of March 2024 and will not be available after September 2024.
+It has been replaced by the Kubernetes worker from the prefect-kubernetes package, which offers enhanced functionality and better performance.
+
+For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
+"""
 import copy
 import enum
-import json
 import math
 import os
 import shlex
@@ -11,7 +18,17 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 import anyio.abc
 import yaml
 
+from prefect._internal.compatibility.deprecated import (
+    deprecated_class,
+)
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import (
+    cast_k8s_job_customizations,
+    set_default_image,
+    set_default_namespace,
+    validate_k8s_job_compatible_values,
+    validate_k8s_job_required_components,
+)
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, root_validator, validator
@@ -24,7 +41,6 @@ from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
@@ -58,6 +74,12 @@ class KubernetesJobResult(InfrastructureResult):
     """Contains information about the final state of a completed Kubernetes Job"""
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the Kubernetes worker from prefect-kubernetes instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class KubernetesJob(Infrastructure):
     """
     Runs a command as a Kubernetes Job.
@@ -171,74 +193,25 @@ class KubernetesJob(Infrastructure):
 
     @validator("job")
     def ensure_job_includes_all_required_components(cls, value: KubernetesManifest):
-        patch = JsonPatch.from_diff(value, cls.base_job_manifest())
-        missing_paths = sorted([op["path"] for op in patch if op["op"] == "add"])
-        if missing_paths:
-            raise ValueError(
-                "Job is missing required attributes at the following paths: "
-                f"{', '.join(missing_paths)}"
-            )
-        return value
+        return validate_k8s_job_required_components(cls, value)
 
     @validator("job")
     def ensure_job_has_compatible_values(cls, value: KubernetesManifest):
-        patch = JsonPatch.from_diff(value, cls.base_job_manifest())
-        incompatible = sorted(
-            [
-                f"{op['path']} must have value {op['value']!r}"
-                for op in patch
-                if op["op"] == "replace"
-            ]
-        )
-        if incompatible:
-            raise ValueError(
-                "Job has incompatible values for the following attributes: "
-                f"{', '.join(incompatible)}"
-            )
-        return value
+        return validate_k8s_job_compatible_values(cls, value)
 
     @validator("customizations", pre=True)
     def cast_customizations_to_a_json_patch(
         cls, value: Union[List[Dict], JsonPatch, str]
     ) -> JsonPatch:
-        if isinstance(value, list):
-            return JsonPatch(value)
-        elif isinstance(value, str):
-            try:
-                return JsonPatch(json.loads(value))
-            except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"Unable to parse customizations as JSON: {value}. Please make sure"
-                    " that the provided value is a valid JSON string."
-                ) from exc
-        return value
+        return cast_k8s_job_customizations(cls, value)
 
     @root_validator
     def default_namespace(cls, values):
-        job = values.get("job")
-
-        namespace = values.get("namespace")
-        job_namespace = job["metadata"].get("namespace") if job else None
-
-        if not namespace and not job_namespace:
-            values["namespace"] = "default"
-
-        return values
+        return set_default_namespace(values)
 
     @root_validator
     def default_image(cls, values):
-        job = values.get("job")
-        image = values.get("image")
-        job_image = (
-            job["spec"]["template"]["spec"]["containers"][0].get("image")
-            if job
-            else None
-        )
-
-        if not image and not job_image:
-            values["image"] = get_prefect_image_name()
-
-        return values
+        return set_default_image(values)
 
     # Support serialization of the 'JsonPatch' type
     class Config:

@@ -44,13 +44,17 @@ class TestDeploymentCreate:
         with pytest.warns(
             UserWarning,
             match=(
-                "`worker_pool_queue_id` is no longer supported for creating "
+                "`worker_pool_queue_id` is no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
         ):
             deployment_create = DeploymentCreate(
-                **dict(name="test-deployment", worker_pool_queue_id=uuid4())
+                **dict(
+                    name="test-deployment",
+                    flow_id=uuid4(),
+                    worker_pool_queue_id=uuid4(),
+                )
             )
 
         assert getattr(deployment_create, "worker_pool_queue_id", 0) == 0
@@ -69,13 +73,13 @@ class TestDeploymentCreate:
             match=(
                 "`worker_pool_name`, `worker_pool_queue_name`, and "
                 "`work_pool_name` are"
-                "no longer supported for creating "
+                "no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
         ):
             deployment_create = DeploymentCreate(
-                **dict(name="test-deployment", **kwargs)
+                **dict(name="test-deployment", flow_id=uuid4(), **kwargs)
             )
 
         for key in kwargs.keys():
@@ -85,7 +89,8 @@ class TestDeploymentCreate:
         # This should fail because my-field is required but has no default
         deployment_create = DeploymentCreate(
             name="test-deployment",
-            infra_overrides={},
+            flow_id=uuid4(),
+            job_variables={},
         )
 
         base_job_template = {
@@ -138,7 +143,7 @@ class TestDeploymentCreate:
             }
         }
         deployment_create = DeploymentUpdate(
-            infra_overrides={"my_field": "my_value"},
+            job_variables={"my_field": "my_value"},
         )
         deployment_create.check_valid_configuration(base_job_template)
 
@@ -148,7 +153,7 @@ class TestDeploymentUpdate:
         with pytest.warns(
             UserWarning,
             match=(
-                "`worker_pool_queue_id` is no longer supported for updating "
+                "`worker_pool_queue_id` is no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
@@ -171,12 +176,14 @@ class TestDeploymentUpdate:
             match=(
                 "`worker_pool_name`, `worker_pool_queue_name`, and "
                 "`work_pool_name` are"
-                "no longer supported for creating "
+                "no longer supported for creating or updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead."
             ),
         ):
-            deployment_update = DeploymentCreate(**kwargs)
+            deployment_update = DeploymentCreate(
+                name="test-deployment", flow_id=uuid4(), **kwargs
+            )
 
         for key in kwargs.keys():
             assert getattr(deployment_update, key, 0) == 0
@@ -184,7 +191,7 @@ class TestDeploymentUpdate:
     def test_check_valid_configuration_removes_required_if_defaults_exist(self):
         # This should fail because my-field is required but has no default
         deployment_update = DeploymentUpdate(
-            infra_overrides={},
+            job_variables={},
         )
 
         base_job_template = {
@@ -237,7 +244,7 @@ class TestDeploymentUpdate:
             }
         }
         deployment_update = DeploymentUpdate(
-            infra_overrides={"my_field": "my_value"},
+            job_variables={"my_field": "my_value"},
         )
         deployment_update.check_valid_configuration(base_job_template)
 

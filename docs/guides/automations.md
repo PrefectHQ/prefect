@@ -152,7 +152,7 @@ You can create a deployment with a `prefect.yaml` file or a Python file that use
 
 === ".deploy"
 
-    To follow a more python based approach to create a deployment, you can use `flow.deploy` as in the example below.
+    To follow a more Python based approach to create a deployment, you can use `flow.deploy` as in the example below.
 
     ```python
     # .deploy only needs a name, valid work pool 

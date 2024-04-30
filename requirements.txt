@@ -10,10 +10,11 @@ dateparser >= 1.1.1, < 2.0.0
 docker >= 4.0, < 7.0
 graphviz >= 0.20.1
 griffe >= 0.20.0
-greenback >= 1.2.0
 jinja2 >= 3.0.0, < 4.0.0
+jinja2-humanize-extension >= 0.4.0
+humanize >= 4.9.0
 kubernetes >= 24.2.0, < 30.0.0
 pytz >= 2021.1, < 2025
 readchar >= 4.0.0, < 5.0.0
 sqlalchemy[asyncio] >= 1.4.22, != 1.4.33, < 3.0.0
-typer >= 0.4.2
+typer >= 0.12.0, != 0.12.2, < 0.13.0

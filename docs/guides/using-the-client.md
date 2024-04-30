@@ -8,13 +8,16 @@ tags:
 ---
 
 # Using the Prefect Orchestration Client
+
 ## Overview
-In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find a bunch of useful client methods that make it simpler to do things like:
+
+In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find many useful client methods that make it simpler to do things such as:
 
 - [reschedule late flow runs](#rescheduling-late-flow-runs)
 - [get the last `N` completed flow runs from my workspace](#get-the-last-n-completed-flow-runs-from-my-workspace)
 
 The `PrefectClient` is an async context manager, so you can use it like this:
+
 ```python hl_lines="3"
 from prefect import get_client
 
@@ -23,10 +26,10 @@ async with get_client() as client:
     print(response.json()) # 👋
 ```
 
-
 ## Examples
 
 ### Rescheduling late flow runs
+
 Sometimes, you may need to bulk reschedule flow runs that are late - for example, if you've accidentally scheduled many flow runs of a deployment to an inactive work pool.
 
 To do this, we can delete late flow runs and create new ones in a `Scheduled` state with a delay.
@@ -110,9 +113,11 @@ if __name__ == "__main__":
 ```
 
 ### Get the last `N` completed flow runs from my workspace
+
 To get the last `N` completed flow runs from our workspace, we can make use of `read_flow_runs` and `prefect.client.schemas`.
 
 This example gets the last three completed flow runs from our workspace:
+
 ```python
 import asyncio
 from typing import Optional
@@ -153,6 +158,55 @@ if __name__ == "__main__":
 ```
 
 Instead of the last three from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last three completed flow runs of a specific deployment.
+
+### Transition all running flows to cancelled via the Client
+It can be cumbersome to cancel many flow runs through the UI. 
+You can use `get_client`to set multiple runs to a `Cancelled` state.
+The code below will cancel all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
+```python
+import anyio
+
+from prefect import get_client
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterState, FlowRunFilterStateName
+from prefect.client.schemas.objects import StateType
+
+async def list_flow_runs_with_states(states: list[str]):
+    async with get_client() as client:
+        flow_runs = await client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    name=FlowRunFilterStateName(any_=states)
+                )
+            )
+        )
+    return flow_runs
+
+
+async def cancel_flow_runs(flow_runs):
+    async with get_client() as client:
+        for idx, flow_run in enumerate(flow_runs):
+            print(f"[{idx + 1}] Cancelling flow run '{flow_run.name}' with ID '{flow_run.id}'")
+            state_updates = {}
+            state_updates.setdefault("name", "Cancelled")
+            state_updates.setdefault("type", StateType.CANCELLED)
+            state = flow_run.state.copy(update=state_updates)
+            await client.set_flow_run_state(flow_run.id, state, force=True)
+
+
+async def bulk_cancel_flow_runs():
+    states = ["Pending", "Running", "Scheduled", "Late"]
+    flow_runs = await list_flow_runs_with_states(states)
+
+    while len(flow_runs) > 0:
+        print(f"Cancelling {len(flow_runs)} flow runs\n")
+        await cancel_flow_runs(flow_runs)
+        flow_runs = await list_flow_runs_with_states(states)
+    print("Done!")
+
+
+if __name__ == "__main__":
+    anyio.run(bulk_cancel_flow_runs)
+```
 
 !!! tip "There are other ways to filter objects like flow runs"
     See [`the filters API reference`](/api-ref/prefect/client/schemas/#prefect.client.schemas.filters) for more ways to filter flow runs and other objects in your Prefect ecosystem.

@@ -1,4 +1,6 @@
+from collections import defaultdict
 from datetime import datetime
+from operator import attrgetter
 from typing import Iterable, List, Union
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -10,12 +12,19 @@ import sqlalchemy as sa
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server import models, schemas
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import read_flow_run_graph
-from prefect.server.schemas.graph import Edge, Graph, Node
+from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES, temporary_settings
+from prefect.settings import (
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
+    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH,
+    PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH,
+    temporary_settings,
+)
 
 
 async def test_reading_graph_for_nonexistant_flow_run(
@@ -270,6 +279,7 @@ async def test_reading_graph_for_flow_run_with_flat_tasks(
                 ),
                 parents=[],
                 children=[],
+                artifacts=[],
             ),
         )
         for task_run in flat_tasks
@@ -402,6 +412,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -417,6 +428,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -432,6 +444,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -447,6 +460,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -463,6 +477,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                     Edge(id=linked_tasks[1].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
         (
@@ -479,6 +494,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                     Edge(id=linked_tasks[3].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
     ]
@@ -531,6 +547,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -546,6 +563,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[4].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -561,6 +579,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -576,6 +595,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -592,6 +612,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                     Edge(id=linked_tasks[1].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
         (
@@ -608,6 +629,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                     Edge(id=linked_tasks[3].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
     ]
@@ -663,6 +685,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -678,6 +701,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 children=[
                     Edge(id=linked_tasks[5].id),
                 ],
+                artifacts=[],
             ),
         ),
         (
@@ -696,6 +720,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                     Edge(id=linked_tasks[1].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
         (
@@ -712,6 +737,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                     Edge(id=linked_tasks[3].id),
                 ],
                 children=[],
+                artifacts=[],
             ),
         ),
     ]
@@ -784,6 +810,7 @@ async def test_reading_graph_with_subflow_run(
                 end_time=subflow_run.end_time,
                 parents=[],
                 children=[],
+                artifacts=[],
             ),
         )
     ]
@@ -825,6 +852,7 @@ async def test_reading_graph_with_unstarted_subflow_run(
                 end_time=subflow_run.end_time,
                 parents=[],
                 children=[],
+                artifacts=[],
             ),
         )
     ]
@@ -848,12 +876,346 @@ async def test_state_types_are_true_state_type_enums(
 
 
 @pytest.fixture
+async def flow_run_artifacts(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+):  # -> tuple[db.Artifact, list[db.Artifact]]:
+    """Create a flow run with related artifacts.
+    Returns:
+        tuple[orm.Artifact, list[orm.Artifact]]: The first item is the artifact
+        that should be included in the graph. The second item is a list of artifacts
+        that should be excluded from the graph.
+    """
+    artifact_no_key = db.Artifact(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        type="markdown",
+        key=None,
+    )
+
+    # artifacts of type result should be excluded
+    result_artifact = db.Artifact(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        type="result",
+        key=None,
+    )
+
+    artifacts = [artifact_no_key, result_artifact]
+    session.add_all(artifacts)
+    await session.commit()
+
+    return (artifact_no_key, artifacts[1:])
+
+
+@pytest.fixture
+async def flow_run_task_artifacts(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    flat_tasks,  # list[db.TaskRun],
+):  # -> list[db.Artifact]:
+    assert (
+        len(flat_tasks) >= 5
+    ), "Setup error - this fixture expects to use at least 5 tasks"
+
+    task_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[0].id,
+        type="markdown",
+        key=None,
+    )
+
+    task_artifact_with_key_not_latest = await models.artifacts.create_artifact(
+        session,
+        schemas.core.Artifact(
+            type="markdown",
+            key="collection-key--not-latest",
+            flow_run_id=flow_run.id,
+            task_run_id=flat_tasks[1].id,
+        ),
+    )
+
+    latest_in_key_collection_but_not_this_flow_run = (
+        await models.artifacts.create_artifact(
+            session,
+            schemas.core.Artifact(
+                type="markdown",
+                key="collection-key--not-latest",
+                flow_run_id=uuid4(),
+                task_run_id=uuid4(),
+            ),
+        )
+    )
+
+    task_artifact_latest_in_collection = await models.artifacts.create_artifact(
+        session,
+        schemas.core.Artifact(
+            type="markdown",
+            key="collection-key--latest",
+            flow_run_id=flow_run.id,
+            task_run_id=flat_tasks[2].id,
+        ),
+    )
+
+    task_link_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[3].id,
+        type="link",
+    )
+
+    task_table_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[4].id,
+        type="table",
+        created=pendulum.now().subtract(minutes=2),
+    )
+
+    # second artifact from same task with a different created time
+    task_table_artifact_from_same_task = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[4].id,
+        type="table",
+        created=pendulum.now().subtract(minutes=1),
+    )
+
+    result_type_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[1].id,
+        type="result",
+        key=None,
+    )
+
+    should_be_in_graph = [
+        task_artifact,
+        task_artifact_with_key_not_latest,
+        task_artifact_latest_in_collection,
+        task_link_artifact,
+        task_table_artifact_from_same_task,
+        task_table_artifact,
+    ]
+
+    should_not_be_in_graph = [
+        result_type_artifact,
+        latest_in_key_collection_but_not_this_flow_run,
+    ]
+
+    session.add_all(should_be_in_graph + should_not_be_in_graph)
+    await session.commit()
+
+    return should_be_in_graph
+
+
+@pytest.fixture
+def enable_artifacts_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH: True}
+    ):
+        yield
+
+
+@pytest.fixture
+def disable_artifacts_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS_ON_FLOW_RUN_GRAPH: False}
+    ):
+        yield
+
+
+@pytest.mark.usefixtures("enable_artifacts_on_flow_run_graph")
+async def test_reading_graph_for_flow_run_with_artifacts(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun
+    flow_run_artifacts,  # List[db.Artifact],
+    flow_run_task_artifacts,  # List[db.Artifact],
+):
+    expected_top_level_artifact, *_ = flow_run_artifacts
+
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert (
+        graph.artifacts
+        == [
+            GraphArtifact(
+                id=expected_top_level_artifact.id,
+                created=expected_top_level_artifact.created,
+                key=expected_top_level_artifact.key,
+                type=expected_top_level_artifact.type,
+                is_latest=True,
+            )
+        ]
+    ), "Expected artifacts associated with the flow run but not with a task to be included at the roof of the graph."
+
+    expected_graph_artifacts = defaultdict(list)
+    for task_artifact in flow_run_task_artifacts:
+        expected_graph_artifacts[task_artifact.task_run_id].append(
+            GraphArtifact(
+                id=task_artifact.id,
+                created=task_artifact.created,
+                key=task_artifact.key,
+                type=task_artifact.type,
+                is_latest=task_artifact.key is None
+                or task_artifact.key == "collection-key--latest",
+            )
+        )
+
+        # ensure that the artifacts are sorted by created time
+        expected_graph_artifacts[task_artifact.task_run_id].sort(
+            key=attrgetter("created")
+        )
+
+    graph_node_artifacts = {
+        node.id: node.artifacts for _, node in graph.nodes if node.artifacts
+    }
+
+    assert expected_graph_artifacts == graph_node_artifacts
+
+
+@pytest.mark.usefixtures("disable_artifacts_on_flow_run_graph")
+async def test_artifacts_on_flow_run_graph_requires_experimental_setting(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun
+    flow_run_artifacts,  # List[db.Artifact],
+    flow_run_task_artifacts,  # List[db.Artifact],
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.artifacts == []
+    assert all(node.artifacts == [] for _, node in graph.nodes)
+
+
+@pytest.mark.usefixtures("enable_artifacts_on_flow_run_graph")
+async def test_artifacts_on_flow_run_graph_limited_by_setting(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun
+    flow_run_artifacts,  # List[db.Artifact],
+    flow_run_task_artifacts,  # List[db.Artifact],
+):
+    test_max_artifacts_setting = 2
+    assert (
+        len(flow_run_task_artifacts) > test_max_artifacts_setting
+    ), "Setup error - expected total # of graph artifacts to be greater than the limit being used for testing"
+
+    with temporary_settings(
+        {PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS: test_max_artifacts_setting}
+    ):
+        graph = await read_flow_run_graph(
+            session=session,
+            flow_run_id=flow_run.id,
+        )
+
+    assert (
+        len(graph.artifacts) + sum(len(node.artifacts) for _, node in graph.nodes)
+    ) <= test_max_artifacts_setting
+
+
+@pytest.fixture
+def enable_states_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: True}
+    ):
+        yield
+
+
+@pytest.fixture
+def disable_states_on_flow_run_graph():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH: False}
+    ):
+        yield
+
+
+@pytest.fixture
+async def flow_run_states(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+):
+    states = [
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.RUNNING,
+            name="Running",
+            timestamp=pendulum.now().subtract(minutes=1),
+        ),
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.COMPLETED,
+            name="Completed",
+            timestamp=pendulum.now(),
+        ),
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.SCHEDULED,
+            name="Scheduled",
+            timestamp=pendulum.now().subtract(minutes=3),
+        ),
+        db.FlowRunState(
+            flow_run_id=flow_run.id,
+            type=StateType.PENDING,
+            name="Pending",
+            timestamp=pendulum.now().subtract(seconds=2),
+        ),
+    ]
+    session.add_all(states)
+    await session.commit()
+    return states
+
+
+@pytest.mark.usefixtures("enable_states_on_flow_run_graph")
+async def test_reading_graph_for_flow_run_includes_states(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    flow_run_states,  # List[db.FlowRunState],
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    expected_graph_states = sorted(
+        (
+            GraphState(
+                id=state.id, timestamp=state.timestamp, type=state.type, name=state.name
+            )
+            for state in flow_run_states
+        ),
+        key=attrgetter("timestamp"),
+    )
+
+    assert graph.states == expected_graph_states
+
+
+@pytest.mark.usefixtures("disable_states_on_flow_run_graph")
+async def test_states_on_flow_run_graph_requires_experimental_setting(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    flow_run_states,  # List[db.FlowRunState],
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.states == []
+
+
+@pytest.fixture
 def graph() -> Graph:
     return Graph(
         start_time=pendulum.datetime(1978, 6, 4),
         end_time=pendulum.datetime(2023, 6, 4),
         root_node_ids=[],
         nodes=[],
+        artifacts=[],
+        states=[],
     )
 
 

@@ -54,30 +54,41 @@ In addition to the UI and API, variables can be referenced in code and in certai
 
 ### In Python code
 
-You can access any variable via the Python SDK via the `.get()` method. If you attempt to reference a variable that does not exist, the method will return `None`.
+You can access any variable via the Python SDK via the `Variable.get()` method. If you attempt to reference a variable that does not exist, the method will return `None`. You can create variables via the Python SDK with the `Variable.set()` method. Note that if a variable of the same name exists, you'll need to pass `overwrite=True`.
 
 ```python
-from prefect import variables
+from prefect.variables import Variable
 
-# from a synchronous context
-answer = variables.get('the_answer')
-print(answer)
+# setting the variable
+variable = Variable.set(name="the_answer", value="42")
+
+# getting from a synchronous context
+answer = Variable.get('the_answer')
+print(answer.value)
 # 42
 
-# from an asynchronous context
-answer = await variables.get('the_answer')
-print(answer)
+# getting from an asynchronous context
+answer = await Variable.get('the_answer')
+print(answer.value)
 # 42
 
-# without a default value
-answer = variables.get('not_the_answer')
-print(answer)
+# getting without a default value
+answer = Variable.get('not_the_answer')
+print(answer.value)
 # None
 
-# with a default value
-answer = variables.get('not_the_answer', default='42')
-print(answer)
+# getting with a default value
+answer = Variable.get('not_the_answer', default='42')
+print(answer.value)
 # 42
+
+# using `overwrite=True`
+answer = Variable.get('the_answer')
+print(answer.value)
+#42
+answer = Variable.set(name="the_answer", value="43", overwrite=True)
+print(answer.value)
+#43
 ```
 
 ### In `prefect.yaml` deployment steps

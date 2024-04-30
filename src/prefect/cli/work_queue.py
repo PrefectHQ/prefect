@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+
 from textwrap import dedent
 from typing import List, Optional, Union
 from uuid import UUID
@@ -262,6 +263,12 @@ async def pause(
     """
     Pause a work queue.
     """
+
+    if not pool and not typer.confirm(
+        f"You have not specified a work pool. Are you sure you want to pause {name} work queue in `{DEFAULT_AGENT_WORK_POOL_NAME}`?"
+    ):
+        exit_with_error("Work queue pause aborted!")
+
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
         work_pool_name=pool,
@@ -416,7 +423,7 @@ async def ls(
                     str(queue.id),
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
@@ -457,7 +464,7 @@ async def ls(
                     str(queue.id),
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
@@ -492,7 +499,7 @@ async def ls(
                     f"{queue.priority}",
                     (
                         f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit
+                        if queue.concurrency_limit is not None
                         else "[blue]None"
                     ),
                 ]
@@ -625,4 +632,39 @@ async def delete(
         )
     else:
         success_message = f"Successfully deleted work queue {name!r}"
+    exit_with_success(success_message)
+
+
+@work_app.command("read-runs")
+@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
+async def read_wq_runs(
+    name: str = typer.Argument(..., help="The name or ID of the work queue to poll"),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool containing the work queue to poll.",
+    ),
+):
+    """
+    Get runs in a work queue. Note that this will trigger an artificial poll of
+    the work queue.
+    """
+
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name,
+        work_pool_name=pool,
+    )
+    async with get_client() as client:
+        try:
+            runs = await client.get_runs_in_work_queue(id=queue_id)
+        except ObjectNotFound:
+            if pool:
+                error_message = f"No work queue found: {name!r} in work pool {pool!r}"
+            else:
+                error_message = f"No work queue found: {name!r}"
+            exit_with_error(error_message)
+    success_message = (
+        f"Read {len(runs)} runs for work queue {name!r} in work pool {pool}: {runs}"
+    )
     exit_with_success(success_message)

@@ -1,25 +1,35 @@
 import asyncio
+import inspect
+import os
 import signal
+import socket
 import sys
 from contextlib import AsyncExitStack
 from functools import partial
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import anyio
-import anyio.abc
+from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
+from prefect.engine import emit_task_run_state_change_event, propose_state
+from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
-from prefect.task_engine import submit_autonomous_task_to_engine
-from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.states import Pending
+from prefect.task_engine import submit_autonomous_task_run_to_engine
+from prefect.task_runners import (
+    BaseTaskRunner,
+    ConcurrentTaskRunner,
+)
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.processutils import _register_signal
 
@@ -32,9 +42,19 @@ class StopTaskServer(Exception):
     pass
 
 
+def should_try_to_read_parameters(task: Task, task_run: TaskRun) -> bool:
+    """Determines whether a task run should read parameters from the result factory."""
+    new_enough_state_details = hasattr(
+        task_run.state.state_details, "task_parameters_id"
+    )
+    task_accepts_parameters = bool(inspect.signature(task.fn).parameters)
+
+    return new_enough_state_details and task_accepts_parameters
+
+
 class TaskServer:
-    """This class is responsible for serving tasks that may be executed autonomously by a
-    task runner in the engine.
+    """This class is responsible for serving tasks that may be executed in the background
+    by a task runner via the traditional engine machinery.
 
     When `start()` is called, the task server will open a websocket connection to a
     server-side queue of scheduled task runs. When a scheduled task run is found, the
@@ -53,8 +73,9 @@ class TaskServer:
         *tasks: Task,
         task_runner: Optional[Type[BaseTaskRunner]] = None,
     ):
-        self.tasks: list[Task] = tasks
-        self.task_runner: Type[BaseTaskRunner] = task_runner or ConcurrentTaskRunner()
+        self.tasks: List[Task] = tasks
+
+        self.task_runner: BaseTaskRunner = task_runner or ConcurrentTaskRunner()
         self.started: bool = False
         self.stopping: bool = False
 
@@ -67,6 +88,10 @@ class TaskServer:
             )
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+
+    @property
+    def _client_id(self) -> str:
+        return f"{socket.gethostname()}-{os.getpid()}"
 
     def handle_sigterm(self, signum, frame):
         """
@@ -85,7 +110,19 @@ class TaskServer:
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         async with asyncnullcontext() if self.started else self:
-            await self._subscribe_to_task_scheduling()
+            logger.info("Starting task server...")
+            try:
+                await self._subscribe_to_task_scheduling()
+            except InvalidStatusCode as exc:
+                if exc.status_code == 403:
+                    logger.error(
+                        "Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
+                        f" endpoint found at:\n\n {PREFECT_API_URL.value()}"
+                        "\n\nPlease double-check the values of your"
+                        " `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables."
+                    )
+                else:
+                    raise
 
     @sync_compatible
     async def stop(self):
@@ -102,20 +139,24 @@ class TaskServer:
         raise StopTaskServer
 
     async def _subscribe_to_task_scheduling(self):
+        logger.info(
+            f"Subscribing to tasks: {' | '.join(t.task_key.split('.')[-1] for t in self.tasks)}"
+        )
         async for task_run in Subscription(
-            TaskRun,
-            "/task_runs/subscriptions/scheduled",
-            [task.task_key for task in self.tasks],
+            model=TaskRun,
+            path="/task_runs/subscriptions/scheduled",
+            keys=[task.task_key for task in self.tasks],
+            client_id=self._client_id,
         ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            await self._submit_pending_task_run(task_run)
+            await self._submit_scheduled_task_run(task_run)
 
-    async def _submit_pending_task_run(self, task_run: TaskRun):
+    async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
 
-        task = next((t for t in self.tasks if t.name in task_run.task_key), None)
+        task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
             if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
@@ -130,10 +171,10 @@ class TaskServer:
         # state_details. If there is no parameters_id, then the task was created
         # without parameters.
         parameters = {}
-        if hasattr(task_run.state.state_details, "task_parameters_id"):
+        if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
-            factory = await ResultFactory.from_task(task)
+            factory = await ResultFactory.from_autonomous_task(task)
             try:
                 parameters = await factory.read_parameters(parameters_id)
             except Exception as exc:
@@ -152,9 +193,41 @@ class TaskServer:
             f"Submitting run {task_run.name!r} of task {task.name!r} to engine"
         )
 
+        try:
+            state = await propose_state(
+                client=get_client(),  # TODO prove that we cannot use self._client here
+                state=Pending(),
+                task_run_id=task_run.id,
+            )
+        except Abort as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
+            )
+            return
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                logger.warning(
+                    f"Task run {task_run.id!r} not found. It may have been deleted."
+                )
+                return
+            raise
+
+        if not state.is_pending():
+            logger.warning(
+                f"Cancelling submission of task run {task_run.id!r} -"
+                f" server returned a non-pending state {state.type.value!r}."
+            )
+            return
+
+        emit_task_run_state_change_event(
+            task_run=task_run,
+            initial_state=task_run.state,
+            validated_state=state,
+        )
+
         self._runs_task_group.start_soon(
             partial(
-                submit_autonomous_task_to_engine,
+                submit_autonomous_task_run_to_engine,
                 task=task,
                 task_run=task_run,
                 parameters=parameters,
@@ -163,12 +236,20 @@ class TaskServer:
             )
         )
 
+    async def execute_task_run(self, task_run: TaskRun):
+        """Execute a task run in the task server."""
+        async with self if not self.started else asyncnullcontext():
+            await self._submit_scheduled_task_run(task_run)
+
     async def __aenter__(self):
         logger.debug("Starting task server...")
 
-        self._client = await self._exit_stack.enter_async_context(get_client())
-        await self._exit_stack.enter_async_context(self._runs_task_group)
+        if self._client._closed:
+            self._client = get_client()
+
+        await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self.task_runner.start())
+        await self._runs_task_group.__aenter__()
 
         self.started = True
         return self
@@ -176,7 +257,7 @@ class TaskServer:
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task server...")
         self.started = False
-
+        await self._runs_task_group.__aexit__(*exc_info)
         await self._exit_stack.__aexit__(*exc_info)
 
 
@@ -205,7 +286,7 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
         def yell(message: str):
             print(message.upper())
 
-        # starts a long-lived process that listens scheduled runs of these tasks
+        # starts a long-lived process that listens for scheduled runs of these tasks
         if __name__ == "__main__":
             serve(say, yell)
         ```

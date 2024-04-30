@@ -1,16 +1,18 @@
 """
 Custom Prefect CLI types
 """
+
 import functools
 import sys
 from typing import List, Optional
 
 import typer
-import typer.core
+from rich.console import Console
+from rich.theme import Theme
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
-from prefect.settings import Setting
+from prefect.settings import PREFECT_CLI_COLORS, Setting
 from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 
 
@@ -59,6 +61,8 @@ class PrefectTyper(typer.Typer):
     Wraps commands created by `Typer` to support async functions and handle errors.
     """
 
+    console: Console
+
     def __init__(
         self,
         *args,
@@ -79,6 +83,12 @@ class PrefectTyper(typer.Typer):
                 start_date=deprecated_start_date,
                 help=deprecated_help,
             )
+
+        self.console = Console(
+            highlight=False,
+            theme=Theme({"prompt.choices": "bold blue"}),
+            color_system="auto" if PREFECT_CLI_COLORS else None,
+        )
 
     def add_typer(
         self,
@@ -110,18 +120,36 @@ class PrefectTyper(typer.Typer):
         self,
         *args,
         aliases: List[str] = None,
+        deprecated: bool = False,
+        deprecated_start_date: Optional[str] = None,
+        deprecated_help: str = "",
+        deprecated_name: str = "",
         **kwargs,
     ):
         """
         Create a new command. If aliases are provided, the same command function
         will be registered with multiple names.
+
+        Provide `deprecated=True` to mark the command as deprecated. If `deprecated=True`,
+        `deprecated_name` and `deprecated_start_date` must be provided.
         """
 
         def wrapper(fn):
             if is_async_fn(fn):
                 fn = sync_compatible(fn)
             fn = with_cli_exception_handling(fn)
-            if self.deprecated:
+            if deprecated:
+                if not deprecated_name or not deprecated_start_date:
+                    raise ValueError(
+                        "Provide the name of the deprecated command and a deprecation start date."
+                    )
+                command_deprecated_message = generate_deprecation_message(
+                    name=f"The {deprecated_name!r} command",
+                    start_date=deprecated_start_date,
+                    help=deprecated_help,
+                )
+                fn = with_deprecated_message(command_deprecated_message)(fn)
+            elif self.deprecated:
                 fn = with_deprecated_message(self.deprecated_message)(fn)
 
             # register fn with its original name
@@ -140,3 +168,12 @@ class PrefectTyper(typer.Typer):
             return original_command
 
         return wrapper
+
+    def setup_console(self, soft_wrap: bool, prompt: bool):
+        self.console = Console(
+            highlight=False,
+            color_system="auto" if PREFECT_CLI_COLORS else None,
+            theme=Theme({"prompt.choices": "bold blue"}),
+            soft_wrap=not soft_wrap,
+            force_interactive=prompt,
+        )

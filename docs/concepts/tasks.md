@@ -32,11 +32,11 @@ Tasks are special because they receive metadata about upstream dependencies and 
 
 Tasks also take advantage of automatic Prefect [logging](/concepts/logs/) to capture details about task runs such as runtime, tags, and final state.
 
-You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
+You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. Tasks may be called from within a flow, from within a subflow, or (as of `prefect 2.18.x`) from within another task.
 
 **Calling a task from a flow**
 
-Use the `@task` decorator to designate a function as a task. Calling the task from within a flow function creates a new task run:
+Use the `@task` decorator to designate a function as a task. Calling the task creates a new task run:
 
 ```python hl_lines="3-5"
 from prefect import flow, task
@@ -50,6 +50,22 @@ def my_flow():
     my_task()
 ```
 
+**Calling a task from another task**
+
+As of `prefect 2.18.x`, you can call a task from within another task:
+
+```python
+from prefect import task
+
+@task
+def my_task():
+    print("Hello, I'm a task")
+
+@task(log_prints=True)
+def my_parent_task():
+    my_task()
+```
+
 Tasks are uniquely identified by a task key, which is a hash composed of the task name, the fully-qualified name of the function, and any tags. If the task does not have a name specified, the name is derived from the task function.
 
 !!! note "How big should a task be?"
@@ -57,28 +73,6 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
     To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
 
-!!! warning "Calling a task's function from another task"
-
-    Prefect does not allow triggering task runs from other tasks. If you want to call your task's function directly, you can use `task.fn()`. 
-
-    ```python hl_lines="9"
-    from prefect import flow, task
-
-    @task
-    def my_first_task(msg):
-        print(f"Hello, {msg}")
-
-    @task
-    def my_second_task(msg):
-        my_first_task.fn(msg)
-
-    @flow
-    def my_flow():
-        my_second_task("Trillian")
-
-    ```
-
-    Note that in the example above you are only calling the task's function without actually generating a task run. Prefect won't track task execution in your Prefect backend if you call the task function this way. You also won't be able to use features such as retries with this function call.
 
 ## Task arguments
 
@@ -371,7 +365,7 @@ def hello_task(name_input):
     print("Saying hello")
     return "hello " + name_input
 
-@flow
+@flow(log_prints=True)
 def hello_flow(name_input):
     hello_task(name_input)
 ```
@@ -471,16 +465,15 @@ Task timeouts are used to prevent unintentional long-running tasks. When the dur
 
 Timeout durations are specified using the `timeout_seconds` keyword argument.
 
-```python
-from prefect import task, get_run_logger
+```python hl_lines="4"
+from prefect import task
 import time
 
-@task(timeout_seconds=1)
+@task(timeout_seconds=1, log_prints=True)
 def show_timeouts():
-    logger = get_run_logger()
-    logger.info("I will execute")
+    print("I will execute")
     time.sleep(5)
-    logger.info("I will not execute")
+    print("I will not execute")
 ```
 
 ## Task results

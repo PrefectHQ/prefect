@@ -26,10 +26,11 @@ from prefect.settings import (
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_SQLALCHEMY_POOL_SIZE,
+    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
-SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(
+SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
 )
 
@@ -415,7 +416,10 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+        if PREFECT_UNIT_TEST_MODE.value() is True:
+            cursor.execute("PRAGMA busy_timeout = 5000;")  # 5s
+        else:
+            cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
         cursor.close()
 

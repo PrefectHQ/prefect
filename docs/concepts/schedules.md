@@ -22,31 +22,13 @@ Prefect Cloud can also schedule flow runs through event-driven [automations](/co
 
 Schedules tell the Prefect API how to create new flow runs for you automatically on a specified cadence.
 
-You can add a schedule to any flow [deployment](/concepts/deployments/).
+You can add a schedule to any [deployment](/concepts/deployments/).
 The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
 
-There are several recommended ways to create a schedule for a deployment:
+!!! tip "Support for multiple schedules"
+    We are currently rolling out support for multiple schedules per deployment. You can now assign multiple schedules to deployments in the Prefect UI, the CLI via `prefect deployment schedule` commands, the `Deployment` class, and in [block-based deployment](/concepts/deployments/#block-based-deployments) YAML files.
 
-- Through the Prefect UI
-- Via a the `cron`, `interval`, or `rrule` parameters if building your deployment via the [`serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
-- If using [worker-based deployments](/concepts/work-pools/)
-  - Through the interactive `prefect deploy` command
-  - With the `deployments` -> `schedule` section of the `prefect.yaml` file )
-
-## Creating schedules through the UI
-
-You can add a schedule on the **Deployments** tab of the UI.
-
-Under **Schedule** select the **Add** button.
-If you don't see the **Schedule** section, expand the three dot menu on the top right of the page.
-
-Then select **Interval** or **Cron** to create a schedule.
-
-![Prefect UI with Interval button selected](/img/ui/interval-schedule.png)
-
-Once a schedule has been created, a number of scheduled flow runs will be visible in the UI.
-The schedule is viewable in human-friendly text on the **Deployments** page.
-You can edit the schedule by selecting the **Edit** button on the **Deployment** page.
+    Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/concepts/work-pools/) with `prefect deploy` will arrive soon.
 
 ## Schedule types
 
@@ -56,36 +38,11 @@ Prefect supports several types of schedules that cover a wide range of use cases
 - [`Interval`](#interval) is best suited for deployments that need to run at some consistent cadence that isn't related to absolute time.
 - [`RRule`](#rrule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
-## Creating schedules through the `serve` method
-
-As seen in the [Quickstart](/getting-started/quickstart/#step-5-add-a-schedule), you can create a schedule by passing a `cron`, `interval`, or `rrule` parameters to the `Flow.serve` method or the `serve` utility.
-
-## Creating schedules through the interactive `prefect deploy` command
-
-If you are using [worker-based deployments](/concepts/work-pools/), you can create a schedule through the interactive `prefect deploy` command.
-You will be prompted to choose which type of schedule to create.
-
-## Creating schedules through a `prefect.yaml` file's `deployments` -> `schedule` section
-
-If you save the `prefect.yaml` file from the `prefect deploy` command, you will see it has a `schedule` section for your deployment.
-Alternatively, you can create a `prefect.yaml` file from a recipe or from scratch and add a `schedule` section to it.
-
-```yaml
-deployments:
-  ...
-  schedule:
-    cron: 0 0 * * *
-    timezone: America/Chicago
-    active: false
-```
-
 !!! tip "Schedules can be inactive"
-    You can set the `active` property to `false` to deactivate a schedule.
+    When you create or edit a schedule, you can set the `active` property to `False` in Python (or `false` in a YAML file) to deactivate the schedule.
     This is useful if you want to keep the schedule configuration but temporarily stop the schedule from creating new flow runs.
 
-Let's discuss the three schedule types in more detail.
-
-## Cron
+### Cron
 
 A schedule may be specified with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern. Users may also provide a timezone to enforce DST behaviors.
 
@@ -99,9 +56,13 @@ A schedule may be specified with a [`cron`](https://en.wikipedia.org/wiki/Cron) 
 | day_or   | Boolean indicating how `croniter` handles `day` and `day_of_week` entries. Default is `True`.                          |
 | timezone | String name of a time zone. (See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.) |
 
-The `day_or` property defaults to `True`, matching `cron`, which connects those values using `OR`.
-If `False`, the values are connected using `AND`.
-This behaves like `fcron` and enables you to, for example, define a job that executes each 2nd Friday of a month by setting the days of month and the weekday.
+#### How the `day_or` property works
+
+The `day_or` property defaults to `True`, matching the behavior of `cron`. In this mode, if you specify a `day` (of the month) entry and a `day_of_week` entry, the schedule will run a flow on both the specified day of the month *and* on the specified day of the week. The "or" in `day_or` refers to the fact that the two entries are treated like an `OR` statement, so the schedule should include both, as in the SQL statement `SELECT * FROM employees WHERE first_name = 'Xiāng' OR last_name = 'Brookins';`.
+
+For example, with `day_or` set to `True`, the cron schedule `* * 3 1 2` runs a flow every minute on the 3rd day of the month (whatever that is) and on Tuesday (the second day of the week) in January (the first month of the year).
+
+With `day_or` set to `False`, the `day` (of the month) and `day_of_week` entries are joined with the more restrictive `AND` operation, as in the SQL statement `SELECT * from employees WHERE first_name = 'Andrew' AND last_name = 'Brookins';`. For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **3rd Tuesday** in January. This behavior matches `fcron` instead of `cron`.
 
 !!! tip "Supported `croniter` features"
     While Prefect supports most features of `croniter` for creating `cron`-like schedules, we do not currently support "R" random or "H" hashed keyword expressions or the schedule jittering possible with those expressions.
@@ -114,9 +75,9 @@ This behaves like `fcron` and enables you to, for example, define a job that exe
     
     Longer schedules, such as one that fires at 9am every morning, will adjust for DST automatically.
   
-## Interval
+### Interval
 
-An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in the deployment YAML file:
+An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in a [block-based deployment](/concepts/deployments/#block-based-deployments) YAML file:
 
 ```yaml
 schedule:
@@ -145,7 +106,7 @@ Note that in this example, we import the [Pendulum](https://pendulum.eustace.io/
     For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. 
     This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
-## RRule
+### RRule
 
 An `RRule` scheduling supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) (RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from yearly down to every minute.
 
@@ -166,7 +127,7 @@ RRules are appropriate for any kind of calendar-date manipulation, including sim
 
 You may find it useful to use an RRule string generator such as the [iCalendar.org RRule Tool](https://icalendar.org/rrule-tool.html) to help create valid RRules.
 
-For example, the following RRule schedule creates flow runs on Monday, Wednesday, and Friday until July 30, 2024.
+For example, the following RRule schedule in a [block-based deployment](/concepts/deployments/#block-based-deployments) YAML file creates flow runs on Monday, Wednesday, and Friday until July 30, 2024.
 
 ```yaml
 schedule:
@@ -182,17 +143,63 @@ schedule:
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
     A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
-## Creating schedules through a Python deployment creation file
+## Creating schedules
 
-When you create a deployment with through a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`. 
+There are several ways to create a schedule for a deployment:
+
+- Through the Prefect UI
+- Via the `cron`, `interval`, or `rrule` parameters if building your deployment via the [`serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
+- If using [worker-based deployments](/concepts/work-pools/)
+  - When you define a deployment with `flow.serve` or `flow.deploy`
+  - Through the interactive `prefect deploy` command
+  - With the `deployments` -> `schedules` section of the `prefect.yaml` file
+- If using [block-based deployments](/concepts/deployments/#block-based-deployments) - Deprecated 
+  - `Through the schedules` section of the deployment YAML file
+  - By passing `schedules` into the `Deployment` class or `Deployment.build_from_flow`
+
+### Creating schedules in the UI
+
+You can add schedules in the **Schedules** section on a **Deployment** page in the UI.
+
+#### Locating the **Schedules** section
+
+The **Schedules** section appears in the sidebar on the right side of the page on wider displays. On narrower displays, it appears on the **Details** tab of the page.
+
+#### Adding a schedule
+
+Under **Schedules**, select the **+ Schedule** button. A modal dialog will open. Choose **Interval** or **Cron** to create a schedule.
+
+![Prefect UI with Interval button selected](/img/ui/interval-schedule.png)
+
+!!! note "What about RRule?"
+    The UI does not support creating RRule schedules. However, the UI will display RRule schedules that you've created via the command line.
+
+The new schedule will appear on the **Deployment** page where you created it. In addition, the schedule will be viewable in human-friendly text in the list of deployments on the **Deployments** page.
+
+After you create a schedule, new scheduled flow runs will be visible in the **Upcoming** tab of the **Deployment** page where you created it.
+
+#### Editing schedules
+
+You can edit a schedule by selecting **Edit** from the three-dot menu next to a schedule on a **Deployment** page.
+
+### Creating schedules with a Python deployment creation file
+
+When you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy` you can specify the schedule. Just add the keyword argument `cron`, `interval`, or `rrule`.
 
 ```
-interval: An interval on which to execute the new deployment. Accepts either a number
-    or a timedelta object. If a number is given, it will be interpreted as seconds.
-cron: A cron schedule of when to execute runs of this deployment.
-rrule: An rrule schedule of when to execute runs of this deployment.
+interval: An interval on which to execute the deployment. Accepts a number or a 
+    timedelta object to create a single schedule. If a number is given, it will be 
+    interpreted as seconds. Also accepts an iterable of numbers or timedelta to create 
+    multiple schedules.
+cron: A cron schedule string of when to execute runs of this deployment. 
+    Also accepts an iterable of cron schedule strings to create multiple schedules.
+rrule: An rrule schedule string of when to execute runs of this deployment.
+    Also accepts an iterable of rrule schedule strings to create multiple schedules.
+schedules: A list of schedule objects defining when to execute runs of this deployment.
+    Used to define multiple schedules or additional scheduling options such as `timezone`.
 schedule: A schedule object defining when to execute runs of this deployment. Used to
-  define additional scheduling options like `timezone`.
+    define additional scheduling options like `timezone`.
+
 ```
 
 Here's an example of creating a cron schedule with `serve` for a deployment flow that will run every minute of every day:
@@ -200,6 +207,8 @@ Here's an example of creating a cron schedule with `serve` for a deployment flow
 ```python
 my_flow.serve(name="flowing", cron="* * * * *")
 ```
+
+If using work pool-based deployments, the `deploy` method has the same schedule-based parameters.
 
 Here's an example of creating an interval schedule with `serve` for a deployment flow that will run every 10 minutes with an anchor date and a timezone:
 
@@ -211,12 +220,12 @@ my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minut
 ```
 
 Block and agent-based deployments with Python files are not a recommended way to create deployments.
-However, if you are using that deployment creation method you can create a schedule by passing a `schedule` parameter to the `Deployment.build_from_flow` method.
+However, if you are using that deployment creation method you can create a schedule by passing a `schedule` argument to the `Deployment.build_from_flow` method.
 
-Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
+Here's how you create the equivalent schedule in a Python deployment file.
 
 ```python
-from prefect.server.schemas.schedules import CronSchedule
+from prefect.client.schemas.schedules import CronSchedule
 
 cron_demo = Deployment.build_from_flow(
     pipeline,
@@ -225,14 +234,37 @@ cron_demo = Deployment.build_from_flow(
 )
 ```
 
-`IntervalSchedule` and `RRuleSchedule` are the other two Python class schedule options.
+### Creating schedules with the interactive `prefect deploy` command
+
+If you are using [worker-based deployments](/concepts/work-pools/), you can create a schedule through the interactive `prefect deploy` command.
+You will be prompted to choose which type of schedule to create.
+
+### Creating schedules in the `prefect.yaml` file's `deployments` -> `schedule` section
+
+If you save the `prefect.yaml` file from the `prefect deploy` command, you will see it has a `schedules` section for your deployment.
+Alternatively, you can create a `prefect.yaml` file from a recipe or from scratch and add a `schedules` section to it.
+
+```yaml
+deployments:
+  ...
+  schedules:
+    - cron: "0 0 * * *"
+      timezone: "America/Chicago"
+      active: false
+    - cron: "0 12 * * *"
+      timezone: "America/New_York"
+      active: true
+    - cron: "0 18 * * *"
+      timezone: "Europe/London"
+      active: true
+```
 
 ## The `Scheduler` service
 
 The `Scheduler` service is started automatically when `prefect server start` is run and it is a built-in service of Prefect Cloud.
 
 By default, the `Scheduler` service visits deployments on a 60-second loop, though recently-modified deployments will be visited more frequently.
-The `Scheduler` evaluates each deployment's schedule and creates new runs appropriately.
+The `Scheduler` evaluates each deployment's schedules and creates new runs appropriately.
 For typical deployments, it will create the next three runs, though more runs will be scheduled if the next 3 would all start in the next hour.
 
 More specifically, the `Scheduler` tries to create the smallest number of runs that satisfy the following constraints, in order:

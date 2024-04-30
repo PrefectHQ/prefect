@@ -164,6 +164,27 @@ async def ensure_default_agent_pool_exists(session):
     assert default_work_pool is not None
 
 
+def test_deployment_build_prints_deprecation_warning(tmp_path, patch_import):
+    invoke_and_assert(
+        [
+            "deployment",
+            "build",
+            "fake-path.py:fn",
+            "-n",
+            "TEST",
+            "-o",
+            str(tmp_path / "test.yaml"),
+            "--no-schedule",
+        ],
+        temp_dir=tmp_path,
+        expected_output_contains=(
+            "WARNING: The 'deployment build' command has been deprecated.",
+            "It will not be available after Sep 2024.",
+            "Use 'prefect deploy' to deploy flows via YAML instead.",
+        ),
+    )
+
+
 class TestSchedules:
     def test_passing_no_schedule_and_cron_schedules_to_build_exits_with_error(
         self, patch_import, tmp_path
@@ -184,7 +205,7 @@ class TestSchedules:
                 "Europe/Berlin",
             ],
             expected_code=1,
-            expected_output="Only one schedule type can be provided.",
+            expected_output_contains="Only one schedule type can be provided.",
             temp_dir=tmp_path,
         )
 
@@ -205,7 +226,7 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule is None
+        assert deployment.schedules == []
 
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -227,8 +248,9 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule.cron == "0 4 * * *"
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        schedule = deployment.schedules[0].schedule
+        assert schedule.cron == "0 4 * * *"
+        assert schedule.timezone == "Europe/Berlin"
 
     def test_passing_interval_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -252,9 +274,10 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
-        assert deployment.schedule.timezone == "America/New_York"
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == timedelta(seconds=42)
+        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.timezone == "America/New_York"
 
     def test_passing_anchor_without_interval_exits(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -294,8 +317,9 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
@@ -321,11 +345,12 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
-        assert deployment.schedule.timezone == "America/New_York"
+        assert schedule.timezone == "America/New_York"
 
     def test_parsing_rrule_timezone_overrides_if_passed_explicitly(
         self, patch_import, tmp_path
@@ -353,11 +378,12 @@ class TestSchedules:
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        assert schedule.timezone == "Europe/Berlin"
 
     @pytest.mark.parametrize(
         "schedules",
@@ -388,7 +414,7 @@ class TestSchedules:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output="Only one schedule type can be provided.",
+            expected_output_contains="Only one schedule type can be provided.",
         )
 
 
@@ -514,7 +540,7 @@ class TestFlowName:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output=(
+            expected_output_contains=(
                 "A name for this deployment must be provided with the '--name' flag.\n"
             ),
         )
@@ -687,7 +713,7 @@ class TestEntrypoint:
     ):
         flow_code = """
         from prefect import flow
-        
+
         @flow
         def dog_flow_func():
             pass
@@ -1075,7 +1101,7 @@ class TestInfraAndInfraBlock:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output=(
+            expected_output_contains=(
                 "Only one of `infra` or `infra_block` can be provided, please choose"
                 " one."
             ),
@@ -1161,7 +1187,7 @@ class TestInfraOverrides:
         )
 
         build_kwargs = mock_build_from_flow.call_args.kwargs
-        assert build_kwargs["infra_overrides"] == {"my.dog": "1", "your.cat": "test"}
+        assert build_kwargs["job_variables"] == {"my.dog": "1", "your.cat": "test"}
 
     @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
     def test_overrides_default_is_empty(
@@ -1185,7 +1211,7 @@ class TestInfraOverrides:
         )
 
         build_kwargs = mock_build_from_flow.call_args.kwargs
-        assert build_kwargs["infra_overrides"] == {}
+        assert build_kwargs["job_variables"] == {}
 
 
 class TestStorageBlock:
@@ -1234,7 +1260,9 @@ class TestOutputFlag:
         cmd += ["-o", output_path]
 
         invoke_and_assert(
-            cmd, expected_code=1, expected_output="Output file must be a '.yaml' file."
+            cmd,
+            expected_code=1,
+            expected_output_contains="Output file must be a '.yaml' file.",
         )
 
     @pytest.mark.filterwarnings("ignore:does not have upload capabilities")

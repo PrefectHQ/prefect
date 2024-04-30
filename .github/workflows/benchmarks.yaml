@@ -6,8 +6,9 @@ env:
 on:
   pull_request:
     paths:
+      - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
-      - "**/*.py"
+      - "src/prefect/**/*.py"
       - requirements.txt
       - requirements-dev.txt
       - setup.cfg
@@ -40,6 +41,8 @@ jobs:
       - name: Set up Docker Buildx
         if: ${{ matrix.build-docker-images }}
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:v0.12.5
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
@@ -68,7 +71,6 @@ jobs:
             ${{ runner.os }}-${{ github.base_ref }}-
             ${{ runner.os }}-main-
 
-
       - name: Start server
         run: |
           prefect server start&
@@ -78,12 +80,20 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run benchmarks
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
         # Includes comparison to previous benchmarks if available
-        run: >
-          uniquename=${{ github.head_ref || 'main' }}-${{ github.sha }}
+        run: |
+          if [[ -z "$HEAD_REF" ]]; then
+            # HEAD_REF is unset or empty, use 'main' with the SHA
+            uniquename="main-$GITHUB_SHA"
+          else
+            # HEAD_REF is set, use the branch name directly
+            uniquename="$HEAD_REF"
+          fi
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
-          python benches
-          --benchmark-save="${uniquename//\//_}"
-          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
-
+          python benches \
+          --benchmark-save="${uniquename//\//_}" \
+          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}

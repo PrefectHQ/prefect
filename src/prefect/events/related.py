@@ -17,7 +17,7 @@ from uuid import UUID
 import pendulum
 from pendulum.datetime import DateTime
 
-from .schemas import RelatedResource
+from .schemas.events import RelatedResource
 
 if TYPE_CHECKING:
     from prefect._internal.schemas.bases import ObjectBaseModel
@@ -31,8 +31,8 @@ RESOURCE_CACHE: RelatedResourceCache = {}
 
 def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
     return [
-        RelatedResource(
-            __root__={
+        RelatedResource.parse_obj(
+            {
                 "prefect.resource.id": f"prefect.tag.{tag}",
                 "prefect.resource.role": "tag",
             }
@@ -44,8 +44,8 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
 def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
     resource_id = f"prefect.{kind}.{object.id}"
 
-    return RelatedResource(
-        __root__={
+    return RelatedResource.parse_obj(
+        {
             "prefect.resource.id": resource_id,
             "prefect.resource.role": role,
             "prefect.resource.name": object.name,
@@ -57,6 +57,7 @@ async def related_resources_from_run_context(
     exclude: Optional[Set[str]] = None,
 ) -> List[RelatedResource]:
     from prefect.client.orchestration import get_client
+    from prefect.client.schemas.objects import FlowRun
     from prefect.context import FlowRunContext, TaskRunContext
 
     if exclude is None:
@@ -74,7 +75,7 @@ async def related_resources_from_run_context(
     if flow_run_id is None:
         return []
 
-    related_objects: list[ResourceCacheEntry] = []
+    related_objects: List[ResourceCacheEntry] = []
 
     async with get_client() as client:
 
@@ -111,7 +112,7 @@ async def related_resources_from_run_context(
 
         flow_run = related_objects[0]["object"]
 
-        if flow_run:
+        if isinstance(flow_run, FlowRun):
             related_objects += list(
                 await asyncio.gather(
                     _get_and_cache_related_object(

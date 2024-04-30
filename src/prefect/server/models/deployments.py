@@ -4,32 +4,39 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence
 from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.api.workers import WorkerLookups
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.models.events import deployment_status_event
+from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.server.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
+    PREFECT_EXPERIMENTAL_EVENTS,
 )
 
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMDeployment
 
-@inject_db
+
+@db_injector
 async def _delete_scheduled_runs(
-    session: sa.orm.Session,
-    deployment_id: UUID,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
     auto_scheduled_only: bool = False,
 ):
     """
@@ -54,10 +61,12 @@ async def _delete_scheduled_runs(
     await session.execute(delete_query)
 
 
-@inject_db
+@db_injector
 async def create_deployment(
-    session: sa.orm.Session, deployment: schemas.core.Deployment, db: PrefectDBInterface
-):
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment: schemas.core.Deployment,
+) -> Optional["ORMDeployment"]:
     """Upserts a deployment.
 
     Args:
@@ -74,24 +83,71 @@ async def create_deployment(
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
     deployment.updated = pendulum.now("UTC")
 
-    insert_values = deployment.dict(shallow=True, exclude_unset=True)
+    schedules = deployment.schedules
+    insert_values = deployment.dict(
+        shallow=True, exclude_unset=True, exclude={"schedules"}
+    )
+
+    # The job_variables field in client and server schemas is named
+    # infra_overrides in the database.
+    job_variables = insert_values.pop("job_variables", None)
+    if job_variables:
+        insert_values["infra_overrides"] = job_variables
+
+    conflict_update_fields = deployment.dict(
+        shallow=True,
+        exclude_unset=True,
+        exclude={"id", "created", "created_by", "schedules", "job_variables"},
+    )
+    if job_variables:
+        conflict_update_fields["infra_overrides"] = job_variables
 
     insert_stmt = (
-        (await db.insert(db.Deployment))
+        db.insert(db.Deployment)
         .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.deployment_unique_upsert_columns,
-            set_={
-                **deployment.dict(
-                    shallow=True,
-                    exclude_unset=True,
-                    exclude={"id", "created", "created_by"},
-                ),
-            },
+            set_={**conflict_update_fields},
         )
     )
 
     await session.execute(insert_stmt)
+
+    # Get the id of the deployment we just created or updated
+    result = await session.execute(
+        sa.select(db.Deployment.id).where(
+            sa.and_(
+                db.Deployment.flow_id == deployment.flow_id,
+                db.Deployment.name == deployment.name,
+            )
+        )
+    )
+    deployment_id = result.scalar_one_or_none()
+
+    if not deployment_id:
+        return None
+
+    # Because this was possibly an upsert, we need to delete any existing
+    # schedules and any runs from the old deployment.
+
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, auto_scheduled_only=True
+    )
+
+    await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
+
+    if schedules:
+        await create_deployment_schedules(
+            session=session,
+            deployment_id=deployment_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule.schedule,
+                    active=schedule.active,  # type: ignore[call-arg]
+                )
+                for schedule in schedules
+            ],
+        )
 
     query = (
         sa.select(db.Deployment)
@@ -104,23 +160,15 @@ async def create_deployment(
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    model = result.scalar()
-
-    # because this could upsert a different schedule, delete any runs from the old
-    # deployment
-    await _delete_scheduled_runs(
-        session=session, deployment_id=model.id, db=db, auto_scheduled_only=True
-    )
-
-    return model
+    return result.scalar()
 
 
-@inject_db
+@db_injector
 async def update_deployment(
-    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    session: AsyncSession,
     deployment_id: UUID,
     deployment: schemas.actions.DeploymentUpdate,
-    db: PrefectDBInterface,
 ) -> bool:
     """Updates a deployment.
 
@@ -134,6 +182,10 @@ async def update_deployment(
 
     """
 
+    from prefect.server.api.workers import WorkerLookups
+
+    schedules = deployment.schedules
+
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
     update_data = deployment.dict(
@@ -141,6 +193,15 @@ async def update_deployment(
         exclude_unset=True,
         exclude={"work_pool_name"},
     )
+
+    # The job_variables field in client and server schemas is named
+    # infra_overrides in the database.
+    job_variables = update_data.pop("job_variables", None)
+    if job_variables:
+        update_data["infra_overrides"] = job_variables
+
+    should_update_schedules = update_data.pop("schedules", None) is not None
+
     if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the
         # ID for that work pool queue.
@@ -164,10 +225,13 @@ async def update_deployment(
     elif deployment.work_queue_name:
         # If just a queue name was provided, ensure the queue exists and
         # get its ID.
-        work_queue = await models.work_queues._ensure_work_queue_exists(
-            session=session, name=update_data["work_queue_name"], db=db
+        work_queue = await models.work_queues.ensure_work_queue_exists(
+            session=session, name=update_data["work_queue_name"]
         )
         update_data["work_queue_id"] = work_queue.id
+
+    if "is_schedule_active" in update_data:
+        update_data["paused"] = not update_data["is_schedule_active"]
 
     update_stmt = (
         sa.update(db.Deployment)
@@ -178,16 +242,34 @@ async def update_deployment(
 
     # delete any auto scheduled runs that would have reflected the old deployment config
     await _delete_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
+        session=session, deployment_id=deployment_id, auto_scheduled_only=True
     )
+
+    if should_update_schedules:
+        # If schedules were provided, remove the existing schedules and
+        # replace them with the new ones.
+        await delete_schedules_for_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        await create_deployment_schedules(
+            session=session,
+            deployment_id=deployment_id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule.schedule,
+                    active=schedule.active,  # type: ignore[call-arg]
+                )
+                for schedule in schedules
+            ],
+        )
 
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def read_deployment(
-    session: sa.orm.Session, deployment_id: UUID, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
+) -> Optional["ORMDeployment"]:
     """Reads a deployment by id.
 
     Args:
@@ -201,10 +283,10 @@ async def read_deployment(
     return await session.get(db.Deployment, deployment_id)
 
 
-@inject_db
+@db_injector
 async def read_deployment_by_name(
-    session: sa.orm.Session, name: str, flow_name: str, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, name: str, flow_name: str
+) -> Optional["ORMDeployment"]:
     """Reads a deployment by name.
 
     Args:
@@ -230,10 +312,10 @@ async def read_deployment_by_name(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def _apply_deployment_filters(
-    query,
     db: PrefectDBInterface,
+    query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -289,10 +371,10 @@ async def _apply_deployment_filters(
     return query
 
 
-@inject_db
+@db_injector
 async def read_deployments(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: AsyncSession,
     offset: int = None,
     limit: int = None,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -302,7 +384,7 @@ async def read_deployments(
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
-):
+) -> Sequence["ORMDeployment"]:
     """
     Read deployments.
 
@@ -332,7 +414,6 @@ async def read_deployments(
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
         work_queue_filter=work_queue_filter,
-        db=db,
     )
 
     if offset is not None:
@@ -344,10 +425,10 @@ async def read_deployments(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def count_deployments(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: AsyncSession,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -381,16 +462,15 @@ async def count_deployments(
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
         work_queue_filter=work_queue_filter,
-        db=db,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def delete_deployment(
-    session: sa.orm.Session, deployment_id: UUID, db: PrefectDBInterface
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
 ) -> bool:
     """
     Delete a deployment by id.
@@ -415,7 +495,7 @@ async def delete_deployment(
 
 
 async def schedule_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
@@ -478,16 +558,16 @@ async def schedule_runs(
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
 
-@inject_db
+@db_injector
 async def _generate_scheduled_flow_runs(
-    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    session: AsyncSession,
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
     min_time: datetime.timedelta,
     min_runs: int,
     max_runs: int,
-    db: PrefectDBInterface,
     auto_scheduled: bool = True,
 ) -> List[Dict]:
     """
@@ -523,59 +603,68 @@ async def _generate_scheduled_flow_runs(
     """
     runs = []
 
-    # retrieve the deployment
     deployment = await session.get(db.Deployment, deployment_id)
 
-    if not deployment or not deployment.schedule or not deployment.is_schedule_active:
+    if not deployment:
         return []
 
-    dates = []
+    active_deployment_schedules = await read_deployment_schedules(
+        session=session,
+        deployment_id=deployment.id,
+        deployment_schedule_filter=schemas.filters.DeploymentScheduleFilter(
+            active=schemas.filters.DeploymentScheduleFilterActive(eq_=True)
+        ),
+    )
 
-    # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
-    for dt in deployment.schedule._get_dates_generator(
-        n=max_runs, start=start_time, end=end_time
-    ):
-        dates.append(dt)
+    for deployment_schedule in active_deployment_schedules:
+        dates = []
 
-        # at any point, if we satisfy both of the minimums, we can stop
-        if len(dates) >= min_runs and dt >= (start_time + min_time):
-            break
+        # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
+        for dt in deployment_schedule.schedule._get_dates_generator(
+            n=max_runs, start=start_time, end=end_time
+        ):
+            dates.append(dt)
 
-    tags = deployment.tags
-    if auto_scheduled:
-        tags = ["auto-scheduled"] + tags
+            # at any point, if we satisfy both of the minimums, we can stop
+            if len(dates) >= min_runs and dt >= (start_time + min_time):
+                break
 
-    for date in dates:
-        runs.append(
-            {
-                "id": uuid4(),
-                "flow_id": deployment.flow_id,
-                "deployment_id": deployment_id,
-                "work_queue_name": deployment.work_queue_name,
-                "work_queue_id": deployment.work_queue_id,
-                "parameters": deployment.parameters,
-                "infrastructure_document_id": deployment.infrastructure_document_id,
-                "idempotency_key": f"scheduled {deployment.id} {date}",
-                "tags": tags,
-                "auto_scheduled": auto_scheduled,
-                "state": schemas.states.Scheduled(
-                    scheduled_time=date,
-                    message="Flow run scheduled",
-                ).dict(),
-                "state_type": schemas.states.StateType.SCHEDULED,
-                "state_name": "Scheduled",
-                "next_scheduled_start_time": date,
-                "expected_start_time": date,
-            }
-        )
+        tags = deployment.tags
+        if auto_scheduled:
+            tags = ["auto-scheduled"] + tags
+
+        for date in dates:
+            runs.append(
+                {
+                    "id": uuid4(),
+                    "flow_id": deployment.flow_id,
+                    "deployment_id": deployment_id,
+                    "deployment_version": deployment.version,
+                    "work_queue_name": deployment.work_queue_name,
+                    "work_queue_id": deployment.work_queue_id,
+                    "parameters": deployment.parameters,
+                    "infrastructure_document_id": deployment.infrastructure_document_id,
+                    "idempotency_key": f"scheduled {deployment.id} {date}",
+                    "tags": tags,
+                    "auto_scheduled": auto_scheduled,
+                    "state": schemas.states.Scheduled(
+                        scheduled_time=date,
+                        message="Flow run scheduled",
+                    ).dict(),
+                    "state_type": schemas.states.StateType.SCHEDULED,
+                    "state_name": "Scheduled",
+                    "next_scheduled_start_time": date,
+                    "expected_start_time": date,
+                }
+            )
 
     return runs
 
 
-@inject_db
+@db_injector
 async def _insert_scheduled_flow_runs(
-    session: sa.orm.Session, runs: List[Dict], db: PrefectDBInterface
-) -> List[UUID]:
+    db: PrefectDBInterface, session: AsyncSession, runs: List[Dict]
+) -> Sequence[UUID]:
     """
     Given a list of flow runs to schedule, as generated by `_generate_scheduled_flow_runs`,
     inserts them into the database. Note this is a separate method to facilitate batch
@@ -595,9 +684,10 @@ async def _insert_scheduled_flow_runs(
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
-    insert = await db.insert(db.FlowRun)
     await session.execute(
-        insert.on_conflict_do_nothing(index_elements=db.flow_run_unique_upsert_columns),
+        db.insert(db.FlowRun).on_conflict_do_nothing(
+            index_elements=db.flow_run_unique_upsert_columns
+        ),
         runs,
     )
 
@@ -641,9 +731,9 @@ async def _insert_scheduled_flow_runs(
     return inserted_flow_run_ids
 
 
-@inject_db
+@db_injector
 async def check_work_queues_for_deployment(
-    db: PrefectDBInterface, session: sa.orm.Session, deployment_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
 ) -> List[schemas.core.WorkQueue]:
     """
     Get work queues that can pick up the specified deployment.
@@ -698,16 +788,257 @@ async def check_work_queues_for_deployment(
     return result.scalars().unique().all()
 
 
-@inject_db
-async def _update_deployment_last_polled(
-    db: PrefectDBInterface, session: sa.orm.Session, deployment_ids: List[UUID]
-) -> None:
+@db_injector
+async def create_deployment_schedules(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    schedules: List[schemas.actions.DeploymentScheduleCreate],
+) -> List[schemas.core.DeploymentSchedule]:
     """
-    Update the last_polled for a list of deployment ids
+    Creates a deployment's schedules.
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+        schedules: a list of deployment schedule create actions
     """
+
+    schedules_with_deployment_id = []
+    for schedule in schedules:
+        data = schedule.dict()
+        data["deployment_id"] = deployment_id
+        schedules_with_deployment_id.append(data)
+
+    models = [
+        db.DeploymentSchedule(**schedule) for schedule in schedules_with_deployment_id
+    ]
+    session.add_all(models)
+    await session.flush()
+
+    return [schemas.core.DeploymentSchedule.from_orm(m) for m in models]
+
+
+@db_injector
+async def read_deployment_schedules(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    deployment_schedule_filter: Optional[
+        schemas.filters.DeploymentScheduleFilter
+    ] = None,
+) -> List[schemas.core.DeploymentSchedule]:
+    """
+    Reads a deployment's schedules.
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+
+    Returns:
+        list[schemas.core.DeploymentSchedule]: the deployment's schedules
+    """
+
     query = (
-        sa.update(db.Deployment)
-        .where(db.Deployment.id.in_(deployment_ids))
-        .values(last_polled=pendulum.now("UTC"))
+        sa.select(db.DeploymentSchedule)
+        .where(db.DeploymentSchedule.deployment_id == deployment_id)
+        .order_by(db.DeploymentSchedule.updated.desc())
     )
-    await session.execute(query)
+
+    if deployment_schedule_filter:
+        query = query.where(deployment_schedule_filter.as_sql_filter(db))
+
+    result = await session.execute(query)
+
+    return [schemas.core.DeploymentSchedule.from_orm(s) for s in result.scalars().all()]
+
+
+@db_injector
+async def update_deployment_schedule(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    deployment_schedule_id: UUID,
+    schedule: schemas.actions.DeploymentScheduleUpdate,
+) -> bool:
+    """
+    Updates a deployment's schedules.
+
+    Args:
+        session: A database session
+        deployment_schedule_id: a deployment schedule id
+        schedule: a deployment schedule update action
+    """
+
+    result = await session.execute(
+        sa.update(db.DeploymentSchedule)
+        .where(
+            sa.and_(
+                db.DeploymentSchedule.id == deployment_schedule_id,
+                db.DeploymentSchedule.deployment_id == deployment_id,
+            )
+        )
+        .values(**schedule.dict(exclude_none=True))
+    )
+
+    return result.rowcount > 0
+
+
+@db_injector
+async def delete_schedules_for_deployment(
+    db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID
+) -> bool:
+    """
+    Deletes a deployment schedule.
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+    """
+
+    result = await session.execute(
+        sa.delete(db.DeploymentSchedule).where(
+            db.DeploymentSchedule.deployment_id == deployment_id
+        )
+    )
+
+    return result.rowcount > 0
+
+
+@db_injector
+async def delete_deployment_schedule(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_id: UUID,
+    deployment_schedule_id: UUID,
+) -> bool:
+    """
+    Deletes a deployment schedule.
+
+    Args:
+        session: A database session
+        deployment_schedule_id: a deployment schedule id
+    """
+
+    result = await session.execute(
+        sa.delete(db.DeploymentSchedule).where(
+            sa.and_(
+                db.DeploymentSchedule.id == deployment_schedule_id,
+                db.DeploymentSchedule.deployment_id == deployment_id,
+            )
+        )
+    )
+
+    return result.rowcount > 0
+
+
+@db_injector
+async def mark_deployments_ready(
+    db: PrefectDBInterface,
+    deployment_ids: Optional[Iterable[UUID]] = None,
+    work_queue_ids: Optional[Iterable[UUID]] = None,
+):
+    deployment_ids = deployment_ids or []
+    work_queue_ids = work_queue_ids or []
+
+    if not deployment_ids and not work_queue_ids:
+        return
+
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
+        result = await session.execute(
+            select(db.Deployment.id).where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                ),
+                db.Deployment.status == DeploymentStatus.NOT_READY,
+            )
+        )
+        unready_deployments = list(result.scalars().unique().all())
+
+        last_polled = pendulum.now("UTC")
+
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                )
+            )
+            .values(status=DeploymentStatus.READY, last_polled=last_polled)
+        )
+
+        if not unready_deployments:
+            return
+
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            return
+
+        async with PrefectServerEventsClient() as events:
+            for deployment_id in unready_deployments:
+                await events.emit(
+                    await deployment_status_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        status=DeploymentStatus.READY,
+                        occurred=last_polled,
+                    )
+                )
+
+
+@db_injector
+async def mark_deployments_not_ready(
+    db: PrefectDBInterface,
+    deployment_ids: Optional[Iterable[UUID]] = None,
+    work_queue_ids: Optional[Iterable[UUID]] = None,
+):
+    deployment_ids = deployment_ids or []
+    work_queue_ids = work_queue_ids or []
+
+    if not deployment_ids and not work_queue_ids:
+        return
+
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
+        result = await session.execute(
+            select(db.Deployment.id).where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                ),
+                db.Deployment.status == DeploymentStatus.READY,
+            )
+        )
+        ready_deployments = list(result.scalars().unique().all())
+
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                )
+            )
+            .values(status=DeploymentStatus.NOT_READY)
+        )
+
+        if not ready_deployments:
+            return
+
+        if not PREFECT_EXPERIMENTAL_EVENTS:
+            return
+
+        async with PrefectServerEventsClient() as events:
+            for deployment_id in ready_deployments:
+                await events.emit(
+                    await deployment_status_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        status=DeploymentStatus.NOT_READY,
+                        occurred=pendulum.now("UTC"),
+                    )
+                )

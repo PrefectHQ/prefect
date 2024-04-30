@@ -95,7 +95,7 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Google Cloud Run - Push              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.  |
     | AWS Elastic Container Service - Push | Execute flow runs within containers on AWS ECS. Works with existing ECS clusters and serverless execution via AWS Fargate. Requires an AWS account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.   |
     | Azure Container Instances - Push     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.    |
-    | Modal - Push                         │ Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker. |   
+    | Modal - Push                         | Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker.  |
     | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
 
 === "Prefect server instance"
@@ -192,7 +192,7 @@ The job configuration section defines how values provided for fields in the vari
 
 The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section. Placeholders are declared using double curly braces, e.g., `{{ variable_name }}`. `job_configuration` values can also be hard-coded if the value should not be customizable.
 
-Each worker type is configured with a default base job template, making it easy to start with a work pool. The default base template defines fields that can be edited on a per-deployment basis or for the entire work pool via the Prefect API and UI.
+Each worker type is configured with a default base job template, making it easy to start with a work pool. The default base template defines values that will be passed to every flow run, but can be overridden on a per-deployment or per-flow run basis.
 
 For example, if we create a `process` work pool named 'above-ground' via the CLI:
 
@@ -275,16 +275,21 @@ prefect work-pool get-default-base-job-template --type process
 ```
 </div>
 
-You can override each of these attributes on a per-deployment basis. When deploying a flow, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
+You can override each of these attributes on a per-deployment or per-flow run basis. When creating a deployment, you can specify these overrides in the `deployments.work_pool.job_variables` section of a `prefect.yaml` file or in the `job_variables` argument of a Python `flow.deploy` method. 
 
-If we wanted to turn off streaming output for a specific deployment, we could add the following to our `deployment.yaml`:
+For example, to turn off streaming output for a specific deployment, we could add the following to our `prefect.yaml`:
 
 ```yaml
-work_pool:
+deployments:
+- name: demo-deployment
+  entrypoint: demo_project/demo_flow.py:some_work
+  work_pool:
     name: above-ground  
     job_variables:
         stream_output: false
 ```
+
+See more about overriding job variables in the [Overriding Job Variables Guide](/guides/deployment/overriding-job-variables/).
 
 !!! tip "Advanced Customization of the Base Job Template"
     For advanced use cases, you can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
@@ -292,6 +297,8 @@ work_pool:
     Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution.
 
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
+
+    For more information on overriding a work pool's job variables see this [guide](/guides/deployment/overriding-job-variables/).
 
 ### Viewing work pools
 
@@ -382,7 +389,7 @@ prefect work-pool preview 'test-pool' --hours 12
 ```
 </div>
 
-### Work Pool Status
+### Work pool status
 
 Work pools have three statuses: `READY`, `NOT_READY`, and `PAUSED`. A work pool is considered ready if it has at least one online worker sending heartbeats to the work pool. If a work pool has no online workers, it is considered not ready to execute work. A work pool can be placed in a paused status manually by a user or via an automation. When a paused work pool is unpaused, it will be reassigned the appropriate status based on whether any workers are sending heartbeats.
 
@@ -418,7 +425,7 @@ When using the `prefect work-pool` Prefect CLI command to configure a work pool,
 !!! tip "Advanced topic"
     Prefect will automatically create a default work queue if needed.
 
-Work queues can be created in hybrid work pools. They offer advanced control over how runs are executed. Each hybrid work pool has a "default" queue that all work will be sent to by default. Additional queues can be added to a work pool to enable greater control over work delivery through fine grained priority and concurrency. Each work queue has a priority indicated by a unique positive integer. Lower numbers take greater priority in the allocation of work. Accordingly, new queues can be added without changing the rank of the higher-priority queues (e.g. no matter how many queues you add, the queue with priority `1` will always be the highest priority).
+Work queues offer advanced control over how runs are executed. Each work pool has a "default" queue that all work will be sent to by default. Additional queues can be added to a work pool to enable greater control over work delivery through fine grained priority and concurrency. Each work queue has a priority indicated by a unique positive integer. Lower numbers take greater priority in the allocation of work. Accordingly, new queues can be added without changing the rank of the higher-priority queues (e.g. no matter how many queues you add, the queue with priority `1` will always be the highest priority).
 
 Work queues can also have their own concurrency limits. Note that each queue is also subject to the global work pool concurrency limit, which cannot be exceeded.
 
@@ -570,3 +577,5 @@ The Prefect CLI can install the required package for Prefect-maintained worker t
 ### Additional resources
 
 See how to daemonize a Prefect worker in [this guide](/guides/deployment/daemonize/).
+
+For more information on overriding a work pool's job variables see this [guide](/guides/deployment/overriding-job-variables/).

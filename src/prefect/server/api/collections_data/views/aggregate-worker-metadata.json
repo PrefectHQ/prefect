@@ -111,10 +111,12 @@
               "taskRoleArn": "{{ task_role_arn }}"
             },
             "tags": "{{ labels }}",
-            "taskDefinition": "{{ task_definition_arn }}"
+            "taskDefinition": "{{ task_definition_arn }}",
+            "capacityProviderStrategy": "{{ capacity_provider_strategy }}"
           },
           "configure_cloudwatch_logs": "{{ configure_cloudwatch_logs }}",
           "cloudwatch_logs_options": "{{ cloudwatch_logs_options }}",
+          "cloudwatch_logs_prefix": "{{ cloudwatch_logs_prefix }}",
           "network_configuration": "{{ network_configuration }}",
           "stream_output": "{{ stream_output }}",
           "task_start_timeout_seconds": "{{ task_start_timeout_seconds }}",
@@ -122,7 +124,8 @@
           "auto_deregister_task_definition": "{{ auto_deregister_task_definition }}",
           "vpc_id": "{{ vpc_id }}",
           "container_name": "{{ container_name }}",
-          "cluster": "{{ cluster }}"
+          "cluster": "{{ cluster }}",
+          "match_latest_revision_in_family": "{{ match_latest_revision_in_family }}"
         },
         "variables": {
           "description": "Variables for templating an ECS job.",
@@ -190,6 +193,14 @@
               ],
               "type": "string"
             },
+            "capacity_provider_strategy": {
+              "title": "Capacity Provider Strategy",
+              "description": "The capacity provider strategy to use when running the task. If a capacity provider strategy is specified, the selected launch type will be ignored.",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CapacityProvider"
+              }
+            },
             "image": {
               "title": "Image",
               "description": "The image to use for the Prefect container in the task. If this value is not null, it will override the value in the task definition. This value defaults to a Prefect base image matching your local versions.",
@@ -238,6 +249,11 @@
                 "type": "string"
               }
             },
+            "cloudwatch_logs_prefix": {
+              "title": "Cloudwatch Logs Prefix",
+              "description": "When `configure_cloudwatch_logs` is enabled, this setting may be used to set a prefix for the log group. If not provided, the default prefix will be `prefect-logs_<work_pool_name>_<deployment_id>`. If `awslogs-stream-prefix` is present in `Cloudwatch logs options` this setting will be ignored.",
+              "type": "string"
+            },
             "network_configuration": {
               "title": "Network Configuration",
               "description": "When `network_configuration` is supplied it will override ECS Worker'sawsvpcConfiguration that defined in the ECS task executing your workload. See the [AWS documentation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ecs-service-awsvpcconfiguration.html) for available options.",
@@ -263,6 +279,12 @@
             "auto_deregister_task_definition": {
               "title": "Auto Deregister Task Definition",
               "description": "If enabled, any task definitions that are created by this block will be deregistered. Existing task definitions linked by ARN will never be deregistered. Deregistering a task definition does not remove it from your AWS account, instead it will be marked as INACTIVE.",
+              "default": false,
+              "type": "boolean"
+            },
+            "match_latest_revision_in_family": {
+              "title": "Match Latest Revision In Family",
+              "description": "If enabled, the most recent active revision in the task definition family will be compared against the desired ECS task configuration. If they are equal, the existing task definition will be used instead of registering a new one. If no family is specified the default family \"prefect\" will be used.",
               "default": false,
               "type": "boolean"
             }
@@ -363,6 +385,30 @@
                 "aws_secret_access_key"
               ],
               "block_schema_references": {}
+            },
+            "CapacityProvider": {
+              "title": "CapacityProvider",
+              "description": "The capacity provider strategy to use when running the task.",
+              "type": "object",
+              "properties": {
+                "capacityProvider": {
+                  "title": "Capacityprovider",
+                  "type": "string"
+                },
+                "weight": {
+                  "title": "Weight",
+                  "type": "integer"
+                },
+                "base": {
+                  "title": "Base",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "capacityProvider",
+                "weight",
+                "base"
+              ]
             }
           }
         }
@@ -905,8 +951,7 @@
             "metadata": {
               "name": "{{ name }}",
               "annotations": {
-                "run.googleapis.com/launch-stage": "BETA",
-                "run.googleapis.com/vpc-access-connector": "{{ vpc_connector_name }}"
+                "run.googleapis.com/launch-stage": "BETA"
               }
             },
             "spec": {
@@ -933,6 +978,11 @@
                       "timeoutSeconds": "{{ timeout }}",
                       "serviceAccountName": "{{ service_account_name }}"
                     }
+                  }
+                },
+                "metadata": {
+                  "annotations": {
+                    "run.googleapis.com/vpc-access-connector": "{{ vpc_connector_name }}"
                   }
                 }
               }
@@ -1086,8 +1136,12 @@
             "launchStage": "{{ launch_stage }}",
             "template": {
               "template": {
+                "serviceAccount": "{{ service_account_name }}",
                 "maxRetries": "{{ max_retries }}",
                 "timeout": "{{ timeout }}",
+                "vpcAccess": {
+                  "connector": "{{ vpc_connector_name }}"
+                },
                 "containers": [
                   {
                     "env": [],
@@ -1221,6 +1275,12 @@
             "vpc_connector_name": {
               "title": "VPC Connector Name",
               "description": "The name of the VPC connector to use for the Cloud Run job.",
+              "type": "string"
+            },
+            "service_account_name": {
+              "title": "Service Account Name",
+              "description": "The name of the service account to use for the task execution of Cloud Run Job. By default Cloud Run jobs run as the default Compute Engine Service Account.",
+              "example": "service-account@example.iam.gserviceaccount.com",
               "type": "string"
             }
           },

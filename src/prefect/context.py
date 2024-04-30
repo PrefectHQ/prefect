@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 
 For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
+
 import os
 import sys
 import warnings
@@ -18,6 +19,7 @@ from typing import (
     Any,
     ContextManager,
     Dict,
+    Generator,
     List,
     Optional,
     Set,
@@ -75,7 +77,7 @@ class ContextModel(BaseModel):
     _token: Token = PrivateAttr(None)
 
     class Config:
-        allow_mutation = False
+        # allow_mutation = False
         arbitrary_types_allowed = True
         extra = "forbid"
 
@@ -394,7 +396,7 @@ def get_settings_context() -> SettingsContext:
 
 
 @contextmanager
-def tags(*new_tags: str) -> Set[str]:
+def tags(*new_tags: str) -> Generator[Set[str], None, None]:
     """
     Context manager to add tags to flow and task run calls.
 

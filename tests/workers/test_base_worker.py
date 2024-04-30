@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from unittest.mock import MagicMock, call
 
 import anyio
@@ -826,7 +826,9 @@ async def test_job_configuration_from_template_and_overrides_with_nested_variabl
     }
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        config: dict = Field(template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"})
+        config: Dict[str, Any] = Field(
+            template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"}
+        )
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={"var1": "woof!"}
@@ -850,7 +852,7 @@ async def test_job_configuration_from_template_and_overrides_with_hard_coded_pri
     }
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        config: dict = Field(template={"var1": 1, "var2": 1.1, "var3": True})
+        config: Dict[str, Any] = Field(template={"var1": 1, "var2": 1.1, "var3": True})
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={}
@@ -1329,12 +1331,12 @@ class TestPrepareForFlowRun:
         return FlowRun(name="my-flow-run-name", flow_id=uuid.uuid4())
 
     @pytest.fixture
-    def deployment(self):
-        return DeploymentResponse(name="my-deployment-name")
-
-    @pytest.fixture
     def flow(self):
         return Flow(name="my-flow-name")
+
+    @pytest.fixture
+    def deployment(self, flow):
+        return DeploymentResponse(name="my-deployment-name", flow_id=flow.id)
 
     def test_prepare_for_flow_run_without_deployment_and_flow(
         self, job_config, flow_run
@@ -1643,18 +1645,22 @@ class TestCancellation:
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
     )
+    @pytest.mark.parametrize("infrastructure_pid", [None, "", "test"])
     async def test_worker_cancel_run_handles_missing_deployment(
         self,
         prefect_client: PrefectClient,
         worker_deployment_wq1,
         cancelling_constructor,
         work_pool,
+        infrastructure_pid: str,
     ):
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
             state=cancelling_constructor(),
         )
-
+        await prefect_client.update_flow_run(
+            flow_run.id, infrastructure_pid=infrastructure_pid
+        )
         await prefect_client.delete_deployment(worker_deployment_wq1.id)
 
         async with WorkerTestImpl(
@@ -1911,7 +1917,7 @@ async def test_get_flow_run_logger(
     )
 
     async with WorkerTestImpl(
-        name="test", work_pool_name="test-work-pool", create_pool_if_not_found=False
+        name="test", work_pool_name=work_pool.name, create_pool_if_not_found=False
     ) as worker:
         await worker.sync_with_backend()
         logger = worker.get_flow_run_logger(flow_run)
@@ -1922,7 +1928,7 @@ async def test_get_flow_run_logger(
             "flow_run_id": str(flow_run.id),
             "flow_name": "<unknown>",
             "worker_name": "test",
-            "work_pool_name": "test-work-pool",
+            "work_pool_name": work_pool.name,
             "work_pool_id": str(work_pool.id),
         }
 

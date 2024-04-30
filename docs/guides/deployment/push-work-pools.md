@@ -107,7 +107,6 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
 
     Docker is also required to build and push images to your registry. You can install Docker [here](https://docs.docker.com/get-docker/).
 
-
 === "Azure Container Instances"
 
     Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and [authenticate with your Azure account](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli).
@@ -158,7 +157,6 @@ To use automatic infrastructure provisioning, you'll need to have the relevant c
     modal token new
     ```
     </div>
-
 
 ### Automatically creating a new push work pool and provisioning infrastructure
 
@@ -424,7 +422,6 @@ Here's the command to create a new push work pool and configure the necessary in
 
     Using the `--provision-infra` flag will trigger the creation of a `ModalCredentials` block in your Prefect Cloud workspace. This block will store your Modal API token, which is used to authenticate with Modal's API. By default, the token for your current Modal profile will be used for the new `ModalCredentials` block. If Prefect is unable to discover a Modal API token for your current profile, you will be prompted to create a new one.
 
-
 That's it!
 You're ready to create and schedule deployments that use your new push work pool.
 Reminder that no worker is needed to run flows with a push work pool.
@@ -568,7 +565,7 @@ Our push work pool will store information about what type of infrastructure our 
 
     Navigate to the blocks page, click create new block, and select AWS Credentials for the type.
     
-    For use in a push work pool, this block must have the region and cluster name filled out, in addition to access key and access key secret.
+    For use in a push work pool, region, access key, and access key secret must be set.
 
     Provide any other optional information and create your block.
 
@@ -626,10 +623,6 @@ Click **Create** to start configuring your push work pool by selecting a push op
 
 Create your pool and you are ready to deploy flows to your Push work pool.
 
-!!! note "Push work pool concurrency"
-
-    Push work pools do not have a concurrency setting. If you would like to control concurrency at the flow level, you can use [global concurrency limits](/guides/global-concurrency-limits/).
-
 ## Deployment
 
 Deployment details are described in the deployments [concept section](/concepts/deployments/).
@@ -652,3 +645,9 @@ With your deployment created, navigate to its detail page and create a new flow 
 You'll see the flow start running without ever having to poll the work pool, because Prefect Cloud securely connected to your serverless infrastructure, created a job, ran the job, and began reporting on its execution.
 
 ![A flow running on a cloud run push work pool](/img/guides/push-flow-running.png)
+
+## Next steps
+
+Learn more about workers and work pools in the [Prefect concept documentation](/concepts/work-pools/).
+
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying Flows to Work Pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).

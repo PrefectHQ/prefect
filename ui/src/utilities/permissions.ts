@@ -2,11 +2,12 @@ import { Can, WorkspacePermission, WorkspaceFeatureFlag } from '@prefecthq/prefe
 import { InjectionKey } from 'vue'
 
 const featureFlags = [
-  "access:workers",
-  "access:work_pools",
-  "access:artifacts",
-  "access:deploymentStatus",
-  "access:workQueueStatus",
+  'access:workers',
+  'access:work_pools',
+  'access:artifacts',
+  'access:deploymentStatus',
+  'access:workQueueStatus',
+  'access:flowRunInfraOverrides',
 ] as const
 
 export type FeatureFlag = typeof featureFlags[number] | WorkspaceFeatureFlag

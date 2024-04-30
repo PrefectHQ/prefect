@@ -1,7 +1,12 @@
 """
-The agent is responsible for checking for flow runs that are ready to run and starting
-their execution.
+DEPRECATION WARNING:
+
+This module is deprecated as of March 2024 and will not be available after September 2024.
+Agents have been replaced by workers, which offer enhanced functionality and better performance.
+
+For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 """
+
 import inspect
 from typing import AsyncIterator, List, Optional, Set, Union
 from uuid import UUID
@@ -11,7 +16,9 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
-from prefect._internal.compatibility.experimental import experimental_parameter
+from prefect._internal.compatibility.deprecated import (
+    deprecated_class,
+)
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
@@ -44,10 +51,11 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use a worker instead. Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class PrefectAgent:
-    @experimental_parameter(
-        "work_pool_name", group="work_pools", when=lambda y: y is not None
-    )
     def __init__(
         self,
         work_queues: List[str] = None,
@@ -437,7 +445,7 @@ class PrefectAgent:
         # attributes of the infrastructure block
         doc_dict = infra_document.dict()
         infra_dict = doc_dict.get("data", {})
-        for override, value in (deployment.infra_overrides or {}).items():
+        for override, value in (deployment.job_variables or {}).items():
             nested_fields = override.split(".")
             data = infra_dict
             for field in nested_fields[:-1]:

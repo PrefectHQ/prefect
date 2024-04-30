@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Setup a temporary directory for creating a virtual environment
+temp_dir=$(mktemp -d)
+echo "Using temporary directory: $temp_dir"
+
+cleanup() {
+  echo "Cleaning up..."
+  rm -rf "$temp_dir"
+  trap - INT EXIT
+  exit
+}
+
+trap cleanup INT EXIT
+
+command_exists() {
+  type "$1" &> /dev/null;
+}
+
+# Check if uv is installed, if not, install it
+if ! command_exists uv; then
+  echo "uv is not installed. Installing uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
+# Navigate to the parent directory containing the prefect package
+cd "$(dirname "$0")/.."
+
+# Create a temporary virtual environment using uv
+uv venv "$temp_dir/.venv" --python 3.11 # ray[default] does not support Python 3.12 yet
+source "$temp_dir/.venv/bin/activate"
+
+# Install all integration libraries from src/integrations and core dev dependencies as editable
+integration_packages=$(find src/integrations -name "pyproject.toml" -exec dirname {} \;)
+uv pip install $integration_packages -e ".[dev]"
+
+# Build and serve the docs
+mkdocs serve -a localhost:8000

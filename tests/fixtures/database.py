@@ -1,7 +1,10 @@
 import asyncio
 import datetime
 import gc
+import uuid
 import warnings
+from contextlib import asynccontextmanager
+from typing import AsyncContextManager, AsyncGenerator, Callable, Type
 
 import aiosqlite
 import asyncpg
@@ -20,13 +23,18 @@ from prefect.server.database.dependencies import (
     provide_database_interface,
 )
 from prefect.server.models.block_registration import run_block_auto_registration
+from prefect.server.models.concurrency_limits_v2 import create_concurrency_limit
 from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
 )
 from prefect.server.schemas import states
+from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
+
+AsyncSessionGetter = Callable[[], AsyncContextManager[AsyncSession]]
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -105,42 +113,61 @@ async def setup_db(database_engine, db):
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(db):
+async def clear_db(db, request):
     """
-    Delete all data from all tables after running each test, attempting to handle
+    Delete all data from all tables before running each test, attempting to handle
     connection errors.
     """
 
+    if "clear_db" in request.keywords:
+        max_retries = 3
+        retry_delay = 1
+
+        for attempt in range(max_retries):
+            try:
+                async with db.session_context(begin_transaction=True) as session:
+                    await session.execute(db.Agent.__table__.delete())
+                    await session.execute(db.WorkPool.__table__.delete())
+
+                    for table in reversed(db.Base.metadata.sorted_tables):
+                        await session.execute(table.delete())
+                    break
+            except InterfaceError:
+                if attempt < max_retries - 1:
+                    print(
+                        "Connection issue. Retrying entire deletion operation"
+                        f" ({attempt + 1}/{max_retries})..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                else:
+                    raise
+
     yield
-
-    max_retries = 3
-    retry_delay = 1
-
-    for attempt in range(max_retries):
-        try:
-            async with db.session_context(begin_transaction=True) as session:
-                await session.execute(db.Agent.__table__.delete())
-                await session.execute(db.WorkPool.__table__.delete())
-
-                for table in reversed(db.Base.metadata.sorted_tables):
-                    await session.execute(table.delete())
-                break
-        except InterfaceError:
-            if attempt < max_retries - 1:
-                print(
-                    "Connection issue. Retrying entire deletion operation"
-                    f" ({attempt + 1}/{max_retries})..."
-                )
-                await asyncio.sleep(retry_delay)
-            else:
-                raise
 
 
 @pytest.fixture
-async def session(db) -> AsyncSession:
+async def session(db) -> AsyncGenerator[AsyncSession, None]:
     session = await db.session()
     async with session:
         yield session
+
+
+@pytest.fixture
+async def get_server_session(db) -> AsyncSessionGetter:
+    """
+    Returns a context manager factory that yields
+    an database session.
+
+    Note: if you commit or rollback a transaction, scoping
+    will be reset. Fixture should be used as a context manager.
+    """
+
+    @asynccontextmanager
+    async def _get_server_session() -> AsyncGenerator[AsyncSession, None]:
+        async with await db.session() as session:
+            yield session
+
+    return _get_server_session
 
 
 @pytest.fixture
@@ -369,32 +396,33 @@ async def task_run_states(session, task_run, task_run_state):
     return [task_run_state, scheduled_task_run_state, running_task_run_state]
 
 
+# The client-side blocks created below will emit events that may end up interfering with
+# other tests by either causing the DB to be locked or by emitting spurious events.
+# Thus we're selectively disabling events around those .save calls.
+
+
 @pytest.fixture
 async def storage_document_id(prefect_client, tmpdir):
-    return await LocalFileSystem(basepath=str(tmpdir)).save(
-        name="local-test", client=prefect_client
-    )
-
-
-@pytest.fixture
-async def storage_document_id_2(prefect_client):
-    return await LocalFileSystem().save(
-        name="distinct-local-test", client=prefect_client
-    )
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        return await LocalFileSystem(basepath=str(tmpdir)).save(
+            name=f"local-test-{uuid.uuid4()}", client=prefect_client
+        )
 
 
 @pytest.fixture
 async def infrastructure_document_id(prefect_client):
-    return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=prefect_client
-    )
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        return await Process(env={"MY_TEST_VARIABLE": 1})._save(
+            is_anonymous=True, client=prefect_client
+        )
 
 
 @pytest.fixture
 async def infrastructure_document_id_2(prefect_client):
-    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=prefect_client
-    )
+    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
+        return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
+            is_anonymous=True, client=prefect_client
+        )
 
 
 @pytest.fixture
@@ -412,13 +440,18 @@ async def deployment(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
@@ -426,6 +459,47 @@ async def deployment(
             work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def deployment_with_version(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name=f"my-deployment-{uuid.uuid4()}",
+            tags=["test"],
+            flow_id=flow.id,
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name=work_queue_1.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+            version="1.0",
         ),
     )
     await session.commit()
@@ -447,13 +521,18 @@ async def deployment_2(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-2-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
-            schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
-            ),
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1),
+                        anchor_date=pendulum.datetime(2020, 1, 1),
+                    ),
+                    active=True,
+                )
+            ],
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
@@ -484,7 +563,7 @@ async def deployment_in_default_work_pool(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
@@ -519,7 +598,7 @@ async def deployment_in_non_default_work_pool(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name=f"my-deployment-{uuid.uuid4()}",
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
@@ -547,11 +626,12 @@ async def deployment_with_parameter_schema(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment X",
+            name=f"my-deployment-with-parameter-schema{uuid.uuid4()}",
             flow_id=flow.id,
             parameter_openapi_schema={
                 "type": "object",
                 "properties": {"x": {"type": "string"}},
+                "required": ["x"],
             },
             parameters={"x": "y"},
             enforce_parameter_schema=True,
@@ -566,7 +646,9 @@ async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
         work_queue=schemas.actions.WorkQueueCreate(
-            name="wq-1", description="All about my work queue", priority=1
+            name=f"wq-1-{uuid.uuid4()}",
+            description="All about my work queue",
+            priority=1,
         ),
     )
     await session.commit()
@@ -578,7 +660,7 @@ async def work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="test-work-pool",
+            name=f"test-work-pool-{uuid.uuid4()}",
             type="test-type",
             base_job_template={
                 "job_configuration": {
@@ -735,7 +817,7 @@ async def work_queue_1(session, work_pool):
     model = await models.workers.create_work_queue(
         session=session,
         work_pool_id=work_pool.id,
-        work_queue=schemas.actions.WorkQueueCreate(name="wq-1"),
+        work_queue=schemas.actions.WorkQueueCreate(name=f"wq-1-{uuid.uuid4()}"),
     )
     await session.commit()
     return model
@@ -857,6 +939,7 @@ async def commit_task_run_state(
     state_type: states.StateType,
     state_details=None,
     state_data=None,
+    state_name=None,
 ):
     if state_type is None:
         return None
@@ -867,6 +950,7 @@ async def commit_task_run_state(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
+        name=state_name,
     )
 
     result = await models.task_runs.set_task_run_state(
@@ -886,6 +970,7 @@ async def commit_flow_run_state(
     state_type: states.StateType,
     state_details=None,
     state_data=None,
+    state_name=None,
 ):
     if state_type is None:
         return None
@@ -896,6 +981,7 @@ async def commit_flow_run_state(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
+        name=state_name,
     )
 
     result = await models.flow_runs.set_flow_run_state(
@@ -926,6 +1012,8 @@ def initialize_orchestration(flow):
         flow_run_count: int = None,
         resuming: bool = None,
         initial_flow_run_state_details=None,
+        initial_state_name: str = None,
+        proposed_state_name: str = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
@@ -989,12 +1077,15 @@ def initialize_orchestration(flow):
             initial_state_type,
             initial_details,
             state_data=initial_state_data,
+            state_name=initial_state_name,
         )
 
         proposed_details = proposed_details if proposed_details else dict()
         if proposed_state_type is not None:
             psd = states.StateDetails(**proposed_details)
-            proposed_state = states.State(type=proposed_state_type, state_details=psd)
+            proposed_state = states.State(
+                type=proposed_state_type, state_details=psd, name=proposed_state_name
+            )
         else:
             proposed_state = None
 
@@ -1011,10 +1102,7 @@ def initialize_orchestration(flow):
 
 
 @pytest.fixture
-async def notifier_block(prefect_client):
-    # Ignore warnings from block reuse in fixture
-    warnings.filterwarnings("ignore", category=UserWarning)
-
+def DebugPrintNotification() -> Type[NotificationBlock]:
     class DebugPrintNotification(NotificationBlock):
         """
         Notification block that prints a message, useful for debugging.
@@ -1026,6 +1114,14 @@ async def notifier_block(prefect_client):
 
         async def notify(self, subject: str, body: str):
             print(body)
+
+    return DebugPrintNotification
+
+
+@pytest.fixture
+async def notifier_block(DebugPrintNotification: Type[NotificationBlock]):
+    # Ignore warnings from block reuse in fixture
+    warnings.filterwarnings("ignore", category=UserWarning)
 
     block = DebugPrintNotification()
     await block.save("debug-print-notification")
@@ -1118,3 +1214,18 @@ async def worker_deployment_wq_2(
     )
     await session.commit()
     return deployment
+
+
+@pytest.fixture
+async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="my-limit",
+            limit=42,
+        ),
+    )
+
+    await session.commit()
+
+    return ConcurrencyLimitV2.from_orm(concurrency_limit)

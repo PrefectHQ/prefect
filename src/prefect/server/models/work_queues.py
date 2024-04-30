@@ -4,11 +4,25 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
+from typing import (
+    TYPE_CHECKING,
+    Awaitable,
+    Callable,
+    Iterable,
+    Optional,
+    Sequence,
+    Tuple,
+)
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.server.events.clients import PrefectServerEventsClient
+from prefect.server.models.events import work_queue_status_event
+from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import parse_obj_as
@@ -20,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import (
@@ -29,13 +43,18 @@ from prefect.server.models.workers import (
 )
 from prefect.server.schemas.states import StateType
 
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMFlowRun, ORMWorkQueue
 
-@inject_db
+WORK_QUEUE_LAST_POLLED_TIMEOUT = datetime.timedelta(seconds=60)
+
+
+@db_injector
 async def create_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue: schemas.core.WorkQueue,
-    db: PrefectDBInterface,
-):
+) -> "ORMWorkQueue":
     """
     Inserts a WorkQueue.
 
@@ -109,16 +128,15 @@ async def create_work_queue(
             session=session,
             work_pool_id=data["work_pool_id"],
             new_priorities={model.id: work_queue.priority},
-            db=db,
         )
 
     return model
 
 
-@inject_db
+@db_injector
 async def read_work_queue(
-    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID
+) -> Optional["ORMWorkQueue"]:
     """
     Reads a WorkQueue by id.
 
@@ -133,10 +151,10 @@ async def read_work_queue(
     return await session.get(db.WorkQueue, work_queue_id)
 
 
-@inject_db
+@db_injector
 async def read_work_queue_by_name(
-    session: AsyncSession, name: str, db: PrefectDBInterface
-):
+    db: PrefectDBInterface, session: AsyncSession, name: str
+) -> Optional["ORMWorkQueue"]:
     """
     Reads a WorkQueue by id.
 
@@ -161,14 +179,14 @@ async def read_work_queue_by_name(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def read_work_queues(
     db: PrefectDBInterface,
     session: AsyncSession,
     offset: int = None,
     limit: int = None,
     work_queue_filter: schemas.filters.WorkQueueFilter = None,
-):
+) -> Sequence["ORMWorkQueue"]:
     """
     Read WorkQueues.
 
@@ -178,7 +196,7 @@ async def read_work_queues(
         limit: Query limit
         work_queue_filter: only select work queues matching these filters
     Returns:
-        List[db.WorkQueue]: WorkQueues
+        Sequence[db.WorkQueue]: WorkQueues
     """
 
     query = select(db.WorkQueue).order_by(db.WorkQueue.name)
@@ -194,12 +212,19 @@ async def read_work_queues(
     return result.scalars().unique().all()
 
 
-@inject_db
+def is_last_polled_recent(last_polled):
+    if last_polled is None:
+        return False
+    return (pendulum.now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
+
+
+@db_injector
 async def update_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
-    db: PrefectDBInterface,
+    emit_status_change: Optional[Callable[["ORMWorkQueue"], Awaitable[None]]] = None,
 ) -> bool:
     """
     Update a WorkQueue by id.
@@ -216,19 +241,54 @@ async def update_work_queue(
     # the user, ignoring any defaults on the model
     update_data = work_queue.dict(shallow=True, exclude_unset=True)
 
+    if "is_paused" in update_data:
+        wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
+        if wq is None:
+            return False
+
+        # Only update the status to paused if it's not already paused. This ensures a work queue that is already
+        # paused will not get a status update if it's paused again
+        if update_data.get("is_paused") and wq.status != WorkQueueStatus.PAUSED:
+            update_data["status"] = WorkQueueStatus.PAUSED
+
+        # If unpausing, only update status if it's currently paused. This ensures a work queue that is already
+        # unpaused will not get a status update if it's unpaused again
+        if (
+            update_data.get("is_paused") is False
+            and wq.status == WorkQueueStatus.PAUSED
+        ):
+            # Default status if unpaused
+            update_data["status"] = WorkQueueStatus.NOT_READY
+
+            # Determine source of last_polled: update_data or database
+            if "last_polled" in update_data:
+                last_polled = update_data["last_polled"]
+            else:
+                last_polled = wq.last_polled
+
+            # Check if last polled is recent and set status to READY if so
+            if is_last_polled_recent(last_polled):
+                update_data["status"] = schemas.statuses.WorkQueueStatus.READY
+
     update_stmt = (
         sa.update(db.WorkQueue)
         .where(db.WorkQueue.id == work_queue_id)
         .values(**update_data)
     )
     result = await session.execute(update_stmt)
+    updated = result.rowcount > 0
 
-    return result.rowcount > 0
+    if updated:
+        if "status" in update_data and emit_status_change:
+            wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
+            await emit_status_change(work_queue=wq)
+
+    return updated
 
 
-@inject_db
+@db_injector
 async def delete_work_queue(
-    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
+    db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID
 ) -> bool:
     """
     Delete a WorkQueue by id.
@@ -247,14 +307,14 @@ async def delete_work_queue(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def get_runs_in_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-    db: PrefectDBInterface,
     limit: int = None,
     scheduled_before: datetime.datetime = None,
-):
+) -> Tuple["ORMWorkQueue", Sequence["ORMFlowRun"]]:
     """
     Get runs from a work queue.
 
@@ -279,28 +339,25 @@ async def get_runs_in_work_queue(
             scheduled_before=scheduled_before,
         )
         result = await session.execute(query)
-        return result.scalars().unique().all()
+        return work_queue, result.scalars().unique().all()
 
     # if the work queue has a filter, it's a deprecated tag-based work queue
     # and uses an old approach
     else:
-        return await _legacy_get_runs_in_work_queue(
+        return work_queue, await _legacy_get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue_id,
-            db=db,
             scheduled_before=scheduled_before,
             limit=limit,
         )
 
 
-@inject_db
 async def _legacy_get_runs_in_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
-    db: PrefectDBInterface,
     scheduled_before: datetime.datetime = None,
     limit: int = None,
-):
+) -> Sequence["ORMFlowRun"]:
     """
     DEPRECATED method for getting runs from a tag-based work queue
 
@@ -365,10 +422,7 @@ async def _legacy_get_runs_in_work_queue(
     )
 
 
-@inject_db
-async def _ensure_work_queue_exists(
-    session: AsyncSession, name: str, db: PrefectDBInterface
-):
+async def ensure_work_queue_exists(session: AsyncSession, name: str):
     """
     Checks if a work queue exists and creates it if it does not.
 
@@ -405,9 +459,8 @@ async def _ensure_work_queue_exists(
     return work_queue
 
 
-@inject_db
 async def read_work_queue_status(
-    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
+    session: AsyncSession, work_queue_id: UUID
 ) -> schemas.core.WorkQueueStatusDetail:
     """
     Get work queue status by id.
@@ -450,3 +503,127 @@ async def read_work_queue_status(
         last_polled=work_queue.last_polled,
         health_check_policy=health_check_policy,
     )
+
+
+@db_injector
+async def record_work_queue_polls(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    polled_work_queue_ids: Sequence[UUID],
+    ready_work_queue_ids: Sequence[UUID],
+):
+    """Record that the given work queues were polled, and also update the given
+    ready_work_queue_ids to READY."""
+    polled = pendulum.now("UTC")
+
+    if polled_work_queue_ids:
+        await session.execute(
+            sa.update(db.WorkQueue)
+            .where(db.WorkQueue.id.in_(polled_work_queue_ids))
+            .values(last_polled=polled)
+        )
+
+    if ready_work_queue_ids:
+        await session.execute(
+            sa.update(db.WorkQueue)
+            .where(db.WorkQueue.id.in_(ready_work_queue_ids))
+            .values(last_polled=polled, status=WorkQueueStatus.READY)
+        )
+
+
+@db_injector
+async def mark_work_queues_ready(
+    db: PrefectDBInterface,
+    polled_work_queue_ids: Sequence[UUID],
+    ready_work_queue_ids: Sequence[UUID],
+):
+    async with db.session_context(begin_transaction=True) as session:
+        await record_work_queue_polls(
+            session=session,
+            polled_work_queue_ids=polled_work_queue_ids,
+            ready_work_queue_ids=ready_work_queue_ids,
+        )
+
+    if not PREFECT_EXPERIMENTAL_EVENTS:
+        return
+
+    # Emit events for any work queues that have transitioned to ready during this poll
+    # Uses a separate transaction to avoid keeping locks open longer from the updates
+    # in the previous transaction
+    if not ready_work_queue_ids:
+        return
+
+    async with db.session_context(begin_transaction=True) as session:
+        newly_ready_work_queues = await session.execute(
+            sa.select(db.WorkQueue).where(db.WorkQueue.id.in_(ready_work_queue_ids))
+        )
+
+        events = [
+            await work_queue_status_event(
+                session=session,
+                work_queue=work_queue,
+                occurred=pendulum.now("UTC"),
+            )
+            for work_queue in newly_ready_work_queues.scalars().all()
+        ]
+
+    async with PrefectServerEventsClient() as events_client:
+        for event in events:
+            await events_client.emit(event)
+
+
+@db_injector
+async def mark_work_queues_not_ready(
+    db: PrefectDBInterface,
+    work_queue_ids: Iterable[UUID],
+):
+    if not work_queue_ids:
+        return
+
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(
+            sa.update(db.WorkQueue)
+            .where(db.WorkQueue.id.in_(work_queue_ids))
+            .values(status=WorkQueueStatus.NOT_READY)
+        )
+
+    if not PREFECT_EXPERIMENTAL_EVENTS:
+        return
+
+    # Emit events for any work queues that have transitioned to ready during this poll
+    # Uses a separate transaction to avoid keeping locks open longer from the updates
+    # in the previous transaction
+
+    async with db.session_context(begin_transaction=True) as session:
+        newly_unready_work_queues = await session.execute(
+            sa.select(db.WorkQueue).where(db.WorkQueue.id.in_(work_queue_ids))
+        )
+
+        events = [
+            await work_queue_status_event(
+                session=session,
+                work_queue=work_queue,
+                occurred=pendulum.now("UTC"),
+            )
+            for work_queue in newly_unready_work_queues.scalars().all()
+        ]
+
+    async with PrefectServerEventsClient() as events_client:
+        for event in events:
+            await events_client.emit(event)
+
+
+@db_injector
+async def emit_work_queue_status_event(
+    db: PrefectDBInterface,
+    work_queue: "ORMWorkQueue",
+):
+    async with db.session_context() as session:
+        event = await work_queue_status_event(
+            session=session,
+            work_queue=work_queue,
+            occurred=pendulum.now(),
+        )
+
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(event)

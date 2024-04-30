@@ -1,6 +1,6 @@
 import { PrefectConfig } from '@prefecthq/prefect-ui-library'
 import { UiSettings } from '@/services/uiSettings'
-import { MODE, BASE_URL } from '@/utilities/meta'
+import { MODE } from '@/utilities/meta'
 
 export type UseWorkspaceApiConfig = {
   config: PrefectConfig,

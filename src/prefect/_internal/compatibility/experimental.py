@@ -10,6 +10,7 @@ Warnings may also be disabled globally with the setting `PREFECT_EXPERIMENTAL_WA
 Some experimental features require opt-in to enable any usage. These require the setting
 `PREFECT_EXPERIMENTAL_ENABLE_<GROUP>` to be set or an error will be thrown on use.
 """
+
 import functools
 import warnings
 from typing import Any, Callable, Optional, Set, Type, TypeVar
@@ -24,7 +25,7 @@ else:
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
 from prefect.utilities.callables import get_call_parameters
 
-T = TypeVar("T", bound=Callable)
+T = TypeVar("T", bound=Callable[..., Any])
 M = TypeVar("M", bound=pydantic.BaseModel)
 
 
@@ -47,17 +48,17 @@ class ExperimentalWarning(Warning):
     """
 
 
-class ExperimentalError(Exception):
-    """
-    An exception related to experimental code.
-    """
-
-
 class ExperimentalFeature(ExperimentalWarning):
     """
     A warning displayed on use of an experimental feature.
 
     These can be globally disabled by the PREFECT_EXPIRIMENTAL_WARN setting.
+    """
+
+
+class ExperimentalError(Exception):
+    """
+    An exception related to experimental code.
     """
 
 
@@ -112,7 +113,7 @@ def experimental(
 
     group_warn = _warn_setting_for_group(group)
 
-    def decorator(fn: T):
+    def decorator(fn: T) -> T:
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             if opt_in and not group_opt_in:

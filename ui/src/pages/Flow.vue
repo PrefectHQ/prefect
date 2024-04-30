@@ -16,7 +16,7 @@
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :filter="flowRunsFilter" prefix="runs" />
+        <FlowRunFilteredList :filter="flowRunsFilter" selectable prefix="runs" />
       </template>
     </p-tabs>
   </p-layout-default>

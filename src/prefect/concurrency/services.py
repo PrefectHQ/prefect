@@ -64,7 +64,7 @@ class ConcurrencySlotAcquisitionService(QueueService):
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
             logger.debug("Service %r enqueuing item %r", self, item)
-            future = concurrent.futures.Future()
+            future: concurrent.futures.Future = concurrent.futures.Future()
 
             occupy, mode = item
             self._queue.put_nowait((occupy, mode, future))

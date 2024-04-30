@@ -11,7 +11,7 @@
           </template>
         </PageHeading>
         <ConcurrencyLimitsV2CreateModal v-model:showModal="showModalGlobal" />
-        <ConcurrencyLimitsV2Table class="concurrency-limits__global-table"/>
+        <ConcurrencyLimitsV2Table class="concurrency-limits__global-table" />
       </template>
       <template #task-run>
         <PageHeading size="lg" :crumbs="[{ text: 'Task Run Concurrency Limits' }]">
@@ -27,9 +27,9 @@
 </template>
 
   <script lang="ts" setup>
-  import { PageHeading, ConcurrencyLimitsV2Table, ConcurrencyLimitsTable, ConcurrencyLimitsCreateModal, ConcurrencyLimitsV2CreateModal, useShowModal, useTabs } from '@prefecthq/prefect-ui-library'
+  import { PageHeading, ConcurrencyLimitsV2Table, ConcurrencyLimitsTable, ConcurrencyLimitsCreateModal, ConcurrencyLimitsV2CreateModal, useShowModal } from '@prefecthq/prefect-ui-library'
   import { useRouteQueryParam } from '@prefecthq/vue-compositions'
-  
+
   const { showModal: showModalGlobal, open: openGlobal } = useShowModal()
   const { showModal: showModalTaskRun, open: openTaskRun } = useShowModal()
 
@@ -39,8 +39,6 @@
   ]
 
   const tab = useRouteQueryParam('tab', 'Global')
-
-
 </script>
 
 <style>

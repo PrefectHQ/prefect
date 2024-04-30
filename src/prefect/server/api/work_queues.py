@@ -1,10 +1,10 @@
 """
 Routes for interacting with work queue objects.
 """
+
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from prefect._vendor.fastapi import (
     BackgroundTasks,
@@ -19,8 +19,14 @@ from prefect._vendor.fastapi import (
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.work_queues import (
+    emit_work_queue_status_event,
+    mark_work_queues_ready,
+)
+from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
@@ -64,7 +70,10 @@ async def update_work_queue(
     """
     async with db.session_context(begin_transaction=True) as session:
         result = await models.work_queues.update_work_queue(
-            session=session, work_queue_id=work_queue_id, work_queue=work_queue
+            session=session,
+            work_queue_id=work_queue_id,
+            work_queue=work_queue,
+            emit_status_change=emit_work_queue_status_event,
         )
     if not result:
         raise HTTPException(
@@ -139,7 +148,7 @@ async def read_work_queue_runs(
     Get flow runs from the work queue.
     """
     async with db.session_context(begin_transaction=True) as session:
-        flow_runs = await models.work_queues.get_runs_in_work_queue(
+        work_queue, flow_runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue_id,
             scheduled_before=scheduled_before,
@@ -148,38 +157,42 @@ async def read_work_queue_runs(
 
     # The Prefect UI often calls this route to see which runs are enqueued.
     # We do not want to record this as an actual poll event.
-    if not x_prefect_ui:
+    if x_prefect_ui:
+        return flow_runs
+
+    background_tasks.add_task(
+        mark_work_queues_ready,
+        polled_work_queue_ids=[work_queue_id],
+        ready_work_queue_ids=(
+            [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
+        ),
+    )
+
+    if agent_id:
         background_tasks.add_task(
-            _record_work_queue_polls,
-            db=db,
+            _record_agent_poll,
             work_queue_id=work_queue_id,
             agent_id=agent_id,
         )
 
+    background_tasks.add_task(
+        mark_deployments_ready,
+        work_queue_ids=[work_queue_id],
+    )
+
     return flow_runs
 
 
-async def _record_work_queue_polls(
+@db_injector
+async def _record_agent_poll(
     db: PrefectDBInterface,
     work_queue_id: UUID,
-    agent_id: Optional[UUID] = None,
+    agent_id: UUID,
 ):
-    """
-    Records that a work queue has been polled.
-
-    If an agent_id is provided, we update this agent id's last poll time.
-    """
     async with db.session_context(begin_transaction=True) as session:
-        await models.work_queues.update_work_queue(
-            session=session,
-            work_queue_id=work_queue_id,
-            work_queue=schemas.actions.WorkQueueUpdate(last_polled=pendulum.now("UTC")),
+        await models.agents.record_agent_poll(
+            session=session, agent_id=agent_id, work_queue_id=work_queue_id
         )
-
-        if agent_id:
-            await models.agents.record_agent_poll(
-                session=session, agent_id=agent_id, work_queue_id=work_queue_id
-            )
 
 
 @router.post("/filter")

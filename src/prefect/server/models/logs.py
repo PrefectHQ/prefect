@@ -2,6 +2,7 @@
 Functions for interacting with log ORM objects.
 Intended for internal use by the Prefect REST API.
 """
+
 from typing import List
 
 from sqlalchemy import select
@@ -41,8 +42,7 @@ async def create_logs(
     Returns:
         None
     """
-    log_insert = await db.insert(db.Log)
-    await session.execute(log_insert.values([log.dict() for log in logs]))
+    await session.execute(db.insert(db.Log).values([log.dict() for log in logs]))
 
 
 @inject_db

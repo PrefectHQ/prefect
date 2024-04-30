@@ -1,12 +1,21 @@
+from typing import TYPE_CHECKING
+from unittest import mock
+from uuid import UUID
+
 import pendulum
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.services.late_runs import MarkLateRuns
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
     temporary_settings,
 )
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMFlowRun
 
 
 @pytest.fixture
@@ -33,6 +42,18 @@ async def late_run_2(session, flow):
                 state=schemas.states.Scheduled(
                     scheduled_time=pendulum.now("UTC").subtract(minutes=1)
                 ),
+            ),
+        )
+
+
+@pytest.fixture
+async def pending_run(session, flow):
+    async with session.begin():
+        return await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
             ),
         )
 
@@ -178,3 +199,71 @@ async def test_mark_late_runs_marks_multiple_runs_as_late(
 
     assert late_run.state_name == "Late"
     assert late_run_2.state_name == "Late"
+
+
+async def test_only_scheduled_runs_marked_late(
+    session,
+    late_run,
+    pending_run,
+):
+    # late scheduled run is correctly marked late
+    assert late_run.state.name == "Scheduled"
+
+    await MarkLateRuns(handle_signals=False)._mark_flow_run_as_late(session, late_run)
+    await session.refresh(late_run)
+    assert late_run.state_name == "Late"
+
+    # pending run cannot be marked late
+    assert pending_run.state.name == "Pending"
+
+    await MarkLateRuns(handle_signals=False)._mark_flow_run_as_late(
+        session, pending_run
+    )
+    await session.refresh(pending_run)
+    assert pending_run.state_name == "Pending"
+
+
+async def test_mark_late_runs_fires_flow_run_state_change_events(
+    late_run: "ORMFlowRun", session: AsyncSession
+):
+    previous_state_id = late_run.state_id
+    assert isinstance(previous_state_id, UUID)
+
+    await MarkLateRuns(handle_signals=False).start(loops=1)
+
+    session.expunge_all()
+
+    updated_flow_run = await models.flow_runs.read_flow_run(session, late_run.id)
+    late_state_id = updated_flow_run.state_id
+    assert isinstance(late_state_id, UUID)
+    assert late_state_id != previous_state_id
+
+    assert AssertingEventsClient.last
+    assert len(AssertingEventsClient.last.events) == 1
+    (event,) = AssertingEventsClient.last.events
+
+    assert event.resource.id == f"prefect.flow-run.{late_run.id}"
+    assert event.event == "prefect.flow-run.Late"
+    assert event.resource["prefect.state-type"] == "SCHEDULED"
+    assert event.payload == {
+        "intended": {"from": "SCHEDULED", "to": "SCHEDULED"},
+        "initial_state": {"type": "SCHEDULED", "name": "Scheduled"},
+        "validated_state": {"type": "SCHEDULED", "name": "Late"},
+    }
+
+    # The events should use the state IDs to help track the ordering of events
+    assert event.id == late_state_id
+    assert event.follows == previous_state_id
+
+
+async def test_mark_late_runs_ignores_missing_runs(late_run: "ORMFlowRun"):
+    """Regression test for https://github.com/PrefectHQ/nebula/issues/2846"""
+    # Simulate another process deleting the flow run in the middle of the service loop
+    # Before the fix, this would have raised the ObjectNotFoundError
+    with mock.patch("prefect.server.models.flow_runs.read_flow_run", return_value=None):
+        service = MarkLateRuns(handle_signals=False)
+        await service._on_start()
+        try:
+            await service.run_once()
+        finally:
+            await service._on_stop()

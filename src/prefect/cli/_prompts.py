@@ -5,7 +5,7 @@ import os
 import shutil
 from datetime import timedelta
 from getpass import GetPassWarning
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import readchar
 from rich.console import Console, Group
@@ -19,8 +19,8 @@ from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate, WorkPoolCreate
+from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import (
-    SCHEDULE_TYPES,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -195,11 +195,19 @@ def prompt_interval_schedule(console):
     """
     Prompt the user for an interval in seconds.
     """
+    default_seconds = 3600
+    # The interval value must be a timedelta object in order to pass validation as a `PositiveDuration` type in `IntervalSchedule`.
+    default_duration = timedelta(seconds=default_seconds)
+
+    # We show the default in the prompt message rather than enabling `show_default=True` here because `rich` displays timedeltas in hours
+    # rather than seconds, which would confuse users since we ask them to enter the interval in seconds.
     interval = IntervalValuePrompt.ask(
-        "[bold][green]?[/] Seconds between scheduled runs",
+        f"[bold][green]?[/] Seconds between scheduled runs ({default_seconds})",
         console=console,
-        default="3600",
+        default=default_duration,
+        show_default=False,
     )
+
     return IntervalSchedule(interval=interval)
 
 
@@ -328,26 +336,40 @@ def prompt_schedule_type(console):
     return selection["type"]
 
 
-def prompt_schedule(console) -> Tuple[SCHEDULE_TYPES, bool]:
+def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
     """
-    Prompt the user for a schedule type. Once a schedule type is selected, prompt
-    the user for the schedule details and return the schedule.
+    Prompt the user to configure schedules for a deployment.
     """
-    schedule_type = prompt_schedule_type(console)
-    if schedule_type == "Cron":
-        schedule = prompt_cron_schedule(console)
-    elif schedule_type == "Interval":
-        schedule = prompt_interval_schedule(console)
-    elif schedule_type == "RRule":
-        schedule = prompt_rrule_schedule(console)
-    else:
-        raise Exception("Invalid schedule type")
+    schedules = []
 
-    is_schedule_active = confirm(
-        "Would you like to activate this schedule?", default=True
-    )
+    if confirm(
+        "Would you like to configure schedules for this deployment?", default=True
+    ):
+        add_schedule = True
+        while add_schedule:
+            schedule_type = prompt_schedule_type(console)
+            if schedule_type == "Cron":
+                schedule = prompt_cron_schedule(console)
+            elif schedule_type == "Interval":
+                schedule = prompt_interval_schedule(console)
+            elif schedule_type == "RRule":
+                schedule = prompt_rrule_schedule(console)
+            else:
+                raise Exception("Invalid schedule type")
 
-    return (schedule, is_schedule_active)
+            is_schedule_active = confirm(
+                "Would you like to activate this schedule?", default=True
+            )
+
+            schedules.append(
+                MinimalDeploymentSchedule(schedule=schedule, active=is_schedule_active)
+            )
+
+            add_schedule = confirm(
+                "Would you like to add another schedule?", default=False
+            )
+
+    return schedules
 
 
 @inject_client

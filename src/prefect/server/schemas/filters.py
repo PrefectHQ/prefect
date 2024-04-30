@@ -120,7 +120,7 @@ class FlowFilterName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of flow names to include",
-        example=["my-flow-1", "my-flow-2"],
+        examples=[["my-flow-1", "my-flow-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -130,7 +130,7 @@ class FlowFilterName(PrefectFilterBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -147,7 +147,7 @@ class FlowFilterTags(PrefectOperatorFilterBaseModel):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Flows will be returned only if their tags are a superset"
             " of the list"
@@ -224,7 +224,7 @@ class FlowRunFilterName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of flow run names to include",
-        example=["my-flow-run-1", "my-flow-run-2"],
+        examples=[["my-flow-run-1", "my-flow-run-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -234,7 +234,7 @@ class FlowRunFilterName(PrefectFilterBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -251,7 +251,7 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Flow runs will be returned only if their tags are a"
             " superset of the list"
@@ -304,7 +304,7 @@ class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of work queue names to include",
-        example=["work_queue_1", "work_queue_2"],
+        examples=[["work_queue_1", "work_queue_2"]],
     )
     is_null_: Optional[bool] = Field(
         default=None,
@@ -667,7 +667,7 @@ class TaskRunFilterName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of task run names to include",
-        example=["my-task-run-1", "my-task-run-2"],
+        examples=[["my-task-run-1", "my-task-run-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -677,7 +677,7 @@ class TaskRunFilterName(PrefectFilterBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -694,7 +694,7 @@ class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Task runs will be returned only if their tags are a"
             " superset of the list"
@@ -876,7 +876,7 @@ class DeploymentFilterName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of deployment names to include",
-        example=["my-deployment-1", "my-deployment-2"],
+        examples=[["my-deployment-1", "my-deployment-2"]],
     )
 
     like_: Optional[str] = Field(
@@ -886,7 +886,7 @@ class DeploymentFilterName(PrefectFilterBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -898,13 +898,28 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         return filters
 
 
+class DeploymentFilterPaused(PrefectFilterBaseModel):
+    """Filter by `Deployment.paused`."""
+
+    eq_: Optional[bool] = Field(
+        default=None,
+        description="Only returns where deployment is/is not paused",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.Deployment.paused.is_(self.eq_))
+        return filters
+
+
 class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
     """Filter by `Deployment.work_queue_name`."""
 
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of work queue names to include",
-        example=["work_queue_1", "work_queue_2"],
+        examples=[["work_queue_1", "work_queue_2"]],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -915,7 +930,8 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
 
 
 class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
-    """Filter by `Deployment.is_schedule_active`."""
+    """Legacy filter to filter by `Deployment.is_schedule_active` which
+    is always the opposite of `Deployment.paused`."""
 
     eq_: Optional[bool] = Field(
         default=None,
@@ -925,7 +941,7 @@ class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.eq_ is not None:
-            filters.append(db.Deployment.is_schedule_active.is_(self.eq_))
+            filters.append(db.Deployment.paused.is_not(self.eq_))
         return filters
 
 
@@ -934,7 +950,7 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Deployments will be returned only if their tags are a"
             " superset of the list"
@@ -966,6 +982,9 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     name: Optional[DeploymentFilterName] = Field(
         default=None, description="Filter criteria for `Deployment.name`"
     )
+    paused: Optional[DeploymentFilterPaused] = Field(
+        default=None, description="Filter criteria for `Deployment.paused`"
+    )
     is_schedule_active: Optional[DeploymentFilterIsScheduleActive] = Field(
         default=None, description="Filter criteria for `Deployment.is_schedule_active`"
     )
@@ -983,6 +1002,8 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.id.as_sql_filter(db))
         if self.name is not None:
             filters.append(self.name.as_sql_filter(db))
+        if self.paused is not None:
+            filters.append(self.paused.as_sql_filter(db))
         if self.is_schedule_active is not None:
             filters.append(self.is_schedule_active.as_sql_filter(db))
         if self.tags is not None:
@@ -993,13 +1014,44 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
         return filters
 
 
+class DeploymentScheduleFilterActive(PrefectFilterBaseModel):
+    """Filter by `DeploymentSchedule.active`."""
+
+    eq_: Optional[bool] = Field(
+        default=None,
+        description="Only returns where deployment schedule is/is not active",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.DeploymentSchedule.active.is_(self.eq_))
+        return filters
+
+
+class DeploymentScheduleFilter(PrefectOperatorFilterBaseModel):
+    """Filter for deployments. Only deployments matching all criteria will be returned."""
+
+    active: Optional[DeploymentScheduleFilterActive] = Field(
+        default=None, description="Filter criteria for `DeploymentSchedule.active`"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.active is not None:
+            filters.append(self.active.as_sql_filter(db))
+
+        return filters
+
+
 class LogFilterName(PrefectFilterBaseModel):
     """Filter by `Log.name`."""
 
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of log names to include",
-        example=["prefect.logger.flow_runs", "prefect.logger.task_runs"],
+        examples=[["prefect.logger.flow_runs", "prefect.logger.task_runs"]],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1015,13 +1067,13 @@ class LogFilterLevel(PrefectFilterBaseModel):
     ge_: Optional[int] = Field(
         default=None,
         description="Include logs with a level greater than or equal to this level",
-        example=20,
+        examples=[20],
     )
 
     le_: Optional[int] = Field(
         default=None,
         description="Include logs with a level less than or equal to this level",
-        example=50,
+        examples=[50],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1141,7 +1193,7 @@ class BlockTypeFilterName(PrefectFilterBaseModel):
             " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
-        example="marvin",
+        examples=["marvin"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1221,7 +1273,7 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["write-storage", "read-storage"],
+        examples=[["write-storage", "read-storage"]],
         description=(
             "A list of block capabilities. Block entities will be returned only if an"
             " associated block schema has a superset of the defined capabilities."
@@ -1242,7 +1294,7 @@ class BlockSchemaFilterVersion(PrefectFilterBaseModel):
 
     any_: Optional[List[str]] = Field(
         default=None,
-        example=["2.0.0", "2.1.0"],
+        examples=[["2.0.0", "2.1.0"]],
         description="A list of block schema versions.",
     )
 
@@ -1343,7 +1395,7 @@ class BlockDocumentFilterName(PrefectFilterBaseModel):
             "A string to match block names against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-block%",
+        examples=["my-block%"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1443,7 +1495,7 @@ class WorkQueueFilterName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None,
         description="A list of work queue names to include",
-        example=["wq-1", "wq-2"],
+        examples=[["wq-1", "wq-2"]],
     )
 
     startswith_: Optional[List[str]] = Field(
@@ -1453,7 +1505,7 @@ class WorkQueueFilterName(PrefectFilterBaseModel):
             " passing 'marvin' will match "
             "'marvin', and 'Marvin-robot', but not 'sad-marvin'."
         ),
-        example=["marvin", "Marvin-robot"],
+        examples=[["marvin", "Marvin-robot"]],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1574,6 +1626,25 @@ class WorkerFilterWorkPoolId(PrefectFilterBaseModel):
         return filters
 
 
+class WorkerFilterStatus(PrefectFilterBaseModel):
+    """Filter by `Worker.status`."""
+
+    any_: Optional[List[schemas.statuses.WorkerStatus]] = Field(
+        default=None, description="A list of worker statuses to include"
+    )
+    not_any_: Optional[List[schemas.statuses.WorkerStatus]] = Field(
+        default=None, description="A list of worker statuses to exclude"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Worker.status.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.Worker.status.notin_(self.not_any_))
+        return filters
+
+
 class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
     """Filter by `Worker.last_heartbeat_time`."""
 
@@ -1609,6 +1680,10 @@ class WorkerFilter(PrefectOperatorFilterBaseModel):
     last_heartbeat_time: Optional[WorkerFilterLastHeartbeatTime] = Field(
         default=None,
         description="Filter criteria for `Worker.last_heartbeat_time`",
+    )
+
+    status: Optional[WorkerFilterStatus] = Field(
+        default=None, description="Filter criteria for `Worker.status`"
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1647,7 +1722,7 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
             "A string to match artifact keys against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-artifact-%",
+        examples=["my-artifact-%"],
     )
 
     exists_: Optional[bool] = Field(
@@ -1783,7 +1858,7 @@ class ArtifactCollectionFilterKey(PrefectFilterBaseModel):
             "A string to match artifact keys against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-artifact-%",
+        examples=["my-artifact-%"],
     )
 
     exists_: Optional[bool] = Field(
@@ -1919,7 +1994,7 @@ class VariableFilterName(PrefectFilterBaseModel):
             "A string to match variable names against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my_variable_%",
+        examples=["my_variable_%"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1943,7 +2018,7 @@ class VariableFilterValue(PrefectFilterBaseModel):
             "A string to match variable value against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-value-%",
+        examples=["my-value-%"],
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1960,7 +2035,7 @@ class VariableFilterTags(PrefectOperatorFilterBaseModel):
 
     all_: Optional[List[str]] = Field(
         default=None,
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
         description=(
             "A list of tags. Variables will be returned only if their tags are a"
             " superset of the list"

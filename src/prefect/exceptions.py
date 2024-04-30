@@ -1,19 +1,14 @@
 """
 Prefect-specific exceptions.
 """
+
 import inspect
 import traceback
 from types import ModuleType, TracebackType
 from typing import Callable, Dict, Iterable, List, Optional, Type
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 from httpx._exceptions import HTTPStatusError
+from pydantic import ValidationError
 from rich.traceback import Traceback
 from typing_extensions import Self
 
@@ -182,8 +177,8 @@ class ParameterTypeError(PrefectException):
         super().__init__(msg)
 
     @classmethod
-    def from_validation_error(cls, exc: pydantic.ValidationError) -> Self:
-        bad_params = [f'{err["loc"][0]}: {err["msg"]}' for err in exc.errors()]
+    def from_validation_error(cls, exc: ValidationError) -> Self:
+        bad_params = [f'{".".join(err["loc"])}: {err["msg"]}' for err in exc.errors()]
         msg = "Flow run received invalid parameters:\n - " + "\n - ".join(bad_params)
         return cls(msg)
 

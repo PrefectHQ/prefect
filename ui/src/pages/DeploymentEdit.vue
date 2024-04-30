@@ -1,20 +1,20 @@
 <template>
-  <p-layout-default class="deployment-edit">
+  <p-layout-default v-if="deployment" class="deployment-edit">
     <template #header>
-      <PageHeadingDeploymentEdit v-if="deployment" :deployment="deployment" />
+      <PageHeadingDeploymentEdit :deployment="deployment" />
     </template>
 
-    <DeploymentForm v-if="deployment" :deployment="deployment" @submit="submit" @cancel="cancel" />
+    <DeploymentFormV2 :deployment="deployment" @cancel="cancel" @submit="submit" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/prefect-design'
-  import { PageHeadingDeploymentEdit, DeploymentForm, DeploymentUpdate, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingDeploymentEdit, useWorkspaceApi, DeploymentUpdateV2, getApiErrorMessage, DeploymentFormV2 } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
-  import router from '@/router'
+  import router, { routes } from '@/router'
 
   const api = useWorkspaceApi()
   const deploymentId = useRouteParam('deploymentId')
@@ -25,13 +25,15 @@
   const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
-  async function submit(deployment: DeploymentUpdate): Promise<void> {
+  async function submit(request: DeploymentUpdateV2): Promise<void> {
     try {
-      await api.deployments.updateDeployment(deploymentId.value, deployment)
+      await api.deployments.updateDeploymentV2(deploymentId.value, request)
       showToast('Deployment updated', 'success')
-      router.back()
+      deploymentSubscription.refresh()
+      router.push(routes.deployment(deploymentId.value))
     } catch (error) {
-      showToast('Error updating deployment', 'error')
+      const message = getApiErrorMessage(error, 'Error updating deployment')
+      showToast(message, 'error')
       console.warn(error)
     }
   }

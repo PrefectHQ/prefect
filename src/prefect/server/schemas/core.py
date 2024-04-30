@@ -3,36 +3,48 @@ Full schemas of Prefect REST API objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+from typing_extensions import Literal, Self
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, HttpUrl, conint, root_validator, validator
+    from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
 else:
-    from pydantic import BaseModel, Field, HttpUrl, conint, root_validator, validator
-
-from typing_extensions import Literal
+    from pydantic import BaseModel, Field, HttpUrl, root_validator, validator
 
 import prefect.server.database
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
+from prefect._internal.schemas.validators import (
+    get_or_create_run_name,
+    list_length_50_or_less,
+    raise_on_name_alphanumeric_dashes_only,
+    raise_on_name_with_banned_characters,
+    set_run_policy_deprecated_fields,
+    validate_cache_key_length,
+    validate_default_queue_id_not_none,
+    validate_max_metadata_length,
+    validate_message_template_variables,
+    validate_name_present_on_nonanonymous_blocks,
+    validate_not_negative,
+    validate_parent_and_ref_diff,
+)
 from prefect.server.schemas import schedules, states
+from prefect.server.schemas.statuses import WorkPoolStatus
 from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
-from prefect.server.utilities.schemas.validators import (
-    raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_with_banned_characters,
-)
-from prefect.settings import (
-    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
-)
+from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMWorkPool
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
@@ -58,47 +70,17 @@ class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
 
     name: str = Field(
-        default=..., description="The name of the flow", example="my-flow"
+        default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
-
-
-class FlowRunnerSettings(PrefectBaseModel):
-    """
-    An API schema for passing details about the flow runner.
-
-    This schema is agnostic to the types and configuration provided by clients
-    """
-
-    type: Optional[str] = Field(
-        default=None,
-        description=(
-            "The type of the flow runner which can be used by the client for"
-            " dispatching."
-        ),
-    )
-    config: Optional[dict] = Field(
-        default=None, description="The configuration for the given flow runner type."
-    )
-
-    # The following is required for composite compatibility in the ORM
-
-    def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
-        # Pydantic does not support positional arguments so they must be converted to
-        # keyword arguments
-        super().__init__(type=type, config=config, **kwargs)
-
-    def __composite_values__(self):
-        return self.type, self.config
+        return raise_on_name_with_banned_characters(v)
 
 
 class FlowRunPolicy(PrefectBaseModel):
@@ -135,18 +117,7 @@ class FlowRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        """
-        If deprecated fields are provided, populate the corresponding new fields
-        to preserve orchestration behavior.
-        """
-        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
-            values["retries"] = values["max_retries"]
-        if (
-            not values.get("retry_delay", None)
-            and values.get("retry_delay_seconds", 0) != 0
-        ):
-            values["retry_delay"] = values["retry_delay_seconds"]
-        return values
+        return set_run_policy_deprecated_fields(values)
 
 
 class CreatedBy(BaseModel):
@@ -181,7 +152,7 @@ class FlowRun(ORMBaseModel):
         description=(
             "The name of the flow run. Defaults to a random slug if not specified."
         ),
-        example="my-flow-run",
+        examples=["my-flow-run"],
     )
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     state_id: Optional[UUID] = Field(
@@ -193,15 +164,20 @@ class FlowRun(ORMBaseModel):
             "The id of the deployment associated with this flow run, if available."
         ),
     )
+    deployment_version: Optional[str] = Field(
+        default=None,
+        description="The version of the deployment associated with this flow run.",
+        examples=["1.0"],
+    )
     work_queue_name: Optional[str] = Field(
         default=None, description="The work queue that handled this flow run."
     )
     flow_version: Optional[str] = Field(
         default=None,
         description="The version of the flow executed in this flow run.",
-        example="1.0",
+        examples=["1.0"],
     )
-    parameters: dict = Field(
+    parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -211,10 +187,10 @@ class FlowRun(ORMBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: dict = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
-        example={"my_var": "my_val"},
+        examples=[{"my_var": "my_value"}],
     )
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
@@ -222,7 +198,7 @@ class FlowRun(ORMBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
@@ -298,9 +274,14 @@ class FlowRun(ORMBaseModel):
     )
     # parent_task_run: "TaskRun" = None
 
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Variables used as overrides in the base job template",
+    )
+
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -347,32 +328,15 @@ class TaskRunPolicy(PrefectBaseModel):
 
     @root_validator
     def populate_deprecated_fields(cls, values):
-        """
-        If deprecated fields are provided, populate the corresponding new fields
-        to preserve orchestration behavior.
-        """
-        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
-            values["retries"] = values["max_retries"]
-
-        if (
-            not values.get("retry_delay", None)
-            and values.get("retry_delay_seconds", 0) != 0
-        ):
-            values["retry_delay"] = values["retry_delay_seconds"]
-
-        return values
+        return set_run_policy_deprecated_fields(values)
 
     @validator("retry_delay")
     def validate_configured_retry_delays(cls, v):
-        if isinstance(v, list) and (len(v) > 50):
-            raise ValueError("Can not configure more than 50 retry delays per task.")
-        return v
+        return list_length_50_or_less(v)
 
     @validator("retry_jitter_factor")
     def validate_jitter_factor(cls, v):
-        if v is not None and v < 0:
-            raise ValueError("`retry_jitter_factor` must be >= 0.")
-        return v
+        return validate_not_negative(v)
 
 
 class TaskRunInput(PrefectBaseModel):
@@ -412,7 +376,9 @@ class Constant(TaskRunInput):
 class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: generate_slug(2), examples=["my-task-run"]
+    )
     flow_run_id: Optional[UUID] = Field(
         default=None, description="The flow run id of the task run."
     )
@@ -446,7 +412,7 @@ class TaskRun(ORMBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
@@ -515,19 +481,27 @@ class TaskRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or generate_slug(2)
+        return get_or_create_run_name(name)
 
     @validator("cache_key")
-    def validate_cache_key_length(cls, cache_key):
-        if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
-            raise ValueError(
-                "Cache key exceeded maximum allowed length of"
-                f" {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
-            )
-        return cache_key
+    def validate_cache_key(cls, cache_key):
+        return validate_cache_key_length(cache_key)
 
 
-class Deployment(ORMBaseModel):
+class DeploymentSchedule(ORMBaseModel):
+    deployment_id: Optional[UUID] = Field(
+        default=None,
+        description="The deployment id associated with this schedule.",
+    )
+    schedule: schedules.SCHEDULE_TYPES = Field(
+        default=..., description="The schedule for the deployment."
+    )
+    active: bool = Field(
+        default=True, description="Whether or not the schedule is active."
+    )
+
+
+class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")
@@ -546,9 +520,15 @@ class Deployment(ORMBaseModel):
     is_schedule_active: bool = Field(
         default=True, description="Whether or not the deployment schedule is active."
     )
-    infra_overrides: Dict[str, Any] = Field(
+    paused: bool = Field(
+        default=False, description="Whether or not the deployment is paused."
+    )
+    schedules: List[DeploymentSchedule] = Field(
+        default_factory=list, description="A list of schedules for the deployment."
+    )
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Overrides to apply to the base infrastructure block at runtime.",
+        description="Overrides to apply to flow run infrastructure at runtime.",
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -561,7 +541,7 @@ class Deployment(ORMBaseModel):
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
     work_queue_name: Optional[str] = Field(
         default=None,
@@ -626,10 +606,12 @@ class Deployment(ORMBaseModel):
         ),
     )
 
+    class Config:
+        allow_population_by_field_name = True
+
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class ConcurrencyLimit(ORMBaseModel):
@@ -665,8 +647,7 @@ class ConcurrencyLimitV2(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockType(ORMBaseModel):
@@ -694,15 +675,14 @@ class BlockType(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockSchema(ORMBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: dict = Field(
+    fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
@@ -748,7 +728,9 @@ class BlockDocument(ORMBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: dict = Field(default_factory=dict, description="The block document's data")
+    data: Dict[str, Any] = Field(
+        default_factory=dict, description="The block document's data"
+    )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
         default=None, description="The associated block schema"
@@ -775,17 +757,11 @@ class BlockDocument(ORMBaseModel):
     def validate_name_characters(cls, v):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
-        if v is not None:
-            raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
-        # anonymous blocks may have no name prior to actually being
-        # stored in the database
-        if not values.get("is_anonymous") and not values.get("name"):
-            raise ValueError("Names must be provided for block documents.")
-        return values
+        return validate_name_present_on_nonanonymous_blocks(values)
 
     @classmethod
     async def from_orm_model(
@@ -857,21 +833,14 @@ class BlockDocumentReference(ORMBaseModel):
 
     @root_validator
     def validate_parent_and_ref_are_different(cls, values):
-        parent_id = values.get("parent_block_document_id")
-        ref_id = values.get("reference_block_document_id")
-        if parent_id and ref_id and parent_id == ref_id:
-            raise ValueError(
-                "`parent_block_document_id` and `reference_block_document_id` cannot be"
-                " the same"
-            )
-        return values
+        return validate_parent_and_ref_diff(values)
 
 
 class Configuration(ORMBaseModel):
     """An ORM representation of account info."""
 
     key: str = Field(default=..., description="Account info key")
-    value: dict = Field(default=..., description="Account info")
+    value: Dict[str, Any] = Field(default=..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):
@@ -938,10 +907,10 @@ class WorkQueue(ORMBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="An optional concurrency limit for the work queue."
     )
-    priority: conint(ge=1) = Field(
+    priority: PositiveInteger = Field(
         default=1,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -962,8 +931,7 @@ class WorkQueue(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1052,20 +1020,15 @@ class FlowRunNotificationPolicy(ORMBaseModel):
             " Valid variables include:"
             f" {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
         ),
-        example=(
+        examples=[
             "Flow run {flow_run_name} with id {flow_run_id} entered state"
             " {flow_run_state_name}."
-        ),
+        ],
     )
 
     @validator("message_template")
     def validate_message_template_variables(cls, v):
-        if v is not None:
-            try:
-                v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
-            except KeyError as exc:
-                raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
-        return v
+        return validate_message_template_variables(v)
 
 
 class Agent(ORMBaseModel):
@@ -1103,9 +1066,13 @@ class WorkPool(ORMBaseModel):
         default=False,
         description="Pausing the work pool stops the delivery of all work.",
     )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    status: Optional[WorkPoolStatus] = Field(
+        default=None, description="The current status of the work pool."
+    )
+
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
     default_queue_id: UUID = Field(
@@ -1114,28 +1081,18 @@ class WorkPool(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_name_with_banned_characters(v)
-        return v
+        return raise_on_name_with_banned_characters(v)
 
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):
-        """
-        Default queue ID is required because all pools must have a default queue
-        ID, but it represents a circular foreign key relationship to a
-        WorkQueue (which can't be created until the work pool exists).
-        Therefore, while this field can *technically* be null, it shouldn't be.
-        This should only be an issue when creating new pools, as reading
-        existing ones will always have this field populated. This custom error
-        message will help users understand that they should use the
-        `actions.WorkPoolCreate` model in that case.
-        """
-        if v is None:
-            raise ValueError(
-                "`default_queue_id` is a required field. If you are "
-                "creating a new WorkPool and don't have a queue "
-                "ID yet, use the `actions.WorkPoolCreate` model instead."
-            )
-        return v
+        return validate_default_queue_id_not_none(v)
+
+    @classmethod
+    def from_orm(cls, work_pool: "ORMWorkPool") -> Self:
+        parsed: WorkPool = super().from_orm(work_pool)
+        if work_pool.type == "prefect-agent":
+            parsed.status = None
+        return parsed
 
 
 class Worker(ORMBaseModel):
@@ -1216,13 +1173,7 @@ class Artifact(ORMBaseModel):
 
     @validator("metadata_")
     def validate_metadata_length(cls, v):
-        max_metadata_length = 500
-        if not isinstance(v, dict):
-            return v
-        for key in v.keys():
-            if len(str(v[key])) > max_metadata_length:
-                v[key] = str(v[key])[:max_metadata_length] + "..."
-        return v
+        return validate_max_metadata_length(v)
 
 
 class ArtifactCollection(ORMBaseModel):
@@ -1266,19 +1217,19 @@ class Variable(ORMBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
-        example="my_variable",
+        examples=["my-variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
     value: str = Field(
         default=...,
         description="The value of the variable",
-        example="my-value",
+        examples=["my-value"],
         max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of variable tags",
-        example=["tag-1", "tag-2"],
+        examples=[["tag-1", "tag-2"]],
     )
 
 
@@ -1292,3 +1243,16 @@ class FlowRunInput(ORMBaseModel):
     def validate_name_characters(cls, v):
         raise_on_name_alphanumeric_dashes_only(v)
         return v
+
+
+class CsrfToken(ORMBaseModel):
+    token: str = Field(
+        default=...,
+        description="The CSRF token",
+    )
+    client: str = Field(
+        default=..., description="The client id associated with the CSRF token"
+    )
+    expiration: DateTimeTZ = Field(
+        default=..., description="The expiration time of the CSRF token"
+    )

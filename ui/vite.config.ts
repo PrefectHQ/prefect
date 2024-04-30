@@ -5,6 +5,7 @@ import { defineConfig } from 'vite'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const base = mode == 'development' ? '' : '/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER'
+
   return {
     plugins: [vue()],
     base,
@@ -12,8 +13,8 @@ export default defineConfig(({ mode }) => {
       alias: [{ find: '@', replacement: resolve(__dirname, './src') }],
       dedupe: ['vue', 'vue-router'],
     },
-    css: {
-      devSourcemap: true,
+    build: {
+      sourcemap: true,
     },
   }
 })

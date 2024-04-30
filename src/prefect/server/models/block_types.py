@@ -2,8 +2,9 @@
 Functions for interacting with block type ORM objects.
 Intended for internal use by the Prefect REST API.
 """
+
 import html
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -11,7 +12,9 @@ import sqlalchemy as sa
 from prefect.server import schemas
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import ORMBlockType
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMBlockType
 
 
 @inject_db
@@ -20,7 +23,7 @@ async def create_block_type(
     block_type: schemas.core.BlockType,
     db: PrefectDBInterface,
     override: bool = False,
-) -> ORMBlockType:
+) -> "ORMBlockType":
     """
     Create a new block type.
 
@@ -42,7 +45,7 @@ async def create_block_type(
         insert_values["code_example"] = html.escape(
             insert_values["code_example"], quote=False
         )
-    insert_stmt = (await db.insert(db.BlockType)).values(**insert_values)
+    insert_stmt = db.insert(db.BlockType).values(**insert_values)
     if override:
         insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=db.block_type_unique_upsert_columns,

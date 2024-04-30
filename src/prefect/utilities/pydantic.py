@@ -1,24 +1,25 @@
 from functools import partial
-from typing import Any, Callable, Generic, Type, TypeVar, cast, overload
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
+from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, cast, overload
 
 from jsonpatch import JsonPatch as JsonPatchBase
+from pydantic_core import to_jsonable_python
 from typing_extensions import Self
 
+from prefect._internal.pydantic.utilities.model_dump import model_dump
+from prefect.pydantic import HAS_PYDANTIC_V2
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic_v1
+else:
+    import pydantic as pydantic_v1
+
 D = TypeVar("D", bound=Any)
-M = TypeVar("M", bound=pydantic.BaseModel)
+M = TypeVar("M", bound=pydantic_v1.BaseModel)
 
 
-def _reduce_model(model: pydantic.BaseModel):
+def _reduce_model(model: pydantic_v1.BaseModel):
     """
     Helper for serializing a cythonized model with cloudpickle.
 
@@ -82,7 +83,7 @@ def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
         )
 
 
-def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
+def get_class_fields_only(model: Type[pydantic_v1.BaseModel]) -> set:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
@@ -91,7 +92,7 @@ def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
     parent_class_fields = set()
 
     for base in model.__class__.__bases__:
-        if issubclass(base, pydantic.BaseModel):
+        if issubclass(base, pydantic_v1.BaseModel):
             parent_class_fields.update(base.__annotations__.keys())
 
     return (subclass_class_fields - parent_class_fields) | (
@@ -101,7 +102,7 @@ def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
 
 def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     """
-    Extend a Pydantic model to add a 'type' field that is used a discriminator field
+    Extend a Pydantic model to add a 'type' field that is used as a discriminator field
     to dynamically determine the subtype that when deserializing models.
 
     This allows automatic resolution to subtypes of the decorated model.
@@ -134,7 +135,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
 
     elif defines_dispatch_key and not defines_type_field:
         # Add a type field to store the value of the dispatch key
-        model_cls.__fields__["type"] = pydantic.fields.ModelField(
+        model_cls.__fields__["type"] = pydantic_v1.fields.ModelField(
             name="type",
             type_=str,
             required=True,
@@ -180,7 +181,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             except KeyError as exc:
-                raise pydantic.ValidationError(errors=[exc], model=cls)
+                raise pydantic_v1.ValidationError(errors=[exc], model=cls)
             return cls_new(subcls)
         else:
             return cls_new(cls)
@@ -206,7 +207,7 @@ class PartialModel(Generic[M]):
     a field already has a value.
 
     Example:
-        >>> class MyModel(pydantic.BaseModel):
+        >>> class MyModel(pydantic_v1.BaseModel):
         >>>     x: int
         >>>     y: str
         >>>     z: float
@@ -267,3 +268,21 @@ class JsonPatch(JsonPatchBase):
                 },
             }
         )
+
+
+def custom_pydantic_encoder(
+    type_encoders: Optional[Dict[Any, Callable[[Type[Any]], Any]]], obj: Any
+) -> Any:
+    # Check the class type and its superclasses for a matching encoder
+    for base in obj.__class__.__mro__[:-1]:
+        try:
+            encoder = type_encoders[base]
+        except KeyError:
+            continue
+
+        return encoder(obj)
+    else:  # We have exited the for loop without finding a suitable encoder
+        if isinstance(obj, pydantic_v1.BaseModel):
+            return model_dump(obj, mode="json")
+        else:
+            return to_jsonable_python(obj)

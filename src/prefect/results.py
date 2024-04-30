@@ -4,6 +4,7 @@ from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
     Callable,
     Dict,
     Generic,
@@ -15,17 +16,10 @@ from typing import (
 )
 from uuid import UUID
 
-from typing_extensions import Self
+from typing_extensions import ParamSpec, Self
 
 import prefect
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-
-else:
-    import pydantic
-
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingResult
@@ -41,10 +35,18 @@ from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
+    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.pydantic import add_type_dispatch
+from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
+
+if HAS_PYDANTIC_V2:
+    import pydantic.v1 as pydantic
+
+else:
+    import pydantic
+
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
@@ -61,6 +63,7 @@ def DEFAULT_STORAGE_KEY_FN():
 
 
 logger = get_logger("results")
+P = ParamSpec("P")
 R = TypeVar("R")
 
 
@@ -69,12 +72,57 @@ async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
-
     return (
         await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
         if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
         else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
     )
+
+
+_default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
+
+
+async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
+    """
+    Generate a default file system for autonomous task parameter/result storage.
+    """
+    default_storage_name, storage_path = cache_key = (
+        PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value(),
+        PREFECT_LOCAL_STORAGE_PATH.value(),
+    )
+
+    async def get_storage():
+        try:
+            return await Block.load(default_storage_name)
+        except ValueError as e:
+            if "Unable to find" not in str(e):
+                raise e
+
+        block_type_slug, name = default_storage_name.split("/")
+        if block_type_slug == "local-file-system":
+            block = LocalFileSystem(basepath=storage_path)
+        else:
+            raise Exception(
+                "The default task storage block does not exist, but it is of type "
+                f"'{block_type_slug}' which cannot be created implicitly.  Please create "
+                "the block manually."
+            )
+
+        try:
+            await block.save(name, overwrite=False)
+            return block
+        except ValueError as e:
+            if "already in use" not in str(e):
+                raise e
+
+        return await Block.load(default_storage_name)
+
+    try:
+        return _default_task_scheduling_storages[cache_key]
+    except KeyError:
+        storage = await get_storage()
+        _default_task_scheduling_storages[cache_key] = storage
+        return storage
 
 
 def get_default_result_serializer() -> ResultSerializer:
@@ -231,10 +279,39 @@ class ResultFactory(pydantic.BaseModel):
 
         ctx = FlowRunContext.get()
 
+        if ctx and ctx.autonomous_task_run:
+            return await cls.from_autonomous_task(task, client=client)
+
+        return await cls._from_task(task, get_default_result_storage, client=client)
+
+    @classmethod
+    @inject_client
+    async def from_autonomous_task(
+        cls: Type[Self], task: "Task[P, R]", client: "PrefectClient" = None
+    ) -> Self:
+        """
+        Create a new result factory for an autonomous task.
+        """
+        return await cls._from_task(
+            task, get_or_create_default_task_scheduling_storage, client=client
+        )
+
+    @classmethod
+    @inject_client
+    async def _from_task(
+        cls: Type[Self],
+        task: "Task",
+        default_storage_getter: Callable[[], Awaitable[ResultStorage]],
+        client: "PrefectClient" = None,
+    ) -> Self:
+        from prefect.context import FlowRunContext
+
+        ctx = FlowRunContext.get()
+
         result_storage = task.result_storage or (
             ctx.result_factory.storage_block
             if ctx and ctx.result_factory
-            else await get_default_result_storage()
+            else await default_storage_getter()
         )
         result_serializer = task.result_serializer or (
             ctx.result_factory.serializer
@@ -404,11 +481,26 @@ class ResultFactory(pydantic.BaseModel):
         return self.serializer.loads(blob.data)
 
 
-@add_type_dispatch
+@register_base_type
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
     artifact_type: Optional[str]
     artifact_description: Optional[str]
+
+    def __init__(self, **data: Any) -> None:
+        type_string = get_dispatch_key(self) if type(self) != BaseResult else "__base__"
+        data.setdefault("type", type_string)
+        super().__init__(**data)
+
+    def __new__(cls: Type[Self], **kwargs) -> Self:
+        if "type" in kwargs:
+            try:
+                subcls = lookup_type(cls, dispatch_key=kwargs["type"])
+            except KeyError as exc:
+                raise pydantic.ValidationError(errors=[exc], model=cls)
+            return super().__new__(subcls)
+        else:
+            return super().__new__(cls)
 
     _cache: Any = pydantic.PrivateAttr(NotSet)
 
@@ -434,6 +526,10 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     class Config:
         extra = "forbid"
+
+    @classmethod
+    def __dispatch_key__(cls, **kwargs):
+        return cls.__fields__.get("type").get_default()
 
 
 class UnpersistedResult(BaseResult):
@@ -637,7 +733,7 @@ class PersistedResultBlob(pydantic.BaseModel):
 
 class UnknownResult(BaseResult):
     """
-    Result type for unknown results. Typipcally used to represent the result
+    Result type for unknown results. Typically used to represent the result
     of tasks that were forced from a failure state into a completed state.
 
     The value for this result is always None and is not persisted to external

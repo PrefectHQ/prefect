@@ -6,7 +6,7 @@ Intended for internal use by the Prefect REST API.
 import contextlib
 import datetime
 from itertools import chain
-from typing import List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -17,7 +17,7 @@ from sqlalchemy.orm import load_only, selectinload
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MinimalFlowPolicy
@@ -29,16 +29,22 @@ from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.server.schemas.states import State
 from prefect.server.utilities.schemas import PrefectBaseModel
-from prefect.settings import PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES
+from prefect.settings import (
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
+    PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
+)
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMFlowRun
 
 
-@inject_db
+@db_injector
 async def create_flow_run(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run: schemas.core.FlowRun,
-    db: PrefectDBInterface,
     orchestration_parameters: Optional[dict] = None,
-):
+) -> "ORMFlowRun":
     """Creates a new flow run.
 
     If the provided flow run has a state attached, it will also be created.
@@ -75,7 +81,7 @@ async def create_flow_run(
     # otherwise let the database take care of enforcing idempotency
     else:
         insert_stmt = (
-            (await db.insert(db.FlowRun))
+            db.insert(db.FlowRun)
             .values(**flow_run_dict)
             .on_conflict_do_nothing(
                 index_elements=db.flow_run_unique_upsert_columns,
@@ -114,12 +120,12 @@ async def create_flow_run(
     return model
 
 
-@inject_db
+@db_injector
 async def update_flow_run(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
     flow_run: schemas.actions.FlowRunUpdate,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Updates a flow run.
@@ -143,13 +149,13 @@ async def update_flow_run(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def read_flow_run(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
-    db: PrefectDBInterface,
     for_update: bool = False,
-):
+) -> Optional["ORMFlowRun"]:
     """
     Reads a flow run by id.
 
@@ -175,10 +181,10 @@ async def read_flow_run(
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def _apply_flow_run_filters(
-    query,
     db: PrefectDBInterface,
+    query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -243,10 +249,10 @@ async def _apply_flow_run_filters(
     return query
 
 
-@inject_db
+@db_injector
 async def read_flow_runs(
-    session: AsyncSession,
     db: PrefectDBInterface,
+    session: AsyncSession,
     columns: List = None,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
@@ -257,7 +263,7 @@ async def read_flow_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
-):
+) -> Sequence["ORMFlowRun"]:
     """
     Read flow runs.
 
@@ -294,7 +300,6 @@ async def read_flow_runs(
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
         work_queue_filter=work_queue_filter,
-        db=db,
     )
 
     if offset is not None:
@@ -367,10 +372,10 @@ async def read_task_run_dependencies(
     return dependency_graph
 
 
-@inject_db
+@db_injector
 async def count_flow_runs(
-    session: AsyncSession,
     db: PrefectDBInterface,
+    session: AsyncSession,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -402,16 +407,15 @@ async def count_flow_runs(
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
         work_queue_filter=work_queue_filter,
-        db=db,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-@inject_db
+@db_injector
 async def delete_flow_run(
-    session: AsyncSession, flow_run_id: UUID, db: PrefectDBInterface
+    db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID
 ) -> bool:
     """
     Delete a flow run by flow_run_id.
@@ -436,7 +440,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
-    orchestration_parameters: dict = None,
+    orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.
@@ -524,7 +528,7 @@ async def set_flow_run_state(
     return result
 
 
-@inject_db
+@db_injector
 async def read_flow_run_graph(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -539,4 +543,5 @@ async def read_flow_run_graph(
         flow_run_id=flow_run_id,
         since=since,
         max_nodes=PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES.value(),
+        max_artifacts=PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS.value(),
     )

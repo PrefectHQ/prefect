@@ -153,6 +153,7 @@ class TestUpdateWorkPool:
             work_pool=schemas.actions.WorkPoolUpdate(
                 is_paused=True, concurrency_limit=5
             ),
+            emit_status_change=None,
         )
 
         result = await models.workers.read_work_pool(
@@ -167,6 +168,7 @@ class TestUpdateWorkPool:
                 session=session,
                 work_pool_id=work_pool.id,
                 work_pool=schemas.actions.WorkPoolUpdate(concurrency_limit=-5),
+                emit_status_change=None,
             )
 
     async def test_update_work_pool_zero_concurrency(self, session, work_pool):
@@ -174,6 +176,7 @@ class TestUpdateWorkPool:
             session=session,
             work_pool_id=work_pool.id,
             work_pool=schemas.actions.WorkPoolUpdate(concurrency_limit=0),
+            emit_status_change=None,
         )
         result = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool.id
@@ -860,3 +863,24 @@ class TestGetScheduledRuns:
             work_queue_ids=[work_queues["wq_aa"].id],
         )
         assert len(runs) == 0
+
+
+class TestDeleteWorker:
+    async def test_delete_worker(self, session, work_pool):
+        for i in range(3):
+            await models.workers.worker_heartbeat(
+                session=session, work_pool_id=work_pool.id, worker_name=f"worker.{i}"
+            )
+        await models.workers.delete_worker(
+            session=session, work_pool_id=work_pool.id, worker_name="worker.1"
+        )
+        remaining_workers = await models.workers.read_workers(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert len(remaining_workers) == 2
+        assert "worker.1" not in map(lambda x: x.name, remaining_workers)
+
+    async def test_delete_nonexistent_worker(self, session, work_pool):
+        assert not await models.workers.delete_worker(
+            session=session, work_pool_id=work_pool.id, worker_name="worker.1"
+        )
