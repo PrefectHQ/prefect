@@ -4,6 +4,7 @@ import functools
 import json
 from enum import Enum
 from pathlib import Path
+from threading import Lock
 from typing import Any, Dict, Optional, Union
 
 import google.auth
@@ -36,9 +37,16 @@ except ModuleNotFoundError:
     pass
 
 try:
-    from google.cloud.aiplatform.gapic import JobServiceClient
+    from google.cloud.aiplatform.gapic import JobServiceAsyncClient, JobServiceClient
 except ModuleNotFoundError:
     pass
+
+try:
+    from google.api_core.client_options import ClientOptions, from_dict
+except ModuleNotFoundError:
+    pass
+
+_LOCK = Lock()
 
 
 def _raise_help_msg(key: str):
@@ -79,6 +87,25 @@ class ClientType(Enum):
     AIPLATFORM = "job_service"  # vertex ai
 
 
+@functools.lru_cache(maxsize=8, typed=True)
+def _get_job_service_async_client_cached(
+    ctx, client_options: tuple
+) -> JobServiceAsyncClient:
+    """
+    Gets an authenticated Job Service async client for Vertex AI.
+
+    Returns:
+        An authenticated Job Service async client.
+    """
+    with _LOCK:
+        client_options = dict(client_options)
+        credentials = ctx.get_credentials_from_service_account()
+        job_service_client = JobServiceAsyncClient(
+            credentials=credentials, client_options=client_options
+        )
+    return job_service_client
+
+
 class GcpCredentials(CredentialsBlock):
     """
     Block used to manage authentication with GCP. Google authentication is
@@ -116,6 +143,16 @@ class GcpCredentials(CredentialsBlock):
     )
 
     _service_account_email: Optional[str] = None
+
+    def __hash__(self):
+        return hash(
+            (
+                hash(self.service_account_file),
+                hash(frozenset(self.service_account_info.dict().items())),
+                hash(self.project),
+                hash(self._service_account_email),
+            )
+        )
 
     @root_validator
     def _provide_one_service_account_source(cls, values):
@@ -412,7 +449,7 @@ class GcpCredentials(CredentialsBlock):
 
     @_raise_help_msg("aiplatform")
     def get_job_service_client(
-        self, client_options: Dict[str, Any] = None
+        self, client_options: Union[Dict[str, Any], ClientOptions] = None
     ) -> "JobServiceClient":
         """
         Gets an authenticated Job Service client for Vertex AI.
@@ -462,8 +499,67 @@ class GcpCredentials(CredentialsBlock):
             example_get_client_flow()
             ```
         """
+        if isinstance(client_options, dict):
+            client_options = from_dict(client_options)
+
         credentials = self.get_credentials_from_service_account()
-        job_service_client = JobServiceClient(
-            credentials=credentials, client_options=client_options
+        return JobServiceClient(credentials=credentials, client_options=client_options)
+
+    @_raise_help_msg("aiplatform")
+    def get_job_service_async_client(
+        self, client_options: Union[Dict[str, Any], ClientOptions] = None
+    ) -> "JobServiceAsyncClient":
+        """
+        Gets an authenticated Job Service async client for Vertex AI.
+
+        Returns:
+            An authenticated Job Service async client.
+
+        Examples:
+            Gets a GCP Job Service client from a path.
+            ```python
+            from prefect import flow
+            from prefect_gcp.credentials import GcpCredentials
+
+            @flow()
+            def example_get_client_flow():
+                service_account_file = "~/.secrets/prefect-service-account.json"
+                client = GcpCredentials(
+                    service_account_file=service_account_file
+                ).get_job_service_async_client()
+
+            example_get_client_flow()
+            ```
+
+            Gets a GCP Cloud Storage client from a dictionary.
+            ```python
+            from prefect import flow
+            from prefect_gcp.credentials import GcpCredentials
+
+            @flow()
+            def example_get_client_flow():
+                service_account_info = {
+                    "type": "service_account",
+                    "project_id": "project_id",
+                    "private_key_id": "private_key_id",
+                    "private_key": "private_key",
+                    "client_email": "client_email",
+                    "client_id": "client_id",
+                    "auth_uri": "auth_uri",
+                    "token_uri": "token_uri",
+                    "auth_provider_x509_cert_url": "auth_provider_x509_cert_url",
+                    "client_x509_cert_url": "client_x509_cert_url"
+                }
+                client = GcpCredentials(
+                    service_account_info=service_account_info
+                ).get_job_service_async_client()
+
+            example_get_client_flow()
+            ```
+        """
+        if isinstance(client_options, dict):
+            client_options = from_dict(client_options)
+
+        return _get_job_service_async_client_cached(
+            self, tuple(client_options.__dict__.items())
         )
-        return job_service_client

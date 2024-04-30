@@ -113,8 +113,8 @@ class TestVertexAICustomTrainingJob:
     ):
         identifier = "projects/1234/locations/us-east1/customJobs/12345"
         gcp_credentials = vertex_ai_custom_training_job.gcp_credentials
-        job_service_client = gcp_credentials.job_service_client
-        job_service_client.cancel_custom_job.side_effect = self.raise_not_found
+        job_service_async_client = gcp_credentials.job_service_async_client
+        job_service_async_client.cancel_custom_job.side_effect = self.raise_not_found
         with pytest.raises(
             InfrastructureNotFound, match="Cannot stop Vertex AI job; the job name"
         ):
@@ -128,8 +128,8 @@ class TestVertexAICustomTrainingJob:
     ):
         identifier = "projects/1234/locations/us-east1/customJobs/12345"
         gcp_credentials = vertex_ai_custom_training_job.gcp_credentials
-        job_service_client = gcp_credentials.job_service_client
-        job_service_client.cancel_custom_job.side_effect = self.raise_random_error
+        job_service_async_client = gcp_credentials.job_service_async_client
+        job_service_async_client.cancel_custom_job.side_effect = self.raise_random_error
         with pytest.raises(RuntimeError, match="Random error"):
             vertex_ai_custom_training_job.kill(identifier)
 
@@ -149,7 +149,7 @@ class TestVertexAICustomTrainingJob:
             display_name="mock_display_name",
         )
         gcp_credentials = vertex_ai_custom_training_job.gcp_credentials
-        gcp_credentials.job_service_client.get_custom_job.return_value = (
+        gcp_credentials.job_service_async_client.get_custom_job.return_value = (
             failed_run_final
         )
         with pytest.raises(RuntimeError, match="my error msg"):
@@ -159,13 +159,15 @@ class TestVertexAICustomTrainingJob:
         self, vertex_ai_custom_training_job: VertexAICustomTrainingJob
     ):
         gcp_credentials = vertex_ai_custom_training_job.gcp_credentials
-        gcp_credentials.job_service_client.create_custom_job.side_effect = (
+        gcp_credentials.job_service_async_client.create_custom_job.side_effect = (
             RuntimeError()
         )
 
         with pytest.raises(RetryError):
             vertex_ai_custom_training_job.run()
-        assert gcp_credentials.job_service_client.create_custom_job.call_count == 3
+        assert (
+            gcp_credentials.job_service_async_client.create_custom_job.call_count == 3
+        )
 
     def test_machine_spec(
         self, vertex_ai_custom_training_job: VertexAICustomTrainingJob
