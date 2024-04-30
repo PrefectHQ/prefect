@@ -90,7 +90,7 @@ async def create_handler(
             batch.append(await queue.get())
 
         try:
-            async with await db.session() as session:
+            async with db.session_context() as session:
                 await write_events(session=session, events=batch)
                 await session.commit()
                 logger.debug("Finished persisting events.")
@@ -103,15 +103,15 @@ async def create_handler(
         older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
 
         try:
-            async with await db.session() as session:
+            async with db.session_context() as session:
                 result = await session.execute(
                     sa.delete(db.Event).where(db.Event.occurred < older_than)
                 )
                 await session.commit()
-            if result.rowcount:
-                logger.debug(
-                    "Trimmed %s events older than %s.", result.rowcount, older_than
-                )
+                if result.rowcount:
+                    logger.debug(
+                        "Trimmed %s events older than %s.", result.rowcount, older_than
+                    )
         except Exception:
             logger.exception("Error trimming events", exc_info=True)
 
