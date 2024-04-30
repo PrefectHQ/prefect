@@ -276,18 +276,21 @@ def job_service_client():
 
 @pytest.fixture
 def job_service_async_client():
-    job_service_client_async_mock = AsyncMock()
-    custom_run = AsyncMock(name="mock_name")
-    job_service_client_async_mock.create_custom_job.return_value = custom_run
+    job_service_client_async_mock = MagicMock()
+    custom_run = MagicMock(name="mock_name")
+    job_service_client_async_mock.create_custom_job = AsyncMock(return_value=custom_run)
 
     error = MagicMock(message="")
-    custom_run_final = AsyncMock(
+    custom_run_final = MagicMock(
         name="mock_name",
         state=JobState.JOB_STATE_SUCCEEDED,
         error=error,
         display_name="mock_display_name",
     )
-    job_service_client_async_mock.get_custom_job.return_value = custom_run_final
+    job_service_client_async_mock.get_custom_job = AsyncMock(
+        return_value=custom_run_final
+    )
+    job_service_client_async_mock.cancel_custom_job = AsyncMock()
     return job_service_client_async_mock
 
 

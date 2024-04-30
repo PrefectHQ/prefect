@@ -94,7 +94,7 @@ try:
     from google.cloud.aiplatform_v1.types.job_state import JobState
     from google.cloud.aiplatform_v1.types.machine_resources import DiskSpec, MachineSpec
     from google.protobuf.duration_pb2 import Duration
-    from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+    from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
 except ModuleNotFoundError:
     pass
 
@@ -408,17 +408,14 @@ class VertexAICustomTrainingJob(Infrastructure):
         project = self.gcp_credentials.project
         resource_name = f"projects/{project}/locations/{self.region}"
 
-        retry_policy = retry(
+        async for attempt in AsyncRetrying(
             stop=stop_after_attempt(3), wait=wait_fixed(1) + wait_random(0, 3)
-        )
-
-        create_custom_job_with_retries = retry_policy(
-            job_service_async_client.create_custom_job
-        )
-        custom_job_run = await create_custom_job_with_retries(
-            parent=resource_name,
-            custom_job=custom_job,
-        )
+        ):
+            with attempt:
+                custom_job_run = await job_service_async_client.create_custom_job(
+                    parent=resource_name,
+                    custom_job=custom_job,
+                )
 
         self.logger.info(
             f"{self._log_prefix}: Job {self.job_name!r} created. "
