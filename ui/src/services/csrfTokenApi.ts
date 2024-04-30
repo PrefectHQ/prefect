@@ -4,14 +4,14 @@ import { CreateActions } from '@prefecthq/vue-compositions'
 import { AxiosError, AxiosInstance, InternalAxiosRequestConfig, isAxiosError } from 'axios'
 import { CsrfToken } from '@/models/CsrfToken'
 import { mapper } from '@/services/mapper'
+import { UiSettings } from '@/services/uiSettings'
 import { CsrfTokenResponse } from '@/types/csrfTokenResponse'
 
 const MAX_RETRIES: number = 1
 
 export class CsrfTokenApi extends Api {
-  public csrfToken?: CsrfToken
-  public clientId: string = randomId()
-  public csrfSupportEnabled = true
+  private csrfToken?: CsrfToken
+  private readonly clientId: string = randomId()
   private refreshTimeout: ReturnType<typeof setTimeout> | null = null
   private ongoingRefresh: Promise<void> | null = null
 
@@ -21,12 +21,16 @@ export class CsrfTokenApi extends Api {
   }
 
   public async addCsrfHeaders(config: InternalAxiosRequestConfig): Promise<void> {
-    if (this.csrfSupportEnabled) {
-      const csrfToken = await this.getCsrfToken()
-      config.headers['Prefect-Csrf-Token'] = csrfToken.token
-      config.headers['Prefect-Csrf-Client'] = this.clientId
-      config.headers['Prefect-Csrf-Retry-Count'] = config.headers['Prefect-Csrf-Retry-Count'] ?? '0'
+    const enabled = await UiSettings.get('csrfEnabled')
+
+    if (!enabled) {
+      return
     }
+
+    const csrfToken = await this.getCsrfToken()
+    config.headers['Prefect-Csrf-Token'] = csrfToken.token
+    config.headers['Prefect-Csrf-Client'] = this.clientId
+    config.headers['Prefect-Csrf-Retry-Count'] = config.headers['Prefect-Csrf-Retry-Count'] ?? '0'
   }
 
   private async getCsrfToken(): Promise<CsrfToken> {
@@ -54,16 +58,12 @@ export class CsrfTokenApi extends Api {
       try {
         const response = await this.get<CsrfTokenResponse>(`/csrf-token?client=${this.clientId}`)
         this.csrfToken = mapper.map('CsrfTokenResponse', response.data, 'CsrfToken')
+
         this.ongoingRefresh = null
       } catch (error) {
         this.ongoingRefresh = null
 
-        if (this.isUnconfiguredServer(error)) {
-          this.disableCsrfSupport()
-        } else {
-          console.error('Failed to refresh CSRF token:', error)
-          throw new Error('Failed to refresh CSRF token')
-        }
+        throw error
       }
     }
 
@@ -72,10 +72,6 @@ export class CsrfTokenApi extends Api {
   }
 
   private shouldRefreshToken(): boolean {
-    if (!this.csrfSupportEnabled) {
-      return false
-    }
-
     if (!this.csrfToken) {
       return true
     }
@@ -83,27 +79,13 @@ export class CsrfTokenApi extends Api {
     return new Date() > this.csrfToken.expiration
   }
 
-  private isUnconfiguredServer(error: unknown): boolean {
-    if (!isApiErrorResponse(error)) {
-      return false
+  private async startBackgroundTokenRefresh(): Promise<void> {
+    const enabled = await UiSettings.get('csrfEnabled')
+
+    if (!enabled) {
+      return
     }
 
-    return error.response.status === 422 && error.response.data.detail.includes('CSRF protection is disabled')
-  }
-
-  public isInvalidCsrfToken(error: AxiosError): boolean {
-    if (!isApiErrorResponse(error)) {
-      return false
-    }
-
-    return error.response.status === 403 && error.response.data.detail.includes('Invalid CSRF token')
-  }
-
-  private disableCsrfSupport(): void {
-    this.csrfSupportEnabled = false
-  }
-
-  private startBackgroundTokenRefresh(): void {
     const calculateTimeoutDuration = (): number => {
       if (this.csrfToken) {
         const now = new Date()
@@ -121,14 +103,20 @@ export class CsrfTokenApi extends Api {
     }
 
     const refreshTask = async (): Promise<void> => {
-      if (this.csrfSupportEnabled) {
-        await this.refreshCsrfToken(true)
-        this.refreshTimeout = setTimeout(refreshTask, calculateTimeoutDuration())
-      }
+      await this.refreshCsrfToken(true)
+      this.refreshTimeout = setTimeout(refreshTask, calculateTimeoutDuration())
     }
 
     this.refreshTimeout = setTimeout(refreshTask, calculateTimeoutDuration())
   }
+}
+
+function isInvalidCsrfToken(error: AxiosError): boolean {
+  if (!isApiErrorResponse(error)) {
+    return false
+  }
+
+  return error.response.status === 403 && error.response.data.detail.includes('Invalid CSRF token')
 }
 
 export function setupCsrfInterceptor(csrfTokenApi: CreateActions<CsrfTokenApi>, axiosInstance: AxiosInstance): void {
@@ -143,14 +131,17 @@ export function setupCsrfInterceptor(csrfTokenApi: CreateActions<CsrfTokenApi>, 
   })
 
   axiosInstance.interceptors.response.use(undefined, async (error: AxiosError) => {
-    if (isAxiosError(error) && csrfTokenApi.isInvalidCsrfToken(error)) {
+    if (isAxiosError(error) && isInvalidCsrfToken(error)) {
       const { config } = error
 
       if (config?.headers['Prefect-Csrf-Retry-Count']) {
         const retryCount = parseInt(config.headers['Prefect-Csrf-Retry-Count'], 10)
+
         if (retryCount < MAX_RETRIES) {
           await csrfTokenApi.addCsrfHeaders(config)
+
           config.headers['Prefect-Csrf-Retry-Count'] = (retryCount + 1).toString()
+
           return axiosInstance(config)
         }
       }
