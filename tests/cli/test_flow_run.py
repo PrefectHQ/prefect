@@ -194,31 +194,31 @@ def test_ls_state_type_filter_invalid_raises():
     )
 
 
-# @pytest.mark.parametrize(
-#     "state_name",
-#     [
-#         "Late",
-#         "LATE",
-#         "late",
-#     ],
-# )
-# def test_ls_state_name_filter(
-#     scheduled_flow_run,
-#     completed_flow_run,
-#     running_flow_run,
-#     late_flow_run,
-#     state_name,
-# ):
-#     result = invoke_and_assert(
-#         command=["flow-run", "ls", "--state", state_name],
-#         expected_code=0,
-#     )
+@pytest.mark.parametrize(
+    "state_name",
+    [
+        "Late",
+        "LATE",
+        "late",
+    ],
+)
+def test_ls_state_name_filter(
+    scheduled_flow_run,
+    completed_flow_run,
+    running_flow_run,
+    late_flow_run,
+    state_name,
+):
+    result = invoke_and_assert(
+        command=["flow-run", "ls", "--state", state_name],
+        expected_code=0,
+    )
 
-#     assert_flow_runs_in_result(
-#         result,
-#         expected=[late_flow_run],
-#         unexpected=[running_flow_run, scheduled_flow_run, completed_flow_run],
-#     )
+    assert_flow_runs_in_result(
+        result,
+        expected=[late_flow_run],
+        unexpected=[running_flow_run, scheduled_flow_run, completed_flow_run],
+    )
 
 
 def test_ls_state_name_filter_invalid_raises():
