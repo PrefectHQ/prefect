@@ -131,22 +131,22 @@ def test_ls_no_args(
     )
 
 
-# def test_ls_flow_name_filter(
-#     scheduled_flow_run,
-#     completed_flow_run,
-#     running_flow_run,
-#     late_flow_run,
-# ):
-#     result = invoke_and_assert(
-#         command=["flow-run", "ls", "--flow-name", "goodbye"],
-#         expected_code=0,
-#     )
+def test_ls_flow_name_filter(
+    scheduled_flow_run,
+    completed_flow_run,
+    running_flow_run,
+    late_flow_run,
+):
+    result = invoke_and_assert(
+        command=["flow-run", "ls", "--flow-name", "goodbye"],
+        expected_code=0,
+    )
 
-#     assert_flow_runs_in_result(
-#         result,
-#         expected=[running_flow_run, late_flow_run],
-#         unexpected=[scheduled_flow_run, completed_flow_run],
-#     )
+    assert_flow_runs_in_result(
+        result,
+        expected=[running_flow_run, late_flow_run],
+        unexpected=[scheduled_flow_run, completed_flow_run],
+    )
 
 
 # @pytest.mark.parametrize(
@@ -184,14 +184,14 @@ def test_ls_no_args(
 #     )
 
 
-# def test_ls_state_type_filter_invalid_raises():
-#     invoke_and_assert(
-#         command=["flow-run", "ls", "--state-type", "invalid"],
-#         expected_code=1,
-#         expected_output_contains=(
-#             "Invalid state type. Options are SCHEDULED, PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, CRASHED, PAUSED, CANCELLING."
-#         ),
-#     )
+def test_ls_state_type_filter_invalid_raises():
+    invoke_and_assert(
+        command=["flow-run", "ls", "--state-type", "invalid"],
+        expected_code=1,
+        expected_output_contains=(
+            "Invalid state type. Options are SCHEDULED, PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, CRASHED, PAUSED, CANCELLING."
+        ),
+    )
 
 
 # @pytest.mark.parametrize(
@@ -221,14 +221,14 @@ def test_ls_no_args(
 #     )
 
 
-# def test_ls_state_name_filter_invalid_raises():
-#     invoke_and_assert(
-#         command=["flow-run", "ls", "--state", "invalid"],
-#         expected_code=1,
-#         expected_output_contains=(
-#             "Invalid state name. Options are Scheduled, Pending, Running, Completed, Failed, Cancelled, Crashed, Paused, Cancelling, Suspended, AwaitingRetry, Retrying, Late."
-#         ),
-#     )
+def test_ls_state_name_filter_invalid_raises():
+    invoke_and_assert(
+        command=["flow-run", "ls", "--state", "invalid"],
+        expected_code=1,
+        expected_output_contains=(
+            "Invalid state name. Options are Scheduled, Pending, Running, Completed, Failed, Cancelled, Crashed, Paused, Cancelling, Suspended, AwaitingRetry, Retrying, Late."
+        ),
+    )
 
 
 def test_ls_limit(
