@@ -14,9 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.services import event_persister
+from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
+from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import ValidationError
@@ -306,3 +309,43 @@ async def test_flushes_messages_periodically(
         # no matter how many batches this ended up being distributed over due to the
         # periodic flushes, we should definitely have flushed all of the records by here
         assert (await get_event_count(session)) == 9
+
+
+async def test_trims_messages_periodically(
+    event: ReceivedEvent,
+    session: AsyncSession,
+):
+    await write_events(
+        session,
+        [
+            event.copy(
+                update={
+                    "id": uuid4(),
+                    "occurred": pendulum.now("UTC") - timedelta(days=i),
+                }
+            )
+            for i in range(10)
+        ],
+    )
+    await session.commit()
+
+    five_days_ago = pendulum.now("UTC") - timedelta(days=5)
+
+    initial_events, total, _ = await query_events(session, filter=EventFilter())
+    assert total == 10
+    assert len(initial_events) == 10
+    assert any(event.occurred < five_days_ago for event in initial_events)
+    assert any(event.occurred >= five_days_ago for event in initial_events)
+
+    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: timedelta(days=5)}):
+        async with event_persister.create_handler(
+            flush_every=timedelta(seconds=0.001),
+            trim_every=timedelta(seconds=0.001),
+        ):
+            await asyncio.sleep(0.1)  # this is 100x the time necessary
+
+    remaining_events, total, _ = await query_events(session, filter=EventFilter())
+    assert total == 5
+    assert len(remaining_events) == 5
+
+    assert all(event.occurred >= five_days_ago for event in remaining_events)

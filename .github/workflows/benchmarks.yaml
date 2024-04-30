@@ -79,9 +79,11 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run benchmarks
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         # Includes comparison to previous benchmarks if available
         run: >
-          uniquename=${{ github.head_ref || 'main' }}-${{ github.sha }}
+          uniquename=$HEAD_REF || 'main'-${{ github.sha }}
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           python benches
