@@ -363,6 +363,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     def ui_settings():
         return {
             "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
+            "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
             "flags": enabled_experiments(),
         }
 
