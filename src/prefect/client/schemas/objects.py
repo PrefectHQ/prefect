@@ -121,20 +121,20 @@ class WorkQueueStatus(AutoEnum):
 
 
 class StateDetails(PrefectBaseModel):
-    flow_run_id: UUID = None
-    task_run_id: UUID = None
+    flow_run_id: Optional[UUID] = None
+    task_run_id: Optional[UUID] = None
     # for task runs that represent subflows, the subflow's run ID
-    child_flow_run_id: UUID = None
+    child_flow_run_id: Optional[UUID] = None
     scheduled_time: DateTimeTZ = None
-    cache_key: str = None
+    cache_key: Optional[str] = None
     cache_expiration: DateTimeTZ = None
     untrackable_result: bool = False
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
-    pause_key: str = None
+    pause_key: Optional[str] = None
     run_input_keyset: Optional[Dict[str, str]] = None
-    refresh_cache: bool = None
-    retriable: bool = None
+    refresh_cache: Optional[bool] = None
+    retriable: Optional[bool] = None
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
 
@@ -161,7 +161,9 @@ class State(ObjectBaseModel, Generic[R]):
     def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
-    def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
+    def result(
+        self, raise_on_failure: bool = True, fetch: Optional[bool] = None
+    ) -> Union[R, Exception]:
         """
         Retrieve the result attached to this state.
 

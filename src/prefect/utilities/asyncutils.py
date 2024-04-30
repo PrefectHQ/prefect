@@ -23,6 +23,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 from uuid import UUID, uuid4
 
@@ -113,7 +114,7 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
     if loop and loop.is_running():
         with ThreadPoolExecutor() as executor:
             future = executor.submit(context.run, asyncio.run, coroutine)
-            return future.result()
+            return cast(T, future.result())
     else:
         return context.run(asyncio.run, coroutine)
 
