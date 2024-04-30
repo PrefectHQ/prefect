@@ -157,8 +157,7 @@ def test_get_job_service_client(service_account_info, oauth2_credentials):
     test_flow()
 
 
-@pytest.mark.asyncio
-def test_get_job_service_async_client(service_account_info, oauth2_credentials):
+async def test_get_job_service_async_client(service_account_info, oauth2_credentials):
     @flow
     def test_flow():
         project = "test_project"
@@ -172,8 +171,9 @@ def test_get_job_service_async_client(service_account_info, oauth2_credentials):
     test_flow()
 
 
-@pytest.mark.asyncio
-def test_get_job_service_async_client_cached(service_account_info, oauth2_credentials):
+async def test_get_job_service_async_client_cached(
+    service_account_info, oauth2_credentials
+):
     """
     Test to ensure that _get_job_service_async_client_cached function returns the same instance
     for multiple calls with the same parameters and properly utilizes lru_cache.
