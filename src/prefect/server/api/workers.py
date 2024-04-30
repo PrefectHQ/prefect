@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.deployments import mark_deployments_ready
@@ -156,6 +157,9 @@ async def create_work_pool(
 
     try:
         async with db.session_context(begin_transaction=True) as session:
+            await validate_job_variable_defaults_for_work_pool(
+                session, work_pool.name, work_pool.base_job_template
+            )
             model = await models.workers.create_work_pool(
                 session=session, work_pool=work_pool
             )

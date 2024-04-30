@@ -242,6 +242,92 @@ class TestCreateWorkPool:
             in response.json()["exception_detail"][0]["msg"]
         )
 
+    async def test_create_work_pool_template_validation_missing_block_document(
+        self,
+        client,
+    ):
+        missing_block_doc_ref_template = {
+            "job_configuration": {
+                "block": "{{ block_string }}",
+            },
+            "variables": {
+                "properties": {
+                    "block_string": {
+                        "type": "string",
+                        "title": "Block String",
+                        "default": {"$ref": {"block_document_id": "non-existing"}},
+                    },
+                },
+                "required": ["block_string"],
+            },
+        }
+        response = await client.post(
+            "/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "Block not found" in response.json()["detail"]
+
+    async def test_create_work_pool_template_validation_rejects_block_document_reference_incorrect_type(
+        self,
+        client,
+        block_document,
+    ):
+        missing_block_doc_ref_template = {
+            "job_configuration": {
+                "block": "{{ block_string }}",
+            },
+            "variables": {
+                "properties": {
+                    "block_string": {
+                        "type": "string",
+                        "title": "Block String",
+                        "default": {
+                            "$ref": {"block_document_id": str(block_document.id)}
+                        },
+                    },
+                },
+                "required": ["block_string"],
+            },
+        }
+        response = await client.post(
+            "/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
+        )
+        assert (
+            "Failure reason: {'foo': 'bar'} is not of type 'string'"
+            in response.json()["detail"]
+        )
+        assert response.status_code == 422
+
+    async def test_create_work_pool_template_validation_accepts_valid_block_document_reference(
+        self,
+        client,
+        block_document,
+    ):
+        missing_block_doc_ref_template = {
+            "job_configuration": {
+                "block": "{{ block_object }}",
+            },
+            "variables": {
+                "properties": {
+                    "block_object": {
+                        "type": "object",
+                        "title": "Block Object",
+                        "default": {
+                            "$ref": {"block_document_id": str(block_document.id)}
+                        },
+                    },
+                },
+                "required": ["block_object"],
+            },
+        }
+        response = await client.post(
+            "/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
+        )
+        assert response.status_code == 201
+
 
 class TestDeleteWorkPool:
     async def test_delete_work_pool(self, client, work_pool, session):
