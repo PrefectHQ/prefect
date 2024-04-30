@@ -14,6 +14,7 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.exceptions import ObjectNotFound
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
@@ -126,6 +127,23 @@ async def start(
             style="yellow",
         )
 
+    is_queues_paused = await _check_work_queues_paused(
+        work_pool_name,
+        work_queues,
+    )
+    if is_queues_paused:
+        queue_scope = (
+            "All work queues" if not work_queues else "Specified work queue(s)"
+        )
+        app.console.print(
+            (
+                f"{queue_scope} in the work pool {work_pool_name!r} are currently"
+                " paused. This worker will not execute any flow runs until the work"
+                " queues are unpaused."
+            ),
+            style="yellow",
+        )
+
     worker_cls = await _get_worker_class(worker_type, work_pool_name, install_policy)
 
     if worker_cls is None:
@@ -218,6 +236,35 @@ async def _check_work_pool_paused(work_pool_name: str) -> bool:
         async with get_client() as client:
             work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
             return work_pool.is_paused
+    except ObjectNotFound:
+        return False
+
+
+async def _check_work_queues_paused(
+    work_pool_name: str, work_queues: Optional[List[str]]
+) -> bool:
+    """
+    Check if all work queues in the work pool are paused. If work queues are specified,
+    only those work queues are checked.
+
+    Args:
+        - work_pool_name (str): the name of the work pool to check
+        - work_queues (Optional[List[str]]): the names of the work queues to check
+
+    Returns:
+        - bool: True if work queues are paused, False otherwise
+    """
+    try:
+        work_queues_filter = (
+            WorkQueueFilter(name=WorkQueueFilterName(any_=work_queues))
+            if work_queues
+            else None
+        )
+        async with get_client() as client:
+            wqs = await client.read_work_queues(
+                work_pool_name=work_pool_name, work_queue_filter=work_queues_filter
+            )
+            return all(queue.is_paused for queue in wqs) if wqs else False
     except ObjectNotFound:
         return False
 

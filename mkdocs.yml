@@ -375,6 +375,7 @@ nav:
                 - api-ref/python/index.md
                 - "prefect.agent": api-ref/prefect/agent.md
                 - "prefect.artifacts": api-ref/prefect/artifacts.md
+                - "prefect.automations": api-ref/prefect/automations.md
                 - "prefect.blocks":
                       - "core": api-ref/prefect/blocks/core.md
                       - "fields": api-ref/prefect/blocks/fields.md
