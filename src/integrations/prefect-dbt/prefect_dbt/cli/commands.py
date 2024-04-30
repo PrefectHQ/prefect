@@ -2,12 +2,16 @@
 import os
 from pathlib import Path, PosixPath
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 import yaml
+from dbt.cli.main import dbtRunner, dbtRunnerResult
+from dbt.contracts.results import NodeStatus
 from prefect_shell.commands import ShellOperation, shell_run_command
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import get_run_logger, task
+from prefect.artifacts import create_markdown_artifact
 from prefect.utilities.filesystem import relative_path_to_current_platform
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -25,6 +29,8 @@ async def trigger_dbt_cli_command(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-cli-command-summary",
     **shell_run_command_kwargs: Dict[str, Any],
 ) -> Union[List[str], str]:
     """
@@ -154,10 +160,11 @@ async def trigger_dbt_cli_command(
         command += f" --project-dir {project_dir}"
 
     # fix up empty shell_run_command_kwargs
-    shell_run_command_kwargs = shell_run_command_kwargs or {}
+    dbt_runner_client = dbtRunner()
+    result: dbtRunnerResult = dbt_runner_client.invoke(command)
 
     logger.info(f"Running dbt command: {command}")
-    result = await shell_run_command.fn(command=command, **shell_run_command_kwargs)
+    # result = await shell_run_command.fn(command=command, **shell_run_command_kwargs)
     return result
 
 
@@ -353,3 +360,59 @@ class DbtCoreOperation(ShellOperation):
         modified_self = self.copy()
         modified_self.commands = commands
         return super(type(self), modified_self)._compile_kwargs(**open_kwargs)
+
+def create_dbt_artifact(
+    artifact_key: str, results: dbtRunnerResult, command: str
+) -> UUID:
+    """
+    Creates a Prefect task artifact summarizing the results
+    of the above predefined prefrect-dbt task.
+    """
+    # Create Summary Markdown Artifact
+    run_statuses: Dict[str, List[str]] = {
+        "successful": [],
+        "failed": [],
+        "skipped": [],
+    }
+
+    for r in results.result.results:
+        if r.status == NodeStatus.Success or r.status == NodeStatus.Pass:
+            run_statuses["successful"].append(r)
+        elif (
+            r.status == NodeStatus.Fail
+            or r.status == NodeStatus.Error
+            or r.status == NodeStatus.RuntimeErr
+        ):
+            run_statuses["failed"].append(r)
+        elif r.status == NodeStatus.Skipped:
+            run_statuses["skipped"].append(r)
+
+    markdown = f"# DBT {command.capitalize()} Task Summary"
+
+    if run_statuses["failed"] != []:
+        failed_runs_str = ""
+        for r in run_statuses["failed"]:
+            failed_runs_str += f"**{r.node.name}**\n \
+                Node Type: {r.node.resource_type}\n \
+                Node Path: {r.node.original_file_path}"
+            if r.message:
+                message = r.message.replace("\n", ".")
+                failed_runs_str += f"\nError Message: {message}\n"
+        markdown += f"""\n## Failed Runs 🔴\n\n{failed_runs_str}\n\n"""
+
+    if run_statuses["successful"] != []:
+        successful_runs_str = "\n".join(
+            [f"**{r.node.name}**" for r in run_statuses["successful"]]
+        )
+        markdown += f"""\n## Successful Runs ✅\n\n{successful_runs_str}\n\n"""
+
+    if run_statuses["skipped"] != []:
+        skipped_runs_str = "\n".join(
+            [f"**{r.node.name}**" for r in run_statuses["skipped"]]
+        )
+        markdown += f""" ## Skipped Runs 🚫\n\n{skipped_runs_str}\n\n"""
+
+    return create_markdown_artifact(
+        markdown=markdown,
+        key=artifact_key,
+    )
