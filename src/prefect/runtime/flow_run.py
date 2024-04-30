@@ -21,6 +21,7 @@ Available attributes:
 
 import os
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 import pendulum
 
@@ -238,11 +239,12 @@ def get_parent_flow_run_id() -> Optional[str]:
         parent_task_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_task_run, parent_task_run_id)
         ).result()
-        return parent_task_run.flow_run_id
+        return str(parent_task_run.flow_run_id) if parent_task_run.flow_run_id else None
+
     return None
 
 
-def get_parent_deployment_id() -> Dict[str, Any]:
+def get_parent_deployment_id() -> Optional[UUID]:
     parent_flow_run_id = get_parent_flow_run_id()
     if parent_flow_run_id is None:
         return None
@@ -250,10 +252,18 @@ def get_parent_deployment_id() -> Dict[str, Any]:
     parent_flow_run = from_sync.call_soon_in_loop_thread(
         create_call(_get_flow_run, parent_flow_run_id)
     ).result()
-    return parent_flow_run.deployment_id if parent_flow_run else None
+
+    if parent_flow_run:
+        return (
+            str(parent_flow_run.deployment_id)
+            if parent_flow_run.deployment_id
+            else None
+        )
+
+    return None
 
 
-def get_root_flow_run_id() -> Optional[str]:
+def get_root_flow_run_id() -> str:
     run_id = get_id()
     parent_flow_run_id = get_parent_flow_run_id()
     if parent_flow_run_id is None:
@@ -265,14 +275,12 @@ def get_root_flow_run_id() -> Optional[str]:
         ).result()
 
         if flow_run.parent_task_run_id is None:
-            return flow_run_id
-        elif flow_run.parent_task_run_id is not None:
+            return str(flow_run_id)
+        else:
             parent_task_run = from_sync.call_soon_in_loop_thread(
                 create_call(_get_task_run, flow_run.parent_task_run_id)
             ).result()
             return _get_root_flow_run_id(parent_task_run.flow_run_id)
-        else:
-            return None
 
     root_flow_run_id = _get_root_flow_run_id(parent_flow_run_id)
 
