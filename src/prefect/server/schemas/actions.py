@@ -316,7 +316,7 @@ class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
                 variables_schema,
                 raise_on_error=False,
                 preprocess=True,
-                ignore_required=False,
+                ignore_required=True,
             )
             if errors:
                 for error in errors:
