@@ -45,10 +45,10 @@ jobs:
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
 
-      - name: Get latest tag for repo
+      - name: Get latest tag starting with any number, excluding 2.82
         id: get_latest_tag
         run: |
-          tag=$(git describe --tags --abbrev=0)
+          tag=$(git tag --list '[0-9]*' --sort=-version:refname | grep -v '2.82' | head -n 1)
           sed -i "s/version = .*/version = \"$tag\"/" client/pyproject.toml
           cat client/pyproject.toml | grep version
 
