@@ -1,10 +1,11 @@
 import pytest
-from pydantic_core import from_json
 
 from prefect.events import Event
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
@@ -38,17 +39,19 @@ def example_event_2() -> Event:
     )
 
 
-@pytest.fixture(autouse=True)
-def api_setup(events_cloud_api_url: str):
+@pytest.fixture
+def cloud_api_setup(events_cloud_api_url: str):
     with temporary_settings(
         updates={
             PREFECT_API_URL: events_cloud_api_url,
             PREFECT_API_KEY: "my-token",
+            PREFECT_CLOUD_API_URL: events_cloud_api_url,
         }
     ):
         yield
 
 
+@pytest.mark.usefixtures("cloud_api_setup")
 async def test_stream_workspace(
     example_event_1: Event,
     example_event_2: Event,
@@ -75,12 +78,13 @@ async def test_stream_workspace(
     assert len(stdout_list) == 3
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_obj(from_json(event1))
+        parsed_event = Event.parse_raw(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")
 
 
+@pytest.mark.usefixtures("cloud_api_setup")
 async def test_stream_account(
     example_event_1: Event,
     example_event_2: Event,
@@ -108,7 +112,63 @@ async def test_stream_account(
     assert len(stdout_list) == 3
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_obj(from_json(event1))
+        parsed_event = Event.parse_raw(event1)
+        assert parsed_event.event == example_event_1.event
+    except ValueError as e:
+        pytest.fail(f"Failed to parse event: {e}")
+
+
+@pytest.fixture
+def oss_api_setup(events_api_url: str):
+    with temporary_settings(
+        updates={
+            PREFECT_API_URL: events_api_url,
+            PREFECT_API_KEY: None,
+        }
+    ):
+        yield
+
+
+@pytest.fixture
+def enable_oss_events():
+    with temporary_settings(
+        updates={
+            PREFECT_EXPERIMENTAL_EVENTS: True,
+        }
+    ):
+        yield
+
+
+@pytest.mark.usefixtures("oss_api_setup", "enable_oss_events")
+async def test_stream_oss_events(
+    example_event_1: Event,
+    example_event_2: Event,
+    puppeteer: Puppeteer,
+):
+    puppeteer.outgoing_events = [example_event_1, example_event_2]
+    puppeteer.token = None
+
+    event_stream = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "stream",
+            "--run-once",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Subscribing to event stream...",
+            "wondrous.things.happened",
+            "something-valuable",
+        ],
+    )
+
+    stdout_list = event_stream.stdout.strip().split("\n")
+    assert len(stdout_list) == 3
+
+    event1 = stdout_list[1]
+    try:
+        parsed_event = Event.parse_raw(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")
