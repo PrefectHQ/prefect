@@ -23,6 +23,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
+from prefect.logging import get_logger
 from prefect.runner import Runner
 from prefect.states import State
 
@@ -33,6 +34,8 @@ app.add_typer(flow_run_app, aliases=["flow-runs"])
 
 LOGS_DEFAULT_PAGE_SIZE = 200
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
+
+logger = get_logger(__name__)
 
 
 @flow_run_app.command()
@@ -57,19 +60,80 @@ async def ls(
     flow_name: List[str] = typer.Option(None, help="Name of the flow"),
     limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
     state: List[str] = typer.Option(None, help="Name of the flow run's state"),
-    state_type: List[StateType] = typer.Option(
-        None, help="Type of the flow run's state"
-    ),
+    state_type: List[str] = typer.Option(None, help="Type of the flow run's state"),
 ):
     """
-    View recent flow runs or flow runs for specific flows
+    View recent flow runs or flow runs for specific flows.
+
+    Arguments:
+
+        flow_name: Name of the flow
+
+        limit: Maximum number of flow runs to list. Defaults to 15.
+
+        state: Name of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'PAUSED', 'SUSPENDED', 'AWAITINGRETRY', 'RETRYING', and 'LATE'.
+
+        state_type: Type of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'CRASHED', and 'PAUSED'.
+
+    Examples:
+
+    $ prefect flow-runs ls --state Running
+
+    $ prefect flow-runs ls --state Running --state late
+
+    $ prefect flow-runs ls --state-type RUNNING
+
+    $ prefect flow-runs ls --state-type RUNNING --state-type FAILED
     """
 
+    # Handling `state` and `state_type` argument validity in the function instead of by specifying
+    # List[StateType] and List[StateName] in the type hints, allows users to provide
+    # case-insensitive arguments for `state` and `state_type`.
+
+    prefect_state_names = {
+        "SCHEDULED": "Scheduled",
+        "PENDING": "Pending",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled",
+        "CRASHED": "Crashed",
+        "PAUSED": "Paused",
+        "CANCELLING": "Cancelling",
+        "SUSPENDED": "Suspended",
+        "AWAITINGRETRY": "AwaitingRetry",
+        "RETRYING": "Retrying",
+        "LATE": "Late",
+    }
+
     state_filter = {}
+    formatted_states = []
+
     if state:
-        state_filter["name"] = {"any_": state}
+        for s in state:
+            uppercased_state = s.upper()
+            if uppercased_state in prefect_state_names:
+                capitalized_state = prefect_state_names[uppercased_state]
+                formatted_states.append(capitalized_state)
+            else:
+                # Do not change the case of the state name if it is not one of the official Prefect state names
+                formatted_states.append(s)
+                logger.warning(
+                    f"State name {repr(s)} is not one of the official Prefect state names."
+                )
+
+        state_filter["name"] = {"any_": formatted_states}
+
     if state_type:
-        state_filter["type"] = {"any_": state_type}
+        upper_cased_states = [s.upper() for s in state_type]
+        if not all(s in StateType.__members__ for s in upper_cased_states):
+            exit_with_error(
+                f"Invalid state type. Options are {', '.join(StateType.__members__)}."
+            )
+
+        state_filter["type"] = {
+            "any_": [StateType[s].value for s in upper_cased_states]
+        }
 
     async with get_client() as client:
         flow_runs = await client.read_flow_runs(
@@ -84,6 +148,9 @@ async def ls(
                 flow_filter=FlowFilter(id={"any_": [run.flow_id for run in flow_runs]})
             )
         }
+
+        if not flow_runs:
+            exit_with_success("No flow runs found.")
 
     table = Table(title="Flow Runs")
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
