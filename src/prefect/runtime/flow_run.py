@@ -18,6 +18,7 @@ Available attributes:
     - `parent_deployment_id`: the ID of the deployment that triggered this run, if any
     - `run_count`: the number of times this flow run has been run
 """
+
 import os
 from typing import Any, Dict, List, Optional
 
@@ -37,6 +38,7 @@ __all__ = [
     "parameters",
     "parent_flow_run_id",
     "parent_deployment_id",
+    "root_flow_run_id",
     "run_count",
     "api_url",
     "ui_url",
@@ -251,6 +253,32 @@ def get_parent_deployment_id() -> Dict[str, Any]:
     return parent_flow_run.deployment_id if parent_flow_run else None
 
 
+def get_root_flow_run_id() -> Optional[str]:
+    run_id = get_id()
+    parent_flow_run_id = get_parent_flow_run_id()
+    if parent_flow_run_id is None:
+        return run_id
+
+    def _get_root_flow_run_id(flow_run_id):
+        flow_run = from_sync.call_soon_in_loop_thread(
+            create_call(_get_flow_run, flow_run_id)
+        ).result()
+
+        if flow_run.parent_task_run_id is None:
+            return flow_run_id
+        elif flow_run.parent_task_run_id is not None:
+            parent_task_run = from_sync.call_soon_in_loop_thread(
+                create_call(_get_task_run, flow_run.parent_task_run_id)
+            ).result()
+            return _get_root_flow_run_id(parent_task_run.flow_run_id)
+        else:
+            return None
+
+    root_flow_run_id = _get_root_flow_run_id(parent_flow_run_id)
+
+    return root_flow_run_id
+
+
 def get_flow_run_api_url() -> Optional[str]:
     flow_run_id = get_id()
     if flow_run_id is None:
@@ -274,6 +302,7 @@ FIELDS = {
     "parameters": get_parameters,
     "parent_flow_run_id": get_parent_flow_run_id,
     "parent_deployment_id": get_parent_deployment_id,
+    "root_flow_run_id": get_root_flow_run_id,
     "run_count": get_run_count,
     "api_url": get_flow_run_api_url,
     "ui_url": get_flow_run_ui_url,
