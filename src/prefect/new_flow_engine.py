@@ -201,28 +201,6 @@ class FlowRunEngine(Generic[P, R]):
         )
         return parent_task_run
 
-    async def get_most_recent_flow_run_for_parent_task_run(
-        self, client: PrefectClient, parent_task_run: TaskRun
-    ) -> "Union[FlowRun, None]":
-        """
-        Get the most recent flow run associated with the provided parent task run.
-
-        Args:
-            - An orchestration client
-            - The parent task run to get the most recent flow run for
-
-        Returns:
-            The most recent flow run associated with the parent task run or `None` if
-            no flow runs are found
-        """
-        flow_runs = await client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                parent_task_run_id={"any_": [parent_task_run.id]}
-            ),
-            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-        )
-        return flow_runs[-1] if flow_runs else None
-
     async def load_flow(self, client: PrefectClient) -> Flow:
         entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 

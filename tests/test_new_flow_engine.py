@@ -1,5 +1,6 @@
 import logging
-from uuid import UUID
+from textwrap import dedent
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -37,6 +38,10 @@ class TestFlowRunEngine:
         assert engine.flow.name == "foo"
         assert engine.parameters == {}
 
+    async def test_empty_init(self):
+        with pytest.raises(ValueError, match="must be provided"):
+            FlowRunEngine()
+
     async def test_client_attr_raises_informative_error(self):
         engine = FlowRunEngine(flow=foo)
         with pytest.raises(RuntimeError, match="not started"):
@@ -50,6 +55,25 @@ class TestFlowRunEngine:
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
+
+    async def test_load_flow_from_entrypoint(
+        self, monkeypatch, prefect_client, tmp_path
+    ):
+        flow_code = """
+        from prefect import flow
+
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
+        engine = FlowRunEngine(flow_run_id=uuid4().hex)
+        flow = await engine.load_flow(client=prefect_client)
+        assert flow.fn() == "woof!"
+
 
 
 class TestFlowRuns:
