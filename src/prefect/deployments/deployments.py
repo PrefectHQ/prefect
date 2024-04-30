@@ -48,7 +48,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
-from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
 )
@@ -322,7 +322,7 @@ async def load_flow_from_flow_run(
 @deprecated_callable(start_date="Mar 2024")
 def load_deployments_from_yaml(
     path: str,
-) -> PrefectObjectRegistry:
+) -> dict:
     """
     Load deployments from a yaml file.
     """
@@ -332,15 +332,16 @@ def load_deployments_from_yaml(
     # Parse into a yaml tree to retrieve separate documents
     nodes = yaml.compose_all(contents)
 
-    with PrefectObjectRegistry(capture_failures=True) as registry:
-        for node in nodes:
-            with tmpchdir(path):
-                deployment_dict = yaml.safe_load(yaml.serialize(node))
-                # The return value is not necessary, just instantiating the Deployment
-                # is enough to get it recorded on the registry
-                parse_obj_as(Deployment, deployment_dict)
+    for node in nodes:
+        with tmpchdir(path):
+            deployment_dict = yaml.safe_load(yaml.serialize(node))
+            # The return value is not necessary, just instantiating the Deployment
+            # is enough to get it recorded on the registry
+            parse_obj_as(Deployment, deployment_dict)
 
-    return registry
+    # this function previously returned a registry, but the Deployment objects were not
+    # loaded into the registry, so we return an empty one here
+    return {}
 
 
 @deprecated_class(

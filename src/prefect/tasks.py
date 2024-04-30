@@ -31,7 +31,7 @@ from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.schemas import TaskRun
-from prefect.context import FlowRunContext, PrefectObjectRegistry
+from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
@@ -113,7 +113,6 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
     return retry_backoff_callable
 
 
-@PrefectObjectRegistry.register_instances
 class Task(Generic[P, R]):
     """
     A Prefect task definition.

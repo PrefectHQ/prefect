@@ -132,7 +132,6 @@ from prefect.client.schemas.sorting import FlowRunSort
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
-    PrefectObjectRegistry,
     TagsContext,
     TaskRunContext,
 )
@@ -236,15 +235,6 @@ def enter_flow_run_engine_from_flow_call(
     for flow run execution with minimal overhead.
     """
     setup_logging()
-
-    registry = PrefectObjectRegistry.get()
-    if registry and registry.block_code_execution:
-        engine_logger.warning(
-            f"Script loading is in progress, flow {flow.name!r} will not be executed."
-            " Consider updating the script to only call the flow if executed"
-            f' directly:\n\n\tif __name__ == "__main__":\n\t\t{flow.fn.__name__}()'
-        )
-        return None
 
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None

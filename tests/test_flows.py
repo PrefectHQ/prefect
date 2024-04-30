@@ -37,7 +37,6 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.context import PrefectObjectRegistry
 from prefect.deployments.runner import DeploymentImage, EntrypointType, RunnerDeployment
 from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
@@ -734,15 +733,6 @@ class TestFlowCall:
 
         with pytest.raises(ValueError, match="Test 2"):
             second.result()
-
-    async def test_call_execution_blocked_does_not_run_flow(self):
-        @flow(version="test")
-        def foo(x, y=3, z=3):
-            return x + y + z
-
-        with PrefectObjectRegistry(block_code_execution=True):
-            state = foo(1, 2)
-            assert state is None
 
     def test_flow_can_end_in_paused_state(self):
         @flow

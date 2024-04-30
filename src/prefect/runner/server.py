@@ -11,7 +11,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingFlowError, ScriptError
-from prefect.flows import Flow, load_flow_from_entrypoint, load_flows_from_script
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.logging import get_logger
 from prefect.runner.utils import (
     inject_schemas_into_openapi,
@@ -25,6 +25,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_PORT,
 )
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.importtools import import_objects_by_type
 
 if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
@@ -159,7 +160,7 @@ async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
                 continue
 
             script = deployment.entrypoint.split(":")[0]
-            subflows = load_flows_from_script(script)
+            subflows = import_objects_by_type(script, Flow)
             for flow in subflows:
                 schemas[flow.name] = flow.parameters.dict()
 

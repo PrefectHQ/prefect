@@ -25,7 +25,7 @@ from typing_extensions import Literal
 
 from prefect.deprecated.packaging.base import PackageManifest, Packager
 from prefect.deprecated.packaging.serializers import SourceSerializer
-from prefect.flows import Flow, load_flow_from_script
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.software import CondaEnvironment, PythonEnvironment
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import (
@@ -53,7 +53,7 @@ class DockerPackageManifest(PackageManifest):
     image_flow_location: str
 
     async def unpackage(self) -> Flow:
-        return load_flow_from_script(self.image_flow_location, self.flow_name)
+        return load_flow_from_entrypoint(f"{self.image_flow_location}:{self.flow_name}")
 
 
 @deprecated_class(start_date="Mar 2024")
