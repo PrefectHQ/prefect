@@ -327,6 +327,7 @@ async def test_trims_messages_periodically(
             for i in range(10)
         ],
     )
+    await session.commit()
 
     five_days_ago = pendulum.now("UTC") - timedelta(days=5)
 

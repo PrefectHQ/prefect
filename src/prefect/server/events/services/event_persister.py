@@ -102,15 +102,16 @@ async def create_handler(
     async def trim() -> None:
         older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
 
-        logger.debug("Trimming events older than %s", older_than)
-
         try:
             async with await db.session() as session:
-                await session.execute(
+                result = await session.execute(
                     sa.delete(db.Event).where(db.Event.occurred < older_than)
                 )
                 await session.commit()
-            logger.debug("Finished trimming events.")
+            if result.rowcount:
+                logger.debug(
+                    "Trimmed %s events older than %s.", result.rowcount, older_than
+                )
         except Exception:
             logger.exception("Error trimming events", exc_info=True)
 
