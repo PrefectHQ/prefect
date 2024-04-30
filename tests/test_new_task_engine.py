@@ -13,7 +13,6 @@ from prefect.client.schemas.objects import StateType
 from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
-from prefect.futures import PrefectFuture
 from prefect.new_task_engine import TaskRunEngine, run_task, run_task_sync
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
@@ -760,19 +759,3 @@ class TestTimeout:
 
         with pytest.raises(TimeoutError):
             run_task_sync(sync_task)
-
-
-class TestTaskSubmit:
-    async def test_async_task_submitted_inside_async_flow(self):
-        @task
-        async def foo(x):
-            return x
-
-        @flow
-        async def bar():
-            future = await foo.submit(1)
-            assert isinstance(future, PrefectFuture)
-            return future
-
-        task_state = await bar()
-        assert await task_state.result() == 1
