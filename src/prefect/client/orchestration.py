@@ -623,12 +623,12 @@ class PrefectClient:
     async def create_flow_run(
         self,
         flow: "FlowObject",
-        name: str = None,
+        name: Optional[str] = None,
         parameters: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
-        tags: Iterable[str] = None,
-        parent_task_run_id: UUID = None,
-        state: "prefect.states.State" = None,
+        tags: Optional[Iterable[str]] = None,
+        parent_task_run_id: Optional[UUID] = None,
+        state: Optional["prefect.states.State"] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
