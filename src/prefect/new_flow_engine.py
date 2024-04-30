@@ -228,7 +228,6 @@ class FlowRunEngine(Generic[P, R]):
         if not self.flow_run:
             raise ValueError("Flow run not set")
 
-        self.flow_run = await client.read_flow_run(self.flow_run.id)
         task_runner = self.flow.task_runner.duplicate()
 
         async with AsyncExitStack() as stack:
@@ -257,8 +256,6 @@ class FlowRunEngine(Generic[P, R]):
         if not self.flow_run:
             raise ValueError("Flow run not set")
 
-        self.flow_run = run_sync(client.read_flow_run(self.flow_run.id))
-
         # if running in a completely synchronous frame, anyio will not detect the
         # backend to use for the task group
         try:
@@ -266,18 +263,23 @@ class FlowRunEngine(Generic[P, R]):
         except AsyncLibraryNotFoundError:
             task_group = anyio._backends._asyncio.TaskGroup()
 
-        with FlowRunContext(
-            flow=self.flow,
-            log_prints=self.flow.log_prints or False,
-            flow_run=self.flow_run,
-            parameters=self.parameters,
-            client=client,
-            background_tasks=task_group,
-            result_factory=run_sync(ResultFactory.from_flow(self.flow)),
-            task_runner=self.flow.task_runner,
-        ):
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
-            yield
+        task_runner = run_sync(self.flow.task_runner.duplicate().__aenter__())
+
+        try:
+            with FlowRunContext(
+                flow=self.flow,
+                log_prints=self.flow.log_prints or False,
+                flow_run=self.flow_run,
+                parameters=self.parameters,
+                client=client,
+                background_tasks=task_group,
+                result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                task_runner=task_runner,
+            ):
+                self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+                yield
+        finally:
+            run_sync(task_runner.__aexit__(None, None, None))
 
     @asynccontextmanager
     async def start(self):
