@@ -1,6 +1,5 @@
 import asyncio
 from enum import Enum
-from typing import Type
 
 import orjson
 import typer
@@ -13,10 +12,8 @@ from prefect.cli.root import app
 from prefect.events import Event
 from prefect.events.clients import (
     PrefectCloudAccountEventSubscriber,
-    PrefectCloudEventSubscriber,
-    PrefectEventSubscriber,
+    get_events_subscriber,
 )
-from prefect.settings import PREFECT_API_URL, PREFECT_EXPERIMENTAL_EVENTS
 
 events_app = PrefectTyper(name="events", help="Commands for working with events.")
 app.add_typer(events_app, aliases=["event"])
@@ -25,18 +22,6 @@ app.add_typer(events_app, aliases=["event"])
 class StreamFormat(str, Enum):
     json = "json"
     text = "text"
-
-
-def get_event_subscriber_type_for_context(
-    account: bool,
-) -> Type[PrefectEventSubscriber]:
-    api_url = PREFECT_API_URL.value()
-
-    if PREFECT_EXPERIMENTAL_EVENTS and (api_url is None or "/account" not in api_url):
-        return PrefectEventSubscriber
-    return (
-        PrefectCloudAccountEventSubscriber if account else PrefectCloudEventSubscriber
-    )
 
 
 @events_app.command()
@@ -60,9 +45,13 @@ async def stream(
     """
 
     try:
-        Subscriber = get_event_subscriber_type_for_context(account)
+        if account:
+            events_subscriber = PrefectCloudAccountEventSubscriber()
+        else:
+            events_subscriber = get_events_subscriber()
+
         app.console.print("Subscribing to event stream...")
-        async with Subscriber() as subscriber:
+        async with events_subscriber as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
                 if run_once:

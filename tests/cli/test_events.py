@@ -4,6 +4,7 @@ from prefect.events import Event
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
     PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
@@ -44,6 +45,7 @@ def cloud_api_setup(events_cloud_api_url: str):
         updates={
             PREFECT_API_URL: events_cloud_api_url,
             PREFECT_API_KEY: "my-token",
+            PREFECT_CLOUD_API_URL: events_cloud_api_url,
         }
     ):
         yield
