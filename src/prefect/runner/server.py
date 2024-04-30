@@ -25,7 +25,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_PORT,
 )
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.importtools import import_objects_by_type
+from prefect.utilities.importtools import load_script_as_module
 
 if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
@@ -160,7 +160,10 @@ async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
                 continue
 
             script = deployment.entrypoint.split(":")[0]
-            subflows = import_objects_by_type(script, Flow)
+            module = load_script_as_module(script)
+            subflows = [
+                obj for obj in module.__dict__.values() if isinstance(obj, Flow)
+            ]
             for flow in subflows:
                 schemas[flow.name] = flow.parameters.dict()
 

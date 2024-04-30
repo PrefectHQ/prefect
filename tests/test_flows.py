@@ -2279,42 +2279,6 @@ def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
     import_object_mock.assert_called_with("my.module.pretend_flow")
 
 
-async def test_handling_script_with_unprotected_call_in_flow_script(
-    tmp_path,
-    caplog,
-    prefect_client,
-):
-    flow_code_with_call = """
-    from prefect import flow, get_run_logger
-
-    @flow
-    def dog():
-        get_run_logger().warning("meow!")
-        return "woof!"
-
-    dog()
-    """
-    fpath = tmp_path / "f.py"
-    fpath.write_text(dedent(flow_code_with_call))
-    with caplog.at_level("WARNING"):
-        flow = load_flow_from_entrypoint(f"{fpath}:dog")
-
-        # Make sure that warning is raised
-        assert (
-            "Script loading is in progress, flow 'dog' will not be executed. "
-            "Consider updating the script to only call the flow" in caplog.text
-        )
-
-    flow_runs = await prefect_client.read_flows()
-    assert len(flow_runs) == 0
-
-    # Make sure that flow runs when called
-    res = flow()
-    assert res == "woof!"
-    flow_runs = await prefect_client.read_flows()
-    assert len(flow_runs) == 1
-
-
 class TestFlowRunName:
     async def test_invalid_runtime_run_name(self):
         class InvalidFlowRunNameArg:

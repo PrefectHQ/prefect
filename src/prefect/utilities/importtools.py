@@ -214,16 +214,6 @@ def import_object(import_path: str):
     return getattr(module, object_name)
 
 
-def import_objects_by_type(script_path: str, obj_type: type):
-    """
-    Load all objects of a given type from a module.
-    """
-    module = load_script_as_module(script_path)
-    return {
-        name: obj for name, obj in module.__dict__.items() if isinstance(obj, obj_type)
-    }
-
-
 class DelayedImportErrorModule(ModuleType):
     """
     A fake module returned by `lazy_import` when the module cannot be found. When any
