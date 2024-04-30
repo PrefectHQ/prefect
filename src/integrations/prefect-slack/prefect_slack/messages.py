@@ -1,4 +1,4 @@
-"""Tasks for sending Slack messages"""
+"""Tasks for sending Slack messages."""
 
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
@@ -23,13 +23,13 @@ async def send_chat_message(
     ] = None,
 ) -> Dict:
     """
-    Sends a message to a Slack channel
+    Sends a message to a Slack channel.
 
     Args:
         channel: The name of the channel in which to post the chat message
-            (e.g. #general)
+            (e.g. #general).
         slack_credentials: Instance of `SlackCredentials` initialized with a Slack
-            bot token
+            bot token.
         text: Contents of the message. It's a best practice to always provide a `text`
             argument when posting a message. The `text` argument is used in places where
             content cannot be rendered such as: system push notifications, assistive
@@ -43,10 +43,10 @@ async def send_chat_message(
 
     Returns:
         Dict: Response from the Slack API. Example response structures can be found in
-            the [Slack API docs](https://api.slack.com/methods/chat.postMessage#examples)
+            the [Slack API docs](https://api.slack.com/methods/chat.postMessage#examples).
 
-    Examples:
-        Post a message at the end of a flow run
+    Example:
+        Post a message at the end of a flow run.
 
         ```python
         from prefect import flow
@@ -93,7 +93,7 @@ async def send_incoming_webhook_message(
     ] = None,
 ) -> None:
     """
-    Sends a message via an incoming webhook
+    Sends a message via an incoming webhook.
 
     Args:
         slack_webhook: Instance of `SlackWebhook` initialized with a Slack
@@ -109,8 +109,8 @@ async def send_incoming_webhook_message(
             message. The [Slack API docs](https://api.slack.com/block-kit/building)
             provide guidance on building messages with blocks.
 
-    Examples:
-        Post a message at the end of a flow run
+    Example:
+        Post a message at the end of a flow run.
 
         ```python
         from prefect import flow
