@@ -7,11 +7,12 @@ from uuid import UUID
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.results import NodeStatus
-from prefect_shell.commands import ShellOperation, shell_run_command
+from prefect_shell.commands import ShellOperation
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
+from prefect.runtime import task_run
 from prefect.utilities.filesystem import relative_path_to_current_platform
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -22,7 +23,11 @@ else:
 from prefect_dbt.cli.credentials import DbtCliProfile
 
 
-@task
+def generate_task_name():
+    parameters = task_run.parameters
+    return f"dbt-{parameters['command']}-task"
+
+@task(task_run_name=generate_task_name)
 async def trigger_dbt_cli_command(
     command: str,
     profiles_dir: Optional[Union[Path, str]] = None,
@@ -31,7 +36,7 @@ async def trigger_dbt_cli_command(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-cli-command-summary",
-    **shell_run_command_kwargs: Dict[str, Any],
+    **command_kwargs: Dict[str, Any],
 ) -> Union[List[str], str]:
     """
     Task for running dbt commands.
@@ -116,16 +121,8 @@ async def trigger_dbt_cli_command(
 
         trigger_dbt_cli_command_flow()
         ```
-    """  # noqa
-    # check if variable is set, if not check env, if not use expected default
+    """  
     logger = get_run_logger()
-    if not command.startswith("dbt"):
-        await shell_run_command.fn(command="dbt --help")
-        raise ValueError(
-            "Command is not a valid dbt sub-command; see dbt --help above,"
-            "or use prefect_shell.commands.shell_run_command for non-dbt related "
-            "commands instead"
-        )
 
     if profiles_dir is None:
         profiles_dir = os.getenv("DBT_PROFILES_DIR", Path.home() / ".dbt")
@@ -154,17 +151,36 @@ async def trigger_dbt_cli_command(
         )
 
     # append the options
-    command += f" --profiles-dir {profiles_dir}"
+    cli_args = [command]
+    cli_args.append("--profiles-dir")
+    cli_args.append(profiles_dir)
     if project_dir is not None:
         project_dir = Path(project_dir).expanduser()
-        command += f" --project-dir {project_dir}"
+        cli_args.append("--project-dir")
+        cli_args.append(project_dir)
+
+    if command_kwargs:
+        cli_args.append(command_kwargs)
 
     # fix up empty shell_run_command_kwargs
     dbt_runner_client = dbtRunner()
-    result: dbtRunnerResult = dbt_runner_client.invoke(command)
+    logger.info(f"Running dbt command: {cli_args}")
+    result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
-    logger.info(f"Running dbt command: {command}")
-    # result = await shell_run_command.fn(command=command, **shell_run_command_kwargs)
+    if result.exception is not None:
+        logger.error(f"dbt build task failed with exception: {result.exception}")
+        raise result.exception
+
+    if create_artifact:
+        artifact_id = create_dbt_artifact(
+            artifact_key=artifact_key, results=result, command=command
+        )
+        if not artifact_id:
+            logger.error(f"Artifact was not created for dbt {command} task")
+        else:
+            logger.info(
+                f"dbt {command} task completed successfully with artifact {artifact_id}"
+            )
     return result
 
 
@@ -388,7 +404,7 @@ def create_dbt_artifact(
         elif r.status == NodeStatus.Skipped:
             run_statuses["skipped"].append(r)
 
-    markdown = f"# DBT {command.capitalize()} Task Summary"
+    markdown = f"# dbt {command} Task Summary"
 
     if run_statuses["failed"] != []:
         failed_runs_str = ""

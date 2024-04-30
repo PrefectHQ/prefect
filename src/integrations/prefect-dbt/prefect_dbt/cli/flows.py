@@ -4,8 +4,9 @@ from typing import Optional, Union
 from dbt.cli.main import dbtRunner
 
 from prefect import flow, get_run_logger
+from prefect_dbt.cli.commands import create_dbt_artifact
 from prefect_dbt.cli.credentials import DbtCliProfile
-from prefect_dbt.cli.tasks import create_dbt_artifact, dbt_build_task
+from prefect_dbt.cli.tasks import dbt_build_task
 
 
 @flow
@@ -14,7 +15,6 @@ def dbt_flow(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    dbt_client: Optional[dbtRunner] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-flow-summary",
 ):
@@ -35,8 +35,6 @@ def dbt_flow(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        dbt_client: An instance of a dbtRunner client to execute dbt commands. If None,
-            a new instance is created.
         create_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
             Defaults to True.
@@ -63,13 +61,11 @@ def dbt_flow(
                     it will be indicated by the exception raised.
     """
     logger = get_run_logger()
-    dbt_client = dbtRunner()
     results = dbt_build_task(
         profiles_dir=profiles_dir,
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        dbt_client=dbt_client,
         create_artifact=False,
     )
 

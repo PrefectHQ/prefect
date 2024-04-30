@@ -4,11 +4,10 @@
 from pathlib import Path
 from typing import Optional, Union
 
-from prefect import get_run_logger, task
+from prefect_dbt.cli.commands import trigger_dbt_cli_command
 from prefect_dbt.cli.credentials import DbtCliProfile
 
 
-@task
 def dbt_build_task(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -35,8 +34,6 @@ def dbt_build_task(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        dbt_client: An instance of a dbtRunner client to execute dbt commands. If None,
-            a new instance is created.
         create_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
             Defaults to True.
@@ -63,24 +60,19 @@ def dbt_build_task(
                     it will be indicated by the exception raised.
     """
 
-    logger = get_run_logger()
-    logger.info("Running dbt build task.")
-
-    results = dbt_run(
+    results = trigger_dbt_cli_command(
         command="build",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        dbt_client=dbt_client,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        logger=logger,
+        **command_kwargs
     )
     return results
 
 
-@task
 def dbt_run_task(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -88,6 +80,7 @@ def dbt_run_task(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-run-task-summary",
+    **command_kwargs
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
@@ -106,8 +99,6 @@ def dbt_run_task(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        dbt_client: An instance of a dbtRunner client to execute dbt commands. If None,
-            a new instance is created.
         create_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
             Defaults to True.
@@ -134,32 +125,28 @@ def dbt_run_task(
                     it will be indicated by the exception raised.
     """
 
-    logger = get_run_logger()
-    logger.info("Running dbt run task.")
-
-    results = dbt_run(
+    results = trigger_dbt_cli_command(
         command="run",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        dbt_client=dbt_client,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        logger=logger,
+        **command_kwargs
     )
 
     return results
 
 
-@task
-def dbt_test_task(
+def run_dbt_test(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-test-task-summary",
+    **command_kwargs
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
@@ -178,8 +165,6 @@ def dbt_test_task(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        dbt_client: An instance of a dbtRunner client to execute dbt commands. If None,
-            a new instance is created.
         create_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
             Defaults to True.
@@ -205,32 +190,29 @@ def dbt_test_task(
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-    logger = get_run_logger()
-    logger.info("Running dbt test task.")
 
-    results = dbt_run(
+    results = trigger_dbt_cli_command(
         command="test",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        dbt_client=dbt_client,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        logger=logger,
+        **command_kwargs
     )
 
     return results
 
 
-@task
-def dbt_snapshot_task(
+def run_dbt_snapshot(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-snapshot-task-summary",
+    **command_kwargs
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
@@ -249,8 +231,6 @@ def dbt_snapshot_task(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        dbt_client: An instance of a dbtRunner client to execute dbt commands. If None,
-            a new instance is created.
         create_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
             Defaults to True.
@@ -276,10 +256,8 @@ def dbt_snapshot_task(
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-    logger = get_run_logger()
-    logger.info("Running dbt snapshot task.")
 
-    results = dbt_run(
+    results = trigger_dbt_cli_command(
         command="snapshot",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -287,12 +265,12 @@ def dbt_snapshot_task(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
+        **command_kwargs
     )
 
     return results
 
 
-@task
 def run_dbt_seed(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -300,6 +278,7 @@ def run_dbt_seed(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-seed-task-summary",
+    **command_kwargs
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
@@ -318,8 +297,6 @@ def run_dbt_seed(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        dbt_client: An instance of a dbtRunner client to execute dbt commands. If None,
-            a new instance is created.
         create_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
             Defaults to True.
@@ -345,10 +322,8 @@ def run_dbt_seed(
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-    logger = get_run_logger()
-    logger.info("Running dbt seed task.")
 
-    results = dbt_run(
+    results = trigger_dbt_cli_command(
         command="seed",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -356,7 +331,7 @@ def run_dbt_seed(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        logger=logger,
+        **command_kwargs
     )
 
     return results
