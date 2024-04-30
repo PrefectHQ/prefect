@@ -111,10 +111,12 @@
               "taskRoleArn": "{{ task_role_arn }}"
             },
             "tags": "{{ labels }}",
-            "taskDefinition": "{{ task_definition_arn }}"
+            "taskDefinition": "{{ task_definition_arn }}",
+            "capacityProviderStrategy": "{{ capacity_provider_strategy }}"
           },
           "configure_cloudwatch_logs": "{{ configure_cloudwatch_logs }}",
           "cloudwatch_logs_options": "{{ cloudwatch_logs_options }}",
+          "cloudwatch_logs_prefix": "{{ cloudwatch_logs_prefix }}",
           "network_configuration": "{{ network_configuration }}",
           "stream_output": "{{ stream_output }}",
           "task_start_timeout_seconds": "{{ task_start_timeout_seconds }}",
@@ -191,6 +193,14 @@
               ],
               "type": "string"
             },
+            "capacity_provider_strategy": {
+              "title": "Capacity Provider Strategy",
+              "description": "The capacity provider strategy to use when running the task. If a capacity provider strategy is specified, the selected launch type will be ignored.",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CapacityProvider"
+              }
+            },
             "image": {
               "title": "Image",
               "description": "The image to use for the Prefect container in the task. If this value is not null, it will override the value in the task definition. This value defaults to a Prefect base image matching your local versions.",
@@ -238,6 +248,11 @@
               "additionalProperties": {
                 "type": "string"
               }
+            },
+            "cloudwatch_logs_prefix": {
+              "title": "Cloudwatch Logs Prefix",
+              "description": "When `configure_cloudwatch_logs` is enabled, this setting may be used to set a prefix for the log group. If not provided, the default prefix will be `prefect-logs_<work_pool_name>_<deployment_id>`. If `awslogs-stream-prefix` is present in `Cloudwatch logs options` this setting will be ignored.",
+              "type": "string"
             },
             "network_configuration": {
               "title": "Network Configuration",
@@ -370,6 +385,30 @@
                 "aws_secret_access_key"
               ],
               "block_schema_references": {}
+            },
+            "CapacityProvider": {
+              "title": "CapacityProvider",
+              "description": "The capacity provider strategy to use when running the task.",
+              "type": "object",
+              "properties": {
+                "capacityProvider": {
+                  "title": "Capacityprovider",
+                  "type": "string"
+                },
+                "weight": {
+                  "title": "Weight",
+                  "type": "integer"
+                },
+                "base": {
+                  "title": "Base",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "capacityProvider",
+                "weight",
+                "base"
+              ]
             }
           }
         }
@@ -1100,7 +1139,9 @@
                 "serviceAccount": "{{ service_account_name }}",
                 "maxRetries": "{{ max_retries }}",
                 "timeout": "{{ timeout }}",
-                "vpcAccess": "{{ vpc_connector_name }}",
+                "vpcAccess": {
+                  "connector": "{{ vpc_connector_name }}"
+                },
                 "containers": [
                   {
                     "env": [],

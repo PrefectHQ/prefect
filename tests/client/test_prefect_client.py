@@ -30,7 +30,12 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.orchestration import (
+    PrefectClient,
+    ServerType,
+    SyncPrefectClient,
+    get_client,
+)
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -2065,8 +2070,8 @@ class TestAutomations:
             actions=[],
         )
 
-    async def test_create_not_cloud_runtime_error(
-        self, prefect_client, automation: AutomationCore
+    async def test_create_not_enabled_runtime_error(
+        self, events_disabled, prefect_client, automation: AutomationCore
     ):
         with pytest.raises(
             RuntimeError,
@@ -2090,8 +2095,124 @@ class TestAutomations:
             )
             assert automation_id == UUID(created_automation["id"])
 
-    async def test_delete_owned_automations_not_cloud_runtime_error(
-        self, prefect_client
+    async def test_read_automation(self, cloud_client, automation: AutomationCore):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            created_automation = automation.dict(json_compatible=True)
+            created_automation["id"] = str(uuid4())
+
+            created_automation_id = created_automation["id"]
+
+            read_route = router.get(f"/automations/{created_automation_id}").mock(
+                return_value=httpx.Response(200, json=created_automation)
+            )
+
+            read_automation = await cloud_client.read_automation(created_automation_id)
+
+            assert read_route.called
+            assert read_automation.id == UUID(created_automation["id"])
+
+    async def test_read_automation_not_found(
+        self, cloud_client, automation: AutomationCore
+    ):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            created_automation = automation.dict(json_compatible=True)
+            created_automation["id"] = str(uuid4())
+
+            created_automation_id = created_automation["id"]
+
+            read_route = router.get(f"/automations/{created_automation_id}").mock(
+                return_value=httpx.Response(404)
+            )
+
+            with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
+                await cloud_client.read_automation(created_automation_id)
+
+            assert read_route.called
+
+    async def test_read_automations_by_name(
+        self, cloud_client, automation: AutomationCore
+    ):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            created_automation = automation.dict(json_compatible=True)
+            created_automation["id"] = str(uuid4())
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(200, json=[created_automation])
+            )
+            read_automation = await cloud_client.read_automations_by_name(
+                automation.name
+            )
+
+            assert read_route.called
+            assert len(read_automation) == 1
+            assert read_automation[0].id == UUID(created_automation["id"])
+            assert (
+                read_automation[0].name == automation.name == created_automation["name"]
+            )
+
+    @pytest.fixture
+    def automation2(self):
+        return AutomationCore(
+            name="test-automation",
+            trigger=EventTrigger(
+                match={"flow_run_id": "234"},
+                posture=Posture.Reactive,
+                threshold=1,
+                within=0,
+            ),
+            actions=[],
+        )
+
+    async def test_read_automations_by_name_multiple_same_name(
+        self, cloud_client, automation: AutomationCore, automation2: AutomationCore
+    ):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            created_automation = automation.dict(json_compatible=True)
+            created_automation["id"] = str(uuid4())
+
+            created_automation2 = automation2.dict(json_compatible=True)
+            created_automation2["id"] = str(uuid4())
+
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(
+                    200, json=[created_automation, created_automation2]
+                )
+            )
+            read_automation = await cloud_client.read_automations_by_name(
+                automation.name
+            )
+
+            assert read_route.called
+            assert (
+                len(read_automation) == 2
+            ), "Expected two automations with the same name"
+            assert all(
+                [
+                    automation.name == created_automation["name"]
+                    for automation in read_automation
+                ]
+            ), "Expected all automations to have the same name"
+
+    async def test_read_automations_by_name_not_found(
+        self, cloud_client, automation: AutomationCore
+    ):
+        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+            created_automation = automation.dict(json_compatible=True)
+            created_automation["id"] = str(uuid4())
+            created_automation["name"] = "nonexistent"
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(200, json=[])
+            )
+
+            nonexistent_automation = await cloud_client.read_automations_by_name(
+                name="nonexistent"
+            )
+
+            assert read_route.called
+
+            assert nonexistent_automation == []
+
+    async def test_delete_owned_automations_not_enabled_runtime_error(
+        self, events_disabled, prefect_client
     ):
         with pytest.raises(
             RuntimeError,
@@ -2354,3 +2475,16 @@ class TestPrefectClientCsrfSupport:
             async with PrefectClient(hosted_api_server) as prefect_client:
                 assert prefect_client.server_type == ServerType.SERVER
                 assert not prefect_client._client.enable_csrf_support
+
+
+class TestSyncClient:
+    def test_get_sync_client(self):
+        client = get_client(sync_client=True)
+        assert isinstance(client, SyncPrefectClient)
+
+    def test_fixture_is_sync(self, sync_prefect_client):
+        assert isinstance(sync_prefect_client, SyncPrefectClient)
+
+    def test_hello(self, sync_prefect_client):
+        response = sync_prefect_client.hello()
+        assert response.json() == "👋"

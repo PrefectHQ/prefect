@@ -34,6 +34,7 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
 from prefect.events import DeploymentTriggerTypes
+from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
@@ -1012,6 +1013,7 @@ class TestDeploymentApply:
 
     async def test_deployment_apply_does_not_sync_triggers_to_prefect_api_when_off(
         self,
+        events_disabled,
         patch_import,
         tmp_path,
     ):
@@ -1031,29 +1033,28 @@ class TestDeploymentApply:
 
         created_deployment_id = str(uuid4())
 
-        with temporary_settings(updates={PREFECT_EXPERIMENTAL_EVENTS: False}):
-            assert not get_client().server_type.supports_automations()
+        assert not get_client().server_type.supports_automations()
 
-            with respx.mock(
-                base_url=PREFECT_API_URL.value(), assert_all_called=False
-            ) as router:
-                router.post("/flows/").mock(
-                    return_value=httpx.Response(201, json={"id": str(uuid4())})
-                )
-                router.post("/deployments/").mock(
-                    return_value=httpx.Response(201, json={"id": created_deployment_id})
-                )
-                delete_route = router.delete(
-                    f"/automations/owned-by/prefect.deployment.{created_deployment_id}"
-                ).mock(return_value=httpx.Response(204))
-                create_route = router.post("/automations/").mock(
-                    return_value=httpx.Response(201, json={"id": str(uuid4())})
-                )
+        with respx.mock(
+            base_url=PREFECT_API_URL.value(), assert_all_called=False
+        ) as router:
+            router.post("/flows/").mock(
+                return_value=httpx.Response(201, json={"id": str(uuid4())})
+            )
+            router.post("/deployments/").mock(
+                return_value=httpx.Response(201, json={"id": created_deployment_id})
+            )
+            delete_route = router.delete(
+                f"/automations/owned-by/prefect.deployment.{created_deployment_id}"
+            ).mock(return_value=httpx.Response(204))
+            create_route = router.post("/automations/").mock(
+                return_value=httpx.Response(201, json={"id": str(uuid4())})
+            )
 
-                await deployment.apply()
+            await deployment.apply()
 
-                assert not delete_route.called
-                assert not create_route.called
+            assert not delete_route.called
+            assert not create_route.called
 
     async def test_trigger_job_vars(
         self,
@@ -1066,6 +1067,7 @@ class TestDeploymentApply:
         trigger = pydantic.parse_obj_as(
             DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
         )
+        assert isinstance(trigger, DeploymentEventTrigger)
 
         deployment = Deployment(
             name="TEST",

@@ -10,23 +10,24 @@ from typing import (
     Optional,
     Set,
     Union,
+    cast,
 )
 from uuid import UUID
 
 from typing_extensions import TypeAlias
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_trigger_within
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
+    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
     from pydantic.v1.fields import ModelField
 else:
-    from pydantic import Field, root_validator, validator
-    from pydantic.fields import ModelField
+    from pydantic import Field, PrivateAttr, root_validator, validator  # type: ignore
+    from pydantic.fields import ModelField  # type: ignore
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.events.actions import ActionTypes
+from prefect._internal.schemas.validators import validate_trigger_within
+from prefect.events.actions import ActionTypes, RunDeployment
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -38,7 +39,7 @@ class Posture(AutoEnum):
     Metric = "Metric"
 
 
-class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
+class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-arg]
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
@@ -49,6 +50,50 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     @abc.abstractmethod
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
+
+    # The following allows the regular Trigger class to be used when serving or
+    # deploying flows, analogous to how the Deployment*Trigger classes work
+
+    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
+
+    def set_deployment_id(self, deployment_id: UUID):
+        self._deployment_id = deployment_id
+
+    def owner_resource(self) -> Optional[str]:
+        return f"prefect.deployment.{self._deployment_id}"
+
+    def actions(self) -> List[ActionTypes]:
+        assert self._deployment_id
+        return [
+            RunDeployment(
+                source="selected",
+                deployment_id=self._deployment_id,
+                parameters=getattr(self, "parameters", None),
+                job_variables=getattr(self, "job_variables", None),
+            )
+        ]
+
+    def as_automation(self) -> "AutomationCore":
+        assert self._deployment_id
+
+        trigger: TriggerTypes = cast(TriggerTypes, self)
+
+        # This is one of the Deployment*Trigger classes, so translate it over to a
+        # plain Trigger
+        if hasattr(self, "trigger_type"):
+            trigger = self.trigger_type(**self.dict())
+
+        return AutomationCore(
+            name=(
+                getattr(self, "name", None)
+                or f"Automation for deployment {self._deployment_id}"
+            ),
+            description="",
+            enabled=getattr(self, "enabled", True),
+            trigger=trigger,
+            actions=self.actions(),
+            owner_resource=self.owner_resource(),
+        )
 
 
 class ResourceTrigger(Trigger, abc.ABC):
@@ -346,7 +391,7 @@ CompoundTrigger.update_forward_refs()
 SequenceTrigger.update_forward_refs()
 
 
-class AutomationCore(PrefectBaseModel, extra="ignore"):
+class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg]
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 

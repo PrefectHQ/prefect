@@ -7,8 +7,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/python-tests.yaml
-      - "**/*.py"
-      - "pyproject.toml"
+      - src/prefect/**/*.py
+      - pyproject.toml
       - Dockerfile
   push:
     branches:

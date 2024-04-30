@@ -8,7 +8,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 else:
-    import pydantic
+    import pydantic  # type: ignore
 
 from prefect.events import (
     AutomationCore,
@@ -47,14 +47,16 @@ def test_deployment_trigger_defaults_to_empty_reactive_trigger():
     assert automation.trigger.expect == set()
 
 
-def test_deployment_trigger_requires_name_but_can_have_it_set_later():
+def test_deployment_trigger_defaults_name_but_can_have_it_overridden():
     trigger = pydantic.parse_obj_as(DeploymentTriggerTypes, {})
     assert isinstance(trigger, DeploymentEventTrigger)
 
-    trigger.set_deployment_id(uuid4())
+    deployment_id = uuid4()
 
-    with pytest.raises(ValueError, match="name is required"):
-        trigger.as_automation()
+    trigger.set_deployment_id(deployment_id)
+
+    automation = trigger.as_automation()
+    assert automation.name == f"Automation for deployment {deployment_id}"
 
     trigger.name = "A deployment automation"
     automation = trigger.as_automation()

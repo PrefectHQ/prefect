@@ -16,7 +16,6 @@ from typing import (
     Any,
     Dict,
     List,
-    Literal,
     Optional,
     Set,
     Union,
@@ -25,19 +24,16 @@ from uuid import UUID
 
 from typing_extensions import TypeAlias
 
-from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_trigger_within
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-    from pydantic.v1.fields import ModelField
+    from pydantic.v1 import Field, PrivateAttr
 else:
-    from pydantic import Field, PrivateAttr, root_validator, validator
-    from pydantic.fields import ModelField
+    from pydantic import Field, PrivateAttr  # type: ignore
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.events.actions import RunDeployment
+from prefect.events.actions import ActionTypes, RunDeployment
 
 from .automations import (
     AutomationCore,
@@ -47,13 +43,12 @@ from .automations import (
     MetricTriggerQuery,
     Posture,
     SequenceTrigger,
-    Trigger,
     TriggerTypes,
 )
 from .events import ResourceSpecification
 
 
-class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
+class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-arg]
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
@@ -67,11 +62,7 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
     description: str = Field("", description="A longer description of this automation")
     enabled: bool = Field(True, description="Whether this automation will be evaluated")
 
-    # Fields from Trigger
-
-    type: str
-
-    # Fields from Deployment
+    # Fields from the RunDeployment action
 
     parameters: Optional[Dict[str, Any]] = Field(
         None,
@@ -87,60 +78,9 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):
             "deployment's default job variables"
         ),
     )
-    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
-
-    def set_deployment_id(self, deployment_id: UUID):
-        self._deployment_id = deployment_id
-
-    def owner_resource(self) -> Optional[str]:
-        return f"prefect.deployment.{self._deployment_id}"
-
-    def actions(self) -> List[RunDeployment]:
-        assert self._deployment_id
-        return [
-            RunDeployment(
-                parameters=self.parameters,
-                deployment_id=self._deployment_id,
-                job_variables=self.job_variables,
-            )
-        ]
-
-    def as_automation(self) -> AutomationCore:
-        if not self.name:
-            raise ValueError("name is required")
-
-        return AutomationCore(
-            name=self.name,
-            description=self.description,
-            enabled=self.enabled,
-            trigger=self.as_trigger(),
-            actions=self.actions(),
-            owner_resource=self.owner_resource(),
-        )
-
-    @abc.abstractmethod
-    def as_trigger(self) -> Trigger:
-        ...
 
 
-class DeploymentResourceTrigger(BaseDeploymentTrigger, abc.ABC):
-    """
-    Base class for triggers that may filter by the labels of resources.
-    """
-
-    type: str
-
-    match: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
-        description="Labels for resources which this trigger will match.",
-    )
-    match_related: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
-        description="Labels for related resources which this trigger will match.",
-    )
-
-
-class DeploymentEventTrigger(DeploymentResourceTrigger):
+class DeploymentEventTrigger(BaseDeploymentTrigger, EventTrigger):
     """
     A trigger that fires based on the presence or absence of events within a given
     period of time.
@@ -148,183 +88,27 @@ class DeploymentEventTrigger(DeploymentResourceTrigger):
 
     trigger_type = EventTrigger
 
-    type: Literal["event"] = "event"
 
-    after: Set[str] = Field(
-        default_factory=set,
-        description=(
-            "The event(s) which must first been seen to fire this trigger.  If "
-            "empty, then fire this trigger immediately.  Events may include "
-            "trailing wildcards, like `prefect.flow-run.*`"
-        ),
-    )
-    expect: Set[str] = Field(
-        default_factory=set,
-        description=(
-            "The event(s) this trigger is expecting to see.  If empty, this "
-            "trigger will match any event.  Events may include trailing wildcards, "
-            "like `prefect.flow-run.*`"
-        ),
-    )
-
-    for_each: Set[str] = Field(
-        default_factory=set,
-        description=(
-            "Evaluate the trigger separately for each distinct value of these labels "
-            "on the resource.  By default, labels refer to the primary resource of the "
-            "triggering event.  You may also refer to labels from related "
-            "resources by specifying `related:<role>:<label>`.  This will use the "
-            "value of that label for the first related resource in that role.  For "
-            'example, `"for_each": ["related:flow:prefect.resource.id"]` would '
-            "evaluate the trigger for each flow."
-        ),
-    )
-    posture: Literal[Posture.Reactive, Posture.Proactive] = Field(  # type: ignore[valid-type]
-        Posture.Reactive,
-        description=(
-            "The posture of this trigger, either Reactive or Proactive.  Reactive "
-            "triggers respond to the _presence_ of the expected events, while "
-            "Proactive triggers respond to the _absence_ of those expected events."
-        ),
-    )
-    threshold: int = Field(
-        1,
-        description=(
-            "The number of events required for this trigger to fire (for "
-            "Reactive triggers), or the number of events expected (for Proactive "
-            "triggers)"
-        ),
-    )
-    within: timedelta = Field(
-        timedelta(0),
-        minimum=0.0,
-        exclusiveMinimum=False,
-        description=(
-            "The time period over which the events must occur.  For Reactive triggers, "
-            "this may be as low as 0 seconds, but must be at least 10 seconds for "
-            "Proactive triggers"
-        ),
-    )
-
-    @validator("within")
-    def enforce_minimum_within(
-        cls, value: timedelta, values, config, field: ModelField
-    ):
-        return validate_trigger_within(value, field)
-
-    @root_validator(skip_on_failure=True)
-    def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
-        posture: Optional[Posture] = values.get("posture")
-        within: Optional[timedelta] = values.get("within")
-
-        if posture == Posture.Proactive:
-            if not within or within == timedelta(0):
-                values["within"] = timedelta(seconds=10.0)
-            elif within < timedelta(seconds=10.0):
-                raise ValueError(
-                    "The minimum within for Proactive triggers is 10 seconds"
-                )
-
-        return values
-
-    def as_trigger(self) -> Trigger:
-        return self.trigger_type(
-            match=self.match,
-            match_related=self.match_related,
-            after=self.after,
-            expect=self.expect,
-            for_each=self.for_each,
-            posture=self.posture,
-            threshold=self.threshold,
-            within=self.within,
-        )
-
-
-class DeploymentMetricTrigger(DeploymentResourceTrigger):
+class DeploymentMetricTrigger(BaseDeploymentTrigger, MetricTrigger):
     """
     A trigger that fires based on the results of a metric query.
     """
 
     trigger_type = MetricTrigger
 
-    type: Literal["metric"] = "metric"
 
-    posture: Literal[Posture.Metric] = Field(  # type: ignore[valid-type]
-        Posture.Metric,
-        description="Periodically evaluate the configured metric query.",
-    )
-
-    metric: MetricTriggerQuery = Field(
-        ...,
-        description="The metric query to evaluate for this trigger. ",
-    )
-
-    def as_trigger(self) -> Trigger:
-        return self.trigger_type(
-            match=self.match,
-            match_related=self.match_related,
-            posture=self.posture,
-            metric=self.metric,
-            job_variables=self.job_variables,
-        )
-
-
-class DeploymentCompositeTrigger(BaseDeploymentTrigger, abc.ABC):
-    """
-    Requires some number of triggers to have fired within the given time period.
-    """
-
-    type: Literal["compound", "sequence"]
-    triggers: List["TriggerTypes"]
-    within: Optional[timedelta]
-
-
-class DeploymentCompoundTrigger(DeploymentCompositeTrigger):
+class DeploymentCompoundTrigger(BaseDeploymentTrigger, CompoundTrigger):
     """A composite trigger that requires some number of triggers to have
     fired within the given time period"""
 
     trigger_type = CompoundTrigger
 
-    type: Literal["compound"] = "compound"
-    require: Union[int, Literal["any", "all"]]
 
-    @root_validator
-    def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        require = values.get("require")
-
-        if isinstance(require, int):
-            if require < 1:
-                raise ValueError("required must be at least 1")
-            if require > len(values["triggers"]):
-                raise ValueError(
-                    "required must be less than or equal to the number of triggers"
-                )
-
-        return values
-
-    def as_trigger(self) -> Trigger:
-        return self.trigger_type(
-            require=self.require,
-            triggers=self.triggers,
-            within=self.within,
-            job_variables=self.job_variables,
-        )
-
-
-class DeploymentSequenceTrigger(DeploymentCompositeTrigger):
+class DeploymentSequenceTrigger(BaseDeploymentTrigger, SequenceTrigger):
     """A composite trigger that requires some number of triggers to have fired
     within the given time period in a specific order"""
 
     trigger_type = SequenceTrigger
-
-    type: Literal["sequence"] = "sequence"
-
-    def as_trigger(self) -> Trigger:
-        return self.trigger_type(
-            triggers=self.triggers,
-            within=self.within,
-            job_variables=self.job_variables,
-        )
 
 
 # Concrete deployment trigger types
@@ -461,7 +245,10 @@ class DeploymentTrigger(PrefectBaseModel):
     def as_automation(self) -> AutomationCore:
         assert self.name
 
+        trigger: TriggerTypes
+
         if self.posture == Posture.Metric:
+            assert self.metric
             trigger = MetricTrigger(
                 type="metric",
                 match=self.match,
@@ -496,12 +283,13 @@ class DeploymentTrigger(PrefectBaseModel):
     def owner_resource(self) -> Optional[str]:
         return f"prefect.deployment.{self._deployment_id}"
 
-    def actions(self) -> List[RunDeployment]:
+    def actions(self) -> List[ActionTypes]:
         assert self._deployment_id
         return [
             RunDeployment(
-                parameters=self.parameters,
+                source="selected",
                 deployment_id=self._deployment_id,
+                parameters=self.parameters,
                 job_variables=self.job_variables,
             )
         ]

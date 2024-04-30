@@ -6,9 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prefect"
 description = "Workflow orchestration and management."
 readme = "README.md"
-authors = [
-    {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
     "Natural Language :: English",
     "Intended Audience :: Developers",
@@ -29,7 +27,7 @@ dependencies = [
     "prefect[client]",
     "aiosqlite>=0.17.0",
     "alembic>=1.7.5,<2.0.0",
-    "apprise>=1.1.0,<2.0.0", 
+    "apprise>=1.1.0,<2.0.0",
     "asyncpg>=0.23",
     "click>=8.0,<8.2",
     "cryptography>=36.0.1",
@@ -97,6 +95,8 @@ dev = [
     "virtualenv",
     "watchfiles",
     "respx",
+    "types-cachetools",
+    "types-PyYAML",
 ]
 
 client = [
@@ -147,6 +147,9 @@ preview = true
 [tool.mypy]
 disallow_untyped_defs = false
 check_untyped_defs = false
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.mypy-prefect.flows]
 ignore_errors = true
@@ -165,14 +168,8 @@ norecursedirs = [
     ".vscode",
     "node_modules",
 ]
-python_files = [
-    "test_*.py",
-    "bench_*.py",
-]
-python_functions = [
-    "test_*",
-    "bench_*",
-]
+python_files = ["test_*.py", "bench_*.py"]
+python_functions = ["test_*", "bench_*"]
 
 markers = [
     "service(arg): a service integration test. For example 'docker'",
@@ -228,13 +225,9 @@ filterwarnings = [
 ]
 
 [tool.coverage.report]
-exclude_lines = [
-    "@(abc\\.)?abstractmethod"
-]
+exclude_lines = ["@(abc\\.)?abstractmethod"]
 
-omit = [
-    "src/prefect/server/database/migrations/versions/*",
-]
+omit = ["src/prefect/server/database/migrations/versions/*"]
 
 ignore_errors = true
 

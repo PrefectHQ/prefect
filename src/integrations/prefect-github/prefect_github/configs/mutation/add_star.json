@@ -1,0 +1,12 @@
+{
+  "addStar": [
+    "clientMutationId",
+    {
+      "starrable": [
+        "id",
+        "stargazerCount",
+        "viewerHasStarred"
+      ]
+    }
+  ]
+}

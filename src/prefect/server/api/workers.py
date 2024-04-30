@@ -2,10 +2,10 @@
 Routes for interacting with work queue objects.
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional
-from uuid import UUID
+from typing import TYPE_CHECKING, List, Optional
+from uuid import UUID, uuid4
 
+import pendulum
 import sqlalchemy as sa
 from prefect._vendor.fastapi import (
     BackgroundTasks,
@@ -22,8 +22,18 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.work_queues import (
+    emit_work_queue_status_event,
+    mark_work_queues_ready,
+)
+from prefect.server.models.workers import emit_work_pool_status_event
+from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMWorkQueue
 
 router = PrefectRouter(
     prefix="/work_pools",
@@ -81,13 +91,13 @@ class WorkerLookups:
 
         return work_pool.default_queue_id
 
-    async def _get_work_queue_id_from_name(
+    async def _get_work_queue_from_name(
         self,
         session: AsyncSession,
         work_pool_name: str,
         work_queue_name: str,
         create_queue_if_not_found: bool = False,
-    ) -> UUID:
+    ) -> "ORMWorkQueue":
         """
         Given a work pool name and work pool queue name, return the ID of the
         queue. Used for translating user-facing APIs (which are name-based) to
@@ -116,7 +126,22 @@ class WorkerLookups:
                 work_queue=schemas.actions.WorkQueueCreate(name=work_queue_name),
             )
 
-        return work_queue.id
+        return work_queue
+
+    async def _get_work_queue_id_from_name(
+        self,
+        session: AsyncSession,
+        work_pool_name: str,
+        work_queue_name: str,
+        create_queue_if_not_found: bool = False,
+    ) -> UUID:
+        queue = await self._get_work_queue_from_name(
+            session=session,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+            create_queue_if_not_found=create_queue_if_not_found,
+        )
+        return queue.id
 
 
 # -----------------------------------------------------
@@ -132,7 +157,7 @@ class WorkerLookups:
 async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.responses.WorkPoolResponse:
+) -> schemas.core.WorkPool:
     """
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
@@ -155,7 +180,15 @@ async def create_work_pool(
             model = await models.workers.create_work_pool(
                 session=session, work_pool=work_pool
             )
-            return await schemas.responses.WorkPoolResponse.from_orm(model, session)
+
+            await emit_work_pool_status_event(
+                event_id=uuid4(),
+                occurred=pendulum.now("UTC"),
+                pre_update_work_pool=None,
+                work_pool=model,
+            )
+
+            return schemas.core.WorkPool.from_orm(model)
 
     except sa.exc.IntegrityError:
         raise HTTPException(
@@ -169,7 +202,7 @@ async def read_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.responses.WorkPoolResponse:
+) -> schemas.core.WorkPool:
     """
     Read a work pool by name
     """
@@ -181,7 +214,7 @@ async def read_work_pool(
         orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id
         )
-        return await schemas.responses.WorkPoolResponse.from_orm(orm_work_pool, session)
+        return schemas.core.WorkPool.from_orm(orm_work_pool)
 
 
 @router.post("/filter")
@@ -191,7 +224,7 @@ async def read_work_pools(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.WorkPoolResponse]:
+) -> List[schemas.core.WorkPool]:
     """
     Read multiple work pools
     """
@@ -202,10 +235,7 @@ async def read_work_pools(
             offset=offset,
             limit=limit,
         )
-        return [
-            await schemas.responses.WorkPoolResponse.from_orm(w, session)
-            for w in orm_work_pools
-        ]
+        return [schemas.core.WorkPool.from_orm(w) for w in orm_work_pools]
 
 
 @router.post("/count")
@@ -254,6 +284,7 @@ async def update_work_pool(
             session=session,
             work_pool_id=work_pool_id,
             work_pool=work_pool,
+            emit_status_change=emit_work_pool_status_event,
         )
 
 
@@ -306,24 +337,32 @@ async def get_scheduled_flow_runs(
     """
     Load scheduled runs for a worker
     """
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context() as session:
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
             session=session, work_pool_name=work_pool_name
         )
 
-        if work_queue_names is None:
+        if not work_queue_names:
+            work_queues = list(
+                await models.workers.read_work_queues(
+                    session=session, work_pool_id=work_pool_id
+                )
+            )
+            # None here instructs get_scheduled_flow_runs to use the default behavior
+            # of just operating on all work queues of the pool
             work_queue_ids = None
         else:
-            work_queue_ids = []
-            for qn in work_queue_names:
-                work_queue_ids.append(
-                    await worker_lookups._get_work_queue_id_from_name(
-                        session=session,
-                        work_pool_name=work_pool_name,
-                        work_queue_name=qn,
-                    )
+            work_queues = [
+                await worker_lookups._get_work_queue_from_name(
+                    session=session,
+                    work_pool_name=work_pool_name,
+                    work_queue_name=name,
                 )
+                for name in work_queue_names
+            ]
+            work_queue_ids = [wq.id for wq in work_queues]
 
+    async with db.session_context(begin_transaction=True) as session:
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
             work_pool_ids=[work_pool_id],
@@ -333,50 +372,23 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-        background_tasks.add_task(
-            _record_work_queue_polls,
-            db=db,
-            work_pool_id=work_pool_id,
-            work_queue_names=work_queue_names,
-        )
+    polled_work_queue_ids = [wq.id for wq in work_queues]
+    ready_work_queue_ids = [
+        wq.id for wq in work_queues if wq.status != WorkQueueStatus.READY
+    ]
 
-        return queue_response
+    background_tasks.add_task(
+        mark_work_queues_ready,
+        polled_work_queue_ids=polled_work_queue_ids,
+        ready_work_queue_ids=ready_work_queue_ids,
+    )
 
+    background_tasks.add_task(
+        mark_deployments_ready,
+        work_queue_ids=ready_work_queue_ids,
+    )
 
-async def _record_work_queue_polls(
-    db: PrefectDBInterface,
-    work_pool_id: UUID,
-    work_queue_names: List[str],
-):
-    """
-    Records that a set of work queues have been polled.
-
-    If no work queue names are provided, all work queues in the work pool are recorded as polled.
-    """
-    async with db.session_context(
-        begin_transaction=True, with_for_update=True
-    ) as session:
-        work_queue_filter = (
-            schemas.filters.WorkQueueFilter(
-                name=schemas.filters.WorkQueueFilterName(any_=work_queue_names)
-            )
-            if work_queue_names
-            else None
-        )
-        work_queues = await models.workers.read_work_queues(
-            session=session,
-            work_pool_id=work_pool_id,
-            work_queue_filter=work_queue_filter,
-        )
-
-        for work_queue in work_queues:
-            await models.workers.update_work_queue(
-                session=session,
-                work_queue_id=work_queue.id,
-                work_queue=schemas.actions.WorkQueueUpdate(
-                    last_polled=datetime.now(tz=timezone.utc)
-                ),
-            )
+    return queue_response
 
 
 # -----------------------------------------------------
@@ -504,6 +516,7 @@ async def update_work_queue(
             session=session,
             work_queue_id=work_queue_id,
             work_queue=work_queue,
+            emit_status_change=emit_work_queue_status_event,
         )
 
 
@@ -557,16 +570,32 @@ async def worker_heartbeat(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
-            session=session, work_pool_name=work_pool_name
+        work_pool = await models.workers.read_work_pool_by_name(
+            session=session,
+            work_pool_name=work_pool_name,
         )
+        if not work_pool:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Work pool "{work_pool_name}" not found.',
+            )
 
         await models.workers.worker_heartbeat(
             session=session,
-            work_pool_id=work_pool_id,
+            work_pool_id=work_pool.id,
             worker_name=name,
             heartbeat_interval_seconds=heartbeat_interval_seconds,
         )
+
+        if work_pool.status == schemas.statuses.WorkPoolStatus.NOT_READY:
+            await models.workers.update_work_pool(
+                session=session,
+                work_pool_id=work_pool.id,
+                work_pool=schemas.internal.InternalWorkPoolUpdate(
+                    status=schemas.statuses.WorkPoolStatus.READY
+                ),
+                emit_status_change=emit_work_pool_status_event,
+            )
 
 
 @router.post("/{work_pool_name}/workers/filter")

@@ -62,7 +62,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         self._start_apprise_client(self.url)
 
     @sync_compatible
-    @instrument_instance_method_call()
+    @instrument_instance_method_call
     async def notify(
         self,
         body: str,
@@ -717,7 +717,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     @sync_compatible
-    @instrument_instance_method_call()
+    @instrument_instance_method_call
     async def notify(self, body: str, subject: Optional[str] = None):
         import httpx
 

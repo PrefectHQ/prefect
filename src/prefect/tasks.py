@@ -36,6 +36,7 @@ from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
@@ -325,6 +326,7 @@ class Task(Generic[P, R]):
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
+
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
         # different function. This is to detect the case where two or more tasks
@@ -581,6 +583,22 @@ class Task(Generic[P, R]):
             return track_viz_task(
                 self.isasync, self.name, parameters, self.viz_return_value
             )
+
+        # new engine currently only compatible with async tasks
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+            from prefect.new_task_engine import run_task, run_task_sync
+
+            run_kwargs = dict(
+                task=self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+            )
+            if self.isasync:
+                # this returns an awaitable coroutine
+                return run_task(**run_kwargs)
+            else:
+                return run_task_sync(**run_kwargs)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()

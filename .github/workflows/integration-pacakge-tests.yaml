@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: "3.9"
       - name: Generate matrix
@@ -37,6 +37,8 @@ jobs:
           echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
   run-tests:
+    timeout-minutes: 20
+
     name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}
     needs: prepare-matrix
     runs-on: ubuntu-latest

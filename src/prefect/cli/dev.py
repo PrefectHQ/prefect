@@ -24,8 +24,6 @@ from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_CLI_COLORS,
-    PREFECT_CLI_WRAP_LINES,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
 )
@@ -66,8 +64,6 @@ def agent_process_entrypoint(**kwargs):
     """
     import inspect
 
-    import rich
-
     # import locally so only the `dev` command breaks if Typer internals change
     from typer.models import ParameterInfo
 
@@ -92,18 +88,6 @@ def agent_process_entrypoint(**kwargs):
             # Some defaults are Prefect `SettingsOption.value` methods
             # that must be called to get the actual value.
             kwargs[name] = default() if callable(default) else default
-
-    # add a console, because calling the agent start function directly
-    # instead of via CLI call means `app` has no `console` attached.
-    app.console = (
-        rich.console.Console(
-            highlight=False,
-            color_system="auto" if PREFECT_CLI_COLORS else None,
-            soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
-        )
-        if not getattr(app, "console", None)
-        else app.console
-    )
 
     try:
         start_agent(**kwargs)  # type: ignore

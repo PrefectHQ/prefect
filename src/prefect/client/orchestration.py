@@ -12,6 +12,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    TypeVar,
     Union,
 )
 from uuid import UUID, uuid4
@@ -20,15 +21,19 @@ import certifi
 import httpcore
 import httpx
 import pendulum
+from typing_extensions import ParamSpec
 
 from prefect._internal.compatibility.deprecated import (
     handle_deprecated_infra_overrides_parameter,
 )
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.client.schemas import sorting
+from prefect.events import filters
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_EVENTS,
 )
+from prefect.utilities.asyncutils import run_sync
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -151,6 +156,9 @@ if TYPE_CHECKING:
 
 from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
 
 class ServerType(AutoEnum):
     EPHEMERAL = AutoEnum.auto()
@@ -164,7 +172,9 @@ class ServerType(AutoEnum):
         return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
 
-def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
+def get_client(
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: bool = False
+) -> "PrefectClient":
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
@@ -173,6 +183,13 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
     ```python
     async with get_client() as client:
         await client.hello()
+    ```
+
+    To return a synchronous client, pass sync_client=True:
+
+    ```python
+    with get_client(sync_client=True) as client:
+        client.hello()
     ```
     """
     ctx = prefect.context.get_settings_context()
@@ -184,11 +201,18 @@ def get_client(httpx_settings: Optional[dict] = None) -> "PrefectClient":
 
         api = create_app(ctx.settings, ephemeral=True)
 
-    return PrefectClient(
-        api,
-        api_key=PREFECT_API_KEY.value(),
-        httpx_settings=httpx_settings,
-    )
+    if sync_client:
+        return SyncPrefectClient(
+            api,
+            api_key=PREFECT_API_KEY.value(),
+            httpx_settings=httpx_settings,
+        )
+    else:
+        return PrefectClient(
+            api,
+            api_key=PREFECT_API_KEY.value(),
+            httpx_settings=httpx_settings,
+        )
 
 
 class PrefectClient:
@@ -2136,21 +2160,23 @@ class PrefectClient:
 
     async def create_task_run(
         self,
-        task: "TaskObject",
+        task: "TaskObject[P, R]",
         flow_run_id: Optional[UUID],
         dynamic_key: str,
-        name: str = None,
-        extra_tags: Iterable[str] = None,
-        state: prefect.states.State = None,
-        task_inputs: Dict[
-            str,
-            List[
-                Union[
-                    TaskRunResult,
-                    Parameter,
-                    Constant,
-                ]
-            ],
+        name: Optional[str] = None,
+        extra_tags: Optional[Iterable[str]] = None,
+        state: Optional[prefect.states.State[R]] = None,
+        task_inputs: Optional[
+            Dict[
+                str,
+                List[
+                    Union[
+                        TaskRunResult,
+                        Parameter,
+                        Constant,
+                    ]
+                ],
+            ]
         ] = None,
     ) -> TaskRun:
         """
@@ -3135,6 +3161,16 @@ class PrefectClient:
 
         return UUID(response.json()["id"])
 
+    async def update_automation(self, automation_id: UUID, automation: AutomationCore):
+        """Updates an automation in Prefect Cloud."""
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+        response = await self._client.put(
+            f"/automations/{automation_id}",
+            json=automation.dict(json_compatible=True, exclude_unset=True),
+        )
+        response.raise_for_status
+
     async def read_automations(self) -> List[Automation]:
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
@@ -3144,17 +3180,23 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[Automation], response.json())
 
     async def find_automation(
-        self, id_or_name: str, exit_if_not_found: bool = True
+        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
     ) -> Optional[Automation]:
-        try:
-            id = UUID(id_or_name)
-        except ValueError:
-            id = None
+        if isinstance(id_or_name, str):
+            try:
+                id = UUID(id_or_name)
+            except ValueError:
+                id = None
+        elif isinstance(id_or_name, UUID):
+            id = id_or_name
 
         if id:
-            automation = await self.read_automation(id)
-            if automation:
+            try:
+                automation = await self.read_automation(id)
                 return automation
+            except prefect.exceptions.HTTPStatusError as e:
+                if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                    raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
 
         automations = await self.read_automations()
 
@@ -3179,6 +3221,34 @@ class PrefectClient:
             return None
         response.raise_for_status()
         return Automation.parse_obj(response.json())
+
+    async def read_automations_by_name(self, name: str) -> List[Automation]:
+        """
+        Query the Prefect API for an automation by name. Only automations matching the provided name will be returned.
+
+        Args:
+            name: the name of the automation to query
+
+        Returns:
+            a list of Automation model representations of the automations
+        """
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+        automation_filter = filters.AutomationFilter(name=dict(any_=[name]))
+
+        response = await self._client.post(
+            "/automations/filter",
+            json={
+                "sort": sorting.AutomationSort.UPDATED_DESC,
+                "automations": automation_filter.dict(json_compatible=True)
+                if automation_filter
+                else None,
+            },
+        )
+
+        response.raise_for_status()
+
+        return pydantic.parse_obj_as(List[Automation], response.json())
 
     async def pause_automation(self, automation_id: UUID):
         if not self.server_type.supports_automations():
@@ -3284,3 +3354,212 @@ class PrefectClient:
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
+
+
+class SyncPrefectClient:
+    """
+    A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
+
+    Args:
+        api: the REST API URL or FastAPI application to connect to
+        api_key: An optional API key for authentication.
+        api_version: The API version this client is compatible with.
+        httpx_settings: An optional dictionary of settings to pass to the underlying
+            `httpx.AsyncClient`
+
+    Examples:
+
+        Say hello to a Prefect REST API
+
+        <div class="terminal">
+        ```
+        >>> with get_client(sync_client=True) as client:
+        >>>     response = client.hello()
+        >>>
+        >>> print(response.json())
+        👋
+        ```
+        </div>
+    """
+
+    def __init__(
+        self,
+        api: Union[str, ASGIApp],
+        *,
+        api_key: Optional[str] = None,
+        api_version: Optional[str] = None,
+        httpx_settings: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        self._prefect_client = PrefectClient(
+            api=api,
+            api_key=api_key,
+            api_version=api_version,
+            httpx_settings=httpx_settings,
+        )
+
+    def __enter__(self):
+        run_sync(self._prefect_client.__aenter__())
+        return self
+
+    def __exit__(self, *exc_info):
+        return run_sync(self._prefect_client.__aexit__(*exc_info))
+
+    async def __aenter__(self):
+        raise RuntimeError(
+            "The `SyncPrefectClient` must be entered with a sync context. Use '"
+            "with SyncPrefectClient(...)' not 'async with SyncPrefectClient(...)'"
+        )
+
+    async def __aexit__(self, *_):
+        assert False, "This should never be called but must be defined for __aenter__"
+
+    def hello(self) -> httpx.Response:
+        """
+        Send a GET request to /hello for testing purposes.
+        """
+        return run_sync(self._prefect_client.hello())
+
+    def create_task_run(
+        self,
+        task: "TaskObject[P, R]",
+        flow_run_id: Optional[UUID],
+        dynamic_key: str,
+        name: Optional[str] = None,
+        extra_tags: Optional[Iterable[str]] = None,
+        state: Optional[prefect.states.State[R]] = None,
+        task_inputs: Optional[
+            Dict[
+                str,
+                List[
+                    Union[
+                        TaskRunResult,
+                        Parameter,
+                        Constant,
+                    ]
+                ],
+            ]
+        ] = None,
+    ) -> TaskRun:
+        """
+        Create a task run
+
+        Args:
+            task: The Task to run
+            flow_run_id: The flow run id with which to associate the task run
+            dynamic_key: A key unique to this particular run of a Task within the flow
+            name: An optional name for the task run
+            extra_tags: an optional list of extra tags to apply to the task run in
+                addition to `task.tags`
+            state: The initial state for the run. If not provided, defaults to
+                `Pending` for now. Should always be a `Scheduled` type.
+            task_inputs: the set of inputs passed to the task
+
+        Returns:
+            The created task run.
+        """
+        return run_sync(
+            self._prefect_client.create_task_run(
+                task=task,
+                flow_run_id=flow_run_id,
+                dynamic_key=dynamic_key,
+                name=name,
+                extra_tags=extra_tags,
+                state=state,
+                task_inputs=task_inputs,
+            )
+        )
+
+    def set_task_run_state(
+        self,
+        task_run_id: UUID,
+        state: prefect.states.State,
+        force: bool = False,
+    ) -> OrchestrationResult:
+        """
+        Set the state of a task run.
+
+        Args:
+            task_run_id: the id of the task run
+            state: the state to set
+            force: if True, disregard orchestration logic when setting the state,
+                forcing the Prefect API to accept the state
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        return run_sync(
+            self._prefect_client.set_task_run_state(
+                task_run_id=task_run_id,
+                state=state,
+                force=force,
+            )
+        )
+
+    def create_flow_run(
+        self,
+        flow_id: UUID,
+        parameters: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
+        scheduled_start_time: Optional[datetime.datetime] = None,
+        run_name: Optional[str] = None,
+        labels: Optional[List[str]] = None,
+        parameters_json: Optional[str] = None,
+        run_config: Optional[Dict[str, Any]] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> FlowRunResponse:
+        """
+        Create a new flow run.
+
+        Args:
+            - flow_id (UUID): the ID of the flow to create a run for
+            - parameters (Optional[Dict[str, Any]]): a dictionary of parameter values to pass to the flow
+            - context (Optional[Dict[str, Any]]): a dictionary of context values to pass to the flow
+            - scheduled_start_time (Optional[datetime.datetime]): the scheduled start time for the flow run
+            - run_name (Optional[str]): a name to assign to the flow run
+            - labels (Optional[List[str]]): a list of labels to assign to the flow run
+            - parameters_json (Optional[str]): a JSON string of parameter values to pass to the flow
+            - run_config (Optional[Dict[str, Any]]): a dictionary of run configuration options
+            - idempotency_key (Optional[str]): a key to ensure idempotency when creating the flow run
+
+        Returns:
+            - FlowRunResponse: the created flow run
+        """
+        return run_sync(
+            self._prefect_client.create_flow_run(
+                flow_id=flow_id,
+                parameters=parameters,
+                context=context,
+                scheduled_start_time=scheduled_start_time,
+                run_name=run_name,
+                labels=labels,
+                parameters_json=parameters_json,
+                run_config=run_config,
+                idempotency_key=idempotency_key,
+            )
+        )
+
+    async def set_flow_run_state(
+        self,
+        flow_run_id: UUID,
+        state: "prefect.states.State",
+        force: bool = False,
+    ) -> OrchestrationResult:
+        """
+        Set the state of a flow run.
+
+        Args:
+            flow_run_id: the id of the flow run
+            state: the state to set
+            force: if True, disregard orchestration logic when setting the state,
+                forcing the Prefect API to accept the state
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        return run_sync(
+            self._prefect_client.set_flow_run_state(
+                flow_run_id=flow_run_id,
+                state=state,
+                force=force,
+            )
+        )

@@ -34,20 +34,10 @@ from typing import (
 )
 from uuid import UUID
 
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-from typing_extensions import Self
+from rich.console import Console
+from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
-from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.orchestration import get_client
-from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
-from prefect.filesystems import ReadableDeploymentStorage
-from prefect.runner.storage import (
-    BlockStorageAdapter,
-    RunnerStorage,
-    create_storage_from_url,
-)
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -67,26 +57,36 @@ else:
 
     V2ValidationError = None
 
-from rich.console import Console
-from typing_extensions import Literal, ParamSpec
+from prefect._vendor.fastapi.encoders import jsonable_encoder
 
+from prefect._internal.compatibility.deprecated import deprecated_parameter
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.events import DeploymentTriggerTypes
+from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
+from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     MissingFlowError,
     ObjectNotFound,
     ParameterTypeError,
     UnspecifiedFlowError,
 )
+from prefect.filesystems import ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.runner.storage import (
+    BlockStorageAdapter,
+    RunnerStorage,
+    create_storage_from_url,
+)
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_UI_URL,
@@ -618,7 +618,7 @@ class Flow(Generic[P, R]):
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -733,7 +733,7 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def serve(
         self,
-        name: str,
+        name: Optional[str] = None,
         interval: Optional[
             Union[
                 Iterable[Union[int, float, datetime.timedelta]],
@@ -748,7 +748,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List["FlexibleScheduleList"]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -764,7 +764,7 @@ class Flow(Generic[P, R]):
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
         Args:
-            name: The name to give the created deployment.
+            name: The name to give the created deployment. Defaults to the name of the flow.
             interval: An interval on which to execute the deployment. Accepts a number or a
                 timedelta object to create a single schedule. If a number is given, it will be
                 interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
@@ -827,10 +827,13 @@ class Flow(Generic[P, R]):
         """
         from prefect.runner import Runner
 
-        # Handling for my_flow.serve(__file__)
-        # Will set name to name of file where my_flow.serve() without the extension
-        # Non filepath strings will pass through unchanged
-        name = Path(name).stem
+        if not name:
+            name = self.name
+        else:
+            # Handling for my_flow.serve(__file__)
+            # Will set name to name of file where my_flow.serve() without the extension
+            # Non filepath strings will pass through unchanged
+            name = Path(name).stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
         deployment_id = await runner.add_flow(
@@ -962,7 +965,7 @@ class Flow(Generic[P, R]):
         schedules: Optional[List[MinimalDeploymentSchedule]] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         is_schedule_active: Optional[bool] = None,
-        triggers: Optional[List[DeploymentTriggerTypes]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -1224,6 +1227,21 @@ class Flow(Generic[P, R]):
             # this is a subflow, for now return a single task and do not go further
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
+
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+            from prefect.new_flow_engine import run_flow, run_flow_sync
+
+            run_kwargs = dict(
+                flow=self,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+            )
+            if self.isasync:
+                # this returns an awaitable coroutine
+                return run_flow(**run_kwargs)
+            else:
+                return run_flow_sync(**run_kwargs)
 
         return enter_flow_run_engine_from_flow_call(
             self,

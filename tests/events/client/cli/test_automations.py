@@ -12,17 +12,12 @@ from prefect.events.schemas.automations import (
     Automation,
     EventTrigger,
     MetricTrigger,
+    MetricTriggerOperator,
     MetricTriggerQuery,
     Posture,
+    PrefectMetric,
 )
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
-
-
-@pytest.fixture(autouse=True, scope="module")
-def enable_events():
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: True}):
-        yield
 
 
 @pytest.fixture
@@ -81,7 +76,23 @@ def various_automations(read_automations: mock.AsyncMock) -> List[Automation]:
             name="A Metric one",
             trigger=MetricTrigger(
                 metric=MetricTriggerQuery(
-                    name="successes", operator="<", threshold=0.78
+                    name=PrefectMetric.successes,
+                    operator=MetricTriggerOperator.LT,
+                    threshold=0.78,
+                )
+            ),
+            actions=[CancelFlowRun()],
+            actions_on_trigger=[DoNothing()],
+            actions_on_resolve=[PauseAutomation(automation_id=uuid4())],
+        ),
+        Automation(
+            id=UUID("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+            name="A Metric one",
+            trigger=MetricTrigger(
+                metric=MetricTriggerQuery(
+                    name=PrefectMetric.successes,
+                    operator=MetricTriggerOperator.LT,
+                    threshold=0.78,
                 )
             ),
             actions=[CancelFlowRun()],
@@ -146,7 +157,7 @@ def test_inspecting_by_id(
     read_automation.return_value = various_automations[1]
 
     invoke_and_assert(
-        ["automations", "inspect", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"],
+        ["automations", "inspect", "--id", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"],
         expected_code=0,
         expected_output_contains=[
             "Automation(",
@@ -161,7 +172,22 @@ def test_inspecting_by_id(
     )
 
 
-def test_inspecting_by_name(various_automations: List[Automation]):
+def test_inspecting_by_id_not_found(
+    various_automations: List[Automation],
+):
+    invoke_and_assert(
+        ["automations", "inspect", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
+        ],
+    )
+
+
+def test_inspecting_by_name(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "inspect", "My First Reactive"],
         expected_code=0,
@@ -174,7 +200,10 @@ def test_inspecting_by_name(various_automations: List[Automation]):
     )
 
 
-def test_inspecting_not_found(various_automations: List[Automation]):
+def test_inspecting_by_name_not_found(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "inspect", "What is this?"],
         expected_code=1,
@@ -182,22 +211,66 @@ def test_inspecting_not_found(various_automations: List[Automation]):
     )
 
 
-def test_inspecting_in_json(various_automations: List[Automation]):
+def test_inspecting_by_name_in_json(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = [various_automations[0]]
     result = invoke_and_assert(
         ["automations", "inspect", "My First Reactive", "--json"], expected_code=0
     )
     loaded = orjson.loads(result.output)
-    assert loaded["name"] == "My First Reactive"
-    assert loaded["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    assert loaded[0]["name"] == "My First Reactive"
+    assert loaded[0]["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 
 
-def test_inspecting_in_yaml(various_automations: List[Automation]):
+def test_inspecting_by_id_in_json(
+    various_automations: List[Automation], read_automation: mock.AsyncMock
+):
+    read_automation.return_value = various_automations[1]
+    result = invoke_and_assert(
+        [
+            "automations",
+            "inspect",
+            "--id",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "--json",
+        ],
+        expected_code=0,
+    )
+    loaded = orjson.loads(result.output)
+    assert loaded["name"] == "My Other Reactive Automation"
+    assert loaded["id"] == "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+
+
+def test_inspecting_by_name_in_yaml(
+    various_automations: List[Automation], read_automations_by_name: mock.AsyncMock
+):
+    read_automations_by_name.return_value = [various_automations[0]]
     result = invoke_and_assert(
         ["automations", "inspect", "My First Reactive", "--yaml"], expected_code=0
     )
     loaded = yaml.safe_load(result.output)
-    assert loaded["name"] == "My First Reactive"
-    assert loaded["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    assert loaded[0]["name"] == "My First Reactive"
+    assert loaded[0]["id"] == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+
+
+def test_inspecting_by_id_in_yaml(
+    various_automations: List[Automation], read_automation: mock.AsyncMock
+):
+    read_automation.return_value = various_automations[1]
+    result = invoke_and_assert(
+        [
+            "automations",
+            "inspect",
+            "--id",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "--yaml",
+        ],
+        expected_code=0,
+    )
+    loaded = yaml.safe_load(result.output)
+    assert loaded["name"] == "My Other Reactive Automation"
+    assert loaded["id"] == "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 
 
 @pytest.fixture
@@ -209,12 +282,17 @@ def pause_automation() -> Generator[mock.AsyncMock, None, None]:
 
 
 def test_pausing_by_name(
-    pause_automation: mock.AsyncMock, various_automations: List[Automation]
+    pause_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "pause", "My First Reactive"],
         expected_code=0,
-        expected_output_contains=["Paused automation 'My First Reactive'"],
+        expected_output_contains=[
+            "Paused automation(s) with name 'My First Reactive' and id(s) 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
     )
 
     pause_automation.assert_awaited_once_with(
@@ -222,13 +300,51 @@ def test_pausing_by_name(
     )
 
 
-def test_pausing_not_found(
-    pause_automation: mock.AsyncMock, various_automations: List[Automation]
+def test_pausing_by_name_not_found(
+    pause_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "pause", "Wha?"],
         expected_code=1,
-        expected_output_contains=["Automation 'Wha?' not found"],
+        expected_output_contains=["Automation with name 'Wha?' not found"],
+    )
+
+    pause_automation.assert_not_awaited()
+
+
+def test_pausing_by_id(
+    pause_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = various_automations[0]
+    invoke_and_assert(
+        ["automations", "pause", "--id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+        expected_code=0,
+        expected_output_contains=[
+            "Paused automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
+    )
+
+    pause_automation.assert_awaited_once_with(
+        mock.ANY, UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    )
+
+
+def test_pausing_by_id_not_found(
+    pause_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = None
+    invoke_and_assert(
+        ["automations", "pause", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
+        ],
     )
 
     pause_automation.assert_not_awaited()
@@ -243,12 +359,17 @@ def resume_automation() -> Generator[mock.AsyncMock, None, None]:
 
 
 def test_resuming_by_name(
-    resume_automation: mock.AsyncMock, various_automations: List[Automation]
+    resume_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "resume", "My First Reactive"],
         expected_code=0,
-        expected_output_contains=["Resumed automation 'My First Reactive'"],
+        expected_output_contains=[
+            "Resumed automation(s) with name 'My First Reactive' and id(s) 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
     )
 
     resume_automation.assert_awaited_once_with(
@@ -256,13 +377,50 @@ def test_resuming_by_name(
     )
 
 
-def test_resuming_not_found(
-    resume_automation: mock.AsyncMock, various_automations: List[Automation]
+def test_resuming_by_name_not_found(
+    resume_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
 ):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "resume", "Wha?"],
         expected_code=1,
-        expected_output_contains=["Automation 'Wha?' not found"],
+        expected_output_contains=["Automation with name 'Wha?' not found"],
+    )
+
+    resume_automation.assert_not_awaited()
+
+
+def test_resuming_by_id(
+    resume_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = various_automations[0]
+    invoke_and_assert(
+        ["automations", "resume", "--id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+        expected_code=0,
+        expected_output_contains=[
+            "Resumed automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
+    )
+
+    resume_automation.assert_awaited_once_with(
+        mock.ANY, UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    )
+
+
+def test_resuming_by_id_not_found(
+    resume_automation: mock.AsyncMock, read_automation: mock.AsyncMock
+):
+    read_automation.return_value = None
+    invoke_and_assert(
+        ["automations", "resume", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
+        ],
     )
 
     resume_automation.assert_not_awaited()
@@ -276,13 +434,31 @@ def delete_automation() -> Generator[mock.AsyncMock, None, None]:
         yield m
 
 
+@pytest.fixture
+def read_automations_by_name() -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.client.orchestration.PrefectClient.read_automations_by_name",
+        autospec=True,
+    ) as mock_read:
+        yield mock_read
+
+
 def test_deleting_by_name(
-    delete_automation: mock.AsyncMock, various_automations: List[Automation]
+    delete_automation: mock.AsyncMock,
+    read_automations_by_name: mock.AsyncMock,
+    various_automations: List[Automation],
 ):
+    read_automations_by_name.return_value = [various_automations[0]]
     invoke_and_assert(
         ["automations", "delete", "My First Reactive"],
+        prompts_and_responses=[
+            (
+                "Are you sure you want to delete automation with name 'My First Reactive'?",
+                "y",
+            )
+        ],
         expected_code=0,
-        expected_output_contains=["Deleted automation 'My First Reactive'"],
+        expected_output_contains=["Deleted automation with name 'My First Reactive'"],
     )
 
     delete_automation.assert_awaited_once_with(
@@ -290,13 +466,74 @@ def test_deleting_by_name(
     )
 
 
-def test_deleting_not_found_is_a_noop(
-    delete_automation: mock.AsyncMock, various_automations: List[Automation]
+def test_deleting_by_name_multiple_same_name(
+    delete_automation: mock.AsyncMock,
+    read_automations_by_name: mock.AsyncMock,
+    various_automations: List[Automation],
 ):
+    read_automations_by_name.return_value = various_automations[:2]
+    invoke_and_assert(
+        ["automations", "delete", "A Metric one"],
+        expected_code=1,
+        expected_output_contains=[
+            "Multiple automations found with name 'A Metric one'. Please specify an id with the `--id` flag instead."
+        ],
+    )
+
+    delete_automation.assert_not_called()
+
+
+def test_deleting_by_id_not_found_is_a_noop(
+    delete_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    read_automations_by_name: mock.AsyncMock,
+):
+    read_automations_by_name.return_value = None
     invoke_and_assert(
         ["automations", "delete", "Who dis?"],
-        expected_code=0,
+        expected_code=1,
         expected_output_contains=["Automation 'Who dis?' not found"],
+    )
+
+    delete_automation.assert_not_called()
+
+
+def test_deleting_by_id(
+    delete_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+):
+    read_automation.return_value = various_automations[0]
+    invoke_and_assert(
+        ["automations", "delete", "--id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+        prompts_and_responses=[
+            (
+                "Are you sure you want to delete automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'?",
+                "y",
+            )
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Deleted automation with id 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"
+        ],
+    )
+
+    delete_automation.assert_awaited_once_with(
+        mock.ANY, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    )
+
+
+def test_deleting_by_nonexistent_id(
+    delete_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = None
+    invoke_and_assert(
+        ["automations", "delete", "--id", "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz' not found"
+        ],
     )
 
     delete_automation.assert_not_called()

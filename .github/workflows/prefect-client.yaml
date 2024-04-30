@@ -2,11 +2,17 @@ name: Verify prefect-client build
 
 on:
   pull_request:
-    paths:
-      - "**/*.py"
-      - pyproject.toml
     branches:
       - main
+    paths:
+      - src/prefect/**/*.py
+      - pyproject.toml
+  push:
+    branches:
+      - main
+    paths:
+      - src/prefect/**/*.py
+      - pyproject.toml
   workflow_call:
     inputs:
       upload-artifacts:

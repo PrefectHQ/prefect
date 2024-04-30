@@ -21,3 +21,11 @@ def workspace_events_client(
         "prefect.server.events.actions.PrefectServerEventsClient",
         AssertingEventsClient,
     )
+    monkeypatch.setattr(
+        "prefect.server.orchestration.instrumentation_policies.PrefectServerEventsClient",
+        AssertingEventsClient,
+    )
+    monkeypatch.setattr(
+        "prefect.server.models.deployments.PrefectServerEventsClient",
+        AssertingEventsClient,
+    )

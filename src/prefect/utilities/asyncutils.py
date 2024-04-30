@@ -1,12 +1,15 @@
 """
 Utilities for interoperability with async functions and workers from various contexts.
 """
+
 import asyncio
 import ctypes
 import inspect
 import threading
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from contextvars import copy_context
 from functools import partial, wraps
 from threading import Thread
 from typing import (
@@ -76,6 +79,43 @@ def is_async_gen_fn(func):
         func = func.__wrapped__
 
     return inspect.isasyncgenfunction(func)
+
+
+def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
+    """
+    Runs a coroutine from a synchronous context. A thread will be spawned
+    to run the event loop if necessary, which allows coroutines to run in
+    environments like Jupyter notebooks where the event loop runs on the main
+    thread.
+
+    Args:
+        coroutine: The coroutine to run.
+
+    Returns:
+        The return value of the coroutine.
+
+    Example:
+        Basic usage:
+        ```python
+        async def my_async_function(x: int) -> int:
+            return x + 1
+
+        run_sync(my_async_function(1))
+        ```
+    """
+    # ensure context variables are properly copied to the async frame
+    context = copy_context()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with ThreadPoolExecutor() as executor:
+            future = executor.submit(context.run, asyncio.run, coroutine)
+            return future.result()
+    else:
+        return context.run(asyncio.run, coroutine)
 
 
 async def run_sync_in_worker_thread(

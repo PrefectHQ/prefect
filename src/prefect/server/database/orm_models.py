@@ -26,6 +26,12 @@ from prefect.server.events.schemas.automations import (
     TriggerTypes,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.schemas.statuses import (
+    DeploymentStatus,
+    WorkerStatus,
+    WorkPoolStatus,
+    WorkQueueStatus,
+)
 from prefect.server.utilities.database import (
     JSON,
     UUID,
@@ -869,13 +875,17 @@ class ORMDeployment:
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
     work_queue_name = sa.Column(sa.String, nullable=True, index=True)
-    last_polled = sa.Column(
-        Timestamp(),
-        nullable=True,
-    )
     infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     path = sa.Column(sa.String, nullable=True)
     entrypoint = sa.Column(sa.String, nullable=True)
+
+    last_polled = sa.Column(Timestamp(), nullable=True)
+    status = sa.Column(
+        sa.Enum(DeploymentStatus, name="deployment_status"),
+        nullable=False,
+        default=DeploymentStatus.NOT_READY,
+        server_default="NOT_READY",
+    )
 
     @declared_attr
     def job_variables(self):
@@ -1238,9 +1248,13 @@ class ORMWorkQueue:
         nullable=True,
     )
     priority = sa.Column(sa.Integer, index=True, nullable=False)
-    last_polled = sa.Column(
-        Timestamp(),
-        nullable=True,
+
+    last_polled = sa.Column(Timestamp(), nullable=True)
+    status = sa.Column(
+        sa.Enum(WorkQueueStatus, name="work_queue_status"),
+        nullable=False,
+        default=WorkQueueStatus.NOT_READY,
+        server_default=WorkQueueStatus.NOT_READY.value,
     )
 
     @declared_attr
@@ -1280,6 +1294,15 @@ class ORMWorkPool:
         nullable=True,
     )
 
+    status = sa.Column(
+        sa.Enum(WorkPoolStatus, name="work_pool_status"),
+        nullable=False,
+        default=WorkPoolStatus.NOT_READY,
+        server_default=WorkPoolStatus.NOT_READY.value,
+    )
+    last_transitioned_status_at = sa.Column(Timestamp(), nullable=True)
+    last_status_event_id = sa.Column(UUID, nullable=True)
+
     @declared_attr
     def __table_args__(cls):
         return (sa.UniqueConstraint("name"),)
@@ -1307,6 +1330,13 @@ class ORMWorker:
         index=True,
     )
     heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
+
+    status = sa.Column(
+        sa.Enum(WorkerStatus, name="worker_status"),
+        nullable=False,
+        default=WorkerStatus.OFFLINE,
+        server_default=WorkerStatus.OFFLINE.value,
+    )
 
     @declared_attr
     def __table_args__(cls):

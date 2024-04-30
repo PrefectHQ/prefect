@@ -3,22 +3,24 @@ Functions for interacting with agent ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from typing import Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 
 
-@inject_db
+@db_injector
 async def create_agent(
-    session: sa.orm.Session,
-    agent: schemas.core.Agent,
     db: PrefectDBInterface,
+    session: AsyncSession,
+    agent: schemas.core.Agent,
 ):
     """
     Inserts a Agent.
@@ -26,7 +28,7 @@ async def create_agent(
     If a Agent with the same name exists, an error will be thrown.
 
     Args:
-        session (sa.orm.Session): a database session
+        session (AsyncSession): a database session
         agent (schemas.core.Agent): a Agent model
 
     Returns:
@@ -41,13 +43,17 @@ async def create_agent(
     return model
 
 
-@inject_db
-async def read_agent(session: sa.orm.Session, agent_id: UUID, db: PrefectDBInterface):
+@db_injector
+async def read_agent(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    agent_id: UUID,
+):
     """
     Reads a Agent by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         agent_id (str): a Agent id
 
     Returns:
@@ -57,18 +63,18 @@ async def read_agent(session: sa.orm.Session, agent_id: UUID, db: PrefectDBInter
     return await session.get(db.Agent, agent_id)
 
 
-@inject_db
+@db_injector
 async def read_agents(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
-    offset: int = None,
-    limit: int = None,
+    session: AsyncSession,
+    offset: Union[int, None] = None,
+    limit: Union[int, None] = None,
 ):
     """
     Read Agents.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         offset (int): Query offset
         limit(int): Query limit
 
@@ -87,18 +93,18 @@ async def read_agents(
     return result.scalars().unique().all()
 
 
-@inject_db
+@db_injector
 async def update_agent(
-    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    session: AsyncSession,
     agent_id: UUID,
     agent: schemas.core.Agent,
-    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a Agent by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         agent: the work queue data
         agent_id (str): a Agent id
 
@@ -117,12 +123,12 @@ async def update_agent(
     return result.rowcount > 0
 
 
-@inject_db
+@db_injector
 async def record_agent_poll(
-    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    session: AsyncSession,
     agent_id: UUID,
     work_queue_id: UUID,
-    db: PrefectDBInterface,
 ) -> None:
     """
     Record that an agent has polled a work queue.
@@ -135,7 +141,7 @@ async def record_agent_poll(
     `create_agent` and `update_agent` methods should be used.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         agent_id: An agent id
         work_queue_id: A work queue id
     """
@@ -159,15 +165,17 @@ async def record_agent_poll(
     await session.execute(insert_stmt)
 
 
-@inject_db
+@db_injector
 async def delete_agent(
-    session: sa.orm.Session, agent_id: UUID, db: PrefectDBInterface
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    agent_id: UUID,
 ) -> bool:
     """
     Delete a Agent by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         agent_id (str): a Agent id
 
     Returns:

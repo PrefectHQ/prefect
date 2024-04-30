@@ -9,6 +9,7 @@
 base = ""
 command = """
 pip install --upgrade pip \
+&& SETUPTOOLS_SCM_PRETEND_VERSION_FOR_PREFECT_SHELL=0.2.0 pip install src/integrations/* \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
 && pip install git+https://oauth:${MKDOCS_MATERIAL_INSIDERS_REPO_RO}@github.com/PrefectHQ/mkdocs-material-insiders.git@1471e7595c14a067031600ec18e3cc8d7964e4aa\
 && prefect dev build-docs \
@@ -161,7 +162,7 @@ status = 301
 from = "/getting-started/overview/"
 to = "/"
 status = 301
- 
+
 [[redirects]]
 from = "/ui/index/"
 to = "/cloud/"
@@ -173,7 +174,7 @@ to = "/cloud/"
 status = 301
 
 [[redirects]]
-from = "/ui/cloud-quickstart/" 
+from = "/ui/cloud-quickstart/"
 to = "/getting-started/quickstart/"
 status = 301
 
@@ -564,7 +565,7 @@ status = 301
 from = "/latest/getting-started/overview/"
 to = "/"
 status = 301
- 
+
 [[redirects]]
 from = "/latest/ui/index/"
 to = "/cloud/"
@@ -576,7 +577,7 @@ to = "/cloud/"
 status = 301
 
 [[redirects]]
-from = "/latest/ui/cloud-quickstart/" 
+from = "/latest/ui/cloud-quickstart/"
 to = "/getting-started/quickstart/"
 status = 301
 
@@ -846,7 +847,6 @@ status = 301
 from = "/latest/collections/overview/"
 to = "/integrations/catalog/"
 status = 301
-
 
 
 [[headers]]

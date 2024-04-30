@@ -6,7 +6,6 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -16,8 +15,8 @@ else:
 
 from typing_extensions import TYPE_CHECKING, Literal
 
-import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect.server.schemas.core import (
     CreatedBy,
     FlowRunPolicy,
@@ -30,10 +29,7 @@ from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
 if TYPE_CHECKING:
-    import prefect.server.database.orm_models
-
-DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = 60
-WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = 60
+    from prefect.server.database.orm_models import ORMDeployment, ORMFlowRun, ORMWorker
 
 
 class SetStateStatus(AutoEnum):
@@ -307,7 +303,7 @@ class FlowRunResponse(ORMBaseModel):
     )
 
     @classmethod
-    def from_orm(cls, orm_flow_run: "prefect.server.database.orm_models.ORMFlowRun"):
+    def from_orm(cls, orm_flow_run: "ORMFlowRun"):
         response = super().from_orm(orm_flow_run)
         if orm_flow_run.work_queue:
             response.work_queue_id = orm_flow_run.work_queue.id
@@ -437,28 +433,13 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ORMBaseModel):
     )
 
     @classmethod
-    def from_orm(
-        cls, orm_deployment: "prefect.server.database.orm_models.ORMDeployment"
-    ):
+    def from_orm(cls, orm_deployment: "ORMDeployment"):
         response = super().from_orm(orm_deployment)
 
         if orm_deployment.work_queue:
             response.work_queue_name = orm_deployment.work_queue.name
             if orm_deployment.work_queue.work_pool:
                 response.work_pool_name = orm_deployment.work_queue.work_pool.name
-
-        not_ready_horizon = datetime.datetime.now(
-            tz=datetime.timezone.utc
-        ) - datetime.timedelta(seconds=DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS)
-
-        if response.last_polled and response.last_polled > not_ready_horizon:
-            response.status = schemas.statuses.DeploymentStatus.READY
-        elif (
-            orm_deployment.work_queue
-            and orm_deployment.work_queue.last_polled
-            and orm_deployment.work_queue.last_polled > not_ready_horizon
-        ):
-            response.status = schemas.statuses.DeploymentStatus.READY
 
         # Populate `schedule` and `is_schedule_active` for backwards
         # compatibility with clients that do not support multiple
@@ -489,52 +470,11 @@ class WorkQueueResponse(schemas.core.WorkQueue):
         response = super().from_orm(orm_work_queue)
         if orm_work_queue.work_pool:
             response.work_pool_name = orm_work_queue.work_pool.name
-
-        if response.is_paused:
-            response.status = schemas.statuses.WorkQueueStatus.PAUSED
-        else:
-            unready_at = datetime.datetime.now(
-                tz=datetime.timezone.utc
-            ) - datetime.timedelta(seconds=WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS)
-            if response.last_polled and response.last_polled > unready_at:
-                response.status = schemas.statuses.WorkQueueStatus.READY
-            else:
-                response.status = schemas.statuses.WorkQueueStatus.NOT_READY
         return response
 
 
 class WorkQueueWithStatus(WorkQueueResponse, WorkQueueStatusDetail):
     """Combines a work queue and its status details into a single object"""
-
-
-class WorkPoolResponse(schemas.core.WorkPool):
-    status: Optional[schemas.statuses.WorkPoolStatus] = Field(
-        default=None, description="The current status of the work pool."
-    )
-
-    @classmethod
-    async def from_orm(cls, orm_work_pool, session):
-        work_pool = super().from_orm(orm_work_pool)
-        if work_pool.type == "prefect-agent":
-            work_pool.status = None
-        elif work_pool.is_paused:
-            work_pool.status = schemas.statuses.WorkPoolStatus.PAUSED
-        else:
-            read_workers = await models.workers.read_workers(
-                session=session,
-                work_pool_id=work_pool.id,
-            )
-            online_workers = [
-                worker
-                for worker in read_workers
-                if schemas.responses.WorkerResponse.from_orm(worker).status
-                == schemas.statuses.WorkerStatus.ONLINE
-            ]
-            if len(online_workers) > 0:
-                work_pool.status = schemas.statuses.WorkPoolStatus.READY
-            else:
-                work_pool.status = schemas.statuses.WorkPoolStatus.NOT_READY
-        return work_pool
 
 
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 30
@@ -548,9 +488,7 @@ class WorkerResponse(schemas.core.Worker):
     )
 
     @classmethod
-    def from_orm(
-        cls, orm_worker: "prefect.server.database.orm_models.ORMWorker"
-    ) -> "WorkerResponse":
+    def from_orm(cls, orm_worker: "ORMWorker") -> "WorkerResponse":
         worker = super().from_orm(orm_worker)
         offline_horizon = datetime.datetime.now(
             tz=datetime.timezone.utc

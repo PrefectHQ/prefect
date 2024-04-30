@@ -9,6 +9,7 @@ from uuid import UUID
 import jsonschema.exceptions
 import pendulum
 from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from prefect._vendor.starlette.background import BackgroundTasks
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -18,6 +19,7 @@ from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
+from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
@@ -115,7 +117,7 @@ async def create_deployment(
         elif deployment.work_queue_name:
             # If just a queue name was provided, ensure that the queue exists and
             # get its ID.
-            work_queue = await models.work_queues._ensure_work_queue_exists(
+            work_queue = await models.work_queues.ensure_work_queue_exists(
                 session=session, name=deployment.work_queue_name
             )
             deployment_dict["work_queue_id"] = work_queue.id
@@ -142,13 +144,11 @@ async def create_deployment(
                 )
 
         if deployment.storage_document_id is not None:
-            infrastructure_block = (
-                await models.block_documents.read_block_document_by_id(
-                    session=session,
-                    block_document_id=deployment.storage_document_id,
-                )
+            storage_block = await models.block_documents.read_block_document_by_id(
+                session=session,
+                block_document_id=deployment.storage_document_id,
             )
-            if not infrastructure_block:
+            if not storage_block:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=(
@@ -378,6 +378,7 @@ async def read_deployments(
 
 @router.post("/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs_for_deployments(
+    background_tasks: BackgroundTasks,
     deployment_ids: List[UUID] = Body(
         default=..., description="The deployment IDs to get scheduled runs for"
     ),
@@ -415,12 +416,10 @@ async def get_scheduled_flow_runs_for_deployments(
             for orm_flow_run in orm_flow_runs
         ]
 
-    async with db.session_context(
-        begin_transaction=True, with_for_update=True
-    ) as session:
-        await models.deployments._update_deployment_last_polled(
-            session=session, deployment_ids=deployment_ids
-        )
+    background_tasks.add_task(
+        mark_deployments_ready,
+        deployment_ids=deployment_ids,
+    )
 
     return flow_run_responses
 
