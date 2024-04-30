@@ -19,6 +19,7 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
+from prefect.states import State
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
 
@@ -411,11 +412,15 @@ class TestTaskRunsSync:
     async def test_task_runs_respect_result_persistence(self, prefect_client):
         @task(persist_result=False)
         def no_persist():
-            return TaskRunContext.get().task_run.id
+            ctx = TaskRunContext.get()
+            assert ctx
+            return ctx.task_run.id
 
         @task(persist_result=True)
         def persist():
-            return TaskRunContext.get().task_run.id
+            ctx = TaskRunContext.get()
+            assert ctx
+            return ctx.task_run.id
 
         # assert no persistence
         run_id = run_task_sync(no_persist)
@@ -458,6 +463,8 @@ class TestReturnState:
 
         state = await run_task(foo, return_type="state")
 
+        assert isinstance(state, State)
+
         assert state.is_completed()
 
         assert await state.result() == 42
@@ -468,6 +475,8 @@ class TestReturnState:
             raise ValueError("xyz")
 
         state = await run_task(foo, return_type="state")
+
+        assert isinstance(state, State)
 
         assert state.is_failed()
 
@@ -550,12 +559,13 @@ class TestTaskRetries:
         if always_fail:
             assert task_run_state.is_failed()
             assert exceptions_equal(
-                await task_run_state.result(raise_on_failure=False), exc
+                await task_run_state.result(raise_on_failure=False),  # type: ignore
+                exc,
             )
             assert mock.call_count == 4
         else:
             assert task_run_state.is_completed()
-            assert await task_run_state.result() is True
+            assert await task_run_state.result() is True  # type: ignore
             assert mock.call_count == 4
 
         states = await prefect_client.read_task_run_states(task_run_id)

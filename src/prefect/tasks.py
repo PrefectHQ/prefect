@@ -190,14 +190,14 @@ class Task(Generic[P, R]):
     def __init__(
         self,
         fn: Callable[P, R],
-        name: str = None,
-        description: str = None,
-        tags: Iterable[str] = None,
-        version: str = None,
-        cache_key_fn: Callable[
-            ["TaskRunContext", Dict[str, Any]], Optional[str]
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        version: Optional[str] = None,
+        cache_key_fn: Optional[
+            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
-        cache_expiration: datetime.timedelta = None,
+        cache_expiration: Optional[datetime.timedelta] = None,
         task_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[
@@ -214,7 +214,7 @@ class Task(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         result_storage_key: Optional[str] = None,
         cache_result_in_memory: bool = True,
-        timeout_seconds: Union[int, float] = None,
+        timeout_seconds: Union[int, float, None] = None,
         log_prints: Optional[bool] = False,
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
