@@ -23,7 +23,7 @@ To set up a table, use the `execute` and `execute_many` methods. Then, use the `
 
 By using the `SnowflakeConnector` as a context manager, you can make sure that the Snowflake connection and cursors are closed properly after you're done with them.
 
-Be sure to install [prefect-snowflake](#installation) and [save to block](#saving-credentials-to-block) to run the examples below!
+Be sure to [install prefect-snowflake](#installation), [register the blocks](#registering-blocks), and [create a credentials block](#saving-credentials-to-block) to run the examples below!
 
 === "Sync"
 
@@ -158,21 +158,24 @@ For more tips on how to use tasks and flows in an integration, check out [Using 
 
 Install `prefect-snowflake` with `pip`:
 
+<div class="terminal">
 ```bash
 pip install prefect-snowflake
 ```
+</div>
 
-A list of available blocks in `prefect-snowflake` and their setup instructions can be found [here](https://PrefectHQ.github.io/prefect-snowflake/blocks_catalog).
+### Registering blocks
+Register blocks in this module to make them available for use.
 
-Requires an installation of Python 3.8+.
-
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
-
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
+<div class="terminal">
+```bash
+prefect block register -m prefect_aws
+```
+</div>
 
 ### Saving credentials to block
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
+Note, to use the `load` method on a block, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
 
 Below is a walkthrough on saving a `SnowflakeCredentials` block through code.
 
