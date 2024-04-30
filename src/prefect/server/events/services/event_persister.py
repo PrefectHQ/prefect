@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import AsyncGenerator, List, Optional
 
+import pendulum
+import sqlalchemy as sa
+
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
@@ -16,6 +19,7 @@ from prefect.server.utilities.messaging import Message, MessageHandler, create_c
 from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
+    PREFECT_EVENTS_RETENTION_PERIOD,
 )
 
 logger = get_logger(__name__)
@@ -66,6 +70,7 @@ class EventPersister:
 async def create_handler(
     batch_size: int = 20,
     flush_every: timedelta = timedelta(seconds=5),
+    trim_every: timedelta = timedelta(minutes=15),
 ) -> AsyncGenerator[MessageHandler, None]:
     """
     Set up a message handler that will accumulate and send events to
@@ -84,17 +89,48 @@ async def create_handler(
         while queue.qsize() > 0:
             batch.append(await queue.get())
 
-        async with await db.session() as session:
-            await write_events(session=session, events=batch)
-            await session.commit()
+        try:
+            async with db.session_context() as session:
+                await write_events(session=session, events=batch)
+                await session.commit()
+                logger.debug("Finished persisting events.")
+        except Exception:
+            logger.debug("Error flushing events, restoring to queue", exc_info=True)
+            for event in batch:
+                queue.put_nowait(event)
 
-        logger.debug("Finished persisting events.")
+    async def trim() -> None:
+        older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+
+        try:
+            async with db.session_context() as session:
+                result = await session.execute(
+                    sa.delete(db.Event).where(db.Event.occurred < older_than)
+                )
+                await session.commit()
+                if result.rowcount:
+                    logger.debug(
+                        "Trimmed %s events older than %s.", result.rowcount, older_than
+                    )
+        except Exception:
+            logger.exception("Error trimming events", exc_info=True)
 
     async def flush_periodically():
-        while True:
-            await asyncio.sleep(flush_every.total_seconds())
-            if queue.qsize():
-                await flush()
+        try:
+            while True:
+                await asyncio.sleep(flush_every.total_seconds())
+                if queue.qsize():
+                    await flush()
+        except asyncio.CancelledError:
+            return
+
+    async def trim_periodically():
+        try:
+            while True:
+                await asyncio.sleep(trim_every.total_seconds())
+                await trim()
+        except asyncio.CancelledError:
+            return
 
     async def message_handler(message: Message):
         if not message.data:
@@ -106,11 +142,13 @@ async def create_handler(
         if queue.qsize() >= batch_size:
             await flush()
 
-    periodic_task = asyncio.create_task(flush_periodically())
+    periodic_flush = asyncio.create_task(flush_periodically())
+    periodic_trim = asyncio.create_task(trim_periodically())
 
     try:
         yield message_handler
     finally:
-        periodic_task.cancel()
+        periodic_flush.cancel()
+        periodic_trim.cancel()
         if queue.qsize():
             await flush()
