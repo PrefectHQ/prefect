@@ -543,7 +543,7 @@ class Task(Generic[P, R]):
     async def create_run(
         self,
         parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         client: Optional[PrefectClient] = None,
     ) -> TaskRun:
