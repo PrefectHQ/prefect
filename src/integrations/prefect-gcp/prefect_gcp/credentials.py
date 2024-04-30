@@ -90,7 +90,7 @@ class ClientType(Enum):
 @functools.lru_cache(maxsize=8, typed=True)
 def _get_job_service_async_client_cached(
     ctx, client_options: tuple
-) -> JobServiceAsyncClient:
+) -> "JobServiceAsyncClient":
     """
     Gets an authenticated Job Service async client for Vertex AI.
 
@@ -148,7 +148,9 @@ class GcpCredentials(CredentialsBlock):
         return hash(
             (
                 hash(self.service_account_file),
-                hash(frozenset(self.service_account_info.dict().items())),
+                hash(frozenset(self.service_account_info.dict().items()))
+                if self.service_account_info
+                else None,
                 hash(self.project),
                 hash(self._service_account_email),
             )
