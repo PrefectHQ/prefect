@@ -10,7 +10,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.exceptions import ParameterTypeError
-from prefect.new_flow_engine import FlowRunEngine, run_flow
+from prefect.new_flow_engine import FlowRunEngine, run_flow, run_flow_sync
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
 
@@ -52,7 +52,7 @@ class TestFlowRunEngine:
             engine.client
 
 
-class TestFlowRuns:
+class TestFlowRunsAsync:
     async def test_basic(self):
         @flow
         async def foo():
@@ -105,6 +105,32 @@ class TestFlowRuns:
         run = await prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
+
+    async def test_with_args(self):
+        @flow
+        async def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = await f(*args)
+        assert result == args
+
+    async def test_with_kwargs(self):
+        @flow
+        async def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = await f(**kwargs)
+        assert result == kwargs
+
+    async def test_with_args_kwargs(self):
+        @flow
+        async def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = await f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
 
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)
@@ -174,6 +200,131 @@ class TestFlowRuns:
         assert inner_run.flow_inputs["wait_for"][0].id == b
 
 
+class TestFlowRunsSync:
+    async def test_basic(self):
+        @flow
+        def foo():
+            return 42
+
+        result = run_flow_sync(foo)
+
+        assert result == 42
+
+    async def test_with_params(self):
+        @flow
+        def bar(x: int, y: str = None):
+            return x, y
+
+        parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
+        result = run_flow_sync(bar, parameters=parameters)
+
+        assert result == (42, "nate")
+
+    async def test_with_param_validation(self):
+        @flow
+        def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="42"))
+        result = run_flow_sync(bar, parameters=parameters)
+
+        assert result == 42
+
+    async def test_with_param_validation_failure(self):
+        @flow
+        def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = run_flow_sync(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        with pytest.raises(
+            ParameterTypeError, match="Flow run received invalid parameters"
+        ):
+            await state.result()
+
+    async def test_flow_run_name(self, prefect_client):
+        @flow(flow_run_name="name is {x}")
+        def foo(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(foo, parameters=dict(x="blue"))
+        run = await prefect_client.read_flow_run(result)
+
+        assert run.name == "name is blue"
+
+    def test_with_args(self):
+        @flow
+        def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = f(*args)
+        assert result == args
+
+    def test_with_kwargs(self):
+        @flow
+        def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = f(**kwargs)
+        assert result == kwargs
+
+    def test_with_args_kwargs(self):
+        @flow
+        def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
+
+    async def test_get_run_logger(self, caplog):
+        caplog.set_level(logging.CRITICAL)
+
+        @flow(flow_run_name="test-run")
+        def my_log_flow():
+            get_run_logger().critical("hey yall")
+
+        result = run_flow_sync(my_log_flow)
+
+        assert result is None
+        record = caplog.records[0]
+
+        assert record.flow_name == "my-log-flow"
+        assert record.flow_run_name == "test-run"
+        assert UUID(record.flow_run_id)
+        assert record.message == "hey yall"
+        assert record.levelname == "CRITICAL"
+
+    async def test_flow_ends_in_completed(self, prefect_client):
+        @flow
+        def foo():
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(foo)
+        run = await prefect_client.read_flow_run(result)
+
+        assert run.state_type == StateType.COMPLETED
+
+    async def test_flow_ends_in_failed(self, prefect_client):
+        ID = None
+
+        @flow
+        def foo():
+            nonlocal ID
+            ID = FlowRunContext.get().flow_run.id
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            run_flow_sync(foo)
+
+        run = await prefect_client.read_flow_run(ID)
+
+        assert run.state_type == StateType.FAILED
+
+
 class TestFlowRetries:
     async def test_flow_retry_with_error_in_flow(self):
         run_count = 0
@@ -187,6 +338,20 @@ class TestFlowRetries:
             return "hello"
 
         assert await foo() == "hello"
+        assert run_count == 2
+
+    async def test_flow_retry_with_error_in_flow_sync(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        assert foo() == "hello"
         assert run_count == 2
 
     async def test_flow_retry_with_error_in_flow_and_successful_task(self):

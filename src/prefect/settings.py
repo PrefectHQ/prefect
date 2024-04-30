@@ -1221,6 +1221,16 @@ PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS = Setting(float, default=15)
 """The number of seconds to wait between each iteration of the Foreman loop which checks
 for offline workers and updates work pool status."""
 
+
+PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE = Setting(int, default=3)
+"The number of heartbeats that must be missed before a worker is marked as offline."
+
+PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS = Setting(
+    int, default=30
+)
+"""The number of seconds to use for online/offline evaluation if a worker's heartbeat
+interval is not set."""
+
 PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = Setting(
     int, default=60
 )
@@ -1716,6 +1726,11 @@ The number of events the event persister will attempt to insert in one batch.
 PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, gt=0.0)
 """
 The maximum number of seconds between flushes of the event persister.
+"""
+
+PREFECT_EVENTS_RETENTION_PERIOD = Setting(timedelta, default=timedelta(days=7))
+"""
+The amount of time to retain events in the database.
 """
 
 PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
