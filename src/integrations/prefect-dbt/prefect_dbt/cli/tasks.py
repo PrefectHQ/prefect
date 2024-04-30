@@ -24,6 +24,7 @@ def dbt_build_task(
     dbt_client: Optional[dbtRunner] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-build-task-summary",
+    **kwargs,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -305,7 +306,7 @@ def dbt_snapshot_task(
 
 
 @task
-def dbt_seed_task(
+def run_dbt_seed(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
