@@ -286,7 +286,7 @@ def dbt_snapshot_task(
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
-        artifact_key=artifact_key
+        artifact_key=artifact_key,
     )
 
     return results

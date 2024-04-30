@@ -361,6 +361,7 @@ class DbtCoreOperation(ShellOperation):
         modified_self.commands = commands
         return super(type(self), modified_self)._compile_kwargs(**open_kwargs)
 
+
 def create_dbt_artifact(
     artifact_key: str, results: dbtRunnerResult, command: str
 ) -> UUID:
