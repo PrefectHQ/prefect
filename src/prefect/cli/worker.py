@@ -258,7 +258,7 @@ async def _check_work_queues_paused(
         work_queues_filter = (
             WorkQueueFilter(name=WorkQueueFilterName(any_=work_queues))
             if work_queues
-            else []
+            else None
         )
         async with get_client() as client:
             wqs = await client.read_work_queues(
