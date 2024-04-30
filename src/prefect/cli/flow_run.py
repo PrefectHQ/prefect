@@ -19,10 +19,11 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
-from prefect.client.schemas.objects import StateName, StateType
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
+from prefect.logging import get_logger
 from prefect.runner import Runner
 from prefect.states import State
 
@@ -33,6 +34,8 @@ app.add_typer(flow_run_app, aliases=["flow-runs"])
 
 LOGS_DEFAULT_PAGE_SIZE = 200
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
+
+logger = get_logger(__name__)
 
 
 @flow_run_app.command()
@@ -87,17 +90,40 @@ async def ls(
     # List[StateType] and List[StateName] in the type hints, allows users to provide
     # case-insensitive arguments for `state` and `state_type`.
 
+    prefect_state_names = {
+        "SCHEDULED": "Scheduled",
+        "PENDING": "Pending",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled",
+        "CRASHED": "Crashed",
+        "PAUSED": "Paused",
+        "CANCELLING": "Cancelling",
+        "SUSPENDED": "Suspended",
+        "AWAITINGRETRY": "AwaitingRetry",
+        "RETRYING": "Retrying",
+        "LATE": "Late",
+    }
+
     state_filter = {}
+    formatted_states = []
+
     if state:
-        upper_cased_states = [s.upper() for s in state]
-        if not all(s in StateName.__members__ for s in upper_cased_states):
-            exit_with_error(
-                f"Invalid state name. Options are {', '.join([name.value for name in StateName])}."
-            )
-        # `FlowRun.state_name` is expected to be capitalized, so retrieve the `StateName` enum value
-        state_filter["name"] = {
-            "any_": [StateName[s].value for s in upper_cased_states]
-        }
+        for s in state:
+            uppercased_state = s.upper()
+            if uppercased_state in prefect_state_names:
+                capitalized_state = prefect_state_names[uppercased_state]
+                formatted_states.append(capitalized_state)
+            else:
+                # Do not change the case of the state name if it is not one of the official Prefect state names
+                formatted_states.append(s)
+                logger.warning(
+                    f"State name {repr(s)} is not one of the official Prefect state names."
+                )
+
+        state_filter["name"] = {"any_": formatted_states}
+
     if state_type:
         upper_cased_states = [s.upper() for s in state_type]
         if not all(s in StateType.__members__ for s in upper_cased_states):
