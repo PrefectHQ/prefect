@@ -24,7 +24,7 @@ pip install --upgrade prefect
 
 Different components may use different versions of Prefect:
 
-* **Cloud** will generally always be the newest version. Cloud is continuously deployed by the Prefect team. When using a self-hosted server, you can control this version.
+* **Cloud** will generally always be the newest version. Cloud is continuously deployed by the Prefect team. When using a self-managed server, you can control this version.
 * **Workers and agents** typically don't change versions frequently, and are usually whatever the latest version was at the time of creation. Workers and agents provision infrastructure for flow runs, so upgrading them may help with infrastructure problems.
 * **Flows** could use a different version than the worker or agent that created them, especially when running in different environments. Suppose your worker and flow both use the latest official Docker image, but your worker was created a month ago. Your worker will often be on an older version than your flow.
 

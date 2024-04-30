@@ -10,7 +10,7 @@ tags:
     - retries
 ---
 !!! note "Prerequisites"
-    This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-hosted server instance.
+    This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-managed server instance.
     See the prerequisites section of the [tutorial](/tutorial/) for more details.
 
 ## What is a flow?

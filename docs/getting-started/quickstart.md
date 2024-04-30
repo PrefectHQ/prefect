@@ -67,8 +67,8 @@ Your CLI is now authenticated with your Prefect Cloud account through a locally-
 
 If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/cloud/users/api-keys/) to learn how to authenticate with a manually created API key.
 
-!!! note "Self-hosted Prefect server instance"
-    If you would like to host a Prefect server instance on your own infrastructure, see the [tutorial](/tutorial/) and select the "Self-hosted" tab.
+!!! note "Self-managed Prefect server instance"
+    If you would like to host a Prefect server instance on your own infrastructure, see the [tutorial](/tutorial/) and select the "Self-managed" tab.
     Note that you will need to both host your own server and run your flows on your own infrastructure.
 
 ## Step 3: Turn your function into a Prefect flow

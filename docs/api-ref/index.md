@@ -20,5 +20,5 @@ Prefect auto-generates reference documentation for the following components:
   - The REST API documentation for a locally hosted open-source Prefect server is available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
 - **[Prefect Server SDK](/api-ref/server/)**: used primarily by the server to work with workflow metadata and enforce orchestration logic. This is only used directly by Prefect developers and contributors.
 
-!!! Note "Self-hosted docs"
+!!! Note "Self-managed docs"
     When self-hosting, you can access REST API documentation at the `/docs` endpoint of your [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) - for example, if you ran `prefect server start` with no additional configuration you can find this reference at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a>.

@@ -49,7 +49,7 @@ If you're curious, read more about [managing API keys](/cloud/users/api-keys/).
 
 ### PREFECT_API_URL
 
-The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or a self-hosted Prefect server instance.
+The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or a self-managed Prefect server instance.
 
 For example, if using Prefect Cloud:
 
@@ -129,7 +129,7 @@ PREFECT_CLIENT_CSRF_SUPPORT_ENABLED=True
 
 ### Database settings
 
-If running a self-hosted Prefect server instance, there are several database configuration settings you can read about [here](/host/).
+If running a self-managed Prefect server instance, there are several database configuration settings you can read about [here](/host/).
 
 ### Logging settings
 

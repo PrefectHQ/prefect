@@ -27,7 +27,7 @@ In this guide we'll learn how to use Prefect to move data to and from AWS, Azure
 ## Prerequisites
 
 - Prefect [installed](/getting-started/installation/)
-- Authenticated with [Prefect Cloud](/cloud/cloud-quickstart/) (or self-hosted [Prefect server](/guides/host/) instance)
+- Authenticated with [Prefect Cloud](/cloud/cloud-quickstart/) (or self-managed [Prefect server](/guides/host/) instance)
 - A cloud provider account (e.g. [AWS](https://aws.amazon.com/))
 
 ## Install relevant Prefect integration library
@@ -66,7 +66,7 @@ In the CLI, install the Prefect integration library for your cloud provider:
 
 ## Register the block types
 
-Register the new block types with Prefect Cloud (or with your self-hosted Prefect server instance):
+Register the new block types with Prefect Cloud (or with your self-managed Prefect server instance):
 
 === "AWS"
 

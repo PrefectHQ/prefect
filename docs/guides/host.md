@@ -30,13 +30,13 @@ prefect server start
 
 Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser.
 
-![Viewing the dashboard in the Prefect UI.](/img/ui/self-hosted-server-dashboard.png)
+![Viewing the dashboard in the Prefect UI.](/img/ui/self-managed-server-dashboard.png)
 
 Shut down the Prefect server with <kdb> ctrl </kbd> + <kdb> c </kbd> in the terminal.
 
-### Differences between a self-hosted Prefect server instance and Prefect Cloud
+### Differences between a self-managed Prefect server instance and Prefect Cloud
 
-A self-hosted Prefect server instance and Prefect Cloud share a common set of features. Prefect Cloud includes the following additional features:
+A self-managed Prefect server instance and Prefect Cloud share a common set of features. Prefect Cloud includes the following additional features:
 
 - [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
 - [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
@@ -244,7 +244,7 @@ See the [contributing docs](/contributing/overview/#adding-database-migrations) 
 
 ## Notifications
 
-When you use [Prefect Cloud](/cloud/) you gain access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-hosted Prefect server.
+When you use [Prefect Cloud](/cloud/) you gain access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-managed Prefect server.
 
 Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
 

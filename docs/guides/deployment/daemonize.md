@@ -74,7 +74,7 @@ prefect cloud login -k YOUR_API_KEY
 
 When prompted, choose the Prefect workspace you'd like to log in to.
 
-If connecting to a self-hosted Prefect server instance instead of Prefect Cloud, run the following and substitute the IP address of your server:
+If connecting to a self-managed Prefect server instance instead of Prefect Cloud, run the following and substitute the IP address of your server:
 
 ```bash
 prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200

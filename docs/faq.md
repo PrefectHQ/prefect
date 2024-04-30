@@ -97,15 +97,15 @@ See the [Installation](/getting-started/installation/) documentation and [Window
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect server start` and does not require Docker.
 
-Prefect Cloud users do not need to worry about the Prefect database. Prefect Cloud uses PostgreSQL on GCP behind the scenes. To use PostgreSQL with a self-hosted Prefect server, users must provide the [connection string][prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_API_DATABASE_CONNECTION_URL` environment variable.
+Prefect Cloud users do not need to worry about the Prefect database. Prefect Cloud uses PostgreSQL on GCP behind the scenes. To use PostgreSQL with a self-managed Prefect server, users must provide the [connection string][prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_API_DATABASE_CONNECTION_URL` environment variable.
 
 ### What databases does Prefect support?
 
-A self-hosted Prefect server can work with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/prefect.db` on Mac or Linux machines. SQLite and PostgreSQL are not installed by Prefect.
+A self-managed Prefect server can work with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/prefect.db` on Mac or Linux machines. SQLite and PostgreSQL are not installed by Prefect.
 
 ### How do I choose between SQLite and Postgres?
 
-SQLite generally works well for getting started and exploring Prefect. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, for production uses, Prefect Cloud or self-hosted PostgreSQL is highly recommended. Under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency should use PostgreSQL.
+SQLite generally works well for getting started and exploring Prefect. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, for production uses, Prefect Cloud or self-managed PostgreSQL is highly recommended. Under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency should use PostgreSQL.
 
 ## Relationship with other Prefect products
 

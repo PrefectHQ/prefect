@@ -155,7 +155,7 @@ We can check that our build worked by running a container from our new image.
 
     After running the above command, the container should start up and serve the flow within the container!
 
-=== "Self-hosted"
+=== "Self-managed"
 
     Our container will need an API URL and network access to communicate with the Prefect API. 
     
@@ -219,7 +219,7 @@ And we'll add the following content to our `deployment-manifest.yaml` file:
     !!!tip "Keep your API key secret"
           In the above manifest we are passing in the Prefect API URL and API key as environment variables. This approach is simple, but it is not secure. If you are deploying your flow to a remote cluster, you should use a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) to store your API key.
 
-=== "Self-hosted"
+=== "Self-managed"
 
     ```yaml title="deployment-manifest.yaml"
     apiVersion: apps/v1

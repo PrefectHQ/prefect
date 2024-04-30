@@ -12,9 +12,9 @@ search:
 ---
 # Deploying Flows
 
-!!! note "Reminder to connect to Prefect Cloud or a self-hosted Prefect server instance"
+!!! note "Reminder to connect to Prefect Cloud or a self-managed Prefect server instance"
     Some features in this tutorial, such as scheduling, require you to be connected to a Prefect server.
-    If using a self-hosted setup, run `prefect server start` to run both the webserver and UI.
+    If using a self-managed setup, run `prefect server start` to run both the webserver and UI.
     If using Prefect Cloud, make sure you have [successfully authenticated your local environment](/cloud/cloud-quickstart/).
 
 ## Why deployments?
