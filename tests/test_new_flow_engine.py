@@ -52,7 +52,7 @@ class TestFlowRunEngine:
             engine.client
 
 
-class TestFlowRuns:
+class TestFlowRunsAsync:
     async def test_basic(self):
         @flow
         async def foo():
@@ -105,6 +105,32 @@ class TestFlowRuns:
         run = await prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
+
+    async def test_with_args(self):
+        @flow
+        async def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = await f(*args)
+        assert result == args
+
+    async def test_with_kwargs(self):
+        @flow
+        async def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = await f(**kwargs)
+        assert result == kwargs
+
+    async def test_with_args_kwargs(self):
+        @flow
+        async def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = await f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
 
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)
@@ -227,6 +253,32 @@ class TestFlowRunsSync:
         run = await prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
+
+    def test_with_args(self):
+        @flow
+        def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = f(*args)
+        assert result == args
+
+    def test_with_kwargs(self):
+        @flow
+        def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = f(**kwargs)
+        assert result == kwargs
+
+    def test_with_args_kwargs(self):
+        @flow
+        def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
 
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)
