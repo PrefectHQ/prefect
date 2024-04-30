@@ -32,8 +32,9 @@ def test_app_exposes_ui_settings():
     response = client.get("/ui-settings")
     response.raise_for_status()
     json = response.json()
-    assert json["api_url"] == PREFECT_UI_API_URL.value()
-    assert set(json["flags"]) == {
+
+    flags = set(json.pop("flags"))
+    assert flags == {
         "artifacts",
         "workers",
         "work_pools",
@@ -44,6 +45,10 @@ def test_app_exposes_ui_settings():
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
     }
+    assert json == {
+        "api_url": PREFECT_UI_API_URL.value(),
+        "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
+    }
 
 
 @pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
@@ -53,8 +58,9 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     response = client.get("/ui-settings")
     response.raise_for_status()
     json = response.json()
-    assert json["api_url"] == PREFECT_UI_API_URL.value()
-    assert set(json["flags"]) == {
+
+    flags = set(json.pop("flags"))
+    assert flags == {
         "test",
         "work_pools",
         "workers",
@@ -65,6 +71,10 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
+    }
+    assert json == {
+        "api_url": PREFECT_UI_API_URL.value(),
+        "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
     }
 
 
