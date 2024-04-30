@@ -221,13 +221,16 @@ def test_ls_state_name_filter(
     )
 
 
-def test_ls_state_name_filter_invalid_raises():
+def test_ls_state_name_filter_unofficial_state_warns(caplog):
     invoke_and_assert(
-        command=["flow-run", "ls", "--state", "invalid"],
-        expected_code=1,
-        expected_output_contains=(
-            "Invalid state name. Options are Scheduled, Pending, Running, Completed, Failed, Cancelled, Crashed, Paused, Cancelling, Suspended, AwaitingRetry, Retrying, Late."
-        ),
+        command=["flow-run", "ls", "--state", "MyCustomState"],
+        expected_code=0,
+        expected_output_contains=("No flow runs found.",),
+    )
+
+    assert (
+        "State name 'MyCustomState' is not one of the official Prefect state names"
+        in caplog.text
     )
 
 
