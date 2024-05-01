@@ -9,7 +9,7 @@ from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.events.actions import RunDeployment
 from prefect.server.schemas.core import Deployment, WorkPool
-from prefect.utilities.schema_tools import ValidationError, validate
+from prefect.utilities.schema_tools import ValidationError, is_valid_schema, validate
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -105,6 +105,13 @@ async def _validate_work_pool_job_variables(
             work_pool_name,
         )
         return
+
+    try:
+        is_valid_schema(variables_schema, preprocess=False)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        )
 
     base_vars = _get_base_config_defaults(base_job_template)
     base_vars = await _resolve_default_references(base_vars, session)
