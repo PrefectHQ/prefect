@@ -69,7 +69,7 @@ def test_listing_gcl(various_global_concurrency_limits: List[GlobalConcurrencyLi
     invoke_and_assert(
         ["global-concurrency-limit", "ls"],
         expected_output_contains=(
-            # name is truncated during tests so we can't match the full name without changing the width of the column
+            # name check is truncated during tests as we can't match the full name without changing the width of the column
             str(various_global_concurrency_limits[0].name[:14]),
             str(various_global_concurrency_limits[1].name[:14]),
             str(various_global_concurrency_limits[2].name[:14]),
