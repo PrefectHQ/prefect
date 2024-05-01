@@ -198,6 +198,33 @@ async def test_get_job_service_async_client_cached(
     assert _get_job_service_async_client_cached.cache_info().hits == 2
 
 
+async def test_get_job_service_async_client_cached_from_file(
+    service_account_info, oauth2_credentials
+):
+    """
+    Test to ensure that _get_job_service_async_client_cached function returns the same instance
+    for multiple calls with the same parameters and properly utilizes lru_cache.
+    """
+    _get_job_service_async_client_cached.cache_clear()
+
+    project = "test_project"
+    credentials = GcpCredentials(
+        service_account_file=SERVICE_ACCOUNT_FILES[0],
+        project=project,
+    )
+
+    assert (
+        _get_job_service_async_client_cached.cache_info().hits == 0
+    ), "Initial call count should be 0"
+
+    credentials.get_job_service_async_client(client_options={})
+    credentials.get_job_service_async_client(client_options={})
+    credentials.get_job_service_async_client(client_options={})
+
+    assert _get_job_service_async_client_cached.cache_info().misses == 1
+    assert _get_job_service_async_client_cached.cache_info().hits == 2
+
+
 class MockTargetConfigs(Block):
     credentials: GcpCredentials
 
