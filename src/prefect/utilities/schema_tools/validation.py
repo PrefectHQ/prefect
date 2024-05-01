@@ -85,7 +85,7 @@ def validate(
                 error_message = "Validation failed."
             else:
                 error_message = (
-                    f"Validation failed for field {exc.json_path.removeprefix('$.')!r}."
+                    f"Validation failed for field {exc.json_path.replace('$.', '')!r}."
                 )
             error_message += f" Failure reason: {exc.message}"
             raise ValidationError(error_message) from exc
