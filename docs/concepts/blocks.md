@@ -5,8 +5,6 @@ tags:
   - storage
   - secrets
   - configuration
-  - infrastructure
-  - deployments
 search:
   boost: 2
 ---
@@ -36,7 +34,7 @@ Prefect Cloud and the Prefect server UI display a library of block types availab
 
 ## Prefect built-in blocks
 
-Prefect provides a broad range of commonly used, built-in block types. These block types are available in Prefect Cloud and the Prefect server UI.
+Prefect provides a broad range of commonly used, built-in block types. These block types are pre-installed in Prefect Cloud and a self-hosted Prefect server instance. Prefect Cloud contains additional pre-installed blocks.
 
 | Block                                                                                                                | Slug                                                     | Description                                                                                                                             |
 | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -63,14 +61,12 @@ Prefect provides a broad range of commonly used, built-in block types. These blo
 | [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS)                          | `twilio-sms`                                             | Enables sending notifications via Twilio SMS.                                                                                           |
 | [Webhook](/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook)                                           | `webhook`                                                | Block that enables calling webhooks.                                                                                                    |
 
-## Blocks in Prefect Integrations
+## Blocks in Prefect integration libraries
 
-Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Integrations](/integrations/). The following table provides an overview of the blocks available from our most popular Prefect Integrations.
+Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect ointegrations libraries](/integrations/). The following table provides an overview of the blocks available from our most popular Prefect Integrations.
 
 | Integration                                                             | Block                                                                                                                                                       | Slug                                   |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| [prefect-airbyte](https://prefecthq.github.io/prefect-airbyte/)         | [Airbyte Connection](https://prefecthq.github.io/prefect-airbyte/connections/#prefect_airbyte.connections.AirbyteConnection)                                | `airbyte-connection`                   |
-| [prefect-airbyte](https://prefecthq.github.io/prefect-airbyte/)         | [Airbyte Server](https://prefecthq.github.io/prefect-airbyte/server/#prefect_airbyte.server.AirbyteServer)                                                  | `airbyte-server`                       |
 | [prefect-aws](https://prefecthq.github.io/prefect-aws/)                 | [AWS Credentials](https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.AwsCredentials)                                              | `aws-credentials`                      |
 | [prefect-aws](https://prefecthq.github.io/prefect-aws/)                 | [ECS Task](https://prefecthq.github.io/prefect-aws/ecs/#prefect_aws.ecs.ECSTask)                                                                            | `ecs-task`                             |
 | [prefect-aws](https://prefecthq.github.io/prefect-aws/)                 | [MinIO Credentials](https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.MinIOCredentials)                                          | `minio-credentials`                    |
@@ -81,9 +77,7 @@ Blocks can also be created by anyone and shared with the community. You'll find 
 | [prefect-azure](https://prefecthq.github.io/prefect-azure/)             | [Azure Cosmos DB Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCosmosDbCredentials)                    | `azure-cosmos-db-credentials`          |
 | [prefect-azure](https://prefecthq.github.io/prefect-azure/)             | [AzureML Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureMlCredentials)                                  | `azureml-credentials`                  |
 | [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Credentials](https://prefecthq.github.io/prefect-bitbucket/credentials/)                                                                         | `bitbucket-credentials`                |
-| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Repository](https://prefecthq.github.io/prefect-bitbucket/repository/)                                                                           | `bitbucket-repository`                 |
-| [prefect-census](https://prefecthq.github.io/prefect-census/)           | [Census Credentials](https://prefecthq.github.io/prefect-census/credentials/)                                                                               | `census-credentials`                   |
-| [prefect-census](https://prefecthq.github.io/prefect-census/)           | [Census Sync](https://prefecthq.github.io/prefect-census/syncs/)                                                                                            | `census-sync`                          |
+| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Repository](https://prefecthq.github.io/prefect-bitbucket/repository/)                                                                           | `bitbucket-repository`                 |                            
 | [prefect-databricks](https://prefecthq.github.io/prefect-databricks/)   | [Databricks Credentials](https://prefecthq.github.io/prefect-databricks/credentials/#prefect_databricks.credentials.DatabricksCredentials)                  | `databricks-credentials`               |
 | [prefect-dbt](https://prefecthq.github.io/prefect-dbt/)                 | [dbt CLI BigQuery Target Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/bigquery/#prefect_dbt.cli.configs.bigquery.BigQueryTargetConfigs)     | `dbt-cli-bigquery-target-configs`      |
 | [prefect-dbt](https://prefecthq.github.io/prefect-dbt/)                 | [dbt CLI Profile](https://prefecthq.github.io/prefect-dbt/cli/credentials/#prefect_dbt.cli.credentials.DbtCliProfile)                                       | `dbt-cli-profile`                      |
@@ -95,8 +89,6 @@ Blocks can also be created by anyone and shared with the community. You'll find 
 | [prefect-docker](https://prefecthq.github.io/prefect-docker/)           | [Docker Host](https://prefecthq.github.io/prefect-docker/host/)                                                                                             | `docker-host`                          |
 | [prefect-docker](https://prefecthq.github.io/prefect-docker/)           | [Docker Registry Credentials](https://prefecthq.github.io/prefect-docker/credentials/)                                                                      | `docker-registry-credentials`          |
 | [prefect-email](https://prefecthq.github.io/prefect-email/)             | [Email Server Credentials](https://prefecthq.github.io/prefect-email/credentials/)                                                                          | `email-server-credentials`             |
-| [prefect-firebolt](https://prefecthq.github.io/prefect-firebolt/)       | [Firebolt Credentials](https://prefecthq.github.io/prefect-firebolt/credentials/)                                                                           | `firebolt-credentials`                 |
-| [prefect-firebolt](https://prefecthq.github.io/prefect-firebolt/)       | [Firebolt Database](https://prefecthq.github.io/prefect-firebolt/database/)                                                                                 | `firebolt-database`                    |
 | [prefect-gcp](https://prefecthq.github.io/prefect-gcp/)                 | [BigQuery Warehouse](https://prefecthq.github.io/prefect-gcp/bigquery/#prefect_gcp.bigquery.BigQueryWarehouse)                                              | `bigquery-warehouse`                   |
 | [prefect-gcp](https://prefecthq.github.io/prefect-gcp/)                 | [GCP Cloud Run Job](https://prefecthq.github.io/prefect-gcp/cloud_run/#prefect_gcp.cloud_run.CloudRunJob)                                                   | `cloud-run-job`                        |
 | [prefect-gcp](https://prefecthq.github.io/prefect-gcp/)                 | [GCP Credentials](https://prefecthq.github.io/prefect-gcp/credentials/#prefect_gcp.credentials.GcpCredentials)                                              | `gcp-credentials`                      |
@@ -107,21 +99,13 @@ Blocks can also be created by anyone and shared with the community. You'll find 
 | [prefect-github](https://prefecthq.github.io/prefect-github/)           | [GitHub Repository](https://prefecthq.github.io/prefect-github/repository/)                                                                                 | `github-repository`                    |
 | [prefect-gitlab](https://prefecthq.github.io/prefect-gitlab/)           | [GitLab Credentials](https://prefecthq.github.io/prefect-gitlab/credentials/)                                                                               | `gitlab-credentials`                   |
 | [prefect-gitlab](https://prefecthq.github.io/prefect-gitlab/)           | [GitLab Repository](https://prefecthq.github.io/prefect-gitlab/repositories/)                                                                               | `gitlab-repository`                    |
-| [prefect-hex](https://prefecthq.github.io/prefect-hex/)                 | [Hex Credentials](https://prefecthq.github.io/prefect-hex/credentials/#prefect_hex.credentials.HexCredentials)                                              | `hex-credentials`                      |
-| [prefect-hightouch](https://prefecthq.github.io/prefect-hightouch/)     | [Hightouch Credentials](https://prefecthq.github.io/prefect-hightouch/credentials/)                                                                         | `hightouch-credentials`                |
 | [prefect-kubernetes](https://prefecthq.github.io/prefect-kubernetes/)   | [Kubernetes Credentials](https://prefecthq.github.io/prefect-kubernetes/credentials/)                                                                       | `kubernetes-credentials`               |
-| [prefect-monday](https://prefecthq.github.io/prefect-monday/)           | [Monday Credentials](https://prefecthq.github.io/prefect-monday/credentials/)                                                                               | `monday-credentials`                   |
-| [prefect-monte-carlo](https://prefecthq.github.io/prefect-monte-carlo/) | [Monte Carlo Credentials](https://prefecthq.github.io/prefect-monte-carlo/credentials/)                                                                     | `monte-carlo-credentials`              |
-| [prefect-openai](https://prefecthq.github.io/prefect-openai/)           | [OpenAI Completion Model](https://prefecthq.github.io/prefect-openai/completion/#prefect_openai.completion.CompletionModel)                                 | `openai-completion-model`              |
-| [prefect-openai](https://prefecthq.github.io/prefect-openai/)           | [OpenAI Image Model](https://prefecthq.github.io/prefect-openai/image/#prefect_openai.image.ImageModel)                                                     | `openai-image-model`                   |
-| [prefect-openai](https://prefecthq.github.io/prefect-openai/)           | [OpenAI Credentials](https://prefecthq.github.io/prefect-openai/credentials/#prefect_openai.credentials.OpenAICredentials)                                  | `openai-credentials`                   |
 | [prefect-slack](https://prefecthq.github.io/prefect-slack/)             | [Slack Credentials](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackCredentials)                                      | `slack-credentials`                    |
 | [prefect-slack](https://prefecthq.github.io/prefect-slack/)             | [Slack Incoming Webhook](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackWebhook)                                     | `slack-incoming-webhook`               |
 | [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)     | [Snowflake Connector](https://prefecthq.github.io/prefect-snowflake/database/#prefect_snowflake.database.SnowflakeConnector)                                | `snowflake-connector`                  |
 | [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)     | [Snowflake Credentials](https://prefecthq.github.io/prefect-snowflake/credentials/#prefect_snowflake.credentials.SnowflakeCredentials)                      | `snowflake-credentials`                |
 | [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/)   | [Database Credentials](https://prefecthq.github.io/prefect-sqlalchemy/credentials/#prefect_sqlalchemy.credentials.DatabaseCredentials)                      | `database-credentials`                 |
 | [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/)   | [SQLAlchemy Connector](https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector)                            | `sqlalchemy-connector`                 |
-| [prefect-twitter](https://prefecthq.github.io/prefect-twitter/)         | [Twitter Credentials](https://prefecthq.github.io/prefect-twitter/credentials/)                                                                             | `twitter-credentials`                  |
 
 ## Using existing block types
 
@@ -455,9 +439,12 @@ my_s3_bucket_block.bucket_path = "my-default-bucket-path"
 my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
 ```
 
-## Registering blocks for use in the Prefect UI
+## Registering blocks for use 
 
-Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
+Prefect comes with many blocks pre-registered and ready to use.
+If you do not have a block available for use, you can register it.
+
+Blocks can be registered from a Python module available in the current environment with a CLI command like this:
 
 <div class="terminal">
 ```bash
@@ -465,7 +452,7 @@ prefect block register --module prefect_aws.credentials
 ```
 </div>
 
-This command is useful for registering all blocks found in the credentials module within [Prefect Integrations](/integrations/).
+This command is useful for registering all blocks found within a module in a [Prefect Integration library](/integrations/).
 
 Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
 
@@ -475,4 +462,4 @@ prefect block register --file my_block.py
 ```
 </div>
 
-The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
+The registered block will then be available for configuration.
