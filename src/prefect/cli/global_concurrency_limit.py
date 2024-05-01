@@ -31,25 +31,24 @@ async def list_global_concurrency_limits():
     )
 
     table.add_column("ID", justify="right", style="cyan", no_wrap=True, overflow="fold")
-
-    table.add_column("Created", style="blue", no_wrap=True)
-    table.add_column("Updated", style="blue", no_wrap=True)
-    table.add_column("Active", style="blue", no_wrap=True)
     table.add_column("Name", style="blue", no_wrap=True, overflow="fold")
+    table.add_column("Active", style="blue", no_wrap=True)
     table.add_column("Limit", style="blue", no_wrap=True)
     table.add_column("Active Slots", style="blue", no_wrap=True)
     table.add_column("Slot Decay Per Second", style="blue", no_wrap=True)
+    table.add_column("Created", style="blue", no_wrap=True)
+    table.add_column("Updated", style="blue", no_wrap=True)
 
     for gcl_limit in sorted(gcl_limits, key=lambda x: f"{x.name}"):
         table.add_row(
             str(gcl_limit.id),
-            pendulum.instance(gcl_limit.created).isoformat(),
-            pendulum.instance(gcl_limit.updated).diff_for_humans(),
-            str(gcl_limit.active),
             gcl_limit.name,
+            str(gcl_limit.active),
             str(gcl_limit.limit),
             str(gcl_limit.active_slots),
             str(gcl_limit.slot_decay_per_second),
+            pendulum.instance(gcl_limit.created).isoformat(),
+            pendulum.instance(gcl_limit.updated).diff_for_humans(),
         )
 
     app.console.print(table)
