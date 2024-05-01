@@ -670,3 +670,209 @@ def test_resource_specification_deepcopy():
     assert specification["prefect.resource.id"] == copy["prefect.resource.id"]
     assert specification["but-also"] == copy["but-also"]
     assert specification["but-also"] is not copy["but-also"]
+
+
+@pytest.fixture
+def specification_with_single_label():
+    return ResourceSpecification.parse_obj(
+        {
+            "only-a-negative": ["!nah"],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "resource_labels",
+    [
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "yes",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "woohoo!",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "!nah",  # it's not not wrong
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "nah, chief",  # it's not not wrong
+        },
+    ],
+)
+def test_resource_specification_single_negative_label_values_includes(
+    specification_with_single_label: ResourceSpecification,
+    resource_labels: Dict[str, str],
+):
+    resource = Resource.parse_obj(resource_labels)
+    assert specification_with_single_label.includes([resource])
+
+
+@pytest.mark.parametrize(
+    "resource_labels",
+    [
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "nah",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "does-not-have-the-label": "this ain't it, chief",
+        },
+    ],
+)
+def test_resource_specification_single_negative_label_values_excludes(
+    specification_with_single_label: ResourceSpecification,
+    resource_labels: Dict[str, str],
+):
+    resource = Resource.parse_obj(resource_labels)
+    assert not specification_with_single_label.includes([resource])
+
+
+@pytest.fixture
+def specification_with_negated_wildcard():
+    return ResourceSpecification.parse_obj(
+        {
+            "only-a-negative": ["!nah*"],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "resource_labels",
+    [
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "yes",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "woohoo!",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "!nah",  # it's not not wrong
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "is it? nah",
+        },
+    ],
+)
+def test_resource_specification_single_negated_wildcard_includes(
+    specification_with_negated_wildcard: ResourceSpecification,
+    resource_labels: Dict[str, str],
+):
+    resource = Resource.parse_obj(resource_labels)
+    assert specification_with_negated_wildcard.includes([resource])
+
+
+@pytest.mark.parametrize(
+    "resource_labels",
+    [
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "nah",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "nah, chief",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "only-a-negative": "nah, pal",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "does-not-have-the-label": "this ain't it, chief",
+        },
+    ],
+)
+def test_resource_specification_single_negated_wildcard_excludes(
+    specification_with_negated_wildcard: ResourceSpecification,
+    resource_labels: Dict[str, str],
+):
+    resource = Resource.parse_obj(resource_labels)
+    assert not specification_with_negated_wildcard.includes([resource])
+
+
+@pytest.fixture
+def specification_with_multiple_labels():
+    return ResourceSpecification.parse_obj(
+        {
+            "some-label": ["this-value", "!that-value", "other-value"],
+            "another-label": ["yes", "!no", "maybe"],
+            "only-a-negative": ["!nah"],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "resource_labels",
+    [
+        {
+            "prefect.resource.id": "anything",
+            "some-label": "this-value",
+            "another-label": "yes",
+            "only-a-negative": "yes",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "some-label": "other-value",
+            "another-label": "maybe",
+            "only-a-negative": "woohoo!",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "totally-other": "no",  # forbidden value, but in a different label
+            "some-label": "this-value",
+            "another-label": "yes",
+            "only-a-negative": "!nah",  # it's not not wrong
+        },
+    ],
+)
+def test_resource_specification_multiple_negative_label_values_includes(
+    specification_with_multiple_labels: ResourceSpecification,
+    resource_labels: Dict[str, str],
+):
+    resource = Resource.parse_obj(resource_labels)
+    assert specification_with_multiple_labels.includes([resource])
+
+
+@pytest.mark.parametrize(
+    "resource_labels",
+    [
+        {
+            "prefect.resource.id": "anything",
+            "some-label": "that-value",  # forbidden
+            "another-label": "yes",
+            "only-a-negative": "yes",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "some-label": "that-value",  # forbidden
+            "another-label": "maybe",
+            "only-a-negative": "yes",
+        },
+        {
+            "prefect.resource.id": "anything",
+            "some-label": "this-value",
+            "another-label": "yes",
+            "only-a-negative": "nah",  # forbidden
+        },
+        {
+            "prefect.resource.id": "anything",
+            "some-label": "that-value",  # forbidden
+            "another-label": "no",  # forbidden
+            "only-a-negative": "nah",  # forbidden
+        },
+    ],
+)
+def test_resource_specification_multiple_negative_label_values_excludes(
+    specification_with_multiple_labels: ResourceSpecification,
+    resource_labels: Dict[str, str],
+):
+    resource = Resource.parse_obj(resource_labels)
+    assert not specification_with_multiple_labels.includes([resource])

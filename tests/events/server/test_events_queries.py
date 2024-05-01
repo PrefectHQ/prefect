@@ -680,6 +680,63 @@ async def test_querying_by_any_resource_labels(
         )
 
 
+async def test_querying_by_any_negative_resource_labels(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+    all_events: List[ReceivedEvent],
+) -> None:
+    assert any(
+        resource.get("hello") == "world"
+        for event in all_events
+        for resource in event.involved_resources
+    )
+
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            any_resource=EventAnyResourceFilter(labels={"hello": "!world"}),
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        with_hello_label = [r for r in event.involved_resources if r.get("hello")]
+        assert with_hello_label, repr(event)
+        assert any(r["hello"] != "world" for r in with_hello_label), repr(event)
+
+
+async def test_querying_by_any_negative_prefix(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+    all_events: List[ReceivedEvent],
+) -> None:
+    assert any(
+        resource.get("hello") and resource["hello"].startswith("wor")
+        for event in all_events
+        for resource in event.involved_resources
+    )
+
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            any_resource=EventAnyResourceFilter(labels={"hello": "!wor*"}),
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        all_resources = [event.resource] + event.related
+        with_hello_label = [r for r in all_resources if r.get("hello")]
+        assert with_hello_label, repr(event)
+        assert any(not r["hello"].startswith("wor") for r in with_hello_label), repr(
+            event
+        )
+
+
 async def test_querying_by_any_multiple_resource_labels(
     events_query_session: AsyncSession,
     full_occurred_range: EventOccurredFilter,
@@ -874,6 +931,53 @@ async def test_querying_by_resource_labels(
         assert event.resource["hello"] == "world"
 
 
+async def test_querying_by_negative_resource_labels(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+    all_events: List[ReceivedEvent],
+) -> None:
+    assert any(event.resource.get("hello") == "world" for event in all_events)
+
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            resource=EventResourceFilter(labels={"hello": "!world"}),
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        assert event.resource["hello"]
+        assert event.resource["hello"] != "world"
+
+
+async def test_querying_by_negative_resource_prefix(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+    all_events: List[ReceivedEvent],
+) -> None:
+    assert any(
+        event.resource.get("hello") and event.resource["hello"].startswith("world")
+        for event in all_events
+    )
+
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            resource=EventResourceFilter(labels={"hello": "!wor*"}),
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        assert event.resource["hello"]
+        assert not event.resource["hello"].startswith("wor")
+
+
 async def test_querying_by_resource_wildcards(
     events_query_session: AsyncSession,
     full_occurred_range: EventOccurredFilter,
@@ -1021,6 +1125,64 @@ async def test_querying_by_related_labels(
         assert any(
             related["hello"] == "world" and related["another"] == "label"
             for related in event.related
+        )
+
+
+async def test_querying_by_related_negative_labels(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+    all_events: List[ReceivedEvent],
+) -> None:
+    assert any(
+        resource.get("hello") == "world"
+        for event in all_events
+        for resource in event.related
+    )
+
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            related=EventRelatedFilter(labels={"hello": "!world"}),
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        assert event.related
+        with_hello_label = [r for r in event.related if r.get("hello")]
+        assert with_hello_label, repr(event)
+        assert any(r["hello"] != "world" for r in with_hello_label), repr(event)
+
+
+async def test_querying_by_related_negative_prefix(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+    all_events: List[ReceivedEvent],
+) -> None:
+    assert any(
+        resource.get("hello") and resource["hello"].startswith("world")
+        for event in all_events
+        for resource in event.related
+    )
+
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            related=EventRelatedFilter(labels={"hello": "!wor*"}),
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        assert event.related
+        with_hello_label = [r for r in event.related if r.get("hello")]
+        assert with_hello_label, repr(event)
+        assert any(not r["hello"].startswith("wor") for r in with_hello_label), repr(
+            event
         )
 
 
