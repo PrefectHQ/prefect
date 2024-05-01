@@ -6,7 +6,7 @@ If using Prefect Cloud, these block values are stored in encrypted format.
 Organizations whose security policies make such storage infeasible can still use Prefect to connect to third-party services securely.
 
 In this example, we interact with a Snowflake database and store the credentials we need to connect in AWS Secrets Manager.
-This example can be generalized to other third party services that requires credentials.
+This example can be generalized to other third party services that require credentials.
 We use Prefect Cloud in this example.
 
 ## Prerequisites
@@ -18,7 +18,7 @@ We use Prefect Cloud in this example.
 
 ## Steps
 
-1. Install `prefect-aws` and `prefect_snowflake` integration libraries.
+1. Install `prefect-aws` and `prefect-snowflake` integration libraries.
 1. Register blocks from the integration libraries.
 1. Store Snowflake password in AWS Secrets Manager.
 1. Create `AwsSecret` block to access the Snowflake password.
@@ -32,7 +32,7 @@ The following code will install and upgrade the necessary libraries and upgrade 
 
 <div class="terminal">
 ```bash
-pip install -U prefect-aws prefect_snowflake
+pip install -U prefect-aws prefect-snowflake
 ```
 </div>
 
