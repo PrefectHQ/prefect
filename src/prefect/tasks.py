@@ -1035,6 +1035,8 @@ class Task(Generic[P, R]):
                 return_type="state",
             ),
         )
+        if future._submitted:
+            future._submitted.set()
 
         if return_state:
             return run_sync(future._wait())

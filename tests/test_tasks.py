@@ -535,7 +535,6 @@ class TestTaskSubmit:
         task_state = await bar()
         assert await task_state.result() == 1
 
-    @fails_with_new_engine
     async def test_sync_task_submitted_inside_async_flow(self):
         @task
         def foo(x):
@@ -565,7 +564,6 @@ class TestTaskSubmit:
         task_state = bar()
         assert task_state.result() == 1
 
-    @fails_with_new_engine
     def test_task_failure_does_not_affect_flow(self):
         @task
         def foo():
@@ -578,7 +576,6 @@ class TestTaskSubmit:
 
         assert bar() == "bar"
 
-    @fails_with_new_engine
     def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
@@ -599,7 +596,6 @@ class TestTaskSubmit:
         assert task_state.is_pending()
         assert task_state.name == "NotReady"
 
-    @fails_with_new_engine
     def test_downstream_runs_if_upstream_succeeds(self):
         @task
         def foo(x):
@@ -617,7 +613,6 @@ class TestTaskSubmit:
 
         assert test_flow() == 2
 
-    @fails_with_new_engine
     def test_downstream_receives_exception_if_upstream_fails_and_allow_failure(self):
         @task
         def fails():
@@ -637,7 +632,6 @@ class TestTaskSubmit:
         assert isinstance(result, ValueError)
         assert "Fail task!" in str(result)
 
-    @fails_with_new_engine
     def test_downstream_receives_exception_in_collection_if_upstream_fails_and_allow_failure(
         self,
     ):

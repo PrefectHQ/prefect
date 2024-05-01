@@ -385,6 +385,7 @@ async def run_flow(
                     )
                     result = cast(R, await flow.fn(*call_args, **call_kwargs))  # type: ignore
                     # If the flow run is successful, finalize it.
+                    breakpoint()
                     await run.handle_success(result)
 
                 except Exception as exc:

@@ -390,6 +390,8 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
+        if key in self._futures:
+            return self.wait_sync(key, timeout)
         return await self._get_run_result(key, timeout)
 
     def wait_sync(self, key: UUID, timeout: float = None) -> State | None:
@@ -463,6 +465,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._task_group = await exit_stack.enter_async_context(
             anyio.create_task_group()
         )
+        self._executor = exit_stack.enter_context(ThreadPoolExecutor())
 
     def _start_sync(self, exit_stack: ExitStack) -> None:
         """
