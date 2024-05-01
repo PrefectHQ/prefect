@@ -1,6 +1,6 @@
 # Third-party Secrets: Connect to services without storing credentials in blocks
 
-Credentials blocks and secret blocks are popular ways to store sensitive information for connecting to third-party services.
+Credentials blocks and secret blocks are popular ways to store and retrieve sensitive information for connecting to third-party services.
 
 If using Prefect Cloud, these block values are stored in encrypted format.
 Organizations whose security policies make such storage infeasible can still use Prefect to connect to third-party services securely.
