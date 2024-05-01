@@ -901,13 +901,18 @@ class Task(Generic[P, R]):
                 return from_sync.wait_for_call_in_loop_thread(
                     create_autonomous_task_run_call
                 )
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context and self.isasync:
-            return self._submit_async(
-                parameters=parameters,
-                flow_run_context=flow_run_context,
-                wait_for=wait_for,
-                return_state=return_state,
-            )
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context:
+            if self.isasync:
+                return self._submit_async(
+                    parameters=parameters,
+                    flow_run_context=flow_run_context,
+                    wait_for=wait_for,
+                    return_state=return_state,
+                )
+            else:
+                raise NotImplementedError(
+                    "Submitting sync tasks with the new engine has not be implemented yet."
+                )
 
         else:
             return enter_task_run_engine(
@@ -960,7 +965,7 @@ class Task(Generic[P, R]):
         future._submitted.set()
 
         if return_state:
-            return await future._wait()
+            return await future.wait()
         else:
             return future
 
