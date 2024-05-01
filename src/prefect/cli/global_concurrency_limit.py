@@ -76,8 +76,6 @@ async def inspect_global_concurrency_limit(
         "--output",
         "-o",
         help="Output format for the command.",
-        # choices are json
-        # not case sensitive
         case_sensitive=False,
     ),
     file_path: Optional[Path] = typer.Option(
