@@ -18,7 +18,7 @@ We use Prefect Cloud in this example.
 
 ## Steps
 
-1. Install `prefect-aws` and `prefect_snowflake` integration libraries.
+1. Install `prefect-aws` and `prefect-snowflake` integration libraries.
 1. Register blocks from the integration libraries.
 1. Store Snowflake password in AWS Secrets Manager.
 1. Create `AwsSecret` block to access the Snowflake password.
