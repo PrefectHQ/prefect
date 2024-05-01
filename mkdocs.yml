@@ -178,6 +178,7 @@ nav:
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - CI/CD: guides/ci-cd.md
                 - Specifying Upstream Dependencies: guides/specifying-upstream-dependencies.md
+                - Third-party Secrets: guides/secrets.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
