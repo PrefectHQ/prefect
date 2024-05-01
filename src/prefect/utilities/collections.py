@@ -460,6 +460,7 @@ def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -
                 # If it's not an int, use the key as-is
                 # for dict lookup
                 pass
+            dct = dct[key]
         return dct
     except (TypeError, KeyError, IndexError):
         return default
