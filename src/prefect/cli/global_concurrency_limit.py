@@ -111,7 +111,7 @@ async def inspect_global_concurrency_limit(
         except ObjectNotFound:
             exit_with_error(f"Global concurrency limit {name!r} not found.")
 
-    if output is not None and output.value == "json":
+    if output:
         gcl_limit = gcl_limit.dict(json_compatible=True)
         json_output = orjson.dumps(gcl_limit, option=orjson.OPT_INDENT_2).decode()
         if not file_path:
