@@ -13,6 +13,7 @@ to poll for flow runs.
 For more information about work pools and workers,
 checkout out the [Prefect docs](/concepts/work-pools/).
 """
+
 import asyncio
 import contextlib
 import os
@@ -142,7 +143,7 @@ class ProcessWorker(BaseWorker):
         "Execute flow runs as subprocesses on a worker. Works well for local execution"
         " when first getting started."
     )
-    _display_name = "Local Subprocess"
+    _display_name = "Process"
     _documentation_url = (
         "https://docs.prefect.io/latest/api-ref/prefect/workers/process/"
     )

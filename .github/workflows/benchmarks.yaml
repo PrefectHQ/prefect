@@ -6,6 +6,7 @@ env:
 on:
   pull_request:
     paths:
+      - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - requirements.txt
@@ -81,11 +82,18 @@ jobs:
       - name: Run benchmarks
         env:
           HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
         # Includes comparison to previous benchmarks if available
-        run: >
-          uniquename=$HEAD_REF || 'main'-${{ github.sha }}
+        run: |
+          if [[ -z "$HEAD_REF" ]]; then
+            # HEAD_REF is unset or empty, use 'main' with the SHA
+            uniquename="main-$GITHUB_SHA"
+          else
+            # HEAD_REF is set, use the branch name directly
+            uniquename="$HEAD_REF"
+          fi
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
-          python benches
-          --benchmark-save="${uniquename//\//_}"
-          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
+          python benches \
+          --benchmark-save="${uniquename//\//_}" \
+          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
