@@ -112,7 +112,7 @@ async def inspect_global_concurrency_limit(
         try:
             gcl_limit = await client.read_global_concurrency_limit_by_name(name=name)
         except ObjectNotFound:
-            exit_with_error(f"Global Concurrency Limit {name!r} not found.")
+            exit_with_error(f"Global concurrency limit {name!r} not found.")
 
     if output is not None and output.value == "json":
         gcl_limit = gcl_limit.dict(json_compatible=True)
