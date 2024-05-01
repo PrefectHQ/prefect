@@ -238,6 +238,7 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
     task_start_timeout_seconds: int = Field(default=240)
     task_watch_poll_interval: float = Field(default=5.0)
     arm_template: Dict[str, Any] = Field(template=_get_default_arm_template())
+    keep_container_group: bool = Field(default=False)
 
     def prepare_for_flow_run(
         self,
@@ -515,6 +516,11 @@ class AzureContainerVariables(BaseVariables):
             "the state of an Azure Container Instances task."
         ),
     )
+    keep_container_group: bool = Field(
+        default=False,
+        title="Keep Container Group After Completion",
+        description="Keep the completed container group on Azure.",
+    )
 
 
 class AzureContainerWorkerResult(BaseWorkerResult):
@@ -619,9 +625,16 @@ class AzureContainerWorker(BaseWorker):
                 raise RuntimeError(f"{self._log_prefix}: Container creation failed.")
 
         finally:
-            await self._wait_for_container_group_deletion(
-                aci_client, configuration, container_group_name
-            )
+            if configuration.keep_container_group:
+                self._logger.info(f"{self._log_prefix}: Stopping container group...")
+                aci_client.container_groups.stop(
+                    resource_group_name=configuration.resource_group_name,
+                    container_group_name=container_group_name,
+                )
+            else:
+                await self._wait_for_container_group_deletion(
+                    aci_client, configuration, container_group_name
+                )
 
         return AzureContainerWorkerResult(
             identifier=created_container_group.name, status_code=status_code
