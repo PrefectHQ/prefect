@@ -192,15 +192,22 @@ class ReceivedEvent(Event):
 
 def matches(expected: str, value: Optional[str]) -> bool:
     """Returns true if the given value matches the expected string, which may
-    include wildcards"""
+    include a a negation prefix ("!this-value") or a wildcard suffix
+    ("any-value-starting-with*")"""
     if value is None:
         return False
 
-    # TODO: handle wildcards/globs better than this
-    if expected.endswith("*"):
-        return value.startswith(expected[:-1])
+    positive = True
+    if expected.startswith("!"):
+        expected = expected[1:]
+        positive = False
 
-    return value == expected
+    if expected.endswith("*"):
+        match = value.startswith(expected[:-1])
+    else:
+        match = value == expected
+
+    return match if positive else not match
 
 
 class ResourceSpecification(PrefectBaseModel):

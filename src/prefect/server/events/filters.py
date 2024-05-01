@@ -1,4 +1,5 @@
 import sys
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, cast
 from uuid import UUID
 
@@ -205,15 +206,29 @@ class EventNameFilter(EventDataFilter):
         return filters
 
 
-def _partition_by_wildcards(names: List[str]) -> Tuple[List[str], List[str]]:
-    """Partition a list of names into those with wildcards and those without"""
-    without_wildcards, with_wildcards = [], []
-    for name in names:
-        if name.endswith("*"):
-            with_wildcards.append(name.strip("*"))
-        else:
-            without_wildcards.append(name)
-    return without_wildcards, with_wildcards
+@dataclass
+class LabelSet:
+    simple: List[str] = field(default_factory=list)
+    prefixes: List[str] = field(default_factory=list)
+
+
+@dataclass
+class LabelOperations:
+    values: List[str]
+    positive: LabelSet = field(default_factory=LabelSet)
+    negative: LabelSet = field(default_factory=LabelSet)
+
+    def __post_init__(self):
+        for value in self.values:
+            label_set = self.positive
+            if value.startswith("!"):
+                label_set = self.negative
+                value = value[1:]
+
+            if value.endswith("*"):
+                label_set.prefixes.append(value.rstrip("*"))
+            else:
+                label_set.simple.append(value)
 
 
 class EventResourceFilter(EventDataFilter):
@@ -282,27 +297,37 @@ class EventResourceFilter(EventDataFilter):
             # On the event_resources table, resource_id is unpacked
             # into a column, so we should search for it there
             if resource_ids := labels.pop("prefect.resource.id", None):
-                simple, prefixes = _partition_by_wildcards(resource_ids)
-                if simple:
-                    label_filters.append(db.EventResource.resource_id.in_(simple))
-                for prefix in prefixes:
-                    label_filters.append(
-                        db.EventResource.resource_id.startswith(prefix)
-                    )
+                label_ops = LabelOperations(resource_ids)
+
+                resource_id_column = db.EventResource.resource_id
+
+                if values := label_ops.positive.simple:
+                    label_filters.append(resource_id_column.in_(values))
+                if values := label_ops.negative.simple:
+                    label_filters.append(resource_id_column.not_in(values))
+                for prefix in label_ops.positive.prefixes:
+                    label_filters.append(resource_id_column.startswith(prefix))
+                for prefix in label_ops.negative.prefixes:
+                    label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
-                    simple, prefixes = _partition_by_wildcards(values)
-                    if simple:
-                        label_filters.append(
-                            json_extract(db.EventResource.resource, label).in_(simple)
-                        )
-                    for prefix in prefixes:
-                        label_filters.append(
-                            json_extract(db.EventResource.resource, label).startswith(
-                                prefix
-                            )
-                        )
+                    label_ops = LabelOperations(values)
+
+                    label_column = json_extract(db.EventResource.resource, label)
+
+                    # With negative labels, the resource _must_ have the label
+                    if label_ops.negative.simple or label_ops.negative.prefixes:
+                        label_filters.append(label_column.is_not(None))
+
+                    if values := label_ops.positive.simple:
+                        label_filters.append(label_column.in_(values))
+                    if values := label_ops.negative.simple:
+                        label_filters.append(label_column.notin_(values))
+                    for prefix in label_ops.positive.prefixes:
+                        label_filters.append(label_column.startswith(prefix))
+                    for prefix in label_ops.negative.prefixes:
+                        label_filters.append(sa.not_(label_column.startswith(prefix)))
 
             assert self._top_level_filter
             filters.append(
@@ -358,36 +383,45 @@ class EventRelatedFilter(EventDataFilter):
             )
 
         if self.labels:
-            label_filters: List["ColumnElement[bool]"] = []
+            label_filters: List[ColumnElement[bool]] = []
             labels = self.labels.deepcopy()
 
             # On the event_resources table, resource_id and resource_role are unpacked
             # into columns, so we should search there for them
             if resource_ids := labels.pop("prefect.resource.id", None):
-                simple, prefixes = _partition_by_wildcards(resource_ids)
-                if simple:
-                    label_filters.append(db.EventResource.resource_id.in_(simple))
-                for prefix in prefixes:
-                    label_filters.append(
-                        db.EventResource.resource_id.startswith(prefix)
-                    )
+                label_ops = LabelOperations(resource_ids)
+
+                resource_id_column = db.EventResource.resource_id
+
+                if values := label_ops.positive.simple:
+                    label_filters.append(resource_id_column.in_(values))
+                if values := label_ops.negative.simple:
+                    label_filters.append(resource_id_column.notin_(values))
+                for prefix in label_ops.positive.prefixes:
+                    label_filters.append(resource_id_column.startswith(prefix))
+                for prefix in label_ops.negative.prefixes:
+                    label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
 
             if roles := labels.pop("prefect.resource.role", None):
                 label_filters.append(db.EventResource.resource_role.in_(roles))
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
-                    simple, prefixes = _partition_by_wildcards(values)
-                    if simple:
-                        label_filters.append(
-                            json_extract(db.EventResource.resource, label).in_(simple)
-                        )
-                    for prefix in prefixes:
-                        label_filters.append(
-                            json_extract(db.EventResource.resource, label).startswith(
-                                prefix
-                            )
-                        )
+                    label_ops = LabelOperations(values)
+
+                    label_column = json_extract(db.EventResource.resource, label)
+
+                    if label_ops.negative.simple or label_ops.negative.prefixes:
+                        label_filters.append(label_column.is_not(None))
+
+                    if values := label_ops.positive.simple:
+                        label_filters.append(label_column.in_(values))
+                    if values := label_ops.negative.simple:
+                        label_filters.append(label_column.notin_(values))
+                    for prefix in label_ops.positive.prefixes:
+                        label_filters.append(label_column.startswith(prefix))
+                    for prefix in label_ops.negative.prefixes:
+                        label_filters.append(sa.not_(label_column.startswith(prefix)))
 
             filters.append(sa.and_(*label_filters))
 
@@ -469,30 +503,39 @@ class EventAnyResourceFilter(EventDataFilter):
             # On the event_resources table, resource_id and resource_role are unpacked
             # into columns, so we should search there for them
             if resource_ids := labels.pop("prefect.resource.id", None):
-                simple, prefixes = _partition_by_wildcards(resource_ids)
-                if simple:
-                    label_filters.append(db.EventResource.resource_id.in_(simple))
-                for prefix in prefixes:
-                    label_filters.append(
-                        db.EventResource.resource_id.startswith(prefix)
-                    )
+                label_ops = LabelOperations(resource_ids)
+
+                resource_id_column = db.EventResource.resource_id
+
+                if values := label_ops.positive.simple:
+                    label_filters.append(resource_id_column.in_(values))
+                if values := label_ops.negative.simple:
+                    label_filters.append(resource_id_column.notin_(values))
+                for prefix in label_ops.positive.prefixes:
+                    label_filters.append(resource_id_column.startswith(prefix))
+                for prefix in label_ops.negative.prefixes:
+                    label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
 
             if roles := labels.pop("prefect.resource.role", None):
                 label_filters.append(db.EventResource.resource_role.in_(roles))
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
-                    simple, prefixes = _partition_by_wildcards(values)
-                    if simple:
-                        label_filters.append(
-                            json_extract(db.EventResource.resource, label).in_(simple)
-                        )
-                    for prefix in prefixes:
-                        label_filters.append(
-                            json_extract(db.EventResource.resource, label).startswith(
-                                prefix
-                            )
-                        )
+                    label_ops = LabelOperations(values)
+
+                    label_column = json_extract(db.EventResource.resource, label)
+
+                    if label_ops.negative.simple or label_ops.negative.prefixes:
+                        label_filters.append(label_column.is_not(None))
+
+                    if values := label_ops.positive.simple:
+                        label_filters.append(label_column.in_(values))
+                    if values := label_ops.negative.simple:
+                        label_filters.append(label_column.notin_(values))
+                    for prefix in label_ops.positive.prefixes:
+                        label_filters.append(label_column.startswith(prefix))
+                    for prefix in label_ops.negative.prefixes:
+                        label_filters.append(sa.not_(label_column.startswith(prefix)))
 
             filters.append(sa.and_(*label_filters))
 
