@@ -23,10 +23,12 @@ from prefect._internal.schemas.validators import (
     return_none_schedule,
     validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
+    validate_schedule_max_scheduled_runs,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.types import NonNegativeInteger
+from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
+from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
@@ -101,6 +103,24 @@ class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+    catchup: bool = Field(
+        default=False,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
+    )
+
+    @validator("max_scheduled_runs")
+    def validate_max_scheduled_runs(cls, v):
+        return validate_schedule_max_scheduled_runs(
+            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+        )
 
 
 class DeploymentScheduleUpdate(ActionBaseModel):

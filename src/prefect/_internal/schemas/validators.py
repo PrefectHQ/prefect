@@ -322,6 +322,12 @@ def set_deployment_schedules(values: dict) -> dict:
     return values
 
 
+def validate_schedule_max_scheduled_runs(v: Optional[int], limit: int) -> Optional[int]:
+    if v is not None and v > limit:
+        raise ValueError(f"`max_scheduled_runs` must be less than or equal to {limit}.")
+    return v
+
+
 def remove_old_deployment_fields(values: dict) -> dict:
     # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
     # worker_pool_queue_name. Those fields were later renamed to work_pool_name

@@ -10,6 +10,7 @@ import pendulum
 from typing_extensions import Literal, Self
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.types import PositiveInteger
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
@@ -39,7 +40,7 @@ from prefect.server.utilities.schemas.bases import (
     PrefectBaseModel,
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
-from prefect.types import NonNegativeInteger, PositiveInteger
+from prefect.types import NonNegativeInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
@@ -498,6 +499,18 @@ class DeploymentSchedule(ORMBaseModel):
     )
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
+    )
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+    catchup: bool = Field(
+        default=False,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
 
