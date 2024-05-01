@@ -35,7 +35,7 @@ async def list_global_concurrency_limits():
     table.add_column("Created", style="blue", no_wrap=True)
     table.add_column("Updated", style="blue", no_wrap=True)
     table.add_column("Active", style="blue", no_wrap=True)
-    table.add_column("Name", style="blue", no_wrap=True, overflow="fold", width=40)
+    table.add_column("Name", style="blue", no_wrap=True, overflow="fold")
     table.add_column("Limit", style="blue", no_wrap=True)
     table.add_column("Active Slots", style="blue", no_wrap=True)
     table.add_column("Slot Decay Per Second", style="blue", no_wrap=True)
