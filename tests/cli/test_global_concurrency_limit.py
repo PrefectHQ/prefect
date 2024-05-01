@@ -35,7 +35,7 @@ def various_global_concurrency_limits(
             created="2021-01-01T00:00:00Z",
             updated="2021-01-01T00:00:00Z",
             active=True,
-            name="the-buck-stops-here",
+            name="here-the-buck-stops",
             limit=1,
             active_slots=1,
             slot_decay_per_second=0.1,
@@ -45,7 +45,7 @@ def various_global_concurrency_limits(
             created="2021-01-01T00:00:00Z",
             updated="2021-01-01T00:00:00Z",
             active=True,
-            name="the-buck-stops-there",
+            name="there-the-buck-stops",
             limit=2,
             active_slots=2,
             slot_decay_per_second=0.1,
@@ -55,7 +55,7 @@ def various_global_concurrency_limits(
             created="2021-01-01T00:00:00Z",
             updated="2021-01-01T00:00:00Z",
             active=True,
-            name="the-buck-stops-everywhere",
+            name="everywhere-the-buck-stops",
             limit=3,
             active_slots=3,
             slot_decay_per_second=0.1,
@@ -69,9 +69,10 @@ def test_listing_gcl(various_global_concurrency_limits: List[GlobalConcurrencyLi
     invoke_and_assert(
         ["global-concurrency-limit", "ls"],
         expected_output_contains=(
-            str(various_global_concurrency_limits[0].name),
-            str(various_global_concurrency_limits[1].name),
-            str(various_global_concurrency_limits[2].name),
+            # name is truncated during tests so we can't match the full name without changing the width of the column
+            str(various_global_concurrency_limits[0].name[:14]),
+            str(various_global_concurrency_limits[1].name[:14]),
+            str(various_global_concurrency_limits[2].name[:14]),
         ),
         expected_code=0,
     )
