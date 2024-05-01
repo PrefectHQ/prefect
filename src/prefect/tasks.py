@@ -889,7 +889,7 @@ class Task(Generic[P, R]):
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
+        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING and not flow_run_context:
             create_autonomous_task_run_call = create_call(
                 create_autonomous_task_run, task=self, parameters=parameters
             )
