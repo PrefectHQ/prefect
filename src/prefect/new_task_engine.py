@@ -22,9 +22,9 @@ from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
 from prefect._internal.concurrency.cancellation import (
-    AlarmCancelScope,
     AsyncCancelScope,
     CancelledError,
+    cancel_sync_after,
 )
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
@@ -65,7 +65,7 @@ async def timeout(seconds: Optional[float] = None):
 @contextmanager
 def timeout_sync(seconds: Optional[float] = None):
     try:
-        with AlarmCancelScope(timeout=seconds):
+        with cancel_sync_after(timeout=seconds):
             yield
     except CancelledError:
         raise TimeoutError(f"Task timed out after {seconds} second(s).")

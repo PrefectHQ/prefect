@@ -1023,20 +1023,18 @@ class Task(Generic[P, R]):
         )
         future.task_run = task_run
         flow_run_context.task_run_futures.append(future)
-        run_sync(
-            task_runner.submit(
-                key=future.key,
-                call=partial(
-                    run_task_sync,
-                    task=self,
-                    task_run=task_run,
-                    parameters=parameters,
-                    wait_for=wait_for,
-                    return_type="state",
-                ),
-            )
+
+        task_runner.submit_sync(
+            key=future.key,
+            call=partial(
+                run_task_sync,
+                task=self,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type="state",
+            ),
         )
-        future._submitted.set()
 
         if return_state:
             return run_sync(future._wait())

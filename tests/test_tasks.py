@@ -479,7 +479,6 @@ class TestTaskRun:
 
 
 class TestTaskSubmit:
-    @fails_with_new_engine
     def test_sync_task_submitted_inside_sync_flow(self):
         @task
         def foo(x):
@@ -494,7 +493,6 @@ class TestTaskSubmit:
         task_state = bar()
         assert task_state.result() == 1
 
-    @fails_with_new_engine
     def test_sync_task_with_return_state_true(self):
         @task
         def foo(x):

@@ -4,6 +4,7 @@ Futures represent the execution of a task and allow retrieval of the task run's 
 This module contains the definition for futures as well as utilities for resolving
 futures in nested data structures.
 """
+
 import asyncio
 import warnings
 from functools import partial
@@ -21,8 +22,6 @@ from typing import (
     overload,
 )
 from uuid import UUID
-
-import anyio
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_async
@@ -119,9 +118,12 @@ class PrefectFuture(Generic[R, A]):
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._task_runner = task_runner
-        self._submitted = anyio.Event()
-
-        self._loop = asyncio.get_running_loop()
+        try:
+            self._loop = asyncio.get_running_loop()
+            self._submitted = asyncio.Event()
+        except RuntimeError:
+            self._loop = None
+            self._submitted = None
 
     @overload
     def wait(
@@ -174,7 +176,11 @@ class PrefectFuture(Generic[R, A]):
         if self._final_state:
             return self._final_state
 
-        self._final_state = await self._task_runner.wait(self.key, timeout)
+        if self._loop and self._submitted:
+            self._final_state = await self._task_runner.wait(self.key, timeout)
+        else:
+            self._final_state = self._task_runner.wait_sync(self.key, timeout)
+
         return self._final_state
 
     @overload
@@ -274,7 +280,8 @@ class PrefectFuture(Generic[R, A]):
         return task_run.state
 
     async def _wait_for_submission(self):
-        await run_coroutine_in_loop_from_async(self._loop, self._submitted.wait())
+        if self._loop and self._submitted:
+            await run_coroutine_in_loop_from_async(self._loop, self._submitted.wait())
 
     def __hash__(self) -> int:
         return hash(self.key)
