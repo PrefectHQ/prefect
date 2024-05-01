@@ -864,6 +864,9 @@ class ORMDeploymentSchedule:
 
     schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES), nullable=False)
     active = sa.Column(sa.Boolean, nullable=False, default=True)
+    max_active_runs = sa.Column(sa.Integer, nullable=True)
+    max_scheduled_runs = sa.Column(sa.Integer, nullable=True)
+    catchup = sa.Column(sa.Boolean, nullable=False, default=False)
 
 
 @declarative_mixin
