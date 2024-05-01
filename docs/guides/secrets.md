@@ -6,7 +6,7 @@ If using Prefect Cloud, these block values are stored in encrypted format.
 Organizations whose security policies make such storage infeasible can still use Prefect to connect to third-party services securely.
 
 In this example, we interact with a Snowflake database and store the credentials we need to connect in AWS Secrets Manager.
-This example can be generalized to other third party services that requires credentials.
+This example can be generalized to other third party services that require credentials.
 We use Prefect Cloud in this example.
 
 ## Prerequisites
