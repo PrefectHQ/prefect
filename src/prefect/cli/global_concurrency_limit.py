@@ -24,7 +24,6 @@ app.add_typer(global_concurrency_limit_app, aliases=["gcl"])
 
 class OutputFormat(Enum):
     JSON = "json"
-    YAML = "yaml"
 
 
 @global_concurrency_limit_app.command("ls")
@@ -92,7 +91,7 @@ async def inspect_global_concurrency_limit(
         name: str: [required]
             - The name of the global concurrency limit to inspect.
         output: Optional[OutputFormat]: [optional]
-            - Output format for the command.
+            - Output format for the command. Currently only supports JSON.
         file_path: Optional[Path]: [optional]
             - Path to .py file containing block types to be registered
 
