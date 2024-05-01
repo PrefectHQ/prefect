@@ -174,4 +174,4 @@ Also ensure your compute has the AWS credentials for accessing the secret in AWS
 
 You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment.
 You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs.
-You can use a similar pattern with any cloud provider secret manager, or extend it to work with environment variables.
+You can use a similar pattern with any secret manager, or extend it to work with environment variables.
