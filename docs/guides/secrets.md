@@ -19,30 +19,19 @@ We use Prefect Cloud in this example.
 ## Steps
 
 1. Install `prefect-aws` and `prefect-snowflake` integration libraries.
-1. Register blocks from the integration libraries.
 1. Store Snowflake password in AWS Secrets Manager.
 1. Create `AwsSecret` block to access the Snowflake password.
 1. Create `AwsCredentials` block for authentication.
 1. Ensure the compute environment has access to AWS credentials that are authorized to access the secret in AWS.
 1. Create and use `SnowflakeCredentials` and `SnowflakeConnector` blocks in Python code to interact with Snowflake.
 
-### Install `prefect-aws` and `prefect_snowflake` libraries
+### Install `prefect-aws` and `prefect-snowflake` libraries
 
-The following code will install and upgrade the necessary libraries and upgrade any dependencies.
+The following code will install and upgrade the necessary libraries and their dependencies.
 
 <div class="terminal">
 ```bash
 pip install -U prefect-aws prefect-snowflake
-```
-</div>
-
-### Register blocks
-
-Let Prefect Cloud know about the blocks we are going to use by registering them.
-
-<div class="terminal">
-```bash
-prefect block register -m prefect_aws && prefect block register -m prefect_snowflake
 ```
 </div>
 
@@ -67,13 +56,22 @@ Block creation through the UI can help you visualize how the pieces fit together
 On the Blocks page, click on **+** to add a new block and select **AWS Secret** from the list of block types.
 Enter a name for your block and enter the secret name from AWS Secrets Manager.
 
+Note that if you're using a self-hosted Prefect server instance, you'll need to register the block types in the newly installed modules before creating blocks.
+
+<div class="terminal>
+```bash
+prefect block register -m prefect_aws && prefect block register -m prefect_snowflake
+```
+</div.
+
 ### Create `AwsCredentials` block
 
 In the **AwsCredentials** section, click **Add +** and a form will appear to create an AWS Credentials block.
 
 Values for **Access Key ID** and **Secret Access Key** will be read from the compute environment.
-My AWS **Access Key ID** and **Secret Access Key** values with permissions to read my AWS Secret are stored locally in my `~/.aws/credentials` file, so I'll leave those fields blank.
+My AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in my `~/.aws/credentials` file, so I'll leave those fields blank.
 You could enter those values at block creation, but then they would be saved to the database, and that's what we're trying to avoid.
+By leaving them blank, Prefect knows to look to the compute environment.
 
 We need to specify a region in our local AWS config file or in our `AWSCredentials` block.
 The `AwsCredentials` block takes precedence, so let's specify it here for portability.
@@ -134,23 +132,18 @@ def fetch_data(snow_connector: SnowflakeConnector) -> list:
 @flow(log_prints=True)
 def snowflake_flow():
     aws_secret_block = AwsSecret.load("my-snowflake-pw")
-    snowflake_pw_json = aws_secret_block.read_secret()
-    snowflake_pw_dict = json.loads(snowflake_pw_json)
-    snowflake_pw_str = snowflake_pw_dict.get("my-snowflake-pw")
-
-    snow_creds = SnowflakeCredentials(
-        role="MYROLE",
-        user="MYUSERNAME",
-        account="ab12345.us-east-2.aws",
-        password=snowflake_pw_str,
-    )
 
     snow_connector = SnowflakeConnector(
         schema="MY_SCHEMA",
         database="MY_DATABASE",
         warehouse="COMPUTE_WH",
         fetch_size=1,
-        credentials=snow_creds,
+        credentials=SnowflakeCredentials(
+            role="MYROLE",
+            user="MYUSERNAME",
+            account="ab12345.us-east-2.aws",
+            password=json.loads(aws_secret_block.read_secret()).get("my-snowflake-pw"),
+        ),
         poll_frequency_s=1,
     )
 
@@ -164,7 +157,7 @@ if __name__ == "__main__":
 ```
 
 Note that the flow reads the Snowflake password from the AWS Secret Manager and uses it in the `SnowflakeCredentials` block.
-Then the `SnowflakeConnector` block uses the `SnowflakeCredentials` block to connect to Snowflake.
+The `SnowflakeConnector` block uses the nested `SnowflakeCredentials` block to connect to Snowflake.
 
 Fill in the relevant details for your Snowflake account and run the script.
 
