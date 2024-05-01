@@ -168,7 +168,7 @@ Check out the [`prefect-snowflake` docs](/integrations/prefect-snowflake) for mo
 
 Now you can turn your flow into a [deployment](/guides/prefect-deploy/) so that you and your team can run it remotely on a schedule, in response to an event, or manually.  
 
-Make sure to specify the `prefect-aws` and `prefect-snowflake` dependencies in your work pool or deployment so that they are available to runtime.
+Make sure to specify the `prefect-aws` and `prefect-snowflake` dependencies in your work pool or deployment so that they are available at runtime.
 
 Also ensure your compute has the AWS credentials for accessing the secret in AWS Secrets Manager.
 
