@@ -120,6 +120,9 @@ async def inspect_global_concurrency_limit(
         else:
             with open(file_path, "w") as f:
                 f.write(json_output)
+                exit_with_success(
+                    f"Global concurrency limit {name!r} written to {file_path}"
+                )
 
     else:
         app.console.print(Pretty(gcl_limit))
