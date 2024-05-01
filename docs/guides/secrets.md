@@ -2,7 +2,7 @@
 
 Credentials blocks and secret blocks are popular ways to store and retrieve sensitive information for connecting to third-party services.
 
-If using Prefect Cloud, these block values are stored in encrypted format.
+In Prefect Cloud, these block values are stored in encrypted format.
 Organizations whose security policies make such storage infeasible can still use Prefect to connect to third-party services securely.
 
 In this example, we interact with a Snowflake database and store the credentials we need to connect in AWS Secrets Manager.
