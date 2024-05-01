@@ -107,6 +107,7 @@ from prefect.client.schemas.objects import (
     FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
+    GlobalConcurrencyLimit,
     Log,
     Parameter,
     QueueFilter,
@@ -3066,7 +3067,7 @@ class PrefectClient:
 
     async def read_global_concurrency_limits(
         self, limit: int = 10, offset: int = 0
-    ) -> List[Dict[str, object]]:
+    ) -> List[GlobalConcurrencyLimit]:
         response = await self._client.post(
             "/v2/concurrency_limits/filter",
             json={
@@ -3074,7 +3075,7 @@ class PrefectClient:
                 "offset": offset,
             },
         )
-        return response.json()
+        return pydantic.parse_obj_as(List[GlobalConcurrencyLimit], response.json())
 
     async def create_flow_run_input(
         self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
