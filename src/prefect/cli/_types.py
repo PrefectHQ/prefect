@@ -168,3 +168,12 @@ class PrefectTyper(typer.Typer):
             return original_command
 
         return wrapper
+
+    def setup_console(self, soft_wrap: bool, prompt: bool):
+        self.console = Console(
+            highlight=False,
+            color_system="auto" if PREFECT_CLI_COLORS else None,
+            theme=Theme({"prompt.choices": "bold blue"}),
+            soft_wrap=not soft_wrap,
+            force_interactive=prompt,
+        )

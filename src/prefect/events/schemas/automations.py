@@ -39,7 +39,7 @@ class Posture(AutoEnum):
     Metric = "Metric"
 
 
-class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):
+class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-arg]
     """
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
@@ -391,7 +391,7 @@ CompoundTrigger.update_forward_refs()
 SequenceTrigger.update_forward_refs()
 
 
-class AutomationCore(PrefectBaseModel, extra="ignore"):
+class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg]
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 

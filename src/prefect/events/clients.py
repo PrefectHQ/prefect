@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    cast,
 )
 from uuid import UUID
 
@@ -377,7 +378,7 @@ SEEN_EVENTS_TTL = 120
 
 class PrefectEventSubscriber:
     """
-    Subscribes to a Prefect Cloud event stream, yielding events as they occur.
+    Subscribes to a Prefect event stream, yielding events as they occur.
 
     Example:
 
@@ -412,7 +413,7 @@ class PrefectEventSubscriber:
                 the client should attempt to reconnect
         """
         if not api_url:
-            api_url = PREFECT_API_URL.value()
+            api_url = cast(str, PREFECT_API_URL.value())
             self._api_key = None
 
         from prefect.events.filters import EventFilter

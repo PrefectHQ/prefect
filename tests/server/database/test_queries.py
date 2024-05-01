@@ -455,6 +455,7 @@ class TestGetRunsFromWorkQueueQuery:
             session=session,
             work_pool_id=work_pools["wp_a"].id,
             work_pool=schemas.actions.WorkPoolUpdate(is_paused=True),
+            emit_status_change=None,
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -506,6 +507,7 @@ class TestGetRunsFromWorkQueueQuery:
             work_pool=schemas.actions.WorkPoolUpdate(
                 concurrency_limit=concurrency_limit
             ),
+            emit_status_change=None,
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -532,6 +534,7 @@ class TestGetRunsFromWorkQueueQuery:
             work_pool=schemas.actions.WorkPoolUpdate(
                 concurrency_limit=concurrency_limit
             ),
+            emit_status_change=None,
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -558,6 +561,7 @@ class TestGetRunsFromWorkQueueQuery:
             session=session,
             work_pool_id=work_pools["wp_a"].id,
             work_pool=schemas.actions.WorkPoolUpdate(is_paused=True),
+            emit_status_change=None,
         )
 
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(

@@ -190,14 +190,14 @@ class Task(Generic[P, R]):
     def __init__(
         self,
         fn: Callable[P, R],
-        name: str = None,
-        description: str = None,
-        tags: Iterable[str] = None,
-        version: str = None,
-        cache_key_fn: Callable[
-            ["TaskRunContext", Dict[str, Any]], Optional[str]
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        version: Optional[str] = None,
+        cache_key_fn: Optional[
+            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
-        cache_expiration: datetime.timedelta = None,
+        cache_expiration: Optional[datetime.timedelta] = None,
         task_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[
@@ -214,7 +214,7 @@ class Task(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         result_storage_key: Optional[str] = None,
         cache_result_in_memory: bool = True,
-        timeout_seconds: Union[int, float] = None,
+        timeout_seconds: Union[int, float, None] = None,
         log_prints: Optional[bool] = False,
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
@@ -326,6 +326,7 @@ class Task(Generic[P, R]):
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
+
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
         # different function. This is to detect the case where two or more tasks
@@ -585,19 +586,19 @@ class Task(Generic[P, R]):
 
         # new engine currently only compatible with async tasks
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import run_task
-            from prefect.utilities.asyncutils import run_sync
+            from prefect.new_task_engine import run_task, run_task_sync
 
-            awaitable = run_task(
+            run_kwargs = dict(
                 task=self,
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
             )
             if self.isasync:
-                return awaitable
+                # this returns an awaitable coroutine
+                return run_task(**run_kwargs)
             else:
-                return run_sync(awaitable)
+                return run_task_sync(**run_kwargs)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
