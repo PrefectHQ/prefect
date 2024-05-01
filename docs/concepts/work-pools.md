@@ -84,7 +84,7 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Infrastructure Type                  | Description                                                                                                                |
     | ------------------------------       | -------------------------------------------------------------------------------------------------------------------------- |
     | Prefect Agent                        | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                              |
-    | Local Subprocess                     | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                    |
+    | Process                              | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                    |
     | AWS Elastic Container Service        | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.               |
     | Azure Container Instances            | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                      |
     | Docker                               | Execute flow runs within Docker containers. Works well for managing flow execution environments via Docker images. Requires  access to a running Docker daemon.  |
@@ -103,7 +103,7 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
     | Infrastructure Type           | Description              |
     | ----------------------------  | ------------------------ |
     | Prefect Agent                 | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                                  |
-    | Local Subprocess              | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                       |
+    | Process                       | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                       |
     | AWS Elastic Container Service | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.                  |
     | Azure Container Instances     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                         |
     | Docker                        | Execute flow runs within Docker containers. Works well for managing flow execution environments via Docker images. Requires access to a running Docker daemon.    |
@@ -275,7 +275,7 @@ prefect work-pool get-default-base-job-template --type process
 ```
 </div>
 
-You can override each of these attributes on a per-deployment or per-flow run basis. When creating a deployment, you can specify these overrides in the `deployments.work_pool.job_variables` section of a `prefect.yaml` file or in the `job_variables` argument of a Python `flow.deploy` method. 
+You can override each of these attributes on a per-deployment or per-flow run basis. When creating a deployment, you can specify these overrides in the `deployments.work_pool.job_variables` section of a `prefect.yaml` file or in the `job_variables` argument of a Python `flow.deploy` method.
 
 For example, to turn off streaming output for a specific deployment, we could add the following to our `prefect.yaml`:
 
