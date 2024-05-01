@@ -93,7 +93,7 @@ async def inspect_global_concurrency_limit(
         output: Optional[OutputFormat]: [optional]
             - Output format for the command. Currently only supports JSON.
         file_path: Optional[Path]: [optional]
-            - Path to .py file containing block types to be registered
+            - Path to .json file to write the global concurrent limit output to.
 
     Returns:
         - str: The name of the global concurrency limit.
