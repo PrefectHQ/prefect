@@ -58,11 +58,11 @@ Enter a name for your block and enter the secret name from AWS Secrets Manager.
 
 Note that if you're using a self-hosted Prefect server instance, you'll need to register the block types in the newly installed modules before creating blocks.
 
-<div class="terminal>
+<div class="terminal">
 ```bash
 prefect block register -m prefect_aws && prefect block register -m prefect_snowflake
 ```
-</div.
+</div>
 
 ### Create `AwsCredentials` block
 
@@ -71,7 +71,7 @@ In the **AwsCredentials** section, click **Add +** and a form will appear to cre
 Values for **Access Key ID** and **Secret Access Key** will be read from the compute environment.
 My AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in my `~/.aws/credentials` file, so I'll leave those fields blank.
 You could enter those values at block creation, but then they would be saved to the database, and that's what we're trying to avoid.
-By leaving them blank, Prefect knows to look to the compute environment.
+By leaving those attributes blank, Prefect knows to look to the compute environment.
 
 We need to specify a region in our local AWS config file or in our `AWSCredentials` block.
 The `AwsCredentials` block takes precedence, so let's specify it here for portability.
