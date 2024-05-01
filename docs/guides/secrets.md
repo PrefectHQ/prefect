@@ -32,7 +32,7 @@ The following code will install and upgrade the necessary libraries and upgrade 
 
 <div class="terminal">
 ```bash
-pip install -U prefect-aws prefect_snowflake
+pip install -U prefect-aws prefect-snowflake
 ```
 </div>
 
