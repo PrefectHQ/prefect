@@ -156,10 +156,11 @@ if __name__ == "__main__":
     snowflake_flow()
 ```
 
+Fill in the relevant details for your Snowflake account and run the script.
+
 Note that the flow reads the Snowflake password from the AWS Secret Manager and uses it in the `SnowflakeCredentials` block.
 The `SnowflakeConnector` block uses the nested `SnowflakeCredentials` block to connect to Snowflake.
-
-Fill in the relevant details for your Snowflake account and run the script.
+Again, neither of the Snowflake blocks are saved, so the credentials are not stored in Prefect Cloud.
 
 Check out the [`prefect-snowflake` docs](/integrations/prefect-snowflake) for more examples of working with Snowflake.
 
@@ -171,5 +172,6 @@ Make sure to specify the `prefect-aws` and `prefect-snowflake` dependencies in y
 
 Also ensure your compute has the AWS credentials for accessing the secret in AWS Secrets Manager.
 
-Use this pattern to connect to other third-party services that require credentials, such as databases and APIs.
-Feel free to use any cloud provider secret manager.
+You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment.
+You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs.
+You can use a similar pattern with any cloud provider secret manager, or extend it to work with environment variables.
