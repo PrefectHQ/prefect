@@ -88,9 +88,9 @@ async def inspect_global_concurrency_limit(
 
     Arguments:
         name (str): The name of the global concurrency limit to inspect.
-        output (Optional[OutputFormat]): An optional output format for the command. Currently only supports JSON.
+        output (Optional[OutputFormat]): An output format for the command. Currently only supports JSON.
             Required if --file/-f is set.
-        file_path (Optional[Path]): An optional path to .json file to write the global concurrent limit output to.
+        file_path (Optional[Path]): A path to .json file to write the global concurrent limit output to.
 
     Returns:
         id (str): The ID of the global concurrency limit.
