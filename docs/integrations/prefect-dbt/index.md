@@ -275,13 +275,3 @@ from prefect_dbt.cloud import DbtCoreOperation
 
 DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 ```
-
-### Feedback
-
-If you encounter a bug while using `prefect-dbt`, feel free to open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
-
-If you have any questions or issues while using `prefect-dbt`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
-
-### Contributing
-
-To contribute to fix an issue or add a feature to `prefect-dbt`, please see the [contributing docs](/contributing/overview/).
