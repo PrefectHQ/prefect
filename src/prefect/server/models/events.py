@@ -402,9 +402,7 @@ async def work_pool_status_event(
     return Event(
         id=event_id,
         occurred=occurred,
-        # TODO: this should be
-        # event=f"prefect.work-pool.{work_pool.status.in_kebab_case()}",
-        event=f"prefect.work-pool.{work_pool.status.value.lower()}",
+        event=f"prefect.work-pool.{work_pool.status.in_kebab_case()}",
         resource={
             "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
             "prefect.resource.name": work_pool.name,
