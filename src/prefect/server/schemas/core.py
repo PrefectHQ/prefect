@@ -32,6 +32,7 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_not_negative,
     validate_parent_and_ref_diff,
+    validate_schedule_max_scheduled_runs,
 )
 from prefect.server.schemas import schedules, states
 from prefect.server.schemas.statuses import WorkPoolStatus
@@ -40,6 +41,7 @@ from prefect.server.utilities.schemas.bases import (
     PrefectBaseModel,
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import NonNegativeInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
@@ -512,6 +514,12 @@ class DeploymentSchedule(ORMBaseModel):
         default=False,
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
+
+    @validator("max_scheduled_runs")
+    def validate_max_scheduled_runs(cls, v):
+        return validate_schedule_max_scheduled_runs(
+            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+        )
 
 
 class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
