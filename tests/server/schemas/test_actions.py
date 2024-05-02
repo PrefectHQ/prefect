@@ -7,11 +7,14 @@ import pytest
 from prefect.server.schemas.actions import (
     BlockTypeUpdate,
     DeploymentCreate,
+    DeploymentScheduleCreate,
+    DeploymentScheduleUpdate,
     DeploymentUpdate,
     FlowRunCreate,
     WorkPoolCreate,
     WorkPoolUpdate,
 )
+from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 
 
 @pytest.mark.parametrize(
@@ -374,3 +377,33 @@ class TestWorkPoolUpdate:
         are provided in variables."""
         wp = WorkPoolUpdate(base_job_template=template)
         assert wp
+
+
+class TestDeploymentSchedule:
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "max_scheduled_runs,expected_error_substr",
+        [
+            (0, "be greater than 0"),
+            (
+                420000,
+                f"be less than or equal to {PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()}",
+            ),
+        ],
+    )
+    def test_deployment_schedule_validation(
+        self, schema_type, max_scheduled_runs, expected_error_substr
+    ):
+        with pytest.raises(ValueError, match=expected_error_substr):
+            schema_type(
+                deployment_id=uuid4(),
+                cron="0 0 * * *",
+                start_date="2021-01-01",
+                end_date="2021-01-31",
+                max_active_runs=1,
+                max_scheduled_runs=max_scheduled_runs,
+                catchup=False,
+            )

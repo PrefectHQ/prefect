@@ -557,10 +557,11 @@ async def list_schedules(deployment_name: str):
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-    def sort_by_created_key(schedule: DeploymentSchedule):  # noqa
+    def sort_by_created_key(schedule: DeploymentSchedule) -> pendulum.Interval:
+        assert schedule.created is not None, "All schedules should have a created time."
         return pendulum.now("utc") - schedule.created
 
-    def schedule_details(schedule: DeploymentSchedule):
+    def schedule_details(schedule: DeploymentSchedule) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
             return f"interval: {schedule.schedule.interval}s"
         elif isinstance(schedule.schedule, CronSchedule):
@@ -791,7 +792,7 @@ async def _resume_schedule(
 
 
 @deployment_app.command()
-async def ls(flow_name: List[str] = None, by_created: bool = False):
+async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
     """

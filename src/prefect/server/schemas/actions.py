@@ -156,6 +156,27 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         default=None, description="The schedule for the deployment."
     )
 
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+
+    catchup: Optional[bool] = Field(
+        default=None,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
+    )
+
+    @validator("max_scheduled_runs")
+    def validate_max_scheduled_runs(cls, v):
+        return validate_schedule_max_scheduled_runs(
+            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+        )
+
 
 class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""

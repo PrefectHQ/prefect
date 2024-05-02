@@ -8,6 +8,8 @@ from datetime import timedelta
 
 @dataclass
 class NonNegativeInteger(int):
+    """An integer that must be greater than or equal to 0."""
+
     schema: ClassVar[CoreSchema] = core_schema.int_schema(ge=0)
 
     @classmethod
@@ -27,6 +29,8 @@ class NonNegativeInteger(int):
 
 @dataclass
 class PositiveInteger(int):
+    """An integer that must be greater than 0."""
+
     schema: ClassVar[CoreSchema] = core_schema.int_schema(gt=0)
 
     @classmethod
@@ -46,6 +50,8 @@ class PositiveInteger(int):
 
 @dataclass
 class NonNegativeDuration(timedelta):
+    """A timedelta that must be greater than or equal to 0."""
+
     schema: ClassVar = core_schema.timedelta_schema(ge=timedelta(seconds=0))
 
     @classmethod
@@ -65,6 +71,8 @@ class NonNegativeDuration(timedelta):
 
 @dataclass
 class PositiveDuration(timedelta):
+    """A timedelta that must be greater than 0."""
+
     schema: ClassVar = core_schema.timedelta_schema(gt=timedelta(seconds=0))
 
     @classmethod
