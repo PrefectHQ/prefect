@@ -70,6 +70,7 @@ from typing import (
 from uuid import UUID
 
 import anyio
+from typing_extensions import Self
 
 from prefect._internal.concurrency.primitives import Event
 from prefect.client.schemas.objects import State
@@ -113,7 +114,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
     def name(self):
         return type(self).__name__.lower().replace("taskrunner", "")
 
-    def duplicate(self):
+    def duplicate(self) -> Self:
         """
         Return a new task runner instance with the same options.
         """
@@ -179,7 +180,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
+    async def wait(self, key: UUID, timeout: Optional[float] = None) -> Optional[State]:
         """
         Given a `PrefectFuture`, wait for its return state up to `timeout` seconds.
         If it is not finished after the timeout expires, `None` should be returned.
@@ -189,7 +190,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def wait_sync(self, key: UUID, timeout: float = None) -> Optional[State]:
+    def wait_sync(self, key: UUID, timeout: Optional[float] = None) -> Optional[State]:
         """
         Given a `PrefectFuture`, wait for its return state up to `timeout` seconds.
         If it is not finished after the timeout expires, `None` should be returned.
@@ -273,13 +274,13 @@ class SequentialTaskRunner(BaseTaskRunner):
 
     def __init__(self) -> None:
         super().__init__()
-        self._results: Dict[str, State] = {}
+        self._results: Dict[UUID, State] = {}
 
     @property
     def concurrency_type(self) -> TaskConcurrencyType:
         return TaskConcurrencyType.SEQUENTIAL
 
-    def duplicate(self):
+    def duplicate(self) -> Self:
         return type(self)()
 
     async def submit(
@@ -295,7 +296,7 @@ class SequentialTaskRunner(BaseTaskRunner):
 
         self._results[key] = result
 
-    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
+    async def wait(self, key: UUID, timeout: Optional[float] = None) -> Optional[State]:
         return self._results[key]
 
 
@@ -319,7 +320,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         # TODO: Consider adding `max_workers` support using anyio capacity limiters
 
         # Runtime attributes
-        self._task_group: anyio.abc.TaskGroup = None
+        self._task_group: Optional[anyio.abc.TaskGroup] = None
         self._result_events: Dict[UUID, Event] = {}
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
@@ -334,7 +335,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     def concurrency_type(self) -> TaskConcurrencyType:
         return TaskConcurrencyType.CONCURRENT
 
-    def duplicate(self):
+    def duplicate(self) -> Self:
         return type(self)()
 
     async def submit(
@@ -385,7 +386,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     async def wait(
         self,
         key: UUID,
-        timeout: float = None,
+        timeout: Optional[float] = None,
     ) -> Optional[State]:
         if not self._task_group:
             raise RuntimeError(
@@ -397,7 +398,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
             return self.wait_sync(key, timeout)
         return await self._get_run_result(key, timeout)
 
-    def wait_sync(self, key: UUID, timeout: float = None) -> State | None:
+    def wait_sync(self, key: UUID, timeout: Optional[float] = None) -> Optional[State]:
         if not self._executor:
             raise RuntimeError(
                 "The concurrent task runner cannot be used to wait for work after "
@@ -445,7 +446,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._results[key] = result
 
     async def _get_run_result(
-        self, key: UUID, timeout: float = None
+        self, key: UUID, timeout: Optional[float] = None
     ) -> Optional[State]:
         """
         Block until the run result has been populated.
