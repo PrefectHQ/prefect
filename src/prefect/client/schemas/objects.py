@@ -1556,18 +1556,6 @@ class GlobalConcurrencyLimit(ObjectBaseModel):
             " is used as a rate limit."
         ),
     )
-    avg_slot_occupancy_seconds: float = Field(
-        default=2.0,
-        description="The average amount of time a slot is occupied.",
-    )
-    denied_slots: int = Field(
-        default=0,
-        description="The number of denied slots.",
-    )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class CsrfToken(ObjectBaseModel):
