@@ -178,6 +178,7 @@ nav:
                 - Terraform Provider: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started
                 - CI/CD: guides/ci-cd.md
                 - Specifying Upstream Dependencies: guides/specifying-upstream-dependencies.md
+                - Third-party Secrets: guides/secrets.md
                 - Recipes: recipes/recipes.md
           - Execution:
                 - Docker: guides/docker.md
@@ -377,6 +378,7 @@ nav:
                 - api-ref/python/index.md
                 - "prefect.agent": api-ref/prefect/agent.md
                 - "prefect.artifacts": api-ref/prefect/artifacts.md
+                - "prefect.automations": api-ref/prefect/automations.md
                 - "prefect.blocks":
                       - "core": api-ref/prefect/blocks/core.md
                       - "fields": api-ref/prefect/blocks/fields.md

@@ -1,0 +1,8 @@
+recipeName: Deploy a dlt pipeline on Prefect
+author: Prefect
+authorUrl: https://dlthub.com/
+description: dlt is an open-source Python library that enables the declarative loading of data sources into well-structured tables or datasets by automatically inferring and evolving schemas.
+topic: dlt
+recipeUrl: https://dlthub.com/devel/walkthroughs/deploy-a-pipeline/deploy-with-prefect
+iconUrl: 
+  - /img/collections/dlthub.png
