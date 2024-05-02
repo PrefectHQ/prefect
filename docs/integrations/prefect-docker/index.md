@@ -91,12 +91,6 @@ def create_docker_container_flow():
 create_docker_container_flow()
 ```
 
-## Resources
-
-If you encounter any bugs while using `prefect-docker`, feel free to open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
-
-If you have any questions or issues while using `prefect-docker`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
-
 ## Development
 
 If you'd like to install a version of `prefect-docker` for development, clone the repository and perform an editable install with `pip`:
