@@ -59,10 +59,12 @@
 ## Release 2.18.0
 
 ### Breaking Changes
-- Remove deprecated ability to run `prefect deploy` with `deployment.yaml` file — https://github.com/PrefectHQ/prefect/pull/12731
-- Remove deprecated ability to pass `-f/--flow` as option to `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12732
-- Remove deprecated `projects` from `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12737
-- Remove deprecated `--ci` option from `prefect deploy` — https://github.com/PrefectHQ/prefect/pull/12740
+- Deployment configuration update: The `prefect deploy` command now only supports the `prefect.yaml` file. The `deployment.yaml` file is no longer supported
+following its deprecation last June. Users should update their deployment configurations to use `prefect.yaml` instead. Running `prefect deploy` on a version prior to 2.18.0 will migrate your `deployment.yaml` file to a `prefect.yaml` file. - https://github.com/PrefectHQ/prefect/pull/12731
+- `prefect deploy` options update: The `-f/--flow` option has been removed from `prefect deploy` following its deprecation last June. Please deploy
+using the flow entrypoint instead. - https://github.com/PrefectHQ/prefect/pull/12732
+- `prefect project` removal: The `projects` command group has been removed following its deprecation last June. For instance, instead of using `prefect project init`, use `prefect init` instead. — https://github.com/PrefectHQ/prefect/pull/12737
+- `--ci` option removal: The `--ci` option in `prefect deploy` has been removed to unify the deployment experience across different environments. This removal follows its scheduled deprecation. Please use the `--no-prompt` option instead, e.g. `prefect --no-prompt deploy`. — https://github.com/PrefectHQ/prefect/pull/12740
 
 ### Enhancements
 - Improve account selection in `prefect cloud login` and `workspace set` — https://github.com/PrefectHQ/prefect/pull/12717
