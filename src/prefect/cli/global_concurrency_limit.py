@@ -13,7 +13,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 
 global_concurrency_limit_app = PrefectTyper(
     name="global-concurrency-limit",
@@ -268,6 +268,9 @@ async def update_global_concurrency_limit(
     if slot_decay_per_second is not None:
         gcl.slot_decay_per_second = slot_decay_per_second
 
+    if not gcl.dict(exclude_unset=True, shallow=True):
+        exit_with_error("No update arguments provided.")
+
     async with get_client() as client:
         try:
             await client.update_global_concurrency_limit(
@@ -275,5 +278,14 @@ async def update_global_concurrency_limit(
             )
         except ObjectNotFound:
             exit_with_error(f"Global concurrency limit {name!r} not found.")
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 422:
+                parsed_response = exc.response.json()
+
+                error_message = parsed_response["exception_detail"][0]["msg"]
+
+                exit_with_error(
+                    f"Error updating global concurrency limit: {error_message}"
+                )
 
     exit_with_success(f"Updated global concurrency limit with name {name!r}.")
