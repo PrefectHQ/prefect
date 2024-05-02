@@ -55,9 +55,6 @@ async def _resolve_default_references(
         "other_variable_name": "plain_value"
     }
     """
-    if not variables:
-        return
-
     for name, default_value in variables.items():
         if not isinstance(default_value, dict):
             continue
@@ -120,7 +117,11 @@ async def _validate_work_pool_job_variables(
         )
 
     base_vars = {} if ignore_defaults else _get_base_config_defaults(base_job_template)
-    base_vars = await _resolve_default_references(base_job_template, base_vars, session)
+    base_vars = (
+        base_vars
+        if ignore_defaults
+        else await _resolve_default_references(base_vars, session)
+    )
     all_job_vars = {**base_vars}
 
     for jvs in job_vars:
@@ -165,6 +166,9 @@ async def validate_job_variables_for_deployment_flow_run(
         )
         return
 
+    if not (deployment.job_variables or flow_run.job_variables):
+        return
+
     work_pool = deployment.work_queue.work_pool
 
     try:
@@ -206,6 +210,8 @@ async def validate_job_variables_for_deployment(
     NOTE: This will raise an HTTP 404 error if a referenced block document does not exist.
     Therefore, this is only safe to use within the context of an API request.
     """
+    if not deployment.job_variables:
+        return
     try:
         await _validate_work_pool_job_variables(
             session,
@@ -285,6 +291,9 @@ async def validate_job_variables_for_run_deployment_action(
             "because it does not have a work pool",
             run_action.deployment_id,
         )
+        return
+
+    if not (deployment.job_variables or run_action.job_variables):
         return
 
     work_pool = deployment.work_queue.work_pool
