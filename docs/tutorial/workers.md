@@ -18,7 +18,7 @@ This part of the tutorial creates a Docker work pool with workers that can handl
 ## Prerequisites
 
 * Install [Docker](https://docs.docker.com/engine/install/).
-* To start a worker on your local machine, confirm that your virtual environment has `prefect`.
+* Confirm that your virtual environment has `prefect`.
 
 ## Why workers
 
@@ -78,8 +78,6 @@ graph TD
     </div>
 
 1. Confirm its visibility on the Prefect UI's **Work Pools** tab (red status indicates it's not ready yet).
-
-To make the work pool ready, you need to start a worker.
 
 ## Start a worker
 
@@ -155,7 +153,7 @@ Prefect builds a custom Docker image containing your workflow code that the work
 
 To modify your deployment, edit your script and run it again. 
 
-## Execute scheduled flow runs
+## Customize infrastructure settings
 
 Customize infrastructure settings for specific deployments by updating the `job_variables` section:
 
@@ -217,9 +215,10 @@ prefect deployment run 'get_repo_info/my-deployment'
 - Explore deployment configurations with [`prefect.yaml`](/guides/prefect-deploy/).
 - Deep dive into Prefect [concepts](/concepts/).
 - Use Prefect [guides](/guides/) for:
-  - [Deploying flows on Kubernetes](/guides/deployment/kubernetes/)
-  - [Deploying flows in Docker](/guides/deployment/docker/)
-  - [Deploying flows on serverless infrastructure](/guides/deployment/serverless-workers/)
-  - [Daemonizing workers](/guides/deployment/daemonize/)
+
+    - [Deploying flows on Kubernetes](/guides/deployment/kubernetes/)
+    - [Deploying flows in Docker](/guides/deployment/docker/)
+    - [Deploying flows on serverless infrastructure](/guides/deployment/serverless-workers/)
+    - [Daemonizing workers](/guides/deployment/daemonize/)
 
 Happy building!
