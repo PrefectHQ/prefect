@@ -506,15 +506,10 @@ class WorkerResponse(schemas.core.Worker):
         return worker
 
 
-class GlobalConcurrencyLimitResponse(PrefectBaseModel):
+class GlobalConcurrencyLimitResponse(ORMBaseModel):
     """
     A response object for global concurrency limits.
     """
-
-    class Config:
-        orm_mode = True
-
-    id: UUID = Field(default=..., description="The id of the global concurrency limit.")
 
     active: bool = Field(
         default=True, description="Whether the global concurrency limit is active."
