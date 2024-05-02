@@ -1,3 +1,4 @@
+import abc
 import asyncio
 import uuid
 import warnings
@@ -5,22 +6,20 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from typing import (
     TYPE_CHECKING,
-    Awaitable,
+    Any,
+    Dict,
     Generic,
+    Iterable,
     Optional,
     TypeVar,
-    Union,
-    cast,
-    overload,
 )
 from uuid import UUID
 
-from prefect._internal.concurrency.api import create_call, from_async
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.utilities import get_or_create_client
 from prefect.states import State
-from prefect.utilities.asyncutils import A, Async, Sync, run_sync, sync
+from prefect.utilities.asyncutils import A, run_sync
 
 if TYPE_CHECKING:
     from prefect.tasks import Task
@@ -35,73 +34,15 @@ class PrefectFuture(Generic[R, A]):
 
     When tasks are called, they are submitted to a task runner which creates a future
     for access to the state and result of the task.
-
-    Examples:
-        Define a task that returns a string
-
-        >>> from prefect import flow, task
-        >>> @task
-        >>> def my_task() -> str:
-        >>>     return "hello"
-
-        Calls of this task in a flow will return a future
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     future = my_task.submit()  # PrefectFuture[str, Sync] includes result type
-        >>>     future.task_run.id  # UUID for the task run
-
-        Wait for the task to complete
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     future = my_task.submit()
-        >>>     final_state = future.wait()
-
-        Wait N seconds for the task to complete
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     future = my_task.submit()
-        >>>     final_state = future.wait(0.1)
-        >>>     if final_state:
-        >>>         ... # Task done
-        >>>     else:
-        >>>         ... # Task not done yet
-
-        Wait for a task to complete and retrieve its result
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     future = my_task.submit()
-        >>>     result = future.result()
-        >>>     assert result == "hello"
-
-        Wait N seconds for a task to complete and retrieve its result
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     future = my_task.submit()
-        >>>     result = future.result(timeout=5)
-        >>>     assert result == "hello"
-
-        Retrieve the state of a task without waiting for completion
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     future = my_task.submit()
-        >>>     state = future.get_state()
     """
 
     def __init__(
         self,
         key: UUID,
         task_runner: "ConcurrentTaskRunner",
-        asynchronous: A = True,
         _final_state: Optional[State[R]] = None,  # Exposed for testing
     ) -> None:
         self.key = key
-        self.asynchronous = asynchronous
         self._task_run = None
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
@@ -121,26 +62,6 @@ class PrefectFuture(Generic[R, A]):
         self._task_run = task_run
         return task_run
 
-    @overload
-    def wait(
-        self: "PrefectFuture[R, Async]", timeout: None = None
-    ) -> Awaitable[State[R]]:
-        ...
-
-    @overload
-    def wait(self: "PrefectFuture[R, Sync]", timeout: None = None) -> State[R]:
-        ...
-
-    @overload
-    def wait(
-        self: "PrefectFuture[R, Async]", timeout: float
-    ) -> Awaitable[Optional[State[R]]]:
-        ...
-
-    @overload
-    def wait(self: "PrefectFuture[R, Sync]", timeout: float) -> Optional[State[R]]:
-        ...
-
     def wait(self, timeout=None):
         """
         Wait for the run to finish and return the final state
@@ -155,14 +76,6 @@ class PrefectFuture(Generic[R, A]):
 
         return self._final_state
 
-    @overload
-    async def _wait(self, timeout: None = None) -> State[R]:
-        ...
-
-    @overload
-    async def _wait(self, timeout: float) -> Optional[State[R]]:
-        ...
-
     async def _wait(self, timeout=None):
         """
         Async implementation for `wait`
@@ -175,39 +88,7 @@ class PrefectFuture(Generic[R, A]):
 
         return self._final_state
 
-    @overload
-    def result(
-        self: "PrefectFuture[R, Sync]",
-        timeout: float = None,
-        raise_on_failure: bool = True,
-    ) -> R:
-        ...
-
-    @overload
-    def result(
-        self: "PrefectFuture[R, Sync]",
-        timeout: float = None,
-        raise_on_failure: bool = False,
-    ) -> Union[R, Exception]:
-        ...
-
-    @overload
-    def result(
-        self: "PrefectFuture[R, Async]",
-        timeout: float = None,
-        raise_on_failure: bool = True,
-    ) -> Awaitable[R]:
-        ...
-
-    @overload
-    def result(
-        self: "PrefectFuture[R, Async]",
-        timeout: float = None,
-        raise_on_failure: bool = False,
-    ) -> Awaitable[Union[R, Exception]]:
-        ...
-
-    def result(self, timeout: float = None, raise_on_failure: bool = True):
+    def result(self, timeout: Optional[float] = None, raise_on_failure: bool = True):
         """
         Wait for the run to finish and return the final state.
 
@@ -217,16 +98,9 @@ class PrefectFuture(Generic[R, A]):
         If `raise_on_failure` is `True` and the task run failed, the task run's
         exception will be raised.
         """
-        result = create_call(
-            self._result, timeout=timeout, raise_on_failure=raise_on_failure
+        return run_sync(
+            self._result(timeout=timeout, raise_on_failure=raise_on_failure)
         )
-        if self.asynchronous:
-            return from_async.call_soon_in_loop_thread(result).aresult()
-        else:
-            # we don't want to block the event loop on the loop thread with our sync execution
-            return run_sync(
-                self._result(timeout=timeout, raise_on_failure=raise_on_failure)
-            )
 
     async def _result(self, timeout: float = None, raise_on_failure: bool = True):
         """
@@ -237,26 +111,11 @@ class PrefectFuture(Generic[R, A]):
             raise TimeoutError("Call timed out before task finished.")
         return await final_state.result(raise_on_failure=raise_on_failure, fetch=True)
 
-    @overload
-    def get_state(
-        self: "PrefectFuture[R, Async]", client: PrefectClient = None
-    ) -> Awaitable[State[R]]:
-        ...
-
-    @overload
-    def get_state(
-        self: "PrefectFuture[R, Sync]", client: PrefectClient = None
-    ) -> State[R]:
-        ...
-
     def get_state(self, client: PrefectClient = None):
         """
         Get the current state of the task run.
         """
-        if self.asynchronous:
-            return cast(Awaitable[State[R]], self._get_state(client=client))
-        else:
-            return cast(State[R], sync(self._get_state, client=client))
+        return run_sync(self._get_state(client))
 
     async def _get_state(self, client: Optional[PrefectClient] = None) -> State[R]:
         client, _ = get_or_create_client(client)
@@ -272,6 +131,7 @@ class PrefectFuture(Generic[R, A]):
         self._task_run = task_run
         return task_run.state
 
+    # primarily for backwards compatibility
     async def _wait_for_submission(self):
         pass
 
@@ -293,16 +153,41 @@ class PrefectFuture(Generic[R, A]):
         return True
 
 
-class ConcurrentTaskRunner:
+class BaseTaskRunner(abc.ABC):
+    @abc.abstractmethod
+    def submit(
+        self,
+        task: "Task",
+        parameters: Optional[Dict[str, Any]] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFuture:
+        pass
+
+    @abc.abstractmethod
+    def wait(self, key: uuid.UUID, timeout: Optional[float] = None) -> Optional[State]:
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+
+class ConcurrentTaskRunner(BaseTaskRunner):
     def __init__(self):
         self._executor: Optional[ThreadPoolExecutor] = None
-        self._started = False
         self._futures = {}
 
-    def submit(self, task: "Task", parameters: dict = None, wait_for: list = None):
+    def submit(
+        self,
+        task: "Task",
+        parameters: Optional[Dict[str, Any]] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> PrefectFuture:
         from prefect.new_task_engine import run_task, run_task_sync
 
-        if self._executor is None or not self._started:
+        if self._executor is None:
             raise ValueError("Task runner must be used as a context manager.")
 
         task_run_id = uuid.uuid4()
@@ -312,14 +197,12 @@ class ConcurrentTaskRunner:
         context = copy_context()
 
         if task.isasync:
-            future.asynchronous = True
             self._futures[task_run_id] = self._executor.submit(
                 context.run,
                 asyncio.run,
                 run_task(task, task_run_id, parameters, wait_for, return_type="state"),
             )
         else:
-            future.asynchronous = False
             self._futures[task_run_id] = self._executor.submit(
                 context.run,
                 run_task_sync,
@@ -334,16 +217,17 @@ class ConcurrentTaskRunner:
 
     def wait(self, key: uuid.UUID, timeout: Optional[float] = None):
         future = self._futures[key]
-        return future.result(timeout)
+        try:
+            return future.result(timeout)
+        except TimeoutError:
+            return None
 
     def __enter__(self):
         self._executor = ThreadPoolExecutor().__enter__()
-        self._started = True
         return self
 
     def __exit__(self, *args):
-        if not self._started or self._executor is None:
+        if self._executor is None:
             return
-        self._executor.__exit__(*args)
+        self._executor.shutdown(*args)
         self._executor = None
-        self._started = False

@@ -78,6 +78,7 @@ from prefect.exceptions import (
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
+from prefect.new_task_runners import ConcurrentTaskRunner as NewConcurrentTaskRunner
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -285,7 +286,12 @@ class Flow(Generic[P, R]):
                 )
         self.flow_run_name = flow_run_name
 
-        task_runner = task_runner or ConcurrentTaskRunner()
+        default_task_runner = (
+            NewConcurrentTaskRunner()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
+            else ConcurrentTaskRunner
+        )
+        task_runner = task_runner or default_task_runner
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
