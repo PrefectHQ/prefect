@@ -16,7 +16,6 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-
 logger = get_logger("server.api.validation")
 
 DeploymentAction = Union[
@@ -27,8 +26,12 @@ FlowRunAction = Union[
 ]
 
 
-def _get_base_config_defaults(base_config: Dict[str, Any]):
-    template: Dict[str, Any] = base_config.get("variables", {}).get("properties", {})
+def _get_base_config_defaults(
+    base_job_template: Dict[str, Any], validate_defaults: bool = False
+):
+    template: Dict[str, Any] = base_job_template.get("variables", {}).get(
+        "properties", {}
+    )
     defaults = dict()
     for variable_name, attrs in template.items():
         if "default" in attrs:
@@ -51,8 +54,10 @@ async def _resolve_default_references(
             },
         "other_variable_name": "plain_value"
     }
-
     """
+    if not variables:
+        return
+
     for name, default_value in variables.items():
         if not isinstance(default_value, dict):
             continue
@@ -88,6 +93,7 @@ async def _validate_work_pool_job_variables(
     base_job_template: Dict[str, Any],
     *job_vars: Dict[str, Any],
     ignore_required: bool = False,
+    ignore_defaults: bool = False,
     raise_on_error=True,
 ) -> None:
     if not base_job_template:
@@ -113,8 +119,8 @@ async def _validate_work_pool_job_variables(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         )
 
-    base_vars = _get_base_config_defaults(base_job_template)
-    base_vars = await _resolve_default_references(base_vars, session)
+    base_vars = {} if ignore_defaults else _get_base_config_defaults(base_job_template)
+    base_vars = await _resolve_default_references(base_job_template, base_vars, session)
     all_job_vars = {**base_vars}
 
     for jvs in job_vars:
@@ -124,7 +130,7 @@ async def _validate_work_pool_job_variables(
     validate(
         all_job_vars,
         variables_schema,
-        raise_on_error=True,
+        raise_on_error=raise_on_error,
         preprocess=True,
         ignore_required=ignore_required,
         # We allow None values to be passed in for optional fields if there is a default
@@ -169,6 +175,7 @@ async def validate_job_variables_for_deployment_flow_run(
             deployment.job_variables or {},
             flow_run.job_variables or {},
             ignore_required=False,
+            ignore_defaults=False,
         )
     except ValidationError as exc:
         if isinstance(flow_run, schemas.actions.DeploymentFlowRunCreate):
@@ -206,6 +213,7 @@ async def validate_job_variables_for_deployment(
             work_pool.base_job_template,
             deployment.job_variables or {},
             ignore_required=True,
+            ignore_defaults=True,
         )
     except ValidationError as exc:
         if isinstance(deployment, schemas.actions.DeploymentCreate):
@@ -242,6 +250,7 @@ async def validate_job_variable_defaults_for_work_pool(
             work_pool_name,
             base_job_template,
             ignore_required=True,
+            ignore_defaults=False,
         )
     except ValidationError as exc:
         error_msg = f"Validation failed for work pool's job variable defaults: {exc}"
@@ -287,4 +296,5 @@ async def validate_job_variables_for_run_deployment_action(
         deployment.job_variables or {},
         run_action.job_variables or {},
         ignore_required=True,
+        ignore_defaults=True,
     )
