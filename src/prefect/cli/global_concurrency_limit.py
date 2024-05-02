@@ -69,7 +69,9 @@ async def list_global_concurrency_limits():
 
 @global_concurrency_limit_app.command("inspect")
 async def inspect_global_concurrency_limit(
-    name: str,
+    name: str = typer.Argument(
+        ..., help="The name of the global concurrency limit to inspect."
+    ),
     output: Optional[OutputFormat] = typer.Option(
         None,
         "--output",
@@ -131,7 +133,9 @@ async def inspect_global_concurrency_limit(
 
 @global_concurrency_limit_app.command("delete")
 async def delete_global_concurrency_limit(
-    name: str,
+    name: str = typer.Argument(
+        ..., help="The name of the global concurrency limit to delete."
+    ),
 ):
     """
     Delete a global concurrency limit.
@@ -156,7 +160,9 @@ async def delete_global_concurrency_limit(
 
 @global_concurrency_limit_app.command("enable")
 async def enable_global_concurrency_limit(
-    name: str,
+    name: str = typer.Argument(
+        ..., help="The name of the global concurrency limit to enable."
+    ),
 ):
     """
     Enable a global concurrency limit.
@@ -183,7 +189,9 @@ async def enable_global_concurrency_limit(
 
 @global_concurrency_limit_app.command("disable")
 async def disable_global_concurrency_limit(
-    name: str,
+    name: str = typer.Argument(
+        ..., help="The name of the global concurrency limit to disable."
+    ),
 ):
     """
     Disable a global concurrency limit.
