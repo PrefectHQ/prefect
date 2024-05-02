@@ -88,18 +88,19 @@ async def inspect_global_concurrency_limit(
     Inspect a global concurrency limit.
 
     Arguments:
-        name: str: [required]
-            - The name of the global concurrency limit to inspect.
-        output: Optional[OutputFormat]: [optional]
-            - Output format for the command. Currently only supports JSON.
-        file_path: Optional[Path]: [optional]
-            - Path to .json file to write the global concurrent limit output to.
+        name (str): The name of the global concurrency limit to inspect.
+        output (Optional[OutputFormat]): An optional output format for the command. Currently only supports JSON.
+            Required if --file/-f is set.
+        file_path (Optional[Path]): An optional path to .json file to write the global concurrent limit output to.
 
     Returns:
-        - str: The name of the global concurrency limit.
-        - int: The limit of the global concurrency limit.
-        - int: The number of active slots.
-        - float: The slot decay per second.
+        id (str): The ID of the global concurrency limit.
+        created (str): The created date of the global concurrency limit.
+        updated (str): The updated date of the global concurrency limit.
+        name (str): The name of the global concurrency limit.
+        limit (int): The limit of the global concurrency limit.
+        active_slots (int): The number of active slots.
+        slot_decay_per_second (float): The slot decay per second.
 
     """
     if file_path and not output:
