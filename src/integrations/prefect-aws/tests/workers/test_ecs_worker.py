@@ -16,6 +16,7 @@ from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect.server.schemas.core import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.slugify import slugify
 
 if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import ValidationError
@@ -24,6 +25,7 @@ else:
 
 from prefect_aws.credentials import _get_client_cached
 from prefect_aws.workers.ecs_worker import (
+    _TAG_REGEX,
     _TASK_DEFINITION_CACHE,
     ECS_DEFAULT_CONTAINER_NAME,
     ECS_DEFAULT_CPU,
@@ -779,6 +781,67 @@ async def test_labels(
             "value": "af_sn253@-@-@-bfausfg-:@cas-XY",
         },
     ]
+
+
+@pytest.mark.usefixtures("ecs_mocks")
+@pytest.mark.parametrize(
+    "labels, expected_keys",
+    [
+        (
+            {
+                "validLabel": "validValue",
+                "invalid/label*with?chars": "invalid/value&*with%chars",
+            },
+            {
+                "validLabel": "validValue",
+                "invalid/label*with?chars": "invalid/value&*with%chars",
+            },
+        ),
+        (
+            {
+                "flow-name": "Hello, World"
+            },  # regression test for https://github.com/PrefectHQ/prefect/issues/13174
+            {
+                "flow-name": "Hello-World",
+            },
+        ),
+    ],
+)
+async def test_slugified_labels(
+    aws_credentials: AwsCredentials, flow_run: FlowRun, labels, expected_keys
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+        labels=labels,
+    )
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+
+    # Fetch actual tags from the mock ECS response
+    actual_tags = {tag["key"]: tag["value"] for tag in task.get("tags", [])}
+
+    # Slugify keys and values for expected tags comparison
+    expected_tags = {
+        slugify(
+            key, regex_pattern=_TAG_REGEX, allow_unicode=True, lowercase=False
+        ): slugify(value, regex_pattern=_TAG_REGEX, allow_unicode=True, lowercase=False)
+        for key, value in expected_keys.items()
+    }
+
+    # Check if the slugified tags are as expected
+    for key, value in expected_tags.items():
+        assert (
+            actual_tags.get(key) == value
+        ), f"Failed for key: {key} with expected value: {value}, but got {actual_tags.get(key)}"
 
 
 @pytest.mark.usefixtures("ecs_mocks")

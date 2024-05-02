@@ -506,7 +506,7 @@ class WorkerResponse(schemas.core.Worker):
         return worker
 
 
-class GlobalConcurrencyLimitResponse(PrefectBaseModel):
+class GlobalConcurrencyLimitResponse(ORMBaseModel):
     """
     A response object for global concurrency limits.
     """
