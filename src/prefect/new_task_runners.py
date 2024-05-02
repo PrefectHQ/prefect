@@ -1,21 +1,13 @@
-"""
-Futures represent the execution of a task and allow retrieval of the task run's state.
-
-This module contains the definition for futures as well as utilities for resolving
-futures in nested data structures.
-"""
-
 import asyncio
+import uuid
 import warnings
-from functools import partial
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from typing import (
     TYPE_CHECKING,
-    Any,
     Awaitable,
-    Callable,
     Generic,
     Optional,
-    Set,
     TypeVar,
     Union,
     cast,
@@ -23,19 +15,15 @@ from typing import (
 )
 from uuid import UUID
 
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_async
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect.client.orchestration import PrefectClient
-from prefect.client.utilities import inject_client
-from prefect.new_task_runners import PrefectFuture as NewPrefectFuture
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
+from prefect.client.schemas.objects import TaskRun
+from prefect.client.utilities import get_or_create_client
 from prefect.states import State
-from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import A, Async, Sync, run_sync, sync
-from prefect.utilities.collections import StopVisiting, visit_collection
 
 if TYPE_CHECKING:
-    from prefect.task_runners import BaseTaskRunner
+    from prefect.tasks import Task
 
 
 R = TypeVar("R")
@@ -107,25 +95,31 @@ class PrefectFuture(Generic[R, A]):
 
     def __init__(
         self,
-        name: str,
         key: UUID,
-        task_runner: "BaseTaskRunner",
+        task_runner: "ConcurrentTaskRunner",
         asynchronous: A = True,
         _final_state: Optional[State[R]] = None,  # Exposed for testing
     ) -> None:
         self.key = key
-        self.name = name
         self.asynchronous = asynchronous
-        self.task_run = None
+        self._task_run = None
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._task_runner = task_runner
-        try:
-            self._loop = asyncio.get_running_loop()
-            self._submitted = asyncio.Event()
-        except RuntimeError:
-            self._loop = None
-            self._submitted = None
+
+    @property
+    def task_run(self) -> TaskRun:
+        """
+        The task run associated with this future
+        """
+        if self._task_run:
+            return self._task_run
+
+        client, _ = get_or_create_client()
+
+        task_run = run_sync(client.read_task_run(self.key))
+        self._task_run = task_run
+        return task_run
 
     @overload
     def wait(
@@ -154,12 +148,12 @@ class PrefectFuture(Generic[R, A]):
         If the timeout is reached before the run reaches a final state,
         `None` is returned.
         """
-        wait = create_call(self._wait, timeout=timeout)
-        if self.asynchronous:
-            return from_async.call_soon_in_loop_thread(wait).aresult()
-        else:
-            # type checking cannot handle the overloaded timeout passing
-            return from_sync.call_soon_in_loop_thread(wait).result()  # type: ignore
+        if self._final_state:
+            return self._final_state
+
+        self._final_state = self._task_runner.wait(self.key, timeout)
+
+        return self._final_state
 
     @overload
     async def _wait(self, timeout: None = None) -> State[R]:
@@ -173,15 +167,10 @@ class PrefectFuture(Generic[R, A]):
         """
         Async implementation for `wait`
         """
-        await self._wait_for_submission()
-
         if self._final_state:
             return self._final_state
 
-        if self._loop and self._submitted:
-            self._final_state = await self._task_runner.wait(self.key, timeout)
-        else:
-            self._final_state = self._task_runner.wait_sync(self.key, timeout)
+        self._final_state = self._task_runner.wait(self.key, timeout)
 
         return self._final_state
 
@@ -233,13 +222,10 @@ class PrefectFuture(Generic[R, A]):
         if self.asynchronous:
             return from_async.call_soon_in_loop_thread(result).aresult()
         else:
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                # we don't want to block the event loop on the loop thread with our sync execution
-                return run_sync(
-                    self._result(timeout=timeout, raise_on_failure=raise_on_failure)
-                )
-            else:
-                return from_sync.call_soon_in_loop_thread(result).result()
+            # we don't want to block the event loop on the loop thread with our sync execution
+            return run_sync(
+                self._result(timeout=timeout, raise_on_failure=raise_on_failure)
+            )
 
     async def _result(self, timeout: float = None, raise_on_failure: bool = True):
         """
@@ -271,10 +257,8 @@ class PrefectFuture(Generic[R, A]):
         else:
             return cast(State[R], sync(self._get_state, client=client))
 
-    @inject_client
-    async def _get_state(self, client: PrefectClient = None) -> State[R]:
-        assert client is not None  # always injected
-
+    async def _get_state(self, client: Optional[PrefectClient] = None) -> State[R]:
+        client, _ = get_or_create_client(client)
         # We must wait for the task run id to be populated
         await self._wait_for_submission()
 
@@ -284,12 +268,11 @@ class PrefectFuture(Generic[R, A]):
             raise RuntimeError("Future has no associated task run in the server.")
 
         # Update the task run reference
-        self.task_run = task_run
+        self._task_run = task_run
         return task_run.state
 
     async def _wait_for_submission(self):
-        if self._loop and self._submitted and not self._submitted.is_set():
-            await run_coroutine_in_loop_from_async(self._loop, self._submitted.wait())
+        pass
 
     def __hash__(self) -> int:
         return hash(self.key)
@@ -309,137 +292,57 @@ class PrefectFuture(Generic[R, A]):
         return True
 
 
-def _collect_futures(futures, expr, context):
-    # Expressions inside quotes should not be traversed
-    if isinstance(context.get("annotation"), quote):
-        raise StopVisiting()
+class ConcurrentTaskRunner:
+    def __init__(self):
+        self._executor: Optional[ThreadPoolExecutor] = None
+        self._started = False
+        self._futures = {}
 
-    if isinstance(expr, (PrefectFuture, NewPrefectFuture)):
-        futures.add(expr)
+    def submit(self, task: "Task", parameters: dict = None, wait_for: list = None):
+        from prefect.new_task_engine import run_task, run_task_sync
 
-    return expr
+        if self._executor is None or not self._started:
+            raise ValueError("Task runner must be used as a context manager.")
 
+        task_run_id = uuid.uuid4()
 
-async def resolve_futures_to_data(
-    expr: Union[PrefectFuture[R, Any], Any],
-    raise_on_failure: bool = True,
-) -> Union[R, Any]:
-    """
-    Given a Python built-in collection, recursively find `PrefectFutures` and build a
-    new collection with the same structure with futures resolved to their results.
-    Resolving futures to their results may wait for execution to complete and require
-    communication with the API.
+        future = PrefectFuture(key=task_run_id, task_runner=self)
 
-    Unsupported object types will be returned without modification.
-    """
-    futures: Set[PrefectFuture] = set()
+        context = copy_context()
 
-    maybe_expr = visit_collection(
-        expr,
-        visit_fn=partial(_collect_futures, futures),
-        return_data=False,
-        context={},
-    )
-    if maybe_expr is not None:
-        expr = maybe_expr
-
-    # Get results
-    results = await asyncio.gather(
-        *[
-            # We must wait for the future in the thread it was created in
-            from_async.call_soon_in_loop_thread(
-                create_call(future._result, raise_on_failure=raise_on_failure)
-            ).aresult()
-            for future in futures
-        ]
-    )
-
-    results_by_future = dict(zip(futures, results))
-
-    def replace_futures_with_results(expr, context):
-        # Expressions inside quotes should not be modified
-        if isinstance(context.get("annotation"), quote):
-            raise StopVisiting()
-
-        if isinstance(expr, PrefectFuture):
-            return results_by_future[expr]
+        if task.isasync:
+            future.asynchronous = True
+            self._futures[task_run_id] = self._executor.submit(
+                context.run,
+                asyncio.run,
+                run_task(task, parameters, task_run_id, wait_for, return_type="state"),
+            )
         else:
-            return expr
+            future.asynchronous = False
+            self._futures[task_run_id] = self._executor.submit(
+                context.run,
+                run_task_sync,
+                task,
+                task_run_id,
+                parameters,
+                wait_for,
+                return_type="state",
+            )
 
-    return visit_collection(
-        expr,
-        visit_fn=replace_futures_with_results,
-        return_data=True,
-        context={},
-    )
+        return future
 
+    def wait(self, key: uuid.UUID, timeout: Optional[float] = None):
+        future = self._futures[key]
+        return future.result(timeout)
 
-async def resolve_futures_to_states(
-    expr: Union[PrefectFuture[R, Any], Any],
-) -> Union[State[R], Any]:
-    """
-    Given a Python built-in collection, recursively find `PrefectFutures` and build a
-    new collection with the same structure with futures resolved to their final states.
-    Resolving futures to their final states may wait for execution to complete.
+    def __enter__(self):
+        self._executor = ThreadPoolExecutor().__enter__()
+        self._started = True
+        return self
 
-    Unsupported object types will be returned without modification.
-    """
-    futures: Set[PrefectFuture] = set()
-
-    visit_collection(
-        expr,
-        visit_fn=partial(_collect_futures, futures),
-        return_data=False,
-        context={},
-    )
-
-    # Get final states for each future
-    # states = await asyncio.gather(
-    #     *[
-    #         # We must wait for the future in the thread it was created in
-    #         from_async.call_soon_in_loop_thread(create_call(future._wait)).aresult()
-    #         for future in futures
-    #     ]
-    # )
-    states = [future.wait() for future in futures]
-
-    states_by_future = dict(zip(futures, states))
-
-    def replace_futures_with_states(expr, context):
-        # Expressions inside quotes should not be modified
-        if isinstance(context.get("annotation"), quote):
-            raise StopVisiting()
-
-        if isinstance(expr, PrefectFuture):
-            return states_by_future[expr]
-        else:
-            return expr
-
-    return visit_collection(
-        expr,
-        visit_fn=replace_futures_with_states,
-        return_data=True,
-        context={},
-    )
-
-
-def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
-    """
-    Generate a repr for a function call as "fn_name(arg_value, kwarg_name=kwarg_value)"
-    """
-
-    name = __fn.__name__
-
-    # TODO: If this computation is concerningly expensive, we can iterate checking the
-    #       length at each arg or avoid calling `repr` on args with large amounts of
-    #       data
-    call_args = ", ".join(
-        [repr(arg) for arg in args]
-        + [f"{key}={repr(val)}" for key, val in kwargs.items()]
-    )
-
-    # Enforce a maximum length
-    if len(call_args) > 100:
-        call_args = call_args[:100] + "..."
-
-    return f"{name}({call_args})"
+    def __exit__(self, *args):
+        if not self._started or self._executor is None:
+            return
+        self._executor.__exit__(*args)
+        self._executor = None
+        self._started = False
