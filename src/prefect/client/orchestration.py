@@ -2163,6 +2163,7 @@ class PrefectClient:
         task: "TaskObject[P, R]",
         flow_run_id: Optional[UUID],
         dynamic_key: str,
+        id: Optional[UUID] = None,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
@@ -2202,6 +2203,7 @@ class PrefectClient:
             state = prefect.states.Pending()
 
         task_run_data = TaskRunCreate(
+            id=id,
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,

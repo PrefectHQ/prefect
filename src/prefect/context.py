@@ -33,6 +33,7 @@ import anyio.abc
 import pendulum
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.new_task_runners import ConcurrentTaskRunner
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import BaseModel, Field, PrivateAttr
@@ -236,7 +237,7 @@ class EngineContext(RunContext):
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
     autonomous_task_run: Optional[TaskRun] = None
-    task_runner: BaseTaskRunner
+    task_runner: Union[BaseTaskRunner, ConcurrentTaskRunner]
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
