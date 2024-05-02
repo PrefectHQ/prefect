@@ -3065,7 +3065,9 @@ class PrefectClient:
             else:
                 raise
 
-    async def read_global_concurrency_limits(self, limit: int = 10, offset: int = 0):
+    async def read_global_concurrency_limits(
+        self, limit: int = 10, offset: int = 0
+    ) -> List[GlobalConcurrencyLimitResponse]:
         response = await self._client.post(
             "/v2/concurrency_limits/filter",
             json={
