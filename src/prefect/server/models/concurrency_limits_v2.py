@@ -142,6 +142,12 @@ async def update_concurrency_limit(
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
 ) -> bool:
+    current_concurrency_limit = await read_concurrency_limit(
+        session, concurrency_limit_id=concurrency_limit_id, name=name
+    )
+    if not current_concurrency_limit:
+        return False
+
     if not concurrency_limit_id and not name:
         raise ValueError("Must provide either concurrency_limit_id or name")
 
