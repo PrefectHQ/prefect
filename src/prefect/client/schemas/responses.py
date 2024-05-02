@@ -436,6 +436,8 @@ class GlobalConcurrencyLimitResponse(ObjectBaseModel):
     A response object for global concurrency limits.
     """
 
+    id: UUID = Field(default=..., description="The ID of the global concurrency limit.")
+
     active: bool = Field(
         default=True, description="Whether the global concurrency limit is active."
     )
