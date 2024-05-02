@@ -234,7 +234,8 @@ async def update_global_concurrency_limit(
 
     Arguments:
         name (str): The name of the global concurrency limit to update.
-        inactive (bool): Whether to create a disabled global concurrency limit.
+        enable (Optional[bool]): Enable the global concurrency limit.
+        disable (Optional[bool]): Disable the global concurrency limit.
         limit (Optional[int]): The limit of the global concurrency limit.
         active_slots (Optional[int]): The number of active slots.
         slot_decay_per_second (Optional[float]): The slot decay per second.
@@ -243,7 +244,8 @@ async def update_global_concurrency_limit(
         $ prefect global-concurrency-limit update my-gcl --limit 10
         $ prefect gcl update my-gcl --active-slots 5
         $ prefect gcl update my-gcl --slot-decay-per-second 0.5
-        $ prefect gcl update my-gcl --inactive
+        $ prefect gcl update my-gcl --enable
+        $ prefect gcl update my-gcl --disable --limit 5
     """
     gcl = GlobalConcurrencyLimitUpdate()
 
