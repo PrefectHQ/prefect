@@ -157,14 +157,6 @@ async def update_concurrency_limit(
         else db.ConcurrencyLimitV2.name == name
     )
 
-    values = concurrency_limit.dict(exclude_unset=True)
-    values.update(
-        {
-            "active_slots": active_slots_after_decay(db),
-            "denied_slots": denied_slots_after_decay(db),
-        }
-    )
-
     result = await session.execute(
         sa.update(db.ConcurrencyLimitV2)
         .where(where)
