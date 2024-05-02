@@ -137,7 +137,13 @@ def test_deleting_gcl(
             "delete",
             various_global_concurrency_limits[0].name,
         ],
-        expected_output=f"Deleted global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        prompts_and_responses=[
+            (
+                f"Are you sure you want to delete global concurrency limit '{various_global_concurrency_limits[0].name}'?",
+                "y",
+            )
+        ],
+        expected_output_contains=f"Deleted global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
         expected_code=0,
     )
     delete_global_concurrency_limit_by_name.assert_called_once_with(
@@ -148,7 +154,13 @@ def test_deleting_gcl(
 def test_deleting_gcl_not_found():
     invoke_and_assert(
         ["global-concurrency-limit", "delete", "not-found"],
-        expected_output="Global concurrency limit 'not-found' not found.",
+        prompts_and_responses=[
+            (
+                "Are you sure you want to delete global concurrency limit 'not-found'?",
+                "y",
+            )
+        ],
+        expected_output_contains="Global concurrency limit 'not-found' not found.",
         expected_code=1,
     )
 
