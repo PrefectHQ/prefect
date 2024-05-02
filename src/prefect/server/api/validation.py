@@ -1,3 +1,37 @@
+"""
+This module contains functions for validating job variables for deployments, work pools,
+flow runs, and RunDeployment actions. These functions are used to validate that job
+variables provided by users conform to the JSON schema defined in the work pool's base job
+template.
+
+Note some important details:
+
+1. The order of applying job variables is: work pool's base job template, deployment, flow
+   run. This means that flow run job variables override deployment job variables, which
+   override work pool job variables.
+
+2. The validation of job variables for work pools and deployments ignores required keys in
+   because we don't know if the full set of overrides will include values for any required
+   fields.
+
+3. Work pools can include default values for job variables. These can include references to
+   blocks. We have not been validating these values or whether the blocks satisfy the job
+   variable JSON schemas. To avoid failing validation for existing data, we only validate
+   defaults when validating the work pool's base job template, not when validating job
+   variables for deployments or flow runs.
+
+3. A flow run is the terminal point for job variables, so it is the only place where
+   we validate required variables and default values. Thus,
+   `validate_job_variables_for_deployment_flow_run` and
+   `validate_job_variables_for_run_deployment_action` check for required fields.
+
+4. We have been using Pydantic v1 to generate work pool base job templates, and it produces
+   invalid JSON schemas for some fields, e.g. tuples and optional fields. We try to fix these
+   schemas on the fly while validating job variables, but there is a case we can't resolve,
+   which is whether or not an optional field supports a None value. In this case, we allow
+   None values to be passed in, which means that if an optional field does not actually
+   allow None values, the Pydantic model will fail to validate at runtime.
+"""
 from typing import Any, Dict, Union
 
 from prefect._vendor.fastapi import HTTPException, status
@@ -89,8 +123,8 @@ async def _validate_work_pool_job_variables(
     work_pool_name: str,
     base_job_template: Dict[str, Any],
     *job_vars: Dict[str, Any],
-    ignore_required: bool = False,
-    ignore_defaults: bool = False,
+    ignore_required: bool = True,
+    ignore_defaults: bool = True,
     raise_on_error=True,
 ) -> None:
     if not base_job_template:
@@ -117,11 +151,7 @@ async def _validate_work_pool_job_variables(
         )
 
     base_vars = {} if ignore_defaults else _get_base_config_defaults(base_job_template)
-    base_vars = (
-        base_vars
-        if ignore_defaults
-        else await _resolve_default_references(base_vars, session)
-    )
+    base_vars = await _resolve_default_references(base_vars, session)
     all_job_vars = {**base_vars}
 
     for jvs in job_vars:
@@ -152,8 +182,8 @@ async def validate_job_variables_for_deployment_flow_run(
     """
     Validate job variables for a flow run created for a deployment.
 
-    NOTE: This will raise an HTTP 404 error if a referenced block document does not exist.
-    Therefore, this is only safe to use within the context of an API request.
+    Flow runs are the terminal point for job variable overlays, so we validate required
+    job variables because all variables should now be present.
     """
     # If we aren't able to access a deployment's work pool, we don't have a base job
     # template to validate job variables against. This is not a validation failure because
@@ -166,9 +196,6 @@ async def validate_job_variables_for_deployment_flow_run(
         )
         return
 
-    if not (deployment.job_variables or flow_run.job_variables):
-        return
-
     work_pool = deployment.work_queue.work_pool
 
     try:
@@ -178,7 +205,7 @@ async def validate_job_variables_for_deployment_flow_run(
             work_pool.base_job_template,
             flow_run.job_variables or {},
             ignore_required=False,
-            ignore_defaults=False,
+            ignore_defaults=True,
         )
     except ValidationError as exc:
         if isinstance(flow_run, schemas.actions.DeploymentFlowRunCreate):
@@ -205,9 +232,6 @@ async def validate_job_variables_for_deployment(
     required fields. If the full set of job variables when a flow is running, including
     the deployment's and flow run's overrides, fails to specify a value for the required
     key, that's an error.
-
-    NOTE: This will raise an HTTP 404 error if a referenced block document does not exist.
-    Therefore, this is only safe to use within the context of an API request.
     """
     if not deployment.job_variables:
         return
@@ -247,7 +271,6 @@ async def validate_job_variable_defaults_for_work_pool(
     for the required key, that's an error.
 
     NOTE: This will raise an HTTP 404 error if a referenced block document does not exist.
-    Therefore, this is only safe to use within the context of an API request.
     """
     try:
         await _validate_work_pool_job_variables(
@@ -269,8 +292,8 @@ async def validate_job_variables_for_run_deployment_action(
     """
     Validate the job variables for a RunDeployment action.
 
-    NOTE: This will raise an HTTP 404 error if a referenced block document does not exist.
-    Therefore, this is only safe to use within the context of an API request.
+    This action is equivalent to creating a flow run for a deployment, so we validate
+    required job variables because all variables should now be present.
     """
     try:
         deployment = await models.deployments.read_deployment(
@@ -302,6 +325,6 @@ async def validate_job_variables_for_run_deployment_action(
         work_pool.name,
         work_pool.base_job_template,
         run_action.job_variables or {},
-        ignore_required=True,
+        ignore_required=False,
         ignore_defaults=True,
     )

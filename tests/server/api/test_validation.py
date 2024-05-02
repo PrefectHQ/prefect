@@ -274,7 +274,7 @@ class TestDeploymentValidation:
         return deployment
 
     @pytest.mark.parametrize("schema_cls", [DeploymentCreate, DeploymentUpdate])
-    async def test_deployment_template_validation_missing_block_document(
+    async def test_deployment_template_validation_succeeds_with_missing_default_block_document(
         self,
         session,
         work_pool,
@@ -283,18 +283,21 @@ class TestDeploymentValidation:
         missing_block_doc_ref_template,
         schema_cls,
     ):
+        """
+        When we validate a deployment's job variables, we only validate the job variables
+        and not default values in the base template.
+        """
         work_pool.base_job_template = missing_block_doc_ref_template
         deployment = await self.make_deployment_schema(flow.id, schema_cls)
 
-        with pytest.raises(HTTPException, match="404: Block not found."):
-            await validate_job_variables_for_deployment(
-                session,
-                work_pool,
-                deployment,
-            )
+        await validate_job_variables_for_deployment(
+            session,
+            work_pool,
+            deployment,
+        )
 
     @pytest.mark.parametrize("schema_cls", [DeploymentCreate, DeploymentUpdate])
-    async def test_deployment_template_validation_block_document_reference_incorrect_type(
+    async def test_deployment_template_validation_succeeds_with_block_document_reference_incorrect_type(
         self,
         session,
         work_pool,
@@ -303,29 +306,11 @@ class TestDeploymentValidation:
         incorrect_type_block_ref_template,
         schema_cls,
     ):
+        """
+        When we validate a deployment's job variables, we only validate the job variables
+        and not default values in the base template.
+        """
         work_pool.base_job_template = incorrect_type_block_ref_template
-        deployment = await self.make_deployment_schema(flow.id, schema_cls)
-
-        with pytest.raises(
-            HTTPException, match="{'foo': 'bar'} is not of type 'string'"
-        ):
-            await validate_job_variables_for_deployment(
-                session,
-                work_pool,
-                deployment,
-            )
-
-    @pytest.mark.parametrize("schema_cls", [DeploymentCreate, DeploymentUpdate])
-    async def test_deployment_template_validation_valid_block_document_reference(
-        self,
-        session,
-        work_pool,
-        flow,
-        deployment_with_work_queue,
-        block_ref_template,
-        schema_cls,
-    ):
-        work_pool.base_job_template = block_ref_template
         deployment = await self.make_deployment_schema(flow.id, schema_cls)
 
         await validate_job_variables_for_deployment(
@@ -416,12 +401,16 @@ class TestDeploymentValidation:
 
 
 class TestDeploymentFlowRunJobVariablesValidation:
-    async def test_missing_block_document(
+    async def test_missing_block_document_default_value(
         self,
         flow,
         session,
         missing_block_doc_ref_template,
     ):
+        """
+        We don't validate default values from the base job template when validating
+        flow run job variables.
+        """
         work_pool = await create_work_pool(
             session=session,
             base_job_template=missing_block_doc_ref_template,
@@ -432,19 +421,22 @@ class TestDeploymentFlowRunJobVariablesValidation:
             work_pool=work_pool,
         )
 
-        with pytest.raises(HTTPException, match="404: Block not found."):
-            await validate_job_variables_for_deployment_flow_run(
-                session=session,
-                deployment=deployment,
-                flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
-            )
+        await validate_job_variables_for_deployment_flow_run(
+            session=session,
+            deployment=deployment,
+            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+        )
 
-    async def test_block_document_reference_incorrect_type(
+    async def test_block_document_reference_incorrect_type_in_default_value(
         self,
         flow,
         session,
         incorrect_type_block_ref_template,
     ):
+        """
+        We don't validate default values from the base job template when validating
+        flow run job variables.
+        """
         work_pool = await create_work_pool(
             session=session,
             base_job_template=incorrect_type_block_ref_template,
@@ -455,14 +447,11 @@ class TestDeploymentFlowRunJobVariablesValidation:
             work_pool=work_pool,
         )
 
-        with pytest.raises(
-            HTTPException, match="{'foo': 'bar'} is not of type 'string'"
-        ):
-            await validate_job_variables_for_deployment_flow_run(
-                session=session,
-                deployment=deployment,
-                flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
-            )
+        await validate_job_variables_for_deployment_flow_run(
+            session=session,
+            deployment=deployment,
+            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+        )
 
     async def test_valid_block_document_reference(
         self,
