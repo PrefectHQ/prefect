@@ -1557,10 +1557,6 @@ class GlobalConcurrencyLimit(ObjectBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class CsrfToken(ObjectBaseModel):
     token: str = Field(
