@@ -282,3 +282,166 @@ def test_disable_gcl_not_found():
         expected_output="Global concurrency limit 'not-found' not found.",
         expected_code=1,
     )
+
+
+def test_update_gcl_limit(
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "update",
+            various_global_concurrency_limits[0].name,
+            "--limit",
+            "10",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            limit=10,
+        ),
+    )
+
+
+def test_update_gcl_active_slots(
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "update",
+            various_global_concurrency_limits[0].name,
+            "--active-slots",
+            "5",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            active_slots=5,
+        ),
+    )
+
+
+def test_update_gcl_slot_decay_per_second(
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "update",
+            various_global_concurrency_limits[0].name,
+            "--slot-decay-per-second",
+            "0.5",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            slot_decay_per_second=0.5,
+        ),
+    )
+
+
+def test_update_gcl_multiple_fields(
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "update",
+            various_global_concurrency_limits[0].name,
+            "--limit",
+            "10",
+            "--active-slots",
+            "5",
+            "--slot-decay-per-second",
+            "0.5",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            limit=10,
+            active_slots=5,
+            slot_decay_per_second=0.5,
+        ),
+    )
+
+
+def test_update_gcl_to_inactive(
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "update",
+            various_global_concurrency_limits[0].name,
+            "--disable",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            active=False,
+        ),
+    )
+
+
+def test_update_gcl_to_active(
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    various_global_concurrency_limits[0].active = False
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "update",
+            various_global_concurrency_limits[0].name,
+            "--enable",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            active=True,
+        ),
+    )
+
+
+def test_update_gcl_not_found():
+    invoke_and_assert(
+        ["global-concurrency-limit", "update", "not-found"],
+        expected_output="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )

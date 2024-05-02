@@ -206,3 +206,72 @@ async def disable_global_concurrency_limit(
             exit_with_error(f"Global concurrency limit {name!r} not found.")
 
     exit_with_success(f"Disabled global concurrency limit with name {name!r}.")
+
+
+@global_concurrency_limit_app.command("update")
+async def update_global_concurrency_limit(
+    name: str = typer.Argument(
+        ..., help="The name of the global concurrency limit to update."
+    ),
+    enable: Optional[bool] = typer.Option(
+        None, "--enable", help="Enable the global concurrency limit."
+    ),
+    disable: Optional[bool] = typer.Option(
+        None, "--disable", help="Disable the global concurrency limit."
+    ),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", "-l", help="The limit of the global concurrency limit."
+    ),
+    active_slots: Optional[int] = typer.Option(
+        None, "--active-slots", help="The number of active slots."
+    ),
+    slot_decay_per_second: Optional[float] = typer.Option(
+        None, "--slot-decay-per-second", help="The slot decay per second."
+    ),
+):
+    """
+    Update a global concurrency limit.
+
+    Arguments:
+        name (str): The name of the global concurrency limit to update.
+        inactive (bool): Whether to create a disabled global concurrency limit.
+        limit (Optional[int]): The limit of the global concurrency limit.
+        active_slots (Optional[int]): The number of active slots.
+        slot_decay_per_second (Optional[float]): The slot decay per second.
+
+    Examples:
+        $ prefect global-concurrency-limit update my-gcl --limit 10
+        $ prefect gcl update my-gcl --active-slots 5
+        $ prefect gcl update my-gcl --slot-decay-per-second 0.5
+        $ prefect gcl update my-gcl --inactive
+    """
+    gcl = GlobalConcurrencyLimitUpdate()
+
+    if enable and disable:
+        exit_with_error(
+            "Cannot enable and disable a global concurrency limit at the same time."
+        )
+
+    if enable:
+        gcl.active = True
+    if disable:
+        gcl.active = False
+
+    if limit is not None:
+        gcl.limit = limit
+
+    if active_slots is not None:
+        gcl.active_slots = active_slots
+
+    if slot_decay_per_second is not None:
+        gcl.slot_decay_per_second = slot_decay_per_second
+
+    async with get_client() as client:
+        try:
+            await client.update_global_concurrency_limit(
+                name=name, concurrency_limit=gcl
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Global concurrency limit {name!r} not found.")
+
+    exit_with_success(f"Updated global concurrency limit with name {name!r}.")
