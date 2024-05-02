@@ -41,16 +41,16 @@ See the following PR for implementation details:
 
 ### Experimental
 #### Events and Automations
-- Work queue status events — https://github.com/PrefectHQ/prefect/pull/12900
-- Automations SDK Methods — https://github.com/PrefectHQ/prefect/pull/12830
-- Update `prefect automation inspect` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/12904
-- Correcting an issue that would cause the `work-queue.ready` event to overfire — https://github.com/PrefectHQ/prefect/pull/13117
-- Update `automation pause` and `automation resume` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/13131
-- Implementing work pool status events — https://github.com/PrefectHQ/prefect/pull/13158
-- Adding a retention policy for events — https://github.com/PrefectHQ/prefect/pull/13160
+- Add work queue status events — https://github.com/PrefectHQ/prefect/pull/12900
+- Add work pool status events — https://github.com/PrefectHQ/prefect/pull/13158
+- Add support for negative label values in `ResourceSpecification` and filters — https://github.com/PrefectHQ/prefect/pull/13192
+- Add automations SDK methods — https://github.com/PrefectHQ/prefect/pull/12830
+- Add a retention policy for events — https://github.com/PrefectHQ/prefect/pull/13160
 - Allow streaming OSS events via `prefect event stream` — https://github.com/PrefectHQ/prefect/pull/13161
-- Support for negative label values in `ResourceSpecification` and filters — https://github.com/PrefectHQ/prefect/pull/13192
+- Update `prefect automation inspect` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/12904
+- Update `automation pause` and `automation resume` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/13131
 - Renaming `prefect.work-pool.not_ready` to `prefect.work-pool.not-ready` — https://github.com/PrefectHQ/prefect/pull/13202
+- Correcting an issue that would cause the `work-queue.ready` event to overfire — https://github.com/PrefectHQ/prefect/pull/13117
 
 #### Engine
 - New engine: add dedicated synchronous function handling — https://github.com/PrefectHQ/prefect/pull/12889
