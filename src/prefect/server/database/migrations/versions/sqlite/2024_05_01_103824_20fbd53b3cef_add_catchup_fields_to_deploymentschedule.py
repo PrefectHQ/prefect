@@ -22,7 +22,9 @@ def upgrade():
         batch_op.add_column(
             sa.Column("max_scheduled_runs", sa.Integer(), nullable=True)
         )
-        batch_op.add_column(sa.Column("catchup", sa.Boolean(), nullable=False))
+        batch_op.add_column(
+            sa.Column("catchup", sa.Boolean(), server_default="0", nullable=False)
+        )
 
 
 def downgrade():

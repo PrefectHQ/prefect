@@ -25,7 +25,8 @@ def upgrade():
         sa.Column("max_scheduled_runs", sa.Integer(), nullable=True),
     )
     op.add_column(
-        "deployment_schedule", sa.Column("catchup", sa.Boolean(), nullable=False)
+        "deployment_schedule",
+        sa.Column("catchup", sa.Boolean(), server_default="0", nullable=False),
     )
 
 
