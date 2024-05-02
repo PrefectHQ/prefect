@@ -55,6 +55,7 @@ For usage details, see the [Task Runners](/concepts/task-runners/) documentation
 import abc
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
+from contextvars import copy_context
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -374,9 +375,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
+        context = copy_context()
+
         # Create a future to store the result
         self._futures[key] = self._executor.submit(
-            self._run_and_store_result_sync, key, call
+            context.run, self._run_and_store_result_sync, key, call
         )
 
     async def wait(

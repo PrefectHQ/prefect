@@ -29,12 +29,14 @@ from prefect._internal.concurrency.cancellation import (
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.context import TaskRunContext
+from prefect.exceptions import UpstreamTaskError
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
+    Pending,
     Retrying,
     Running,
     StateDetails,
@@ -47,6 +49,7 @@ from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
     _get_hook_name,
     propose_state,
+    resolve_inputs,
 )
 
 P = ParamSpec("P")
@@ -138,11 +141,13 @@ class TaskRunEngine(Generic[P, R]):
                     else:
                         hook(task, task_run, state)
                 except Exception:
+                    pass
                     self.logger.error(
                         f"An error was encountered while running hook {hook_name!r}",
                         exc_info=True,
                     )
                 else:
+                    pass
                     self.logger.info(
                         f"Hook {hook_name!r} finished running successfully"
                     )
@@ -182,13 +187,27 @@ class TaskRunEngine(Generic[P, R]):
             cache_expiration=cache_expiration,
         )
 
+    async def _wait_for_upstream(self):
+        try:
+            # Resolve futures in parameters into data
+            self.parameters = await resolve_inputs(self.parameters)
+            # Resolve futures in any non-data dependencies to ensure they are ready
+            await resolve_inputs({"wait_for": self.wait_for}, return_data=False)
+        except UpstreamTaskError as upstream_exc:
+            return await self.set_state(
+                Pending(name="NotReady", message=str(upstream_exc)),
+                force=self.state.is_pending(),
+            )
+
     async def begin_run(self):
         state_details = self._compute_state_details()
-        new_state = Running(state_details=state_details)
-        state = await self.set_state(new_state)
-        while state.is_pending():
-            await asyncio.sleep(1)
+        state = await self._wait_for_upstream()
+        if not state:
+            new_state = Running(state_details=state_details)
             state = await self.set_state(new_state)
+            while state.is_pending():
+                await asyncio.sleep(1)
+                state = await self.set_state(new_state)
 
     async def set_state(self, state: State, force: bool = False) -> State:
         if not self.task_run:
@@ -424,7 +443,9 @@ def run_task_sync(
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
-    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    engine = TaskRunEngine[P, R](
+        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
+    )
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start_sync() as run:

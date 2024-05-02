@@ -29,6 +29,7 @@ from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+    PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     temporary_settings,
@@ -46,7 +47,12 @@ from prefect.utilities.engine import get_state_for_result
     autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
 )
 def set_new_engine_setting(request):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
+    with temporary_settings(
+        {
+            PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param,
+            PREFECT_LOGGING_TO_API_ENABLED: not request.param,
+        }
+    ):
         yield
 
 
@@ -3985,7 +3991,6 @@ class TestNestedTasks:
         result = await my_flow()
         assert result == 42
 
-    @fails_with_new_engine
     def test_nested_submitted_task(self):
         @task
         def inner_task():
