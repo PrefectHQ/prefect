@@ -63,21 +63,21 @@ See the following PR for implementation details:
 
 ### Integrations
 - Add `keep_container_group` to ACI worker — https://github.com/PrefectHQ/prefect/pull/13143
+- Improve Vertex AI worker performance  — https://github.com/PrefectHQ/prefect/pull/13139
 - Migrate `prefect-ray` to core — https://github.com/PrefectHQ/prefect/pull/12869
-- [prefect-aws] Fix inclusion of commas in tag scrubbing — https://github.com/PrefectHQ/prefect/pull/13190
-- adding dlt-prefect recipe — https://github.com/PrefectHQ/prefect/pull/13203
 - Log full output of databricks job — https://github.com/PrefectHQ/prefect/pull/13151
 - Update Snowflake Connector example in UI — https://github.com/PrefectHQ/prefect/pull/12903
 - Fix pydantic v1 prefect-databricks — https://github.com/PrefectHQ/prefect/pull/13166
+- Fix inclusion of commas in tag scrubbing — https://github.com/PrefectHQ/prefect/pull/13190
 - Handle empty `service_account_info` for cached Vertex client — https://github.com/PrefectHQ/prefect/pull/13175
-- Vertex AI performance pass — https://github.com/PrefectHQ/prefect/pull/13139
+- Add `dlt-prefect` recipe — https://github.com/PrefectHQ/prefect/pull/13203
 
 ### Documentation
-- Fix `az acr create` command in ACI worker guide — https://github.com/PrefectHQ/prefect/pull/12909
+- Add third-party secrets guide — https://github.com/PrefectHQ/prefect/pull/13173
 - Update documentation on nested / autonomous tasks — https://github.com/PrefectHQ/prefect/pull/13154
 - Update Prefect Snowflake docs — https://github.com/PrefectHQ/prefect/pull/13171
-- Adds third-party secrets guide — https://github.com/PrefectHQ/prefect/pull/13173
 - Update prefect-dbt index page — https://github.com/PrefectHQ/prefect/pull/13187
+- Fix `az acr create` command in ACI worker guide — https://github.com/PrefectHQ/prefect/pull/12909
 
 ### Contributors
 - @h2oa made their first contribution in https://github.com/PrefectHQ/prefect/pull/13157
