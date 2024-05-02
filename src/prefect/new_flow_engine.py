@@ -246,12 +246,9 @@ class FlowRunEngine(Generic[P, R]):
             raise ValueError("Flow run not set")
 
         self.flow_run = await client.read_flow_run(self.flow_run.id)
-        task_runner = self.flow.task_runner.duplicate()
 
         async with AsyncExitStack() as stack:
-            task_runner = await stack.enter_async_context(
-                self.flow.task_runner.duplicate().start()
-            )
+            task_runner = stack.enter_context(ConcurrentTaskRunner())
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,

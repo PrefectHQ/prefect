@@ -170,7 +170,8 @@ class PrefectFuture(Generic[R, A]):
         if self._final_state:
             return self._final_state
 
-        self._final_state = self._task_runner.wait(self.key, timeout)
+        future = asyncio.wrap_future(self._task_runner._futures[self.key])
+        self._final_state = await future
 
         return self._final_state
 
@@ -315,7 +316,7 @@ class ConcurrentTaskRunner:
             self._futures[task_run_id] = self._executor.submit(
                 context.run,
                 asyncio.run,
-                run_task(task, parameters, task_run_id, wait_for, return_type="state"),
+                run_task(task, task_run_id, parameters, wait_for, return_type="state"),
             )
         else:
             future.asynchronous = False
