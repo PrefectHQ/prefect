@@ -12,6 +12,7 @@ from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
 from prefect.exceptions import ObjectNotFound
 
 global_concurrency_limit_app = PrefectTyper(
@@ -126,3 +127,76 @@ async def inspect_global_concurrency_limit(
 
     else:
         app.console.print(Pretty(gcl_limit))
+
+
+@global_concurrency_limit_app.command("delete")
+async def delete_global_concurrency_limit(
+    name: str,
+):
+    """
+    Delete a global concurrency limit.
+
+    Arguments:
+        name (str): The name of the global concurrency limit to delete.
+    """
+    async with get_client() as client:
+        try:
+            await client.delete_global_concurrency_limit_by_name(name=name)
+        except ObjectNotFound:
+            exit_with_error(f"Global concurrency limit {name!r} not found.")
+
+    exit_with_success(f"Deleted global concurrency limit with name {name!r}.")
+
+
+@global_concurrency_limit_app.command("enable")
+async def enable_global_concurrency_limit(
+    name: str,
+):
+    """
+    Enable a global concurrency limit.
+
+    Arguments:
+        name (str): The name of the global concurrency limit to enable.
+    """
+    async with get_client() as client:
+        try:
+            gcl_limit = await client.read_global_concurrency_limit_by_name(name=name)
+            if gcl_limit.active:
+                exit_with_error(
+                    f"Global concurrency limit with name {name!r} is already enabled."
+                )
+            await client.update_global_concurrency_limit(
+                name=name,
+                concurrency_limit=GlobalConcurrencyLimitUpdate(active=True),
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Global concurrency limit {name!r} not found.")
+
+    exit_with_success(f"Enabled global concurrency limit with name {name!r}.")
+
+
+@global_concurrency_limit_app.command("disable")
+async def disable_global_concurrency_limit(
+    name: str,
+):
+    """
+    Disable a global concurrency limit.
+
+    Arguments:
+        name (str): The name of the global concurrency limit to disable.
+    """
+    async with get_client() as client:
+        try:
+            gcl_limit = await client.read_global_concurrency_limit_by_name(name=name)
+            if not gcl_limit.active:
+                exit_with_error(
+                    f"Global concurrency limit with name {name!r} is already disabled."
+                )
+            await client.update_global_concurrency_limit(
+                name=name,
+                concurrency_limit=GlobalConcurrencyLimitUpdate(active=False),
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Global concurrency limit {name!r} not found.")
+
+    exit_with_success(f"Disabled global concurrency limit with name {name!r}.")
