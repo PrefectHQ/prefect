@@ -36,7 +36,7 @@ See the following PR for implementation details:
 - Revert console setup changes to fix interactivity — https://github.com/PrefectHQ/prefect/pull/13145
 - Warn when work queues paused when starting a worker or agent — https://github.com/PrefectHQ/prefect/pull/13159
 - Standardize work pool type as `Process` — https://github.com/PrefectHQ/prefect/pull/13176
-- Raise a better error when deleting and inspecting blocks — https://github.com/PrefectHQ/prefect/pull/13136
+- Raise a clearer error when deleting and inspecting blocks — https://github.com/PrefectHQ/prefect/pull/13136
 - Fix csrf race condition that caused some pages to not render content when refreshing — https://github.com/PrefectHQ/prefect/pull/13172
 
 ### Experimental
@@ -49,8 +49,8 @@ See the following PR for implementation details:
 - Allow streaming OSS events via `prefect event stream` — https://github.com/PrefectHQ/prefect/pull/13161
 - Update `prefect automation inspect` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/12904
 - Update `automation pause` and `automation resume` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/13131
-- Renaming `prefect.work-pool.not_ready` to `prefect.work-pool.not-ready` — https://github.com/PrefectHQ/prefect/pull/13202
-- Correcting an issue that would cause the `work-queue.ready` event to overfire — https://github.com/PrefectHQ/prefect/pull/13117
+- Rename `prefect.work-pool.not_ready` to `prefect.work-pool.not-ready` — https://github.com/PrefectHQ/prefect/pull/13202
+- Correct an issue that would cause the `work-queue.ready` event to overfire — https://github.com/PrefectHQ/prefect/pull/13117
 
 #### Engine
 - Add dedicated synchronous function handling — https://github.com/PrefectHQ/prefect/pull/12889
