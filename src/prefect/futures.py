@@ -27,9 +27,10 @@ from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_async
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 from prefect.states import State
 from prefect.utilities.annotations import quote
-from prefect.utilities.asyncutils import A, Async, Sync, sync
+from prefect.utilities.asyncutils import A, Async, Sync, run_sync, sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 
 if TYPE_CHECKING:
@@ -231,7 +232,13 @@ class PrefectFuture(Generic[R, A]):
         if self.asynchronous:
             return from_async.call_soon_in_loop_thread(result).aresult()
         else:
-            return from_sync.call_soon_in_loop_thread(result).result()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                # we don't want to block the event loop on the loop thread with our sync execution
+                return run_sync(
+                    self._result(timeout=timeout, raise_on_failure=raise_on_failure)
+                )
+            else:
+                return from_sync.call_soon_in_loop_thread(result).result()
 
     async def _result(self, timeout: float = None, raise_on_failure: bool = True):
         """

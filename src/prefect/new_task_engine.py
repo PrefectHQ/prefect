@@ -141,13 +141,11 @@ class TaskRunEngine(Generic[P, R]):
                     else:
                         hook(task, task_run, state)
                 except Exception:
-                    pass
                     self.logger.error(
                         f"An error was encountered while running hook {hook_name!r}",
                         exc_info=True,
                     )
                 else:
-                    pass
                     self.logger.info(
                         f"Hook {hook_name!r} finished running successfully"
                     )
