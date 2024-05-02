@@ -80,7 +80,7 @@ async def inspect_global_concurrency_limit(
         None,
         "--file",
         "-f",
-        help="Path to .py file containing block types to be registered",
+        help="Path to .json file to write the global concurrency limit output to.",
     ),
 ):
     """
