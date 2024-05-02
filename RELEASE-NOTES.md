@@ -1,5 +1,65 @@
 # Prefect Release Notes
 
+## Release 2.18.2
+
+### Enhancements
+- Enhancement: Make name optional when running `flow.serve` — https://github.com/PrefectHQ/prefect/pull/13069
+- Add `csrf_enabled` setting to UI settings — https://github.com/PrefectHQ/prefect/pull/13168
+- Allow case-insensitive state and state type handling when listing flow runs via CLI — https://github.com/PrefectHQ/prefect/pull/13152
+
+### Fixes
+- Raise a better error when deleting and inspecting blocks — https://github.com/PrefectHQ/prefect/pull/13136
+- Revert console setup changes to fix interactivity — https://github.com/PrefectHQ/prefect/pull/13145
+- Warn when work queues paused when starting a worker or agent — https://github.com/PrefectHQ/prefect/pull/13159
+- Standardize work pool name as Process — https://github.com/PrefectHQ/prefect/pull/13176
+- Fix csrf race condition that caused some pages to not render content when refreshing — https://github.com/PrefectHQ/prefect/pull/13172
+
+### Experimental
+#### Events and Automations
+- Work queue status events — https://github.com/PrefectHQ/prefect/pull/12900
+- Automations SDK Methods — https://github.com/PrefectHQ/prefect/pull/12830
+- Update `prefect automation inspect` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/12904
+- Correcting an issue that would cause the `work-queue.ready` event to overfire — https://github.com/PrefectHQ/prefect/pull/13117
+- Update `automation pause` and `automation resume` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/13131
+- Implementing work pool status events — https://github.com/PrefectHQ/prefect/pull/13158
+- Adding a retention policy for events — https://github.com/PrefectHQ/prefect/pull/13160
+- Allow streaming OSS events via `prefect event stream` — https://github.com/PrefectHQ/prefect/pull/13161
+- Support for negative label values in `ResourceSpecification` and filters — https://github.com/PrefectHQ/prefect/pull/13192
+- Renaming `prefect.work-pool.not_ready` to `prefect.work-pool.not-ready` — https://github.com/PrefectHQ/prefect/pull/13202
+
+#### Engine
+- New engine: add dedicated synchronous function handling — https://github.com/PrefectHQ/prefect/pull/12889
+- Fix subflow handling in new engine — https://github.com/PrefectHQ/prefect/pull/12913
+- New engine: handle *args / **kwargs correctly — https://github.com/PrefectHQ/prefect/pull/13142
+- Add async `task.submit` support with new task engine — https://github.com/PrefectHQ/prefect/pull/13153
+
+#### Deployment schedule behavior
+- Add columns to ORM `DeploymentSchedule` and add migrations — https://github.com/PrefectHQ/prefect/pull/13186
+
+### Integrations
+- Add `keep_container_group` to ACI worker — https://github.com/PrefectHQ/prefect/pull/13143
+- Migrate `prefect-ray` to core — https://github.com/PrefectHQ/prefect/pull/12869
+- [prefect-aws] Fix inclusion of commas in tag scrubbing — https://github.com/PrefectHQ/prefect/pull/13190
+- adding dlt-prefect recipe — https://github.com/PrefectHQ/prefect/pull/13203
+- Log full output of databricks job — https://github.com/PrefectHQ/prefect/pull/13151
+- Update Snowflake Connector example in UI — https://github.com/PrefectHQ/prefect/pull/12903
+- Fix pydantic v1 prefect-databricks — https://github.com/PrefectHQ/prefect/pull/13166
+- Handle empty `service_account_info` for cached Vertex client — https://github.com/PrefectHQ/prefect/pull/13175
+- Vertex AI performance pass — https://github.com/PrefectHQ/prefect/pull/13139
+
+### Documentation
+- Fix `az acr create` command in ACI worker guide — https://github.com/PrefectHQ/prefect/pull/12909
+- Update documentation on nested / autonomous tasks — https://github.com/PrefectHQ/prefect/pull/13154
+- Update Prefect Snowflake docs — https://github.com/PrefectHQ/prefect/pull/13171
+- Adds third-party secrets guide — https://github.com/PrefectHQ/prefect/pull/13173
+- Update prefect-dbt index page — https://github.com/PrefectHQ/prefect/pull/13187
+
+### Contributors
+- @h2oa made their first contribution in https://github.com/PrefectHQ/prefect/pull/13157
+- @ConstantinoSchillebeeckx
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.18.1...2.18.2
+
 ## Release 2.18.1
 
 ### Fixes
