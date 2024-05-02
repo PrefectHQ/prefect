@@ -1,6 +1,6 @@
 import logging
 from textwrap import dedent
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
@@ -11,7 +11,12 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.exceptions import ParameterTypeError
-from prefect.new_flow_engine import FlowRunEngine, run_flow, run_flow_sync
+from prefect.new_flow_engine import (
+    FlowRunEngine,
+    load_flow_and_flow_run,
+    run_flow,
+    run_flow_sync,
+)
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
 
@@ -57,7 +62,7 @@ class TestFlowRunEngine:
             engine.client
 
     async def test_load_flow_from_entrypoint(
-        self, monkeypatch, prefect_client, tmp_path
+        self, monkeypatch, prefect_client, tmp_path, flow_run
     ):
         flow_code = """
         from prefect import flow
@@ -70,8 +75,8 @@ class TestFlowRunEngine:
         fpath.write_text(dedent(flow_code))
 
         monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
-        engine = FlowRunEngine(flow_run_id=uuid4().hex)
-        flow = await engine.load_flow(client=prefect_client)
+        loaded_flow_run, flow = await load_flow_and_flow_run(flow_run.id)
+        assert loaded_flow_run.id == flow_run.id
         assert flow.fn() == "woof!"
 
 

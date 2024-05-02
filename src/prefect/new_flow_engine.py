@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -51,6 +52,20 @@ from prefect.utilities.engine import (
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+async def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
+    ## TODO: add error handling to update state and log tracebacks
+    entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+
+    async with get_client() as client:
+        flow_run = await client.read_flow_run(flow_run_id)
+        flow = (
+            load_flow_from_entrypoint(entrypoint)
+            if entrypoint
+            else await load_flow_from_flow_run(flow_run, client=client)
+        )
+    return flow_run, flow
 
 
 @dataclass
@@ -209,16 +224,6 @@ class FlowRunEngine(Generic[P, R]):
             state=Pending(),
         )
         return parent_task_run
-
-    async def load_flow(self, client: PrefectClient) -> Flow:
-        entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
-
-        flow = (
-            load_flow_from_entrypoint(entrypoint)
-            if entrypoint
-            else await load_flow_from_flow_run(self.flow_run, client=client)
-        )
-        return flow
 
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()

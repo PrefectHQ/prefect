@@ -190,6 +190,7 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     is_async_fn,
+    run_sync,
     sync_compatible,
 )
 from prefect.utilities.callables import (
@@ -2435,9 +2436,18 @@ if __name__ == "__main__":
 
     try:
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_flow_engine import run_flow
+            from prefect.new_flow_engine import (
+                load_flow_and_flow_run,
+                run_flow,
+                run_flow_sync,
+            )
 
-            asyncio.run(run_flow(flow_run_id=flow_run_id))
+            flow_run, flow = run_sync(load_flow_and_flow_run)
+            # run the flow
+            if flow.isasync:
+                run_sync(run_flow(flow, flow_run=flow_run))
+            else:
+                run_flow_sync(flow, flow_run=flow_run)
         else:
             enter_flow_run_engine_from_subprocess(flow_run_id)
     except Abort as exc:
