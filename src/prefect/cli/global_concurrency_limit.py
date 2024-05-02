@@ -139,6 +139,12 @@ async def delete_global_concurrency_limit(
     Arguments:
         name (str): The name of the global concurrency limit to delete.
     """
+    if not typer.confirm(
+        f"Are you sure you want to delete global concurrency limit {name!r}?",
+        default=False,
+    ):
+        exit_with_error("Deletion aborted.")
+
     async with get_client() as client:
         try:
             await client.delete_global_concurrency_limit_by_name(name=name)
