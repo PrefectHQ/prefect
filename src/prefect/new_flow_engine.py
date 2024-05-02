@@ -28,7 +28,6 @@ from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger
-from prefect.new_task_runners import ConcurrentTaskRunner
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
@@ -248,7 +247,7 @@ class FlowRunEngine(Generic[P, R]):
         self.flow_run = await client.read_flow_run(self.flow_run.id)
 
         async with AsyncExitStack() as stack:
-            task_runner = stack.enter_context(ConcurrentTaskRunner())
+            task_runner = stack.enter_context(self.flow.task_runner.duplicate())
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -281,7 +280,7 @@ class FlowRunEngine(Generic[P, R]):
             task_group = anyio._backends._asyncio.TaskGroup()
 
         with ExitStack() as stack:
-            task_runner = stack.enter_context(ConcurrentTaskRunner())
+            task_runner = stack.enter_context(self.flow.task_runner.duplicate())
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
