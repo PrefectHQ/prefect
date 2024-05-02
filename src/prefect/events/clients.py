@@ -378,7 +378,7 @@ SEEN_EVENTS_TTL = 120
 
 class PrefectEventSubscriber:
     """
-    Subscribes to a Prefect Cloud event stream, yielding events as they occur.
+    Subscribes to a Prefect event stream, yielding events as they occur.
 
     Example:
 
