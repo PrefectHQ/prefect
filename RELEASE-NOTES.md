@@ -1,5 +1,15 @@
 # Prefect Release Notes
 
+## Release 2.18.3
+
+### Uncategorized
+- Wire up new engine to deployment runs — https://github.com/PrefectHQ/prefect/pull/12914
+
+### Fixes
+- Fix parameters that have unions types and a default values that become unresponsive and disappear from the ui — https://github.com/PrefectHQ/prefect-ui-library/pull/2355
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.18.2...2.18.3
+
 ## Release 2.18.2
 
 ### Providing a deployment name to `flow.serve` is now optional
