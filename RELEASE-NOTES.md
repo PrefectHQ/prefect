@@ -1,5 +1,92 @@
 # Prefect Release Notes
 
+## Release 2.18.2
+
+### Providing a deployment name to `flow.serve` is now optional
+
+When running `flow.serve`, you can now omit the deployment name. If you do not provide a deployment name, the deployment name will default to the name of the flow. This change makes it easier to run flows without needing to specify a deployment name each time:
+
+```python
+@flow
+def etl_flow():
+    pass
+
+if __name__ == "__main__":
+  etl_flow.serve()
+```
+results in:
+```bash
+Your flow 'etl-flow' is being served and polling for scheduled runs!
+
+To trigger a run for this flow, use the following command:
+
+        $ prefect deployment run 'etl-flow/etl-flow'
+```
+
+See the following PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13069
+
+### Enhancements
+- Add `PREFECT_SERVER_CSRF_PROTECTION_ENABLED` setting to UI settings — https://github.com/PrefectHQ/prefect/pull/13168
+- Allow case-insensitive state and state type handling when listing flow runs via CLI — https://github.com/PrefectHQ/prefect/pull/13152
+
+### Fixes
+- Fix deployment parameter defaults on Deployments page in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/2344
+- Sync value between form and JSON when entering flow parameters on the Deployments page in the UI - https://github.com/PrefectHQ/prefect-ui-library/pull/2342
+- Revert console setup changes to fix interactivity — https://github.com/PrefectHQ/prefect/pull/13145
+- Warn when work queues paused when starting a worker or agent — https://github.com/PrefectHQ/prefect/pull/13159
+- Standardize work pool type as `Process` — https://github.com/PrefectHQ/prefect/pull/13176
+- Raise a clearer error when deleting and inspecting blocks — https://github.com/PrefectHQ/prefect/pull/13136
+- Fix csrf race condition that caused some pages to not render content when refreshing — https://github.com/PrefectHQ/prefect/pull/13172
+
+### Experimental
+#### Events and Automations
+- Add work queue status events — https://github.com/PrefectHQ/prefect/pull/12900
+- Add work pool status events — https://github.com/PrefectHQ/prefect/pull/13158
+- Add support for negative label values in `ResourceSpecification` and filters — https://github.com/PrefectHQ/prefect/pull/13192
+- Add automations SDK methods — https://github.com/PrefectHQ/prefect/pull/12830
+- Add a retention policy for events — https://github.com/PrefectHQ/prefect/pull/13160
+- Allow streaming OSS events via `prefect event stream` — https://github.com/PrefectHQ/prefect/pull/13161
+- Update `prefect automation inspect` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/12904
+- Update `automation pause` and `automation resume` to handle automations with same name — https://github.com/PrefectHQ/prefect/pull/13131
+- Rename `prefect.work-pool.not_ready` to `prefect.work-pool.not-ready` — https://github.com/PrefectHQ/prefect/pull/13202
+- Correct an issue that would cause the `work-queue.ready` event to overfire — https://github.com/PrefectHQ/prefect/pull/13117
+
+#### Engine
+- Add dedicated synchronous function handling — https://github.com/PrefectHQ/prefect/pull/12889
+- Add async `task.submit` support with new task engine — https://github.com/PrefectHQ/prefect/pull/13153
+- Fix subflow handling in new engine — https://github.com/PrefectHQ/prefect/pull/12913
+- Handle *args / **kwargs correctly — https://github.com/PrefectHQ/prefect/pull/13142
+
+#### Deployment schedule behavior
+- Add columns to ORM `DeploymentSchedule` and add migrations — https://github.com/PrefectHQ/prefect/pull/13186
+- Add server default for non-nullable deployment schedule column - https://github.com/PrefectHQ/prefect/pull/13206
+
+### Integrations
+- Add `keep_container_group` to ACI worker — https://github.com/PrefectHQ/prefect/pull/13143
+- Improve Vertex AI worker performance  — https://github.com/PrefectHQ/prefect/pull/13139
+- Migrate `prefect-ray` to core — https://github.com/PrefectHQ/prefect/pull/12869
+- Log full output of databricks job — https://github.com/PrefectHQ/prefect/pull/13151
+- Update Snowflake Connector example in UI — https://github.com/PrefectHQ/prefect/pull/12903
+- Fix pydantic v1 prefect-databricks — https://github.com/PrefectHQ/prefect/pull/13166
+- Fix inclusion of commas in tag scrubbing — https://github.com/PrefectHQ/prefect/pull/13190
+- Handle empty `service_account_info` for cached Vertex client — https://github.com/PrefectHQ/prefect/pull/13175
+- Add `dlt-prefect` recipe — https://github.com/PrefectHQ/prefect/pull/13203
+
+### Documentation
+- Add third-party secrets guide — https://github.com/PrefectHQ/prefect/pull/13173
+- Update documentation on nested / autonomous tasks — https://github.com/PrefectHQ/prefect/pull/13154
+- Update Prefect Snowflake docs — https://github.com/PrefectHQ/prefect/pull/13171
+- Update prefect-dbt index page — https://github.com/PrefectHQ/prefect/pull/13187
+- Fix `az acr create` command in ACI worker guide — https://github.com/PrefectHQ/prefect/pull/12909
+- Update prefect-dbt index page - https://github.com/PrefectHQ/prefect/pull/13187
+
+### Contributors
+- @h2oa made their first contribution in https://github.com/PrefectHQ/prefect/pull/13157
+- @ConstantinoSchillebeeckx
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.18.1...2.18.2
+
 ## Release 2.18.1
 
 ### Fixes
