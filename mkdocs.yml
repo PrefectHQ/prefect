@@ -292,8 +292,6 @@ nav:
                       - CLI:
                             - Credentials: integrations/prefect-dbt/cli/credentials.md
                             - Commands: integrations/prefect-dbt/cli/commands.md
-                            - Tasks: integrations/prefect-dbt/cli/tasks.md
-                            - Flows: integrations/prefect-dbt/cli/flows.md
                             - Configs:
                                   - Base: integrations/prefect-dbt/cli/configs/base.md
                                   - BigQuery: integrations/prefect-dbt/cli/configs/bigquery.md
