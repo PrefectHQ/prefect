@@ -60,6 +60,7 @@ See the following PR for implementation details:
 
 #### Deployment schedule behavior
 - Add columns to ORM `DeploymentSchedule` and add migrations — https://github.com/PrefectHQ/prefect/pull/13186
+- Add server default for non-nullable deployment schedule column - https://github.com/PrefectHQ/prefect/pull/13206
 
 ### Integrations
 - Add `keep_container_group` to ACI worker — https://github.com/PrefectHQ/prefect/pull/13143
@@ -78,6 +79,7 @@ See the following PR for implementation details:
 - Update Prefect Snowflake docs — https://github.com/PrefectHQ/prefect/pull/13171
 - Update prefect-dbt index page — https://github.com/PrefectHQ/prefect/pull/13187
 - Fix `az acr create` command in ACI worker guide — https://github.com/PrefectHQ/prefect/pull/12909
+- Update prefect-dbt index page - https://github.com/PrefectHQ/prefect/pull/13187
 
 ### Contributors
 - @h2oa made their first contribution in https://github.com/PrefectHQ/prefect/pull/13157
