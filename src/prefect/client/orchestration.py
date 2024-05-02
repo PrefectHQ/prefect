@@ -107,6 +107,7 @@ from prefect.client.schemas.objects import (
     FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
+    GlobalConcurrencyLimit,
     Log,
     Parameter,
     QueueFilter,
