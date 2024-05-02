@@ -53,10 +53,10 @@ See the following PR for implementation details:
 - Correcting an issue that would cause the `work-queue.ready` event to overfire — https://github.com/PrefectHQ/prefect/pull/13117
 
 #### Engine
-- New engine: add dedicated synchronous function handling — https://github.com/PrefectHQ/prefect/pull/12889
-- Fix subflow handling in new engine — https://github.com/PrefectHQ/prefect/pull/12913
-- New engine: handle *args / **kwargs correctly — https://github.com/PrefectHQ/prefect/pull/13142
+- Add dedicated synchronous function handling — https://github.com/PrefectHQ/prefect/pull/12889
 - Add async `task.submit` support with new task engine — https://github.com/PrefectHQ/prefect/pull/13153
+- Fix subflow handling in new engine — https://github.com/PrefectHQ/prefect/pull/12913
+- Handle *args / **kwargs correctly — https://github.com/PrefectHQ/prefect/pull/13142
 
 #### Deployment schedule behavior
 - Add columns to ORM `DeploymentSchedule` and add migrations — https://github.com/PrefectHQ/prefect/pull/13186
