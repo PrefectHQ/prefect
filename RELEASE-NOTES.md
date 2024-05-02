@@ -2,12 +2,37 @@
 
 ## Release 2.18.2
 
+### Providing a deployment name to `flow.serve` is now optional
+
+When running `flow.serve`, you can now omit the deployment name. If you do not provide a deployment name, the deployment name will default to the name of the flow. This change makes it easier to run flows without needing to specify a deployment name each time:
+
+```python
+@flow
+def etl_flow():
+    pass
+
+if __name__ == "__main__":
+  etl_flow.serve()
+```
+results in:
+```bash
+Your flow 'etl-flow' is being served and polling for scheduled runs!
+
+To trigger a run for this flow, use the following command:
+
+        $ prefect deployment run 'etl-flow/etl-flow'
+```
+
+See the PR for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13069
+
 ### Enhancements
-- Enhancement: Make name optional when running `flow.serve` — https://github.com/PrefectHQ/prefect/pull/13069
 - Add `csrf_enabled` setting to UI settings — https://github.com/PrefectHQ/prefect/pull/13168
 - Allow case-insensitive state and state type handling when listing flow runs via CLI — https://github.com/PrefectHQ/prefect/pull/13152
 
 ### Fixes
+- Fix deployment parameter defaults not populating correctly in ui forms - https://github.com/PrefectHQ/prefect-ui-library/pull/2344
+- Sync value between form and json when entering flow parameters - https://github.com/PrefectHQ/prefect-ui-library/pull/2342
 - Raise a better error when deleting and inspecting blocks — https://github.com/PrefectHQ/prefect/pull/13136
 - Revert console setup changes to fix interactivity — https://github.com/PrefectHQ/prefect/pull/13145
 - Warn when work queues paused when starting a worker or agent — https://github.com/PrefectHQ/prefect/pull/13159
