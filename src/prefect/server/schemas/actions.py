@@ -580,10 +580,14 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
         default=True, description="Whether the concurrency limit is active."
     )
     name: str = Field(default=..., description="The name of the concurrency limit.")
-    limit: int = Field(default=..., description="The concurrency limit.")
-    active_slots: int = Field(default=0, description="The number of active slots.")
-    denied_slots: int = Field(default=0, description="The number of denied slots.")
-    slot_decay_per_second: float = Field(
+    limit: NonNegativeInteger = Field(default=..., description="The concurrency limit.")
+    active_slots: NonNegativeInteger = Field(
+        default=0, description="The number of active slots."
+    )
+    denied_slots: NonNegativeInteger = Field(
+        default=0, description="The number of denied slots."
+    )
+    slot_decay_per_second: NonNegativeFloat = Field(
         default=0,
         description="The decay rate for active slots when used as a rate limit.",
     )
