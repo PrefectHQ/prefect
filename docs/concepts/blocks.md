@@ -80,7 +80,7 @@ For example, an AWS Secret block can be created, but not used until the [`prefec
 
 Block types can be created by anyone and optionally shared with the community.
 You'll find block types available for consumption in many of the published [Prefect integrations libraries](/integrations/).
-If a block type is not available in the UI, you can [register it](#registering-blocks) via the CLI.
+If a block type is not available in the UI, you can [register it](#register-blocks) via the CLI.
 
 | Integration                                                             | Block                                                                                                                                                       | Slug                                   |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
@@ -124,11 +124,11 @@ If a block type is not available in the UI, you can [register it](#registering-b
 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   | [Database Credentials](/integrations/prefect-sqlalchemy/credentials/#prefect_sqlalchemy.credentials.DatabaseCredentials)                      | `database-credentials`                 |
 | [prefect-sqlalchemy](/integrations/prefect-sqlalchemy/)   | [SQLAlchemy Connector](/integrations/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector)                            | `sqlalchemy-connector`                 |
 
-## Using existing block types
+## Use existing block types
 
 Blocks are classes that subclass the `Block` base class. They can be instantiated and used like normal classes.
 
-### Instantiating blocks
+### Instantiate blocks
 
 To instantiate a block that stores a JSON value, use the `JSON` block:
 
@@ -138,7 +138,7 @@ from prefect.blocks.system import JSON
 json_block = JSON(value={"the_answer": 42})
 ```
 
-### Saving blocks
+### Save blocks
 
 To retrieve this saved value use the `.save()` method:
 
@@ -160,7 +160,7 @@ json_block.save(name="actually-life-the-universe-everything")
 
 Note that blocks can also be created and updated via the [Prefect UI](/ui/blocks/).
 
-### Loading blocks
+### Load blocks
 
 The block name can be used to load the block:
 
@@ -191,7 +191,7 @@ print(json_block.value["the-answer"]) #42
 !!! tip "Sharing Blocks"
     If using [Prefect Cloud](/cloud/), blocks can be loaded by workspace collaborators.
 
-### Deleting blocks
+### Delete blocks
 
 Delete a block with the `.delete()` method:
 
@@ -432,7 +432,7 @@ my_s3_bucket.save("my_s3_bucket")
 
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
 
-### Handling updates to custom `Block` types
+### Update custom `Block` types
 
 Let's add a `bucket_folder` field to your custom `S3Bucket` block that represents the default path to read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
 
@@ -446,7 +446,7 @@ class S3Bucket(Block):
     ...
 ```
 
-Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect server instance.
+Then [register the updated block type](#register-blocks) with either Prefect Cloud or your self-hosted Prefect server instance.
 
 If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, migrate them to the new version of your block type by adding the missing values:
 
@@ -461,7 +461,7 @@ my_s3_bucket_block.bucket_path = "my-default-bucket-path"
 my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
 ```
 
-## Registering blocks
+## Register blocks
 
 Prefect comes with many blocks pre-registered and ready to use.
 If you do not have a block available for use, you can register it.
