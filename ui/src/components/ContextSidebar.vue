@@ -15,7 +15,6 @@
     <p-context-nav-item :title="localization.info.variables" :to="routes.variables()" />
     <p-context-nav-item title="Notifications" :to="routes.notifications()" />
     <p-context-nav-item title="Concurrency" :to="routes.concurrencyLimits()" />
-    <p-context-nav-item v-if="canSeeArtifacts" title="Artifacts" :to="routes.artifacts()" />
 
     <template #footer>
       <a href="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none" target="_blank">
@@ -42,7 +41,6 @@
 
   const can = useCan()
   const canSeeWorkPools = computed(() => can.access.work_pools && can.read.work_pool)
-  const canSeeArtifacts = computed(() => can.access.artifacts)
 </script>
 
 <style>
