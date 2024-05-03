@@ -2,13 +2,13 @@ import asyncio
 import logging
 import time
 from typing import List
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock, Mock
 from uuid import UUID
 
 import pytest
 
 from prefect import Task, flow, get_run_logger, task
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import CrashedRun, MissingResult
@@ -53,9 +53,9 @@ class TestTaskRunEngine:
 
     async def test_client_attr_returns_client_after_starting(self):
         engine = TaskRunEngine(task=foo)
-        async with engine.start():
+        with engine.start():
             client = engine.client
-            assert isinstance(client, PrefectClient)
+            assert isinstance(client, SyncPrefectClient)
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
@@ -709,7 +709,7 @@ class TestTaskCrashDetection:
         self, prefect_client, interrupt_type, monkeypatch
     ):
         monkeypatch.setattr(
-            TaskRunEngine, "begin_run", AsyncMock(side_effect=interrupt_type)
+            TaskRunEngine, "begin_run", Mock(side_effect=interrupt_type)
         )
 
         @task

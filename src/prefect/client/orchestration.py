@@ -220,7 +220,7 @@ class EphemeralASGIServer:
             app=self.app,
             host="127.0.0.1",
             port=self.port,
-            log_level="info",
+            log_level="error",
             lifespan="on",
         )
 
@@ -3635,3 +3635,244 @@ class SyncPrefectClient:
         Send a GET request to /hello for testing purposes.
         """
         return self._client.get("/hello")
+
+    def create_flow(self, flow: "FlowObject") -> UUID:
+        """
+        Create a flow in the Prefect API.
+
+        Args:
+            flow: a [Flow][prefect.flows.Flow] object
+
+        Raises:
+            httpx.RequestError: if a flow was not created for any reason
+
+        Returns:
+            the ID of the flow in the backend
+        """
+        return self.create_flow_from_name(flow.name)
+
+    def create_flow_from_name(self, flow_name: str) -> UUID:
+        """
+        Create a flow in the Prefect API.
+
+        Args:
+            flow_name: the name of the new flow
+
+        Raises:
+            httpx.RequestError: if a flow was not created for any reason
+
+        Returns:
+            the ID of the flow in the backend
+        """
+        flow_data = FlowCreate(name=flow_name)
+        response = self._client.post(
+            "/flows/", json=flow_data.dict(json_compatible=True)
+        )
+
+        flow_id = response.json().get("id")
+        if not flow_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        # Return the id of the created flow
+        return UUID(flow_id)
+
+    def create_flow_run(
+        self,
+        flow: "FlowObject",
+        name: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
+        tags: Optional[Iterable[str]] = None,
+        parent_task_run_id: Optional[UUID] = None,
+        state: Optional["prefect.states.State"] = None,
+    ) -> FlowRun:
+        """
+        Create a flow run for a flow.
+
+        Args:
+            flow: The flow model to create the flow run for
+            name: An optional name for the flow run
+            parameters: Parameter overrides for this flow run.
+            context: Optional run context data
+            tags: a list of tags to apply to this flow run
+            parent_task_run_id: if a subflow run is being created, the placeholder task
+                run identifier in the parent flow
+            state: The initial state for the run. If not provided, defaults to
+                `Scheduled` for now. Should always be a `Scheduled` type.
+
+        Raises:
+            httpx.RequestError: if the Prefect API does not successfully create a run for any reason
+
+        Returns:
+            The flow run model
+        """
+        parameters = parameters or {}
+        context = context or {}
+
+        if state is None:
+            state = prefect.states.Pending()
+
+        # Retrieve the flow id
+        flow_id = self.create_flow(flow)
+
+        flow_run_create = FlowRunCreate(
+            flow_id=flow_id,
+            flow_version=flow.version,
+            name=name,
+            parameters=parameters,
+            context=context,
+            tags=list(tags or []),
+            parent_task_run_id=parent_task_run_id,
+            state=state.to_state_create(),
+            empirical_policy=FlowRunPolicy(
+                retries=flow.retries,
+                retry_delay=flow.retry_delay_seconds,
+            ),
+        )
+
+        flow_run_create_json = flow_run_create.dict(json_compatible=True)
+        response = self._client.post("/flow_runs/", json=flow_run_create_json)
+        flow_run = FlowRun.parse_obj(response.json())
+
+        # Restore the parameters to the local objects to retain expectations about
+        # Python objects
+        flow_run.parameters = parameters
+
+        return flow_run
+
+    def set_flow_run_state(
+        self,
+        flow_run_id: UUID,
+        state: "prefect.states.State",
+        force: bool = False,
+    ) -> OrchestrationResult:
+        """
+        Set the state of a flow run.
+
+        Args:
+            flow_run_id: the id of the flow run
+            state: the state to set
+            force: if True, disregard orchestration logic when setting the state,
+                forcing the Prefect API to accept the state
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        state_create = state.to_state_create()
+        state_create.state_details.flow_run_id = flow_run_id
+        state_create.state_details.transition_id = uuid4()
+        try:
+            response = self._client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=state_create.dict(json_compatible=True), force=force),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+        return OrchestrationResult.parse_obj(response.json())
+
+    def create_task_run(
+        self,
+        task: "TaskObject[P, R]",
+        flow_run_id: Optional[UUID],
+        dynamic_key: str,
+        name: Optional[str] = None,
+        extra_tags: Optional[Iterable[str]] = None,
+        state: Optional[prefect.states.State[R]] = None,
+        task_inputs: Optional[
+            Dict[
+                str,
+                List[
+                    Union[
+                        TaskRunResult,
+                        Parameter,
+                        Constant,
+                    ]
+                ],
+            ]
+        ] = None,
+    ) -> TaskRun:
+        """
+        Create a task run
+
+        Args:
+            task: The Task to run
+            flow_run_id: The flow run id with which to associate the task run
+            dynamic_key: A key unique to this particular run of a Task within the flow
+            name: An optional name for the task run
+            extra_tags: an optional list of extra tags to apply to the task run in
+                addition to `task.tags`
+            state: The initial state for the run. If not provided, defaults to
+                `Pending` for now. Should always be a `Scheduled` type.
+            task_inputs: the set of inputs passed to the task
+
+        Returns:
+            The created task run.
+        """
+        tags = set(task.tags).union(extra_tags or [])
+
+        if state is None:
+            state = prefect.states.Pending()
+
+        task_run_data = TaskRunCreate(
+            name=name,
+            flow_run_id=flow_run_id,
+            task_key=task.task_key,
+            dynamic_key=dynamic_key,
+            tags=list(tags),
+            task_version=task.version,
+            empirical_policy=TaskRunPolicy(
+                retries=task.retries,
+                retry_delay=task.retry_delay_seconds,
+                retry_jitter_factor=task.retry_jitter_factor,
+            ),
+            state=state.to_state_create(),
+            task_inputs=task_inputs or {},
+        )
+
+        response = self._client.post(
+            "/task_runs/", json=task_run_data.dict(json_compatible=True)
+        )
+        return TaskRun.parse_obj(response.json())
+
+    def read_task_run(self, task_run_id: UUID) -> TaskRun:
+        """
+        Query the Prefect API for a task run by id.
+
+        Args:
+            task_run_id: the task run ID of interest
+
+        Returns:
+            a Task Run model representation of the task run
+        """
+        response = self._client.get(f"/task_runs/{task_run_id}")
+        return TaskRun.parse_obj(response.json())
+
+    def set_task_run_state(
+        self,
+        task_run_id: UUID,
+        state: prefect.states.State,
+        force: bool = False,
+    ) -> OrchestrationResult:
+        """
+        Set the state of a task run.
+
+        Args:
+            task_run_id: the id of the task run
+            state: the state to set
+            force: if True, disregard orchestration logic when setting the state,
+                forcing the Prefect API to accept the state
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        state_create = state.to_state_create()
+        state_create.state_details.task_run_id = task_run_id
+        response = self._client.post(
+            f"/task_runs/{task_run_id}/set_state",
+            json=dict(state=state_create.dict(json_compatible=True), force=force),
+        )
+        return OrchestrationResult.parse_obj(response.json())
