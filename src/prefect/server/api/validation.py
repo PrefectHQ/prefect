@@ -14,18 +14,19 @@ Note some important details:
    because we don't know if the full set of overrides will include values for any required
    fields.
 
-3. Work pools can include default values for job variables. These can include references to
-   blocks. We have not been validating these values or whether the blocks satisfy the job
-   variable JSON schemas. To avoid failing validation for existing data, we only validate
-   defaults when validating the work pool's base job template, not when validating job
-   variables for deployments or flow runs.
+3.  Work pools can include default values for job variables. These can be normal types or
+    references to blocks. We have not been validating these values or whether default blocks
+    satisfy job variable JSON schemas. To avoid failing validation for existing (otherwise
+    working) data, we ignore invalid defaults when validating deployment and flow run
+    variables, but not when validating the work pool's base template, e.g. during work pool
+    creation or updates.
 
-3. A flow run is the terminal point for job variables, so it is the only place where
+4. A flow run is the terminal point for job variables, so it is the only place where
    we validate required variables and default values. Thus,
    `validate_job_variables_for_deployment_flow_run` and
    `validate_job_variables_for_run_deployment_action` check for required fields.
 
-4. We have been using Pydantic v1 to generate work pool base job templates, and it produces
+5. We have been using Pydantic v1 to generate work pool base job templates, and it produces
    invalid JSON schemas for some fields, e.g. tuples and optional fields. We try to fix these
    schemas on the fly while validating job variables, but there is a case we can't resolve,
    which is whether or not an optional field supports a None value. In this case, we allow
