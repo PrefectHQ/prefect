@@ -14,6 +14,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.schemas.actions import (
+    GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
 )
 from prefect.exceptions import (
@@ -326,8 +327,11 @@ async def create_global_concurrency_limit(
     limit: int = typer.Option(
         ..., "--limit", "-l", help="The limit of the global concurrency limit."
     ),
+    active: Optional[bool] = typer.Option(
+        True, "--active", help="Enable the global concurrency limit."
+    ),
     active_slots: Optional[int] = typer.Option(
-        ..., "--active-slots", help="The number of active slots."
+        0, "--active-slots", help="The number of active slots."
     ),
     slot_decay_per_second: Optional[float] = typer.Option(
         0.0, "--slot-decay-per-second", help="The slot decay per second."
@@ -357,26 +361,33 @@ async def create_global_concurrency_limit(
                 f"Global concurrency limit {name!r} already exists. Please try creating with a different name."
             )
 
+    try:
+        gcl = GlobalConcurrencyLimitCreate(
+            name=name,
+            limit=limit,
+            active=active,
+            active_slots=active_slots,
+            slot_decay_per_second=slot_decay_per_second,
+        )
 
-#     gcl = GlobalConcurrencyLimitCreate(
-#         active=True,
-#         limit=limit,
-#         active_slots=active_slots,
-#         slot_decay_per_second=slot_decay_per_second,
-#     )
+    except ValidationError as exc:
+        _surface_pydantic_errors_nicely(exc)
+        exit_with_error("Invalid arguments provided.")
+    except Exception as exc:
+        exit_with_error(f"Error creating global concurrency limit: {exc}")
 
-#     async with get_client() as client:
-#         try:
-#             await client.create_global_concurrency_limit(name=name, concurrency_limit=gcl)
-#         except PrefectHTTPStatusError as exc:
-#             if exc.response.status_code == 422:
-#                 parsed_response = exc.response.json()
+    async with get_client() as client:
+        try:
+            gcl_id = await client.create_global_concurrency_limit(concurrency_limit=gcl)
+        except PrefectHTTPStatusError as exc:
+            # We shouldn't hit this as we validate the model above
+            if exc.response.status_code == 422:
+                parsed_response = exc.response.json()
 
-#                 error_message = parsed_response["exception_detail"][0]["msg"]
+                exc = parsed_response["exception_detail"][0]["msg"]
 
-#                 exit_with_error(
-#                     f"Error creating global concurrency limit: {error_message}"
-#                 )
+            exit_with_error(f"Error updating global concurrency limit: {exc}")
 
-#     exit_with_success(f"Created global concurrency limit with name {name!r}.")
-# )
+    exit_with_success(
+        f"Created global concurrency limit with name {name!r} and ID '{gcl_id}'. Run `prefect gcl inspect {name}` to view details."
+    )
