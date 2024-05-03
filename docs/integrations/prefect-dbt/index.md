@@ -253,7 +253,7 @@ To install with additional functionality for dbt Core and Snowflake profiles:
 
 <div class = "terminal">
 ```bash
-pip install "prefect-dbt[snowflake]"
+pip install -U "prefect-dbt[snowflake]"
 ```
 </div>
 
