@@ -15,11 +15,15 @@ from typing import (
 )
 from uuid import UUID
 
+from typing_extensions import Self
+
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.utilities import get_or_create_client
+from prefect.logging.loggers import get_logger
 from prefect.states import State
 from prefect.utilities.asyncutils import A, run_sync
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.tasks import Task
@@ -39,7 +43,7 @@ class PrefectFuture(Generic[R, A]):
     def __init__(
         self,
         key: UUID,
-        task_runner: "ConcurrentTaskRunner",
+        task_runner: "TaskRunner",
         _final_state: Optional[State[R]] = None,  # Exposed for testing
     ) -> None:
         self.key = key
@@ -83,8 +87,7 @@ class PrefectFuture(Generic[R, A]):
         if self._final_state:
             return self._final_state
 
-        future = asyncio.wrap_future(self._task_runner._futures[self.key])
-        self._final_state = await future
+        self._final_state = self._task_runner.wait(self.key, timeout)
 
         return self._final_state
 
@@ -153,7 +156,25 @@ class PrefectFuture(Generic[R, A]):
         return True
 
 
-class BaseTaskRunner(abc.ABC):
+class TaskConcurrencyType(AutoEnum):
+    SEQUENTIAL = AutoEnum.auto()
+    CONCURRENT = AutoEnum.auto()
+    PARALLEL = AutoEnum.auto()
+
+
+class TaskRunner(abc.ABC):
+    def __init__(self) -> None:
+        self.logger = get_logger(f"task_runner.{self.name}")
+
+    @property
+    def name(self):
+        return type(self).__name__.lower().replace("taskrunner", "")
+
+    @property
+    @abc.abstractmethod
+    def concurrency_type(self) -> TaskConcurrencyType:
+        pass  # noqa
+
     @abc.abstractmethod
     def submit(
         self,
@@ -167,17 +188,26 @@ class BaseTaskRunner(abc.ABC):
     def wait(self, key: uuid.UUID, timeout: Optional[float] = None) -> Optional[State]:
         pass
 
-    def __enter__(self):
+    def duplicate(self) -> Self:
+        return type(self)()
+
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *args):
         pass
 
 
-class ConcurrentTaskRunner(BaseTaskRunner):
+class ConcurrentTaskRunner(TaskRunner):
     def __init__(self):
         self._executor: Optional[ThreadPoolExecutor] = None
         self._futures = {}
+
+        super().__init__()
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.CONCURRENT
 
     def submit(
         self,
@@ -229,5 +259,5 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     def __exit__(self, *args):
         if self._executor is None:
             return
-        self._executor.shutdown(*args)
+        self._executor.shutdown()
         self._executor = None

@@ -82,6 +82,7 @@ class TaskRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     task_run_id: Optional[UUID] = None
+    flow_run_id: Optional[UUID] = None
     wait_for: Optional[Iterable[PrefectFuture]] = None
     retries: int = 0
     _is_started: bool = False
@@ -329,6 +330,7 @@ class TaskRunEngine(Generic[P, R]):
                 if not self.task_run:
                     self.task_run = await self.task.create_run(
                         id=self.task_run_id,
+                        flow_run_id=self.flow_run_id,
                         parameters=self.parameters,
                         wait_for=self.wait_for,
                         client=client,
@@ -360,6 +362,7 @@ class TaskRunEngine(Generic[P, R]):
                 self.task_run = run_sync(
                     self.task.create_run(
                         id=self.task_run_id,
+                        flow_run_id=self.flow_run_id,
                         parameters=self.parameters,
                         wait_for=self.wait_for,
                         client=client,
@@ -399,6 +402,7 @@ class TaskRunEngine(Generic[P, R]):
 async def run_task(
     task: Task[P, Coroutine[Any, Any, R]],
     task_run_id: Optional[UUID] = None,
+    flow_run_id: Optional[UUID] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
@@ -409,7 +413,11 @@ async def run_task(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
     engine = TaskRunEngine[P, R](
-        task=task, parameters=parameters, task_run_id=task_run_id, wait_for=wait_for
+        task=task,
+        parameters=parameters,
+        task_run_id=task_run_id,
+        flow_run_id=flow_run_id,
+        wait_for=wait_for,
     )
 
     # This is a context manager that keeps track of the run of the task run.
@@ -442,12 +450,17 @@ async def run_task(
 def run_task_sync(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
+    flow_run_id: Optional[UUID] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
-        task=task, parameters=parameters, task_run_id=task_run_id, wait_for=wait_for
+        task=task,
+        parameters=parameters,
+        task_run_id=task_run_id,
+        flow_run_id=flow_run_id,
+        wait_for=wait_for,
     )
 
     # This is a context manager that keeps track of the run of the task run.

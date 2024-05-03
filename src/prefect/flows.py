@@ -197,7 +197,7 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -289,7 +289,7 @@ class Flow(Generic[P, R]):
         default_task_runner = (
             NewConcurrentTaskRunner()
             if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
-            else ConcurrentTaskRunner
+            else ConcurrentTaskRunner()
         )
         task_runner = task_runner or default_task_runner
         self.task_runner = (
@@ -1396,7 +1396,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = None,
     retry_delay_seconds: Union[int, float] = None,
-    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
+    task_runner: BaseTaskRunner = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,

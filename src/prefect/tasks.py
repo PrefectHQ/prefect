@@ -23,6 +23,7 @@ from typing import (
     NoReturn,
     Optional,
     Set,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -539,22 +540,20 @@ class Task(Generic[P, R]):
             viz_return_value=viz_return_value or self.viz_return_value,
         )
 
-    async def create_run(
+    def generate_run_name(
         self,
         parameters: Dict[str, Any],
-        id: Optional[UUID] = None,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
-        client: Optional[PrefectClient] = None,
-    ) -> TaskRun:
-        from prefect.context import TaskRunContext
-        from prefect.utilities.engine import _resolve_custom_task_run_name
-
-        flow_run_context = FlowRunContext.get()
+        flow_run_context: Optional["FlowRunContext"] = None,
+    ) -> Tuple[str, str]:
+        """
+        Generate a unique name for a task run.
+        """
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
-            collect_task_run_inputs,
+            _resolve_custom_task_run_name,
         )
+
+        flow_run_context = flow_run_context or FlowRunContext.get()
 
         if flow_run_context:
             dynamic_key = _dynamic_key_for_task_run(flow_run_context, self)
@@ -565,6 +564,24 @@ class Task(Generic[P, R]):
             task_run_name = _resolve_custom_task_run_name(self, parameters)
         except TypeError:
             task_run_name = f"{self.name} - {dynamic_key}"
+
+        return task_run_name, dynamic_key
+
+    async def create_run(
+        self,
+        parameters: Dict[str, Any],
+        id: Optional[UUID] = None,
+        flow_run_id: Optional[UUID] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        client: Optional[PrefectClient] = None,
+    ) -> TaskRun:
+        from prefect.context import TaskRunContext
+        from prefect.utilities.engine import (
+            collect_task_run_inputs,
+        )
+
+        flow_run_context = FlowRunContext.get()
 
         # prep input tracking
         task_inputs = {
@@ -586,6 +603,8 @@ class Task(Generic[P, R]):
 
         client, _ = get_or_create_client(client)
 
+        task_run_name, dynamic_key = self.generate_run_name(parameters)
+
         task_run = await client.create_task_run(
             id=id,
             task=self,
@@ -593,7 +612,7 @@ class Task(Generic[P, R]):
             flow_run_id=(
                 getattr(flow_run_context.flow_run, "id", None)
                 if flow_run_context and flow_run_context.flow_run
-                else None
+                else flow_run_id
             ),
             dynamic_key=dynamic_key,
             state=Pending(),
