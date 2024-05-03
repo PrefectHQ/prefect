@@ -9,11 +9,17 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
+from prefect._internal.pydantic._compat import ValidationError
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
-from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
+from prefect.client.schemas.actions import (
+    GlobalConcurrencyLimitUpdate,
+)
+from prefect.exceptions import (
+    ObjectNotFound,
+    PrefectHTTPStatusError,
+)
 
 global_concurrency_limit_app = PrefectTyper(
     name="global-concurrency-limit",
@@ -214,6 +220,13 @@ async def disable_global_concurrency_limit(
             exit_with_error(f"Global concurrency limit {name!r} not found.")
 
     exit_with_success(f"Disabled global concurrency limit with name {name!r}.")
+
+
+def _surface_pydantic_errors_nicely(exc: ValidationError):
+    for error in exc.errors():
+        location = "->".join(map(str, error["loc"]))
+        message = error["msg"]
+        app.console.print(f"Error at {location!r}: {message}")
 
 
 @global_concurrency_limit_app.command("update")
