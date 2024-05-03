@@ -13,7 +13,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
-from prefect.new_task_engine import TaskRunEngine, run_task, run_task_sync
+from prefect.new_task_engine import TaskRunEngine, run_task_async, run_task_sync
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -67,7 +67,7 @@ class TestTaskRunsAsync:
         async def foo():
             return 42
 
-        result = await run_task(foo)
+        result = await run_task_async(foo)
 
         assert result == 42
 
@@ -77,7 +77,7 @@ class TestTaskRunsAsync:
             return x, y
 
         parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
-        result = await run_task(bar, parameters=parameters)
+        result = await run_task_async(bar, parameters=parameters)
 
         assert result == (42, "nate")
 
@@ -112,7 +112,7 @@ class TestTaskRunsAsync:
         async def foo(x):
             return TaskRunContext.get().task_run.id
 
-        result = await run_task(foo, parameters=dict(x="blue"))
+        result = await run_task_async(foo, parameters=dict(x="blue"))
         run = await prefect_client.read_task_run(result)
 
         assert run.name == "name is blue"
@@ -124,7 +124,7 @@ class TestTaskRunsAsync:
         async def my_log_task():
             get_run_logger().critical("hey yall")
 
-        result = await run_task(my_log_task)
+        result = await run_task_async(my_log_task)
 
         assert result is None
         record = caplog.records[0]
@@ -146,7 +146,7 @@ class TestTaskRunsAsync:
         async def workflow():
             nonlocal flow_run_id
             flow_run_id = get_run_context().flow_run.id
-            return await run_task(foo)
+            return await run_task_async(foo)
 
         assert await workflow() == flow_run_id
 
@@ -155,7 +155,7 @@ class TestTaskRunsAsync:
         async def foo():
             return TaskRunContext.get().task_run.id
 
-        result = await run_task(foo)
+        result = await run_task_async(foo)
         run = await prefect_client.read_task_run(result)
 
         assert run.state_type == StateType.COMPLETED
@@ -170,7 +170,7 @@ class TestTaskRunsAsync:
             raise ValueError("xyz")
 
         with pytest.raises(ValueError, match="xyz"):
-            await run_task(foo)
+            await run_task_async(foo)
 
         run = await prefect_client.read_task_run(ID)
 
@@ -188,7 +188,7 @@ class TestTaskRunsAsync:
             else:
                 return ID
 
-        result = await run_task(foo)
+        result = await run_task_async(foo)
 
         run = await prefect_client.read_task_run(result)
 
@@ -204,7 +204,7 @@ class TestTaskRunsAsync:
             id1 = await inner()
             return (id1, TaskRunContext.get().task_run.id)
 
-        a, b = await run_task(outer)
+        a, b = await run_task_async(outer)
         assert a != b
 
         # assertions on outer
@@ -226,7 +226,7 @@ class TestTaskRunsAsync:
             return TaskRunContext.get().task_run.id
 
         # assert no persistence
-        run_id = await run_task(no_persist)
+        run_id = await run_task_async(no_persist)
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
@@ -234,7 +234,7 @@ class TestTaskRunsAsync:
             await api_state.result()
 
         # assert persistence
-        run_id = await run_task(persist)
+        run_id = await run_task_async(persist)
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
@@ -251,8 +251,8 @@ class TestTaskRunsAsync:
 
         fs = LocalFileSystem(base_url="/tmp/prefect")
 
-        one = await run_task(first.with_options(result_storage=fs))
-        two = await run_task(second.with_options(result_storage=fs))
+        one = await run_task_async(first.with_options(result_storage=fs))
+        two = await run_task_async(second.with_options(result_storage=fs))
 
         assert one == 42
         assert two == 42
@@ -461,7 +461,7 @@ class TestReturnState:
         async def foo():
             return 42
 
-        state = await run_task(foo, return_type="state")
+        state = await run_task_async(foo, return_type="state")
 
         assert isinstance(state, State)
 
@@ -474,7 +474,7 @@ class TestReturnState:
         async def foo():
             raise ValueError("xyz")
 
-        state = await run_task(foo, return_type="state")
+        state = await run_task_async(foo, return_type="state")
 
         assert isinstance(state, State)
 
@@ -739,7 +739,7 @@ class TestSyncAsyncTasks:
         async def async_task():
             return sync_task()
 
-        result = await run_task(async_task)
+        result = await run_task_async(async_task)
         assert result == 42
 
 
@@ -750,7 +750,7 @@ class TestTimeout:
             await asyncio.sleep(2)
 
         with pytest.raises(TimeoutError):
-            await run_task(async_task)
+            await run_task_async(async_task)
 
     async def test_timeout_sync_task(self):
         @task(timeout_seconds=0.1)

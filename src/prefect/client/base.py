@@ -182,7 +182,7 @@ class PrefectResponse(httpx.Response):
         return new_response
 
 
-class PrefectHttpxClient(httpx.AsyncClient):
+class PrefectHttpxAsyncClient(httpx.AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for retry-after headers
     for the provided status codes (typically 429, 502 and 503).

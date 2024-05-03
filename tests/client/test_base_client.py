@@ -11,7 +11,7 @@ from prefect._vendor.starlette import status
 import prefect
 import prefect.client
 import prefect.client.constants
-from prefect.client.base import PrefectHttpxClient, PrefectResponse
+from prefect.client.base import PrefectHttpxAsyncClient, PrefectResponse
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.settings import (
@@ -95,7 +95,7 @@ class TestPrefectHttpxClient:
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         retry_response = Response(
             error_code,
             request=Request("a test request", "fake.url/fake/route"),
@@ -138,7 +138,7 @@ class TestPrefectHttpxClient:
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         retry_response = Response(
             error_code,
             request=Request("a test request", "fake.url/fake/route"),
@@ -175,7 +175,7 @@ class TestPrefectHttpxClient:
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         retry_response = Response(
             status.HTTP_508_LOOP_DETECTED,
             request=Request("a test request", "fake.url/fake/route"),
@@ -214,7 +214,7 @@ class TestPrefectHttpxClient:
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
 
         base_client_send.side_effect = [
             exception_type("test"),
@@ -251,7 +251,7 @@ class TestPrefectHttpxClient:
         monkeypatch,
         response_or_exc,
     ):
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -278,7 +278,7 @@ class TestPrefectHttpxClient:
         monkeypatch,
         response_or_exc,
     ):
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -310,7 +310,7 @@ class TestPrefectHttpxClient:
     async def test_prefect_httpx_client_raises_final_error_after_retries(
         self, monkeypatch, final_response, expected_error_type
     ):
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -338,7 +338,7 @@ class TestPrefectHttpxClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         retry_response = Response(
             error_code,
             headers={"Retry-After": "5"},
@@ -368,7 +368,7 @@ class TestPrefectHttpxClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
 
         base_client_send.side_effect = [
             response_or_exc,
@@ -392,7 +392,7 @@ class TestPrefectHttpxClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
 
         base_client_send.side_effect = [
             # Generate responses with retry after headers
@@ -420,7 +420,7 @@ class TestPrefectHttpxClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         retry_response = Response(
             status.HTTP_429_TOO_MANY_REQUESTS,
             headers={"Retry-After": "5"},
@@ -456,7 +456,7 @@ class TestPrefectHttpxClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
 
         base_client_send.side_effect = [
             response_or_exc,
@@ -484,7 +484,7 @@ class TestPrefectHttpxClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
 
         base_client_send.side_effect = [TypeError("This error should not be retried")]
 
@@ -498,7 +498,7 @@ class TestPrefectHttpxClient:
 
     async def test_prefect_httpx_client_returns_prefect_response(self, monkeypatch):
         """Test that the PrefectHttpxClient returns a PrefectResponse"""
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -519,7 +519,7 @@ class TestPrefectHttpxClient:
             request=Request("a test request", "fake.url/fake/route"),
         )
 
-        client = PrefectHttpxClient()
+        client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -537,10 +537,10 @@ class TestPrefectHttpxClient:
 async def mocked_client(
     responses: List[Response],
     **client_kwargs: Dict[str, Any],
-) -> AsyncGenerator[Tuple[PrefectHttpxClient, mock.AsyncMock], None]:
+) -> AsyncGenerator[Tuple[PrefectHttpxAsyncClient, mock.AsyncMock], None]:
     with mock.patch("httpx.AsyncClient.send", autospec=True) as send:
         send.side_effect = responses
-        client = PrefectHttpxClient(**client_kwargs)
+        client = PrefectHttpxAsyncClient(**client_kwargs)
         async with client:
             try:
                 yield client, send
@@ -551,7 +551,7 @@ async def mocked_client(
 @asynccontextmanager
 async def mocked_csrf_client(
     responses: List[Response],
-) -> AsyncGenerator[Tuple[PrefectHttpxClient, mock.AsyncMock], None]:
+) -> AsyncGenerator[Tuple[PrefectHttpxAsyncClient, mock.AsyncMock], None]:
     async with mocked_client(responses, enable_csrf_support=True) as (client, send):
         yield client, send
 

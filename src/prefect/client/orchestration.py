@@ -154,7 +154,7 @@ if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
     from prefect.tasks import Task as TaskObject
 
-from prefect.client.base import ASGIApp, PrefectHttpxClient, app_lifespan_context
+from prefect.client.base import ASGIApp, PrefectHttpxAsyncClient, app_lifespan_context
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -361,7 +361,7 @@ class PrefectClient:
             and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
         )
 
-        self._client = PrefectHttpxClient(
+        self._client = PrefectHttpxAsyncClient(
             **httpx_settings, enable_csrf_support=enable_csrf_support
         )
         self._loop = None

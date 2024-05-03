@@ -411,7 +411,7 @@ class TaskRunEngine(Generic[P, R]):
         return getattr(self, "task_run").state.is_pending()
 
 
-async def run_task(
+async def run_task_async(
     task: Task[P, Coroutine[Any, Any, R]],
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
