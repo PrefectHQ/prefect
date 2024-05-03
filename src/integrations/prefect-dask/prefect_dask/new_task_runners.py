@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from functools import partial
 from typing import Any, Dict, Iterable, Optional, Type, Union
@@ -117,8 +116,8 @@ class DaskTaskRunner(TaskRunner):
 
         if task.isasync:
             self._dask_futures[task_run_id] = self._client.submit(
-                asyncio.run,
-                run_task(
+                partial(
+                    run_task,
                     task=task,
                     task_run_id=task_run_id,
                     flow_run_id=flow_run.id if flow_run else None,
