@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import os
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from typing import (
@@ -10,22 +11,26 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Tuple,
     TypeVar,
     Union,
     cast,
 )
+from uuid import UUID
 
 import anyio
 import anyio._backends._asyncio
 from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
-from prefect import Flow, Task, get_client
+from prefect import Task, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
+from prefect.deployments import load_flow_from_flow_run
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultFactory
@@ -49,16 +54,34 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+async def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
+    ## TODO: add error handling to update state and log tracebacks
+    entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+
+    async with get_client() as client:
+        flow_run = await client.read_flow_run(flow_run_id)
+        flow = (
+            load_flow_from_entrypoint(entrypoint)
+            if entrypoint
+            else await load_flow_from_flow_run(flow_run, client=client)
+        )
+    return flow_run, flow
+
+
 @dataclass
 class FlowRunEngine(Generic[P, R]):
-    flow: Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]
+    flow: Optional[Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]] = None
     parameters: Optional[Dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
+    flow_run_id: Optional[UUID] = None
     _is_started: bool = False
     _client: Optional[PrefectClient] = None
     short_circuit: bool = False
 
     def __post_init__(self):
+        if self.flow is None and self.flow_run_id is None:
+            raise ValueError("Either a flow or a flow_run_id must be provided.")
+
         if self.parameters is None:
             self.parameters = {}
 
@@ -304,6 +327,18 @@ class FlowRunEngine(Generic[P, R]):
             self._client = client
             self._is_started = True
 
+            # this conditional is engaged whenever a run is triggered via deployment
+            if self.flow_run_id and not self.flow:
+                self.flow_run = await client.read_flow_run(self.flow_run_id)
+                try:
+                    self.flow = await self.load_flow(client)
+                except Exception as exc:
+                    await self.handle_exception(
+                        exc,
+                        msg="Failed to load flow from entrypoint.",
+                    )
+                    self.short_circuit = True
+
             if not self.flow_run:
                 self.flow_run = await self.create_flow_run(client)
 
@@ -373,8 +408,9 @@ class FlowRunEngine(Generic[P, R]):
 
 
 async def run_flow(
-    flow: Flow[P, Coroutine[Any, Any, R]],
+    flow: Optional[Flow[P, Coroutine[Any, Any, R]]] = None,
     flow_run: Optional[FlowRun] = None,
+    flow_run_id: Optional[UUID] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
@@ -385,7 +421,7 @@ async def run_flow(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
 
-    engine = FlowRunEngine[P, R](flow, parameters, flow_run)
+    engine = FlowRunEngine[P, R](flow, parameters, flow_run, flow_run_id)
 
     # This is a context manager that keeps track of the state of the flow run.
     async with engine.start() as run:
