@@ -287,31 +287,6 @@ def test_disable_gcl_not_found():
     )
 
 
-def test_update_gcl_limit(
-    update_global_concurrency_limit: mock.AsyncMock,
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
-):
-    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
-
-    invoke_and_assert(
-        [
-            "global-concurrency-limit",
-            "update",
-            various_global_concurrency_limits[0].name,
-            "--limit",
-            "10",
-        ],
-        expected_output=f"Updated global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
-        expected_code=0,
-    )
-    update_global_concurrency_limit.assert_called_once_with(
-        name=various_global_concurrency_limits[0].name,
-        concurrency_limit=GlobalConcurrencyLimitUpdate(
-            limit=10,
-        ),
-    )
-
-
 @pytest.fixture
 async def global_concurrency_limit(session):
     gcl_schema = ConcurrencyLimitV2(
@@ -326,6 +301,31 @@ async def global_concurrency_limit(session):
 
     await session.commit()
     return model
+
+
+async def test_update_gcl_limit(
+    global_concurrency_limit: ConcurrencyLimitV2,
+    prefect_client,
+):
+    assert global_concurrency_limit.limit == 1
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "global-concurrency-limit",
+            "update",
+            global_concurrency_limit.name,
+            "--limit",
+            "10",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{global_concurrency_limit.name}'.",
+        expected_code=0,
+    )
+
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=global_concurrency_limit.name
+    )
+
+    assert client_res.limit == 10, f"Expected limit to be 10, got {client_res.limit}"
 
 
 async def test_update_gcl_active_slots(
@@ -470,7 +470,15 @@ async def test_update_gcl_to_active(
 
 def test_update_gcl_not_found():
     invoke_and_assert(
-        ["global-concurrency-limit", "update", "not-found"],
+        ["global-concurrency-limit", "update", "not-found", "--limit", "10"],
         expected_output_contains="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )
+
+
+def test_update_gcl_no_fields():
+    invoke_and_assert(
+        ["global-concurrency-limit", "update", "test"],
+        expected_output_contains="No update arguments provided.",
         expected_code=1,
     )
