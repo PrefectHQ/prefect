@@ -68,7 +68,7 @@ These block types can be created via the UI and used without installing any addi
 | [Slack Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook)                    | `slack-webhook`                                          | Sends notifications via a provided Slack webhook.                      |
 | [SMB](/concepts/filesystems/#smb)                                                                                    | `smb`                                                    | Stores data as a file on a SMB share.                                                     |
 | [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String)                                               | `string`                                                 | A block that represents a string.                                         |
-| [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS)                          | `twilio-sms`                                             | Enables sending notifications via Twilio SMS.                                                       |
+| [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS)                          | `twilio-sms`                                             | Sends notifications via Twilio SMS.                                                       |
 
 !!! Warning
     The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the the corresponding `S3Bucket`, `AzureBlobStorageCredentials`, `GCSBucket`, and `GitHubRepository` blocks found in the [Prefect integration libraries](/integrations/).
