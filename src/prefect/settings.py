@@ -1614,6 +1614,11 @@ PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE = Setting(bool, default=False)
 Whether or not to enable experimental new engine.
 """
 
+PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
+"""
+Whether or not to disable the sync_compatible decorator utility.
+"""
+
 
 # Defaults -----------------------------------------------------------------------------
 

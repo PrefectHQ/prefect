@@ -266,6 +266,10 @@ def sync_compatible(async_fn: T) -> T:
         from prefect._internal.concurrency.calls import get_current_call, logger
         from prefect._internal.concurrency.event_loop import get_running_loop
         from prefect._internal.concurrency.threads import get_global_loop
+        from prefect.settings import PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT
+
+        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT:
+            return async_fn(*args, **kwargs)
 
         global_thread_portal = get_global_loop()
         current_thread = threading.current_thread()
