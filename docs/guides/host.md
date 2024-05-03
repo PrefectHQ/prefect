@@ -277,7 +277,7 @@ You can choose:
 
 - Which run states should trigger a notification
 - Tags to filter which flow runs are covered by the notification
-- Whether to send an email, a Slack message, Microsoft Teams message, or other services
+- Whether to send an email, a Slack message, Microsoft Teams message, or use another services
 
 For email notifications (supported on Prefect Cloud only), the configuration requires email addresses to which the message is sent.
 
