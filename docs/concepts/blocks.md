@@ -23,9 +23,9 @@ You can access blocks for both configuring flow [deployments](/concepts/deployme
 
 Prefect provides some built-in block types that you can use right out of the box. Additional blocks are available through [Prefect Integrations](/integrations/). To use these blocks you can `pip install` the package, then register the blocks you want to use with Prefect Cloud or a Prefect server.
 
-Prefect Cloud and the Prefect server UI display a library of block types available for you to configure blocks that may be used by your flows.
+The Prefect UI's blocks catalogue displays block types available for configuration.
 
-![Viewing the new block library in the Prefect UI](/img/ui/block-library.png)
+![The block catalogue in the UI](/img/ui/block-library.png)
 
 !!! tip "Blocks and parameters"
     Blocks are useful for configuration that needs to be shared across flow runs and between flows.
@@ -77,7 +77,7 @@ Blocks can also be created by anyone and shared with the community. You'll find 
 | [prefect-azure](https://prefecthq.github.io/prefect-azure/)             | [Azure Cosmos DB Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCosmosDbCredentials)                    | `azure-cosmos-db-credentials`          |
 | [prefect-azure](https://prefecthq.github.io/prefect-azure/)             | [AzureML Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureMlCredentials)                                  | `azureml-credentials`                  |
 | [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Credentials](https://prefecthq.github.io/prefect-bitbucket/credentials/)                                                                         | `bitbucket-credentials`                |
-| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Repository](https://prefecthq.github.io/prefect-bitbucket/repository/)                                                                           | `bitbucket-repository`                 |                            
+| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Repository](https://prefecthq.github.io/prefect-bitbucket/repository/)                                                                           | `bitbucket-repository`                 |                       
 | [prefect-databricks](https://prefecthq.github.io/prefect-databricks/)   | [Databricks Credentials](https://prefecthq.github.io/prefect-databricks/credentials/#prefect_databricks.credentials.DatabricksCredentials)                  | `databricks-credentials`               |
 | [prefect-dbt](https://prefecthq.github.io/prefect-dbt/)                 | [dbt CLI BigQuery Target Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/bigquery/#prefect_dbt.cli.configs.bigquery.BigQueryTargetConfigs)     | `dbt-cli-bigquery-target-configs`      |
 | [prefect-dbt](https://prefecthq.github.io/prefect-dbt/)                 | [dbt CLI Profile](https://prefecthq.github.io/prefect-dbt/cli/credentials/#prefect_dbt.cli.credentials.DbtCliProfile)                                       | `dbt-cli-profile`                      |
