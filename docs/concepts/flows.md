@@ -33,7 +33,7 @@ Flow components can include:
 
 ### Flow benefits
 
-Using Prefect flows offer several advantages:
+Using Prefect flows offers several advantages:
 
 * **Code as workflows:** Define your workflows as Python code, allowing for clear, reusable, and maintainable logic.
 * **Automatic tracking:** The Prefect API tracks and reports every flow that you execute, providing observability into your workflows.
