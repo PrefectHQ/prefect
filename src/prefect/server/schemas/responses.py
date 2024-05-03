@@ -15,7 +15,6 @@ else:
 
 from typing_extensions import TYPE_CHECKING, Literal
 
-import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect.server.schemas.core import (
@@ -478,36 +477,6 @@ class WorkQueueWithStatus(WorkQueueResponse, WorkQueueStatusDetail):
     """Combines a work queue and its status details into a single object"""
 
 
-class WorkPoolResponse(schemas.core.WorkPool):
-    status: Optional[schemas.statuses.WorkPoolStatus] = Field(
-        default=None, description="The current status of the work pool."
-    )
-
-    @classmethod
-    async def from_orm(cls, orm_work_pool, session):
-        work_pool = super().from_orm(orm_work_pool)
-        if work_pool.type == "prefect-agent":
-            work_pool.status = None
-        elif work_pool.is_paused:
-            work_pool.status = schemas.statuses.WorkPoolStatus.PAUSED
-        else:
-            read_workers = await models.workers.read_workers(
-                session=session,
-                work_pool_id=work_pool.id,
-            )
-            online_workers = [
-                worker
-                for worker in read_workers
-                if schemas.responses.WorkerResponse.from_orm(worker).status
-                == schemas.statuses.WorkerStatus.ONLINE
-            ]
-            if len(online_workers) > 0:
-                work_pool.status = schemas.statuses.WorkPoolStatus.READY
-            else:
-                work_pool.status = schemas.statuses.WorkPoolStatus.NOT_READY
-        return work_pool
-
-
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 30
 INACTIVITY_HEARTBEAT_MULTIPLE = 3
 
@@ -535,3 +504,22 @@ class WorkerResponse(schemas.core.Worker):
             worker.status = schemas.statuses.WorkerStatus.OFFLINE
 
         return worker
+
+
+class GlobalConcurrencyLimitResponse(ORMBaseModel):
+    """
+    A response object for global concurrency limits.
+    """
+
+    active: bool = Field(
+        default=True, description="Whether the global concurrency limit is active."
+    )
+    name: str = Field(
+        default=..., description="The name of the global concurrency limit."
+    )
+    limit: int = Field(default=..., description="The concurrency limit.")
+    active_slots: int = Field(default=..., description="The number of active slots.")
+    slot_decay_per_second: float = Field(
+        default=2.0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )

@@ -28,6 +28,7 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.statuses import (
     DeploymentStatus,
+    WorkerStatus,
     WorkPoolStatus,
     WorkQueueStatus,
 )
@@ -863,6 +864,9 @@ class ORMDeploymentSchedule:
 
     schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES), nullable=False)
     active = sa.Column(sa.Boolean, nullable=False, default=True)
+    max_active_runs = sa.Column(sa.Integer, nullable=True)
+    max_scheduled_runs = sa.Column(sa.Integer, nullable=True)
+    catchup = sa.Column(sa.Boolean, nullable=False, default=False)
 
 
 @declarative_mixin
@@ -1253,7 +1257,7 @@ class ORMWorkQueue:
         sa.Enum(WorkQueueStatus, name="work_queue_status"),
         nullable=False,
         default=WorkQueueStatus.NOT_READY,
-        server_default="NOT_READY",
+        server_default=WorkQueueStatus.NOT_READY.value,
     )
 
     @declared_attr
@@ -1297,8 +1301,10 @@ class ORMWorkPool:
         sa.Enum(WorkPoolStatus, name="work_pool_status"),
         nullable=False,
         default=WorkPoolStatus.NOT_READY,
-        server_default="NOT_READY",
+        server_default=WorkPoolStatus.NOT_READY.value,
     )
+    last_transitioned_status_at = sa.Column(Timestamp(), nullable=True)
+    last_status_event_id = sa.Column(UUID, nullable=True)
 
     @declared_attr
     def __table_args__(cls):
@@ -1327,6 +1333,13 @@ class ORMWorker:
         index=True,
     )
     heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
+
+    status = sa.Column(
+        sa.Enum(WorkerStatus, name="worker_status"),
+        nullable=False,
+        default=WorkerStatus.OFFLINE,
+        server_default=WorkerStatus.OFFLINE.value,
+    )
 
     @declared_attr
     def __table_args__(cls):

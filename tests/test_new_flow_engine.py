@@ -1,4 +1,5 @@
 import logging
+from textwrap import dedent
 from uuid import UUID
 
 import pytest
@@ -10,7 +11,12 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.exceptions import ParameterTypeError
-from prefect.new_flow_engine import FlowRunEngine, run_flow, run_flow_sync
+from prefect.new_flow_engine import (
+    FlowRunEngine,
+    load_flow_and_flow_run,
+    run_flow,
+    run_flow_sync,
+)
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
 
@@ -37,6 +43,10 @@ class TestFlowRunEngine:
         assert engine.flow.name == "foo"
         assert engine.parameters == {}
 
+    async def test_empty_init(self):
+        with pytest.raises(ValueError, match="must be provided"):
+            FlowRunEngine()
+
     async def test_client_attr_raises_informative_error(self):
         engine = FlowRunEngine(flow=foo)
         with pytest.raises(RuntimeError, match="not started"):
@@ -51,8 +61,26 @@ class TestFlowRunEngine:
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
+    async def test_load_flow_from_entrypoint(
+        self, monkeypatch, prefect_client, tmp_path, flow_run
+    ):
+        flow_code = """
+        from prefect import flow
 
-class TestFlowRuns:
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
+        loaded_flow_run, flow = await load_flow_and_flow_run(flow_run.id)
+        assert loaded_flow_run.id == flow_run.id
+        assert flow.fn() == "woof!"
+
+
+class TestFlowRunsAsync:
     async def test_basic(self):
         @flow
         async def foo():
@@ -105,6 +133,32 @@ class TestFlowRuns:
         run = await prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
+
+    async def test_with_args(self):
+        @flow
+        async def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = await f(*args)
+        assert result == args
+
+    async def test_with_kwargs(self):
+        @flow
+        async def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = await f(**kwargs)
+        assert result == kwargs
+
+    async def test_with_args_kwargs(self):
+        @flow
+        async def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = await f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
 
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)
@@ -227,6 +281,32 @@ class TestFlowRunsSync:
         run = await prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
+
+    def test_with_args(self):
+        @flow
+        def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = f(*args)
+        assert result == args
+
+    def test_with_kwargs(self):
+        @flow
+        def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = f(**kwargs)
+        assert result == kwargs
+
+    def test_with_args_kwargs(self):
+        @flow
+        def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
 
     async def test_get_run_logger(self, caplog):
         caplog.set_level(logging.CRITICAL)

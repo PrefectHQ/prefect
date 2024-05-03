@@ -2280,8 +2280,8 @@ async def test_global_concurrency_limit_create(prefect_client):
         concurrency_limit = await prefect_client.read_global_concurrency_limit_by_name(
             name=global_concurrency_limit_name
         )
-        assert UUID(concurrency_limit.get("id")) == response_uuid
-        assert concurrency_limit.get("slot_decay_per_second") == slot_decay_per_second
+        assert concurrency_limit.id == response_uuid
+        assert concurrency_limit.slot_decay_per_second == slot_decay_per_second
 
 
 async def test_global_concurrency_limit_delete(prefect_client):
@@ -2322,16 +2322,18 @@ async def test_global_concurrency_limit_update_with_integer(prefect_client):
             ),
         )
         assert len(await prefect_client.read_global_concurrency_limits()) == index + 1
+
         assert (
             await prefect_client.read_global_concurrency_limit_by_name(
                 name=updated_global_concurrency_limit_name
             )
-        ).get("limit") == 1
+        ).limit == 1
+
         assert (
             await prefect_client.read_global_concurrency_limit_by_name(
                 name=updated_global_concurrency_limit_name
             )
-        ).get("slot_decay_per_second") == slot_decay_per_second
+        ).slot_decay_per_second == slot_decay_per_second
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await prefect_client.update_global_concurrency_limit(
                 name=created_global_concurrency_limit_name,

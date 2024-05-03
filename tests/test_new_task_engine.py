@@ -19,6 +19,7 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
+from prefect.states import State
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
 
@@ -60,7 +61,7 @@ class TestTaskRunEngine:
             engine.client
 
 
-class TestTaskRuns:
+class TestTaskRunsAsync:
     async def test_basic(self):
         @task
         async def foo():
@@ -79,6 +80,32 @@ class TestTaskRuns:
         result = await run_task(bar, parameters=parameters)
 
         assert result == (42, "nate")
+
+    async def test_with_args(self):
+        @task
+        async def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = await f(*args)
+        assert result == args
+
+    async def test_with_kwargs(self):
+        @task
+        async def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = await f(**kwargs)
+        assert result == kwargs
+
+    async def test_with_args_kwargs(self):
+        @task
+        async def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = await f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
 
     async def test_task_run_name(self, prefect_client):
         @task(task_run_name="name is {x}")
@@ -249,6 +276,32 @@ class TestTaskRunsSync:
         result = run_task_sync(bar, parameters=parameters)
         assert result == (42, "nate")
 
+    def test_with_args(self):
+        @task
+        def f(*args):
+            return args
+
+        args = (42, "nate")
+        result = f(*args)
+        assert result == args
+
+    def test_with_kwargs(self):
+        @task
+        def f(**kwargs):
+            return kwargs
+
+        kwargs = dict(x=42, y="nate")
+        result = f(**kwargs)
+        assert result == kwargs
+
+    def test_with_args_kwargs(self):
+        @task
+        def f(*args, x, **kwargs):
+            return args, x, kwargs
+
+        result = f(1, 2, x=5, y=6, z=7)
+        assert result == ((1, 2), 5, dict(y=6, z=7))
+
     async def test_task_run_name(self, prefect_client):
         @task(task_run_name="name is {x}")
         def foo(x):
@@ -359,11 +412,15 @@ class TestTaskRunsSync:
     async def test_task_runs_respect_result_persistence(self, prefect_client):
         @task(persist_result=False)
         def no_persist():
-            return TaskRunContext.get().task_run.id
+            ctx = TaskRunContext.get()
+            assert ctx
+            return ctx.task_run.id
 
         @task(persist_result=True)
         def persist():
-            return TaskRunContext.get().task_run.id
+            ctx = TaskRunContext.get()
+            assert ctx
+            return ctx.task_run.id
 
         # assert no persistence
         run_id = run_task_sync(no_persist)
@@ -406,6 +463,8 @@ class TestReturnState:
 
         state = await run_task(foo, return_type="state")
 
+        assert isinstance(state, State)
+
         assert state.is_completed()
 
         assert await state.result() == 42
@@ -416,6 +475,8 @@ class TestReturnState:
             raise ValueError("xyz")
 
         state = await run_task(foo, return_type="state")
+
+        assert isinstance(state, State)
 
         assert state.is_failed()
 
@@ -498,12 +559,13 @@ class TestTaskRetries:
         if always_fail:
             assert task_run_state.is_failed()
             assert exceptions_equal(
-                await task_run_state.result(raise_on_failure=False), exc
+                await task_run_state.result(raise_on_failure=False),  # type: ignore
+                exc,
             )
             assert mock.call_count == 4
         else:
             assert task_run_state.is_completed()
-            assert await task_run_state.result() is True
+            assert await task_run_state.result() is True  # type: ignore
             assert mock.call_count == 4
 
         states = await prefect_client.read_task_run_states(task_run_id)
