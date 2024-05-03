@@ -33,6 +33,7 @@ from prefect.deployments import load_flow_from_flow_run
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger
+from prefect.new_task_engine import TaskRunEngine
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
@@ -199,16 +200,14 @@ class FlowRunEngine(Generic[P, R]):
 
         parent_task_run = None
 
-        # this is a subflow run, so we create a parent task to hold its place in the flow
+        # this is a subflow run
         if flow_run_ctx:
+            # add a task to a parent flow run that represents the execution of a subflow run
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
-            parent_task_run = await parent_task.create_run(
-                flow_run_context=FlowRunContext.get(),
-                parameters=self.parameters,
-                wait_for=None,
-            )
+            task_engine = TaskRunEngine(task=parent_task, parameters=self.parameters)
+            parent_task_run = await task_engine.create_task_run(client)
 
             # check if there is already a flow run for this subflow
             if subflow_run := await self.load_subflow_run(
