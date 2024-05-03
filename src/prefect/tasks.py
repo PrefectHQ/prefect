@@ -637,9 +637,8 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        # new engine currently only compatible with async tasks
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import run_task, run_task_sync
+            from prefect.new_task_engine import run_task_async, run_task_sync
 
             run_kwargs = dict(
                 task=self,
@@ -649,7 +648,7 @@ class Task(Generic[P, R]):
             )
             if self.isasync:
                 # this returns an awaitable coroutine
-                return run_task(**run_kwargs)
+                return run_task_async(**run_kwargs)
             else:
                 return run_task_sync(**run_kwargs)
 
@@ -931,7 +930,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]],
         return_state: bool,
     ):
-        from prefect.new_task_engine import run_task
+        from prefect.new_task_engine import run_task_async
 
         task_runner = flow_run_context.task_runner
 
@@ -952,7 +951,7 @@ class Task(Generic[P, R]):
         await task_runner.submit(
             key=future.key,
             call=partial(
-                run_task,
+                run_task_async,
                 task=self,
                 task_run=task_run,
                 parameters=parameters,
