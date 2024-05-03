@@ -93,7 +93,7 @@ async def test_create_concurrency_limit(session: AsyncSession):
     assert concurrency_limit.slot_decay_per_second == 0.5
 
 
-async def test_concurrency_limit_with_invalid_name_raises(session: AsyncSession):
+async def test_create_concurrency_limit_with_invalid_name_raises(session: AsyncSession):
     with pytest.raises(
         pydantic.error_wrappers.ValidationError,
         match="contains an invalid character",
@@ -108,7 +108,9 @@ async def test_concurrency_limit_with_invalid_name_raises(session: AsyncSession)
         )
 
 
-async def test_concurrency_limit_with_invalid_limit_raises(session: AsyncSession):
+async def test_create_concurrency_limit_with_invalid_limit_raises(
+    session: AsyncSession,
+):
     with pytest.raises(
         pydantic.error_wrappers.ValidationError,
         match=" Input should be greater than or equal to 0",
@@ -123,7 +125,9 @@ async def test_concurrency_limit_with_invalid_limit_raises(session: AsyncSession
         )
 
 
-async def test_concurrency_limit_with_invalid_slot_decay_raises(session: AsyncSession):
+async def test_create_concurrency_limit_with_invalid_slot_decay_raises(
+    session: AsyncSession,
+):
     with pytest.raises(
         pydantic.error_wrappers.ValidationError,
         match=" Input should be greater than or equal to 0",
