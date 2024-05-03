@@ -91,3 +91,23 @@ def test_email_service_credentials_roundtrip_smtp_type_enum(smtp, smtp_type):
     assert credentials.smtp_type == SMTPType.STARTTLS
     server = credentials.get_server()
     assert server.port == 587
+
+
+@pytest.mark.parametrize("smtp_type", [SMTPType.STARTTLS, "STARTTLS", 587])
+@pytest.mark.parametrize("unverified_context", [True])
+def test_email_service_credentials_unverified_context(
+    smtp, smtp_type, unverified_context
+):
+    email_server_credentials = EmailServerCredentials(
+        smtp_server="us-smtp-outbound-1.mimecast.com",
+        smtp_type=smtp_type,
+        username="username",
+        password="password",
+        unverified_context=unverified_context,
+    )
+    email_server_credentials.save("email-credentials", overwrite=True)
+    credentials = EmailServerCredentials.load("email-credentials")
+    assert credentials.smtp_type == SMTPType.STARTTLS
+    assert credentials.unverified_context is True
+    server = credentials.get_server()
+    assert server.port == 587

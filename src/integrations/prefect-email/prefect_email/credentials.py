@@ -87,6 +87,7 @@ class EmailServerCredentials(Block):
             keys from the built-in SMTPServer Enum members, like "gmail".
         smtp_type: Either "SSL", "STARTTLS", or "INSECURE".
         smtp_port: If provided, overrides the smtp_type's default port number.
+        unverified_context: Unverified context should be used or not. By default this is False.
 
     Example:
         Load stored email server credentials:
@@ -131,6 +132,13 @@ class EmailServerCredentials(Block):
         default=None,
         description=("If provided, overrides the smtp_type's default port number."),
         title="SMTP Port",
+    )
+
+    unverified_context: Optional[bool] = Field(
+        default=False,
+        description=(
+            "Unverified context should be used or not. By default this is False"
+        ),
     )
 
     @validator("smtp_server", pre=True)
@@ -186,13 +194,17 @@ class EmailServerCredentials(Block):
         if smtp_type == SMTPType.INSECURE:
             server = SMTP(smtp_server, smtp_port)
         else:
-            context = ssl.create_default_context()
+            context = (
+                ssl._create_unverified_context(protocol=ssl.PROTOCOL_TLS_CLIENT)
+                if self.unverified_context
+                else ssl.create_default_context()
+            )
             if smtp_type == SMTPType.SSL:
                 server = SMTP_SSL(smtp_server, smtp_port, context=context)
             elif smtp_type == SMTPType.STARTTLS:
                 server = SMTP(smtp_server, smtp_port)
                 server.starttls(context=context)
-            if self.username is not None:
-                server.login(self.username, self.password.get_secret_value())
+        if self.username is not None:
+            server.login(self.username, self.password.get_secret_value())
 
         return server
