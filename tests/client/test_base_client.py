@@ -79,7 +79,7 @@ def disable_jitter():
         yield
 
 
-class TestPrefectHttpxClient:
+class TestPrefectHttpxAsyncClient:
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
         "error_code",
@@ -497,7 +497,7 @@ class TestPrefectHttpxClient:
         mock_anyio_sleep.assert_not_called()
 
     async def test_prefect_httpx_client_returns_prefect_response(self, monkeypatch):
-        """Test that the PrefectHttpxClient returns a PrefectResponse"""
+        """Test that the PrefectHttpxAsyncClient returns a PrefectResponse"""
         client = PrefectHttpxAsyncClient()
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)

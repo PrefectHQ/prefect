@@ -94,13 +94,15 @@ async def test_ephemeral_events_client_can_emit(
     example_event_1: Event, monkeypatch: pytest.MonkeyPatch, ephemeral_settings
 ):
     mock_http_client = mock.MagicMock(
-        spec=PrefectHttpxAsyncClient, name="PrefectHttpxClient"
+        spec=PrefectHttpxAsyncClient, name="PrefectHttpxAsyncClient"
     )
     mock_http_client.return_value.__aenter__ = mock.AsyncMock(
         return_value=mock_http_client
     )
     mock_http_client.return_value.post = mock.AsyncMock()
-    monkeypatch.setattr("prefect.events.clients.PrefectHttpxClient", mock_http_client)
+    monkeypatch.setattr(
+        "prefect.events.clients.PrefectHttpxAsyncClient", mock_http_client
+    )
 
     assert not PREFECT_API_URL.value()
     assert not PREFECT_API_KEY.value()
