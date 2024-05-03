@@ -327,8 +327,8 @@ async def create_global_concurrency_limit(
     limit: int = typer.Option(
         ..., "--limit", "-l", help="The limit of the global concurrency limit."
     ),
-    active: Optional[bool] = typer.Option(
-        True, "--active", help="Enable the global concurrency limit."
+    disable: Optional[bool] = typer.Option(
+        None, "--disable", help="Create an inactive global concurrency limit."
     ),
     active_slots: Optional[int] = typer.Option(
         0, "--active-slots", help="The number of active slots."
@@ -343,6 +343,7 @@ async def create_global_concurrency_limit(
     Arguments:
         name (str): The name of the global concurrency limit to create.
         limit (int): The limit of the global concurrency limit.
+        disable (Optional[bool]): Create an inactive global concurrency limit.
         active_slots (Optional[int]): The number of active slots.
         slot_decay_per_second (Optional[float]): The slot decay per second.
 
@@ -350,6 +351,7 @@ async def create_global_concurrency_limit(
         $ prefect global-concurrency-limit create my-gcl --limit 10
         $ prefect gcl create my-gcl --limit 5 --active-slots 3
         $ prefect gcl create my-gcl --limit 5 --active-slots 3 --slot-decay-per-second 0.5
+        $ prefect gcl create my-gcl --limit 5 --inactive
     """
     async with get_client() as client:
         try:
@@ -365,7 +367,7 @@ async def create_global_concurrency_limit(
         gcl = GlobalConcurrencyLimitCreate(
             name=name,
             limit=limit,
-            active=active,
+            active=False if disable else True,
             active_slots=active_slots,
             slot_decay_per_second=slot_decay_per_second,
         )
