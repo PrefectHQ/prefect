@@ -28,7 +28,7 @@ from websockets.exceptions import (
     ConnectionClosedOK,
 )
 
-from prefect.client.base import PrefectHttpxClient
+from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -193,7 +193,7 @@ class PrefectEphemeralEventsClient(EventsClient):
 
         app = create_app()
 
-        self._http_client = PrefectHttpxClient(
+        self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
             base_url="http://ephemeral-prefect/api",
             enable_csrf_support=False,

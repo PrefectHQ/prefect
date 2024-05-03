@@ -1348,7 +1348,9 @@ async def test_read_filtered_logs(session, prefect_client, deployment):
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1364,7 +1366,9 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1379,7 +1383,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
 async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
     mock = Mock()
-    monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+    monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxAsyncClient", mock)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
@@ -1399,7 +1403,9 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
         }
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1420,7 +1426,9 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1441,7 +1449,9 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(

@@ -7,7 +7,7 @@ from uuid import UUID
 import httpx
 from typing_extensions import Self, TypeAlias
 
-from prefect.client.base import PrefectHttpxClient
+from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.logging import get_logger
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import (
@@ -221,7 +221,7 @@ class PrefectServerEventsClient(EventsClient):
 
 
 class PrefectServerEventsAPIClient:
-    _http_client: PrefectHttpxClient
+    _http_client: PrefectHttpxAsyncClient
 
     def __init__(self, additional_headers: Dict[str, str] = {}):
         from prefect.server.api.server import create_app
@@ -230,7 +230,7 @@ class PrefectServerEventsAPIClient:
         # will point it to the the currently running server instance
         api_app = create_app()
 
-        self._http_client = PrefectHttpxClient(
+        self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
             headers={**additional_headers},
             base_url="http://prefect-in-memory/api",
