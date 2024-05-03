@@ -19,10 +19,6 @@
         <FlowRunResults v-if="flowRun" :flow-run="flowRun" />
       </template>
 
-      <template #artifacts>
-        <FlowRunArtifacts v-if="flowRun" :flow-run="flowRun" />
-      </template>
-
       <template #task-runs>
         <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
@@ -49,7 +45,6 @@
 <script lang="ts" setup>
   import {
     PageHeadingFlowRun,
-    FlowRunArtifacts,
     FlowRunDetails,
     FlowRunLogs,
     FlowRunTaskRuns,
@@ -94,7 +89,6 @@
     { label: 'Task Runs', hidden: isPending.value },
     { label: 'Subflow Runs', hidden: isPending.value },
     { label: 'Results', hidden: isPending.value },
-    { label: 'Artifacts', hidden: isPending.value },
     { label: 'Details' },
     { label: 'Parameters' },
     { label: 'Job Variables', hidden: !can.access.flowRunInfraOverrides },
