@@ -207,6 +207,7 @@ class FlowRunEngine(Generic[P, R]):
             parent_task_run = parent_task.create_run(
                 flow_run_context=FlowRunContext.get(),
                 parameters=self.parameters,
+                wait_for=None,
             )
 
             # check if there is already a flow run for this subflow
