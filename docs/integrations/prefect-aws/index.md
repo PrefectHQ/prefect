@@ -60,7 +60,7 @@ Prefect creates the session object using the values in the block and then, any m
 
 See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in [this guide](/guides/secrets/).
 
-Here's how to load the saved credentials in a Python script:
+Here's how to load the saved credentials:
 
 ```python
 from prefect_aws import AwsCredentials
