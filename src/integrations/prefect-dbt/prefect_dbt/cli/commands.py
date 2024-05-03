@@ -2,12 +2,16 @@
 import os
 from pathlib import Path, PosixPath
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 import yaml
-from prefect_shell.commands import ShellOperation, shell_run_command
+from dbt.cli.main import dbtRunner, dbtRunnerResult
+from dbt.contracts.results import NodeStatus, RunExecutionResult
+from prefect_shell.commands import ShellOperation
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import get_run_logger, task
+from prefect.artifacts import create_markdown_artifact
 from prefect.utilities.filesystem import relative_path_to_current_platform
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -25,8 +29,10 @@ async def trigger_dbt_cli_command(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    **shell_run_command_kwargs: Dict[str, Any],
-) -> Union[List[str], str]:
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-cli-command-summary",
+    **command_kwargs: Dict[str, Any],
+) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
 
@@ -110,33 +116,27 @@ async def trigger_dbt_cli_command(
 
         trigger_dbt_cli_command_flow()
         ```
-    """  # noqa
-    # check if variable is set, if not check env, if not use expected default
+    """
     logger = get_run_logger()
-    if not command.startswith("dbt"):
-        await shell_run_command.fn(command="dbt --help")
-        raise ValueError(
-            "Command is not a valid dbt sub-command; see dbt --help above,"
-            "or use prefect_shell.commands.shell_run_command for non-dbt related "
-            "commands instead"
-        )
 
     if profiles_dir is None:
-        profiles_dir = os.getenv("DBT_PROFILES_DIR", Path.home() / ".dbt")
-    profiles_dir = Path(profiles_dir).expanduser()
+        profiles_dir = os.getenv("DBT_PROFILES_DIR", str(Path.home()) + "/.dbt")
+
+    if command.startswith("dbt"):
+        command = command.split(" ", 1)[1]
 
     # https://docs.getdbt.com/dbt-cli/configure-your-profile
     # Note that the file always needs to be called profiles.yml,
     # regardless of which directory it is in.
-    profiles_path = profiles_dir / "profiles.yml"
+    profiles_path = profiles_dir + "/profiles.yml"
     logger.debug(f"Using this profiles path: {profiles_path}")
 
     # write the profile if overwrite or no profiles exist
-    if overwrite_profiles or not profiles_path.exists():
+    if overwrite_profiles or not Path(profiles_path).expanduser().exists():
         if dbt_cli_profile is None:
             raise ValueError("Provide `dbt_cli_profile` keyword for writing profiles")
         profile = dbt_cli_profile.get_profile()
-        profiles_dir.mkdir(exist_ok=True)
+        Path(profiles_dir).expanduser().mkdir(exist_ok=True)
         with open(profiles_path, "w+") as f:
             yaml.dump(profile, f, default_flow_style=False)
         logger.info(f"Wrote profile to {profiles_path}")
@@ -148,16 +148,47 @@ async def trigger_dbt_cli_command(
         )
 
     # append the options
-    command += f" --profiles-dir {profiles_dir}"
+    cli_args = [command]
+    cli_args.append("--profiles-dir")
+    cli_args.append(profiles_dir)
     if project_dir is not None:
         project_dir = Path(project_dir).expanduser()
-        command += f" --project-dir {project_dir}"
+        cli_args.append("--project-dir")
+        cli_args.append(project_dir)
+
+    if command_kwargs:
+        cli_args.append(command_kwargs)
 
     # fix up empty shell_run_command_kwargs
-    shell_run_command_kwargs = shell_run_command_kwargs or {}
+    dbt_runner_client = dbtRunner()
+    logger.info(f"Running dbt command: {cli_args}")
+    result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
-    logger.info(f"Running dbt command: {command}")
-    result = await shell_run_command.fn(command=command, **shell_run_command_kwargs)
+    if result.exception is not None:
+        logger.error(f"dbt build task failed with exception: {result.exception}")
+        raise result.exception
+
+    # Creating the dbt Summary Markdown if enabled
+    if create_artifact and isinstance(result.result, RunExecutionResult):
+        markdown = create_summary_markdown(result, command)
+        artifact_id = await create_markdown_artifact(
+            markdown=markdown,
+            key=artifact_key,
+        )
+        if not artifact_id:
+            logger.error(f"Artifact was not created for dbt {command} task")
+        else:
+            logger.info(
+                f"dbt {command} task completed successfully with artifact {artifact_id}"
+            )
+    else:
+        logger.debug(
+            f"Artifact was not created for dbt {command} this task \
+                     due to create_artifact=False or the dbt command did not \
+                     return any RunExecutionResults. \
+                     See https://docs.getdbt.com/reference/programmatic-invocations \
+                     for more details on dbtRunnerResult."
+        )
     return result
 
 
@@ -353,3 +384,389 @@ class DbtCoreOperation(ShellOperation):
         modified_self = self.copy()
         modified_self.commands = commands
         return super(type(self), modified_self)._compile_kwargs(**open_kwargs)
+
+
+@task
+async def run_dbt_build(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-build-task-summary",
+    **command_kwargs,
+):
+    """
+    Executes the 'dbt build' command within a Prefect task,
+    and optionally creates a Prefect artifact summarizing the dbt build results.
+
+    Args:
+        profiles_dir: The directory to search for the profiles.yml file. Setting this
+            appends the `--profiles-dir` option to the command provided.
+            If this is not set, will try using the DBT_PROFILES_DIR env variable,
+            but if that's also not set, will use the default directory `$HOME/.dbt/`.
+        project_dir: The directory to search for the dbt_project.yml file.
+            Default is the current working directory and its parents.
+        overwrite_profiles: Whether the existing profiles.yml file under profiles_dir
+            should be overwritten with a new profile.
+        dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
+            Note! This is optional and will raise an error
+            if profiles.yml already exists under profile_dir
+            and overwrite_profiles is set to False.
+        create_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt build results using the specified artifact key.
+            Defaults to True.
+        artifact_key: The key under which to store
+            the dbt build results artifact in Prefect.
+            Defaults to 'dbt-build-task-summary'.
+
+    Example:
+    ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_build_task
+
+        @flow
+        def dbt_test_flow():
+            dbt_build_task(
+                project_dir="/Users/test/my_dbt_project_dir"
+            )
+    ```
+
+    Raises:
+        ValueError: If required dbt_cli_profile is not provided
+                    when needed for profile writing.
+        RuntimeError: If the dbt build fails for any reason,
+                    it will be indicated by the exception raised.
+    """
+
+    results = await trigger_dbt_cli_command.fn(
+        command="build",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_artifact=create_artifact,
+        artifact_key=artifact_key,
+        **command_kwargs,
+    )
+    return results
+
+
+@task
+async def run_dbt_model(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-run-task-summary",
+    **command_kwargs,
+):
+    """
+    Executes the 'dbt run' command within a Prefect task,
+    and optionally creates a Prefect artifact summarizing the dbt build results.
+
+    Args:
+        profiles_dir: The directory to search for the profiles.yml file. Setting this
+            appends the `--profiles-dir` option to the command provided.
+            If this is not set, will try using the DBT_PROFILES_DIR env variable,
+            but if that's also not set, will use the default directory `$HOME/.dbt/`.
+        project_dir: The directory to search for the dbt_project.yml file.
+            Default is the current working directory and its parents.
+        overwrite_profiles: Whether the existing profiles.yml file under profiles_dir
+            should be overwritten with a new profile.
+        dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
+            Note! This is optional and will raise an error
+            if profiles.yml already exists under profile_dir
+            and overwrite_profiles is set to False.
+        create_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt build results using the specified artifact key.
+            Defaults to True.
+        artifact_key: The key under which to store
+            the dbt run results artifact in Prefect.
+            Defaults to 'dbt-run-task-summary'.
+
+    Example:
+    ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_run_task
+
+        @flow
+        def dbt_test_flow():
+            dbt_run_task(
+                project_dir="/Users/test/my_dbt_project_dir"
+            )
+    ```
+
+    Raises:
+        ValueError: If required dbt_cli_profile is not provided
+                    when needed for profile writing.
+        RuntimeError: If the dbt build fails for any reason,
+                    it will be indicated by the exception raised.
+    """
+
+    results = await trigger_dbt_cli_command.fn(
+        command="run",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_artifact=create_artifact,
+        artifact_key=artifact_key,
+        **command_kwargs,
+    )
+
+    return results
+
+
+@task
+async def run_dbt_test(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-test-task-summary",
+    **command_kwargs,
+):
+    """
+    Executes the 'dbt test' command within a Prefect task,
+    and optionally creates a Prefect artifact summarizing the dbt build results.
+
+    Args:
+        profiles_dir: The directory to search for the profiles.yml file. Setting this
+            appends the `--profiles-dir` option to the command provided.
+            If this is not set, will try using the DBT_PROFILES_DIR env variable,
+            but if that's also not set, will use the default directory `$HOME/.dbt/`.
+        project_dir: The directory to search for the dbt_project.yml file.
+            Default is the current working directory and its parents.
+        overwrite_profiles: Whether the existing profiles.yml file under profiles_dir
+            should be overwritten with a new profile.
+        dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
+            Note! This is optional and will raise an error
+            if profiles.yml already exists under profile_dir
+            and overwrite_profiles is set to False.
+        create_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt build results using the specified artifact key.
+            Defaults to True.
+        artifact_key: The key under which to store
+            the dbt test results artifact in Prefect.
+            Defaults to 'dbt-test-task-summary'.
+
+    Example:
+    ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_test_task
+
+        @flow
+        def dbt_test_flow():
+            dbt_test_task(
+                project_dir="/Users/test/my_dbt_project_dir"
+            )
+    ```
+
+    Raises:
+        ValueError: If required dbt_cli_profile is not provided
+                    when needed for profile writing.
+        RuntimeError: If the dbt build fails for any reason,
+                    it will be indicated by the exception raised.
+    """
+
+    results = await trigger_dbt_cli_command.fn(
+        command="test",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_artifact=create_artifact,
+        artifact_key=artifact_key,
+        **command_kwargs,
+    )
+
+    return results
+
+
+@task
+async def run_dbt_snapshot(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-snapshot-task-summary",
+    **command_kwargs,
+):
+    """
+    Executes the 'dbt snapshot' command within a Prefect task,
+    and optionally creates a Prefect artifact summarizing the dbt build results.
+
+    Args:
+        profiles_dir: The directory to search for the profiles.yml file. Setting this
+            appends the `--profiles-dir` option to the command provided.
+            If this is not set, will try using the DBT_PROFILES_DIR env variable,
+            but if that's also not set, will use the default directory `$HOME/.dbt/`.
+        project_dir: The directory to search for the dbt_project.yml file.
+            Default is the current working directory and its parents.
+        overwrite_profiles: Whether the existing profiles.yml file under profiles_dir
+            should be overwritten with a new profile.
+        dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
+            Note! This is optional and will raise an error
+            if profiles.yml already exists under profile_dir
+            and overwrite_profiles is set to False.
+        create_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt build results using the specified artifact key.
+            Defaults to True.
+        artifact_key: The key under which to store
+            the dbt build results artifact in Prefect.
+            Defaults to 'dbt-snapshot-task-summary'.
+
+    Example:
+    ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_snapshot_task
+
+        @flow
+        def dbt_test_flow():
+            dbt_snapshot_task(
+                project_dir="/Users/test/my_dbt_project_dir"
+            )
+    ```
+
+    Raises:
+        ValueError: If required dbt_cli_profile is not provided
+                    when needed for profile writing.
+        RuntimeError: If the dbt build fails for any reason,
+                    it will be indicated by the exception raised.
+    """
+
+    results = await trigger_dbt_cli_command.fn(
+        command="snapshot",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_artifact=create_artifact,
+        artifact_key=artifact_key,
+        **command_kwargs,
+    )
+
+    return results
+
+
+@task
+async def run_dbt_seed(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-seed-task-summary",
+    **command_kwargs,
+):
+    """
+    Executes the 'dbt seed' command within a Prefect task,
+    and optionally creates a Prefect artifact summarizing the dbt build results.
+
+    Args:
+        profiles_dir: The directory to search for the profiles.yml file. Setting this
+            appends the `--profiles-dir` option to the command provided.
+            If this is not set, will try using the DBT_PROFILES_DIR env variable,
+            but if that's also not set, will use the default directory `$HOME/.dbt/`.
+        project_dir: The directory to search for the dbt_project.yml file.
+            Default is the current working directory and its parents.
+        overwrite_profiles: Whether the existing profiles.yml file under profiles_dir
+            should be overwritten with a new profile.
+        dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
+            Note! This is optional and will raise an error
+            if profiles.yml already exists under profile_dir
+            and overwrite_profiles is set to False.
+        create_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt build results using the specified artifact key.
+            Defaults to True.
+        artifact_key: The key under which to store
+            the dbt build results artifact in Prefect.
+            Defaults to 'dbt-seed-task-summary'.
+
+    Example:
+    ```python
+        from prefect import flow
+        from prefect_dbt.cli.tasks import dbt_seed_task
+
+        @flow
+        def dbt_test_flow():
+            dbt_seed_task(
+                project_dir="/Users/test/my_dbt_project_dir"
+            )
+    ```
+
+    Raises:
+        ValueError: If required dbt_cli_profile is not provided
+                    when needed for profile writing.
+        RuntimeError: If the dbt build fails for any reason,
+                    it will be indicated by the exception raised.
+    """
+
+    results = await trigger_dbt_cli_command.fn(
+        command="seed",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_artifact=create_artifact,
+        artifact_key=artifact_key,
+        **command_kwargs,
+    )
+
+    return results
+
+
+def create_summary_markdown(results: dbtRunnerResult, command: str) -> UUID:
+    """
+    Creates a Prefect task artifact summarizing the results
+    of the above predefined prefrect-dbt task.
+    """
+    # Create Summary Markdown Artifact
+    run_statuses: Dict[str, List[str]] = {
+        "successful": [],
+        "failed": [],
+        "skipped": [],
+    }
+
+    for r in results.result.results:
+        if r.status == NodeStatus.Success or r.status == NodeStatus.Pass:
+            run_statuses["successful"].append(r)
+        elif (
+            r.status == NodeStatus.Fail
+            or r.status == NodeStatus.Error
+            or r.status == NodeStatus.RuntimeErr
+        ):
+            run_statuses["failed"].append(r)
+        elif r.status == NodeStatus.Skipped:
+            run_statuses["skipped"].append(r)
+
+    markdown = f"# dbt {command} Task Summary"
+
+    if run_statuses["failed"] != []:
+        failed_runs_str = ""
+        for r in run_statuses["failed"]:
+            failed_runs_str += f"**{r.node.name}**\n \
+                Node Type: {r.node.resource_type}\n \
+                Node Path: {r.node.original_file_path}"
+            if r.message:
+                message = r.message.replace("\n", ".")
+                failed_runs_str += f"\nError Message: {message}\n"
+        markdown += f"""\n## Failed Runs 🔴\n\n{failed_runs_str}\n\n"""
+
+    if run_statuses["successful"] != []:
+        successful_runs_str = "\n".join(
+            [f"**{r.node.name}**" for r in run_statuses["successful"]]
+        )
+        markdown += f"""\n## Successful Runs ✅\n\n{successful_runs_str}\n\n"""
+
+    if run_statuses["skipped"] != []:
+        skipped_runs_str = "\n".join(
+            [f"**{r.node.name}**" for r in run_statuses["skipped"]]
+        )
+        markdown += f""" ## Skipped Runs 🚫\n\n{skipped_runs_str}\n\n"""
+
+    return markdown
