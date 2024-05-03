@@ -55,7 +55,7 @@ AwsCredentials(
 ```
 
 Prefect is using the Boto3 library under the hood.
-To find credentials for authentication, any data not provided to the block is sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
+To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
 
 See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in [this guide](/guides/secrets/).
