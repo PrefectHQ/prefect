@@ -6,7 +6,10 @@ import pytest
 
 from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
 from prefect.client.schemas.objects import GlobalConcurrencyLimit
+from prefect.server import models
+from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @pytest.fixture
@@ -280,5 +283,202 @@ def test_disable_gcl_not_found():
     invoke_and_assert(
         ["global-concurrency-limit", "disable", "not-found"],
         expected_output="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )
+
+
+@pytest.fixture
+async def global_concurrency_limit(session):
+    gcl_schema = ConcurrencyLimitV2(
+        name="test",
+        limit=1,
+        active_slots=1,
+        slot_decay_per_second=0.1,
+    )
+    model = await models.concurrency_limits_v2.create_concurrency_limit(
+        session=session, concurrency_limit=gcl_schema
+    )
+
+    await session.commit()
+    return model
+
+
+async def test_update_gcl_limit(
+    global_concurrency_limit: ConcurrencyLimitV2,
+    prefect_client,
+):
+    assert global_concurrency_limit.limit == 1
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "global-concurrency-limit",
+            "update",
+            global_concurrency_limit.name,
+            "--limit",
+            "10",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{global_concurrency_limit.name}'.",
+        expected_code=0,
+    )
+
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=global_concurrency_limit.name
+    )
+
+    assert client_res.limit == 10, f"Expected limit to be 10, got {client_res.limit}"
+
+
+async def test_update_gcl_active_slots(
+    global_concurrency_limit: ConcurrencyLimitV2,
+    prefect_client,
+):
+    assert global_concurrency_limit.active_slots == 1
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "global-concurrency-limit",
+            "update",
+            global_concurrency_limit.name,
+            "--active-slots",
+            "10",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{global_concurrency_limit.name}'.",
+        expected_code=0,
+    )
+
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=global_concurrency_limit.name
+    )
+
+    assert (
+        client_res.active_slots == 10
+    ), f"Expected active slots to be 10, got {client_res.active_slots}"
+
+
+async def test_update_gcl_slot_decay_per_second(
+    global_concurrency_limit: ConcurrencyLimitV2,
+    prefect_client,
+):
+    assert global_concurrency_limit.slot_decay_per_second == 0.1
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "global-concurrency-limit",
+            "update",
+            global_concurrency_limit.name,
+            "--slot-decay-per-second",
+            "0.5",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{global_concurrency_limit.name}'.",
+        expected_code=0,
+    )
+
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=global_concurrency_limit.name
+    )
+
+    assert (
+        client_res.slot_decay_per_second == 0.5
+    ), f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
+
+
+async def test_update_gcl_multiple_fields(
+    global_concurrency_limit: ConcurrencyLimitV2,
+    prefect_client,
+):
+    assert global_concurrency_limit.active_slots == 1
+    assert global_concurrency_limit.slot_decay_per_second == 0.1
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "global-concurrency-limit",
+            "update",
+            global_concurrency_limit.name,
+            "--active-slots",
+            "10",
+            "--slot-decay-per-second",
+            "0.5",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{global_concurrency_limit.name}'.",
+        expected_code=0,
+    )
+
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=global_concurrency_limit.name
+    )
+
+    assert (
+        client_res.active_slots == 10
+    ), f"Expected active slots to be 10, got {client_res.active_slots}"
+    assert (
+        client_res.slot_decay_per_second == 0.5
+    ), f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
+
+
+async def test_update_gcl_to_inactive(
+    global_concurrency_limit: ConcurrencyLimitV2,
+    prefect_client,
+):
+    assert global_concurrency_limit.active is True
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "global-concurrency-limit",
+            "update",
+            global_concurrency_limit.name,
+            "--disable",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{global_concurrency_limit.name}'.",
+        expected_code=0,
+    )
+
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=global_concurrency_limit.name
+    )
+
+    assert (
+        client_res.active is False
+    ), f"Expected active to be False, got {client_res.active}"
+
+
+async def test_update_gcl_to_active(
+    global_concurrency_limit: ConcurrencyLimitV2,
+    prefect_client,
+):
+    global_concurrency_limit.active = False
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "global-concurrency-limit",
+            "update",
+            global_concurrency_limit.name,
+            "--enable",
+        ],
+        expected_output=f"Updated global concurrency limit with name '{global_concurrency_limit.name}'.",
+        expected_code=0,
+    )
+
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=global_concurrency_limit.name
+    )
+
+    assert (
+        client_res.active is True
+    ), f"Expected active to be True, got {client_res.active}"
+
+
+def test_update_gcl_not_found():
+    invoke_and_assert(
+        ["global-concurrency-limit", "update", "not-found", "--limit", "10"],
+        expected_output_contains="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )
+
+
+def test_update_gcl_no_fields():
+    invoke_and_assert(
+        ["global-concurrency-limit", "update", "test"],
+        expected_output_contains="No update arguments provided.",
         expected_code=1,
     )
