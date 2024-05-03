@@ -407,10 +407,6 @@ class TestDeploymentFlowRunJobVariablesValidation:
         session,
         missing_block_doc_ref_template,
     ):
-        """
-        We don't validate default values from the base job template when validating
-        flow run job variables.
-        """
         work_pool = await create_work_pool(
             session=session,
             base_job_template=missing_block_doc_ref_template,
@@ -421,11 +417,12 @@ class TestDeploymentFlowRunJobVariablesValidation:
             work_pool=work_pool,
         )
 
-        await validate_job_variables_for_deployment_flow_run(
-            session=session,
-            deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
-        )
+        with pytest.raises(HTTPException, match="404: Block not found."):
+            await validate_job_variables_for_deployment_flow_run(
+                session=session,
+                deployment=deployment,
+                flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            )
 
     async def test_block_document_reference_incorrect_type_in_default_value(
         self,
@@ -433,10 +430,6 @@ class TestDeploymentFlowRunJobVariablesValidation:
         session,
         incorrect_type_block_ref_template,
     ):
-        """
-        We don't validate default values from the base job template when validating
-        flow run job variables.
-        """
         work_pool = await create_work_pool(
             session=session,
             base_job_template=incorrect_type_block_ref_template,
@@ -447,11 +440,14 @@ class TestDeploymentFlowRunJobVariablesValidation:
             work_pool=work_pool,
         )
 
-        await validate_job_variables_for_deployment_flow_run(
-            session=session,
-            deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
-        )
+        with pytest.raises(
+            HTTPException, match="{'foo': 'bar'} is not of type 'string'"
+        ):
+            await validate_job_variables_for_deployment_flow_run(
+                session=session,
+                deployment=deployment,
+                flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            )
 
     async def test_valid_block_document_reference(
         self,
