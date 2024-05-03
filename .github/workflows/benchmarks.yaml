@@ -93,7 +93,11 @@ jobs:
             uniquename="$HEAD_REF"
           fi
 
+          # Allow alphanumeric, underscores, and dashes, and replace other
+          # characters with an underscore
+          sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
+
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           python benches \
-          --benchmark-save="${uniquename//\//_}" \
+          --benchmark-save="${sanitized_uniquename}" \
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
