@@ -22,15 +22,6 @@ The core difference between a rate limit and a concurrency limit is the way in w
 
 ## Managing Global concurrency limits and rate limits
 
-You can create, read, edit, and delete concurrency limits via the Prefect UI.
-
-When creating a concurrency limit, you can specify the following parameters:
-
-- **Name**: The name of the concurrency limit. This name is also how you'll reference the concurrency limit in your code. Special characters, such as `/`, `%`, `&`, `>`, `<`, are not allowed.
-- **Concurrency Limit**: The maximum number of slots that can be occupied on this concurrency limit.
-- **Slot Decay Per Second**: Controls the rate at which slots are released when the concurrency limit is used as a rate limit. This value must be configured when using the `rate_limit` function.
-- **Active**: Whether or not the concurrency limit is in an active state.
-
 ### Active vs inactive limits
 
 Global concurrency limits can be in either an `active` or `inactive` state.
@@ -51,6 +42,53 @@ For practical use, consider the following:
 - *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, like 0.1, causes slots to become available more slowly. In this scenario it would take `10` (`1.0 / 0.1`) seconds for a slot to become available again after occupancy
 
 Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the rate of your workflow based on your specific requirements.
+
+### Via the UI
+
+You can create, read, edit, and delete concurrency limits via the Prefect UI.
+
+When creating a concurrency limit, you can specify the following parameters:
+
+- **Name**: The name of the concurrency limit. This name is also how you'll reference the concurrency limit in your code. Special characters, such as `/`, `%`, `&`, `>`, `<`, are not allowed.
+- **Concurrency Limit**: The maximum number of slots that can be occupied on this concurrency limit.
+- **Slot Decay Per Second**: Controls the rate at which slots are released when the concurrency limit is used as a rate limit. This value must be configured when using the `rate_limit` function.
+- **Active**: Whether or not the concurrency limit is in an active state.
+
+### Via the CLI
+
+You can create, read, edit, and delete concurrency limits via the Prefect CLI.
+
+To create a new concurrency limit, use the `prefect gcl create` command. You must specify a `--limit` argument, and can optional specify a `--slot-decay-per-second` and `--disable` argument.
+
+```bash
+prefect gcl create my-concurrency-limit --limit 5 --slot-decay-per-second 1.0
+```
+
+you can inspect the details of a concurrency limit using the `prefect gcl inspect` command:
+
+```bash
+prefect gcl inspect my-concurrency-limit
+```
+
+To update a concurrency limit, use the `prefect gcl update` command. You can update the `--limit`, `--slot-decay-per-second`, `--enable`, and `--disable` arguments.
+
+```bash
+prefect gcl update my-concurrency-limit --limit 10
+```
+
+```bash
+prefect gcl update my-concurrency-limit --disable
+```
+
+To delete a concurrency limit, use the `prefect gcl delete` command.
+
+```bash
+prefect gcl delete my-concurrency-limit
+Are you sure you want to delete global concurrency limit 'my-concurrency-limit'? [y/N]: y
+Deleted global concurrency limit with name 'my-concurrency-limit'.
+```
+
+See all available commands and options by running `prefect gcl --help`.
 
 ## Using the `concurrency` context manager
 
