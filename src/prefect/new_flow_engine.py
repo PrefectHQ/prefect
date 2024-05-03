@@ -204,7 +204,7 @@ class FlowRunEngine(Generic[P, R]):
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
-            parent_task_run = parent_task.create_run(
+            parent_task_run = await parent_task.create_run(
                 flow_run_context=FlowRunContext.get(),
                 parameters=self.parameters,
                 wait_for=None,
