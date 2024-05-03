@@ -165,7 +165,6 @@ async def trigger_dbt_cli_command(
     result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
     if result.exception is not None:
-        logger.info(result)
         logger.error(f"dbt build task failed with exception: {result.exception}")
         raise result.exception
 
