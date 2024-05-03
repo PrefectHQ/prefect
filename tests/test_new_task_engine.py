@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from typing import List
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -709,7 +709,7 @@ class TestTaskCrashDetection:
         self, prefect_client, interrupt_type, monkeypatch
     ):
         monkeypatch.setattr(
-            TaskRunEngine, "begin_run", Mock(side_effect=interrupt_type)
+            TaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
 
         @task
