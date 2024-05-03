@@ -24,7 +24,7 @@ Blocks are instantiation of these classes with specific values.
 Configure blocks through Python code or via a form in the UI.
 Access blocks for use in Python code.
 
-Blocks live on in Prefect Cloud or your self-hosted Prefect server instance.
+Block values are stored in Prefect Cloud or your self-hosted Prefect server instance.
 If using Prefect Cloud, blocks can be shared with other users in your workspace.
 
 To see block types available for configuration, use `prefect block type ls` from the CLI or navigate to the **Blocks** page in the UI and click **+**.
