@@ -121,6 +121,7 @@ from prefect.client.schemas.objects import (
 from prefect.client.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
+    GlobalConcurrencyLimitResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -623,12 +624,12 @@ class PrefectClient:
     async def create_flow_run(
         self,
         flow: "FlowObject",
-        name: str = None,
+        name: Optional[str] = None,
         parameters: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
-        tags: Iterable[str] = None,
-        parent_task_run_id: UUID = None,
-        state: "prefect.states.State" = None,
+        tags: Optional[Iterable[str]] = None,
+        parent_task_run_id: Optional[UUID] = None,
+        state: Optional["prefect.states.State"] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -3054,10 +3055,10 @@ class PrefectClient:
 
     async def read_global_concurrency_limit_by_name(
         self, name: str
-    ) -> Dict[str, object]:
+    ) -> GlobalConcurrencyLimitResponse:
         try:
             response = await self._client.get(f"/v2/concurrency_limits/{name}")
-            return response.json()
+            return GlobalConcurrencyLimitResponse.parse_obj(response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -3066,7 +3067,7 @@ class PrefectClient:
 
     async def read_global_concurrency_limits(
         self, limit: int = 10, offset: int = 0
-    ) -> List[Dict[str, object]]:
+    ) -> List[GlobalConcurrencyLimitResponse]:
         response = await self._client.post(
             "/v2/concurrency_limits/filter",
             json={
@@ -3074,7 +3075,9 @@ class PrefectClient:
                 "offset": offset,
             },
         )
-        return response.json()
+        return pydantic.parse_obj_as(
+            List[GlobalConcurrencyLimitResponse], response.json()
+        )
 
     async def create_flow_run_input(
         self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
@@ -3161,6 +3164,16 @@ class PrefectClient:
 
         return UUID(response.json()["id"])
 
+    async def update_automation(self, automation_id: UUID, automation: AutomationCore):
+        """Updates an automation in Prefect Cloud."""
+        if not self.server_type.supports_automations():
+            self._raise_for_unsupported_automations()
+        response = await self._client.put(
+            f"/automations/{automation_id}",
+            json=automation.dict(json_compatible=True, exclude_unset=True),
+        )
+        response.raise_for_status
+
     async def read_automations(self) -> List[Automation]:
         if not self.server_type.supports_automations():
             self._raise_for_unsupported_automations()
@@ -3169,16 +3182,24 @@ class PrefectClient:
         response.raise_for_status()
         return pydantic.parse_obj_as(List[Automation], response.json())
 
-    async def find_automation(self, id_or_name: str) -> Optional[Automation]:
-        try:
-            id = UUID(id_or_name)
-        except ValueError:
-            id = None
+    async def find_automation(
+        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
+    ) -> Optional[Automation]:
+        if isinstance(id_or_name, str):
+            try:
+                id = UUID(id_or_name)
+            except ValueError:
+                id = None
+        elif isinstance(id_or_name, UUID):
+            id = id_or_name
 
         if id:
-            automation = await self.read_automation(id)
-            if automation:
+            try:
+                automation = await self.read_automation(id)
                 return automation
+            except prefect.exceptions.HTTPStatusError as e:
+                if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                    raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
 
         automations = await self.read_automations()
 

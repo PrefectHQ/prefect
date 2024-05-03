@@ -23,95 +23,99 @@ To set up a table, use the `execute` and `execute_many` methods. Then, use the `
 
 By using the `SnowflakeConnector` as a context manager, you can make sure that the Snowflake connection and cursors are closed properly after you're done with them.
 
-Be sure to install [prefect-snowflake](#installation) and [save to block](#saving-credentials-to-block) to run the examples below!
+Be sure to [install prefect-snowflake](#installation), [register the blocks](#registering-blocks), and [create a credentials block](#saving-credentials-to-block) to run the examples below!
 
 === "Sync"
 
-```python
-from prefect import flow, task
-from prefect_snowflake import SnowflakeConnector
+    ```python
+    from prefect import flow, task
+    from prefect_snowflake import SnowflakeConnector
+    
+    
+    @task
+    def setup_table(block_name: str) -> None:
+        with SnowflakeConnector.load(block_name) as connector:
+            connector.execute(
+                "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+            )
+            connector.execute_many(
+                "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
+                seq_of_parameters=[
+                    {"name": "Ford", "address": "Highway 42"},
+                    {"name": "Unknown", "address": "Space"},
+                    {"name": "Me", "address": "Myway 88"},
+                ],
+            )
+    
+    @task
+    def fetch_data(block_name: str) -> list:
+        all_rows = []
+        with SnowflakeConnector.load(block_name) as connector:
+            while True:
+                # Repeated fetch* calls using the same operation will
+                # skip re-executing and instead return the next set of results
+                new_rows = connector.fetch_many("SELECT * FROM customers", size=2)
+                if len(new_rows) == 0:
+                    break
+                all_rows.append(new_rows)
+        return all_rows
+    
+    @flow
+    def snowflake_flow(block_name: str) -> list:
+        setup_table(block_name)
+        all_rows = fetch_data(block_name)
+        return all_rows
 
 
-@task
-def setup_table(block_name: str) -> None:
-    with SnowflakeConnector.load(block_name) as connector:
-        connector.execute(
-            "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-        )
-        connector.execute_many(
-            "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
-            seq_of_parameters=[
-                {"name": "Ford", "address": "Highway 42"},
-                {"name": "Unknown", "address": "Space"},
-                {"name": "Me", "address": "Myway 88"},
-            ],
-        )
-
-@task
-def fetch_data(block_name: str) -> list:
-    all_rows = []
-    with SnowflakeConnector.load(block_name) as connector:
-        while True:
-            # Repeated fetch* calls using the same operation will
-            # skip re-executing and instead return the next set of results
-            new_rows = connector.fetch_many("SELECT * FROM customers", size=2)
-            if len(new_rows) == 0:
-                break
-            all_rows.append(new_rows)
-    return all_rows
-
-@flow
-def snowflake_flow(block_name: str) -> list:
-    setup_table(block_name)
-    all_rows = fetch_data(block_name)
-    return all_rows
-
-snowflake_flow()
-```
+    if __name__=="__main__":
+        snowflake_flow()
+    ```
 
 === "Async"
 
-```python
-from prefect import flow, task
-from prefect_snowflake import SnowflakeConnector
-import asyncio
+    ```python
+    from prefect import flow, task
+    from prefect_snowflake import SnowflakeConnector
+    import asyncio
+    
+    @task
+    async def setup_table(block_name: str) -> None:
+        with await SnowflakeConnector.load(block_name) as connector:
+            await connector.execute(
+                "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+            )
+            await connector.execute_many(
+                "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
+                seq_of_parameters=[
+                    {"name": "Ford", "address": "Highway 42"},
+                    {"name": "Unknown", "address": "Space"},
+                    {"name": "Me", "address": "Myway 88"},
+                ],
+            )
+    
+    @task
+    async def fetch_data(block_name: str) -> list:
+        all_rows = []
+        with await SnowflakeConnector.load(block_name) as connector:
+            while True:
+                # Repeated fetch* calls using the same operation will
+                # skip re-executing and instead return the next set of results
+                new_rows = await connector.fetch_many("SELECT * FROM customers", size=2)
+                if len(new_rows) == 0:
+                    break
+                all_rows.append(new_rows)
+        return all_rows
+    
+    @flow
+    async def snowflake_flow(block_name: str) -> list:
+        await setup_table(block_name)
+        all_rows = await fetch_data(block_name)
+        return all_rows
 
-@task
-async def setup_table(block_name: str) -> None:
-    with await SnowflakeConnector.load(block_name) as connector:
-        await connector.execute(
-            "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-        )
-        await connector.execute_many(
-            "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
-            seq_of_parameters=[
-                {"name": "Ford", "address": "Highway 42"},
-                {"name": "Unknown", "address": "Space"},
-                {"name": "Me", "address": "Myway 88"},
-            ],
-        )
-
-@task
-async def fetch_data(block_name: str) -> list:
-    all_rows = []
-    with await SnowflakeConnector.load(block_name) as connector:
-        while True:
-            # Repeated fetch* calls using the same operation will
-            # skip re-executing and instead return the next set of results
-            new_rows = await connector.fetch_many("SELECT * FROM customers", size=2)
-            if len(new_rows) == 0:
-                break
-            all_rows.append(new_rows)
-    return all_rows
-
-@flow
-async def snowflake_flow(block_name: str) -> list:
-    await setup_table(block_name)
-    all_rows = await fetch_data(block_name)
-    return all_rows
-
-asyncio.run(snowflake_flow("example"))
-```
+    
+    if __name__=="__main__":
+        asyncio.run(snowflake_flow("example"))
+    ```
 
 ### Access underlying Snowflake connection
 
@@ -154,21 +158,24 @@ For more tips on how to use tasks and flows in an integration, check out [Using 
 
 Install `prefect-snowflake` with `pip`:
 
+<div class="terminal">
 ```bash
 pip install prefect-snowflake
 ```
+</div>
 
-A list of available blocks in `prefect-snowflake` and their setup instructions can be found [here](https://PrefectHQ.github.io/prefect-snowflake/blocks_catalog).
+### Registering blocks
+Register blocks in this module to make them available for use.
 
-Requires an installation of Python 3.8+.
-
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
-
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
+<div class="terminal">
+```bash
+prefect block register -m prefect_aws
+```
+</div>
 
 ### Saving credentials to block
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
+Note, to use the `load` method on a block, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
 
 Below is a walkthrough on saving a `SnowflakeCredentials` block through code.
 
@@ -231,29 +238,10 @@ A list of available blocks in `prefect-snowflake` and their setup instructions c
 
 ### Feedback
 
-If you encounter any bugs while using `prefect-snowflake`, feel free to open an issue in the [prefect-snowflake](https://github.com/PrefectHQ/prefect-snowflake) repository.
+If you encounter any bugs while using `prefect-snowflake`, feel free to open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
 
-If you have any questions or issues while using `prefect-snowflake`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack).
-
-Feel free to star or watch [`prefect-snowflake`](https://github.com/PrefectHQ/prefect-snowflake) for updates too!
+If you have any questions or issues while using `prefect-snowflake`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
 
 ### Contributing
 
-If you'd like to help contribute to fix an issue or add a feature to `prefect-snowflake`, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
-
-Here are the steps:
-
-1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
-3. Install the repository and its dependencies:
-```
-pip install -e ".[dev]"
-```
-4. Make desired changes
-5. Add tests
-6. Insert an entry to [CHANGELOG.md](https://github.com/PrefectHQ/prefect-snowflake/blob/main/CHANGELOG.md)
-7. Install `pre-commit` to perform quality checks prior to commit:
-```
-pre-commit install
-```
-8. `git commit`, `git push`, and create a pull request
+If you'd like to help contribute to fix an issue or add a feature to `prefect-snowflake`, please [propose changes through a pull request from a fork of the Prefect repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).

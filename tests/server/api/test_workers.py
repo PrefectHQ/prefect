@@ -39,6 +39,10 @@ def patch_events_client(monkeypatch: pytest.MonkeyPatch) -> None:
         "prefect.server.models.work_queues.PrefectServerEventsClient",
         AssertingEventsClient,
     )
+    monkeypatch.setattr(
+        "prefect.server.models.workers.PrefectServerEventsClient",
+        AssertingEventsClient,
+    )
 
 
 @pytest.fixture
@@ -96,6 +100,8 @@ class TestCreateWorkPool:
             session=session, work_pool_id=result.id
         )
         assert model.name == "Pool 1"
+
+        assert_status_events("Pool 1", ["prefect.work-pool.not-ready"])
 
     async def test_create_work_pool_with_options(self, client):
         response = await client.post(
@@ -282,6 +288,104 @@ class TestUpdateWorkPool:
         )
         assert result.is_paused is True
         assert result.concurrency_limit == 5
+
+        assert_status_events(work_pool.name, ["prefect.work-pool.paused"])
+
+    async def test_update_work_pool_with_no_workers(self, client, work_pool):
+        assert work_pool.is_paused is False
+        assert work_pool.status == schemas.statuses.WorkPoolStatus.NOT_READY.value
+
+        response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json=schemas.actions.WorkPoolUpdate(is_paused=True).dict(
+                json_compatible=True, exclude_unset=True
+            ),
+        )
+
+        assert response.status_code == 204
+
+        response = await client.get(f"/work_pools/{work_pool.name}")
+
+        assert response.json()["is_paused"] is True
+        assert response.json()["status"] == schemas.statuses.WorkPoolStatus.PAUSED.value
+
+        # Unpause the work pool
+        response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json=schemas.actions.WorkPoolUpdate(is_paused=False).dict(
+                json_compatible=True, exclude_unset=True
+            ),
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"/work_pools/{work_pool.name}")
+
+        assert response.json()["is_paused"] is False
+        assert (
+            response.json()["status"] == schemas.statuses.WorkPoolStatus.NOT_READY.value
+        )
+
+        assert_status_events(
+            work_pool.name, ["prefect.work-pool.paused", "prefect.work-pool.not-ready"]
+        )
+
+    async def test_unpause_work_pool_with_online_workers(self, client, work_pool):
+        # Heartbeat a worker to make the work pool ready
+        heartbeat_response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker"),
+        )
+        assert heartbeat_response.status_code == status.HTTP_204_NO_CONTENT
+
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+        assert work_pool_response.status_code == status.HTTP_200_OK
+        assert (
+            work_pool_response.json()["status"]
+            == schemas.statuses.WorkPoolStatus.READY.value
+        )
+
+        # Pause the work pool
+        pause_response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json=schemas.actions.WorkPoolUpdate(is_paused=True).dict(
+                json_compatible=True, exclude_unset=True
+            ),
+        )
+        assert pause_response.status_code == 204
+
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+
+        assert work_pool_response.json()["is_paused"] is True
+        assert (
+            work_pool_response.json()["status"]
+            == schemas.statuses.WorkPoolStatus.PAUSED.value
+        )
+
+        # Unpause the work pool
+        unpause_response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json=schemas.actions.WorkPoolUpdate(is_paused=False).dict(
+                json_compatible=True, exclude_unset=True
+            ),
+        )
+        assert unpause_response.status_code == 204
+
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+
+        assert work_pool_response.json()["is_paused"] is False
+        assert (
+            work_pool_response.json()["status"]
+            == schemas.statuses.WorkPoolStatus.READY.value
+        )
+
+        assert_status_events(
+            work_pool.name,
+            [
+                "prefect.work-pool.ready",
+                "prefect.work-pool.paused",
+                "prefect.work-pool.ready",
+            ],
+        )
 
     async def test_update_work_pool_zero_concurrency(
         self, client, session, work_pool, db
@@ -1139,6 +1243,70 @@ class TestWorkerProcess:
         assert workers_response.json()[0]["name"] == "test-worker"
         assert pendulum.parse(workers_response.json()[0]["last_heartbeat_time"]) > dt
         assert workers_response.json()[0]["status"] == "ONLINE"
+
+        assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
+
+    async def test_worker_heartbeat_updates_work_pool_status(self, client, work_pool):
+        # Verify that the work pool is not ready
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+        assert work_pool_response.status_code == status.HTTP_200_OK
+        assert (
+            work_pool_response.json()["status"]
+            == schemas.statuses.WorkPoolStatus.NOT_READY.value
+        )
+
+        # Heartbeat a worker
+        heartbeat_response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker"),
+        )
+        assert heartbeat_response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify that the work pool is ready
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+        assert work_pool_response.status_code == status.HTTP_200_OK
+        assert (
+            work_pool_response.json()["status"]
+            == schemas.statuses.WorkPoolStatus.READY.value
+        )
+
+        assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
+
+    async def test_worker_heartbeat_does_not_updates_work_pool_status_if_paused(
+        self, client, work_pool
+    ):
+        # Pause the work pool
+        await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json=schemas.actions.WorkPoolUpdate(is_paused=True).dict(
+                json_compatible=True, exclude_unset=True
+            ),
+        )
+
+        # Verify that the work pool is paused
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+        assert work_pool_response.status_code == status.HTTP_200_OK
+        assert (
+            work_pool_response.json()["status"]
+            == schemas.statuses.WorkPoolStatus.PAUSED.value
+        )
+
+        # Heartbeat a worker
+        heartbeat_response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json=dict(name="test-worker"),
+        )
+        assert heartbeat_response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Verify that the work pool is still paused
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+        assert work_pool_response.status_code == status.HTTP_200_OK
+        assert (
+            work_pool_response.json()["status"]
+            == schemas.statuses.WorkPoolStatus.PAUSED.value
+        )
+
+        assert_status_events(work_pool.name, ["prefect.work-pool.paused"])
 
     async def test_heartbeat_worker_requires_name(self, client, work_pool):
         response = await client.post(f"/work_pools/{work_pool.name}/workers/heartbeat")
