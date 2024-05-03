@@ -137,6 +137,8 @@ See the [ECS guide](/ecs_guide/) for a walkthrough of using ECS in a hybrid work
 If you're using Prefect Cloud and your organization's security posture allows storing credentials in blocks, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) are a great option.
 They provide all the benefits of ECS with a quick setup and no worker needed.
 
-## Next steps
+## Resources
 
-Refer to the API documentation linked in the sidebar to explore all the capabilities of the prefect-aws library.
+For assistance using AWS, consult the [AWS documentation](https://docs.aws.amazon.com/) and, in particular, the [Boto3 documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html).
+
+Refer to the prefect-aws API documentation linked in the sidebar to explore all the capabilities of the prefect-aws library.
