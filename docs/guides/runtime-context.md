@@ -14,12 +14,12 @@ search:
 
 Prefect tracks information about the current flow or task run with a run context.
 
-Think of the run context as a global variable that allows the Prefect engine to determine relationships between your runs — such as which flow your task was called from.
+Think of the run context as a global variable that allows the Prefect engine to determine relationships between your runs—such as which flow your task was called from.
 
 The run context itself contains many internal objects used by Prefect to manage execution of your run and is only available in specific situations. For this reason, we expose a simple interface that only includes the items you care about and dynamically retrieves additional information when necessary. We call this the "runtime context" as it contains information that can be accessed only during a run.
 
 !!! tip "Mock values through environment variable"
-    You may want to mock certain values for testing purposes.  For example, you may want to set an ID or a scheduled start time to ensure your code is functioning properly.  You can mock values in runtime through an environment variable using the schema `PREFECT__RUNTIME__{SUBMODULE}__{KEY_NAME}=value`:
+    You may want to mock certain values for testing purposes.  For example, by manually setting an ID or a scheduled start time to ensure your code is functioning properly.  Starting in version `2.10.3`, you can mock values in runtime through an environment variable using the schema `PREFECT__RUNTIME__{SUBMODULE}__{KEY_NAME}=value`:
     <div class="terminal">
     ```bash
     export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
