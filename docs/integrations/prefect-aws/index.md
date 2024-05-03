@@ -139,4 +139,3 @@ They provide all the benefits of ECS with a quick setup and no worker needed.
 ## Resources
 
 Refer to the API documentation linked in the sidebar to explore all the capabilities of the prefect-aws library.
-```
