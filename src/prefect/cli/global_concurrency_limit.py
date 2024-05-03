@@ -292,10 +292,16 @@ async def update_global_concurrency_limit(
     if not gcl.dict(exclude_unset=True, shallow=True):
         exit_with_error("No update arguments provided.")
 
+    try:
+        validated_gcl = GlobalConcurrencyLimitUpdate(**gcl.dict())
+    except ValidationError as exc:
+        _surface_pydantic_errors_nicely(exc)
+        exit_with_error("Invalid arguments provided.")
+
     async with get_client() as client:
         try:
             await client.update_global_concurrency_limit(
-                name=name, concurrency_limit=gcl
+                name=name, concurrency_limit=validated_gcl
             )
         except ObjectNotFound:
             exit_with_error(f"Global concurrency limit {name!r} not found.")
