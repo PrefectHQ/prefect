@@ -58,7 +58,7 @@ async def read_all_concurrency_limits_v2(
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.ConcurrencyLimitV2]:
+) -> List[schemas.responses.GlobalConcurrencyLimitResponse]:
     async with db.session_context() as session:
         concurrency_limits = (
             await models.concurrency_limits_v2.read_all_concurrency_limits(
@@ -69,7 +69,8 @@ async def read_all_concurrency_limits_v2(
         )
 
     return [
-        schemas.core.ConcurrencyLimitV2.from_orm(model) for model in concurrency_limits
+        schemas.responses.GlobalConcurrencyLimitResponse.from_orm(limit)
+        for limit in concurrency_limits
     ]
 
 
