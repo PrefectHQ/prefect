@@ -84,7 +84,7 @@ async def _get_base_config_defaults(
 
         if isinstance(default, dict) and "$ref" in default:
             hydrated_block = await _resolve_default_reference(default, session)
-            if not hydrated_block:
+            if hydrated_block is None:
                 continue
             defaults[variable_name] = hydrated_block
         else:
