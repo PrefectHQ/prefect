@@ -44,6 +44,7 @@ a task definition is provided, the worker will never create a new task definitio
 may result in variables that are templated into the task definition payload being
 ignored.
 """
+
 import copy
 import json
 import logging
@@ -137,7 +138,7 @@ CREATE_TASK_RUN_MIN_DELAY_JITTER_SECONDS = 0
 CREATE_TASK_RUN_MAX_DELAY_JITTER_SECONDS = 3
 
 _TASK_DEFINITION_CACHE: Dict[UUID, str] = {}
-_TAG_REGEX = r"[^a-zA-Z0-9-_.=+-@: ]+"
+_TAG_REGEX = r"[^a-zA-Z0-9_./=+:@-]"
 
 
 class ECSIdentifier(NamedTuple):
@@ -621,7 +622,7 @@ class ECSWorker(BaseWorker):
         flow_run: "FlowRun",
         configuration: ECSJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> BaseWorkerResult:
+    ) -> ECSWorkerResult:
         """
         Runs a given flow run on the current worker.
         """
