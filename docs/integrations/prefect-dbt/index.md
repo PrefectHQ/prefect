@@ -70,7 +70,6 @@ run_dbt_job_flow()
 ### Integrate dbt Core CLI commands with Prefect flows
 
 Prefect-dbt supports execution of dbt Core CLI commands.
-
 If you don't have a `DbtCoreOperation` block saved, create one and set the commands that you want to run.
 
 Optionally, specify the `project_dir`.
@@ -245,6 +244,8 @@ DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 For assistance using dbt, consult the [dbt documentation](https://docs.getdbt.com/docs/building-a-dbt-project/documentation).
 
 ### Additional installation options
+
+Additional installation options for dbt Core with BigQuery, Snowflake, and Postgres are shown below.
 
 To install with additional functionality for dbt Core and Snowflake profiles:
 
