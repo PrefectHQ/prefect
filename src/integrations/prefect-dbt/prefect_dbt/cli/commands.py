@@ -122,6 +122,9 @@ async def trigger_dbt_cli_command(
     if profiles_dir is None:
         profiles_dir = os.getenv("DBT_PROFILES_DIR", str(Path.home()) + "/.dbt")
 
+    if command.startswith("dbt"):
+        command = command.split(" ", 1)[1]
+
     # https://docs.getdbt.com/dbt-cli/configure-your-profile
     # Note that the file always needs to be called profiles.yml,
     # regardless of which directory it is in.
@@ -162,6 +165,7 @@ async def trigger_dbt_cli_command(
     result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
     if result.exception is not None:
+        logger.info(result)
         logger.error(f"dbt build task failed with exception: {result.exception}")
         raise result.exception
 

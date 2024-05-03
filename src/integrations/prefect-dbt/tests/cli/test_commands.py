@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import yaml
-from dbt.cli.main import dbtRunnerResult
+from dbt.cli.main import DbtUsageException, dbtRunnerResult
 from dbt.contracts.files import FileHash
 from dbt.contracts.graph.nodes import ModelNode
 from dbt.contracts.results import RunExecutionResult, RunResult
@@ -83,6 +83,18 @@ def dbt_runner_ls_result(monkeypatch, mock_dbt_runner_ls_success):
 
 
 @pytest.fixture
+def dbt_runner_failed_result(monkeypatch):
+    _mock_dbt_runner_invoke_failed = MagicMock(
+        return_value=dbtRunnerResult(
+            success=False,
+            exception=DbtUsageException("No such command 'weeeeeee'."),
+            result=None,
+        )
+    )
+    monkeypatch.setattr("dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_invoke_failed)
+
+
+@pytest.fixture
 def profiles_dir(tmp_path):
     return str(tmp_path) + "/.dbt"
 
@@ -92,7 +104,7 @@ def test_trigger_dbt_cli_command(profiles_dir, dbt_cli_profile_bare):
     @flow
     def test_flow():
         return trigger_dbt_cli_command(
-            command="ls",
+            command="dbt ls",
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
         )
@@ -108,10 +120,10 @@ def test_trigger_dbt_cli_command_run_twice_overwrite(
     @flow
     def test_flow():
         trigger_dbt_cli_command(
-            command="ls", profiles_dir=profiles_dir, dbt_cli_profile=dbt_cli_profile
+            command="dbt ls", profiles_dir=profiles_dir, dbt_cli_profile=dbt_cli_profile
         )
         run_two = trigger_dbt_cli_command(
-            command="ls",
+            command="dbt ls",
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             overwrite_profiles=True,
@@ -146,10 +158,10 @@ def test_trigger_dbt_cli_command_run_twice_exists(
     @flow
     def test_flow():
         trigger_dbt_cli_command(
-            "ls", profiles_dir=profiles_dir, dbt_cli_profile=dbt_cli_profile
+            "dbt ls", profiles_dir=profiles_dir, dbt_cli_profile=dbt_cli_profile
         )
         run_two = trigger_dbt_cli_command(
-            "ls",
+            "dbt ls",
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
         )
@@ -418,7 +430,7 @@ def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare):
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
-def test_rub_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     def test_flow():
         return run_dbt_model(
@@ -433,3 +445,18 @@ def test_rub_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     assert a.type == "markdown"
     assert a.data.startswith("# dbt run Task Summary")
     assert "my_first_dbt_model" in a.data
+
+
+@pytest.mark.usefixtures("dbt_runner_failed_result")
+def test_run_dbt_model_throws_error(profiles_dir, dbt_cli_profile_bare):
+    @flow
+    def test_flow():
+        return run_dbt_model(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            artifact_key="foo",
+            create_artifact=True,
+        )
+
+    with pytest.raises(DbtUsageException, match="No such command 'weeeeeee'."):
+        test_flow()
