@@ -20,14 +20,6 @@ pip install -U prefect-dbt
 ```
 </div>
 
-Install with additional functionality for dbt Core (CLI):
-
-<div class = "terminal">
-```bash
-pip install -U "prefect-dbt[cli]"
-```
-</div>
-
 If necessary, see [additional installation options for dbt Core with BigQuery, Snowflake, and Postgres](#additional-installation-options).
 
 ### Register newly installed blocks types
