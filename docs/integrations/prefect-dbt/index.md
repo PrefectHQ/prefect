@@ -269,7 +269,7 @@ To install with additional functionality for dbt Core and Postgres profiles:
 
 <div class = "terminal">
 ```bash
-pip install "prefect-dbt[postgres]"
+pip install -U "prefect-dbt[postgres]"
 ```
 </div>
 
