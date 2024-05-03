@@ -31,7 +31,7 @@ prefect block register -m prefect_aws
 Below we show how to create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.
 
-## Save credentials to an AWS Credentials block for use with other AWS services
+## Save credentials to an AWS Credentials block
 
 Use of most AWS services requires an authenticated session.
 Prefect makes it simple to provide credentials via a AWS Credentials block.
@@ -71,7 +71,7 @@ AwsCredentials.load("BLOCK-NAME-PLACEHOLDER")
 
 The AWS Credentials block is often nested within other blocks, such as `S3Bucket` or `AwsSecret`, and provides authentication for those services.
 
-### Read and write files to S3
+## Read and write files to AWS S3
 
 Upload a file to an AWS S3 bucket and download the same file under a different file name.
 The following code assumes that the bucket already exists:
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     s3_flow()
 ```
 
-### Save secrets with AWS Secrets Manager
+## Save secrets with AWS Secrets Manager
 
 Write a secret to AWS Secrets Manager, read the secret data, delete the secret, and return the secret data.
 
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     secrets_manager_flow()
 ```
 
-### Run flows on ECS
+## Run flows on AWS ECS
 
 Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
 

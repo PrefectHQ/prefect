@@ -42,7 +42,7 @@ prefect block register -m prefect_dbt
 
 Explore the examples below to use Prefect with dbt.
 
-### Integrate dbt Cloud jobs with Prefect flows
+## Integrate dbt Cloud jobs with Prefect flows
 
 If you have an existing dbt Cloud job, use the pre-built flow `run_dbt_cloud_job` to trigger a job run and wait until the job run is finished.
 
@@ -67,7 +67,7 @@ def run_dbt_job_flow():
 run_dbt_job_flow()
 ```
 
-### Integrate dbt Core CLI commands with Prefect flows
+## Integrate dbt Core CLI commands with Prefect flows
 
 Prefect-dbt supports execution of dbt Core CLI commands.
 If you don't have a `DbtCoreOperation` block saved, create one and set the commands that you want to run.
@@ -76,7 +76,7 @@ Optionally, specify the `project_dir`.
 If `profiles_dir` is not set, the `DBT_PROFILES_DIR` environment variable will be used.
 If `DBT_PROFILES_DIR` is not set, the default directory will be used `$HOME/.dbt/`.
 
-#### Use an existing profile
+### Use an existing profile
 
 If you have an existing dbt profile, specify the `profiles_dir` where `profiles.yml` is located:
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     trigger_dbt_flow()
 ```
 
-#### Set up a new profile
+### Set up a new profile
 
 To setup a new profile, first [save and load a DbtCliProfile block](#saving-credentials-to-block) and use it in `DbtCoreOperation`.
 
@@ -130,11 +130,11 @@ if __name__ == "__main__":
     trigger_dbt_flow()
 ```
 
-### Save credentials to a block
+## Save credentials to a block
 
 Blocks can be [created through code](/concepts/blocks/#saving-blocks) or through the UI.
 
-#### dbt Cloud
+### dbt Cloud
 
 To create a dbt Cloud Credentials block do the following:
 
@@ -181,7 +181,7 @@ from prefect_dbt.cloud import DbtCloudJob
 DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
 ```
 
-#### dbt Core CLI
+### dbt Core CLI
 
 !!! info "Available `TargetConfigs` blocks"
 
@@ -242,6 +242,8 @@ DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 ## Resources
 
 For assistance using dbt, consult the [dbt documentation](https://docs.getdbt.com/docs/building-a-dbt-project/documentation).
+
+Refer to the prefect-dbt API documentation linked in the sidebar to explore all the capabilities of the prefect-dbt library.
 
 ### Additional installation options
 
