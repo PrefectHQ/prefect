@@ -341,16 +341,25 @@ async def create_global_concurrency_limit(
     Create a global concurrency limit.
 
     Arguments:
+
         name (str): The name of the global concurrency limit to create.
+
         limit (int): The limit of the global concurrency limit.
+
         disable (Optional[bool]): Create an inactive global concurrency limit.
+
         active_slots (Optional[int]): The number of active slots.
+
         slot_decay_per_second (Optional[float]): The slot decay per second.
 
     Examples:
+
         $ prefect global-concurrency-limit create my-gcl --limit 10
+
         $ prefect gcl create my-gcl --limit 5 --active-slots 3
+
         $ prefect gcl create my-gcl --limit 5 --active-slots 3 --slot-decay-per-second 0.5
+
         $ prefect gcl create my-gcl --limit 5 --inactive
     """
     async with get_client() as client:
