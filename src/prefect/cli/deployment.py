@@ -557,7 +557,7 @@ async def list_schedules(deployment_name: str):
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-    def sort_by_created_key(schedule: DeploymentSchedule) -> pendulum.Interval:
+    def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
         return pendulum.now("utc") - schedule.created
 
