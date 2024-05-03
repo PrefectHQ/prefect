@@ -41,7 +41,7 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeInteger, PositiveInteger
+from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
@@ -639,10 +639,14 @@ class ConcurrencyLimitV2Update(ActionBaseModel):
 
     active: Optional[bool] = Field(None)
     name: Optional[str] = Field(None)
-    limit: Optional[int] = Field(None)
-    active_slots: Optional[int] = Field(None)
-    denied_slots: Optional[int] = Field(None)
-    slot_decay_per_second: Optional[float] = Field(None)
+    limit: Optional[NonNegativeInteger] = Field(None)
+    active_slots: Optional[NonNegativeInteger] = Field(None)
+    denied_slots: Optional[NonNegativeInteger] = Field(None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockTypeCreate(ActionBaseModel):

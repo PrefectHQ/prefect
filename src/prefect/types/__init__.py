@@ -49,6 +49,25 @@ class PositiveInteger(int):
 
 
 @dataclass
+class NonNegativeFloat(float):
+    schema: ClassVar[CoreSchema] = core_schema.float_schema(ge=0)
+
+    @classmethod
+    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
+        yield cls.validate
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Callable[..., Any]
+    ) -> CoreSchema:
+        return cls.schema
+
+    @classmethod
+    def validate(cls, v: Any) -> Self:
+        return SchemaValidator(schema=cls.schema).validate_python(v)
+
+
+@dataclass
 class NonNegativeDuration(timedelta):
     """A timedelta that must be greater than or equal to 0."""
 
@@ -93,6 +112,7 @@ class PositiveDuration(timedelta):
 __all__ = [
     "NonNegativeInteger",
     "PositiveInteger",
+    "NonNegativeFloat",
     "NonNegativeDuration",
     "PositiveDuration",
 ]

@@ -28,7 +28,7 @@ from prefect._internal.schemas.validators import (
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeInteger, PositiveInteger
+from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
@@ -772,7 +772,7 @@ class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a global concurrency limit."""
 
     name: Optional[str] = Field(None)
-    limit: Optional[int] = Field(None)
-    active: Optional[bool] = Field(None)
-    active_slots: Optional[int] = Field(None)
-    slot_decay_per_second: Optional[float] = Field(None)
+    limit: Optional[NonNegativeInteger] = Field(None)
+    active: Optional[NonNegativeInteger] = Field(None)
+    active_slots: Optional[NonNegativeInteger] = Field(None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
