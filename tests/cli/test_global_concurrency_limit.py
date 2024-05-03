@@ -76,3 +76,43 @@ def test_listing_gcl(various_global_concurrency_limits: List[GlobalConcurrencyLi
         ),
         expected_code=0,
     )
+
+
+@pytest.fixture
+def read_global_concurrency_limit_by_name() -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.client.PrefectClient.read_global_concurrency_limit_by_name",
+    ) as m:
+        yield m
+
+
+def test_inspecting_gcl(
+    read_global_concurrency_limit_by_name: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    read_global_concurrency_limit_by_name.return_value = (
+        various_global_concurrency_limits[0]
+    )
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "inspect",
+            various_global_concurrency_limits[0].name,
+        ],
+        expected_output_contains=(
+            str(various_global_concurrency_limits[0].name),
+            str(various_global_concurrency_limits[0].limit),
+            str(various_global_concurrency_limits[0].active_slots),
+            str(various_global_concurrency_limits[0].slot_decay_per_second),
+        ),
+        expected_code=0,
+    )
+
+
+def test_inspecting_gcl_not_found():
+    invoke_and_assert(
+        ["global-concurrency-limit", "inspect", "not-found"],
+        expected_output="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )

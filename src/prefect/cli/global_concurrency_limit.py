@@ -1,10 +1,18 @@
+from enum import Enum
+from pathlib import Path
+from typing import Optional
+
+import orjson
 import pendulum
+import typer
+from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_success
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.exceptions import ObjectNotFound
 
 global_concurrency_limit_app = PrefectTyper(
     name="global-concurrency-limit",
@@ -12,6 +20,10 @@ global_concurrency_limit_app = PrefectTyper(
 )
 
 app.add_typer(global_concurrency_limit_app, aliases=["gcl"])
+
+
+class OutputFormat(Enum):
+    JSON = "json"
 
 
 @global_concurrency_limit_app.command("ls")
@@ -52,3 +64,65 @@ async def list_global_concurrency_limits():
         )
 
     app.console.print(table)
+
+
+@global_concurrency_limit_app.command("inspect")
+async def inspect_global_concurrency_limit(
+    name: str,
+    output: Optional[OutputFormat] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output format for the command.",
+        case_sensitive=False,
+    ),
+    file_path: Optional[Path] = typer.Option(
+        None,
+        "--file",
+        "-f",
+        help="Path to .json file to write the global concurrency limit output to.",
+    ),
+):
+    """
+    Inspect a global concurrency limit.
+
+    Arguments:
+        name (str): The name of the global concurrency limit to inspect.
+        output (Optional[OutputFormat]): An output format for the command. Currently only supports JSON.
+            Required if --file/-f is set.
+        file_path (Optional[Path]): A path to .json file to write the global concurrent limit output to.
+
+    Returns:
+        id (str): The ID of the global concurrency limit.
+        created (str): The created date of the global concurrency limit.
+        updated (str): The updated date of the global concurrency limit.
+        name (str): The name of the global concurrency limit.
+        limit (int): The limit of the global concurrency limit.
+        active_slots (int): The number of active slots.
+        slot_decay_per_second (float): The slot decay per second.
+
+    """
+    if file_path and not output:
+        exit_with_error("The --file/-f option requires the --output option to be set.")
+
+    async with get_client() as client:
+        try:
+            gcl_limit = await client.read_global_concurrency_limit_by_name(name=name)
+        except ObjectNotFound:
+            exit_with_error(f"Global concurrency limit {name!r} not found.")
+
+    if output:
+        gcl_limit = gcl_limit.dict(json_compatible=True)
+        json_output = orjson.dumps(gcl_limit, option=orjson.OPT_INDENT_2).decode()
+        if not file_path:
+            app.console.print(json_output)
+
+        else:
+            with open(file_path, "w") as f:
+                f.write(json_output)
+                exit_with_success(
+                    f"Global concurrency limit {name!r} written to {file_path}"
+                )
+
+    else:
+        app.console.print(Pretty(gcl_limit))
