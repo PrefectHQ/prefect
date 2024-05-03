@@ -3055,10 +3055,10 @@ class PrefectClient:
 
     async def read_global_concurrency_limit_by_name(
         self, name: str
-    ) -> Dict[str, object]:
+    ) -> GlobalConcurrencyLimitResponse:
         try:
             response = await self._client.get(f"/v2/concurrency_limits/{name}")
-            return response.json()
+            return GlobalConcurrencyLimitResponse.parse_obj(response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
