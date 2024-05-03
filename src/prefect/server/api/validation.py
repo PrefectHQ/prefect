@@ -19,7 +19,8 @@ Note some important details:
     satisfy job variable JSON schemas. To avoid failing validation for existing (otherwise
     working) data, we ignore invalid defaults when validating deployment and flow run
     variables, but not when validating the work pool's base template, e.g. during work pool
-    creation or updates.
+    creation or updates. If we find defaults that are invalid, we have to ignore required
+    fields when we run the full validation.
 
 4. A flow run is the terminal point for job variables, so it is the only place where
    we validate required variables and default values. Thus,
@@ -33,7 +34,8 @@ Note some important details:
    None values to be passed in, which means that if an optional field does not actually
    allow None values, the Pydantic model will fail to validate at runtime.
 """
-from typing import Any, Dict, Union
+
+from typing import Any, Dict, Optional, Tuple, Union
 
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.exc import DBAPIError, NoInspectionAvailable
@@ -62,85 +64,84 @@ FlowRunAction = Union[
 
 
 def _get_base_config_defaults(
-    base_config: dict, ignore_invalid_defaults: bool = True
-) -> dict:
-    template: dict = base_config.get("variables", {}).get("properties", {})
+    session: AsyncSession,
+    base_config: dict,
+    ignore_invalid_defaults: bool = True,
+) -> Tuple[dict, bool]:
+    variables_schema = base_config.get("variables", {})
+    fields_schema: dict = variables_schema.get("properties", {})
     defaults: Dict[str, Any] = dict()
-    defaults_to_validate: Dict[str, Any] = dict()
+    has_invalid_defaults = False
 
-    if not template:
-        return defaults
+    if not fields_schema:
+        return defaults, has_invalid_defaults
 
-    for variable_name, attrs in template.items():
+    for variable_name, attrs in fields_schema.items():
         if "default" not in attrs:
             continue
 
         default = attrs["default"]
-        defaults[variable_name] = default
+
+        if isinstance(default, dict) and "$ref" in default:
+            defaults[variable_name] = _resolve_default_reference(default, session)
+        else:
+            defaults[variable_name] = default
 
         if ignore_invalid_defaults:
-            if isinstance(default, dict) and "$ref" in default:
-                continue
-
             errors = validate(
-                defaults_to_validate,
-                {"properties": template},
+                {variable_name: defaults[variable_name]},
+                variables_schema,
                 raise_on_error=False,
                 preprocess=False,
                 ignore_required=True,
                 allow_none_with_default=False,
             )
             if errors:
+                has_invalid_defaults = True
                 try:
                     del defaults[variable_name]
                 except (IndexError, KeyError):
                     pass
 
-    return defaults
+    return defaults, has_invalid_defaults
 
 
-async def _resolve_default_references(
-    variables: Dict[str, Any], session: AsyncSession
-) -> Dict[str, Any]:
+async def _resolve_default_reference(
+    variable: Dict[str, Any], session: AsyncSession
+) -> Optional[Any]:
     """
-    Iterate through discovered job_variables and resolve references to blocks. The input
-    variables should have a format of:
+    Resolve a reference to a block. The input variable should have a format of:
 
     {
-        "variable_name": {
-            "$ref": {
-                "block_document_id": "block_document_id"
-            },
-        "other_variable_name": "plain_value"
+        "$ref": {
+            "block_document_id": "block_document_id"
+        },
     }
     """
-    for name, default_value in variables.items():
-        if not isinstance(default_value, dict):
-            continue
+    if not isinstance(variable, dict):
+        return
 
-        if "$ref" not in default_value:
-            continue
+    if "$ref" not in variable:
+        return
 
-        reference_data = default_value.get("$ref", {})
-        if (block_doc_id := reference_data.get("block_document_id")) is None:
-            continue
+    reference_data = variable.get("$ref", {})
+    if (block_doc_id := reference_data.get("block_document_id")) is None:
+        return
 
-        try:
-            block_document = await models.block_documents.read_block_document_by_id(
-                session, block_doc_id
-            )
-        except pydantic.ValidationError:
-            # It's possible to get an invalid UUID here because the block document ID is
-            # not validated by our schemas.
-            logger.info("Could not find block document with ID %s", block_doc_id)
-            block_document = None
+    try:
+        block_document = await models.block_documents.read_block_document_by_id(
+            session, block_doc_id
+        )
+    except pydantic.ValidationError:
+        # It's possible to get an invalid UUID here because the block document ID is
+        # not validated by our schemas.
+        logger.info("Could not find block document with ID %s", block_doc_id)
+        block_document = None
 
-        if not block_document:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found.")
+    if not block_document:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found.")
 
-        variables[name] = block_document.data
-
-    return variables
+    return block_document.data
 
 
 async def _validate_work_pool_job_variables(
@@ -175,20 +176,28 @@ async def _validate_work_pool_job_variables(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         )
 
-    base_vars = _get_base_config_defaults(base_job_template, ignore_invalid_defaults)
-    base_vars = await _resolve_default_references(base_vars, session)
+    base_vars, invalid_defaults = _get_base_config_defaults(
+        session, base_job_template, ignore_invalid_defaults
+    )
     all_job_vars = {**base_vars}
 
     for jvs in job_vars:
         if isinstance(jvs, dict):
             all_job_vars.update(jvs)
 
+    # If we are ignoring validation for default values and there were invalid defaults,
+    # then we can't check for required fields because we won't have the default values
+    # to satisfy nissing required fields.
+    should_ignore_required = ignore_required or (
+        ignore_invalid_defaults and invalid_defaults
+    )
+
     validate(
         all_job_vars,
         variables_schema,
         raise_on_error=raise_on_error,
         preprocess=True,
-        ignore_required=ignore_required,
+        ignore_required=should_ignore_required,
         # We allow None values to be passed in for optional fields if there is a default
         # value for the field. This is because we have blocks that contain default None
         # values that will fail to validate otherwise. However, this means that if an
@@ -228,6 +237,7 @@ async def validate_job_variables_for_deployment_flow_run(
             session,
             work_pool.name,
             work_pool.base_job_template,
+            deployment.job_variables or {},
             flow_run.job_variables or {},
             ignore_required=False,
             ignore_invalid_defaults=True,
