@@ -16,7 +16,7 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from prefect.client.base import PrefectHttpxClient
+from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.logging import get_logger
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 
 
 class BaseClient:
-    _http_client: PrefectHttpxClient
+    _http_client: PrefectHttpxAsyncClient
 
     def __init__(self, additional_headers: Dict[str, str] = {}):
         from prefect.server.api.server import create_app
@@ -35,7 +35,7 @@ class BaseClient:
         # will point it to the the currently running server instance
         api_app = create_app()
 
-        self._http_client = PrefectHttpxClient(
+        self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
             headers={**additional_headers},
             base_url="http://prefect-in-memory/api",

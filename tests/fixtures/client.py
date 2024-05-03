@@ -18,8 +18,7 @@ async def prefect_client(
 
 @pytest.fixture
 def sync_prefect_client(test_database_connection_url):
-    with get_client(sync_client=True) as client:
-        yield client
+    yield get_client(sync_client=True)
 
 
 @pytest.fixture

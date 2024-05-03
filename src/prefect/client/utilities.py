@@ -49,12 +49,12 @@ def get_or_create_client(
 
     if (
         flow_run_context
-        and getattr(flow_run_context.client, "_loop") == get_running_loop()
+        and getattr(flow_run_context.client, "_loop", None) == get_running_loop()
     ):
         return flow_run_context.client, True
     elif (
         task_run_context
-        and getattr(task_run_context.client, "_loop") == get_running_loop()
+        and getattr(task_run_context.client, "_loop", None) == get_running_loop()
     ):
         return task_run_context.client, True
     else:
