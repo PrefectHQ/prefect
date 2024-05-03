@@ -13,7 +13,7 @@ search:
 
 Blocks are a primitive within Prefect that enable the storage of configuration and provide an interface for interacting with external systems.
 
-With blocks, you can securely store credentials for authenticating with services like AWS, GitHub, Slack, and any other system you'd like to orchestrate with Prefect. 
+With blocks, you can securely store credentials for authenticating with services like AWS, GitHub, Slack, and any other system you'd like to orchestrate with Prefect.
 
 Blocks expose methods that provide pre-built functionality for performing actions against an external system. They can be used to download data from or upload data to an S3 bucket, query data from or write data to a database, or send a message to a Slack channel.
 
@@ -34,40 +34,48 @@ The Prefect UI's blocks catalogue displays block types available for configurati
 
 ## Prefect built-in blocks
 
-Prefect provides a broad range of commonly used, built-in block types. These block types are pre-installed in Prefect Cloud and a self-hosted Prefect server instance. Prefect Cloud contains additional pre-installed blocks.
+Prefect provides a broad range of commonly used, built-in block types.
+These block types are pre-installed in Prefect Cloud and a self-hosted Prefect server instance.
+These block types can be created via the UI and used without installing any additional packages.
 
 | Block                                                                                                                | Slug                                                     | Description                                                                                                                             |
 | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| [Azure](/concepts/filesystems/#azure)                                                                                | `azure`                                                  | Store data as a file on Azure Datalake and Azure Blob Storage.                                                                          |
-| [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime)                                          | `date-time`                                              | A block that represents a datetime.                                                                                                     |
-| [Docker Container](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer)                          | `docker-container`                                       | Runs a command in a container.                                                                                                          |
-| [Docker Registry](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry)                     | `docker-registry`                                        | Connects to a Docker registry.  Requires a Docker Engine to be connectable.                                                             |
-| [GCS](/concepts/filesystems/#gcs)                                                                                    | `gcs`                                                    | Store data as a file on Google Cloud Storage.                                                                                           |
-| [GitHub](/concepts/filesystems/#github)                                                                              | `github`                                                 | Interact with files stored on public GitHub repositories.                                                                               |
-| [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON)                                                   | `json`                                                   | A block that represents JSON.                                                                                                           |
-| [Kubernetes Cluster Config](/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig)   | <span class="no-wrap">`kubernetes-cluster-config`</span> | Stores configuration for interaction with Kubernetes clusters.                                                                          |
-| [Kubernetes Job](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob)                              | `kubernetes-job`                                         | Runs a command as a Kubernetes Job.                                                                                                     |
-| [Local File System](/concepts/filesystems/#local-filesystem)                                                         | `local-file-system`                                      | Store data as a file on a local file system.                                                                                            |
-| [Microsoft Teams Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook) | `ms-teams-webhook`                                       | Enables sending notifications via a provided Microsoft Teams webhook.                                                                   |
-| [Opsgenie Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.OpsgenieWebhook)              | `opsgenie-webhook`                                       | Enables sending notifications via a provided Opsgenie webhook.                                                                          |
-| [Pager Duty Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.PagerDutyWebHook)           | `pager-duty-webhook`                                     | Enables sending notifications via a provided PagerDuty webhook.                                                                         |
-| [Process](/concepts/infrastructure/#process)                                                                         | `process`                                                | Run a command in a new process.                                                                                                         |
-| [Remote File System](/concepts/filesystems/#remote-file-system)                                                      | `remote-file-system`                                     | Store data as a file on a remote file system.  Supports any remote file system supported by `fsspec`.                                   |
-| [S3](/concepts/filesystems/#s3)                                                                                      | `s3`                                                     | Store data as a file on AWS S3.                                                                                                         |
-| [Secret](/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret)                                               | `secret`                                                 | A block that represents a secret value. The value stored in this block will be obfuscated when this block is logged or shown in the UI. |
-| [Slack Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook)                    | `slack-webhook`                                          | Enables sending notifications via a provided Slack webhook.                                                                             |
-| [SMB](/concepts/filesystems/#smb)                                                                                    | `smb`                                                    | Store data as a file on a SMB share.                                                                                                    |
-| [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String)                                               | `string`                                                 | A block that represents a string.                                                                                                       |
-| [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS)                          | `twilio-sms`                                             | Enables sending notifications via Twilio SMS.                                                                                           |
-| [Webhook](/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook)                                           | `webhook`                                                | Block that enables calling webhooks.                                                                                                    |
+| [Azure](/concepts/filesystems/#azure)                                                                                | `azure`                                               | Store data as a file on Azure Datalake and Azure Blob Storage.                   |
+| [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime)                                          | `date-time`                                              | A block that represents a datetime.                                             |
+| [Docker Container](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer)                          | `docker-container`                                       | Runs a command in a container.                                                              |
+| [Docker Registry](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry)                     | `docker-registry`                                        | Connects to a Docker registry.  Requires a Docker Engine to be connectable.                     |
+| [GCS](/concepts/filesystems/#gcs)                                                                                    | `gcs`                                                    | Store data as a file on Google Cloud Storage.                               |
+| [GitHub](/concepts/filesystems/#github)                                                                              | `github`                                                 | Interact with files stored on public GitHub repositories.                                    |
+| [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON)                                                   | `json`                                                   | A block that represents JSON.                                           |
+| [Kubernetes Cluster Config](/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig)   | <span class="no-wrap">`kubernetes-cluster-config`</span> | Stores configuration for interaction with Kubernetes clusters.                                 |
+| [Kubernetes Job](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob)                              | `kubernetes-job`                                         | Runs a command as a Kubernetes Job.                                                         |
+| [Local File System](/concepts/filesystems/#local-filesystem)                                                         | `local-file-system`                                      | Store data as a file on a local file system.                                              |
+| [Microsoft Teams Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook) | `ms-teams-webhook`                                       | Enables sending notifications via a provided Microsoft Teams webhook.                           |
+| [Opsgenie Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.OpsgenieWebhook)              | `opsgenie-webhook`                                       | Enables sending notifications via a provided Opsgenie webhook.                             |
+| [Pager Duty Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.PagerDutyWebHook)           | `pager-duty-webhook`                                     | Enables sending notifications via a provided PagerDuty webhook.                                  |
+| [Process](/concepts/infrastructure/#process)                                                                         | `process`                                                | Run a command in a new process.                                                                   |
+| [Remote File System](/concepts/filesystems/#remote-file-system)                                                      | `remote-file-system`                                     | Store data as a file on a remote file system.  Supports any remote file system supported by `fsspec`.                  |
+| [S3](/concepts/filesystems/#s3)                                                                                      | `s3`                                                     | Store data as a file on AWS S3.                               |
+| [Secret](/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret)                                               | `secret`                                           | A block that represents a secret value. The value stored in this block will be obfuscated when this block is logged or shown in the UI. |
+| [Slack Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook)                    | `slack-webhook`                                          | Enables sending notifications via a provided Slack webhook.                      |
+| [SMB](/concepts/filesystems/#smb)                                                                                    | `smb`                                                    | Store data as a file on a SMB share.                                                     |
+| [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String)                                               | `string`                                                 | A block that represents a string.                                         |
+| [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS)                          | `twilio-sms`                                             | Enables sending notifications via Twilio SMS.                                                       |
+| [Webhook](/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook)                                           | `webhook`                                                | Block that enables calling webhooks.                                                |
 
 ## Blocks in Prefect integration libraries
 
-Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect ointegrations libraries](/integrations/). The following table provides an overview of the blocks available from our most popular Prefect Integrations.
+The `S3`, `Azure`, and `GCS` blocks are deprecated in favor of the the corresponding `S3Bucket`, `GCSBucket`, and `AzureBlobStorageCredentials` blocks found in the [Prefect integration libraries](/integrations/).
+
+Some block types that appear in the UI can be created immediately, and then the corresponding integration library must be installed for use.
+For example, an AWS Secret block can be created, but not used until the [`prefect-aws` library](/integrations/prefect-aws/) is installed.
+
+Block types can be created by anyone and optionally shared with the community.
+You'll find block types available for consumption in many of the published [Prefect integrations libraries](/integrations/).
+If a block type is not available in the UI, you can [register it](#registering-blocks-for-use) via the CLI.
 
 | Integration                                                             | Block                                                                                                                                                       | Slug                                   |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| [prefect-aws](https://prefecthq.github.io/prefect-aws/)                 | [AWS Credentials](https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.AwsCredentials)                                              | `aws-credentials`                      |
 | [prefect-aws](https://prefecthq.github.io/prefect-aws/)                 | [ECS Task](https://prefecthq.github.io/prefect-aws/ecs/#prefect_aws.ecs.ECSTask)                                                                            | `ecs-task`                             |
 | [prefect-aws](https://prefecthq.github.io/prefect-aws/)                 | [MinIO Credentials](https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.MinIOCredentials)                                          | `minio-credentials`                    |
 | [prefect-aws](https://prefecthq.github.io/prefect-aws/)                 | [S3 Bucket](https://prefecthq.github.io/prefect-aws/s3/#prefect_aws.s3.S3Bucket)                                                                            | `s3-bucket`                            |
@@ -77,7 +85,7 @@ Blocks can also be created by anyone and shared with the community. You'll find 
 | [prefect-azure](https://prefecthq.github.io/prefect-azure/)             | [Azure Cosmos DB Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCosmosDbCredentials)                    | `azure-cosmos-db-credentials`          |
 | [prefect-azure](https://prefecthq.github.io/prefect-azure/)             | [AzureML Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureMlCredentials)                                  | `azureml-credentials`                  |
 | [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Credentials](https://prefecthq.github.io/prefect-bitbucket/credentials/)                                                                         | `bitbucket-credentials`                |
-| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Repository](https://prefecthq.github.io/prefect-bitbucket/repository/)                                                                           | `bitbucket-repository`                 |                       
+| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/)     | [BitBucket Repository](https://prefecthq.github.io/prefect-bitbucket/repository/)                                                                           | `bitbucket-repository`                 |
 | [prefect-databricks](https://prefecthq.github.io/prefect-databricks/)   | [Databricks Credentials](https://prefecthq.github.io/prefect-databricks/credentials/#prefect_databricks.credentials.DatabricksCredentials)                  | `databricks-credentials`               |
 | [prefect-dbt](https://prefecthq.github.io/prefect-dbt/)                 | [dbt CLI BigQuery Target Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/bigquery/#prefect_dbt.cli.configs.bigquery.BigQueryTargetConfigs)     | `dbt-cli-bigquery-target-configs`      |
 | [prefect-dbt](https://prefecthq.github.io/prefect-dbt/)                 | [dbt CLI Profile](https://prefecthq.github.io/prefect-dbt/cli/credentials/#prefect_dbt.cli.credentials.DbtCliProfile)                                       | `dbt-cli-profile`                      |
@@ -102,8 +110,8 @@ Blocks can also be created by anyone and shared with the community. You'll find 
 | [prefect-kubernetes](https://prefecthq.github.io/prefect-kubernetes/)   | [Kubernetes Credentials](https://prefecthq.github.io/prefect-kubernetes/credentials/)                                                                       | `kubernetes-credentials`               |
 | [prefect-slack](https://prefecthq.github.io/prefect-slack/)             | [Slack Credentials](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackCredentials)                                      | `slack-credentials`                    |
 | [prefect-slack](https://prefecthq.github.io/prefect-slack/)             | [Slack Incoming Webhook](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackWebhook)                                     | `slack-incoming-webhook`               |
-| [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)     | [Snowflake Connector](https://prefecthq.github.io/prefect-snowflake/database/#prefect_snowflake.database.SnowflakeConnector)                                | `snowflake-connector`                  |
-| [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)     | [Snowflake Credentials](https://prefecthq.github.io/prefect-snowflake/credentials/#prefect_snowflake.credentials.SnowflakeCredentials)                      | `snowflake-credentials`                |
+| [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)       | [Snowflake Connector](https://prefecthq.github.io/prefect-snowflake/database/#prefect_snowflake.database.SnowflakeConnector)                                | `snowflake-connector`                  |
+| [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)       | [Snowflake Credentials](https://prefecthq.github.io/prefect-snowflake/credentials/#prefect_snowflake.credentials.SnowflakeCredentials)                      | `snowflake-credentials`                |
 | [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/)   | [Database Credentials](https://prefecthq.github.io/prefect-sqlalchemy/credentials/#prefect_sqlalchemy.credentials.DatabaseCredentials)                      | `database-credentials`                 |
 | [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/)   | [SQLAlchemy Connector](https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector)                            | `sqlalchemy-connector`                 |
 
@@ -195,7 +203,6 @@ prefect block delete json/life-the-universe-everything
 ```bash
 prefect block delete --id <my-id>
 ```
-
 
 ## Creating new block types
 
@@ -301,6 +308,7 @@ system_configuration_block = SystemConfiguration(
     },
 )
 ```
+
 `system_secrets` will be obfuscated when `system_configuration_block` is displayed, but `system_variables` will be shown in plain-text:
 
 ```python
@@ -310,6 +318,7 @@ print(system_configuration_block)
 #   system_variables={'self_destruct_countdown_seconds': 60, 'self_destruct_countdown_stop_time': 7}
 # )
 ```
+
 ### Blocks metadata
 
 The way that a block is displayed can be controlled by metadata fields that can be set on a block subclass.
@@ -410,10 +419,10 @@ my_s3_bucket.save("my_s3_bucket")
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
 
 ### Handling updates to custom `Block` types
+
 Let's say that you now want to add a `bucket_folder` field to your custom `S3Bucket` block that represents the default path to read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
 
 We can add the new field to the class definition:
-
 
 ```python hl_lines="4"
 class S3Bucket(Block):
@@ -424,7 +433,6 @@ class S3Bucket(Block):
 ```
 
 Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect server.
-
 
 If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
 
@@ -439,7 +447,7 @@ my_s3_bucket_block.bucket_path = "my-default-bucket-path"
 my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
 ```
 
-## Registering blocks for use 
+## Registering blocks for use
 
 Prefect comes with many blocks pre-registered and ready to use.
 If you do not have a block available for use, you can register it.
