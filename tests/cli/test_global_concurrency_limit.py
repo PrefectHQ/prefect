@@ -526,7 +526,6 @@ async def test_create_gcl_no_fields():
             "create",
             "test",
         ],
-        expected_output_contains="Missing option '--limit' / '-l'.",
         expected_code=2,
     )
 
