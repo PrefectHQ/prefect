@@ -4,6 +4,7 @@ from uuid import UUID
 
 import pytest
 
+from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
 from prefect.client.schemas.objects import GlobalConcurrencyLimit
 from prefect.testing.cli import invoke_and_assert
 
@@ -113,6 +114,171 @@ def test_inspecting_gcl(
 def test_inspecting_gcl_not_found():
     invoke_and_assert(
         ["global-concurrency-limit", "inspect", "not-found"],
+        expected_output="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )
+
+
+@pytest.fixture
+def delete_global_concurrency_limit_by_name() -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.client.PrefectClient.delete_global_concurrency_limit_by_name",
+    ) as m:
+        yield m
+
+
+def test_deleting_gcl(
+    delete_global_concurrency_limit_by_name: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "delete",
+            various_global_concurrency_limits[0].name,
+        ],
+        prompts_and_responses=[
+            (
+                f"Are you sure you want to delete global concurrency limit '{various_global_concurrency_limits[0].name}'?",
+                "y",
+            )
+        ],
+        expected_output_contains=f"Deleted global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    delete_global_concurrency_limit_by_name.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name
+    )
+
+
+def test_deleting_gcl_not_found():
+    invoke_and_assert(
+        ["global-concurrency-limit", "delete", "not-found"],
+        prompts_and_responses=[
+            (
+                "Are you sure you want to delete global concurrency limit 'not-found'?",
+                "y",
+            )
+        ],
+        expected_output_contains="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )
+
+
+@pytest.fixture
+def update_global_concurrency_limit() -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.client.PrefectClient.update_global_concurrency_limit",
+    ) as m:
+        yield m
+
+
+def test_enable_inactive_gcl(
+    read_global_concurrency_limit_by_name: mock.AsyncMock,
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    various_global_concurrency_limits[0].active = False
+    read_global_concurrency_limit_by_name.return_value = (
+        various_global_concurrency_limits[0]
+    )
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "enable",
+            various_global_concurrency_limits[0].name,
+        ],
+        expected_output=f"Enabled global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            active=True,
+        ),
+    )
+
+
+def test_enable_already_active_gcl(
+    read_global_concurrency_limit_by_name: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    read_global_concurrency_limit_by_name.return_value = (
+        various_global_concurrency_limits[0]
+    )
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "enable",
+            various_global_concurrency_limits[0].name,
+        ],
+        expected_output=f"Global concurrency limit with name '{various_global_concurrency_limits[0].name}' is already enabled.",
+        expected_code=1,
+    )
+
+
+def test_enable_gcl_not_found():
+    invoke_and_assert(
+        ["global-concurrency-limit", "enable", "not-found"],
+        expected_output="Global concurrency limit 'not-found' not found.",
+        expected_code=1,
+    )
+
+
+def test_disable_active_gcl(
+    read_global_concurrency_limit_by_name: mock.AsyncMock,
+    update_global_concurrency_limit: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    various_global_concurrency_limits[0].active = True
+    read_global_concurrency_limit_by_name.return_value = (
+        various_global_concurrency_limits[0]
+    )
+    update_global_concurrency_limit.return_value = various_global_concurrency_limits[0]
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "disable",
+            various_global_concurrency_limits[0].name,
+        ],
+        expected_output=f"Disabled global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_code=0,
+    )
+    update_global_concurrency_limit.assert_called_once_with(
+        name=various_global_concurrency_limits[0].name,
+        concurrency_limit=GlobalConcurrencyLimitUpdate(
+            active=False,
+        ),
+    )
+
+
+def test_disable_already_inactive_gcl(
+    read_global_concurrency_limit_by_name: mock.AsyncMock,
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    various_global_concurrency_limits[0].active = False
+    read_global_concurrency_limit_by_name.return_value = (
+        various_global_concurrency_limits[0]
+    )
+
+    invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "disable",
+            various_global_concurrency_limits[0].name,
+        ],
+        expected_output=f"Global concurrency limit with name '{various_global_concurrency_limits[0].name}' is already disabled.",
+        expected_code=1,
+    )
+
+
+def test_disable_gcl_not_found():
+    invoke_and_assert(
+        ["global-concurrency-limit", "disable", "not-found"],
         expected_output="Global concurrency limit 'not-found' not found.",
         expected_code=1,
     )
