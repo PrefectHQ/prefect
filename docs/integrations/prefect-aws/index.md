@@ -38,9 +38,9 @@ Prefect makes it simple to provide credentials via a AWS Credentials block.
 
 Steps:
 
-1. Refer to the [AWS Configuration documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to retrieve your access key ID and secret access key
-1. Copy the access key ID and secret access key
-1. Create an `AWSCredenitals` block in the Prefect UI or use a Python script like the one below - replace the placeholders with your credential information and desired block name:
+1. Refer to the [AWS Configuration documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to retrieve your access key ID and secret access key.
+1. Copy the access key ID and secret access key.
+1. Create an `AWSCredenitals` block in the Prefect UI or use a Python script like the one below.
 
 ```python
 from prefect_aws import AwsCredentials
