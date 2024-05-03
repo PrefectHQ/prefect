@@ -63,7 +63,7 @@ FlowRunAction = Union[
 ]
 
 
-def _get_base_config_defaults(
+async def _get_base_config_defaults(
     session: AsyncSession,
     base_config: dict,
     ignore_invalid_defaults: bool = True,
@@ -83,7 +83,10 @@ def _get_base_config_defaults(
         default = attrs["default"]
 
         if isinstance(default, dict) and "$ref" in default:
-            defaults[variable_name] = _resolve_default_reference(default, session)
+            hydrated_block = await _resolve_default_reference(default, session)
+            if not hydrated_block:
+                continue
+            defaults[variable_name] = hydrated_block
         else:
             defaults[variable_name] = default
 
@@ -176,7 +179,7 @@ async def _validate_work_pool_job_variables(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         )
 
-    base_vars, invalid_defaults = _get_base_config_defaults(
+    base_vars, invalid_defaults = await _get_base_config_defaults(
         session, base_job_template, ignore_invalid_defaults
     )
     all_job_vars = {**base_vars}
