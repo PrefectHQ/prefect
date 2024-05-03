@@ -1,5 +1,7 @@
 import asyncio
 import datetime
+import socket
+import threading
 import warnings
 from contextlib import AsyncExitStack
 from typing import (
@@ -21,6 +23,7 @@ import certifi
 import httpcore
 import httpx
 import pendulum
+import uvicorn
 from typing_extensions import ParamSpec
 
 from prefect._internal.compatibility.deprecated import (
@@ -33,7 +36,6 @@ from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_EVENTS,
 )
-from prefect.utilities.asyncutils import run_sync
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -154,7 +156,12 @@ if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
     from prefect.tasks import Task as TaskObject
 
-from prefect.client.base import ASGIApp, PrefectHttpxAsyncClient, app_lifespan_context
+from prefect.client.base import (
+    ASGIApp,
+    PrefectHttpxAsyncClient,
+    PrefectHttpxSyncClient,
+    app_lifespan_context,
+)
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -170,6 +177,76 @@ class ServerType(AutoEnum):
             return True
 
         return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
+
+
+class EphemeralASGIServer:
+    _instances: Dict[ASGIApp, "EphemeralASGIServer"] = {}
+
+    def __new__(cls, app, port=None, *args, **kwargs):
+        """
+        Return an instance of the server associated with the specific ASGI application.
+        """
+        key = (app, port)
+        if key not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[key] = instance
+        return cls._instances[key]
+
+    def __init__(self, app: ASGIApp, port: int = None):
+        # This ensures initialization happens only once
+        if not hasattr(self, "_initialized"):
+            if port is None:
+                port = self.find_available_port()
+            self.app = app
+            self.port = port
+            self.server_thread = None
+            self.server = None
+            self.running = False
+            self._initialized = True
+
+    def find_available_port(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("", 0))  # Bind to a free port provided by the host.
+        port = s.getsockname()[1]  # Retrieve the port number assigned.
+        s.close()
+        return port
+
+    def address(self) -> str:
+        return f"http://127.0.0.1:{self.port}"
+
+    def run_server(self):
+        config = uvicorn.Config(
+            app=self.app,
+            host="127.0.0.1",
+            port=self.port,
+            log_level="info",
+            lifespan="on",
+        )
+
+        self.server = uvicorn.Server(config)
+        self.server.run()
+
+    def start(self):
+        """
+        Start the server in a separate thread. Safe to call multiple times; only starts
+        the server once.
+        """
+        if not self.running:
+            try:
+                self.running = True
+                self.server_thread = threading.Thread(
+                    target=self.run_server, daemon=True
+                )
+                self.server_thread.start()
+            except Exception:
+                self.running = False
+                raise
+
+    def stop(self):
+        if self.running:
+            self.server.should_exit = True
+            self.server_thread.join()  # Wait for the server thread to finish
+            self.running = False
 
 
 def get_client(
@@ -3365,7 +3442,7 @@ class SyncPrefectClient:
         api_key: An optional API key for authentication.
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
-            `httpx.AsyncClient`
+            `httpx.Client`
 
     Examples:
 
@@ -3386,180 +3463,172 @@ class SyncPrefectClient:
         self,
         api: Union[str, ASGIApp],
         *,
-        api_key: Optional[str] = None,
-        api_version: Optional[str] = None,
+        api_key: str = None,
+        api_version: str = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
     ) -> None:
-        self._prefect_client = PrefectClient(
-            api=api,
-            api_key=api_key,
-            api_version=api_version,
-            httpx_settings=httpx_settings,
+        httpx_settings = httpx_settings.copy() if httpx_settings else {}
+        httpx_settings.setdefault("headers", {})
+
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+            httpx_settings.setdefault("verify", False)
+        else:
+            cert_file = PREFECT_API_SSL_CERT_FILE.value()
+            if not cert_file:
+                cert_file = certifi.where()
+            httpx_settings.setdefault("verify", cert_file)
+
+        if api_version is None:
+            api_version = SERVER_API_VERSION
+        httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
+        if api_key:
+            httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
+
+        # Context management
+        self._ephemeral_app: Optional[ASGIApp] = None
+        self.manage_lifespan = True
+        self.server_type: ServerType
+
+        # Only set if this client started the lifespan of the application
+        self._ephemeral_lifespan: Optional[LifespanManager] = None
+
+        self._closed = False
+        self._started = False
+
+        # Connect to an ephemeral application
+        if isinstance(api, ASGIApp):
+            self._ephemeral_app = EphemeralASGIServer(app=api)
+            self._ephemeral_app.start()
+            self.server_type = ServerType.EPHEMERAL
+            api = self._ephemeral_app.address() + "/api"
+
+            # When using an ephemeral server, server-side exceptions can be raised
+            # client-side breaking all of our response error code handling. To work
+            # around this, we create an ASGI transport with application exceptions
+            # disabled instead of using the application directly.
+            # refs:
+            # - https://github.com/PrefectHQ/prefect/pull/9637
+            # - https://github.com/encode/starlette/blob/d3a11205ed35f8e5a58a711db0ff59c86fa7bb31/starlette/middleware/errors.py#L184
+            # - https://github.com/tiangolo/fastapi/blob/8cc967a7605d3883bd04ceb5d25cc94ae079612f/fastapi/applications.py#L163-L164
+            # httpx_settings.setdefault(
+            #     "transport",
+            #     httpx.ASGITransport(
+            #         app=self._ephemeral_app, raise_app_exceptions=False
+            #     ),
+            # )
+
+        # Connect to an external application
+        if isinstance(api, str):
+            if httpx_settings.get("app"):
+                raise ValueError(
+                    "Invalid httpx settings: `app` cannot be set when providing an "
+                    "api url. `app` is only for use with ephemeral instances. Provide "
+                    "it as the `api` parameter instead."
+                )
+            httpx_settings.setdefault("base_url", api)
+
+            # See https://www.python-httpx.org/advanced/#pool-limit-configuration
+            httpx_settings.setdefault(
+                "limits",
+                httpx.Limits(
+                    # We see instability when allowing the client to open many connections at once.
+                    # Limiting concurrency results in more stable performance.
+                    max_connections=16,
+                    max_keepalive_connections=8,
+                    # The Prefect Cloud LB will keep connections alive for 30s.
+                    # Only allow the client to keep connections alive for 25s.
+                    keepalive_expiry=25,
+                ),
+            )
+
+            # See https://www.python-httpx.org/http2/
+            # Enabling HTTP/2 support on the client does not necessarily mean that your requests
+            # and responses will be transported over HTTP/2, since both the client and the server
+            # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
+            # client will use a standard HTTP/1.1 connection instead.
+            httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
+
+            self.server_type = (
+                ServerType.CLOUD
+                if api.startswith(PREFECT_CLOUD_API_URL.value())
+                else ServerType.SERVER
+            )
+
+        else:
+            raise TypeError(
+                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
+                " 'str' or 'ASGIApp/FastAPI'"
+            )
+
+        # See https://www.python-httpx.org/advanced/#timeout-configuration
+        httpx_settings.setdefault(
+            "timeout",
+            httpx.Timeout(
+                connect=PREFECT_API_REQUEST_TIMEOUT.value(),
+                read=PREFECT_API_REQUEST_TIMEOUT.value(),
+                write=PREFECT_API_REQUEST_TIMEOUT.value(),
+                pool=PREFECT_API_REQUEST_TIMEOUT.value(),
+            ),
         )
 
-    def __enter__(self):
-        run_sync(self._prefect_client.__aenter__())
-        return self
+        if not PREFECT_UNIT_TEST_MODE:
+            httpx_settings.setdefault("follow_redirects", True)
 
-    def __exit__(self, *exc_info):
-        return run_sync(self._prefect_client.__aexit__(*exc_info))
-
-    async def __aenter__(self):
-        raise RuntimeError(
-            "The `SyncPrefectClient` must be entered with a sync context. Use '"
-            "with SyncPrefectClient(...)' not 'async with SyncPrefectClient(...)'"
+        enable_csrf_support = (
+            self.server_type != ServerType.CLOUD
+            and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
         )
 
-    async def __aexit__(self, *_):
-        assert False, "This should never be called but must be defined for __aenter__"
+        self._client = PrefectHttpxSyncClient(
+            **httpx_settings, enable_csrf_support=enable_csrf_support
+        )
+        # See https://www.python-httpx.org/advanced/#custom-transports
+        #
+        # If we're using an HTTP/S client (not the ephemeral client), adjust the
+        # transport to add retries _after_ it is instantiated. If we alter the transport
+        # before instantiation, the transport will not be aware of proxies unless we
+        # reproduce all of the logic to make it so.
+        #
+        # Only alter the transport to set our default of 3 retries, don't modify any
+        # transport a user may have provided via httpx_settings.
+        #
+        # Making liberal use of getattr and isinstance checks here to avoid any
+        # surprises if the internals of httpx or httpcore change on us
+        if isinstance(api, str) and not httpx_settings.get("transport"):
+            transport_for_url = getattr(self._client, "_transport_for_url", None)
+            if callable(transport_for_url):
+                server_transport = transport_for_url(httpx.URL(api))
+                if isinstance(server_transport, httpx.HTTPTransport):
+                    pool = getattr(server_transport, "_pool", None)
+                    if isinstance(pool, httpcore.ConnectionPool):
+                        pool._retries = 3
+
+        self.logger = get_logger("client")
+
+    @property
+    def api_url(self) -> httpx.URL:
+        """
+        Get the base URL for the API.
+        """
+        return self._client.base_url
+
+    # API methods ----------------------------------------------------------------------
+
+    def api_healthcheck(self) -> Optional[Exception]:
+        """
+        Attempts to connect to the API and returns the encountered exception if not
+        successful.
+
+        If successful, returns `None`.
+        """
+        try:
+            self._client.get("/health")
+            return None
+        except Exception as exc:
+            return exc
 
     def hello(self) -> httpx.Response:
         """
         Send a GET request to /hello for testing purposes.
         """
-        return run_sync(self._prefect_client.hello())
-
-    def create_task_run(
-        self,
-        task: "TaskObject[P, R]",
-        flow_run_id: Optional[UUID],
-        dynamic_key: str,
-        name: Optional[str] = None,
-        extra_tags: Optional[Iterable[str]] = None,
-        state: Optional[prefect.states.State[R]] = None,
-        task_inputs: Optional[
-            Dict[
-                str,
-                List[
-                    Union[
-                        TaskRunResult,
-                        Parameter,
-                        Constant,
-                    ]
-                ],
-            ]
-        ] = None,
-    ) -> TaskRun:
-        """
-        Create a task run
-
-        Args:
-            task: The Task to run
-            flow_run_id: The flow run id with which to associate the task run
-            dynamic_key: A key unique to this particular run of a Task within the flow
-            name: An optional name for the task run
-            extra_tags: an optional list of extra tags to apply to the task run in
-                addition to `task.tags`
-            state: The initial state for the run. If not provided, defaults to
-                `Pending` for now. Should always be a `Scheduled` type.
-            task_inputs: the set of inputs passed to the task
-
-        Returns:
-            The created task run.
-        """
-        return run_sync(
-            self._prefect_client.create_task_run(
-                task=task,
-                flow_run_id=flow_run_id,
-                dynamic_key=dynamic_key,
-                name=name,
-                extra_tags=extra_tags,
-                state=state,
-                task_inputs=task_inputs,
-            )
-        )
-
-    def set_task_run_state(
-        self,
-        task_run_id: UUID,
-        state: prefect.states.State,
-        force: bool = False,
-    ) -> OrchestrationResult:
-        """
-        Set the state of a task run.
-
-        Args:
-            task_run_id: the id of the task run
-            state: the state to set
-            force: if True, disregard orchestration logic when setting the state,
-                forcing the Prefect API to accept the state
-
-        Returns:
-            an OrchestrationResult model representation of state orchestration output
-        """
-        return run_sync(
-            self._prefect_client.set_task_run_state(
-                task_run_id=task_run_id,
-                state=state,
-                force=force,
-            )
-        )
-
-    def create_flow_run(
-        self,
-        flow_id: UUID,
-        parameters: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
-        scheduled_start_time: Optional[datetime.datetime] = None,
-        run_name: Optional[str] = None,
-        labels: Optional[List[str]] = None,
-        parameters_json: Optional[str] = None,
-        run_config: Optional[Dict[str, Any]] = None,
-        idempotency_key: Optional[str] = None,
-    ) -> FlowRunResponse:
-        """
-        Create a new flow run.
-
-        Args:
-            - flow_id (UUID): the ID of the flow to create a run for
-            - parameters (Optional[Dict[str, Any]]): a dictionary of parameter values to pass to the flow
-            - context (Optional[Dict[str, Any]]): a dictionary of context values to pass to the flow
-            - scheduled_start_time (Optional[datetime.datetime]): the scheduled start time for the flow run
-            - run_name (Optional[str]): a name to assign to the flow run
-            - labels (Optional[List[str]]): a list of labels to assign to the flow run
-            - parameters_json (Optional[str]): a JSON string of parameter values to pass to the flow
-            - run_config (Optional[Dict[str, Any]]): a dictionary of run configuration options
-            - idempotency_key (Optional[str]): a key to ensure idempotency when creating the flow run
-
-        Returns:
-            - FlowRunResponse: the created flow run
-        """
-        return run_sync(
-            self._prefect_client.create_flow_run(
-                flow_id=flow_id,
-                parameters=parameters,
-                context=context,
-                scheduled_start_time=scheduled_start_time,
-                run_name=run_name,
-                labels=labels,
-                parameters_json=parameters_json,
-                run_config=run_config,
-                idempotency_key=idempotency_key,
-            )
-        )
-
-    async def set_flow_run_state(
-        self,
-        flow_run_id: UUID,
-        state: "prefect.states.State",
-        force: bool = False,
-    ) -> OrchestrationResult:
-        """
-        Set the state of a flow run.
-
-        Args:
-            flow_run_id: the id of the flow run
-            state: the state to set
-            force: if True, disregard orchestration logic when setting the state,
-                forcing the Prefect API to accept the state
-
-        Returns:
-            an OrchestrationResult model representation of state orchestration output
-        """
-        return run_sync(
-            self._prefect_client.set_flow_run_state(
-                flow_run_id=flow_run_id,
-                state=state,
-                force=force,
-            )
-        )
+        return self._client.get("/hello")
