@@ -254,12 +254,15 @@ Notifications enable you to set up alerts that are sent when a flow enters any s
 
 Prefect supports sending notifications through:
 
-- Slack message to a channel
-- Microsoft Teams message to a channel
-- Opsgenie to alerts
-- PagerDuty to alerts
-- Twilio to phone numbers
-- Email (requires your own server)
+- Custom webhook
+- Discord webhook
+- Mattermost webhook
+- Microsoft Teams webhook
+- Opsgenie webhook
+- PagerDuty webhook
+- Sendgrid email
+- Slack webhook
+- Twilio SMS
 
 !!! cloud-ad "Notifications in Prefect Cloud"
     Prefect Cloud uses the robust [Automations](/cloud/automations/) interface to enable notifications related to flow run state changes and work pool status.
