@@ -121,6 +121,7 @@ from prefect.client.schemas.objects import (
 from prefect.client.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
+    GlobalConcurrencyLimitResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -3054,10 +3055,10 @@ class PrefectClient:
 
     async def read_global_concurrency_limit_by_name(
         self, name: str
-    ) -> Dict[str, object]:
+    ) -> GlobalConcurrencyLimitResponse:
         try:
             response = await self._client.get(f"/v2/concurrency_limits/{name}")
-            return response.json()
+            return GlobalConcurrencyLimitResponse.parse_obj(response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -3066,7 +3067,7 @@ class PrefectClient:
 
     async def read_global_concurrency_limits(
         self, limit: int = 10, offset: int = 0
-    ) -> List[Dict[str, object]]:
+    ) -> List[GlobalConcurrencyLimitResponse]:
         response = await self._client.post(
             "/v2/concurrency_limits/filter",
             json={
@@ -3074,7 +3075,9 @@ class PrefectClient:
                 "offset": offset,
             },
         )
-        return response.json()
+        return pydantic.parse_obj_as(
+            List[GlobalConcurrencyLimitResponse], response.json()
+        )
 
     async def create_flow_run_input(
         self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
