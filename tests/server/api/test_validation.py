@@ -182,6 +182,42 @@ def template_optional_field():
     }
 
 
+@pytest.fixture
+async def empty_block_document(session, block_schema, block_type_x):
+    block_document = await models.block_documents.create_block_document(
+        session=session,
+        block_document=schemas.actions.BlockDocumentCreate(
+            block_schema_id=block_schema.id,
+            name="block-1",
+            block_type_id=block_type_x.id,
+            data={},
+        ),
+    )
+    await session.commit()
+    return block_document
+
+
+@pytest.fixture
+async def empty_block_ref_template(empty_block_document):
+    return {
+        "job_configuration": {
+            "block": "{{ block_string }}",
+        },
+        "variables": {
+            "properties": {
+                "block_string": {
+                    "type": "string",
+                    "title": "Block String",
+                    "default": {
+                        "$ref": {"block_document_id": str(empty_block_document.id)}
+                    },
+                },
+            },
+            "required": ["block_string"],
+        },
+    }
+
+
 async def create_work_pool(
     session: AsyncSession, base_job_template: dict, **kwargs
 ) -> ORMWorkPool:
@@ -241,6 +277,19 @@ class TestWorkPoolValidation:
                 session,
                 work_pool.name,
                 incorrect_type_block_ref_template,
+            )
+
+    async def test_work_pool_template_validation_block_document_reference_incorrect_type_empty_dict(
+        self,
+        session,
+        work_pool,
+        empty_block_ref_template,
+    ):
+        with pytest.raises(HTTPException, match="{} is not of type 'string'"):
+            await validate_job_variable_defaults_for_work_pool(
+                session,
+                work_pool.name,
+                empty_block_ref_template,
             )
 
     async def test_work_pool_template_validation_valid_block_document_reference(
