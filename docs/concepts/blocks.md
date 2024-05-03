@@ -80,7 +80,7 @@ For example, an AWS Secret block can be created, but not used until the [`prefec
 
 Block types can be created by anyone and optionally shared with the community.
 You'll find block types available for consumption in many of the published [Prefect integrations libraries](/integrations/).
-If a block type is not available in the UI, you can [register it](#registering-blocks-for-use) via the CLI.
+If a block type is not available in the UI, you can [register it](#registering-blocks) via the CLI.
 
 | Integration                                                             | Block                                                                                                                                                       | Slug                                   |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
@@ -258,7 +258,9 @@ if __name__ == "__main__":
 
 ### Secret fields
 
-All block values are encrypted before being stored, but if you have values that you would not like visible in the UI or in logs, then you can use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values. This can be useful for fields that are used to store credentials like passwords and API tokens.
+All block values are encrypted before being stored.
+If you have values that you would not like visible in the UI or in logs, use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values.
+This functionality can be useful for fields that are used to store credentials such as passwords and API tokens.
 
 Here's an example of an `AWSCredentials` block that uses `SecretStr`:
 
@@ -288,7 +290,8 @@ print(aws_credentials_block)
 # aws_access_key_id='AKIAJKLJKLJKLJKLJKLJK' aws_secret_access_key=SecretStr('**********') aws_session_token=None profile_name=None region_name=None
 ```
 
-There's  also use the `SecretDict` field type provided by Prefect. This type will allow you to add a dictionary field to your block that will have values at all levels automatically obfuscated in the UI or in logs. This is useful for blocks where typing or structure of secret fields is not known until configuration time.
+Prefect's `SecretDict` field type allows you to add a dictionary field to your block that will have values at all levels automatically obfuscated in the UI or in logs.
+This functionality is useful for blocks where typing or structure of secret fields is not known until configuration time.
 
 Here's an example of a block that uses `SecretDict`:
 
@@ -327,9 +330,9 @@ print(system_configuration_block)
 # )
 ```
 
-### Blocks metadata
+### Block type metadata
 
-The way that a block is displayed can be controlled by metadata fields that can be set on a block subclass.
+The way that a block is displayed can be controlled by metadata fields that can be set on a block type's subclass.
 
 Available metadata fields include:
 
@@ -343,7 +346,10 @@ Available metadata fields include:
 
 ### Nested blocks
 
-Block are composable. This means that you can create a block that uses functionality from another block by declaring it as an attribute on the block that you're creating. It also means that configuration can be changed for each block independently, which allows configuration that may change on different time frames to be easily managed and configuration can be shared across multiple use cases.
+Blocks are composable, meaning that blocks can be used within other blocks.
+You can create a block type that uses functionality from another block type by declaring it as an attribute.
+
+Nestable blocks are loosely coupled, as configuration can be changed for each block independently. This allows configuration to be shared across multiple use cases.
 
 To illustrate, here's a an expanded `AWSCredentials` block that includes the ability to get an authenticated session via the `boto3` library:
 
@@ -428,9 +434,9 @@ In the above example, the values for `AWSCredentials` are saved with `my_s3_buck
 
 ### Handling updates to custom `Block` types
 
-Let's say that you now want to add a `bucket_folder` field to your custom `S3Bucket` block that represents the default path to read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
+Let's add a `bucket_folder` field to your custom `S3Bucket` block that represents the default path to read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
 
-We can add the new field to the class definition:
+Add the new field to the class definition:
 
 ```python hl_lines="4"
 class S3Bucket(Block):
@@ -440,9 +446,9 @@ class S3Bucket(Block):
     ...
 ```
 
-Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect server.
+Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect server instance.
 
-If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
+If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, migrate them to the new version of your block type by adding the missing values:
 
 ```python
 # Bypass Pydantic validation to allow your local Block class to load the old block version
@@ -455,7 +461,7 @@ my_s3_bucket_block.bucket_path = "my-default-bucket-path"
 my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
 ```
 
-## Registering blocks for use
+## Registering blocks
 
 Prefect comes with many blocks pre-registered and ready to use.
 If you do not have a block available for use, you can register it.
@@ -470,7 +476,7 @@ prefect block register --module prefect_aws.credentials
 
 This command is useful for registering all blocks found within a module in a [Prefect Integration library](/integrations/).
 
-Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
+Alternatively, if a custom block has been created in a `.py` file, the block can also be registered with the CLI command:
 
 <div class="terminal">
 ```bash
