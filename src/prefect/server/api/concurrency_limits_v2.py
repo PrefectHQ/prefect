@@ -34,7 +34,7 @@ async def read_concurrency_limit_v2(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.core.ConcurrencyLimitV2:
+) -> schemas.responses.GlobalConcurrencyLimitResponse:
     async with db.session_context() as session:
         if isinstance(id_or_name, UUID):
             model = await models.concurrency_limits_v2.read_concurrency_limit(
@@ -50,7 +50,7 @@ async def read_concurrency_limit_v2(
             status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency Limit not found"
         )
 
-    return schemas.core.ConcurrencyLimitV2.from_orm(model)
+    return schemas.responses.GlobalConcurrencyLimitResponse.from_orm(model)
 
 
 @router.post("/filter")
