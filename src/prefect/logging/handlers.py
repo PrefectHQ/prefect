@@ -98,6 +98,7 @@ class APILogHandler(logging.Handler):
 
         Use `aflush` from async contexts instead.
         """
+        breakpoint()
         loop = get_running_loop()
         if loop:
             if in_global_loop():  # Guard against internal misuse

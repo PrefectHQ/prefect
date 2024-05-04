@@ -304,41 +304,43 @@ class FlowRunEngine(Generic[P, R]):
         Enters a client context and creates a flow run if needed.
         """
 
-        client = get_client(sync_client=True)
-        self._client = client
-        self._is_started = True
+        with get_client(sync_client=True) as client:
+            self._client = client
+            self._is_started = True
 
-        # this conditional is engaged whenever a run is triggered via deployment
-        if self.flow_run_id and not self.flow:
-            self.flow_run = client.read_flow_run(self.flow_run_id)
+            # this conditional is engaged whenever a run is triggered via deployment
+            if self.flow_run_id and not self.flow:
+                self.flow_run = client.read_flow_run(self.flow_run_id)
+                try:
+                    self.flow = self.load_flow(client)
+                except Exception as exc:
+                    self.handle_exception(
+                        exc,
+                        msg="Failed to load flow from entrypoint.",
+                    )
+                    self.short_circuit = True
+
+            if not self.flow_run:
+                self.flow_run = self.create_flow_run(client)
+
+            # validate prior to context so that context receives validated params
+            if self.flow.should_validate_parameters:
+                try:
+                    self.parameters = self.flow.validate_parameters(
+                        self.parameters or {}
+                    )
+                except Exception as exc:
+                    self.handle_exception(
+                        exc,
+                        msg="Validation of flow parameters failed with error",
+                        result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                    )
+                    self.short_circuit = True
             try:
-                self.flow = self.load_flow(client)
-            except Exception as exc:
-                self.handle_exception(
-                    exc,
-                    msg="Failed to load flow from entrypoint.",
-                )
-                self.short_circuit = True
-
-        if not self.flow_run:
-            self.flow_run = self.create_flow_run(client)
-
-        # validate prior to context so that context receives validated params
-        if self.flow.should_validate_parameters:
-            try:
-                self.parameters = self.flow.validate_parameters(self.parameters or {})
-            except Exception as exc:
-                self.handle_exception(
-                    exc,
-                    msg="Validation of flow parameters failed with error",
-                    result_factory=run_sync(ResultFactory.from_flow(self.flow)),
-                )
-                self.short_circuit = True
-        try:
-            yield self
-        finally:
-            self._is_started = False
-            self._client = None
+                yield self
+            finally:
+                self._is_started = False
+                self._client = None
 
     def is_running(self) -> bool:
         if getattr(self, "flow_run", None) is None:

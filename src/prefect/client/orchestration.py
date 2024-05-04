@@ -212,8 +212,10 @@ class EphemeralASGIServer:
                 app=self.app,
                 host="127.0.0.1",
                 port=self.port,
-                log_level="error",
                 lifespan="on",
+                # logging overwrites Prefect logging and, oddly, can lead to a deadlock when flushing handlers
+                log_config=None,
+                log_level=None,
             )
             self.server = uvicorn.Server(config)
 
@@ -242,7 +244,7 @@ class EphemeralASGIServer:
                 self.server_thread.start()
                 # wait for the server to start
                 while not self.server.started:
-                    time.sleep(0.005)
+                    time.sleep(0.001)
             except Exception:
                 self.running = False
                 raise
@@ -3505,6 +3507,12 @@ class SyncPrefectClient:
             self._ephemeral_app.start()
             self.server_type = ServerType.EPHEMERAL
             api = self._ephemeral_app.address() + "/api"
+        else:
+            self.server_type = (
+                ServerType.CLOUD
+                if api.startswith(PREFECT_CLOUD_API_URL.value())
+                else ServerType.SERVER
+            )
 
         # Connect to an external application
         if isinstance(api, str):
@@ -3537,12 +3545,6 @@ class SyncPrefectClient:
             # client will use a standard HTTP/1.1 connection instead.
             httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
-            self.server_type = (
-                ServerType.CLOUD
-                if api.startswith(PREFECT_CLOUD_API_URL.value())
-                else ServerType.SERVER
-            )
-
         else:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
@@ -3571,6 +3573,7 @@ class SyncPrefectClient:
         self._client = PrefectHttpxSyncClient(
             **httpx_settings, enable_csrf_support=enable_csrf_support
         )
+
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
         # If we're using an HTTP/S client (not the ephemeral client), adjust the
@@ -3600,6 +3603,39 @@ class SyncPrefectClient:
         Get the base URL for the API.
         """
         return self._client.base_url
+
+    # Context management ----------------------------------------------------------------
+
+    def __enter__(self) -> "SyncPrefectClient":
+        """
+        Start the client.
+
+        If the client is already started, this will raise an exception.
+
+        If the client is already closed, this will raise an exception. Use a new client
+        instance instead.
+        """
+        if self._closed:
+            # httpx.Client does not allow reuse so we will not either.
+            raise RuntimeError(
+                "The client cannot be started again after closing. "
+                "Retrieve a new client with `get_client()` instead."
+            )
+
+        if self._started:
+            # httpx.Client does not allow reentrancy so we will not either.
+            raise RuntimeError("The client cannot be started more than once.")
+        self._client.__enter__()
+        self._started = True
+
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        """
+        Shutdown the client.
+        """
+        self._closed = True
+        self._client.__exit__(*exc_info)
 
     # API methods ----------------------------------------------------------------------
 
