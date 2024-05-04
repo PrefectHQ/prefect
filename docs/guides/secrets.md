@@ -69,10 +69,9 @@ Values for **Access Key ID** and **Secret Access Key** are read from the compute
 Your AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in your `~/.aws/credentials` file, so leave those fields blank or they're saved to the database.
 By leaving those attributes blank, Prefect knows to look to the compute environment.
 
-Specify a region in our local AWS config file or in our `AWSCredentials` block.
-The `AwsCredentials` block takes precedence, so let's specify it here for portability.
+Specify a region in your `AWSCredentials` block instead of your local AWS config file. The `AwsCredentials` block takes precedence and is more portable.
 
-Under the hood, Prefect is using the AWS `boto3` client to create a session.
+Under the hood, Prefect uses the AWS `boto3` client to create a session.
 
 In the **AwsCredentials** section of the form, click **Add +** and create an AWS Credentials block by entering the necessary values.
 
@@ -178,4 +177,4 @@ Make sure to specify the `prefect-aws` and `prefect-snowflake` dependencies in y
 
 Also ensure your compute has the AWS credentials for accessing the secret in AWS Secrets Manager.
 
-You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment. You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs. You can use a similar pattern with other secret managers, or extend it to work with environment variables.
+You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment. You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs. You can use a similar pattern with any secret manager, or extend it to work with environment variables.
