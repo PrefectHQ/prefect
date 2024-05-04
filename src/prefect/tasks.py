@@ -611,19 +611,14 @@ class Task(Generic[P, R]):
             )
 
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import run_task_async, run_task_sync
+            from prefect.new_task_engine import run_task
 
-            run_kwargs = dict(
+            return run_task(
                 task=self,
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
             )
-            if self.isasync:
-                # this returns an awaitable coroutine
-                return run_task_async(**run_kwargs)
-            else:
-                return run_task_sync(**run_kwargs)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()

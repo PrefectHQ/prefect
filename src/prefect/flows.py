@@ -1212,19 +1212,14 @@ class Flow(Generic[P, R]):
             return track_viz_task(self.isasync, self.name, parameters)
 
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_flow_engine import run_flow, run_flow_sync
+            from prefect.new_flow_engine import run_flow
 
-            run_kwargs = dict(
+            return run_flow(
                 flow=self,
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
             )
-            if self.isasync:
-                # this returns an awaitable coroutine
-                return run_flow(**run_kwargs)
-            else:
-                return run_flow_sync(**run_kwargs)
 
         return enter_flow_run_engine_from_flow_call(
             self,
