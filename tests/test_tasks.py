@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import inspect
 import time
-import warnings
 from asyncio import Event, sleep
 from functools import partial, wraps
 from typing import Any, Dict, List
@@ -16,7 +15,7 @@ import regex as re
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import StateType, TaskRunResult
-from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
+from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -2781,43 +2780,6 @@ class TestTaskWithOptions:
         assert second.result() != third.result()
         assert third.result() == fourth.result()
         assert fourth.result() != first.result()
-
-
-class TestTaskRegistration:
-    def test_task_is_registered(self):
-        @task
-        def my_task():
-            pass
-
-        registry = PrefectObjectRegistry.get()
-        assert my_task in registry.get_instances(Task)
-
-    def test_warning_name_conflict_different_function(self):
-        with pytest.warns(
-            UserWarning,
-            match=(
-                r"A task named 'my_task' and defined at '.+:\d+' conflicts with another"
-                r" task."
-            ),
-        ):
-
-            @task(name="my_task")
-            def task_one():
-                pass
-
-            @task(name="my_task")
-            def task_two():
-                pass
-
-    def test_no_warning_name_conflict_task_with_options(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-
-            @task(name="my_task")
-            def task_one():
-                pass
-
-            task_one.with_options(tags=["hello"])
 
 
 class TestTaskMap:
