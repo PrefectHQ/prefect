@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import socket
 import threading
+import time
 import warnings
 from contextlib import AsyncExitStack
 from typing import (
@@ -201,9 +202,17 @@ class EphemeralASGIServer:
             self.app = app
             self.port = port
             self.server_thread = None
-            self.server = None
             self.running = False
             self._initialized = True
+
+            config = uvicorn.Config(
+                app=self.app,
+                host="127.0.0.1",
+                port=self.port,
+                log_level="error",
+                lifespan="on",
+            )
+            self.server = uvicorn.Server(config)
 
     def find_available_port(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -215,18 +224,6 @@ class EphemeralASGIServer:
     def address(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    def run_server(self):
-        config = uvicorn.Config(
-            app=self.app,
-            host="127.0.0.1",
-            port=self.port,
-            log_level="error",
-            lifespan="on",
-        )
-
-        self.server = uvicorn.Server(config)
-        self.server.run()
-
     def start(self):
         """
         Start the server in a separate thread. Safe to call multiple times; only starts
@@ -236,9 +233,12 @@ class EphemeralASGIServer:
             try:
                 self.running = True
                 self.server_thread = threading.Thread(
-                    target=self.run_server, daemon=True
+                    target=self.server.run, daemon=True
                 )
                 self.server_thread.start()
+                # wait for the server to start
+                while not self.server.started:
+                    time.sleep(0.005)
             except Exception:
                 self.running = False
                 raise
