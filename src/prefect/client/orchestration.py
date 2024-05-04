@@ -197,22 +197,24 @@ class EphemeralASGIServer:
     def __init__(self, app: ASGIApp, port: int = None):
         # This ensures initialization happens only once
         if not hasattr(self, "_initialized"):
+            self._initialized = True
             if port is None:
                 port = self.find_available_port()
             self.app = app
             self.port = port
             self.server_thread = None
             self.running = False
-            self._initialized = True
+            self.create_server()
 
-            config = uvicorn.Config(
-                app=self.app,
-                host="127.0.0.1",
-                port=self.port,
-                log_level="error",
-                lifespan="on",
-            )
-            self.server = uvicorn.Server(config)
+    def create_server(self):
+        config = uvicorn.Config(
+            app=self.app,
+            host="127.0.0.1",
+            port=self.port,
+            log_level="error",
+            lifespan="on",
+        )
+        self.server = uvicorn.Server(config)
 
     def find_available_port(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
