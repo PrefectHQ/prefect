@@ -2,19 +2,17 @@
 
 Credentials blocks and secret blocks are popular ways to store and retrieve sensitive information for connecting to third-party services.
 
-In Prefect Cloud, these block values are stored in encrypted format.
-Organizations whose security policies make such storage infeasible can still use Prefect to connect to third-party services securely.
+In Prefect Cloud, these block values are stored in encrypted format, allowing you to use Prefect to connect to third-party services securely.
 
-In this example, we interact with a Snowflake database and store the credentials we need to connect in AWS Secrets Manager.
-This example can be generalized to other third party services that require credentials.
-We use Prefect Cloud in this example.
+This example interacts with a Snowflake database and stores the credentials required to connect in AWS Secrets Manager.
+This example uses Prefect Cloud and generally works with other third-party services that require credentials as well.
 
 ## Prerequisites
 
-1. Prefect [installed](/getting-started/installation).
-1. CLI authenticated to your [Prefect Cloud](https://app.prefect.cloud) account.
-1. [Snowflake account](https://www.snowflake.com/).
-1. [AWS account](https://aws.amazon.com/).
+1. Prefect [installed](/getting-started/installation)
+1. CLI authenticated to your [Prefect Cloud](https://app.prefect.cloud) account
+1. [Snowflake account](https://www.snowflake.com/)
+1. [AWS account](https://aws.amazon.com/)
 
 ## Steps
 
@@ -27,7 +25,7 @@ We use Prefect Cloud in this example.
 
 ### Install `prefect-aws` and `prefect-snowflake` libraries
 
-The following code will install and upgrade the necessary libraries and their dependencies.
+The following code installs and upgrades the necessary libraries and their dependencies.
 
 <div class="terminal">
 ```bash
@@ -50,13 +48,12 @@ Alternatively, create a secret using the AWS CLI or a script.
 
 ### Create `AwsSecret` block to access your Snowflake password
 
-You can create blocks with Python code or via the Prefect UI.
-Block creation through the UI can help you visualize how the pieces fit together, so let's use it here.
+Create blocks with Python code or through the Prefect UI. Block creation through the UI helps you visualize how the pieces fit together.
 
 On the Blocks page, click on **+** to add a new block and select **AWS Secret** from the list of block types.
 Enter a name for your block and enter the secret name from AWS Secrets Manager.
 
-Note that if you're using a self-hosted Prefect server instance, you'll need to register the block types in the newly installed modules before creating blocks.
+Note that if you're using a self-hosted Prefect server instance, you must register the block types in the newly installed modules before creating blocks.
 
 <div class="terminal">
 ```bash
@@ -66,14 +63,13 @@ prefect block register -m prefect_aws && prefect block register -m prefect_snowf
 
 ### Create `AwsCredentials` block
 
-In the **AwsCredentials** section, click **Add +** and a form will appear to create an AWS Credentials block.
+In the **AwsCredentials** section, click **Add +** to create an AWS Credentials block.
 
-Values for **Access Key ID** and **Secret Access Key** will be read from the compute environment.
-My AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in my `~/.aws/credentials` file, so I'll leave those fields blank.
-You could enter those values at block creation, but then they would be saved to the database, and that's what we're trying to avoid.
+Values for **Access Key ID** and **Secret Access Key** are read from the compute environment.
+Your AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in your `~/.aws/credentials` file, so leave those fields blank or they're saved to the database.
 By leaving those attributes blank, Prefect knows to look to the compute environment.
 
-We need to specify a region in our local AWS config file or in our `AWSCredentials` block.
+Specify a region in our local AWS config file or in our `AWSCredentials` block.
 The `AwsCredentials` block takes precedence, so let's specify it here for portability.
 
 Under the hood, Prefect is using the AWS `boto3` client to create a session.
