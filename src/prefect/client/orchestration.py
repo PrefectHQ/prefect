@@ -3722,6 +3722,90 @@ class SyncPrefectClient:
 
         return flow_run
 
+    def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
+        """
+        Query the Prefect API for a flow run by id.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+
+        Returns:
+            a Flow Run model representation of the flow run
+        """
+        try:
+            response = self._client.get(f"/flow_runs/{flow_run_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return FlowRun.parse_obj(response.json())
+
+    def read_flow_runs(
+        self,
+        *,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        work_pool_filter: WorkPoolFilter = None,
+        work_queue_filter: WorkQueueFilter = None,
+        sort: FlowRunSort = None,
+        limit: int = None,
+        offset: int = 0,
+    ) -> List[FlowRun]:
+        """
+        Query the Prefect API for flow runs. Only flow runs matching all criteria will
+        be returned.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            work_pool_filter: filter criteria for work pools
+            work_queue_filter: filter criteria for work pool queues
+            sort: sort criteria for the flow runs
+            limit: limit for the flow run query
+            offset: offset for the flow run query
+
+        Returns:
+            a list of Flow Run model representations
+                of the flow runs
+        """
+        body = {
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "work_pools": (
+                work_pool_filter.dict(json_compatible=True)
+                if work_pool_filter
+                else None
+            ),
+            "work_pool_queues": (
+                work_queue_filter.dict(json_compatible=True)
+                if work_queue_filter
+                else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = self._client.post("/flow_runs/filter", json=body)
+        return pydantic.parse_obj_as(List[FlowRun], response.json())
+
     def set_flow_run_state(
         self,
         flow_run_id: UUID,
@@ -3832,6 +3916,56 @@ class SyncPrefectClient:
         """
         response = self._client.get(f"/task_runs/{task_run_id}")
         return TaskRun.parse_obj(response.json())
+
+    def read_task_runs(
+        self,
+        *,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        sort: TaskRunSort = None,
+        limit: int = None,
+        offset: int = 0,
+    ) -> List[TaskRun]:
+        """
+        Query the Prefect API for task runs. Only task runs matching all criteria will
+        be returned.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            sort: sort criteria for the task runs
+            limit: a limit for the task run query
+            offset: an offset for the task run query
+
+        Returns:
+            a list of Task Run model representations
+                of the task runs
+        """
+        body = {
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = self._client.post("/task_runs/filter", json=body)
+        return pydantic.parse_obj_as(List[TaskRun], response.json())
 
     def set_task_run_state(
         self,
