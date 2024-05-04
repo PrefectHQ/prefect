@@ -207,7 +207,7 @@ class EphemeralASGIServer:
             self.create_server()
 
     def create_server(self):
-        if not self.server:
+        if not getattr(self, "server", None):
             config = uvicorn.Config(
                 app=self.app,
                 host="127.0.0.1",
