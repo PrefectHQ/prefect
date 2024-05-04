@@ -73,7 +73,7 @@ class TestFlowRunEngine:
         fpath.write_text(dedent(flow_code))
 
         monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
-        loaded_flow_run, flow = await load_flow_and_flow_run(flow_run.id)
+        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
         assert loaded_flow_run.id == flow_run.id
         assert flow.fn() == "woof!"
 
