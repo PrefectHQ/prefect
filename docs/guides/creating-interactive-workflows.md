@@ -11,16 +11,18 @@ search:
   boost: 2
 ---
 
-# Creating Interactive Workflows
+# Create Interactive Workflows
 
-Flows can pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. Flows can also send and receive type-checked input at any time while running, without pausing or suspending. This guide will show you how to use these features to build _interactive workflows_.
+Learn how to create interactive workflows with Prefect.
+
+Flows can pause or suspend execution and automatically resume when they receive type-checked input in Prefect's UI. Flows can also send and receive type-checked input at any time while running—without pausing or suspending. This guide explains how to use these features to build _interactive workflows_.
 
 !!! note "A note on async Python syntax"
     Most of the example code in this section uses async Python functions and `await`. However, as with other Prefect features, you can call these functions with or without `await`.
 
-## Pausing or suspending a flow until it receives input
+## Pause or suspend a flow until it receives input
 
-You can pause or suspend a flow until it receives input from a user in Prefect's UI. This is useful when you need to ask for additional information or feedback before resuming a flow. Such workflows are often called [human-in-the-loop](https://hai.stanford.edu/news/humans-loop-design-interactive-ai-systems) (HITL) systems.
+You can pause or suspend a flow until it receives input from a user in Prefect's UI. This is useful when you need to ask for additional information or feedback before resuming a flow. These workflows are often called [human-in-the-loop](https://hai.stanford.edu/news/humans-loop-design-interactive-ai-systems) (HITL) systems.
 
 !!! note "What is human-in-the-loop interactivity used for?"
 
@@ -82,9 +84,9 @@ async def greet_user():
 
     When you pass a `pydantic.BaseModel` class as the `wait_for_input` argument to `pause_flow_run` or `suspend_flow_run`, Prefect automatically creates a `RunInput` class with the same behavior as your `BaseModel` and uses that instead.
 
-    `RunInput` classes contain extra logic that allows flows to send and receive them at runtime. You shouldn't notice any difference!
+    `RunInput` classes contain extra logic that allows flows to send and receive them at runtime. You shouldn't notice any difference.
 
-Finally, for advanced use cases like overriding how Prefect stores flow run inputs, you can create a `RunInput` class:
+Finally, for advanced use cases like overriding how Prefect stores flow run inputs, create a `RunInput` class:
 
 ```python
 from prefect import get_run_logger
@@ -94,7 +96,7 @@ class UserInput(RunInput):
     name: str
     age: int
     
-    # Imagine overridden methods here!
+    # Imagine overridden methods here.
     def override_something(self, *args, **kwargs):
         super().override_something(*args, **kwargs)
 
@@ -107,11 +109,11 @@ async def greet_user():
     logger.info(f"Hello, {user.name}!")
 ```
 
-### Providing initial data
+### Provide initial data
 
-You can set default values for fields in your model by using the `with_initial_data` method. This is useful when you want to provide default values for the fields in your own `RunInput` class.
+Set default values for fields in your model with the `with_initial_data` method. This is useful for providing default values for the fields in your own `RunInput` class.
 
-Expanding on the example above, you could make the `name` field default to "anonymous":
+Expanding on the example above, you can make the `name` field default to "anonymous":
 
 ```python
 from prefect import get_run_logger
@@ -135,11 +137,11 @@ async def greet_user():
         logger.info(f"Hello, {user_input.name}!")
 ```
 
-When a user sees the form for this input, the name field will contain "anonymous" as the default.
+When a user sees the form for this input, the name field contains "anonymous" as the default.
 
-### Providing a description with runtime data
+### Provide a description with runtime data
 
-You can provide a dynamic, markdown description that will appear in the Prefect UI when the flow run pauses. This feature enables context-specific prompts, enhancing clarity and user interaction. Building on the example above:
+You can provide a dynamic, markdown description that appears in the Prefect UI when the flow run pauses. This feature enables context-specific prompts, enhancing clarity and user interaction. Building on the example above:
 
 ```python
 from datetime import datetime
@@ -180,9 +182,9 @@ Please enter your details below:
 
 When a user sees the form for this input, the given markdown will appear above the input fields.
 
-### Handling custom validation
+### Handle custom validation
 
-Prefect uses the fields and type hints on your `RunInput` or `BaseModel` class to validate the general structure of input your flow receives, but you might require more complex validation. If you do, you can use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
+Prefect uses the fields and type hints on your `RunInput` or `BaseModel` class to validate the general structure of input your flow receives. If you require more complex validation, use Pydantic [validators](https://docs.pydantic.dev/1.10/usage/validators/).
 
 !!! warning "Custom validation runs after the flow resumes"
     Prefect transforms the type annotations in your `RunInput` or `BaseModel` class to a JSON schema and uses that schema in the UI for client-side validation. However, custom validation requires running _Python_ logic defined in your `RunInput` class. Because of this, validation happens _after the flow resumes_, so you'll want to handle it explicitly in your flow. Continue reading for an example best practice.
