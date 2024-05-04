@@ -239,7 +239,7 @@ def get_shirt_order():
 
 If a user chooses any size and color combination other than `small` and `green`, the flow run will resume successfully. However, if the user chooses size `small` and color `green`, the flow run will resume, and `pause_flow_run` will raise a `ValidationError` exception. This will cause the flow run to fail and log the error.
 
-To avoid a flow run failure, use a `while` loop and pause again if the `ValidationError` exception is raised:
+To make the flow run not fail, use a `while` loop and pause again if the `ValidationError` exception is raised:
 
 ```python
 from typing import Literal
@@ -342,7 +342,7 @@ async def greeter_flow():
 ```
 
 !!! tip "When to use `with_metadata=True`"
-    The primary uses of accessing the `RunInput` object for a receive input are to respond to the sender with the `RunInput.respond()` function or to access the unique key for an input. These uses are discussed in more detail later in this document.
+    The primary uses of accessing the `RunInput` object for a receive input are to respond to the sender with the `RunInput.respond()` function or to access the unique key for an input. These are discussed in more detail later in this document.
 
 Notice that we are now printing `name_input.value`. When Prefect generates a `RunInput` for you from a built-in type, the `RunInput` class has a single field, `value`, that uses a type annotation matching the type you specified. So if you call `receive_input` like this: `receive_input(str, with_metadata=True)`, that's equivalent to manually creating the following `RunInput` class and `receive_input` call:
 
@@ -529,7 +529,7 @@ With a `greeter` flow in place, create the flow that sends `greeter` names.
 Send input to a flow with the `send_input` function. This works similarly to `receive_input` and, like that function, accepts the same `run_input` argument, which can be a built-in type such as `str`, or else a `BaseModel` or `RunInput` subclass.
 
 !!! note "When to send input to a flow run"
-    Send input to a flow run as soon as you have the flow run's ID. The flow does not have to be receiving input for you to send input. If you send a flow input before it is receiving, it will see your input when it calls `receive_input` (as long as the types in the `send_input` and `receive_input` calls match).
+    Send input to a flow run as soon as you have the flow run's ID. The flow does not have to be receiving input for you to send input. If you send a flow input before it is receiving, it will see your input when it calls `receive_input` (as long as the types in the `send_input` and `receive_input` calls match.)
 
 Next, create a `sender` flow that starts a `greeter` flow run and then enters a loop—continuously getting input from the terminal and sending it to the greeter flow:
 
@@ -567,7 +567,7 @@ async def sender():
 
 There's more going on here than in `greeter`, so here's a closer look at the pieces.
 
-First, `run_deployment` starts a `greeter` flow run. This requires a deployed flow running in a process. That process begins running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when sending `EXIT_SIGNAL`.
+First, `run_deployment` starts a `greeter` flow run. This requires a worker or `flow.serve()` running in a separate process. That process begins running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when sending `EXIT_SIGNAL`.
 
 Next, the iterator returned by `receive_input` as `receiver` is captured. This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs `receiver.next()` to wait until it receives the response from `greeter`.
 
