@@ -207,14 +207,15 @@ class EphemeralASGIServer:
             self.create_server()
 
     def create_server(self):
-        config = uvicorn.Config(
-            app=self.app,
-            host="127.0.0.1",
-            port=self.port,
-            log_level="error",
-            lifespan="on",
-        )
-        self.server = uvicorn.Server(config)
+        if not self.server:
+            config = uvicorn.Config(
+                app=self.app,
+                host="127.0.0.1",
+                port=self.port,
+                log_level="error",
+                lifespan="on",
+            )
+            self.server = uvicorn.Server(config)
 
     def find_available_port(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -234,6 +235,7 @@ class EphemeralASGIServer:
         if not self.running:
             try:
                 self.running = True
+                self.create_server()
                 self.server_thread = threading.Thread(
                     target=self.server.run, daemon=True
                 )
