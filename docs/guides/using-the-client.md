@@ -9,9 +9,11 @@ tags:
 
 # Using the Prefect Orchestration Client
 
+Learn how to leverage the `PrefectClient` to interact with the API.
+
 ## Overview
 
-In the [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/), you can find many useful client methods that make it simpler to do things such as:
+The [API reference for the `PrefectClient`](/api-ref/prefect/client/orchestration/) contains many client methods that make it simpler to do things such as:
 
 - [reschedule late flow runs](#rescheduling-late-flow-runs)
 - [get the last `N` completed flow runs from my workspace](#get-the-last-n-completed-flow-runs-from-my-workspace)
@@ -28,13 +30,11 @@ async with get_client() as client:
 
 ## Examples
 
-### Rescheduling late flow runs
+### Reschedule late flow runs
 
-Sometimes, you may need to bulk reschedule flow runs that are late - for example, if you've accidentally scheduled many flow runs of a deployment to an inactive work pool.
+To bulk reschedule flow runs that are late, delete late flow runs and create new ones in a `Scheduled` state with a delay. For example, this is useful if you accidentally scheduled many flow runs of a deployment to an inactive work pool.
 
-To do this, we can delete late flow runs and create new ones in a `Scheduled` state with a delay.
-
-This example reschedules the last 3 late flow runs of a deployment named `healthcheck-storage-test` to run 6 hours later than their original expected start time. It also deletes any remaining late flow runs of that deployment.
+The following example reschedules the last three late flow runs of a deployment named `healthcheck-storage-test` to run six hours later than their original expected start time. It also deletes any remaining late flow runs of that deployment.
 
 ```python
 import asyncio
@@ -112,11 +112,11 @@ if __name__ == "__main__":
     )
 ```
 
-### Get the last `N` completed flow runs from my workspace
+### Get the last `N` completed flow runs from your workspace
 
-To get the last `N` completed flow runs from our workspace, we can make use of `read_flow_runs` and `prefect.client.schemas`.
+To get the last `N` completed flow runs from your workspace, use `read_flow_runs` and `prefect.client.schemas`.
 
-This example gets the last three completed flow runs from our workspace:
+This example gets the last three completed flow runs from your workspace:
 
 ```python
 import asyncio
@@ -159,10 +159,10 @@ if __name__ == "__main__":
 
 Instead of the last three from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last three completed flow runs of a specific deployment.
 
-### Transition all running flows to cancelled via the Client
-It can be cumbersome to cancel many flow runs through the UI. 
-You can use `get_client`to set multiple runs to a `Cancelled` state.
-The code below will cancel all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
+### Transition all running flows to cancelled through the Client
+
+Use `get_client`to set multiple runs to a `Cancelled` state.
+The code below cancels all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
 ```python
 import anyio
 
