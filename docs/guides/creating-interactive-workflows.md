@@ -569,15 +569,15 @@ There's more going on here than in `greeter`, so here's a closer look at the pie
 
 First, `run_deployment` starts a `greeter` flow run. This requires a worker or `flow.serve()` running in a separate process. That process begins running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when sending `EXIT_SIGNAL`.
 
-Next, we capture the iterator returned by `receive_input` as `receiver`. This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs `receiver.next()` to wait until it receives the response from `greeter`.
+Next, the iterator returned by `receive_input` as `receiver` is captured. This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs `receiver.next()` to wait until it receives the response from `greeter`.
 
-Next, we let the terminal user who ran this flow exit by entering the string `q` or `quit`. When that happens, we send the `greeter` flow an exit signal so it will shut down too.
+Next, the terminal user who ran this flow is allowed to exit by entering the string `q` or `quit`. When that happens, the `greeter` flow is sent an exit signal so it will shut down too.
 
-Finally, we send the new name to `greeter`. We know that `greeter` is going to send back a greeting as a string, so we immediately wait for new string input. When we receive the greeting, we print it and continue the loop that gets terminal input.
+Finally, the new name is sent to `greeter`. `greeter` sends back a greeting as a string. When you receive the greeting, print it and continue the loop that gets terminal input.
 
-### Seeing a complete example
+### A complete example
 
-Finally, let's see a complete example of using `send_input` and `receive_input`. Here is what the `greeter` and `sender` flows look like together:
+For a complete example of using `send_input` and `receive_input`, here is what the `greeter` and `sender` flows look like together:
 
 ```python
 import asyncio
@@ -662,7 +662,7 @@ if __name__ == "__main__":
         asyncio.run(sender())
 ```
 
-To run the example, you'll need a Python environment with Prefect installed, pointed at either an open-source Prefect server instance or Prefect Cloud.
+To run the example, you need a Python environment with Prefect installed, pointed at either an open-source Prefect server instance or Prefect Cloud.
 
 With your environment set up, start a flow runner in one terminal with the following command:
 
