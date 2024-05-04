@@ -146,7 +146,12 @@ class EventLoopThread(Portal):
         with self._lock:
             if self._loop is None:
                 self.thread.start()
-                self._ready_future.result()
+                while True:
+                    try:
+                        self._ready_future.result(timeout=0.1)
+                        break
+                    except TimeoutError:
+                        continue
 
     def submit(self, call: Call) -> Call:
         if self._loop is None:

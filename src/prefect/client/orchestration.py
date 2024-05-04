@@ -182,7 +182,7 @@ class ServerType(AutoEnum):
 
 
 class EphemeralASGIServer:
-    _instances: Dict[ASGIApp, "EphemeralASGIServer"] = {}
+    _instances: Dict[Tuple[ASGIApp, Optional[int]], "EphemeralASGIServer"] = {}
 
     def __new__(cls, app, port=None, *args, **kwargs):
         """
