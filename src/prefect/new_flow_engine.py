@@ -293,7 +293,7 @@ class FlowRunEngine(Generic[P, R]):
             client=client,
             background_tasks=task_group,
             result_factory=run_sync(ResultFactory.from_flow(self.flow)),
-            task_runner=self.flow.task_runner,
+            task_runner=self.flow.task_runner.duplicate(),
         ):
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
             yield
@@ -307,6 +307,18 @@ class FlowRunEngine(Generic[P, R]):
         client = get_client(sync_client=True)
         self._client = client
         self._is_started = True
+
+        # this conditional is engaged whenever a run is triggered via deployment
+        if self.flow_run_id and not self.flow:
+            self.flow_run = client.read_flow_run(self.flow_run_id)
+            try:
+                self.flow = self.load_flow(client)
+            except Exception as exc:
+                self.handle_exception(
+                    exc,
+                    msg="Failed to load flow from entrypoint.",
+                )
+                self.short_circuit = True
 
         if not self.flow_run:
             self.flow_run = self.create_flow_run(client)
