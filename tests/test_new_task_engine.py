@@ -107,13 +107,13 @@ class TestTaskRunsAsync:
         result = await f(1, 2, x=5, y=6, z=7)
         assert result == ((1, 2), 5, dict(y=6, z=7))
 
-    async def test_task_run_name(self, prefect_client):
+    async def test_task_run_name(self, sync_prefect_client):
         @task(task_run_name="name is {x}")
         async def foo(x):
             return TaskRunContext.get().task_run.id
 
         result = await run_task_async(foo, parameters=dict(x="blue"))
-        run = await prefect_client.read_task_run(result)
+        run = sync_prefect_client.read_task_run(result)
 
         assert run.name == "name is blue"
 
@@ -135,7 +135,7 @@ class TestTaskRunsAsync:
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
 
-    async def test_flow_run_id_is_set(self, prefect_client):
+    async def test_flow_run_id_is_set(self, sync_prefect_client):
         flow_run_id = None
 
         @task
@@ -150,17 +150,17 @@ class TestTaskRunsAsync:
 
         assert await workflow() == flow_run_id
 
-    async def test_task_ends_in_completed(self, prefect_client):
+    async def test_task_ends_in_completed(self, sync_prefect_client):
         @task
         async def foo():
             return TaskRunContext.get().task_run.id
 
         result = await run_task_async(foo)
-        run = await prefect_client.read_task_run(result)
+        run = sync_prefect_client.read_task_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_task_ends_in_failed(self, prefect_client):
+    async def test_task_ends_in_failed(self, sync_prefect_client):
         ID = None
 
         @task
@@ -172,11 +172,11 @@ class TestTaskRunsAsync:
         with pytest.raises(ValueError, match="xyz"):
             await run_task_async(foo)
 
-        run = await prefect_client.read_task_run(ID)
+        run = sync_prefect_client.read_task_run(ID)
 
         assert run.state_type == StateType.FAILED
 
-    async def test_task_ends_in_failed_after_retrying(self, prefect_client):
+    async def test_task_ends_in_failed_after_retrying(self, sync_prefect_client):
         ID = None
 
         @task(retries=1)
@@ -190,11 +190,11 @@ class TestTaskRunsAsync:
 
         result = await run_task_async(foo)
 
-        run = await prefect_client.read_task_run(result)
+        run = sync_prefect_client.read_task_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_task_tracks_nested_parent_as_dependency(self, prefect_client):
+    async def test_task_tracks_nested_parent_as_dependency(self, sync_prefect_client):
         @task
         async def inner():
             return TaskRunContext.get().task_run.id
@@ -208,15 +208,15 @@ class TestTaskRunsAsync:
         assert a != b
 
         # assertions on outer
-        outer_run = await prefect_client.read_task_run(b)
+        outer_run = sync_prefect_client.read_task_run(b)
         assert outer_run.task_inputs == {}
 
         # assertions on inner
-        inner_run = await prefect_client.read_task_run(a)
+        inner_run = sync_prefect_client.read_task_run(a)
         assert "wait_for" in inner_run.task_inputs
         assert inner_run.task_inputs["wait_for"][0].id == b
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
+    async def test_task_runs_respect_result_persistence(self, sync_prefect_client):
         @task(persist_result=False)
         async def no_persist():
             return TaskRunContext.get().task_run.id
@@ -227,7 +227,7 @@ class TestTaskRunsAsync:
 
         # assert no persistence
         run_id = await run_task_async(no_persist)
-        task_run = await prefect_client.read_task_run(run_id)
+        task_run = sync_prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
         with pytest.raises(MissingResult):
@@ -235,7 +235,7 @@ class TestTaskRunsAsync:
 
         # assert persistence
         run_id = await run_task_async(persist)
-        task_run = await prefect_client.read_task_run(run_id)
+        task_run = sync_prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
         assert await api_state.result() == str(run_id)
@@ -302,13 +302,13 @@ class TestTaskRunsSync:
         result = f(1, 2, x=5, y=6, z=7)
         assert result == ((1, 2), 5, dict(y=6, z=7))
 
-    async def test_task_run_name(self, prefect_client):
+    async def test_task_run_name(self, sync_prefect_client):
         @task(task_run_name="name is {x}")
         def foo(x):
             return TaskRunContext.get().task_run.id
 
         result = run_task_sync(foo, parameters=dict(x="blue"))
-        run = await prefect_client.read_task_run(result)
+        run = sync_prefect_client.read_task_run(result)
         assert run.name == "name is blue"
 
     def test_get_run_logger(self, caplog):
@@ -329,7 +329,7 @@ class TestTaskRunsSync:
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
 
-    def test_flow_run_id_is_set(self, prefect_client):
+    def test_flow_run_id_is_set(self, sync_prefect_client):
         flow_run_id = None
 
         @task
@@ -344,17 +344,17 @@ class TestTaskRunsSync:
 
         assert workflow() == flow_run_id
 
-    async def test_task_ends_in_completed(self, prefect_client):
+    async def test_task_ends_in_completed(self, sync_prefect_client):
         @task
         def foo():
             return TaskRunContext.get().task_run.id
 
         result = run_task_sync(foo)
-        run = await prefect_client.read_task_run(result)
+        run = sync_prefect_client.read_task_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_task_ends_in_failed(self, prefect_client):
+    async def test_task_ends_in_failed(self, sync_prefect_client):
         ID = None
 
         @task
@@ -366,11 +366,11 @@ class TestTaskRunsSync:
         with pytest.raises(ValueError, match="xyz"):
             run_task_sync(foo)
 
-        run = await prefect_client.read_task_run(ID)
+        run = sync_prefect_client.read_task_run(ID)
 
         assert run.state_type == StateType.FAILED
 
-    async def test_task_ends_in_failed_after_retrying(self, prefect_client):
+    async def test_task_ends_in_failed_after_retrying(self, sync_prefect_client):
         ID = None
 
         @task(retries=1)
@@ -384,11 +384,11 @@ class TestTaskRunsSync:
 
         result = run_task_sync(foo)
 
-        run = await prefect_client.read_task_run(result)
+        run = sync_prefect_client.read_task_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_task_tracks_nested_parent_as_dependency(self, prefect_client):
+    async def test_task_tracks_nested_parent_as_dependency(self, sync_prefect_client):
         @task
         def inner():
             return TaskRunContext.get().task_run.id
@@ -402,14 +402,14 @@ class TestTaskRunsSync:
         assert a != b
 
         # assertions on outer
-        outer_run = await prefect_client.read_task_run(b)
+        outer_run = sync_prefect_client.read_task_run(b)
         assert outer_run.task_inputs == {}
 
         # assertions on inner
-        inner_run = await prefect_client.read_task_run(a)
+        inner_run = sync_prefect_client.read_task_run(a)
         assert "wait_for" in inner_run.task_inputs
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
+    async def test_task_runs_respect_result_persistence(self, sync_prefect_client):
         @task(persist_result=False)
         def no_persist():
             ctx = TaskRunContext.get()
@@ -424,7 +424,7 @@ class TestTaskRunsSync:
 
         # assert no persistence
         run_id = run_task_sync(no_persist)
-        task_run = await prefect_client.read_task_run(run_id)
+        task_run = sync_prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
         with pytest.raises(MissingResult):
@@ -432,7 +432,7 @@ class TestTaskRunsSync:
 
         # assert persistence
         run_id = run_task_sync(persist)
-        task_run = await prefect_client.read_task_run(run_id)
+        task_run = sync_prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
         assert await api_state.result() == str(run_id)
@@ -456,7 +456,7 @@ class TestTaskRunsSync:
 
 
 class TestReturnState:
-    async def test_return_state(self, prefect_client):
+    async def test_return_state(self, sync_prefect_client):
         @task
         async def foo():
             return 42
@@ -469,7 +469,7 @@ class TestReturnState:
 
         assert await state.result() == 42
 
-    async def test_return_state_even_on_failure(self, prefect_client):
+    async def test_return_state_even_on_failure(self, sync_prefect_client):
         @task
         async def foo():
             raise ValueError("xyz")
@@ -486,7 +486,7 @@ class TestReturnState:
 
 class TestTaskRetries:
     @pytest.mark.parametrize("always_fail", [True, False])
-    async def test_task_respects_retry_count(self, always_fail, prefect_client):
+    async def test_task_respects_retry_count(self, always_fail, sync_prefect_client):
         mock = MagicMock()
         exc = ValueError()
 
@@ -520,7 +520,7 @@ class TestTaskRetries:
             assert await task_run_state.result() is True
             assert mock.call_count == 4
 
-        states = await prefect_client.read_task_run_states(task_run_id)
+        states = sync_prefect_client.read_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
         assert state_names == [
@@ -533,7 +533,9 @@ class TestTaskRetries:
         ]
 
     @pytest.mark.parametrize("always_fail", [True, False])
-    async def test_task_respects_retry_count_sync(self, always_fail, prefect_client):
+    async def test_task_respects_retry_count_sync(
+        self, always_fail, sync_prefect_client
+    ):
         mock = MagicMock()
         exc = ValueError()
 
@@ -568,7 +570,7 @@ class TestTaskRetries:
             assert await task_run_state.result() is True  # type: ignore
             assert mock.call_count == 4
 
-        states = await prefect_client.read_task_run_states(task_run_id)
+        states = sync_prefect_client.read_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
         assert state_names == [
@@ -580,7 +582,7 @@ class TestTaskRetries:
             "Failed" if always_fail else "Completed",
         ]
 
-    async def test_task_only_uses_necessary_retries(self, prefect_client):
+    async def test_task_only_uses_necessary_retries(self, sync_prefect_client):
         mock = MagicMock()
         exc = ValueError()
 
@@ -602,7 +604,7 @@ class TestTaskRetries:
         assert await task_run_state.result() is True
         assert mock.call_count == 2
 
-        states = await prefect_client.read_task_run_states(task_run_id)
+        states = sync_prefect_client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",
@@ -666,7 +668,7 @@ class TestTaskRetries:
 class TestTaskCrashDetection:
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_function_crashes_task(
-        self, prefect_client, interrupt_type
+        self, sync_prefect_client, interrupt_type
     ):
         @task
         async def my_task():
@@ -675,7 +677,7 @@ class TestTaskCrashDetection:
         with pytest.raises(interrupt_type):
             await my_task()
 
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = sync_prefect_client.read_task_runs()
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert task_run.state.is_crashed()
@@ -686,7 +688,7 @@ class TestTaskCrashDetection:
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_function_crashes_task_sync(
-        self, prefect_client, interrupt_type
+        self, sync_prefect_client, interrupt_type
     ):
         @task
         def my_task():
@@ -695,7 +697,7 @@ class TestTaskCrashDetection:
         with pytest.raises(interrupt_type):
             my_task()
 
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = sync_prefect_client.read_task_runs()
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert task_run.state.is_crashed()
@@ -706,7 +708,7 @@ class TestTaskCrashDetection:
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
-        self, prefect_client, interrupt_type, monkeypatch
+        self, sync_prefect_client, interrupt_type, monkeypatch
     ):
         monkeypatch.setattr(
             TaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
@@ -719,7 +721,7 @@ class TestTaskCrashDetection:
         with pytest.raises(interrupt_type):
             await my_task()
 
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = sync_prefect_client.read_task_runs()
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert task_run.state.is_crashed()

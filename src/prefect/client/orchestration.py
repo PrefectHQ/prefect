@@ -3992,3 +3992,18 @@ class SyncPrefectClient:
             json=dict(state=state_create.dict(json_compatible=True), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
+
+    def read_task_run_states(self, task_run_id: UUID) -> List[prefect.states.State]:
+        """
+        Query for the states of a task run
+
+        Args:
+            task_run_id: the id of the task run
+
+        Returns:
+            a list of State model representations of the task run states
+        """
+        response = self._client.get(
+            "/task_run_states/", params=dict(task_run_id=str(task_run_id))
+        )
+        return pydantic.parse_obj_as(List[prefect.states.State], response.json())
