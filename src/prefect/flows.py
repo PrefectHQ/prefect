@@ -343,23 +343,6 @@ class Flow(Generic[P, R]):
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
-
-        # Check for collision in the registry
-        registry = PrefectObjectRegistry.get()
-
-        if registry and any(
-            other
-            for other in registry.get_instances(Flow)
-            if other.name == self.name and id(other.fn) != id(self.fn)
-        ):
-            file = inspect.getsourcefile(self.fn)
-            line_number = inspect.getsourcelines(self.fn)[1]
-            warnings.warn(
-                f"A flow named {self.name!r} and defined at '{file}:{line_number}' "
-                "conflicts with another flow. Consider specifying a unique `name` "
-                "parameter in the flow definition:\n\n "
-                "`@flow(name='my_unique_name', ...)`"
-            )
         self.on_completion = on_completion
         self.on_failure = on_failure
         self.on_cancellation = on_cancellation
