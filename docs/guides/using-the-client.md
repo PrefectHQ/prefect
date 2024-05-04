@@ -9,7 +9,7 @@ tags:
 
 # Using the Prefect Orchestration Client
 
-Learn how to use the `PrefectClient` to interact with the API.
+Learn how to leverage the `PrefectClient` to interact with the API.
 
 ## Overview
 
