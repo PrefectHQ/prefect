@@ -529,7 +529,7 @@ With a `greeter` flow in place, create the flow that sends `greeter` names.
 Send input to a flow with the `send_input` function. This works similarly to `receive_input` and, like that function, accepts the same `run_input` argument, which can be a built-in type such as `str`, or else a `BaseModel` or `RunInput` subclass.
 
 !!! note "When to send input to a flow run"
-    Send input to a flow run as soon as you have the flow run's ID. The flow does not have to be receiving input for you to send input. If you send a flow input before it is receiving, it will see your input when it calls `receive_input` (as long as the types in the `send_input` and `receive_input` calls match.)
+    Send input to a flow run as soon as you have the flow run's ID. The flow does not have to be receiving input for you to send input. If you send a flow input before it is receiving, it will see your input when it calls `receive_input` (as long as the types in the `send_input` and `receive_input` calls match).
 
 Next, create a `sender` flow that starts a `greeter` flow run and then enters a loop—continuously getting input from the terminal and sending it to the greeter flow:
 
