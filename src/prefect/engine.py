@@ -2438,14 +2438,14 @@ if __name__ == "__main__":
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
             from prefect.new_flow_engine import (
                 load_flow_and_flow_run,
-                run_flow,
+                run_flow_async,
                 run_flow_sync,
             )
 
             flow_run, flow = run_sync(load_flow_and_flow_run)
             # run the flow
             if flow.isasync:
-                run_sync(run_flow(flow, flow_run=flow_run))
+                run_sync(run_flow_async(flow, flow_run=flow_run))
             else:
                 run_flow_sync(flow, flow_run=flow_run)
         else:

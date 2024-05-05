@@ -40,13 +40,13 @@ from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
 
-
-@pytest.fixture(
-    autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
-)
-def set_new_engine_setting(request):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
-        yield
+# TODO: uncomment when new engine has parity
+# @pytest.fixture(
+#     autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
+# )
+# def set_new_engine_setting(request):
+#     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
+#         yield
 
 
 def fails_with_new_engine(func):

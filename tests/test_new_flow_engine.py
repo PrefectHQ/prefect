@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 
 from prefect import Flow, flow, get_run_logger, task
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
@@ -54,16 +54,14 @@ class TestFlowRunEngine:
 
     async def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
-        async with engine.start():
+        with engine.start():
             client = engine.client
-            assert isinstance(client, PrefectClient)
+            assert isinstance(client, SyncPrefectClient)
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_load_flow_from_entrypoint(
-        self, monkeypatch, prefect_client, tmp_path, flow_run
-    ):
+    async def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
         flow_code = """
         from prefect import flow
 
@@ -75,7 +73,7 @@ class TestFlowRunEngine:
         fpath.write_text(dedent(flow_code))
 
         monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
-        loaded_flow_run, flow = await load_flow_and_flow_run(flow_run.id)
+        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
         assert loaded_flow_run.id == flow_run.id
         assert flow.fn() == "woof!"
 
@@ -124,13 +122,13 @@ class TestFlowRunsAsync:
         ):
             await state.result()
 
-    async def test_flow_run_name(self, prefect_client):
+    async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
         async def foo(x):
             return FlowRunContext.get().flow_run.id
 
         result = await run_flow(foo, parameters=dict(x="blue"))
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
 
@@ -178,17 +176,17 @@ class TestFlowRunsAsync:
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
 
-    async def test_flow_ends_in_completed(self, prefect_client):
+    async def test_flow_ends_in_completed(self, sync_prefect_client):
         @flow
         async def foo():
             return FlowRunContext.get().flow_run.id
 
         result = await run_flow(foo)
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_flow_ends_in_failed(self, prefect_client):
+    async def test_flow_ends_in_failed(self, sync_prefect_client):
         ID = None
 
         @flow
@@ -200,12 +198,12 @@ class TestFlowRunsAsync:
         with pytest.raises(ValueError, match="xyz"):
             await run_flow(foo)
 
-        run = await prefect_client.read_flow_run(ID)
+        run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
 
     @pytest.mark.skip(reason="Haven't wired up subflows yet")
-    async def test_flow_tracks_nested_parent_as_dependency(self, prefect_client):
+    async def test_flow_tracks_nested_parent_as_dependency(self, sync_prefect_client):
         @flow
         async def inner():
             return FlowRunContext.get().flow_run.id
@@ -219,11 +217,11 @@ class TestFlowRunsAsync:
         assert a != b
 
         # assertions on outer
-        outer_run = await prefect_client.read_flow_run(b)
+        outer_run = sync_prefect_client.read_flow_run(b)
         assert outer_run.flow_inputs == {}
 
         # assertions on inner
-        inner_run = await prefect_client.read_flow_run(a)
+        inner_run = sync_prefect_client.read_flow_run(a)
         assert "wait_for" in inner_run.flow_inputs
         assert inner_run.flow_inputs["wait_for"][0].id == b
 
@@ -272,13 +270,13 @@ class TestFlowRunsSync:
         ):
             await state.result()
 
-    async def test_flow_run_name(self, prefect_client):
+    async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
         def foo(x):
             return FlowRunContext.get().flow_run.id
 
         result = run_flow_sync(foo, parameters=dict(x="blue"))
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
 
@@ -326,17 +324,17 @@ class TestFlowRunsSync:
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
 
-    async def test_flow_ends_in_completed(self, prefect_client):
+    async def test_flow_ends_in_completed(self, sync_prefect_client):
         @flow
         def foo():
             return FlowRunContext.get().flow_run.id
 
         result = run_flow_sync(foo)
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_flow_ends_in_failed(self, prefect_client):
+    async def test_flow_ends_in_failed(self, sync_prefect_client):
         ID = None
 
         @flow
@@ -348,7 +346,7 @@ class TestFlowRunsSync:
         with pytest.raises(ValueError, match="xyz"):
             run_flow_sync(foo)
 
-        run = await prefect_client.read_flow_run(ID)
+        run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
 
@@ -466,7 +464,7 @@ class TestFlowRetries:
         assert task_run_count == 2, "Task should be reset and run again"
 
     @pytest.mark.xfail
-    async def test_flow_retry_with_branched_tasks(self, prefect_client):
+    async def test_flow_retry_with_branched_tasks(self, sync_prefect_client):
         flow_run_count = 0
 
         @task
@@ -494,7 +492,7 @@ class TestFlowRetries:
 
         # The state is pulled from the API and needs to be decoded
         document = await (await my_flow().result()).result()
-        result = await prefect_client.retrieve_data(document)
+        result = sync_prefect_client.retrieve_data(document)
 
         assert result == "bar"
         # AssertionError: assert 'foo' == 'bar'
@@ -503,7 +501,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -531,7 +529,7 @@ class TestFlowRetries:
         assert child_run_count == 2, "Child flow should be reset and run again"
 
         # Ensure that the tracking task run for the subflow is reset and tracked
-        task_runs = await prefect_client.read_task_runs(
+        task_runs = sync_prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(
                 id={"any_": [state.state_details.flow_run_id]}
             )
@@ -569,7 +567,7 @@ class TestFlowRetries:
         assert child_run_count == 1, "Child flow should not run again"
 
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         child_flow_run_count = 0
         flow_run_count = 0
@@ -604,10 +602,10 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
 
-        child_flow_run = await prefect_client.read_flow_run(
+        child_flow_run = sync_prefect_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
-        child_flow_runs = await prefect_client.read_flow_runs(
+        child_flow_runs = sync_prefect_client.read_flow_runs(
             flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
             sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
