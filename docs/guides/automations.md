@@ -222,17 +222,17 @@ def create_event_driven_automation():
     return response.json()
 ```
  
-After running this function, you will see the changes that came from the post request within the UI. Keep in mind, the context will be "custom" on UI. 
+After running this function, you will see the changes that came from the post request within the UI. Keep in mind the context will be "custom" on UI. 
 
-Let's run the underlying flow and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of `build_names`, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
+Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names`. You can see this new deployment get initiated with the custom parameters outlined above. 
 
-In a few quick changes, we are able to programmatically create an automation that deploys workflows with custom parameters. 
+In a few quick changes, you can programmatically create an automation that deploys workflows with custom parameters. 
 
-## Using an underlying .yaml file
+## Use an underlying .yaml file
 
-We can extend this idea one step further by utilizing our own .yaml version of the automation, and registering that file with our UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
+You can take this a step further by using your own .yaml version of the automation, and registering that file with the UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
 
-Let's first start with creating the .yaml file that will house the automation requirements. Here is how it would look like:
+First start with creating the .yaml file to house the automation requirements:
 
 ```yaml
 name: Cancel long running flows
@@ -254,7 +254,7 @@ actions:
   - type: "cancel-flow-run"
 ```
 
-We can then have a helper function that applies this YAML file with the REST API function. 
+Make a helper function that applies this YAML file with the REST API function. 
 ```python
 import yaml
 
@@ -283,18 +283,17 @@ if __name__ == "__main__":
     create_or_update_automation()
 ```
 
-You can find a complete repo with these APIs examples in this [GitHub repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
+Find a complete repo with these APIs examples in this [GitHub repository](https://github.com/EmilRex/prefect-api-examples/tree/main). 
 
-In this example, we managed to create the automation by registering the .yaml file with a helper function. This offers another experience when trying to create an automation.
+In this example, you created the automation by registering the .yaml file with a helper function.
 
-## Custom webhook kicking off an automation
+## Kick off an automation with a custom webhook
 
-We can use webhooks to expose the events API which allows us to extend the functionality of deployments and ways to respond to changes in our workflow through a few easy steps. 
+Use webhooks to expose the events API. This allows you to extend the functionality of deployments and respond to changes in your workflow. 
 
-By exposing a webhook endpoint, we can kick off workflows that can trigger deployments - all from a simple event created from an HTTP request. 
+By exposing a webhook endpoint, you can kick off workflows that trigger deployments, all from an event created from an HTTP request. 
 
-Lets create a webhook within the UI. 
-Here is the webhook we can use to create these dynamic events.
+Create this webhook in the UI to create these dynamic events.
 ```JSON
 {
     "event": "model-update",
@@ -305,40 +304,40 @@ Here is the webhook we can use to create these dynamic events.
     }
 }
 ```
-From a simple input, we can easily create an exposed webhook endpoint. 
+From this input, you can create an exposed webhook endpoint. 
 
 ![webhook-simple](/img/guides/webhook-simple.png)
 
-Each webhook will correspond to a custom event created, where you can react to it downstream with a separate deployment or automation. 
+Each webhook corresponds to a custom event created, where you can react to it downstream with a separate deployment or automation. 
 
-For example, we can create a curl request that sends the endpoint information such as a run count for our deployment. 
+For example, you can create a curl request that sends the endpoint information such as a run count for your deployment. 
 ```console
 curl -X POST https://api.prefect.cloud/hooks/34iV2SFke3mVa6y5Y-YUoA -d "model_id=adhoc" -d "run_count=10" -d "friendly_name=test-user-input"
 ```
-From here, we can make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that uses these pulled parameters.
+From here, you can make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that uses these pulled parameters.
 ![Webhook created](/img/guides/webhook-created.png)
 
-Let us go into the event feed, and we can automate straight from this event. 
+Go into the event feed to automate straight from this event. 
 ![Webhook automate](/img/guides/webhook-automate.png)
 
-This allows us to create automations that respond to these webhook events. From a few clicks in the UI, we are able to associate an external process with the Prefect events API, that can enable us to trigger downstream deployments. 
+This allows you to create automations that respond to these webhook events. From a few clicks in the UI, you can associate an external process with the Prefect events API that can trigger downstream deployments. 
 ![Automation custom](/img/guides/automation-custom.png)
 
-In the next section, we will explore event triggers that automate the kickoff of a deployment run.
+In the next section, you will explore event triggers that automate the kickoff of a deployment run.
 
-## Using triggers
+## Use triggers
 
-Let's take this idea one step further, by creating a deployment that will be triggered when a flow run takes longer than expected. 
-We can take advantage of Prefect's [Marvin](https://www.askmarvin.ai/) library that will use an LLM to classify our data. 
-Marvin is great at embedding data science and data analysis applications within your pre-existing data engineering workflows. In this case, we can use [Marvin'd AI functions](https://www.askmarvin.ai/components/ai_function/#ai-function) to help make our dataset more information rich. 
+You can take this a step further by creating a deployment that triggers when a flow run takes longer than expected. 
+You can take advantage of Prefect's [Marvin](https://www.askmarvin.ai/) library that uses an LLM to classify the data. 
+Marvin is great at embedding data science and data analysis applications within your pre-existing data engineering workflows. In this case, you can use [Marvin's AI functions](https://www.askmarvin.ai/components/ai_function/#ai-function) to help make the dataset more information rich. 
 
-Install Marvin with `pip install marvin` and set you OpenAI API key as shown [here](https://www.askmarvin.ai/welcome/quickstart/)
+Install Marvin with `pip install marvin` and [set your OpenAI API key](https://www.askmarvin.ai/welcome/quickstart/).
 
-We can add a trigger to run a deployment in response to a specific event. 
+You can add a trigger to run a deployment in response to a specific event. 
 
-Let's create an example with Marvin's AI functions. We will take in a pandas DataFrame and use the AI function to analyze it. 
+Here's an example with Marvin's AI functions. It will take in a Pandas DataFrame and use the AI function to analyze it. 
 
-Here is an example of pulling in that data and classifying using Marvin AI. We can help create dummy data based on classifications we have already created.
+Here is an example of pulling in that data and classifying using Marvin AI. The dummy data is based on classifications you have already created.
 
 ```python
 from marvin import ai_classifier
@@ -367,7 +366,7 @@ if __name__ == "__main__":
     
 ```
 
-Let's kick off a deployment with a trigger defined in a `prefect.yaml` file. Let's specify what we want to trigger when the event stays in a running state for longer than 30 seconds. 
+Kick off a deployment with a trigger defined in a `prefect.yaml` file. Specify what to trigger when the event stays in a running state for longer than 30 seconds. 
 ```yaml
 # Welcome to your prefect.yaml file! You can use this file for storing and managing
 # configuration for deploying your flows. We recommend committing this file to source
@@ -415,6 +414,6 @@ deployments:
 
 ## Next steps
 
-You've seen how to create automations via the UI, REST API, and a triggers defined in a `prefect.yaml` deployment definition.
+You've seen how to create automations with the UI, REST API, and a trigger defined in a `prefect.yaml` deployment definition.
 
 To learn more about events that can act as automation triggers, see the [events docs](/concepts/events/).  To learn more about event webhooks in particular, see the [webhooks guide](/guides/webhooks/).
