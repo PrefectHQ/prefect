@@ -16,7 +16,7 @@ search:
 
 These recipes show you how to deploy a worker, use event-driven flows, set up unit testing, and more.
 
-The following recipes specific to Prefect 2. You can find a full repository of recipes at [https://github.com/PrefectHQ/prefect-recipes](https://github.com/PrefectHQ/prefect-recipes) and additional recipes at [Prefect Discourse](https://discourse.prefect.io/).
+The following recipes are specific to Prefect 2. You can find a full repository of recipes at [https://github.com/PrefectHQ/prefect-recipes](https://github.com/PrefectHQ/prefect-recipes) and additional recipes at [Prefect Discourse](https://discourse.prefect.io/).
 
 ## Recipe catalog
 
@@ -96,9 +96,9 @@ A thoughtful README can take a recipe from good to great. Here are some best pra
 
 - Provide a brief explanation of what your recipe demonstrates. This helps users determine quickly whether the recipe is relevant to their needs or answers their questions.
 - List which files are included and what each is meant to do. Each explanation can contain only a few words.
-- Describe any dependencies and prerequisites (in addition to any dependencies you include in a requirements file). This includes both libraries or modules and any services your recipes depends on.
+- Describe any dependencies and prerequisites (in addition to any dependencies you include in a requirements file). This includes both libraries or modules and any services your recipe depends on.
 - If steps are involved or there’s an order to do things, a simple list of steps is helpful.
-- Bonus: troubleshooting steps or tips where other users might get tripped up.
+- Bonus: include troubleshooting steps or tips where other users might get tripped up.
 
 ## Next steps
 
