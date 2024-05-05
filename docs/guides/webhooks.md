@@ -149,7 +149,8 @@ defined.
 
 ### Static webhook events
 
-Here's a static webhook template example that notifies Prefect when your `recommendations` machine learning model has been updated, so you can send a Slack notification to your team and run a few subsequent
+Here's a static webhook template example that notifies Prefect when your `recommendations`
+machine learning model has been updated, so you can send a Slack notification to your team and run a few subsequent
 deployments.  Those models are produced on a daily schedule by another team that is
 using `cron` for scheduling. They aren't able to use Prefect for their flows yet, but
 they are happy to add a `curl` to the end of their daily script to notify you. Because
@@ -182,7 +183,7 @@ curl https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ
 ```
 </div>
 
-Each time the script hits the webhook, the webhook will produce a single
+Each time the script hits the webhook, the webhook produces a single
 Prefect event with that name and resource in your workspace.
 
 ### Event fields that Prefect Cloud populates for you
@@ -193,7 +194,7 @@ missing fields, such as `occurred` and `id`, so you don't need to set them in yo
 template.  Additionally, Prefect Cloud adds the webhook itself as a related resource
 on all of the events it produces.
 
-If your template does not produce a `payload` field, the `payload` will default to a
+If your template does not produce a `payload` field, the `payload` default to a
 standard set of debugging information, including the HTTP method, headers, and body.
 
 ### Dynamic webhook events
@@ -284,13 +285,11 @@ expressions are equivalent:
     identifier, so `body.friendly-name` will not work.  Use `body['friendly-name']` in
     those cases.
 
-You may not have much control over the client invoking your webhook, but would still
-like for bodies that look like JSON to be parsed as such.  Prefect Cloud will attempt to
-parse any other content type (like `text/plain`) as if it were JSON first.  In any case
-where the body cannot be transformed into JSON, it will be made available to your
+Prefect Cloud will attempt to parse any other content type (like `text/plain`) as if it were JSON first.
+In any case where the body cannot be transformed into JSON, it is made available to your
 templates as a Python `str`.
 
-### Accepting Prefect events directly
+### Accept Prefect events directly
 
 In cases where you have more control over the client, your webhook can accept Prefect
 events directly with a simple pass-through template:
@@ -299,7 +298,7 @@ events directly with a simple pass-through template:
 {{ body|tojson }}
 ```
 
-This template accepts the incoming body (assuming it was in JSON format) and just passes
+This template accepts the incoming body (assuming it was in JSON format) and passes
 it through unmodified.  This allows a `POST` of a partial Prefect event as in this
 example:
 
@@ -319,7 +318,7 @@ Content-Length: 228
 }
 ```
 
-The resulting event will be filled out with the default values for `occurred`, `id`, and
+The resulting event is filled out with the default values for `occurred`, `id`, and
 other fields as described [above](#event-fields-that-prefect-cloud-populates-for-you).
 
 ### Accepting CloudEvents
@@ -334,10 +333,10 @@ a CloudEvent natively with the following template:
 {{ body|from_cloud_event(headers) }}
 ```
 
-The resulting event will use the CloudEvent's `subject` as the resource (or the `source`
-if no `subject` is available).  The CloudEvent's `data` attribute will become the
+The resulting event uses the CloudEvent's `subject` as the resource (or the `source`
+if no `subject` is available).  The CloudEvent's `data` attribute becomes the
 Prefect event's `payload['data']`, and the other CloudEvent metadata will be at
-`payload['cloudevents']`.  If you would like to handle CloudEvents in a more specific
+`payload['cloudevents']`.  To handle CloudEvents in a more specific
 way tailored to your use case, use a dynamic template to interpret the incoming `body`.
 
 ## Troubleshooting
@@ -347,7 +346,7 @@ the sender and your receiving webhook speaking a compatible language.  While you
 this phase, you may find the [Event Feed](/cloud/events/#event-feed) in the UI to be
 indispensable for seeing the events as they are happening.
 
-When Prefect Cloud encounters an error during receipt of a webhook, it will produce a
-`prefect-cloud.webhook.failed` event in your workspace.  This event will include
+When Prefect Cloud encounters an error during receipt of a webhook, it produces a
+`prefect-cloud.webhook.failed` event in your workspace.  This event includes
 critical information about the HTTP method, headers, and body it received, as well as
 what the template rendered.  Keep an eye out for these events when something goes wrong.
