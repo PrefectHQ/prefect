@@ -57,7 +57,7 @@ We're always looking for new recipe contributions! See the [Prefect Recipes](htt
 
 [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes) provide a vital cookbook where users can find helpful code examples and common steps for specific Prefect use cases.
 
-We love recipes from anyone who has example code that another Prefect user can benefit from (for example, a Prefect flow that loads data into Snowflake).
+Contribute recipes that other Prefect users could benefit from (for example, a Prefect flow that loads data into Snowflake).
 
 Have a blog post, Discourse article, or tutorial you’d like to share as a recipe? All submissions are welcome. Clone the prefect-recipes repo, create a branch, add a link to your recipe to the README, and submit a PR.
 
