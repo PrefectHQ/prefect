@@ -40,7 +40,7 @@ Global concurrency limits can be in either an `active` or `inactive` state.
 
 ### Slot decay
 
-You can configure global concurrency limits with slot decay. Use this when using the concurrency limit as a rate limit. It will govern the pace at which slots are released or become available for reuse after being occupied. These slots  represent the concurrency capacity within a specific concurrency limit. This is the rate at which these slots "decay" or refresh.
+You can configure global concurrency limits with slot decay. Use this when you want a rate limit. It will govern the pace at which slots are released or become available for reuse after being occupied. These slots  represent the concurrency capacity within a specific concurrency limit. This is the rate at which these slots "decay" or refresh.
 
 To configure slot decay, set the `slot_decay_per_second` parameter when defining or adjusting a concurrency limit.
 
