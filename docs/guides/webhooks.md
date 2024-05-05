@@ -15,27 +15,27 @@ from other systems in your ecosystem.  Each webhook exposes a unique URL endpoin
 receive events from other systems and transforms them into Prefect
 [events](/cloud/events/) for use in [automations](/cloud/automations/).
 
-Webhooks are defined by two essential components: a unique URL and a template that translates incoming web requests to a Prefect event.
+Webhooks are defined by two essential components: a unique URL, and a template that translates incoming web requests to a Prefect event.
 
-## Configuring webhooks
+## Configure webhooks
 
-### Via the Prefect Cloud API
+### Through the Prefect Cloud API
 
-Webhooks are managed via the [Webhooks API
+Webhooks are managed through the [Webhooks API
 endpoints](https://app.prefect.cloud/api/docs#tag/Webhooks).  This is a Prefect
 Cloud-only feature. You authenticate API calls using the standard
 [authentication methods you use with Prefect
 Cloud](/cloud/connecting#manually-configure-prefect-api-settings).
 
-### Via Prefect Cloud
+### Through Prefect Cloud
 
-Webhooks can be created and managed from the Prefect Cloud UI.
+You can create and manage webhooks from the Prefect Cloud UI.
 
 ![Managing a webhook in the Prefect Cloud UI.](/img/ui/webhook.png)
 
-### Via the Prefect CLI
+### Through the Prefect CLI
 
-Webhooks can be managed and interacted with via the `prefect cloud webhook` command group.
+You can manage and interact with webhooks through the `prefect cloud webhook` command group.
 
 <div class="terminal">
 
@@ -57,10 +57,10 @@ prefect cloud webhook create your-webhook-name \
 
 </div>
 
-Note the template string, which is discussed in [greater detail below](#webhook-templates)
+Note the template string, which is discussed in [greater detail below](#webhook-templates).
 
 You can retrieve details for a specific webhook by ID using `get`, or optionally query
-all webhooks in your workspace via `ls`:
+all webhooks in your workspace with `ls`:
 
 <div class="terminal">
 
@@ -76,7 +76,7 @@ prefect cloud webhook ls
 
 </div>
 
-If you need to disable an existing webhook without deleting it, use `toggle`:
+Disable an existing webhook without deleting it with `toggle`:
 
 <div class="terminal">
 
@@ -90,7 +90,7 @@ Webhook is now enabled
 
 </div>
 
-If you are concerned that your webhook endpoint may have been compromised, use `rotate` to generate a new, random endpoint
+Use `rotate` to generate a new, random endpoint if you're concerned your webhook endpoint was compromised:
 
 <div class="terminal">
 
@@ -106,16 +106,16 @@ The webhook endpoints have randomly generated opaque URLs that do not divulge an
 information about your Prefect Cloud workspace.  They are rooted at
 `https://api.prefect.cloud/hooks/`. For example:
 `https://api.prefect.cloud/hooks/AERylZ_uewzpDx-8fcweHQ`.
-Prefect Cloud assigns this URL when you create a webhook; it cannot be set via the API.
+Prefect Cloud assigns this URL when you create a webhook; it cannot be set through the API.
 You may rotate your webhook URL at any time without
 losing the associated configuration.
 
-All webhooks may accept requests via the most common HTTP methods:
+All webhooks may accept requests with the most common HTTP methods:
 
-* `GET`, `HEAD`, and `DELETE` may be used for webhooks that define a static event
+* Use `GET`, `HEAD`, and `DELETE` for webhooks that define a static event
   template, or a template that does not depend on the _body_ of the HTTP request.  The
   headers of the request will be available for templates.
-* `POST`, `PUT`, and `PATCH` may be used when the webhook request will include a body.
+* Use `POST`, `PUT`, and `PATCH` when the webhook request includes a body.
   See [How HTTP request components are
   handled](#how-http-request-components-are-handled) for more details on how the body is
   parsed.
@@ -131,7 +131,7 @@ The purpose of a webhook is to accept an HTTP request from another system and pr
 Prefect event from it.  You may find that you often have little influence or control
 over the format of those requests, so Prefect's webhook system gives you full control
 over how you turn those notifications from other systems into meaningful events in your
-Prefect Cloud workspace.  The template you define for each webhook will determine how
+Prefect Cloud workspace.  The template you define for each webhook determines how
 individual components of the incoming HTTP request become the event name and resource
 labels of the resulting Prefect event.
 
@@ -149,11 +149,9 @@ defined.
 
 ### Static webhook events
 
-Let's see a static webhook template example.  Say you want to configure a webhook that
-will notify Prefect when your `recommendations` machine learning model has been updated,
-so you can then send a Slack notification to your team and run a few subsequent
+Here's a static webhook template example that notifies Prefect when your `recommendations` machine learning model has been updated, so you can send a Slack notification to your team and run a few subsequent
 deployments.  Those models are produced on a daily schedule by another team that is
-using `cron` for scheduling. They aren't able to use Prefect for their flows (yet!), but
+using `cron` for scheduling. They aren't able to use Prefect for their flows yet, but
 they are happy to add a `curl` to the end of their daily script to notify you. Because
 this webhook will only be used for a single event from a single resource, your template
 can be entirely static:
@@ -174,7 +172,7 @@ can be entirely static:
     The output of your template, when rendered, should be a valid string that can be
     parsed, for example, with `json.loads`.
 
-A webhook with this template may be invoked via _any_ of the HTTP methods, including a
+A webhook with this template may be invoked through _any_ of the HTTP methods, including a
 `GET` request with no body, so the team you are integrating with can include this line at the
 end of their daily script:
 
@@ -189,10 +187,10 @@ Prefect event with that name and resource in your workspace.
 
 ### Event fields that Prefect Cloud populates for you
 
-You may notice that you only had to provide the `event` and `resource` definition, which
-is not a completely fleshed out event.  Prefect Cloud will set default values for any
+You only had to provide the `event` and `resource` definition, which
+is not a completely fleshed out event.  Prefect Cloud sets default values for any
 missing fields, such as `occurred` and `id`, so you don't need to set them in your
-template.  Additionally, Prefect Cloud will add the webhook itself as a related resource
+template.  Additionally, Prefect Cloud adds the webhook itself as a related resource
 on all of the events it produces.
 
 If your template does not produce a `payload` field, the `payload` will default to a
