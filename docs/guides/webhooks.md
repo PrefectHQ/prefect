@@ -149,7 +149,8 @@ defined.
 
 ### Static webhook events
 
-Here's a static webhook template example that notifies Prefect when your `recommendations` machine learning model has been updated, so you can send a Slack notification to your team and run a few subsequent
+Here's a static webhook template example that notifies Prefect when your `recommendations`
+machine learning model has been updated, so you can send a Slack notification to your team and run a few subsequent
 deployments.  Those models are produced on a daily schedule by another team that is
 using `cron` for scheduling. They aren't able to use Prefect for their flows yet, but
 they are happy to add a `curl` to the end of their daily script to notify you. Because
@@ -193,7 +194,7 @@ missing fields, such as `occurred` and `id`, so you don't need to set them in yo
 template.  Additionally, Prefect Cloud adds the webhook itself as a related resource
 on all of the events it produces.
 
-If your template does not produce a `payload` field, the `payload` defaults to a
+If your template does not produce a `payload` field, the `payload` default to a
 standard set of debugging information, including the HTTP method, headers, and body.
 
 ### Dynamic webhook events
@@ -284,7 +285,7 @@ expressions are equivalent:
     identifier, so `body.friendly-name` will not work.  Use `body['friendly-name']` in
     those cases.
 
-Prefect Cloud will attempt to parse any other content type (such as `text/plain`) as if it were JSON first.
+Prefect Cloud will attempt to parse any other content type (like `text/plain`) as if it were JSON first.
 In any case where the body cannot be transformed into JSON, it is made available to your
 templates as a Python `str`.
 
