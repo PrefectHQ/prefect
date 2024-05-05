@@ -94,22 +94,22 @@ Next, send a notification based off a completed state outcome. Configure a notif
 4. Next, find the trigger type. In this case, use a flow completion. 
 ![Trigger type](/img/guides/automation-triggers.png)
 
-5. Finally, create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
+5. Finally, create the actions for when the trigger is hit. In this case, create a notification to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
-6. Now the automation is ready to be triggered from a flow run completion. Let's run the file locally and see that the notification is sent to our inbox after the completion. It may take a few minutes for the notification to arrive.
+6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
 ![Final notification](/img/guides/final-automation.png)
 
 !!! Tip "No deployment created"
-    Keep in mind, we did not need to create a deployment to trigger our automation, where a state outcome of a local flow run helped trigger this notification block. We are not required to create a deployment to trigger a notification.
-Now that you've seen how to create an email notification from a flow run completion, let's see how we can kick off a deployment run in response to an event.
+    Keep in mind, you do not need to create a deployment to trigger your automation, where a state outcome of a local flow run helped trigger this notification block. You are not required to create a deployment to trigger a notification.
+Now that you've seen how to create an email notification from a flow run completion, see how to kick off a deployment run in response to an event.
 ## Event-based deployment automation 
-We can create an automation that can kick off a deployment instead of a notification. Let's explore how we can programmatically create this automation. We will take advantage of Prefect's REST API to help create this automation.  
+Create an automation to kick off a deployment instead of a notification. Explore how to programmatically create this automation by taking advantage of Prefect's REST API.  
 
 See the [REST API documentation](https://docs.prefect.io/latest/api-ref/rest-api/#interacting-with-the-rest-api) as a reference for interacting with the Prefect Cloud automation endpoints.
 
-Let's create a deployment where we can kick off some work based on how long a flow is running. For example, if the `build_names` flow is taking too long to execute, we can kick off a deployment of the with the same `build_names` flow, but replace the `count` value with a lower number - to speed up completion.
-You can create a deployment with a `prefect.yaml` file or a Python file that uses `flow.deploy`.
+Create a deployment to kick off some work based on how long a flow is running. For example, if the `build_names` flow takes too long to execute, you can kick off a deployment with the same `build_names` flow, but replace the `count` value with a lower number to speed up completion.
+Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.deploy`.
 === "prefect.yaml"
 
     Create a `prefect.yaml` file like this one for our flow `build_names`:
@@ -151,7 +151,7 @@ You can create a deployment with a `prefect.yaml` file or a Python file that use
 
 === ".deploy"
 
-    To follow a more Python based approach to create a deployment, you can use `flow.deploy` as in the example below.
+    To follow a more Python-based approach to create a deployment, use `flow.deploy` as in the example below.
 
     ```python
     # .deploy only needs a name, valid work pool 
@@ -165,11 +165,10 @@ You can create a deployment with a `prefect.yaml` file or a Python file that use
     )
     ``` 
 
-Now let's grab our `deployment_id` from this deployment, and embed it in our automation. There are many ways to obtain the `deployment_id`, but the CLI is a quick way to see all of your deployment ids. 
+Grab your `deployment_id` from this deployment using the CLI and embed it in your automation. 
 
 !!! Tip "Find deployment_id from the CLI"
-      The quickest way to see the ID's associated with your deployment would be running `prefect deployment ls`
-      in an authenticated command prompt, and you will be able to see the id's associated with all of your deployments
+      Run `prefect deployment ls` in an authenticated command prompt.
 
 ```bash 
 prefect deployment ls
@@ -182,7 +181,7 @@ prefect deployment ls
 │ ride-duration-prediction-backfill/backfill-deployment │ 76dc6581-1773-45c5-a291-7f864d064c57 │
 └───────────────────────────────────────────────────────┴──────────────────────────────────────┘
 ``` 
-We can create an automation via a POST call, where we can programmatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id`. 
+Create an automation with a POST call to programmatically create the automation. Ensure you have your `api_key`, `account_id`, and `workspace_id`. 
 
 ```python
 def create_event_driven_automation():
@@ -223,7 +222,7 @@ def create_event_driven_automation():
     return response.json()
 ```
  
-After running this function, you will see within the UI the changes that came from the post request. Keep in mind, the context will be "custom" on UI. 
+After running this function, you will see the changes that came from the post request within the UI. Keep in mind, the context will be "custom" on UI. 
 
 Let's run the underlying flow and see the deployment get kicked off after 30 seconds elapsed. This will result in a new flow run of `build_names`, and we are able to see this new deployment get initiated with the custom parameters we outlined above. 
 
