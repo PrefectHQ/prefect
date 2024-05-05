@@ -9,36 +9,35 @@ search:
   boost: 2
 ---
 
-# Using Automations for Dynamic Responses
+# Use Automations for Dynamic Responses
 
-From the [Automations concept page](/concepts/automations/), we saw what an automation can do and how to configure one within the UI. 
+The [Automations concept page](/concepts/automations/) shows you how to configure one within the UI. 
 
-In this guide, we will showcase the following common use cases:
+This guide describes the following use cases:
 
 - Create a simple notification automation in just a few UI clicks
-- Build upon an event based automation
+- Build upon an event-based automation
 - Combine into a multi-layered responsive deployment pattern
 
 !!! cloud-ad "Available only on Prefect Cloud"
         Automations are a Prefect Cloud feature.
 
 ## Prerequisites
-Please have the following before exploring the guide:
 
 - Python installed
-- Prefect installed (follow the [installation guide](/getting-started/installation/))
+- Prefect [installed](/getting-started/installation/)
 - Authenticated to a [Prefect Cloud workspace](/getting-started/quickstart/#step-2-connect-to-prefects-api/)
 - A [work pool](/concepts/work-pools/) set up to handle the deployments
 
-## Creating the example script
+## Create the example script
 
 Automations allow you to take actions in response to triggering events recorded by Prefect. 
 
-For example, let's try to grab data from an API and send a notification based on the end state. 
+This example grabs data from an API and sends a notification based on the end state. 
 
-We can start by pulling hypothetical user data from an endpoint and then performing data cleaning and transformations. 
+Start by pulling hypothetical user data from an endpoint and then performing data cleaning and transformations. 
 
-Let's create a simple extract method, that pulls the data from a random user data generator endpoint. 
+First create a simple extract method that pulls the data from a random user data generator endpoint. 
 
 ```python
 from prefect import flow, task, get_run_logger
@@ -78,24 +77,24 @@ if __name__ == "__main__":
     list_of_names = build_names()
 ```
 
-The data cleaning workflow has visibility into each step, and we are sending a list of names to our next step of our pipeline.
+The data cleaning workflow has visibility into each step, and sends a list of names to the next step of the pipeline.
 
 ## Create notification block within the UI
-Now let's try to send a notification based off a completed state outcome. We can configure a notification to be sent so that we know when to look into our workflow logic. 
+Next, send a notification based off a completed state outcome. Configure a notification that shows when to look into our workflow logic. 
 
-1. Prior to creating the automation, let's confirm the notification location. We have to create a notification block to help define where the notification will be sent. 
+1. Prior to creating the automation, confirm the notification location. Create a notification block to help define where the notification is sent. 
 ![List of available blocks](/img/guides/block-list.png)
 
-2. Let's navigate to the blocks page on the UI, and click into creating an email notification block. 
+2. Navigate to the blocks page on the UI, and click into creating an email notification block. 
 ![Creating a notification block in the Cloud UI](/img/guides/notification-block.png)
 
-3. Now that we created a notification block, we can go to the automations page to create our first automation.
+3. Go to the automations page to create your first automation.
 ![Automations page](/img/guides/automation-list.png)
 
-4. Next we try to find the trigger type, in this case let's use a flow completion. 
+4. Next, find the trigger type. In this case, use a flow completion. 
 ![Trigger type](/img/guides/automation-triggers.png)
 
-5. Finally, let's create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
+5. Finally, create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
 6. Now the automation is ready to be triggered from a flow run completion. Let's run the file locally and see that the notification is sent to our inbox after the completion. It may take a few minutes for the notification to arrive.
