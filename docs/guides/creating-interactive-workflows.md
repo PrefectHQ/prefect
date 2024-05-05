@@ -662,7 +662,7 @@ if __name__ == "__main__":
         asyncio.run(sender())
 ```
 
-To run the example, you need a Python environment with Prefect installed, pointed at either an open-source Prefect server instance or Prefect Cloud.
+To run the example, you need a Python environment with Prefect installed, pointed at either a self-hosted Prefect server instance or Prefect Cloud.
 
 With your environment set up, start a flow runner in one terminal with the following command:
 
