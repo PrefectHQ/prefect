@@ -83,22 +83,22 @@ git checkout -b new_recipe_branch_name
 3. Include a dependencies file, if applicable.
 4. Push your code and make a PR to the repository.
 
-## What are the common ingredients of a good recipe?
+## Common ingredients of a good recipe
 
 - Easy to understand: Can a user easily follow your recipe? Would a README or code comments help? A simple explanation providing context on how to use the example code is useful, but not required. A good README can set a recipe apart, so we have some additional suggestions for README files below.
 - Code and more: Sometimes a use case is best represented in Python code or shell scripts. Sometimes a configuration file is the most important artifact &mdash; think of a Dockerfile or Terraform file for configuring infrastructure.
 - All-inclusive: Share as much code as you can. Even boilerplate code like Dockerfiles or Terraform or Helm files are useful. Just *don’t share company secrets or IP*.
-- Specific: Don't worry about generalizing your code, aside from removing anything internal/secret! Other users will extrapolate their own unique solutions from your example.
+- Specific: Don't worry about generalizing your code. Other users will extrapolate their own unique solutions from your example.
 
-## What are some tips for a good recipe README?
+## Tips for a good recipe README
 
-A thoughtful README can take a recipe from good to great. Here are some best practices that we’ve found make for a great recipe README:
+A thoughtful README can take a recipe from good to great. Here are some best practices for a great recipe README:
 
 - Provide a brief explanation of what your recipe demonstrates. This helps users determine quickly whether the recipe is relevant to their needs or answers their questions.
 - List which files are included and what each is meant to do. Each explanation can contain only a few words.
 - Describe any dependencies and prerequisites (in addition to any dependencies you include in a requirements file). This includes both libraries or modules and any services your recipes depends on.
 - If steps are involved or there’s an order to do things, a simple list of steps is helpful.
-- Bonus: troubleshooting steps you encountered to get here or tips where other users might get tripped up.
+- Bonus: troubleshooting steps or tips where other users might get tripped up.
 
 ## Next steps
 
