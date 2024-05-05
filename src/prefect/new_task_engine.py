@@ -204,7 +204,7 @@ class TaskRunEngine(Generic[P, R]):
         new_state = Running(state_details=state_details)
         state = self.set_state(new_state)
         while state.is_pending():
-            time.sleep(0.5)
+            time.sleep(0.2)
             state = self.set_state(new_state)
 
     def set_state(self, state: State, force: bool = False) -> State:
@@ -344,23 +344,23 @@ class TaskRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
-        client = get_client(sync_client=True)
-        self._client = client
-        self._is_started = True
-        try:
-            if not self.task_run:
-                self.task_run = self.create_task_run(client)
-            yield self
-        except Exception:
-            # regular exceptions are caught and re-raised to the user
-            raise
-        except BaseException as exc:
-            # BaseExceptions are caught and handled as crashes
-            self.handle_crash(exc)
-            raise
-        finally:
-            self._is_started = False
-            self._client = None
+        with get_client(sync_client=True) as client:
+            self._client = client
+            self._is_started = True
+            try:
+                if not self.task_run:
+                    self.task_run = self.create_task_run(client)
+                yield self
+            except Exception:
+                # regular exceptions are caught and re-raised to the user
+                raise
+            except BaseException as exc:
+                # BaseExceptions are caught and handled as crashes
+                self.handle_crash(exc)
+                raise
+            finally:
+                self._is_started = False
+                self._client = None
 
     async def get_client(self):
         if not self._is_started:
@@ -458,3 +458,23 @@ async def run_task_async(
         if return_type == "state":
             return run.state
         return run.result()
+
+
+def run_task(
+    task: Task[P, R],
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> Union[R, State, None]:
+    kwargs = dict(
+        task=task,
+        task_run=task_run,
+        parameters=parameters,
+        wait_for=wait_for,
+        return_type=return_type,
+    )
+    if task.isasync:
+        return run_task_async(**kwargs)
+    else:
+        return run_task_sync(**kwargs)

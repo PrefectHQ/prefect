@@ -538,7 +538,7 @@ class Task(Generic[P, R]):
 
         flow_run_logger = get_run_logger(flow_run_context)
 
-        task_run = await flow_run_context.client.create_task_run(
+        task_run = flow_run_context.client.create_task_run(
             task=self,
             name=f"{self.name} - {dynamic_key}",
             flow_run_id=flow_run_context.flow_run.id,
@@ -547,6 +547,9 @@ class Task(Generic[P, R]):
             extra_tags=TagsContext.get().current_tags,
             task_inputs=task_inputs,
         )
+        # the new engine uses sync clients but old engines use async clients
+        if inspect.isawaitable(task_run):
+            task_run = await task_run
 
         if flow_run_context.flow_run:
             flow_run_logger.info(
@@ -611,19 +614,14 @@ class Task(Generic[P, R]):
             )
 
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import run_task_async, run_task_sync
+            from prefect.new_task_engine import run_task
 
-            run_kwargs = dict(
+            return run_task(
                 task=self,
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
             )
-            if self.isasync:
-                # this returns an awaitable coroutine
-                return run_task_async(**run_kwargs)
-            else:
-                return run_task_sync(**run_kwargs)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
