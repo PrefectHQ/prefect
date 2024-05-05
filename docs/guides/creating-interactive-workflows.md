@@ -342,7 +342,7 @@ async def greeter_flow():
 ```
 
 !!! tip "When to use `with_metadata=True`"
-    The primary uses of accessing the `RunInput` object for a receive input are to respond to the sender with the `RunInput.respond()` function or to access the unique key for an input. These are discussed in more detail later in this document.
+    The primary uses of accessing the `RunInput` object for a receive input are to respond to the sender with the `RunInput.respond()` function or to access the unique key for an input. These uses are discussed in more detail later in this document.
 
 Notice that we are now printing `name_input.value`. When Prefect generates a `RunInput` for you from a built-in type, the `RunInput` class has a single field, `value`, that uses a type annotation matching the type you specified. So if you call `receive_input` like this: `receive_input(str, with_metadata=True)`, that's equivalent to manually creating the following `RunInput` class and `receive_input` call:
 
