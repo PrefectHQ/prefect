@@ -52,6 +52,8 @@ Copy this script into a file named `my_gh_workflow.py`. Run it locally to ensure
 
 ## Step 1: Install Prefect
 
+Make sure you have Python installed in a virtual environment. Then install Prefect:
+
 ```bash
 pip install -U prefect
 ```
