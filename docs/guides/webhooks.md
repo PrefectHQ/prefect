@@ -194,7 +194,7 @@ missing fields, such as `occurred` and `id`, so you don't need to set them in yo
 template.  Additionally, Prefect Cloud adds the webhook itself as a related resource
 on all of the events it produces.
 
-If your template does not produce a `payload` field, the `payload` default to a
+If your template does not produce a `payload` field, the `payload` defaults to a
 standard set of debugging information, including the HTTP method, headers, and body.
 
 ### Dynamic webhook events
