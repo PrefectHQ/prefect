@@ -1,8 +1,5 @@
 import asyncio
 import datetime
-import socket
-import threading
-import time
 import warnings
 from contextlib import AsyncExitStack
 from typing import (
@@ -24,7 +21,7 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-import uvicorn
+from prefect._vendor.starlette.testclient import TestClient
 from typing_extensions import ParamSpec
 
 from prefect._internal.compatibility.deprecated import (
@@ -179,81 +176,6 @@ class ServerType(AutoEnum):
             return True
 
         return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
-
-
-class EphemeralASGIServer:
-    _instances: Dict[Tuple[ASGIApp, Optional[int]], "EphemeralASGIServer"] = {}
-
-    def __new__(cls, app, port=None, *args, **kwargs):
-        """
-        Return an instance of the server associated with the specific ASGI application.
-        """
-        key = (app, port)
-        if key not in cls._instances:
-            instance = super().__new__(cls)
-            cls._instances[key] = instance
-        return cls._instances[key]
-
-    def __init__(self, app: ASGIApp, port: int = None):
-        # This ensures initialization happens only once
-        if not hasattr(self, "_initialized"):
-            self._initialized = True
-            if port is None:
-                port = self.find_available_port()
-            self.app = app
-            self.port = port
-            self.server_thread = None
-            self.running = False
-            self.create_server()
-
-    def create_server(self):
-        if not getattr(self, "server", None):
-            config = uvicorn.Config(
-                app=self.app,
-                host="127.0.0.1",
-                port=self.port,
-                lifespan="on",
-                # logging overwrites Prefect logging and, oddly, can lead to a deadlock when flushing handlers
-                log_config=None,
-                log_level=None,
-            )
-            self.server = uvicorn.Server(config)
-
-    def find_available_port(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("", 0))  # Bind to a free port provided by the host.
-        port = s.getsockname()[1]  # Retrieve the port number assigned.
-        s.close()
-        return port
-
-    def address(self) -> str:
-        return f"http://127.0.0.1:{self.port}"
-
-    def start(self):
-        """
-        Start the server in a separate thread. Safe to call multiple times; only starts
-        the server once.
-        """
-        if not self.running:
-            try:
-                self.running = True
-                self.create_server()
-                self.server_thread = threading.Thread(
-                    target=self.server.run, daemon=True
-                )
-                self.server_thread.start()
-                # wait for the server to start
-                while not self.server.started:
-                    time.sleep(0.001)
-            except Exception:
-                self.running = False
-                raise
-
-    def stop(self):
-        if self.running:
-            self.server.should_exit = True
-            self.server_thread.join()  # Wait for the server thread to finish
-            self.running = False
 
 
 def get_client(
@@ -3501,19 +3423,6 @@ class SyncPrefectClient:
         self._closed = False
         self._started = False
 
-        # Connect to an ephemeral application
-        if isinstance(api, ASGIApp):
-            self._ephemeral_app = EphemeralASGIServer(app=api)
-            self._ephemeral_app.start()
-            self.server_type = ServerType.EPHEMERAL
-            api = self._ephemeral_app.address() + "/api"
-        else:
-            self.server_type = (
-                ServerType.CLOUD
-                if api.startswith(PREFECT_CLOUD_API_URL.value())
-                else ServerType.SERVER
-            )
-
         # Connect to an external application
         if isinstance(api, str):
             if httpx_settings.get("app"):
@@ -3545,6 +3454,17 @@ class SyncPrefectClient:
             # client will use a standard HTTP/1.1 connection instead.
             httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
+            self.server_type = (
+                ServerType.CLOUD
+                if api.startswith(PREFECT_CLOUD_API_URL.value())
+                else ServerType.SERVER
+            )
+
+        # Connect to an in-process application
+        elif isinstance(api, ASGIApp):
+            self._ephemeral_app = api
+            self.server_type = ServerType.EPHEMERAL
+
         else:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
@@ -3570,9 +3490,16 @@ class SyncPrefectClient:
             and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
         )
 
-        self._client = PrefectHttpxSyncClient(
-            **httpx_settings, enable_csrf_support=enable_csrf_support
-        )
+        if self.server_type == ServerType.EPHEMERAL:
+            self._client = TestClient(
+                api,
+                base_url="http://ephemeral-prefect/api",
+                raise_server_exceptions=False,
+            )
+        else:
+            self._client = PrefectHttpxSyncClient(
+                **httpx_settings, enable_csrf_support=enable_csrf_support
+            )
 
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
