@@ -15,7 +15,7 @@ from other systems in your ecosystem.  Each webhook exposes a unique URL endpoin
 receive events from other systems and transforms them into Prefect
 [events](/cloud/events/) for use in [automations](/cloud/automations/).
 
-Webhooks are defined by two essential components: a unique URL and a template that translates incoming web requests to a Prefect event.
+Webhooks are defined by two essential components: a unique URL, and a template that translates incoming web requests to a Prefect event.
 
 ## Configure webhooks
 
@@ -149,8 +149,7 @@ defined.
 
 ### Static webhook events
 
-Here's a static webhook template example that notifies Prefect when your `recommendations`
-machine learning model has been updated, so you can send a Slack notification to your team and run a few subsequent
+Here's a static webhook template example that notifies Prefect when your `recommendations` machine learning model has been updated, so you can send a Slack notification to your team and run a few subsequent
 deployments.  Those models are produced on a daily schedule by another team that is
 using `cron` for scheduling. They aren't able to use Prefect for their flows yet, but
 they are happy to add a `curl` to the end of their daily script to notify you. Because
