@@ -16,7 +16,11 @@ search:
 
 These recipes show you how to deploy a worker, use event-driven flows, set up unit testing, and more.
 
+<<<<<<< HEAD
 The following recipes are specific to Prefect 2. You can find a full repository of recipes at [https://github.com/PrefectHQ/prefect-recipes](https://github.com/PrefectHQ/prefect-recipes) and additional recipes at [Prefect Discourse](https://discourse.prefect.io/).
+=======
+The following recipes specific to Prefect 2. You can find a full repository of recipes at [https://github.com/PrefectHQ/prefect-recipes](https://github.com/PrefectHQ/prefect-recipes) and additional recipes at [Prefect Discourse](https://discourse.prefect.io/).
+>>>>>>> 0b2f957253 (Update recipes.md)
 
 ## Recipe catalog
 
@@ -57,7 +61,11 @@ We're always looking for new recipe contributions! See the [Prefect Recipes](htt
 
 [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes) provide a vital cookbook where users can find helpful code examples and common steps for specific Prefect use cases.
 
+<<<<<<< HEAD
 Contribute recipes that other Prefect users could benefit from (for example, a Prefect flow that loads data into Snowflake).
+=======
+We love recipes from anyone who has example code that another Prefect user can benefit from (for example, a Prefect flow that loads data into Snowflake).
+>>>>>>> 0b2f957253 (Update recipes.md)
 
 Have a blog post, Discourse article, or tutorial you’d like to share as a recipe? All submissions are welcome. Clone the prefect-recipes repo, create a branch, add a link to your recipe to the README, and submit a PR.
 
@@ -83,7 +91,11 @@ git checkout -b new_recipe_branch_name
 3. Include a dependencies file, if applicable.
 4. Push your code and make a PR to the repository.
 
+<<<<<<< HEAD
 ## Common ingredients of a good recipe
+=======
+## What are the common ingredients of a good recipe?
+>>>>>>> 0b2f957253 (Update recipes.md)
 
 - Easy to understand: Can a user easily follow your recipe? Would a README or code comments help? A simple explanation providing context on how to use the example code is useful, but not required. A good README can set a recipe apart, so we have some additional suggestions for README files below.
 - Code and more: Sometimes a use case is best represented in Python code or shell scripts. Sometimes a configuration file is the most important artifact &mdash; think of a Dockerfile or Terraform file for configuring infrastructure.
