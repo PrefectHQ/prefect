@@ -94,12 +94,14 @@ Next, send a notification based off a completed state outcome. Configure a notif
 4. Next, find the trigger type. In this case, use a flow completion. 
 ![Trigger type](/img/guides/automation-triggers.png)
 
-5. Finally, create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
+5. Finally, create the actions for when the trigger is hit. In this case, create a notification to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
 6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
 ![Final notification](/img/guides/final-automation.png)
 
+!!! Tip "No deployment created"
+    Keep in mind, you do not need to create a deployment to trigger your automation, where a state outcome of a local flow run helped trigger this notification block. You are not required to create a deployment to trigger a notification.
 Now that you've seen how to create an email notification from a flow run completion, see how to kick off a deployment run in response to an event.
 ## Event-based deployment automation 
 Create an automation to kick off a deployment instead of a notification. Explore how to programmatically create this automation by taking advantage of Prefect's REST API.  
@@ -220,7 +222,7 @@ def create_event_driven_automation():
     return response.json()
 ```
  
-After running this function, you will see the new automation with a "custom" in the UI.
+After running this function, you will see the changes that came from the post request within the UI. Keep in mind, the context will be "custom" on UI. 
 
 Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names` with the custom parameters provided above. 
 
