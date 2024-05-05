@@ -567,7 +567,7 @@ async def sender():
 
 There's more going on here than in `greeter`, so here's a closer look at the pieces.
 
-First, `run_deployment` starts a `greeter` flow run. This requires a worker or `flow.serve()` running in a separate process. That process begins running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when sending `EXIT_SIGNAL`.
+First, `run_deployment` starts a `greeter` flow run. This requires a deployed flow running in a process. That process begins running `greeter` while `sender` continues to execute. Calling `run_deployment(..., timeout=0)` ensures that `sender` won't wait for the `greeter` flow run to complete, because it's running a loop and will only exit when sending `EXIT_SIGNAL`.
 
 Next, the iterator returned by `receive_input` as `receiver` is captured. This flow works by entering a loop, and on each iteration of the loop, the flow asks for terminal input, sends that to the `greeter` flow, and then runs `receiver.next()` to wait until it receives the response from `greeter`.
 
