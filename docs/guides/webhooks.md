@@ -198,7 +198,7 @@ standard set of debugging information, including the HTTP method, headers, and b
 
 ### Dynamic webhook events
 
-Now let's say that after a few days you and the Data Science team are getting a lot of
+Let's say that after a few days you and the Data Science team are getting a lot of
 value from the automations you have set up with the static webhook.  You've agreed to
 upgrade this webhook to handle all of the various models that the team produces.  It's
 time to add some dynamic information to your webhook template.
@@ -215,7 +215,7 @@ curl \
 ```
 </div>
 
-This script will send a `POST` request and the body will include a traditional
+This script sends a `POST` request and the body will include a traditional
 URL-encoded form with two fields describing the model that was updated: `model` and
 `friendly_name`. Here's the webhook code that uses Jinja to receive these values in your
 template and produce different events for the different models:
@@ -233,7 +233,7 @@ template and produce different events for the different models:
 
 All subsequent `POST` requests will produce events with those variable
 resource IDs and names.  The other statically-defined parts, such as `event` or the
-`producing-team` label you included earlier will still be used.
+`producing-team` label you included earlier, will still be used.
 
 !!! tip "Use Jinja2's `default` filter to handle missing values"
 
