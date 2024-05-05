@@ -285,7 +285,7 @@ expressions are equivalent:
     identifier, so `body.friendly-name` will not work.  Use `body['friendly-name']` in
     those cases.
 
-Prefect Cloud will attempt to parse any other content type (like `text/plain`) as if it were JSON first.
+Prefect Cloud will attempt to parse any other content type (such as `text/plain`) as if it were JSON first.
 In any case where the body cannot be transformed into JSON, it is made available to your
 templates as a Python `str`.
 
