@@ -239,7 +239,7 @@ def get_shirt_order():
 
 If a user chooses any size and color combination other than `small` and `green`, the flow run will resume successfully. However, if the user chooses size `small` and color `green`, the flow run will resume, and `pause_flow_run` will raise a `ValidationError` exception. This will cause the flow run to fail and log the error.
 
-To make the flow run not fail, use a `while` loop and pause again if the `ValidationError` exception is raised:
+To avoid a flow run failure, use a `while` loop and pause again if the `ValidationError` exception is raised:
 
 ```python
 from typing import Literal
