@@ -94,7 +94,7 @@ Next, send a notification based off a completed state outcome. Configure a notif
 4. Next, find the trigger type. In this case, use a flow completion. 
 ![Trigger type](/img/guides/automation-triggers.png)
 
-5. Finally, specify one or more actions to be taken when the trigger condition is satisfied. In this case, create a notification to showcase the completion.
+5. Finally, create the actions that will be done once the triggered is hit. In this case, let's create a notification to be sent out to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
 6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
