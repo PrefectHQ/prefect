@@ -14,7 +14,7 @@ search:
 
 Prefect tracks information about the current flow or task run with a run context.
 
-Think of the run context as a global variable that allows the Prefect engine to determine relationships between your runs—such as which flow your task was called from.
+Think of the run context as a global variable that allows the Prefect engine to determine relationships between your runs — such as which flow your task was called from.
 
 The run context itself contains many internal objects used by Prefect to manage execution of your run and is only available in specific situations. For this reason, we expose a simple interface that only includes the items you care about and dynamically retrieves additional information when necessary. We call this the "runtime context" as it contains information that can be accessed only during a run.
 
