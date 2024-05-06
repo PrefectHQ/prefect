@@ -223,13 +223,6 @@ async def disable_global_concurrency_limit(
     exit_with_success(f"Disabled global concurrency limit with name {name!r}.")
 
 
-def _surface_pydantic_errors_nicely(exc: ValidationError):
-    for error in exc.errors():
-        location = "->".join(map(str, error["loc"]))
-        message = error["msg"]
-        app.console.print(f"Error at {location!r}: {message}")
-
-
 @global_concurrency_limit_app.command("update")
 async def update_global_concurrency_limit(
     name: str = typer.Argument(
@@ -296,8 +289,9 @@ async def update_global_concurrency_limit(
     try:
         GlobalConcurrencyLimitUpdate(**gcl.dict())
     except ValidationError as exc:
-        _surface_pydantic_errors_nicely(exc)
-        exit_with_error("Invalid arguments provided.")
+        exit_with_error(f"Invalid arguments provided: {exc}")
+    except Exception as exc:
+        exit_with_error(f"Error creating global concurrency limit: {exc}")
 
     async with get_client() as client:
         try:
@@ -382,8 +376,7 @@ async def create_global_concurrency_limit(
         )
 
     except ValidationError as exc:
-        _surface_pydantic_errors_nicely(exc)
-        exit_with_error("Invalid arguments provided.")
+        exit_with_error(f"Invalid arguments provided: {exc}")
     except Exception as exc:
         exit_with_error(f"Error creating global concurrency limit: {exc}")
 
