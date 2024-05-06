@@ -258,6 +258,8 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
     max_wait_seconds: int = 900,
     poll_frequency_seconds: int = 10,
     retry_filtered_models_attempts: int = 3,
+    create_artifact: bool = True,
+    artifact_key: str = "dbt-cloud-job-run-artifact"
 ) -> Dict:
     """
     Flow that triggers a job run and waits for the triggered run to complete.
@@ -271,7 +273,9 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
         poll_frequency_seconds: Number of seconds to wait in between checks for
             run completion.
         retry_filtered_models_attempts: Number of times to retry models selected by `retry_status_filters`.
-
+        create_artifact: Whether to create a flow run artifact for the run. Defaults to True.
+        artifact_key: The key to use for the flow run artifact. Defaults to "dbt-cloud-job-run-artifact".
+        
     Raises:
         DbtCloudJobRunCancelled: The triggered dbt Cloud job run was cancelled.
         DbtCloudJobRunFailed: The triggered dbt Cloud job run failed.
