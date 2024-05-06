@@ -112,6 +112,10 @@ def validate_values_conform_to_schema(
     """
     Validate that the provided values conform to the provided json schema.
 
+    TODO: This schema validation is outdated. The latest version is
+    prefect.utilities.schema_tools.validate, which handles fixes to Pydantic v1
+    schemas for null values and tuples.
+
     Args:
         values: The values to validate.
         schema: The schema to validate against.

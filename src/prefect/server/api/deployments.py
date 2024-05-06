@@ -14,7 +14,10 @@ from prefect._vendor.starlette.background import BackgroundTasks
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.api.validation import validate_job_variables_for_flow_run
+from prefect.server.api.validation import (
+    validate_job_variables_for_deployment,
+    validate_job_variables_for_deployment_flow_run,
+)
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
@@ -84,13 +87,12 @@ async def create_deployment(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f'Work pool "{deployment.work_pool_name}" not found.',
                 )
-            try:
-                deployment.check_valid_configuration(work_pool.base_job_template)
-            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Error creating deployment: {exc!r}",
-                )
+
+            await validate_job_variables_for_deployment(
+                session,
+                work_pool,
+                deployment,
+            )
 
         # hydrate the input model into a full model
         deployment_dict = deployment.dict(exclude={"work_pool_name"})
@@ -648,7 +650,9 @@ async def create_flow_run_from_deployment(
                     detail="Invalid schema: Unable to validate schema with circular references.",
                 )
 
-        await validate_job_variables_for_flow_run(flow_run, deployment, session)
+        await validate_job_variables_for_deployment_flow_run(
+            session, deployment, flow_run
+        )
 
         work_queue_name = deployment.work_queue_name
         work_queue_id = deployment.work_queue_id

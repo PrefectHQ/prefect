@@ -735,7 +735,7 @@ class TestCreateDeployment:
                 },
                 {},  # no overrides
             ),
-            (  # test with wrong overrides
+            (  # test with incomplete overrides
                 {
                     "job_configuration": {
                         "thing_one": "{{ var1 }}",
@@ -757,7 +757,7 @@ class TestCreateDeployment:
             ),
         ],
     )
-    async def test_create_deployment_with_bad_template_override_combo_fails(
+    async def test_create_deployment_ignores_required_fields(
         self,
         client,
         flow,
@@ -766,6 +766,11 @@ class TestCreateDeployment:
         template,
         overrides,
     ):
+        """
+        Test that creating a deployment does not require required fields to be overridden
+        as job variables. We don't know the full set of overrides until a flow run is
+        running because the flow run may have overridden required fields.
+        """
         work_pool = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(
@@ -792,11 +797,7 @@ class TestCreateDeployment:
         ).dict(json_compatible=True)
 
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 409
-        assert (
-            "<ValidationError: \"'var1' is a required property\">"
-            in response.json()["detail"]
-        )
+        assert response.status_code == 201
 
     @pytest.mark.parametrize(
         "template, overrides",
@@ -847,7 +848,7 @@ class TestCreateDeployment:
             ),
         ],
     )
-    async def test_create_deployment_with_correct_template_override_combo_succeeds(
+    async def test_create_deployment_with_job_variables_succeeds(
         self,
         client,
         flow,

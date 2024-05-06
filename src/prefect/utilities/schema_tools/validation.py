@@ -67,9 +67,10 @@ def validate(
     raise_on_error: bool = False,
     preprocess: bool = True,
     ignore_required: bool = False,
+    allow_none_with_default: bool = False,
 ) -> List[JSONSchemaValidationError]:
     if preprocess:
-        schema = preprocess_schema(schema)
+        schema = preprocess_schema(schema, allow_none_with_default)
 
     if ignore_required:
         schema = remove_nested_keys(["required"], schema)
@@ -187,7 +188,12 @@ def build_error_obj(errors: List[JSONSchemaValidationError]) -> Dict:
     return error_response
 
 
-def _fix_null_typing(key: str, schema: Dict, required_fields: List[str]):
+def _fix_null_typing(
+    key: str,
+    schema: Dict,
+    required_fields: List[str],
+    allow_none_with_default: bool = False,
+):
     """
     Pydantic V1 does not generate a valid Draft2020-12 schema for null types.
     """
@@ -195,7 +201,7 @@ def _fix_null_typing(key: str, schema: Dict, required_fields: List[str]):
         key not in required_fields
         and "type" in schema
         and schema.get("type") != "null"
-        and "default" not in schema
+        and ("default" not in schema or allow_none_with_default)
     ):
         schema["anyOf"] = [{"type": schema["type"]}, {"type": "null"}]
         del schema["type"]
@@ -214,9 +220,13 @@ def _fix_tuple_items(schema: Dict):
         del schema["items"]
 
 
-def process_properties(properties, required_fields):
+def process_properties(
+    properties: Dict,
+    required_fields: List[str],
+    allow_none_with_default: bool = False,
+):
     for key, schema in properties.items():
-        _fix_null_typing(key, schema, required_fields)
+        _fix_null_typing(key, schema, required_fields, allow_none_with_default)
         _fix_tuple_items(schema)
 
         if "properties" in schema:
@@ -224,17 +234,24 @@ def process_properties(properties, required_fields):
             process_properties(schema["properties"], required_fields)
 
 
-def preprocess_schema(schema):
+def preprocess_schema(
+    schema: Dict,
+    allow_none_with_default: bool = False,
+):
     schema = deepcopy(schema)
 
     if "properties" in schema:
         required_fields = schema.get("required", [])
-        process_properties(schema["properties"], required_fields)
+        process_properties(
+            schema["properties"], required_fields, allow_none_with_default
+        )
 
     if "definitions" in schema:  # Also process definitions for reused models
         for definition in (schema["definitions"] or {}).values():
             if "properties" in definition:
                 required_fields = definition.get("required", [])
-                process_properties(definition["properties"], required_fields)
+                process_properties(
+                    definition["properties"], required_fields, allow_none_with_default
+                )
 
     return schema
