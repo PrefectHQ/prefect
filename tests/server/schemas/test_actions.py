@@ -1,6 +1,5 @@
 from uuid import uuid4
 
-import jsonschema
 import numpy as np
 import pytest
 
@@ -90,8 +89,11 @@ class TestDeploymentCreate:
         for key in kwargs.keys():
             assert getattr(deployment_create, key, 0) == 0
 
-    def test_check_valid_configuration_removes_required_if_defaults_exist(self):
-        # This should fail because my-field is required but has no default
+    def test_check_valid_configuration_ignores_required_fields(self):
+        """
+        Deployment actions ignore required fields because we don't know
+        what the final set of job variables will look like until a flow runs.
+        """
         deployment_create = DeploymentCreate(
             name="test-deployment",
             flow_id=uuid4(),
@@ -110,11 +112,10 @@ class TestDeploymentCreate:
                 },
             }
         }
-        with pytest.raises(jsonschema.ValidationError) as excinfo:
-            deployment_create.check_valid_configuration(base_job_template)
-        assert excinfo.value.message == "'my-field' is a required property"
+        # This should pass despite my-field being required
+        deployment_create.check_valid_configuration(base_job_template)
 
-        # This should pass because the value has a default
+        # A field with a default value should also pass
         base_job_template = {
             "variables": {
                 "type": "object",
@@ -193,8 +194,11 @@ class TestDeploymentUpdate:
         for key in kwargs.keys():
             assert getattr(deployment_update, key, 0) == 0
 
-    def test_check_valid_configuration_removes_required_if_defaults_exist(self):
-        # This should fail because my-field is required but has no default
+    def test_check_valid_configuration_ignores_required_fields(self):
+        """
+        Deployment actions ignore required fields because we don't know
+        what the final set of job variables will look like until a flow runs.
+        """
         deployment_update = DeploymentUpdate(
             job_variables={},
         )
@@ -211,9 +215,8 @@ class TestDeploymentUpdate:
                 },
             }
         }
-        with pytest.raises(jsonschema.ValidationError) as excinfo:
-            deployment_update.check_valid_configuration(base_job_template)
-        assert excinfo.value.message == "'my-field' is a required property"
+        # This should pass even though my-field is required
+        deployment_update.check_valid_configuration(base_job_template)
 
         # This should pass because the value has a default
         base_job_template = {
