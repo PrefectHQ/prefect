@@ -21,7 +21,6 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-from prefect._vendor.starlette.testclient import TestClient
 from typing_extensions import ParamSpec
 
 from prefect._internal.compatibility.deprecated import (
@@ -159,6 +158,7 @@ from prefect.client.base import (
     ASGIApp,
     PrefectHttpxAsyncClient,
     PrefectHttpxSyncClient,
+    PrefectHttpxSyncEphemeralClient,
     app_lifespan_context,
 )
 
@@ -3491,10 +3491,8 @@ class SyncPrefectClient:
         )
 
         if self.server_type == ServerType.EPHEMERAL:
-            self._client = TestClient(
-                api,
-                base_url="http://ephemeral-prefect/api",
-                raise_server_exceptions=False,
+            self._client = PrefectHttpxSyncEphemeralClient(
+                api, base_url="http://ephemeral-prefect/api"
             )
         else:
             self._client = PrefectHttpxSyncClient(

@@ -26,6 +26,7 @@ import httpx
 from asgi_lifespan import LifespanManager
 from httpx import HTTPStatusError, Request, Response
 from prefect._vendor.starlette import status
+from prefect._vendor.starlette.testclient import TestClient
 from typing_extensions import Self
 
 import prefect
@@ -609,3 +610,30 @@ class PrefectHttpxSyncClient(httpx.Client):
 
         request.headers["Prefect-Csrf-Token"] = self.csrf_token
         request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
+
+
+class PrefectHttpxSyncEphemeralClient(TestClient, PrefectHttpxSyncClient):
+    """
+    This client is a synchronous httpx client that can be used to talk directly
+    to an ASGI app, such as an ephemeral Prefect API.
+
+    It is a subclass of both Starlette's `TestClient` and Prefect's
+    `PrefectHttpxSyncClient`, so it combines the synchronous testing
+    capabilities of `TestClient` with the Prefect-specific behaviors of
+    `PrefectHttpxSyncClient`.
+    """
+
+    def __init__(
+        self,
+        *args,
+        # override TestClient default
+        raise_server_exceptions=False,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            raise_server_exceptions=raise_server_exceptions,
+            **kwargs,
+        )
+
+    pass
