@@ -75,7 +75,7 @@ By default, the results of task runs are stored in memory in your execution envi
 This behavior makes flow runs fast for small data, but can be problematic for large data.
 You can save memory by writing results to disk.
 In production, you'll generally want to write results to a cloud provider storage such as AWS S3.
-Prefect lets you use a storage block from a Prefect cloud integration library such as [prefect-aws](https://prefecthq.github.io/prefect-aws/) to save your configuration information.
+Prefect lets you use a storage block from a Prefect Cloud integration library such as [prefect-aws](https://prefecthq.github.io/prefect-aws/) to save your configuration information.
 Learn more about [blocks](/concepts/blocks/).
 
 Install the relevant library, register the block with the server, and create your storage block.
