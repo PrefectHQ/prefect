@@ -4,7 +4,13 @@ import jsonschema
 import numpy as np
 import pytest
 
-from prefect.pydantic import ValidationError
+from prefect.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
+
 from prefect.server.schemas.actions import (
     BlockTypeUpdate,
     DeploymentCreate,
