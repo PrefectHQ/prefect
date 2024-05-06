@@ -27,7 +27,7 @@ jobs:
 
       - name: Get previous tag
         id: get-previous-tag
-        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+        run: echo "tag=$(git tag --list '[0-9]*' --sort=-version:refname | grep -v '2.82' | head -n 2 | tail -n 1)" >> $GITHUB_OUTPUT
 
       - name: Push tags for changed integrations
         env:
