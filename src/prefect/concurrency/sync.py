@@ -28,26 +28,51 @@ from .events import (
 def concurrency(
     names: Union[str, List[str]], occupy: int = 1, timeout: Optional[float] = None
 ):
+    """A context manager that acquires and releases concurrency slots from the
+    given concurrency limits.
+
+    Args:
+        names: The names of the concurrency limits to acquire slots from.
+        occupy: The number of slots to acquire and hold from each limit.
+        timeout: The number of seconds to wait for the slots to be acquired before
+            raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+
+    Raises:
+        TimeoutError: If the slots are not acquired within the given timeout.
+
+    Example:
+    A simple example of using the sync `concurrency` context manager:
+    ```python
+    from prefect.concurrency.sync import concurrency
+
+    def resource_heavy():
+        with concurrency("test", occupy=1):
+            print("Resource heavy task")
+
+    def main():
+        resource_heavy()
+    ```
+    """
     names = names if isinstance(names, list) else [names]
 
-    limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
-        _acquire_concurrency_slots, names, occupy
-    )
+    with timeout_context(seconds=timeout):
+        limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
+            _acquire_concurrency_slots, names, occupy
+        )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
 
-    with timeout_context(seconds=timeout):
-        try:
-            yield
-        finally:
-            occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
-            _call_async_function_from_sync(
-                _release_concurrency_slots,
-                names,
-                occupy,
-                occupancy_period.total_seconds(),
-            )
-            _emit_concurrency_release_events(limits, occupy, emitted_events)
+    try:
+        yield
+    finally:
+        occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
+        _call_async_function_from_sync(
+            _release_concurrency_slots,
+            names,
+            occupy,
+            occupancy_period.total_seconds(),
+        )
+        _emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
 def rate_limit(names: Union[str, List[str]], occupy: int = 1):

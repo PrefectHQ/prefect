@@ -172,11 +172,23 @@ async def test_concurrency_emits_events(
         }
 
 
-@pytest.mark.usefixtures("concurrency_limit")
+@pytest.fixture
+def mock_acquire_concurrency_slots(monkeypatch):
+    async def blocks_forever(*args, **kwargs):
+        while True:
+            await asyncio.sleep(1)
+
+    monkeypatch.setattr(
+        "prefect.concurrency.asyncio._acquire_concurrency_slots",
+        blocks_forever,
+    )
+
+
+@pytest.mark.usefixtures("concurrency_limit", "mock_acquire_concurrency_slots")
 async def test_concurrency_respects_timeout():
     with pytest.raises(asyncio.TimeoutError, match=".*timed out after 0.1 second(s)*"):
         async with concurrency("test", occupy=1, timeout=0.1):
-            await asyncio.sleep(1)
+            print("should not be executed")
 
 
 async def test_rate_limit_orchestrates_api(

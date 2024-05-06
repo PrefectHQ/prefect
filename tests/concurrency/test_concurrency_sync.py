@@ -1,4 +1,4 @@
-from time import sleep
+import asyncio
 from unittest import mock
 
 import pytest
@@ -167,11 +167,23 @@ async def test_concurrency_can_be_used_while_event_loop_is_running(
     assert executed
 
 
-@pytest.mark.usefixtures("concurrency_limit")
+@pytest.fixture
+def mock_acquire_concurrency_slots(monkeypatch):
+    async def blocks_forever(*args, **kwargs):
+        while True:
+            await asyncio.sleep(1)
+
+    monkeypatch.setattr(
+        "prefect.concurrency.asyncio._acquire_concurrency_slots",
+        blocks_forever,
+    )
+
+
+@pytest.mark.usefixtures("concurrency_limit", "mock_acquire_concurrency_slots")
 def test_concurrency_respects_timeout():
     with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*."):
         with concurrency("test", occupy=1, timeout=0.1):
-            sleep(0.2)
+            print("should not be executed")
 
 
 def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLimitV2):
