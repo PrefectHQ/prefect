@@ -32,7 +32,7 @@ These task runners can spin up a local Dask cluster or Ray instance on the fly, 
 Use Dask or Ray in your flows to choose the execution environment that fits your particular needs.
 
 !!! note "Remote storage"
-    We recommend configuring [remote file storage](/concepts/storage/) for task execution with `DaskTaskRunner` or `RayTaskRunner`. This ensures tasks executing in Dask or Ray have access to task result storage, particularly when accessing a Dask or Ray instance outside of your execution environment.
+    To ensure that tasks executing in Dask or Ray have access to task result storage, particularly when accessing a Dask or Ray instance outside of your execution environment, configure [remote file storage](/concepts/storage/).
 
 ## Configure a task runner
 
