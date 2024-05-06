@@ -286,7 +286,7 @@ Task (run) names:
 
 Build your own handler with a [custom highlighter](https://rich.readthedocs.io/en/stable/highlighting.html#custom-highlighters). For example, to additionally highlight emails:
 
-1. Copy and paste the following into  `my_package_or_module.py` (rename as needed) in the same directory as the flow run script, or ideally as part of a Python package so it's available in `site-packages` and accessible anywhere within your environment.
+1. Copy and paste the following code into  `my_package_or_module.py` (rename as needed) in the same directory as the flow run script, or ideally as part of a Python package so it's available in `site-packages` and accessible anywhere within your environment.
 
 ```python
 import logging
