@@ -345,7 +345,7 @@ Available metadata fields include:
 
 ### Nested blocks
 
-Blocks are composable, meaning that blocks can be used within other blocks.
+Blocks are composable - a block can be used within other blocks.
 You can create a block type that uses functionality from another block type by declaring it as an attribute.
 
 Nestable blocks are loosely coupled, as configuration can be changed for each block independently. This allows configuration to be shared across multiple use cases.
