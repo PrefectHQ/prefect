@@ -540,7 +540,7 @@ async def test_create_gcl_invalid_limit():
             "--limit",
             "-1",
         ],
-        expected_output_contains="Invalid arguments provided.",
+        expected_output_contains="Invalid arguments provided",
         expected_code=1,
     )
 
@@ -557,7 +557,7 @@ async def test_create_gcl_invalid_active_slots():
             "--active-slots",
             "-1",
         ],
-        expected_output_contains="Invalid arguments provided.",
+        expected_output_contains="Invalid arguments provided",
         expected_code=1,
     )
 
@@ -576,7 +576,7 @@ async def test_create_gcl_invalid_slot_decay_per_second():
             "--slot-decay-per-second",
             "-1",
         ],
-        expected_output_contains="Invalid arguments provided.",
+        expected_output_contains="Invalid arguments provided",
         expected_code=1,
     )
 
