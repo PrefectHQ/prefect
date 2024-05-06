@@ -2148,7 +2148,6 @@ def base_job_template_with_defaults(default_base_job_template, aws_credentials):
         "assignPublicIp": "DISABLED",
         "securityGroups": ["sg-***"],
     }
-    breakpoint()
     return base_job_template_with_defaults
 
 
