@@ -1958,7 +1958,7 @@ class PrefectClient:
         kwargs = {}
         if active is not None:
             kwargs["active"] = active
-        elif schedule is not None:
+        if schedule is not None:
             kwargs["schedule"] = schedule
 
         deployment_schedule_update = DeploymentScheduleUpdate(**kwargs)
