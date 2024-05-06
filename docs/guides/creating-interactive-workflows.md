@@ -86,7 +86,7 @@ async def greet_user():
 
     `RunInput` classes contain extra logic that allows flows to send and receive them at runtime. You shouldn't notice any difference.
 
-Finally, for advanced use cases such as overriding how Prefect stores flow run inputs, create a `RunInput` class:
+For advanced use cases such as overriding how Prefect stores flow run inputs, create a `RunInput` class:
 
 ```python
 from prefect import get_run_logger
