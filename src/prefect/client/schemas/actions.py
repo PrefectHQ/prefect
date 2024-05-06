@@ -19,6 +19,7 @@ from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
+    raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
     return_none_schedule,
     validate_message_template_variables,
@@ -704,7 +705,7 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a global concurrency limit."""
 
     name: str = Field(description="The name of the global concurrency limit.")
-    limit: int = Field(
+    limit: NonNegativeInteger = Field(
         description=(
             "The maximum number of slots that can be occupied on this concurrency"
             " limit."
@@ -714,17 +715,21 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
         default=True,
         description="Whether or not the concurrency limit is in an active state.",
     )
-    active_slots: Optional[int] = Field(
+    active_slots: Optional[NonNegativeInteger] = Field(
         default=0,
         description="Number of tasks currently using a concurrency slot.",
     )
-    slot_decay_per_second: Optional[float] = Field(
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(
         default=0.0,
         description=(
             "Controls the rate at which slots are released when the concurrency limit"
             " is used as a rate limit."
         ),
     )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
 class GlobalConcurrencyLimitUpdate(ActionBaseModel):
@@ -735,3 +740,7 @@ class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     active: Optional[NonNegativeInteger] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
