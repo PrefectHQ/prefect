@@ -1348,7 +1348,9 @@ async def test_read_filtered_logs(session, prefect_client, deployment):
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1364,7 +1366,9 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1379,7 +1383,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
 async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
     mock = Mock()
-    monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+    monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxAsyncClient", mock)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
@@ -1399,7 +1403,9 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
         }
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1420,7 +1426,9 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1441,7 +1449,9 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -2280,8 +2290,8 @@ async def test_global_concurrency_limit_create(prefect_client):
         concurrency_limit = await prefect_client.read_global_concurrency_limit_by_name(
             name=global_concurrency_limit_name
         )
-        assert UUID(concurrency_limit.get("id")) == response_uuid
-        assert concurrency_limit.get("slot_decay_per_second") == slot_decay_per_second
+        assert concurrency_limit.id == response_uuid
+        assert concurrency_limit.slot_decay_per_second == slot_decay_per_second
 
 
 async def test_global_concurrency_limit_delete(prefect_client):
@@ -2322,16 +2332,18 @@ async def test_global_concurrency_limit_update_with_integer(prefect_client):
             ),
         )
         assert len(await prefect_client.read_global_concurrency_limits()) == index + 1
+
         assert (
             await prefect_client.read_global_concurrency_limit_by_name(
                 name=updated_global_concurrency_limit_name
             )
-        ).get("limit") == 1
+        ).limit == 1
+
         assert (
             await prefect_client.read_global_concurrency_limit_by_name(
                 name=updated_global_concurrency_limit_name
             )
-        ).get("slot_decay_per_second") == slot_decay_per_second
+        ).slot_decay_per_second == slot_decay_per_second
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await prefect_client.update_global_concurrency_limit(
                 name=created_global_concurrency_limit_name,

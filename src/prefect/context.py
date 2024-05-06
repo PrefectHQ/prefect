@@ -43,7 +43,7 @@ import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
@@ -213,7 +213,7 @@ class RunContext(ContextModel):
 
     start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
-    client: PrefectClient
+    client: Union[PrefectClient, SyncPrefectClient]
 
 
 class EngineContext(RunContext):
