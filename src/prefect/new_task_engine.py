@@ -336,8 +336,13 @@ class TaskRunEngine(Generic[P, R]):
             result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
             client=client,
         ):
-            self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
-            yield
+            # set the logger to the task run logger
+            current_logger = self.logger
+            try:
+                self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+                yield
+            finally:
+                self.logger = current_logger
 
     @contextmanager
     def start(self) -> Generator["TaskRunEngine", Any, Any]:
@@ -350,6 +355,7 @@ class TaskRunEngine(Generic[P, R]):
             try:
                 if not self.task_run:
                     self.task_run = self.create_task_run(client)
+                    self.logger.debug(f'Created task run "{self.task_run.id}"')
                 yield self
             except Exception:
                 # regular exceptions are caught and re-raised to the user
