@@ -72,3 +72,11 @@ class TriggerJobRunOptions(BaseModel):
     steps_override: Optional[List[str]] = Field(
         default=None, description="Override the list of steps for this job."
     )
+    create_artifact: bool = Field(
+        default=False, 
+        description="Create an artifact attached to the flow or task run for the triggered job"
+    )
+    artifact_name: str = Field(
+        default="dbt-cloud-job-run-artifact",
+        description="The name of the artifact to create for the triggered job"
+    )
