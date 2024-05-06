@@ -39,7 +39,6 @@ To see block types available for configuration, use `prefect block type ls` from
 ## Prefect built-in blocks
 
 Commonly used block types come built-in with Prefect. 
-These block types are pre-installed in Prefect Cloud and a self-hosted Prefect server instance.
 These block types can be created via the UI and used without installing any additional packages.
 
 | Block                                                                                                                | Slug                                                     | Description                                                                                                                             |
