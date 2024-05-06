@@ -28,7 +28,7 @@ Prefect enables fine-grained customization of log levels for flows and tasks, in
 
 Whenever you run a flow, Prefect automatically logs events for flow runs and task runs, along with any custom log handlers you have configured. No configuration is needed to enable Prefect logging.
 
-For example, if you created a simple flow in a file `flow.py` and create a local flow run with `python flow.py`, you'll see an example of the log messages created automatically by Prefect:
+For example, if you created a simple flow in `flow.py` and create a local flow run with `python flow.py`, you'll see an example of the log messages created automatically by Prefect:
 
 <div class='terminal'>
 ```bash
