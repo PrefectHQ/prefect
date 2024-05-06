@@ -180,7 +180,7 @@ if __name__ == "__main__":
     buy.deploy(
         name="my-code-baked-into-an-image-deployment", 
         work_pool_name="my-docker-pool", 
-        image="discdiver/no-build-image:1.0",
+        image="my_registry/no-build-image:1.0",
         build=False
     )
 ```
