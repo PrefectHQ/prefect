@@ -417,7 +417,7 @@ async def run_task_async(
             with run.enter_run_context():
                 try:
                     # This is where the task is actually run.
-                    async with timeout_async(seconds=run.task.timeout_seconds):
+                    with timeout_async(seconds=run.task.timeout_seconds):
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
                         )

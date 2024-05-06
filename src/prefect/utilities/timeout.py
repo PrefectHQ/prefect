@@ -1,17 +1,17 @@
-from contextlib import asynccontextmanager, contextmanager
+from asyncio import CancelledError
+from contextlib import contextmanager
 from typing import Optional
 
 from prefect._internal.concurrency.cancellation import (
-    AlarmCancelScope,
-    AsyncCancelScope,
-    CancelledError,
+    cancel_async_after,
+    cancel_sync_after,
 )
 
 
-@asynccontextmanager
-async def timeout_async(seconds: Optional[float] = None):
+@contextmanager
+def timeout_async(seconds: Optional[float] = None):
     try:
-        with AsyncCancelScope(timeout=seconds):
+        with cancel_async_after(timeout=seconds):
             yield
     except CancelledError:
         raise TimeoutError(f"Scope timed out after {seconds} second(s).")
@@ -20,7 +20,7 @@ async def timeout_async(seconds: Optional[float] = None):
 @contextmanager
 def timeout(seconds: Optional[float] = None):
     try:
-        with AlarmCancelScope(timeout=seconds):
+        with cancel_sync_after(timeout=seconds):
             yield
     except CancelledError:
         raise TimeoutError(f"Scope timed out after {seconds} second(s).")

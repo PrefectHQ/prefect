@@ -182,7 +182,7 @@ def mock_acquire_concurrency_slots(monkeypatch):
 @pytest.mark.usefixtures("concurrency_limit", "mock_acquire_concurrency_slots")
 def test_concurrency_respects_timeout():
     with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*."):
-        with concurrency("test", occupy=1, timeout=0.1):
+        with concurrency("test", occupy=1, timeout_seconds=0.1):
             print("should not be executed")
 
 

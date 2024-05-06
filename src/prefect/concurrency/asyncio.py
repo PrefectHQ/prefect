@@ -28,7 +28,9 @@ class ConcurrencySlotAcquisitionError(Exception):
 
 @asynccontextmanager
 async def concurrency(
-    names: Union[str, List[str]], occupy: int = 1, timeout: Optional[float] = None
+    names: Union[str, List[str]],
+    occupy: int = 1,
+    timeout_seconds: Optional[float] = None,
 ):
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -56,7 +58,7 @@ async def concurrency(
     ```
     """
     names = names if isinstance(names, list) else [names]
-    async with timeout_async(seconds=timeout):
+    with timeout_async(seconds=timeout_seconds):
         limits = await _acquire_concurrency_slots(names, occupy)
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)

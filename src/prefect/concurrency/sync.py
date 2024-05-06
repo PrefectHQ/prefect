@@ -12,7 +12,7 @@ except ImportError:
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
-from prefect.utilities.timeout import timeout as timeout_context
+from prefect.utilities.timeout import timeout
 
 from .asyncio import (
     _acquire_concurrency_slots,
@@ -26,7 +26,9 @@ from .events import (
 
 @contextmanager
 def concurrency(
-    names: Union[str, List[str]], occupy: int = 1, timeout: Optional[float] = None
+    names: Union[str, List[str]],
+    occupy: int = 1,
+    timeout_seconds: Optional[float] = None,
 ):
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -55,7 +57,7 @@ def concurrency(
     """
     names = names if isinstance(names, list) else [names]
 
-    with timeout_context(seconds=timeout):
+    with timeout(seconds=timeout_seconds):
         limits: List[MinimalConcurrencyLimitResponse] = _call_async_function_from_sync(
             _acquire_concurrency_slots, names, occupy
         )
