@@ -322,7 +322,7 @@ if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
 ```
 
-Now run `ray_flow.py` `RayTaskRunner`, which automatically creates a local Ray instance, then immediately starts executing all of the tasks in parallel. If you have an existing Ray instance, you can provide the address as a parameter to run tasks in the instance. See [Running tasks on Ray](/concepts/task-runners/#running_tasks_on_ray) for details.
+Now run `ray_flow.py` `RayTaskRunner`, which automatically creates a local Ray instance, then immediately starts executing all of the tasks in parallel. If you have an existing Ray instance, you can provide the address as an argument to run tasks in the instance. See [Running tasks on Ray](/concepts/task-runners/#running_tasks_on_ray) for details.
 
 ## Use multiple task runners
 
