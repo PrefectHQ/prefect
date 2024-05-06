@@ -1,4 +1,7 @@
+from time import sleep
 from unittest import mock
+
+import pytest
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
@@ -162,6 +165,13 @@ async def test_concurrency_can_be_used_while_event_loop_is_running(
     resource_heavy()
 
     assert executed
+
+
+@pytest.mark.usefixtures("concurrency_limit")
+def test_concurrency_respects_timeout():
+    with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*."):
+        with concurrency("test", occupy=1, timeout=0.1):
+            sleep(0.2)
 
 
 def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLimitV2):
