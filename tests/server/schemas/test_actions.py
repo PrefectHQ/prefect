@@ -3,14 +3,25 @@ from uuid import uuid4
 import numpy as np
 import pytest
 
+from prefect.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
+
 from prefect.server.schemas.actions import (
     BlockTypeUpdate,
     DeploymentCreate,
+    DeploymentScheduleCreate,
+    DeploymentScheduleUpdate,
     DeploymentUpdate,
     FlowRunCreate,
     WorkPoolCreate,
     WorkPoolUpdate,
 )
+from prefect.server.schemas.schedules import CronSchedule
+from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 
 
 @pytest.mark.parametrize(
@@ -377,3 +388,67 @@ class TestWorkPoolUpdate:
         are provided in variables."""
         wp = WorkPoolUpdate(base_job_template=template)
         assert wp
+
+
+class TestDeploymentScheduleValidation:
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "max_scheduled_runs,expected_error_substr",
+        [
+            (
+                420000,
+                f"be less than or equal to {PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()}",
+            ),
+        ],
+    )
+    def test_deployment_schedule_validation_error(
+        self, schema_type, max_scheduled_runs, expected_error_substr
+    ):
+        with pytest.raises(ValueError, match=expected_error_substr):
+            schema_type(
+                schedule=CronSchedule(cron="0 0 * * *"),
+                max_active_runs=1,
+                max_scheduled_runs=max_scheduled_runs,
+                catchup=False,
+            )
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "max_scheduled_runs",
+        [-1, 0],
+    )
+    def test_deployment_schedule_validation_error_invalid_max_scheduled_runs(
+        self, schema_type, max_scheduled_runs
+    ):
+        with pytest.raises(ValidationError):
+            schema_type(
+                schedule=CronSchedule(cron="0 0 * * *"),
+                max_active_runs=1,
+                max_scheduled_runs=max_scheduled_runs,
+                catchup=False,
+            )
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "max_scheduled_runs",
+        [1, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()],
+    )
+    def test_deployment_schedule_validation_success(
+        self, schema_type, max_scheduled_runs
+    ):
+        schedule = schema_type(
+            schedule=CronSchedule(cron="0 0 * * *"),
+            max_active_runs=1,
+            max_scheduled_runs=max_scheduled_runs,
+            catchup=False,
+        )
+        assert schedule.max_scheduled_runs == max_scheduled_runs

@@ -1501,6 +1501,11 @@ PREFECT_RUNNER_SERVER_ENABLE = Setting(bool, default=False)
 Whether or not to enable the runner's webserver.
 """
 
+PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS = Setting(int, default=50)
+"""
+The maximum number of scheduled runs to create for a deployment.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
