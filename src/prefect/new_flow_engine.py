@@ -307,8 +307,13 @@ class FlowRunEngine(Generic[P, R]):
             result_factory=run_sync(ResultFactory.from_flow(self.flow)),
             task_runner=self.flow.task_runner.duplicate(),
         ):
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
-            yield
+            # set the logger to the flow run logger
+            current_logger = self.logger
+            try:
+                self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+                yield
+            finally:
+                self.logger = current_logger
 
     @contextmanager
     def start(self):
@@ -334,6 +339,7 @@ class FlowRunEngine(Generic[P, R]):
 
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(client)
+                self.logger.debug(f'Created flow run "{self.flow_run.id}"')
 
             # validate prior to context so that context receives validated params
             if self.flow.should_validate_parameters:
