@@ -65,7 +65,7 @@ class IntervalSchedule(PrefectBaseModel):
         exclude_none = True
 
     interval: PositiveDuration
-    anchor_date: DateTimeTZ = None
+    anchor_date: Optional[DateTimeTZ] = None
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
     @validator("anchor_date", always=True)
