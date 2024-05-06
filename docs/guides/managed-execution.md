@@ -45,7 +45,7 @@ from prefect import flow
 
 if __name__ == "__main__":
     flow.from_source(
-    source="https://github.com/desertaxle/demo.git",
+    source="https://github.com/prefecthq/demo.git",
     entrypoint="flow.py:my_flow",
     ).deploy(
         name="test-managed-flow",
@@ -79,7 +79,7 @@ from prefect import flow
 
 if __name__ == "__main__":
     flow.from_source(
-    source="https://github.com/desertaxle/demo.git",
+    source="https://github.com/prefecthq/demo.git",
     entrypoint="flow.py:my_flow",
     ).deploy(
         name="test-managed-flow",
