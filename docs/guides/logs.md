@@ -327,7 +327,7 @@ class CustomConsoleHandler(PrefectConsoleHandler):
             # log.completed_state: green
 ```
 
-3. On your next flow run, text that looks like an email will be highlighte. For example, `my@email.com` is colored in magenta below:
+3. On your next flow run, text that looks like an email will be highlighted. For example, `my@email.com` is colored in magenta below:
 
 ```python
 from prefect import flow, get_run_logger
