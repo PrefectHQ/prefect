@@ -188,7 +188,6 @@ print(json_block.value["the-answer"]) #42
 ```
 
 !!! tip "Sharing Blocks"
-    If using [Prefect Cloud](/cloud/), blocks can be loaded by workspace collaborators.
 
 ### Delete blocks
 
