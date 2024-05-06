@@ -329,9 +329,9 @@ In the next section, you will explore event triggers that automate the kickoff o
 
 You can take this a step further by creating a deployment that triggers when a flow run takes longer than expected. 
 You can take advantage of Prefect's [Marvin](https://www.askmarvin.ai/) library that uses an LLM to classify the data. 
-Marvin is great at embedding data science and data analysis applications within your pre-existing data engineering workflows. In this case, you can use [Marvin's AI functions](https://www.askmarvin.ai/components/ai_function/#ai-function) to help make the dataset more information rich. 
+Marvin is great at embedding data science and data analysis applications within your pre-existing data engineering workflows. In this case, you can use [Marvin's AI functions](https://www.askmarvin.ai/docs/text/functions/) to help make the dataset more information rich. 
 
-Install Marvin with `pip install marvin` and [set your OpenAI API key](https://www.askmarvin.ai/welcome/quickstart/).
+Install Marvin with `pip install marvin` and [set your OpenAI API key](https://www.askmarvin.ai/welcome/tutorial/).
 
 You can add a trigger to run a deployment in response to a specific event. 
 
