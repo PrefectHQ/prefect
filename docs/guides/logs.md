@@ -45,7 +45,7 @@ Completed('All states completed.')
 ```
 </div>
 
-See logs for a flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
+See logs for a flow run in the UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
 ![Viewing logs for a flow run in the Prefect UI](/img/ui/flow-run-details.png)
 
