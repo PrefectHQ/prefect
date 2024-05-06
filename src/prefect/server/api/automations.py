@@ -16,9 +16,10 @@ else:
 from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
 from prefect._vendor.fastapi.exceptions import RequestValidationError
 
-from prefect._internal.schemas.validators import validate_values_conform_to_schema
-from prefect.server.api.clients import OrchestrationClient, WorkPoolsOrchestrationClient
 from prefect.server.api.dependencies import LimitBody
+from prefect.server.api.validation import (
+    validate_job_variables_for_run_deployment_action,
+)
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import actions
@@ -35,6 +36,9 @@ from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_EXPERIMENTAL_EVENTS,
+)
+from prefect.utilities.schema_tools.validation import (
+    ValidationError as JSONSchemaValidationError,
 )
 
 
@@ -55,50 +59,6 @@ router = PrefectRouter(
 )
 
 
-class FlowRunInfrastructureMissing(Exception):
-    """
-    Raised when there is an missing infrastructure data when creating or updating a
-    flow run.
-    """
-
-
-def _get_base_config_defaults(base_config: dict):
-    template: dict = base_config.get("variables", {}).get("properties", {})
-    defaults = dict()
-    for variable_name, attrs in template.items():
-        if "default" in attrs:
-            defaults[variable_name] = attrs["default"]
-
-    return defaults
-
-
-async def _validate_run_deployment_action_against_pool_schema(
-    *,
-    deployment_id: UUID,
-    job_variables: dict,
-):
-    async with OrchestrationClient() as oc:
-        deployment = await oc.read_deployment(deployment_id=deployment_id)
-        if deployment is None:
-            raise FlowRunInfrastructureMissing(
-                f"Deployment {deployment_id} for RunDeployment action not found"
-            )
-        if not deployment.work_pool_name:
-            raise FlowRunInfrastructureMissing(
-                f"Deployment {deployment_id} has no work pool name"
-            )
-
-    async with WorkPoolsOrchestrationClient() as wpc:
-        work_pool = await wpc.read_work_pool(deployment.work_pool_name)
-
-    default_vars = _get_base_config_defaults(work_pool.base_job_template)
-    deployment_vars = deployment.job_variables or {}
-    validate_values_conform_to_schema(
-        {**default_vars, **deployment_vars, **job_variables},
-        work_pool.base_job_template.get("variables", {}),
-    )
-
-
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_automation(
     automation: AutomationCreate,
@@ -115,19 +75,19 @@ async def create_automation(
             and action.job_variables is not None
             and action.job_variables != {}
         ):
-            try:
-                await _validate_run_deployment_action_against_pool_schema(
-                    deployment_id=action.deployment_id,
-                    job_variables=action.job_variables,
-                )
-            except (ValueError, FlowRunInfrastructureMissing) as exc:
-                errors.append(str(exc))
+            async with db.session_context() as session:
+                try:
+                    await validate_job_variables_for_run_deployment_action(
+                        session, action
+                    )
+                except JSONSchemaValidationError as exc:
+                    errors.append(str(exc))
 
-        if errors:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Error creating automation: {' '.join(errors)}",
-            )
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Error creating automation: {' '.join(errors)}",
+        )
 
     automation_dict = automation.dict()
     owner_resource = automation_dict.pop("owner_resource", None)
@@ -167,22 +127,18 @@ async def update_automation(
             and action.deployment_id is not None
             and action.job_variables is not None
         ):
-            try:
-                await _validate_run_deployment_action_against_pool_schema(
-                    deployment_id=action.deployment_id,
-                    job_variables=action.job_variables,
-                )
-            except ValueError as exc:
-                errors.append(str(exc))
-            except AssertionError:
-                errors.append(
-                    "Unable to find required resources for automation update."
-                )
-        if errors:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Error creating automation: {' '.join(errors)}",
-            )
+            async with db.session_context() as session:
+                try:
+                    await validate_job_variables_for_run_deployment_action(
+                        session, action
+                    )
+                except JSONSchemaValidationError as exc:
+                    errors.append(str(exc))
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Error creating automation: {' '.join(errors)}",
+        )
 
     async with db.session_context(begin_transaction=True) as session:
         updated = await automations_models.update_automation(

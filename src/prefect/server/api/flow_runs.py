@@ -26,7 +26,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
-from prefect.server.api.validation import validate_job_variables_for_flow_run
+from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge
@@ -130,7 +130,9 @@ async def update_flow_run(
                     detail="A deployment for the flow run could not be found",
                 )
 
-            await validate_job_variables_for_flow_run(flow_run, deployment, session)
+            await validate_job_variables_for_deployment_flow_run(
+                session, deployment, flow_run
+            )
 
         result = await models.flow_runs.update_flow_run(
             session=session, flow_run=flow_run, flow_run_id=flow_run_id

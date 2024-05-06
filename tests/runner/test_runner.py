@@ -929,7 +929,7 @@ class TestRunnerDeployment:
             RunnerDeployment.from_flow(da_flow, __file__)
 
         # muck up __module__ so that it looks like it was defined interactively
-        da_flow.__module__ = "__main__"
+        da_flow.__module__ = "__not_a_real_module__"
 
         with pytest.raises(
             ValueError,
@@ -1219,8 +1219,8 @@ class TestRunnerDeployment:
         with pytest.raises(
             DeploymentApplyError,
             match=re.escape(
-                "Error creating deployment: <ValidationError: \"'blork' is not one of"
-                " ['IfNotPresent', 'Always', 'Never']\">"
+                "Error creating deployment: Validation failed for field 'image_pull_policy'. Failure reason: 'blork' is not one of"
+                " ['IfNotPresent', 'Always', 'Never']"
             ),
         ):
             await deployment.apply()
@@ -1912,8 +1912,8 @@ class TestDeploy:
         with pytest.raises(
             DeploymentApplyError,
             match=re.escape(
-                "Error creating deployment: <ValidationError: \"'blork' is not one of"
-                " ['IfNotPresent', 'Always', 'Never']\">"
+                "Error creating deployment: Validation failed for field 'image_pull_policy'. Failure reason: 'blork' is not one of"
+                " ['IfNotPresent', 'Always', 'Never']"
             ),
         ):
             await deploy(
