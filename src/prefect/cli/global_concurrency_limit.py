@@ -389,11 +389,8 @@ async def create_global_concurrency_limit(
         try:
             gcl_id = await client.create_global_concurrency_limit(concurrency_limit=gcl)
         except PrefectHTTPStatusError as exc:
-            # We shouldn't hit this as we validate the model above
-            if exc.response.status_code == 422:
-                parsed_response = exc.response.json()
-
-                exc = parsed_response["exception_detail"][0]["msg"]
+            parsed_response = exc.response.json()
+            exc = parsed_response["exception_detail"][0]["msg"]
 
             exit_with_error(f"Error updating global concurrency limit: {exc}")
 
