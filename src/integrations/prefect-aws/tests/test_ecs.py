@@ -2144,12 +2144,11 @@ def base_job_template_with_defaults(default_base_job_template, aws_credentials):
     base_job_template_with_defaults["variables"]["properties"]["network_configuration"][
         "default"
     ] = {
-        "awsvpcConfiguration": {
-            "subnets": ["subnet-***"],
-            "assignPublicIp": "DISABLED",
-            "securityGroups": ["sg-***"],
-        }
+        "subnets": ["subnet-***"],
+        "assignPublicIp": "DISABLED",
+        "securityGroups": ["sg-***"],
     }
+    breakpoint()
     return base_job_template_with_defaults
 
 
