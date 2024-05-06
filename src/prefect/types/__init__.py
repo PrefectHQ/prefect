@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any, Callable, ClassVar, Generator
 
 from pydantic_core import core_schema, CoreSchema, SchemaValidator
@@ -6,8 +5,9 @@ from typing_extensions import Self
 from datetime import timedelta
 
 
-@dataclass
 class NonNegativeInteger(int):
+    """An integer that must be greater than or equal to 0."""
+
     schema: ClassVar[CoreSchema] = core_schema.int_schema(ge=0)
 
     @classmethod
@@ -25,8 +25,9 @@ class NonNegativeInteger(int):
         return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
-@dataclass
 class PositiveInteger(int):
+    """An integer that must be greater than 0."""
+
     schema: ClassVar[CoreSchema] = core_schema.int_schema(gt=0)
 
     @classmethod
@@ -44,7 +45,6 @@ class PositiveInteger(int):
         return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
-@dataclass
 class NonNegativeFloat(float):
     schema: ClassVar[CoreSchema] = core_schema.float_schema(ge=0)
 
@@ -63,8 +63,9 @@ class NonNegativeFloat(float):
         return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
-@dataclass
 class NonNegativeDuration(timedelta):
+    """A timedelta that must be greater than or equal to 0."""
+
     schema: ClassVar = core_schema.timedelta_schema(ge=timedelta(seconds=0))
 
     @classmethod
@@ -82,8 +83,9 @@ class NonNegativeDuration(timedelta):
         return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
-@dataclass
 class PositiveDuration(timedelta):
+    """A timedelta that must be greater than 0."""
+
     schema: ClassVar = core_schema.timedelta_schema(gt=timedelta(seconds=0))
 
     @classmethod
