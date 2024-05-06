@@ -1,8 +1,9 @@
 import inspect
+import logging
 import os
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Coroutine,
@@ -32,7 +33,7 @@ from prefect.context import FlowRunContext
 from prefect.deployments import load_flow_from_flow_run
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
-from prefect.logging.loggers import flow_run_logger
+from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
@@ -75,6 +76,7 @@ class FlowRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
+    logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
@@ -295,8 +297,13 @@ class FlowRunEngine(Generic[P, R]):
             result_factory=run_sync(ResultFactory.from_flow(self.flow)),
             task_runner=self.flow.task_runner.duplicate(),
         ):
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
-            yield
+            # set the logger to the flow run logger
+            current_logger = self.logger
+            try:
+                self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+                yield
+            finally:
+                self.logger = current_logger
 
     @contextmanager
     def start(self):
@@ -322,6 +329,7 @@ class FlowRunEngine(Generic[P, R]):
 
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(client)
+                self.logger.debug(f'Created flow run "{self.flow_run.id}"')
 
             # validate prior to context so that context receives validated params
             if self.flow.should_validate_parameters:
