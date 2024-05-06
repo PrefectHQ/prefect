@@ -20,7 +20,7 @@ Prefect enables you to log a variety of useful information about your flow and t
 
 Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect server with `prefect server start`.
 
-View and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records through the API.
+View and filter logs in the [UI](/ui/flow-runs/#inspect-a-flow-run) or access log records through the API.
 
 Prefect enables fine-grained customization of log levels for flows and tasks, including configuration for default levels and log message formatting.
 
