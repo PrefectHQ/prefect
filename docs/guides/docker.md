@@ -12,22 +12,22 @@ search:
   boost: 2
 ---
 
-# Running Flows with Docker
+# Run Flows with Docker
 
-In the [Deployments](/tutorial/deployments/) tutorial, we looked at serving a flow that enables scheduling or creating flow runs via the Prefect API.
+The [Deployments](/tutorial/deployments/) tutorial served a flow that enabled scheduling or creating flow runs through the Prefect API.
 
-With our Python script in hand, we can build a Docker image for our script, allowing us to serve our flow in various remote environments. We'll use Kubernetes in this guide, but you can use any Docker-compatible infrastructure.
+With a Python script, you can build a Docker image for that script, allowing you to serve your flow in various remote environments. This guide uses Kubernetes, but you can use any Docker-compatible infrastructure.
 
-In this guide we'll:
+This guide covers how to:
 
-- Write a Dockerfile to build an image that stores our Prefect flow code.
-- Build a Docker image for our flow.
-- Deploy and run our Docker image on a Kubernetes cluster.
-- Look at the Prefect-maintained Docker images and discuss options for use
+- Write a Dockerfile to build an image that stores your Prefect flow code.
+- Build a Docker image for your flow.
+- Deploy and run your Docker image on a Kubernetes cluster.
+- Look at the Prefect-maintained Docker images and discuss options for use.
 
-Note that in this guide we'll create a Dockerfile from scratch. Alternatively, Prefect makes it convenient to build a Docker image as part of deployment creation. You can even include environment variables and specify additional Python packages to install at runtime.
+In this guide you will create a Dockerfile from scratch. Alternatively, Prefect makes it convenient to build a Docker image as part of deployment creation. You can even include environment variables and specify additional Python packages to install at runtime.
 
-If creating a deployment with a `prefect.yaml` file, the build step makes it easy to customize your Docker image and push it to the registry of your choice. See an example [here](/guides/deployment/kubernetes/#define-a-deployment).
+If creating a deployment with a `prefect.yaml` file, the build step makes it easy to customize your Docker image and push it to the registry of your choice. See an [example](/guides/deployment/kubernetes/#define-a-deployment).
 
 Deployment creation with a Python script that includes `flow.deploy` similarly allows you to customize your Docker image with keyword arguments as shown below.
 
@@ -45,24 +45,22 @@ if __name__ == "__main__":
 
 ## Prerequisites
 
-To complete this guide, you'll need the following:
-
 - A Python script that defines and serves a flow.
-  - We'll use the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial.
+  - This guide uses the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial.
 - Access to a running Prefect API server.
   - You can sign up for a forever free [Prefect Cloud account](https://docs.prefect.io/cloud/) or run a Prefect API server locally with `prefect server start`.
 - [Docker Desktop](https://docs.docker.com/desktop/) installed on your machine.
 
-## Writing a Dockerfile
+## Write a Dockerfile
 
-First let's make a clean directory to work from, `prefect-docker-guide`.
+Make a clean directory to work from, called `prefect-docker-guide`.
 
 ```bash
 mkdir prefect-docker-guide
 cd prefect-docker-guide
 ```
 
-In this directory, we'll create a sub-directory named `flows` and put our flow script from the [Deployments](/tutorial/deployments/) tutorial in it.
+In this directory, create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial in it.
 
 ```bash
 mkdir flows
@@ -92,44 +90,44 @@ if __name__ == "__main__":
     get_repo_info.serve(name="prefect-docker-guide")
 ```
 
-The next file we'll add to the `prefect-docker-guide` directory is a `requirements.txt`. We'll include all dependencies required for our `prefect-docker-guide-flow.py` script in the Docker image we'll build.
+The next file to add to the `prefect-docker-guide` directory is a `requirements.txt`. Include all dependencies required for your `prefect-docker-guide-flow.py` script in the Docker image you will build.
 
 ```bash
 # ensure you run this line from the top level of the `prefect-docker-guide` directory
 touch requirements.txt
 ```
 
-Here's what we'll put in our `requirements.txt` file:
+Here's what you will put in your `requirements.txt` file:
 
 ```txt title="requirements.txt"
 prefect>=2.12.0
 httpx
 ```
 
-Next, we'll create a `Dockerfile` that we'll use to create a Docker image that will also store the flow code.
+Create a `Dockerfile` to create a Docker image that will also store the flow code.
 
 ```bash
 touch Dockerfile
 ```
 
-We'll add the following content to our `Dockerfile`:
+Add the following content to your `Dockerfile`:
 
 ```dockerfile title="Dockerfile"
-# We're using the latest version of Prefect with Python 3.10
+# Using the latest version of Prefect with Python 3.10
 FROM prefecthq/prefect:2-python3.10
 
-# Add our requirements.txt file to the image and install dependencies
+# Add your requirements.txt file to the image and install dependencies
 COPY requirements.txt .
 RUN pip install -r requirements.txt --trusted-host pypi.python.org --no-cache-dir
 
-# Add our flow code to the image
+# Add your flow code to the image
 COPY flows /opt/prefect/flows
 
-# Run our flow script when the container starts
+# Run your flow script when the container starts
 CMD ["python", "flows/prefect-docker-guide-flow.py"]
 ```
 
-## Building a Docker image
+## Build a Docker image
 
 Now that we have a Dockerfile we can build our image by running:
 
