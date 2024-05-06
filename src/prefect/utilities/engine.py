@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import inspect
 import os
 import signal
 import time
@@ -23,7 +24,7 @@ import prefect
 import prefect.context
 import prefect.plugins
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import (
     StateType,
@@ -60,6 +61,7 @@ from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.asyncutils import (
     gather,
+    run_sync,
 )
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
@@ -380,6 +382,109 @@ async def propose_state(
     elif flow_run_id:
         set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
         response = await set_state_and_handle_waits(set_state)
+    else:
+        raise ValueError(
+            "Neither flow run id or task run id were provided. At least one must "
+            "be given."
+        )
+
+    # Parse the response to return the new state
+    if response.status == SetStateStatus.ACCEPT:
+        # Update the state with the details if provided
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
+        if response.state.state_details:
+            state.state_details = response.state.state_details
+        return state
+
+    elif response.status == SetStateStatus.ABORT:
+        raise prefect.exceptions.Abort(response.details.reason)
+
+    elif response.status == SetStateStatus.REJECT:
+        if response.state.is_paused():
+            raise Pause(response.details.reason, state=response.state)
+        return response.state
+
+    else:
+        raise ValueError(
+            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+        )
+
+
+def propose_state_sync(
+    client: SyncPrefectClient,
+    state: State[object],
+    force: bool = False,
+    task_run_id: Optional[UUID] = None,
+    flow_run_id: Optional[UUID] = None,
+) -> State[object]:
+    """
+    Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
+
+    If the proposed state is accepted, the provided `state` will be augmented with
+     details and returned.
+
+    If the proposed state is rejected, a new state returned by the Prefect API will be
+    returned.
+
+    If the proposed state results in a WAIT instruction from the Prefect API, the
+    function will sleep and attempt to propose the state again.
+
+    If the proposed state results in an ABORT instruction from the Prefect API, an
+    error will be raised.
+
+    Args:
+        state: a new state for the task or flow run
+        task_run_id: an optional task run id, used when proposing task run states
+        flow_run_id: an optional flow run id, used when proposing flow run states
+
+    Returns:
+        a [State model][prefect.client.schemas.objects.State] representation of the
+            flow or task run state
+
+    Raises:
+        ValueError: if neither task_run_id or flow_run_id is provided
+        prefect.exceptions.Abort: if an ABORT instruction is received from
+            the Prefect API
+    """
+
+    # Determine if working with a task run or flow run
+    if not task_run_id and not flow_run_id:
+        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+
+    # Handle task and sub-flow tracing
+    if state.is_final():
+        if isinstance(state.data, BaseResult) and state.data.has_cached_object():
+            # Avoid fetching the result unless it is cached, otherwise we defeat
+            # the purpose of disabling `cache_result_in_memory`
+            result = state.result(raise_on_failure=False, fetch=True)
+            if inspect.isawaitable(result):
+                result = run_sync(result)
+        else:
+            result = state.data
+
+        link_state_to_result(state, result)
+
+    # Handle repeated WAITs in a loop instead of recursively, to avoid
+    # reaching max recursion depth in extreme cases.
+    def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+        response = set_state_func()
+        while response.status == SetStateStatus.WAIT:
+            engine_logger.debug(
+                f"Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            time.sleep(response.details.delay_seconds)
+            response = set_state_func()
+        return response
+
+    # Attempt to set the state
+    if task_run_id:
+        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+        response = set_state_and_handle_waits(set_state)
+    elif flow_run_id:
+        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+        response = set_state_and_handle_waits(set_state)
     else:
         raise ValueError(
             "Neither flow run id or task run id were provided. At least one must "
