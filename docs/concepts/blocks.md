@@ -13,7 +13,7 @@ search:
 
 Prefect blocks store configuration and provide an interface for interacting with external systems.
 
-Blocks expose methods that provide pre-built functionality.
+Blocks expose methods that provide functionality specific to the systems they interface with.
 For example, blocks can be used to download data from or upload data to an S3 bucket, query data from or write data to a database, or send a message to a Slack channel.
 
 ## Overview
