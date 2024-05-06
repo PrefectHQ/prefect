@@ -24,7 +24,7 @@ from prefect._vendor.fastapi.applications import FastAPI
 
 from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas
-from prefect.server.api.automations import FlowRunInfrastructureMissing
+from prefect.server.api.validation import ValidationError
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import actions, filters
 from prefect.server.events.models.automations import (
@@ -164,18 +164,20 @@ async def create_run_deployment_automation_payload(deployment_id: UUID, job_vars
 async def create_objects_for_automation(
     session: AsyncSession,
     *,
-    pool_job_config: Optional[dict] = None,
+    base_job_template: Optional[dict] = None,
     deployment_vars: Optional[dict] = None,
-    run_vars: Optional[dict] = None,
-    pool_type: str = "None",
+    run_deployment_job_variables: Optional[dict] = None,
+    work_pool_type: str = "None",
 ):
-    pool_job_config = pool_job_config or {}
+    base_job_template = base_job_template or {}
     deployment_vars = deployment_vars or {}
-    run_vars = run_vars or {}
+    run_deployment_job_variables = run_deployment_job_variables or {}
 
-    wp = await create_work_pool(session, pool_job_config, type=pool_type)
+    wp = await create_work_pool(session, base_job_template, type=work_pool_type)
     deployment = await create_deployment(session, wp, deployment_vars)
-    automation = await create_run_deployment_automation_payload(deployment, run_vars)
+    automation = await create_run_deployment_automation_payload(
+        deployment, run_deployment_job_variables
+    )
 
     await session.commit()
 
@@ -969,8 +971,8 @@ async def test_create_run_deployment_automation_with_job_variables_and_no_schema
     run_vars = {"this": "that"}
     *_, run_deployment_with_no_schema = await create_objects_for_automation(
         session,
-        pool_job_config={},
-        run_vars=run_vars,
+        base_job_template={},
+        run_deployment_job_variables=run_vars,
     )
 
     response = await client.post(
@@ -992,7 +994,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_match_sc
     run_vars = {"this": "is a string"}
     *_, run_deployment_with_schema = await create_objects_for_automation(
         session,
-        pool_job_config={
+        base_job_template={
             "job_configuration": {
                 "thing_one": "{{ this }}",
             },
@@ -1002,7 +1004,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_match_sc
                 },
             },
         },
-        run_vars=run_vars,
+        run_deployment_job_variables=run_vars,
     )
 
     response = await client.post(
@@ -1024,7 +1026,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_dont_mat
     run_vars = {"this": 100}
     *_, run_deployment_with_bad_vars = await create_objects_for_automation(
         session,
-        pool_job_config={
+        base_job_template={
             "job_configuration": {
                 "thing_one": "{{ this }}",
             },
@@ -1034,17 +1036,15 @@ async def test_create_run_deployment_automation_with_job_variables_that_dont_mat
                 },
             },
         },
-        run_vars=run_vars,
+        run_deployment_job_variables=run_vars,
     )
 
     response = await client.post(
         f"{automations_url}/",
         json=run_deployment_with_bad_vars.dict(json_compatible=True),
     )
-    assert response.status_code == 409, response.content
-    assert (
-        "Error creating automation: Validation failed for field 'this'" in response.text
-    )
+    assert response.status_code == 422, response.content
+    assert "Validation failed for field 'this'" in response.text
 
 
 async def test_multiple_run_deployment_actions_with_job_variables_that_dont_match_schema(
@@ -1055,7 +1055,7 @@ async def test_multiple_run_deployment_actions_with_job_variables_that_dont_matc
     run_vars = {"this": 100}
     *_, run_deployment_with_bad_vars = await create_objects_for_automation(
         session,
-        pool_job_config={
+        base_job_template={
             "job_configuration": {
                 "thing_one": "{{ this }}",
             },
@@ -1065,7 +1065,7 @@ async def test_multiple_run_deployment_actions_with_job_variables_that_dont_matc
                 },
             },
         },
-        run_vars=run_vars,
+        run_deployment_job_variables=run_vars,
     )
 
     # Copy the same action
@@ -1078,7 +1078,7 @@ async def test_multiple_run_deployment_actions_with_job_variables_that_dont_matc
         f"{automations_url}/",
         json=run_deployment_with_bad_vars.dict(json_compatible=True),
     )
-    assert response.status_code == 409, response.content
+    assert response.status_code == 422, response.content
     assert (
         "Error creating automation: Validation failed for field 'this'" in response.text
     )
@@ -1092,7 +1092,7 @@ async def test_updating_run_deployment_automation_with_bad_job_variables(
     run_vars = {"this": "that"}
     *_, run_deployment_with_str_schema = await create_objects_for_automation(
         session,
-        pool_job_config={
+        base_job_template={
             "job_configuration": {
                 "thing_one": "{{ this }}",
             },
@@ -1102,7 +1102,7 @@ async def test_updating_run_deployment_automation_with_bad_job_variables(
                 },
             },
         },
-        run_vars=run_vars,
+        run_deployment_job_variables=run_vars,
     )
 
     response = await client.post(
@@ -1122,10 +1122,111 @@ async def test_updating_run_deployment_automation_with_bad_job_variables(
         f"{automations_url}/{automation_id}",
         json=update.dict(json_compatible=True),
     )
-    assert response.status_code == 409
+    assert response.status_code == 422
     assert (
         "Error creating automation: Validation failed for field 'this'" in response.text
     )
+
+
+async def test_create_run_deployment_automation_with_none_variable_value(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    """
+    A regression test for broken JSON schema validation in #7555.
+    """
+    # The RunDeployment action will try to use a `None` value for this job var.
+    # It should work because Pydantic schemas allow None values for optional
+    # fields.
+    run_vars = {"profile_name": None}
+    *_, run_deployment_with_str_schema = await create_objects_for_automation(
+        session,
+        base_job_template={
+            "job_configuration": {
+                "name": "{{ profile_name }}",
+            },
+            "variables": {
+                "properties": {
+                    "profile_name": {
+                        "title": "Profile Name",
+                        "description": "The profile to use when creating your session.",
+                        "type": "string",
+                    },
+                },
+            },
+        },
+        run_deployment_job_variables=run_vars,
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_str_schema.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    automation_id = response.json()["id"]
+    response = await client.get(f"{automations_url}/{automation_id}")
+    created_automation = Automation.parse_raw(response.content)
+    assert isinstance(created_automation.actions[0], actions.RunDeployment)
+    assert created_automation.actions[0].job_variables == {"profile_name": None}
+
+
+async def test_updating_run_deployment_automation_with_none_variable_value(
+    client: AsyncClient,
+    automations_url: str,
+    session: AsyncSession,
+) -> None:
+    """
+    A regression test for broken JSON schema validation in #7555.
+    """
+    # The RunDeployment action will try to use a `None` value for this job var.
+    # It should work because Pydantic schemas allow None values for optional
+    # fields.
+    run_vars = {"profile_name": "andrew"}
+    *_, run_deployment_with_str_schema = await create_objects_for_automation(
+        session,
+        base_job_template={
+            "job_configuration": {
+                "name": "{{ profile_name }}",
+            },
+            "variables": {
+                "properties": {
+                    "profile_name": {
+                        "title": "Profile Name",
+                        "description": "The profile to use when creating your session.",
+                        "type": "string",
+                    },
+                },
+            },
+        },
+        run_deployment_job_variables=run_vars,
+    )
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=run_deployment_with_str_schema.dict(json_compatible=True),
+    )
+    assert response.status_code == 201, response.content
+
+    automation_id = response.json()["id"]
+    as_core = AutomationCore(**response.json())
+    update = AutomationUpdate(**as_core.dict())
+    assert isinstance(update.actions[0], actions.RunDeployment)
+    assert update.actions[0].job_variables == {"profile_name": "andrew"}
+
+    update.actions[0].job_variables = {"profile_name": None}
+
+    response = await client.put(
+        f"{automations_url}/{automation_id}",
+        json=update.dict(json_compatible=True),
+    )
+    assert response.status_code == 204
+
+    response = await client.get(f"{automations_url}/{automation_id}")
+    updated_automation = Automation.parse_raw(response.content)
+    assert isinstance(updated_automation.actions[0], actions.RunDeployment)
+    assert updated_automation.actions[0].job_variables == {"profile_name": None}
 
 
 async def test_updating_run_deployment_automation_with_valid_job_variables(
@@ -1136,7 +1237,7 @@ async def test_updating_run_deployment_automation_with_valid_job_variables(
     run_vars = {"this": "that"}
     *_, run_deployment_with_str_schema = await create_objects_for_automation(
         session,
-        pool_job_config={
+        base_job_template={
             "job_configuration": {
                 "thing_one": "{{ this }}",
             },
@@ -1146,7 +1247,7 @@ async def test_updating_run_deployment_automation_with_valid_job_variables(
                 },
             },
         },
-        run_vars=run_vars,
+        run_deployment_job_variables=run_vars,
     )
 
     response = await client.post(
@@ -1180,17 +1281,17 @@ async def test_infrastructure_error_inside_create(
 ) -> None:
     *_, run_deployment_with_str_schema = await create_objects_for_automation(
         session,
-        pool_job_config={},
-        run_vars={"this": "that"},
+        base_job_template={},
+        run_deployment_job_variables={"this": "that"},
     )
 
     with mock.patch(
-        "prefect.server.api.automations._validate_run_deployment_action_against_pool_schema",
-        side_effect=FlowRunInfrastructureMissing("Something is wrong"),
+        "prefect.server.api.automations.validate_job_variables_for_run_deployment_action",
+        side_effect=ValidationError("Something is wrong"),
     ):
         response = await client.post(
             f"{automations_url}/",
             json=run_deployment_with_str_schema.dict(json_compatible=True),
         )
-        assert response.status_code == 409, response.content
+        assert response.status_code == 422, response.content
         assert "Error creating automation: Something is wrong" in response.text
