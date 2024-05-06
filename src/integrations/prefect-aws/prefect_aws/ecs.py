@@ -774,7 +774,9 @@ class ECSTask(Infrastructure):
                 )
                 base_job_template["variables"]["properties"]["network_configuration"][
                     "default"
-                ] = minimal_network_config_with_patches["networkConfiguration"]
+                ] = minimal_network_config_with_patches["networkConfiguration"][
+                    "awsvpcConfiguration"
+                ]
             try:
                 base_job_template["job_configuration"][
                     "task_run_request"
