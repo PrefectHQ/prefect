@@ -36,7 +36,7 @@ Use Dask or Ray in your flows to choose the execution environment that fits your
 
 ## Configure a task runner
 
-Configure a specific task runner for a flow.
+Configure a task runner for a flow.
 
 Start with the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This task runner runs all tasks synchronously and is useful as a debugging tool in conjunction with async code.
 
