@@ -78,7 +78,7 @@ In production, you'll generally want to write results to a cloud provider storag
 Prefect lets you use a storage block from a Prefect Cloud integration library such as [prefect-aws](https://prefecthq.github.io/prefect-aws/) to save your configuration information.
 Learn more about [blocks](/concepts/blocks/).
 
-Install the relevant library, register the block with the server, and create your storage block.
+Install the relevant library, register the block type with the server, and create your block.
 Then reference the block in your flow:
 
 ```python
