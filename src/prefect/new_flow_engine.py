@@ -1,8 +1,9 @@
 import inspect
+import logging
 import os
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Coroutine,
@@ -30,14 +31,16 @@ from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.deployments import load_flow_from_flow_run
+from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
-from prefect.logging.loggers import flow_run_logger
+from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
     Running,
     State,
+    exception_to_crashed_state,
     exception_to_failed_state,
     return_value_to_state,
 )
@@ -75,6 +78,7 @@ class FlowRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
+    logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
@@ -104,13 +108,15 @@ class FlowRunEngine(Generic[P, R]):
             state = self.set_state(new_state)
         return state
 
-    def set_state(self, state: State) -> State:
+    def set_state(self, state: State, force: bool = False) -> State:
         """ """
         # prevents any state-setting activity
         if self.short_circuit:
             return self.state
 
-        state = propose_state_sync(self.client, state, flow_run_id=self.flow_run.id)  # type: ignore
+        state = propose_state_sync(
+            self.client, state, flow_run_id=self.flow_run.id, force=force
+        )  # type: ignore
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
@@ -156,6 +162,12 @@ class FlowRunEngine(Generic[P, R]):
         if self.state.is_scheduled():
             state = self.set_state(Running())
         return state
+
+    def handle_crash(self, exc: BaseException) -> None:
+        state = run_sync(exception_to_crashed_state(exc))
+        self.logger.error(f"Crash detected! {state.message}")
+        self.logger.debug("Crash details:", exc_info=exc)
+        self.set_state(state, force=True)
 
     def load_subflow_run(
         self,
@@ -338,6 +350,15 @@ class FlowRunEngine(Generic[P, R]):
                     self.short_circuit = True
             try:
                 yield self
+            except Exception:
+                # regular exceptions are caught and re-raised to the user
+                raise
+            except (Abort, Pause):
+                raise
+            except BaseException as exc:
+                # BaseExceptions are caught and handled as crashes
+                self.handle_crash(exc)
+                raise
             finally:
                 self._is_started = False
                 self._client = None
