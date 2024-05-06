@@ -187,7 +187,6 @@ json_block = Block.load("json/life-the-universe-everything")
 print(json_block.value["the-answer"]) #42
 ```
 
-!!! tip "Sharing Blocks"
 
 ### Delete blocks
 
