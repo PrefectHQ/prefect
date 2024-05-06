@@ -1755,6 +1755,7 @@ PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
 How long to cache related resource data for emitting server-side vents
 """
 
+
 # Deprecated settings ------------------------------------------------------------------
 
 
