@@ -108,7 +108,7 @@ If the bucket is private, there are several options to authenticate:
 
 If you saved credential details in a block, you can use a credentials block specific to the cloud provider or use a more generic secret block.
 You can create [blocks](/concepts/blocks/) through the UI or Python code.
-Below you will use Python code to create a credentials block for your cloud provider.
+Below you use Python code to create a credentials block for your cloud provider.
 
 !!! Warning "Credentials safety"
 
