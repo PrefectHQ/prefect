@@ -25,7 +25,7 @@ Configure blocks through Python code or via a form in the UI.
 Access blocks for use in Python code.
 
 Block values are stored in Prefect Cloud or your self-hosted Prefect server instance.
-If using Prefect Cloud, blocks can be shared with other users in your workspace.
+Blocks can be shared with other users in your Prefect Cloud workspace.
 
 To see block types available for configuration, use `prefect block type ls` from the CLI or navigate to the **Blocks** page in the UI and click **+**.
 
