@@ -344,11 +344,11 @@ async def test_generate_work_pool_base_job_template():
     ],
 )
 async def test_publish_as_work_pool(
-    work_pool_name, monkeypatch, capsys, prefect_client
+    work_pool_name, monkeypatch, capsys, prefect_client, block_document
 ):
     block = MockInfrastructure()
-    block._block_document_id = uuid.uuid4()
-    block._block_document_name = "my_block"
+    block._block_document_id = block_document.id
+    block._block_document_name = block_document.name
 
     expected_template = {
         "job_configuration": {"block": "{{ block }}"},
