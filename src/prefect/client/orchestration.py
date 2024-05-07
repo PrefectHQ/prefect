@@ -2230,9 +2230,7 @@ class PrefectClient:
         if json.get("id") is None:
             json.pop("id", None)
 
-        response = await self._client.post(
-            "/task_runs/", json=task_run_data.dict(json_compatible=True)
-        )
+        response = await self._client.post("/task_runs/", json=json)
         return TaskRun.parse_obj(response.json())
 
     async def read_task_run(self, task_run_id: UUID) -> TaskRun:
@@ -3879,9 +3877,7 @@ class SyncPrefectClient:
         if json.get("id") is None:
             json.pop("id", None)
 
-        response = self._client.post(
-            "/task_runs/", json=task_run_data.dict(json_compatible=True)
-        )
+        response = self._client.post("/task_runs/", json=json)
         return TaskRun.parse_obj(response.json())
 
     def read_task_run(self, task_run_id: UUID) -> TaskRun:
