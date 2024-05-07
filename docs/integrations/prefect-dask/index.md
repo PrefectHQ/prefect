@@ -1,12 +1,15 @@
 # prefect-dask
 
-The `prefect-dask` integration makes it easy to include distributed processing for your flows. Check out the examples below to get started!
+Dask helps you run your flow in parallel and distribute runs over multiple machines.
+The `prefect-dask` integration makes it easy speed up your flow runs.
 
-## Get started
+## Getting started
 
-## Installation
+### Prerequisites
 
-Install `prefect-dask` into a virtual environment:
+- [Prefect installed](/getting-started/installation/) in a virtual environment.
+
+### Install prefect-dask
 
 <div class="terminal">
 ```bash
@@ -16,18 +19,18 @@ pip install -U prefect-dask
 
 ## Integrate with Prefect flows
 
-Say your flow downloads many images to train your machine learning model. Unfortunately, it takes a long time to download your flows because your code is running sequentially.
+Say your flow downloads many images to train a machine learning model.
+It can take longer than you'd like for the code to run because the code runs sequentially.
 
-After installing `prefect-dask` you can parallelize your flow in three simple steps:
+Parallelize your flow code with `prefect-dask` in three steps:
 
 1. Add the import: `from prefect_dask import DaskTaskRunner`
 2. Specify the task runner in the flow decorator: `@flow(task_runner=DaskTaskRunner)`
 3. Submit tasks to the flow's task runner: `a_task.submit(*args, **kwargs)`
 
-In the example below, the code that runs in parallel using Dask runs in about a third of the time as the sequential!
-Here's the before and after!
+Below is code with and without the DaskTaskRunner:
 
-=== "Before"
+=== "Sequential"
     ```python hl_lines="1"
     # Completed in 15.2 seconds
 
@@ -70,7 +73,7 @@ Here's the before and after!
         download_nino_34_plumes_from_year(2022)
     ```
 
-=== "After"
+=== "Parallel"
 
     ```python hl_lines="1 8 26 35"
     # Completed in 5.7 seconds
@@ -115,8 +118,8 @@ Here's the before and after!
         download_nino_34_plumes_from_year(2022)
     ```
 
-On tests by the Prefect team, the original flow completed in 15.2 seconds when run sequentially.
-With just the switch to the DaskTaskRunner, the runtime was reduced to **5.7** seconds!
+In our tests, the sequential flow run took 15.2 seconds.
+The version with `DaskTaskRunner` reduced the runtime to **5.7** seconds!
 
 For additional time savings with Dask, you could distribute large workloads over multiple machines.
 
@@ -124,7 +127,7 @@ For additional time savings with Dask, you could distribute large workloads over
 
 Suppose you have an existing Dask client/cluster such as a `dask.dataframe.DataFrame`, and you want to add observability.
 
-With `prefect-dask`, no major overhaul necessary because Prefect was designed with incremental adoption in mind. Here are the steps:
+With `prefect-dask`, no major overhaul is necessary because Prefect was designed for incremental adoption. Here are the steps:
 
 1. Add imports
 2. Add `task` and `flow` decorators
@@ -132,7 +135,7 @@ With `prefect-dask`, no major overhaul necessary because Prefect was designed wi
 4. Specify the task runner and client's address in the flow decorator
 5. Submit the tasks to the flow's task runner
 
-=== "Before"
+=== "Sequential"
 
     ```python
     import dask.dataframe
@@ -161,7 +164,7 @@ With `prefect-dask`, no major overhaul necessary because Prefect was designed wi
         dask_pipeline()
     ```
 
-=== "After"
+=== "Parallel"
 
     ```python hl_lines="3 4 8 13 15 19 21 22"
     import dask.dataframe
@@ -192,8 +195,11 @@ With `prefect-dask`, no major overhaul necessary because Prefect was designed wi
         dask_pipeline()
     ```
 
-Run the code and see when each task completes in the CLI or the UI.
+Run the code and check how long it takes each task to complete.
 
 ## Resources
 
-For additional examples, check out the [Usage Guide](usage_guide)!
+For additional examples, check out the [Usage Guide](/usage_guide/).
+Refer to the prefect-dask API documentation linked in the sidebar to explore all the capabilities of the prefect-dask library.
+
+For assistance using Dask, consult the [Dask documentation](https://docs.dask.org/en/stable/)
