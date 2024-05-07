@@ -35,6 +35,7 @@ from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger, get_logger
+from prefect.new_task_engine import TaskRunEngine
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
@@ -47,9 +48,7 @@ from prefect.states import (
 from prefect.utilities.asyncutils import A, Async, run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
-    _dynamic_key_for_task_run,
     _resolve_custom_flow_run_name,
-    collect_task_run_inputs,
     propose_state_sync,
 )
 
@@ -216,36 +215,6 @@ class FlowRunEngine(Generic[P, R]):
             if flow_runs:
                 return flow_runs[-1]
 
-    def create_subflow_task_run(
-        self, client: SyncPrefectClient, context: FlowRunContext
-    ) -> TaskRun:
-        """
-        Adds a task to a parent flow run that represents the execution of a subflow run.
-
-        The task run is referred to as the "parent task run" of the subflow and will be kept
-        in sync with the subflow run's state by the orchestration engine.
-        """
-        dummy_task = Task(
-            name=self.flow.name, fn=self.flow.fn, version=self.flow.version
-        )
-        task_inputs = {
-            k: run_sync(collect_task_run_inputs(v))
-            for k, v in (self.parameters or {}).items()
-        }
-        parent_task_run = client.create_task_run(
-            task=dummy_task,
-            flow_run_id=(
-                context.flow_run.id
-                if getattr(context, "flow_run", None)
-                and isinstance(context.flow_run, FlowRun)
-                else None
-            ),
-            dynamic_key=_dynamic_key_for_task_run(context, dummy_task),  # type: ignore
-            task_inputs=task_inputs,  # type: ignore
-            state=Pending(),
-        )
-        return parent_task_run
-
     def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
         parameters = self.parameters or {}
@@ -254,10 +223,13 @@ class FlowRunEngine(Generic[P, R]):
 
         # this is a subflow run
         if flow_run_ctx:
-            # get the parent task run
-            parent_task_run = self.create_subflow_task_run(
-                client=client, context=flow_run_ctx
+            # add a task to a parent flow run that represents the execution of a subflow run
+            # reuse the logic from the TaskRunEngine to ensure parents are created correctly
+            parent_task = Task(
+                name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+            task_engine = TaskRunEngine(task=parent_task, parameters=self.parameters)
+            parent_task_run = task_engine.create_task_run(client)
 
             # check if there is already a flow run for this subflow
             if subflow_run := self.load_subflow_run(
