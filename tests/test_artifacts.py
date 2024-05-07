@@ -253,8 +253,7 @@ class TestCreateArtifacts:
         @task
         def add_ten(x):
             create_markdown_artifact(
-                # TODO: uncomment this out once unique constraint is dropped on artifact key
-                # key="new-markdown-artifact",
+                key="new-markdown-artifact",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
