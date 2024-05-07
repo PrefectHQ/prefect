@@ -74,7 +74,7 @@ prefect block register -m prefect_aws && prefect block register -m prefect_snowf
 
 Under the hood, Prefect is using the AWS `boto3` client to create a session.
 
-In the **AwsCredentials** section of the form, click **Add +** and a form will appear to create an AWS Credentials block.
+In the **AwsCredentials** section of the form, click **Add +** and create an AWS Credentials block by entering the necessary values.
 
 Values for **Access Key ID** and **Secret Access Key** will be read from the compute environment.
 My AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in my `~/.aws/credentials` file, so I'll leave those fields blank.
