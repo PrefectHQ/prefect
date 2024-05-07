@@ -52,8 +52,6 @@ import anyio
 import anyio.abc
 import pendulum
 import sniffio
-from rich.console import Console, Group
-from rich.table import Table
 
 from prefect._internal.concurrency.api import (
     create_call,
@@ -1254,6 +1252,9 @@ async def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
+    from rich.console import Console, Group
+    from rich.table import Table
+
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
         await runner.add_deployment(deployment)

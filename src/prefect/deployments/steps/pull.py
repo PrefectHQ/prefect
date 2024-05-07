@@ -8,7 +8,6 @@ from typing import Any, Optional
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.blocks.core import Block
 from prefect.logging.loggers import get_logger
-from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import sync_compatible
 
 deployment_logger = get_logger("deployment")
@@ -106,6 +105,8 @@ async def git_clone(
                 repository: git@github.com:org/repo.git
         ```
     """
+    from prefect.runner.storage import GitRepository
+
     if access_token and credentials:
         raise ValueError(
             "Please provide either an access token or credentials but not both."
@@ -160,6 +161,8 @@ async def pull_from_remote_storage(url: str, **settings: Any):
                 secret: {{ prefect.blocks.secret.my-aws-secret-key }}}
         ```
     """
+    from prefect.runner.storage import RemoteStorage
+
     storage = RemoteStorage(url, **settings)
 
     await storage.pull_code()
@@ -177,6 +180,8 @@ async def pull_with_block(block_document_name: str, block_type_slug: str):
         block_document_name: The name of the block document to use
         block_type_slug: The slug of the type of block to use
     """
+    from prefect.runner.storage import BlockStorageAdapter
+
     full_slug = f"{block_type_slug}/{block_document_name}"
     try:
         block = await Block.load(full_slug)
