@@ -906,11 +906,15 @@ class Flow(Generic[P, R]):
             my_flow()
             ```
         """
-        from prefect.runner.storage import BlockStorageAdapter, create_storage_from_url
+        from prefect.runner.storage import (
+            BlockStorageAdapter,
+            RunnerStorage,
+            create_storage_from_url,
+        )
 
         if isinstance(source, str):
             storage = create_storage_from_url(source)
-        elif isinstance(source, "RunnerStorage"):
+        elif isinstance(source, RunnerStorage):
             storage = source
         elif hasattr(source, "get_directory"):
             storage = BlockStorageAdapter(source)
