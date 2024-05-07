@@ -2169,6 +2169,7 @@ class PrefectClient:
         task: "TaskObject[P, R]",
         flow_run_id: Optional[UUID],
         dynamic_key: str,
+        id: Optional[UUID] = None,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
@@ -2192,6 +2193,8 @@ class PrefectClient:
             task: The Task to run
             flow_run_id: The flow run id with which to associate the task run
             dynamic_key: A key unique to this particular run of a Task within the flow
+            id: An optional ID for the task run. If not provided, one will be generated
+                server-side.
             name: An optional name for the task run
             extra_tags: an optional list of extra tags to apply to the task run in
                 addition to `task.tags`
@@ -2208,6 +2211,7 @@ class PrefectClient:
             state = prefect.states.Pending()
 
         task_run_data = TaskRunCreate(
+            id=id,
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
@@ -3810,6 +3814,7 @@ class SyncPrefectClient:
         task: "TaskObject[P, R]",
         flow_run_id: Optional[UUID],
         dynamic_key: str,
+        id: Optional[UUID] = None,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
@@ -3833,6 +3838,8 @@ class SyncPrefectClient:
             task: The Task to run
             flow_run_id: The flow run id with which to associate the task run
             dynamic_key: A key unique to this particular run of a Task within the flow
+            id: An optional ID for the task run. If not provided, one will be generated
+                server-side.
             name: An optional name for the task run
             extra_tags: an optional list of extra tags to apply to the task run in
                 addition to `task.tags`
@@ -3849,6 +3856,7 @@ class SyncPrefectClient:
             state = prefect.states.Pending()
 
         task_run_data = TaskRunCreate(
+            id=id,
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
