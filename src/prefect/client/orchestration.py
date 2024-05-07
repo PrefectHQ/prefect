@@ -180,7 +180,7 @@ class ServerType(AutoEnum):
 
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: bool = False
-) -> "PrefectClient":
+) -> Union["PrefectClient", "SyncPrefectClient"]:
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 

@@ -35,7 +35,6 @@ from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger, get_logger
-from prefect.new_task_engine import TaskRunEngine
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
@@ -228,8 +227,13 @@ class FlowRunEngine(Generic[P, R]):
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
-            task_engine = TaskRunEngine(task=parent_task, parameters=self.parameters)
-            parent_task_run = task_engine.create_task_run(client)
+            parent_task_run = run_sync(
+                parent_task.create_run(
+                    client=self.client,
+                    flow_run_context=flow_run_ctx,
+                    parameters=self.parameters,
+                )
+            )
 
             # check if there is already a flow run for this subflow
             if subflow_run := self.load_subflow_run(
