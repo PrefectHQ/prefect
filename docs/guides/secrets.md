@@ -12,7 +12,7 @@ Prefect-aws creates the session object using the values in the block and then, a
 
 Prefect-gcp and prefect-azure follow similar patterns.
 
-In the example below, we interact with a Snowflake database and store the credentials we need to connect in AWS Secrets Manager.
+In the example below, we interact with a Snowflake database using credentials stored in AWS Secrets Manager.
 This example can be generalized to other third party services that require credentials.
 
 ## Prerequisites
