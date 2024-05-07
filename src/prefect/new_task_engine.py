@@ -33,7 +33,6 @@ from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
     Paused,
-    Pending,
     Retrying,
     Running,
     StateDetails,
