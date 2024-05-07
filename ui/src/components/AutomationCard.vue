@@ -35,9 +35,7 @@
 
 <script lang="ts" setup>
   import { toPluralString } from '@prefecthq/prefect-design'
-  import { AutomationTriggerDescription, AutomationActionDescription, useWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
-  import AutomationMenu from '@/components/AutomationMenu.vue'
-  import AutomationToggle from '@/components/AutomationToggle.vue'
+  import { AutomationMenu, AutomationToggle, AutomationTriggerDescription, AutomationActionDescription, useWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
   import { Automation } from '@/types/automation'
 
   defineProps<{
