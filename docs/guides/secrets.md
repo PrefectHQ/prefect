@@ -5,9 +5,15 @@ Credentials blocks and secret blocks are popular ways to store and retrieve sens
 In Prefect Cloud, these block values are stored in encrypted format.
 Organizations whose security policies make such storage infeasible can still use Prefect to connect to third-party services securely.
 
-In this example, we interact with a Snowflake database and store the credentials we need to connect in AWS Secrets Manager.
+Any sensitive information that is not stored in a block can be read from the environment.
+
+For example, to find AWS credentials for authentication, any attributes not provided to an AWS Credentials block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
+Prefect-aws creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
+
+Prefect-gcp and prefect-azure follow similar patterns.
+
+In the example below, we interact with a Snowflake database using credentials stored in AWS Secrets Manager.
 This example can be generalized to other third party services that require credentials.
-We use Prefect Cloud in this example.
 
 ## Prerequisites
 
@@ -66,24 +72,25 @@ prefect block register -m prefect_aws && prefect block register -m prefect_snowf
 
 ### Create `AwsCredentials` block
 
-In the **AwsCredentials** section, click **Add +** and a form will appear to create an AWS Credentials block.
+Under the hood, Prefect is using the AWS `boto3` client to create a session.
+
+In the **AwsCredentials** section of the form, click **Add +** and create an AWS Credentials block by entering the necessary values.
 
 Values for **Access Key ID** and **Secret Access Key** will be read from the compute environment.
 My AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in my `~/.aws/credentials` file, so I'll leave those fields blank.
 You could enter those values at block creation, but then they would be saved to the database, and that's what we're trying to avoid.
 By leaving those attributes blank, Prefect knows to look to the compute environment.
+If the compute environment contains the necessary credentials, Prefect will use them to authenticate in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 
-We need to specify a region in our local AWS config file or in our `AWSCredentials` block.
-The `AwsCredentials` block takes precedence, so let's specify it here for portability.
-
-Under the hood, Prefect is using the AWS `boto3` client to create a session.
+The same order is followed to resolve the AWS region.
+Let's specify the region in our `AWSCredentials` block so that our connection works regardless of the contents of our local AWS config file or whether we run our code on AWS compute located in anther region than our secret.
 
 Click **Create** to save the blocks.
 
 ### Ensure the compute environment has access to AWS credentials
 
 Ensure the compute environment contains AWS credentials with authorization to access AWS Secrets Manager.
-When we connect to Snowflake, Prefect will automatically use these credentials to authenticate and access the secret.
+When we connect to Snowflake, Prefect will automatically use these credentials to authenticate and access the AWS secret that contains the Snowflake password.
 
 ### Create and use `SnowflakeCredentials` and `SnowflakeConnector` blocks in Python code
 
