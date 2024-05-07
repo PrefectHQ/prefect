@@ -36,7 +36,7 @@ def concurrency(
     Args:
         names: The names of the concurrency limits to acquire slots from.
         occupy: The number of slots to acquire and hold from each limit.
-        timeout: The number of seconds to wait for the slots to be acquired before
+        timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
 
     Raises:
