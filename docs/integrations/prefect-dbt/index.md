@@ -12,7 +12,7 @@ Prefect provides a global view of the state of your workflows and allows you to 
 
 ### Install prefect-dbt
 
-Install `prefect-dbt` for use with dbt Cloud:
+Install `prefect-dbt`:
 
 <div class = "terminal">
 ```bash

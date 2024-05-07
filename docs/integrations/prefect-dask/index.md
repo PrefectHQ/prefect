@@ -1,7 +1,7 @@
 # prefect-dask
 
 Dask helps you run your flow in parallel and distribute runs over multiple machines.
-The `prefect-dask` integration makes it easy speed up your flow runs.
+The `prefect-dask` integration makes it easy speed up your flow runs by integrating Dask into your code.
 
 ## Getting started
 

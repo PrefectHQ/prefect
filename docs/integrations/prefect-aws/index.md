@@ -1,7 +1,7 @@
 # prefect-aws
 
-The prefect-aws library makes it easy to leverage the capabilities of AWS in your workflows.
-For example, you can retrieve secrets using AWS Secrets Manager, read and write objects with AWS S3, and deploy your flows on AWS ECS.
+The prefect-aws library helps you leverage the capabilities of AWS in your workflows.
+For example, you can retrieve secrets using AWS Secrets Manager, read and write S3 objects, and deploy your flows on AWS ECS.
 
 ## Getting started
 
