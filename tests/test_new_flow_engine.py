@@ -1,5 +1,6 @@
 import logging
 from textwrap import dedent
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -10,7 +11,7 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import CrashedRun, ParameterTypeError
 from prefect.new_flow_engine import (
     FlowRunEngine,
     load_flow_and_flow_run,
@@ -792,3 +793,69 @@ class TestFlowRetries:
         assert (
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
+
+
+class TestFlowCrashDetection:
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_flow(
+        self, prefect_client, interrupt_type
+    ):
+        @flow
+        async def my_flow():
+            raise interrupt_type()
+
+        with pytest.raises(interrupt_type):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_flow_sync(
+        self, prefect_client, interrupt_type
+    ):
+        @flow
+        def my_flow():
+            raise interrupt_type()
+
+        with pytest.raises(interrupt_type):
+            my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_orchestration_crashes_flow(
+        self, prefect_client, interrupt_type, monkeypatch
+    ):
+        monkeypatch.setattr(
+            FlowRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+        )
+
+        @flow
+        async def my_flow():
+            pass
+
+        with pytest.raises(interrupt_type):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
