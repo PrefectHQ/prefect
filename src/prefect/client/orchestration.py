@@ -2226,6 +2226,9 @@ class PrefectClient:
             state=state.to_state_create(),
             task_inputs=task_inputs or {},
         )
+        json = task_run_data.dict(json_compatible=True)
+        if json.get("id") is not None:
+            del json["id"]
 
         response = await self._client.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
@@ -3873,7 +3876,7 @@ class SyncPrefectClient:
         )
 
         json = task_run_data.dict(json_compatible=True)
-        if json.get("id") is None:
+        if json.get("id") is not None:
             del json["id"]
 
         response = self._client.post(
