@@ -17,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-from uuid import uuid4
 
 import pendulum
 from typing_extensions import ParamSpec
@@ -25,7 +24,6 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
@@ -33,7 +31,6 @@ from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
-    Pending,
     Retrying,
     Running,
     StateDetails,
@@ -44,10 +41,7 @@ from prefect.states import (
 from prefect.utilities.asyncutils import A, Async, run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
-    _dynamic_key_for_task_run,
     _get_hook_name,
-    _resolve_custom_task_run_name,
-    collect_task_run_inputs,
     propose_state_sync,
 )
 from prefect.utilities.timeout import timeout, timeout_async
@@ -255,60 +249,6 @@ class TaskRunEngine(Generic[P, R]):
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
 
-    def create_task_run(self, client: SyncPrefectClient) -> TaskRun:
-        flow_run_ctx = FlowRunContext.get()
-        parameters = self.parameters or {}
-        try:
-            task_run_name = _resolve_custom_task_run_name(self.task, parameters)
-        except TypeError:
-            task_run_name = None
-
-        # prep input tracking
-        task_inputs = {
-            k: run_sync(collect_task_run_inputs(v)) for k, v in parameters.items()
-        }
-
-        # check if this task has a parent task run based on running in another
-        # task run's existing context. A task run is only considered a parent if
-        # it is in the same flow run (because otherwise presumably the child is
-        # in a subflow, so the subflow serves as the parent) or if there is no
-        # flow run
-        task_run_ctx = TaskRunContext.get()
-        if task_run_ctx:
-            # there is no flow run
-            if not flow_run_ctx:
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=task_run_ctx.task_run.id)
-                ]
-            # there is a flow run and the task run is in the same flow run
-            elif (
-                flow_run_ctx
-                and task_run_ctx.task_run.flow_run_id == flow_run_ctx.flow_run.id
-            ):
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=task_run_ctx.task_run.id)
-                ]
-
-        if flow_run_ctx:
-            dynamic_key = _dynamic_key_for_task_run(
-                context=flow_run_ctx, task=self.task
-            )
-        else:
-            dynamic_key = uuid4().hex
-        task_run = client.create_task_run(
-            task=self.task,  # type: ignore
-            name=task_run_name,
-            flow_run_id=(
-                getattr(flow_run_ctx.flow_run, "id", None)
-                if flow_run_ctx and flow_run_ctx.flow_run
-                else None
-            ),
-            dynamic_key=str(dynamic_key),
-            state=Pending(),
-            task_inputs=task_inputs,  # type: ignore
-        )
-        return task_run
-
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
         if client is None:
@@ -344,8 +284,15 @@ class TaskRunEngine(Generic[P, R]):
             self._is_started = True
             try:
                 if not self.task_run:
-                    self.task_run = self.create_task_run(client)
-                    self.logger.debug(f'Created task run "{self.task_run.id}"')
+                    self.task_run = run_sync(
+                        self.task.create_run(
+                            client=client,
+                            parameters=self.parameters,
+                            flow_run_context=FlowRunContext.get(),
+                            parent_task_run_context=TaskRunContext.get(),
+                        )
+                    )
+
                 yield self
             except Exception:
                 # regular exceptions are caught and re-raised to the user
