@@ -855,7 +855,7 @@ class TestTimeout:
         async def async_task():
             await asyncio.sleep(2)
 
-        with pytest.raises(TimeoutError):
+        with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             await run_task_async(async_task)
 
     async def test_timeout_sync_task(self):
@@ -863,5 +863,5 @@ class TestTimeout:
         def sync_task():
             time.sleep(2)
 
-        with pytest.raises(TimeoutError):
+        with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             run_task_sync(sync_task)

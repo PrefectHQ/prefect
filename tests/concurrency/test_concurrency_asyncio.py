@@ -1,4 +1,7 @@
+import asyncio
 from unittest import mock
+
+import pytest
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
@@ -167,6 +170,25 @@ async def test_concurrency_emits_events(
             "prefect.resource.id": f"prefect.concurrency-limit.{concurrency_limit.id}",
             "prefect.resource.role": "concurrency-limit",
         }
+
+
+@pytest.fixture
+def mock_acquire_concurrency_slots(monkeypatch):
+    async def blocks_forever(*args, **kwargs):
+        while True:
+            await asyncio.sleep(1)
+
+    monkeypatch.setattr(
+        "prefect.concurrency.asyncio._acquire_concurrency_slots",
+        blocks_forever,
+    )
+
+
+@pytest.mark.usefixtures("concurrency_limit", "mock_acquire_concurrency_slots")
+async def test_concurrency_respects_timeout():
+    with pytest.raises(TimeoutError, match=".*timed out after 0.01 second(s)*"):
+        async with concurrency("test", occupy=1, timeout_seconds=0.01):
+            print("should not be executed")
 
 
 async def test_rate_limit_orchestrates_api(

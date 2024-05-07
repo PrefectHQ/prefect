@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import List, Literal, Union, cast
+from typing import List, Literal, Optional, Union, cast
 
 import httpx
 import pendulum
@@ -13,6 +13,7 @@ except ImportError:
 
 from prefect import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+from prefect.utilities.timeout import timeout_async
 
 from .events import (
     _emit_concurrency_acquisition_events,
@@ -26,10 +27,39 @@ class ConcurrencySlotAcquisitionError(Exception):
 
 
 @asynccontextmanager
-async def concurrency(names: Union[str, List[str]], occupy: int = 1):
-    names = names if isinstance(names, list) else [names]
+async def concurrency(
+    names: Union[str, List[str]],
+    occupy: int = 1,
+    timeout_seconds: Optional[float] = None,
+):
+    """A context manager that acquires and releases concurrency slots from the
+    given concurrency limits.
 
-    limits = await _acquire_concurrency_slots(names, occupy)
+    Args:
+        names: The names of the concurrency limits to acquire slots from.
+        occupy: The number of slots to acquire and hold from each limit.
+        timeout_seconds: The number of seconds to wait for the slots to be acquired before
+            raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+
+    Raises:
+        TimeoutError: If the slots are not acquired within the given timeout.
+
+    Example:
+    A simple example of using the async `concurrency` context manager:
+    ```python
+    from prefect.concurrency.asyncio import concurrency
+
+    async def resource_heavy():
+        async with concurrency("test", occupy=1):
+            print("Resource heavy task")
+
+    async def main():
+        await resource_heavy()
+    ```
+    """
+    names = names if isinstance(names, list) else [names]
+    with timeout_async(seconds=timeout_seconds):
+        limits = await _acquire_concurrency_slots(names, occupy)
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
 
