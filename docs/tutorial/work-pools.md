@@ -123,7 +123,7 @@ def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
 
 if __name__ == "__main__":
     get_repo_info.from_source(
-        source="https://github.com/discdiver/demos.git", 
+        source="https://github.com/prefecthq/demos.git", 
         entrypoint="repo_info.py:get_repo_info"
     ).deploy(
         name="my-first-deployment", 
@@ -328,7 +328,7 @@ Running this script will build a Docker image with the tag `<region>-docker.pkg.
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
 Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
 
-Also note that the `cron` argument will schedule the deployment to run at 1am every day. 
+Also note that the `cron` argument will schedule the deployment to run at 1am every day.
 See the [schedules](/concepts/schedules/) docs for more information on scheduling options.
 
 See the [Push Work Pool guide](/guides/deployment/push-work-pools/) for more details and example commands for each cloud provider.

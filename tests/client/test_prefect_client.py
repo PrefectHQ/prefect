@@ -1348,7 +1348,9 @@ async def test_read_filtered_logs(session, prefect_client, deployment):
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1364,7 +1366,9 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1379,7 +1383,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
 async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
     mock = Mock()
-    monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+    monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxAsyncClient", mock)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
@@ -1399,7 +1403,9 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
         }
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1420,7 +1426,9 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -1441,7 +1449,9 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+        )
         get_client()
 
     mock.assert_called_once_with(
@@ -2406,13 +2416,60 @@ class TestPrefectClientDeploymentSchedules:
         )
         assert result[0].active is True
 
-    async def test_update_deployment_schedule_success(self, deployment, prefect_client):
+    async def test_update_deployment_schedule_only_active(
+        self, deployment, prefect_client
+    ):
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert result[0].active is True
+
         await prefect_client.update_deployment_schedule(
             deployment.id, deployment.schedules[0].id, active=False
         )
 
         result = await prefect_client.read_deployment_schedules(deployment.id)
         assert len(result) == 1
+        assert result[0].active is False
+
+    async def test_update_deployment_schedule_only_schedule(
+        self, deployment, prefect_client
+    ):
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert result[0].schedule == IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            schedule=IntervalSchedule(interval=timedelta(minutes=15)),
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].schedule.interval == timedelta(minutes=15)
+
+    async def test_update_deployment_schedule_all_fields(
+        self, deployment, prefect_client
+    ):
+        """
+        A regression test for #13243
+        """
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert result[0].schedule == IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+        assert result[0].active is True
+
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            schedule=IntervalSchedule(interval=timedelta(minutes=15)),
+            active=False,
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].schedule.interval == timedelta(minutes=15)
         assert result[0].active is False
 
     async def test_delete_deployment_schedule_success(self, deployment, prefect_client):

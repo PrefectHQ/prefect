@@ -112,6 +112,10 @@ def validate_values_conform_to_schema(
     """
     Validate that the provided values conform to the provided json schema.
 
+    TODO: This schema validation is outdated. The latest version is
+    prefect.utilities.schema_tools.validate, which handles fixes to Pydantic v1
+    schemas for null values and tuples.
+
     Args:
         values: The values to validate.
         schema: The schema to validate against.
@@ -320,6 +324,12 @@ def set_deployment_schedules(values: dict) -> dict:
         ]
 
     return values
+
+
+def validate_schedule_max_scheduled_runs(v: Optional[int], limit: int) -> Optional[int]:
+    if v is not None and v > limit:
+        raise ValueError(f"`max_scheduled_runs` must be less than or equal to {limit}.")
+    return v
 
 
 def remove_old_deployment_fields(values: dict) -> dict:
