@@ -10,7 +10,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import CrashedRun, ParameterTypeError
 from prefect.new_flow_engine import (
     FlowRunEngine,
@@ -203,28 +203,33 @@ class TestFlowRunsAsync:
 
         assert run.state_type == StateType.FAILED
 
-    @pytest.mark.skip(reason="Haven't wired up subflows yet")
-    async def test_flow_tracks_nested_parent_as_dependency(self, sync_prefect_client):
-        @flow
-        async def inner():
-            return FlowRunContext.get().flow_run.id
+    def test_subflow_inside_task_tracks_all_parents(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        tracker = {}
 
         @flow
-        async def outer():
-            id1 = await inner()
-            return (id1, FlowRunContext.get().flow_run.id)
+        def flow_3():
+            tracker["flow_3"] = FlowRunContext.get().flow_run.id
 
-        a, b = await run_flow(outer)
-        assert a != b
+        @task
+        def task_2():
+            tracker["task_2"] = TaskRunContext.get().task_run.id
+            flow_3()
 
-        # assertions on outer
-        outer_run = sync_prefect_client.read_flow_run(b)
-        assert outer_run.flow_inputs == {}
+        @flow
+        def flow_1():
+            task_2()
 
-        # assertions on inner
-        inner_run = sync_prefect_client.read_flow_run(a)
-        assert "wait_for" in inner_run.flow_inputs
-        assert inner_run.flow_inputs["wait_for"][0].id == b
+        flow_1()
+
+        # retrieve the flow 3 subflow run
+        l3 = sync_prefect_client.read_flow_run(tracker["flow_3"])
+        # retrieve the dummy task for the flow 3 subflow run
+        l3_dummy = sync_prefect_client.read_task_run(l3.parent_task_run_id)
+
+        # assert the parent of the dummy task is task 2
+        assert l3_dummy.task_inputs["__parents__"][0].id == tracker["task_2"]
 
 
 class TestFlowRunsSync:

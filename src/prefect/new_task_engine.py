@@ -290,14 +290,26 @@ class TaskRunEngine(Generic[P, R]):
             k: run_sync(collect_task_run_inputs(v)) for k, v in parameters.items()
         }
 
-        # anticipate nested runs
+        # check if this task has a parent task run based on running in another
+        # task run's existing context. A task run is only considered a parent if
+        # it is in the same flow run (because otherwise presumably the child is
+        # in a subflow, so the subflow serves as the parent) or if there is no
+        # flow run
         task_run_ctx = TaskRunContext.get()
         if task_run_ctx:
-            task_inputs["wait_for"] = [TaskRunResult(id=task_run_ctx.task_run.id)]  # type: ignore
-
-        # TODO: implement wait_for
-        #        if wait_for:
-        #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+            # there is no flow run
+            if not flow_run_ctx:
+                task_inputs["__parents__"] = [
+                    TaskRunResult(id=task_run_ctx.task_run.id)
+                ]
+            # there is a flow run and the task run is in the same flow run
+            elif (
+                flow_run_ctx
+                and task_run_ctx.task_run.flow_run_id == flow_run_ctx.flow_run.id
+            ):
+                task_inputs["__parents__"] = [
+                    TaskRunResult(id=task_run_ctx.task_run.id)
+                ]
 
         if flow_run_ctx:
             dynamic_key = _dynamic_key_for_task_run(
