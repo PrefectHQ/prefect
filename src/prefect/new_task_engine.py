@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -23,11 +23,6 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
-from prefect._internal.concurrency.cancellation import (
-    AlarmCancelScope,
-    AsyncCancelScope,
-    CancelledError,
-)
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunResult
@@ -55,27 +50,10 @@ from prefect.utilities.engine import (
     collect_task_run_inputs,
     propose_state_sync,
 )
+from prefect.utilities.timeout import timeout, timeout_async
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-
-@asynccontextmanager
-async def timeout_async(seconds: Optional[float] = None):
-    try:
-        with AsyncCancelScope(timeout=seconds):
-            yield
-    except CancelledError:
-        raise TimeoutError(f"Task timed out after {seconds} second(s).")
-
-
-@contextmanager
-def timeout(seconds: Optional[float] = None):
-    try:
-        with AlarmCancelScope(timeout=seconds):
-            yield
-    except CancelledError:
-        raise TimeoutError(f"Task timed out after {seconds} second(s).")
 
 
 @dataclass
@@ -457,7 +435,7 @@ async def run_task_async(
             with run.enter_run_context():
                 try:
                     # This is where the task is actually run.
-                    async with timeout_async(seconds=run.task.timeout_seconds):
+                    with timeout_async(seconds=run.task.timeout_seconds):
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
                         )
