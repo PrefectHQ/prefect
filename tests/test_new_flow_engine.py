@@ -204,7 +204,7 @@ class TestFlowRunsAsync:
         assert run.state_type == StateType.FAILED
 
     def test_subflow_inside_task_tracks_all_parents(
-        self, prefect_client: SyncPrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         tracker = {}
 
@@ -224,9 +224,9 @@ class TestFlowRunsAsync:
         flow_1()
 
         # retrieve the flow 3 subflow run
-        l3 = prefect_client.read_flow_run(tracker["flow_3"])
+        l3 = sync_prefect_client.read_flow_run(tracker["flow_3"])
         # retrieve the dummy task for the flow 3 subflow run
-        l3_dummy = prefect_client.read_task_run(l3.parent_task_run_id)
+        l3_dummy = sync_prefect_client.read_task_run(l3.parent_task_run_id)
 
         # assert the parent of the dummy task is task 2
         assert l3_dummy.task_inputs["__parents__"][0].id == tracker["task_2"]

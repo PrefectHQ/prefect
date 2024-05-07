@@ -247,11 +247,12 @@ class TestTaskRunsAsync:
         assert "__parents__" not in run.task_inputs
 
     async def test_tasks_in_subflow_do_not_track_subflow_dummy_task_as_parent(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         """
         Ensures that tasks in a subflow do not track the subflow's dummy task as
         a parent.
+
 
         Setup:
             Flow (level_1)
@@ -279,11 +280,11 @@ class TestTaskRunsAsync:
 
         level_3_id = level_1()
 
-        tr = await prefect_client.read_task_run(level_3_id)
+        tr = sync_prefect_client.read_task_run(level_3_id)
         assert "__parents__" not in tr.task_inputs
 
     async def test_tasks_in_subflow_do_not_track_subflow_dummy_task_parent_as_parent(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         """
         Ensures that tasks in a subflow do not track the subflow's dummy task as
@@ -316,7 +317,8 @@ class TestTaskRunsAsync:
 
         level_4_id = level_1()
 
-        tr = await prefect_client.read_task_run(level_4_id)
+        tr = sync_prefect_client.read_task_run(level_4_id)
+
         assert "__parents__" not in tr.task_inputs
 
     async def test_task_runs_respect_result_persistence(self, prefect_client):
