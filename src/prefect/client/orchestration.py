@@ -2211,7 +2211,6 @@ class PrefectClient:
             state = prefect.states.Pending()
 
         task_run_data = TaskRunCreate(
-            id=id,
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
@@ -2226,6 +2225,8 @@ class PrefectClient:
             state=state.to_state_create(),
             task_inputs=task_inputs or {},
         )
+        if id is not None:
+            task_run_data.id = id
 
         response = await self._client.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
@@ -3856,7 +3857,6 @@ class SyncPrefectClient:
             state = prefect.states.Pending()
 
         task_run_data = TaskRunCreate(
-            id=id,
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
@@ -3871,6 +3871,8 @@ class SyncPrefectClient:
             state=state.to_state_create(),
             task_inputs=task_inputs or {},
         )
+        if id is not None:
+            task_run_data.id = id
 
         response = self._client.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
