@@ -72,7 +72,7 @@ Example:
 """
 
 from contextlib import AsyncExitStack
-from typing import Awaitable, Callable, Dict, Optional
+from typing import Dict, Optional
 from uuid import UUID
 
 import anyio
@@ -81,7 +81,7 @@ from ray.exceptions import RayTaskError
 
 from prefect.futures import PrefectFuture
 from prefect.states import State, exception_to_crashed_state
-from prefect.task_runners import BaseTaskRunner, R, TaskConcurrencyType
+from prefect.task_runners import BaseTaskRunner, CallableGeneric, R, TaskConcurrencyType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import visit_collection
 from prefect_ray.context import RemoteOptionsContext
@@ -153,7 +153,7 @@ class RayTaskRunner(BaseTaskRunner):
     async def submit(
         self,
         key: UUID,
-        call: Callable[..., Awaitable[State[R]]],
+        call: CallableGeneric[R],
     ) -> None:
         if not self._started:
             raise RuntimeError(

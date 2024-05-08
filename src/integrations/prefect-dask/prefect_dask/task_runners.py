@@ -73,7 +73,7 @@ Example:
 
 import inspect
 from contextlib import AsyncExitStack
-from typing import Awaitable, Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union
 from uuid import UUID
 
 import distributed
@@ -82,7 +82,7 @@ from prefect.client.schemas.objects import State
 from prefect.context import FlowRunContext
 from prefect.futures import PrefectFuture
 from prefect.states import exception_to_crashed_state
-from prefect.task_runners import BaseTaskRunner, R, TaskConcurrencyType
+from prefect.task_runners import BaseTaskRunner, CallableGeneric, R, TaskConcurrencyType
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
@@ -254,7 +254,7 @@ class DaskTaskRunner(BaseTaskRunner):
     async def submit(
         self,
         key: UUID,
-        call: Callable[..., Awaitable[State[R]]],
+        call: CallableGeneric[R],
     ) -> None:
         if not self._started:
             raise RuntimeError(

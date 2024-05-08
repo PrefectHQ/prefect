@@ -51,6 +51,7 @@ Example:
 
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
+
 import abc
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
@@ -60,6 +61,7 @@ from typing import (
     Awaitable,
     Callable,
     Dict,
+    Generic,
     Optional,
     Set,
     TypeVar,
@@ -80,6 +82,13 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
+StateR = TypeVar("StateR", bound=State[R])
+
+
+class CallableGeneric(Generic[R]):
+    # create this class to be compatible with python 3.8
+    def __call__(self, *args, **kwargs) -> Awaitable[StateR]:
+        pass
 
 
 class TaskConcurrencyType(AutoEnum):
