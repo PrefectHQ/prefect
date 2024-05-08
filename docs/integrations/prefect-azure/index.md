@@ -20,6 +20,24 @@ pip install -U prefect-azure
 
 If necessary, see [additional installation options for Blob Storage, Cosmos DB, and ML Datastore](#additional-installation-options).
 
+To install with all additional functionality, use the following command:
+
+<div class = "terminal">
+```bash
+pip install -U "prefect-azure[all_extras]"
+```
+</div>
+
+### Register newly installed block types
+
+Register the block types in the module to make them available for use.
+
+<div class = "terminal">
+```bash
+prefect block register -m prefect_azure
+```
+</div>
+
 ## Examples
 
 ### Download a blob

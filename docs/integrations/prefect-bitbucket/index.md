@@ -1,28 +1,38 @@
 # prefect-bitbucket
 
-Prefect integrations for working with Bitbucket repositories.
+Prefect-bitbucket is a Prefect integration that allows you to interact with Bitbucket repositories and credentials. TK worker need installed for?
 
 ## Getting Started
 
-### Installation
+### Prerequisites
 
-Install `prefect-bitbucket` with `pip`:
+- [Prefect installed](/getting-started/installation/).
+- A [Bitbucket account](https://bitbucket.org/product).
 
+### Install prefect-bitbucket
+
+<div class = "terminal">
 ```bash
 pip install prefect-bitbucket
 ```
+</div>
 
-Then, register to [view the block](https://docs.prefect.io/ui/blocks/) on Prefect Cloud:
+### Register newly installed block types
 
+Register the block types in the prefect-aws module to make them available for use.
+
+<div class = "terminal">
 ```bash
 prefect block register -m prefect_bitbucket
 ```
+</div>
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or [saved through the UI](https://docs.prefect.io/ui/blocks/).
+## Examples
 
-### Write and run a flow
+In the examples below, you create blocks with Python code.
+Alternatively, each block can be created through the Prefect UI.
 
-#### Load a pre-existing BitBucketCredentials block
+### Load a pre-existing BitBucketCredentials block
 
 ```python
 from prefect import flow
@@ -37,7 +47,7 @@ def use_stored_bitbucket_creds_flow():
 use_stored_bitbucket_creds_flow()
 ```
 
-#### Create a new BitBucketCredentials block in a flow
+### Create a new BitBucketCredentials block
 
 ```python
 from prefect import flow

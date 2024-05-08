@@ -28,7 +28,7 @@ pip install -U "prefect-gcp[all_extras]"
 ```
 </div>
 
-### Register newly installed blocks types
+### Register newly installed block types
 
 Register the block types in the module to make them available for use.
 
