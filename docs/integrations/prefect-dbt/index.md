@@ -22,6 +22,14 @@ pip install -U prefect-dbt
 
 If necessary, see [additional installation options for dbt Core with BigQuery, Snowflake, and Postgres](#additional-installation-options).
 
+To install with all additional functionality, use the following command:
+
+<div class = "terminal">
+```bash
+pip install -U "prefect-dbt[all_extras]"
+```
+</div>
+
 ### Register newly installed blocks types
 
 Register the block types in the prefect-dbt module to make them available for use.
@@ -241,7 +249,7 @@ Refer to the prefect-dbt API documentation linked in the sidebar to explore all 
 
 Additional installation options for dbt Core with BigQuery, Snowflake, and Postgres are shown below.
 
-To install with additional functionality for dbt Core and Snowflake profiles:
+#### Additional functionality for dbt Core and Snowflake profiles
 
 <div class = "terminal">
 ```bash
@@ -249,7 +257,7 @@ pip install -U "prefect-dbt[snowflake]"
 ```
 </div>
 
-To install with additional functionality for dbt Core and BigQuery profiles:
+#### Additional functionality for dbt Core and BigQuery profiles
 
 <div class = "terminal">
 ```bash
@@ -257,7 +265,7 @@ pip install -U "prefect-dbt[bigquery]"
 ```
 </div>
 
-To install with additional functionality for dbt Core and Postgres profiles:
+#### Additional functionality for dbt Core and Postgres profiles
 
 <div class = "terminal">
 ```bash
