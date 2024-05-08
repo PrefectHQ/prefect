@@ -12,18 +12,19 @@ search:
 ---
 # Deploying Flows
 
+Learn how to use deployments to configure flows for scheduled and remote execution.
+
 !!! note "Reminder to connect to Prefect Cloud or a self-hosted Prefect server instance"
-    Some features in this tutorial, such as scheduling, require you to be connected to a Prefect server.
+    Some features in this tutorial, such as scheduling, require you to connect to a Prefect server.
     If using a self-hosted setup, run `prefect server start` to run both the webserver and UI.
     If using Prefect Cloud, make sure you have [successfully authenticated your local environment](/cloud/cloud-quickstart/).
 
-## Why deployments?
+## About deployments
 
-Some of the most common reasons to use an orchestration tool such as Prefect are for [scheduling](/concepts/schedules/) and [event-based triggering](/concepts/automations/).
-Up to this point, we’ve demonstrated running Prefect flows as scripts, but this means *you* have been the one triggering and managing flow runs.
-You can certainly continue to trigger your workflows in this way and use Prefect as a monitoring layer for other schedulers or systems, but you will miss out on many of the other benefits and features that Prefect offers.
+Some of the most common reasons to use an orchestration tool like Prefect are for [scheduling](/concepts/schedules/) and [event-based triggering](/concepts/automations/).
+Up to this point, you've observed running Prefect flows as scripts, but this means *you* have been the one manually triggering and managing flow runs.
 
-Deploying a flow exposes an API and UI so that you can:
+Deploying a flow exposes an API and UI to:
 
 - trigger new runs, [cancel active runs](/concepts/flows/#cancel-a-flow-run), pause scheduled runs, customize parameters, and more
 - remotely configure schedules and automation rules for your deployments
