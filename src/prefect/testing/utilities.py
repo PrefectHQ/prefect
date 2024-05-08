@@ -37,6 +37,7 @@ def exceptions_equal(a, b):
 from unittest.mock import AsyncMock  # noqa
 
 # MagicMock supports async magic methods in Python 3.8+
+from unittest.mock import MagicMock  # noqa
 
 
 def kubernetes_environments_equal(
