@@ -836,14 +836,18 @@ class BaseWorker(abc.ABC):
         was created from a deployment with a storage block.
         """
         if flow_run.deployment_id:
+            assert (
+                self._client and self._client._started
+            ), "Client must be started to check flow run deployment."
             deployment = await self._client.read_deployment(flow_run.deployment_id)
             if deployment.storage_document_id:
                 raise ValueError(
                     f"Flow run {flow_run.id!r} was created from deployment"
                     f" {deployment.name!r} which is configured with a storage block."
-                    " Please use an"
-                    " agent to execute this flow run."
+                    " Please use an agent to execute this flow run."
                 )
+
+            #
 
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
@@ -894,7 +898,7 @@ class BaseWorker(abc.ABC):
         self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
-        self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
+        self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
     ) -> Union[BaseWorkerResult, Exception]:
         run_logger = self.get_flow_run_logger(flow_run)
 
