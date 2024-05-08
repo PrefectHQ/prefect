@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import docker
 import docker.errors
@@ -10,7 +10,12 @@ import docker.models.containers
 import docker.models.images
 import pendulum
 import pytest
-from prefect_docker.deployments.steps import build_docker_image, push_docker_image
+from prefect_docker.deployments.steps import (
+    build_docker_image,
+    cached_build_docker_image,
+    cached_push_docker_image,
+    push_docker_image,
+)
 
 import prefect
 import prefect.utilities.dockerutils
@@ -363,4 +368,75 @@ def test_push_docker_image_raises_on_event_error(mock_docker_client):
     with pytest.raises(OSError, match="Error"):
         push_docker_image(
             image_name=FAKE_IMAGE_NAME, tag=FAKE_TAG, credentials=FAKE_CREDENTIALS
+        )
+
+
+def test_cached_build_docker_image(mock_docker_client):
+    image_name = "registry/repo"
+    dockerfile = "Dockerfile"
+    tag = "mytag"
+    additional_tags = ["tag1", "tag2"]
+    expected_result = {
+        "image": f"{image_name}:{tag}",
+        "tag": tag,
+        "image_name": image_name,
+        "image_id": FAKE_CONTAINER_ID,
+        "additional_tags": additional_tags,
+    }
+
+    with patch(
+        "prefect_docker.deployments.steps.build_docker_image"
+    ) as mock_build_docker_image:
+        mock_build_docker_image.return_value = expected_result
+
+        # Call the cached function multiple times with the same arguments
+        for _ in range(3):
+            result = cached_build_docker_image(
+                image_name=image_name,
+                dockerfile=dockerfile,
+                tag=tag,
+                additional_tags=additional_tags,
+            )
+            assert result == expected_result
+
+        mock_build_docker_image.assert_called_once_with(
+            image_name=image_name,
+            dockerfile=dockerfile,
+            tag=tag,
+            additional_tags=additional_tags,
+        )
+
+
+def test_cached_push_docker_image(mock_docker_client):
+    image_name = FAKE_IMAGE_NAME
+    tag = FAKE_TAG
+    credentials = FAKE_CREDENTIALS
+    additional_tags = FAKE_ADDITIONAL_TAGS
+    expected_result = {
+        "image_name": image_name,
+        "tag": tag,
+        "image": f"{image_name}:{tag}",
+        "additional_tags": additional_tags,
+    }
+
+    with patch(
+        "prefect_docker.deployments.steps.push_docker_image"
+    ) as mock_push_docker_image:
+        mock_push_docker_image.return_value = expected_result
+
+        # Call the cached function multiple times with the same arguments
+        for _ in range(3):
+            result = cached_push_docker_image(
+                image_name=image_name,
+                tag=tag,
+                credentials=credentials,
+                additional_tags=additional_tags,
+            )
+            assert result == expected_result
+
+        mock_push_docker_image.assert_called_once_with(
+            image_name=image_name,
+            tag=tag,
+            credentials=credentials,
+            additional_tags=additional_tags,
         )

@@ -24,8 +24,10 @@ the build step for a specific deployment.
     ```
 """
 
+import json
 import os
 import sys
+from functools import wraps
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -34,6 +36,7 @@ import pendulum
 from docker.models.images import Image
 from typing_extensions import TypedDict
 
+from prefect.logging.loggers import get_logger
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     BuildError,
@@ -41,6 +44,8 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
 )
 from prefect.utilities.slugify import slugify
+
+logger = get_logger("prefect_docker.deployments.steps")
 
 
 class BuildDockerImageResult(TypedDict):
@@ -59,7 +64,7 @@ class BuildDockerImageResult(TypedDict):
     tag: str
     image: str
     image_id: str
-    additional_tags: Optional[str]
+    additional_tags: Optional[List[str]]
 
 
 class PushDockerImageResult(TypedDict):
@@ -74,9 +79,9 @@ class PushDockerImageResult(TypedDict):
     """
 
     image_name: str
-    tag: str
+    tag: Optional[str]
     image: str
-    additional_tags: Optional[str]
+    additional_tags: Optional[List[str]]
 
 
 def build_docker_image(
@@ -328,3 +333,63 @@ def push_docker_image(
         "image": f"{image_name}:{tag}",
         "additional_tags": additional_tags,
     }
+
+
+def _make_hashable(obj):
+    if isinstance(obj, dict):
+        return json.dumps(obj, sort_keys=True)
+    elif isinstance(obj, list):
+        return tuple(_make_hashable(v) for v in obj)
+    return obj
+
+
+def cacheable(func):
+    cache = {}
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        key = (
+            tuple(_make_hashable(arg) for arg in args),
+            tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items())),
+        )
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+
+    return wrapper
+
+
+@cacheable
+def cached_build_docker_image(
+    image_name: str,
+    dockerfile: str,
+    tag: Optional[str] = None,
+    additional_tags: Optional[List[str]] = None,
+    **build_kwargs,
+) -> BuildDockerImageResult:
+    """Cached version of `prefect_docker.deployments.steps.build_docker_image`."""
+    return build_docker_image(
+        image_name=image_name,
+        dockerfile=dockerfile,
+        tag=tag,
+        additional_tags=additional_tags,
+        **build_kwargs,
+    )
+
+
+@cacheable
+def cached_push_docker_image(
+    image_name: str,
+    tag: str,
+    credentials: Optional[Dict] = None,
+    additional_tags: Optional[List[str]] = None,
+    **push_kwargs,
+) -> PushDockerImageResult:
+    """Cached version of `prefect_docker.deployments.steps.push_docker_image`."""
+    return push_docker_image(
+        image_name=image_name,
+        tag=tag,
+        credentials=credentials,
+        additional_tags=additional_tags,
+        **push_kwargs,
+    )
