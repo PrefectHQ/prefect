@@ -14,7 +14,6 @@ For more information about work pools and workers,
 checkout out the [Prefect docs](/concepts/work-pools/).
 """
 
-import asyncio
 import contextlib
 import os
 import signal
@@ -27,7 +26,6 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 import anyio
 import anyio.abc
-import sniffio
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
@@ -54,20 +52,6 @@ if TYPE_CHECKING:
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
     STATUS_CONTROL_C_EXIT = 0xC000013A
-
-
-def _use_threaded_child_watcher():
-    if (
-        sys.version_info < (3, 8)
-        and sniffio.current_async_library() == "asyncio"
-        and sys.platform != "win32"
-    ):
-        from prefect.utilities.compat import ThreadedChildWatcher
-
-        # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-        # lead to errors in tests on unix as the previous default `SafeChildWatcher`
-        # is not compatible with threaded event loops.
-        asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
 
 
 def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
@@ -168,7 +152,6 @@ class ProcessWorker(BaseWorker):
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        _use_threaded_child_watcher()
         flow_run_logger.info("Opening process...")
 
         working_dir_ctx = (
