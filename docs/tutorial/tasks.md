@@ -10,12 +10,12 @@ tags:
     - subflows
 ---
 
-## What is a task?
+## About tasks
 
 A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator.
-You can think of a flow as a recipe for connecting a known sequence of tasks together.
-Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand and control at a more granular level.  
-When a function becomes a task, it can be executed concurrently and its return value can be cached.
+A flow is like a recipe for connecting a known sequence of tasks together.
+Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand, and control at a more granular level.  
+When a function becomes a task, it can execute concurrently and you can cache its return value.
 
 Flows and tasks share some common features:
 
