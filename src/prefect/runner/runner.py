@@ -78,7 +78,6 @@ from prefect.deployments.runner import (
     RunnerDeployment,
 )
 from prefect.deployments.schedules import FlexibleScheduleList
-from prefect.engine import propose_state
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     Abort,
@@ -100,6 +99,7 @@ from prefect.utilities.asyncutils import (
     is_async_fn,
     sync_compatible,
 )
+from prefect.utilities.engine import propose_state
 from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
 

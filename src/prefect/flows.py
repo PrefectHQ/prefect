@@ -38,7 +38,6 @@ from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.runner.runner import Runner
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -1707,7 +1706,7 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
 
 @sync_compatible
 async def serve(
-    *args: RunnerDeployment,
+    *args: "RunnerDeployment",
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
@@ -1755,7 +1754,10 @@ async def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
-    from rich.table import Group, Table
+    from rich.console import Console, Group
+    from rich.table import Table
+
+    from prefect.runner import Runner
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
