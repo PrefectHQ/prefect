@@ -51,7 +51,6 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
-import sniffio
 from rich.console import Console, Group
 from rich.table import Table
 
@@ -550,7 +549,6 @@ class Runner:
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        _use_threaded_child_watcher()
         flow_run_logger.info("Opening process...")
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
@@ -1188,20 +1186,6 @@ class Runner:
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
     STATUS_CONTROL_C_EXIT = 0xC000013A
-
-
-def _use_threaded_child_watcher():
-    if (
-        sys.version_info < (3, 8)
-        and sniffio.current_async_library() == "asyncio"
-        and sys.platform != "win32"
-    ):
-        from prefect.utilities.compat import ThreadedChildWatcher
-
-        # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-        # lead to errors in tests on unix as the previous default `SafeChildWatcher`
-        # is not compatible with threaded event loops.
-        asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
 
 
 @sync_compatible

@@ -86,52 +86,30 @@ def interactive_console(monkeypatch):
 @pytest.fixture
 def project_dir(tmp_path):
     with tmpchdir(tmp_path):
-        if sys.version_info >= (3, 8):
-            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-            prefect_home = tmp_path / ".prefect"
-            prefect_home.mkdir(exist_ok=True, mode=0o0700)
-            initialize_project()
-            yield tmp_path
-        else:
-            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-            prefect_home = tmp_path / "three-seven" / ".prefect"
-            prefect_home.mkdir(exist_ok=True, mode=0o0700)
-            initialize_project()
-            yield tmp_path / "three-seven"
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+        prefect_home = tmp_path / ".prefect"
+        prefect_home.mkdir(exist_ok=True, mode=0o0700)
+        initialize_project()
+        yield tmp_path
 
 
 @pytest.fixture
 def project_dir_with_single_deployment_format(tmp_path):
     with tmpchdir(tmp_path):
-        if sys.version_info >= (3, 8):
-            shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-            prefect_home = tmp_path / ".prefect"
-            prefect_home.mkdir(exist_ok=True, mode=0o0700)
-            initialize_project()
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+        prefect_home = tmp_path / ".prefect"
+        prefect_home.mkdir(exist_ok=True, mode=0o0700)
+        initialize_project()
 
-            with open("prefect.yaml", "r") as f:
-                contents = yaml.safe_load(f)
+        with open("prefect.yaml", "r") as f:
+            contents = yaml.safe_load(f)
 
-            contents["deployments"][0]["schedule"] = None
+        contents["deployments"][0]["schedule"] = None
 
-            with open("deployment.yaml", "w") as f:
-                yaml.safe_dump(contents["deployments"][0], f)
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(contents["deployments"][0], f)
 
-            yield tmp_path
-        else:
-            shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
-            (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True, mode=0o0700)
-            initialize_project()
-
-            with open("prefect.yaml", "r") as f:
-                contents = yaml.safe_load(f)
-
-            contents["deployments"][0]["schedule"] = None
-
-            with open("deployment.yaml", "w") as f:
-                yaml.safe_dump(contents["deployments"][0], f)
-
-            yield tmp_path / "three-seven"
+        yield tmp_path
 
 
 @pytest.fixture

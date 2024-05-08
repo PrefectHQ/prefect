@@ -233,10 +233,7 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup):
             labels=["prefect-docker-test"],
             remove=True,
         )
-        if sys.version_info >= (3, 8):
-            assert "2" in output.decode()
-        else:
-            assert "1" in output.decode()
+        assert "2" in output.decode()
 
     finally:
         docker_client_with_cleanup.containers.prune(

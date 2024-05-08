@@ -99,10 +99,7 @@ class PrefectFormatter(logging.Formatter):
             style_kwargs["defaults"] = defaults
 
         # validate added in 3.8
-        if sys.version_info >= (3, 8):
-            init_kwargs["validate"] = validate
-        else:
-            validate = False
+        init_kwargs["validate"] = validate
 
         super().__init__(format, datefmt, style, **init_kwargs)
 
