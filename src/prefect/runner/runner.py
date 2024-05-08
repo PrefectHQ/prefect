@@ -87,7 +87,6 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.runner.server import start_webserver
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
@@ -375,6 +374,8 @@ class Runner:
         webserver = webserver if webserver is not None else self.webserver
 
         if webserver or PREFECT_RUNNER_SERVER_ENABLE.value():
+            from prefect.runner.server import start_webserver
+
             # we'll start the ASGI server in a separate thread so that
             # uvicorn does not block the main thread
             server_thread = threading.Thread(

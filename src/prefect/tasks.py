@@ -60,11 +60,6 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
-from prefect.utilities.visualization import (
-    VisualizationUnsupportedError,
-    get_task_viz_tracker,
-    track_viz_task,
-)
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -649,6 +644,10 @@ class Task(Generic[P, R]):
         from prefect.engine import enter_task_run_engine
         from prefect.task_engine import submit_autonomous_task_run_to_engine
         from prefect.task_runners import SequentialTaskRunner
+        from prefect.utilities.visualization import (
+            get_task_viz_tracker,
+            track_viz_task,
+        )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -895,6 +894,10 @@ class Task(Generic[P, R]):
         """
 
         from prefect.engine import create_autonomous_task_run, enter_task_run_engine
+        from prefect.utilities.visualization import (
+            VisualizationUnsupportedError,
+            get_task_viz_tracker,
+        )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -1144,6 +1147,10 @@ class Task(Generic[P, R]):
         """
 
         from prefect.engine import begin_task_map, enter_task_run_engine
+        from prefect.utilities.visualization import (
+            VisualizationUnsupportedError,
+            get_task_viz_tracker,
+        )
 
         # Convert the call args/kwargs to a parameter dict; do not apply defaults
         # since they should not be mapped over
