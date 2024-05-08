@@ -15,31 +15,20 @@ search:
 ---
 # Tutorial Overview
 
-Prefect orchestrates workflows — it simplifies the creation, scheduling, and monitoring of complex data pipelines.
-You define workflows as Python code and Prefect handles the rest.
+Learn the basics of creating and running Prefect flows and tasks.
+
+Prefect orchestrates workflows through the creation, scheduling, and monitoring of complex data pipelines.
+You can transform any Python function into a unit of work that can be observed and orchestrated. You define workflows as Python code and Prefect handles the rest.
 
 Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
-It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated.
 
-This tutorial provides a guided walk-through of Prefect's core concepts and instructions on how to use them.
-
-You will:
+This tutorial provides a guided walk-through of Prefect's core concepts, including how to:
 
 1. [Create a flow](/tutorial/flows/)
 2. [Add tasks to it](/tutorial/tasks/)
 3. [Deploy and run the flow locally](/tutorial/deployments/)
 4. [Create a work pool and run the flow on remote infrastructure](/tutorial/work-pools/)
-
-These four topics will get most users to their first production deployment.
-
-Advanced users that need more governance and control of their workflow infrastructure can go one step further by:
-
-5.[Using a worker-based deployment](/tutorial/workers/)
-
-If you're looking for examples of more advanced operations (such as [deploying on Kubernetes](/guides/deployment/kubernetes/)), check out Prefect's [guides](/guides/).
-
-Compared to the [Quickstart](/getting-started/quickstart/), this tutorial is a more in-depth guide to Prefect's functionality.
-You will also see how to customize the Docker image where your flow runs and learn how to run flows on your own infrastructure.
+5.[Using a worker-based deployment](/tutorial/workers/) (For advanced users that need more governance.)
 
 ## Prerequisites
 
@@ -65,13 +54,13 @@ prefect cloud login
 ```
 </div>
 
-Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
+Choose **Log in with a web browser** and click **Authorize**.
 
 If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/cloud/users/api-keys/) to learn how to authenticate with a manually created API key.
 
 As an alternative to using Prefect Cloud, you can self-host a [Prefect server instance](/host/).
 If you choose this option, run `prefect server start` to start a local Prefect server instance.
 
-## [First steps: Flows](/tutorial/flows/)
+## First steps: Flows
 
-Let's begin by learning how to create your first Prefect flow - [click here to get started](/tutorial/flows/).
+Learn how to create your first [Prefect flow](/tutorial/flows/).
