@@ -7,7 +7,7 @@ For example, you can retrieve secrets using AWS Secrets Manager, read and write 
 
 ### Prerequisites
 
-- [Prefect installed](/getting-started/installation/) in a virtual environment.
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 - An [AWS account](https://aws.amazon.com/account/) and the necessary permissions to access desired services.
 
 ### Install prefect-aws

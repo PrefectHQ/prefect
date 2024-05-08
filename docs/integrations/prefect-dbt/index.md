@@ -7,7 +7,7 @@ Prefect provides a global view of the state of your workflows and allows you to 
 
 ### Prerequisites
 
-- [Prefect installed](/getting-started/installation/).
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/).
 - A [dbt Cloud account](https://cloud.getdbt.com/signup) if using dbt Cloud.
 
 ### Install prefect-dbt

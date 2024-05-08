@@ -7,7 +7,7 @@ For example, you can retrieve secrets, read and write Blob Storage objects, and 
 
 ### Prerequisites
 
-- [Prefect installed](/getting-started/installation/) in a virtual environment.
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 - An [Azure account](https://azure.microsoft.com/) and the necessary permissions to access desired services.
 
 ### Install prefect-azure

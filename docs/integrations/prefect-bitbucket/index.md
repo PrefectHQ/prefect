@@ -1,26 +1,8 @@
 # prefect-bitbucket
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-bitbucket/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-bitbucket?color=0052FF&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-bitbucket/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-bitbucket?color=0052FF&labelColor=090422" /></a>
-</p>
-
-
-## Welcome!
-
 Prefect integrations for working with Bitbucket repositories.
 
 ## Getting Started
-
-### Python setup
-
-Requires an installation of Python 3.8+.
-
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
-
-These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
 
 ### Installation
 
@@ -39,6 +21,7 @@ prefect block register -m prefect_bitbucket
 Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or [saved through the UI](https://docs.prefect.io/ui/blocks/).
 
 ### Write and run a flow
+
 #### Load a pre-existing BitBucketCredentials block
 
 ```python
@@ -71,6 +54,7 @@ create_new_bitbucket_creds_flow()
 ```
 
 #### Create a BitBucketRepository block for a public repo
+
 ```python
 from prefect_bitbucket import BitBucketRepository
 
@@ -86,6 +70,7 @@ public_bitbucket_block.save("my-bitbucket-block")
 ```
 
 #### Create a BitBucketRepository block for a public repo at a specific branch or tag
+
 ```python
 from prefect_bitbucket import BitBucketRepository
 
@@ -100,7 +85,9 @@ branch_bitbucket_block = BitBucketRepository(
 # Saves the BitBucketRepository block to your Prefect workspace (in the Blocks tab)
 branch_bitbucket_block.save("my-bitbucket-branch-block")
 ```
+
 #### Create a new BitBucketCredentials block and a BitBucketRepository block for a private repo
+
 ```python
 from prefect_bitbucket import BitBucketCredentials, BitBucketRepository
 
@@ -126,6 +113,7 @@ private_bitbucket_block.save(name="my-private-bitbucket-block")
 ```
 
 #### Use a preexisting BitBucketCredentials block to create a BitBucketRepository block for a private repo
+
 ```python
 from prefect_bitbucket import BitBucketCredentials, BitBucketRepository
 

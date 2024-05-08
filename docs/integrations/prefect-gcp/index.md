@@ -1,12 +1,36 @@
 # `prefect-gcp`
 
-`prefect-gcp` makes it easy to leverage the capabilities of Google Cloud Platform (GCP) in your flows, featuring support for Vertex AI, Cloud Run, BigQuery, Cloud Storage, and Secret Manager.
+`prefect-gcp` helps you leverage the capabilities of Google Cloud Platform (GCP) in your workflows.
+For example, you can run flow on Vertex AI or Cloud Run, read and write data to BigQuery and Cloud Storage, retrieve secrets with Secret Manager.
 
 ## Getting Started
 
-### Saving credentials to a block
+### Prerequisites
 
-You will need to first install [prefect-gcp](#installation) and authenticate with a service account in order to use `prefect-gcp`.
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
+- An [GCP account](https://cloud.google.com/) and the necessary permissions to access desired services.
+
+### Install prefect-gcp
+
+<div class = "terminal">
+```bash
+pip install -U prefect-gcp
+```
+</div>
+
+### Register newly installed blocks types
+
+Register the block types in the prefect-gcp module to make them available for use.
+
+<div class = "terminal">
+```bash
+prefect block register -m prefect_gcp
+```
+</div>
+
+## Authenticate using a credentials block
+
+authenticate with a service account in order to use `prefect-gcp`.
 
  `prefect-gcp` is able to safely save and load the service account, so they can be reused across the collection! Simply follow the steps below.
 
@@ -42,153 +66,16 @@ GcpCredentials(
     
     If `service_account_file` is used, the provided file path *must be available* in the container executing the flow.
 
-Congrats! You can now easily load the saved block, which holds your credentials:
+## Run flows on Google Cloud Run or Vertex AI
 
-```python
-from prefect_gcp import GcpCredentials
-GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
-```
+Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
 
-!!! info "Registering blocks"
+See the [ECS guide](/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
 
-    Register blocks in this module to
-    [view and edit them](https://docs.prefect.io/ui/blocks/)
-    on Prefect Cloud:
+If you're using Prefect Cloud and your organization's security posture allows storing credentials in blocks, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) are a great option.
+They provide all the benefits of ECS with a quick setup and no worker needed.
 
-    ```bash
-    prefect block register -m prefect_gcp
-    ```
-
-### Using Prefect with Google Cloud Run
-
-Is your local computer or server running out of memory or taking too long to complete a job?
-
-`prefect_gcp` can offers a solution by enabling you to execute your Prefect flows remotely, on-demand thru Google Cloud Run.
-
-The following code snippets demonstrate how `prefect_gcp` can be used to run a job on Cloud Run, either as part of a Prefect deployment's infrastructure or within a flow.
-
-#### As Infrastructure
-
-Below is a simple walkthrough for how to use Google Cloud Run as infrastructure for a deployment.
-
-##### Set variables
-
-To expedite copy/paste without the needing to update placeholders manually, update and execute the following.
-
-```bash
-export CREDENTIALS_BLOCK_NAME="BLOCK-NAME-PLACEHOLDER"
-export CLOUD_RUN_JOB_BLOCK_NAME="cloud-run-job-example"
-export CLOUD_RUN_JOB_REGION="us-central1"
-export GCS_BUCKET_BLOCK_NAME="cloud-run-job-bucket-example"
-export GCP_PROJECT_ID=$(gcloud config get-value project)
-```
-
-##### Build an image
-
-First, find an existing image within the Google Artifact Registry. Ensure it has Python and `prefect-gcp[cloud_storage]` installed, or follow the instructions below to set one up.
-
-Create a `Dockerfile`.
-
-```dockerfile
-FROM prefecthq/prefect:2-python3.11
-RUN pip install "prefect-gcp[cloud_storage]"
-```
-
-Then push to the Google Artifact Registry.
-
-```bash
-gcloud artifacts repositories create test-example-repository --repository-format=docker --location=us
-gcloud auth configure-docker us-docker.pkg.dev
-docker build -t us-docker.pkg.dev/${GCP_PROJECT_ID}/test-example-repository/prefect-gcp:2-python3.11 .
-docker push us-docker.pkg.dev/${GCP_PROJECT_ID}/test-example-repository/prefect-gcp:2-python3.11
-```
-
-##### Save an infrastructure and storage block
-
-Save a custom infrastructure and storage block by executing the following snippet.
-
-```python
-import os
-from prefect_gcp import GcpCredentials, CloudRunJob, GcsBucket
-
-gcp_credentials = GcpCredentials.load(os.environ["CREDENTIALS_BLOCK_NAME"])
-
-# must be from GCR and have Python + Prefect
-image = f"us-docker.pkg.dev/{os.environ['GCP_PROJECT_ID']}/test-example-repository/prefect-gcp:2-python3.11"  # noqa
-
-cloud_run_job = CloudRunJob(
-    image=image,
-    credentials=gcp_credentials,
-    region=os.environ["CLOUD_RUN_JOB_REGION"],
-)
-cloud_run_job.save(os.environ["CLOUD_RUN_JOB_BLOCK_NAME"], overwrite=True)
-
-bucket_name = "cloud-run-job-bucket"
-cloud_storage_client = gcp_credentials.get_cloud_storage_client()
-cloud_storage_client.create_bucket(bucket_name)
-gcs_bucket = GcsBucket(
-    bucket=bucket_name,
-    gcp_credentials=gcp_credentials,
-)
-gcs_bucket.save(os.environ["GCS_BUCKET_BLOCK_NAME"], overwrite=True)
-```
-
-##### Write a flow
-
-Then, use an existing flow to create a deployment with, or use the flow below if you don't have an existing flow handy.
-
-```python
-from prefect import flow
-
-@flow(log_prints=True)
-def cloud_run_job_flow():
-    print("Hello, Prefect!")
-
-if __name__ == "__main__":
-    cloud_run_job_flow()
-```
-
-##### Create a deployment
-
-If the script was named "cloud_run_job_script.py", build a deployment manifest with the following command.
-
-```bash
-prefect deployment build cloud_run_job_script.py:cloud_run_job_flow \
-    -n cloud-run-deployment \
-    -ib cloud-run-job/${CLOUD_RUN_JOB_BLOCK_NAME} \
-    -sb gcs-bucket/${GCS_BUCKET_BLOCK_NAME}
-```
-
-Now apply the deployment!
-
-```bash
-prefect deployment apply cloud_run_job_flow-deployment.yaml
-```
-
-##### Test the deployment
-
-Start up an agent in a separate terminal. The agent will poll the Prefect API for scheduled flow runs that are ready to run.
-
-```bash
-prefect agent start -q 'default'
-```
-
-Run the deployment once to test.
-
-```bash
-prefect deployment run cloud-run-job-flow/cloud-run-deployment
-```
-
-Once the flow run has completed, you will see `Hello, Prefect!` logged in the Prefect UI.
-
-!!! info "No class found for dispatch key"
-
-    If you encounter an error message like `KeyError: "No class found for dispatch key 'cloud-run-job' in registry for type 'Block'."`,
-    ensure `prefect-gcp` is installed in the environment that your agent is running!
-
-#### Within Flow
-
-You can execute commands through Cloud Run Job directly within a Prefect flow.
+## Execute commands through Cloud Run Jobs directly within a Prefect flow
 
 ```python
 from prefect import flow

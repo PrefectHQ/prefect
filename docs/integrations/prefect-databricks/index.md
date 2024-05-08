@@ -10,7 +10,7 @@ The service's REST API documentation can be found [here](https://docs.databricks
 
 ### Prerequisites
 
-- [Prefect installed](/getting-started/installation/) in a virtual environment.
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 - A [Databricks account](https://databricks.com/) and the necessary permissions to access desired services.
 
 ### Install `prefect-databricks`
