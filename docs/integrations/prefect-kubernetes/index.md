@@ -1,32 +1,38 @@
 # prefect-kubernetes
 
-`prefect-kubernetes` is a collection of Prefect tasks, flows, and blocks enabling orchestration, observation and management of Kubernetes resources.
+`prefect-kubernetes` contains Prefect tasks, flows, and blocks enabling orchestration, observation and management of Kubernetes resources.
 
-Jump to [examples](#example-usage).
+This library is most commonly used to installation with a Kubernetes worker. See the [Kubernetes guide](https://docs.prefect.io/latest/guides/deployment/kubernetes/) to learn how to create and run deployments in Kubernetes.
+As noted in that guide, Prefect also provides a Helm chart for deploying a worker, a self-hosted server instance, and other resources to a Kubernetes cluster. See the [Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm) for more information.
+
+## Getting started
+
+### Prerequisites
+
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
+- [Kubernetes installed](https://kubernetes.io/).
 
 ### Install `prefect-kubernetes`
 
+<div class="terminal">
 ```bash
  pip install prefect-kubernetes
  ```
+ </div>
 
-Requires an installation of Python 3.8+.
+### Register newly installed block types
 
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
+Register the block types in the prefect-aws module to make them available for use.
 
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-Then, to register [blocks](https://docs.prefect.io/ui/blocks/) on Prefect Cloud:
-
+<div class="terminal">
 ```bash
 prefect block register -m prefect_kubernetes
 ```
+</div>
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
+## Examples
 
-### Example Usage
-
-#### Use `with_options` to customize options on any existing task or flow
+### Use `with_options` to customize options on an existing task or flow
 
 ```python
 from prefect_kubernetes.flows import run_namespaced_job
@@ -38,9 +44,7 @@ customized_run_namespaced_job = run_namespaced_job.with_options(
 ) # this is now a new flow object that can be called
 ```
 
-For more tips on how to use tasks and flows in a Collection, check out [Using Collections](https://docs.prefect.io/collections/usage/)!
-
-#### Specify and run a Kubernetes Job from a yaml file
+### Specify and run a Kubernetes Job from a YAML file
 
 ```python
 from prefect_kubernetes.credentials import KubernetesCredentials
@@ -61,7 +65,7 @@ if __name__ == "__main__":
     run_namespaced_job(job)
 ```
 
-#### Generate a resource-specific client from `KubernetesClusterConfig`
+### Generate a resource-specific client from `KubernetesClusterConfig`
 
 ```python
 # with minikube / docker desktop & a valid ~/.kube/config this should ~just work~
@@ -77,7 +81,7 @@ with k8s_credentials.get_client("core") as v1_core_client:
         print(namespace.metadata.name)
 ```
 
-#### List jobs in a specific namespace
+### List jobs in a namespace
 
 ```python
 from prefect import flow
@@ -92,7 +96,7 @@ def kubernetes_orchestrator():
     )
 ```
 
-#### Patch an existing deployment
+### Patch an existing Kubernetes deployment
 
 ```python
 from kubernetes.client.models import V1Deployment
@@ -118,32 +122,6 @@ def kubernetes_orchestrator():
     )
 ```
 
-## Feedback
+For assistance using Kubernetes, consult the [Kubernetes documentation](https://kubernetes.io/).
 
-If you encounter any bugs while using `prefect-kubernetes`, feel free to open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
-
-If you have any questions or issues while using `prefect-kubernetes`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack).
-
-## Contributing
-
-If you'd like to help contribute to fix an issue or add a feature to `prefect-kubernetes`, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
-
-Here are the steps:
-
-1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
-3. Install the repository and its dependencies:
-
-```
- pip install -e ".[dev]"
-```
-
-4. Make desired changes
-5. Add tests
-6. Install `pre-commit` to perform quality checks prior to commit:
-
-```
- pre-commit install
- ```
-
-8. `git commit`, `git push`, and create a pull request
+Refer to the prefect-kubernetes API documentation linked in the sidebar to explore all the capabilities of the prefect-kubernetes library.
