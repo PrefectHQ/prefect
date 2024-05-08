@@ -1,15 +1,5 @@
 # Integrating shell commands into your dataflow with `prefect-shell`
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-shell/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-shell?color=0052FF&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-shell/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-shell?color=0052FF&labelColor=090422" /></a>
-    <br>
-</p>
-
-Visit the full docs [here](https://PrefectHQ.github.io/prefect-shell) to see additional examples and the API reference.
-
 The prefect-shell collection makes it easy to execute shell commands in your Prefect flows. Check out the examples below to get started!
 
 ## Getting Started
@@ -63,6 +53,7 @@ download_data()
 ```
 
 Outputs:
+
 ```bash
 14:48:16.550 | INFO    | prefect.engine - Created flow run 'tentacled-chachalaca' for flow 'download-data'
 14:48:17.977 | INFO    | Flow run 'tentacled-chachalaca' - PID 19360 triggered with 2 commands running inside the '.' directory.

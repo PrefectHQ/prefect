@@ -1,25 +1,13 @@
 # prefect-kubernetes
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-kubernetes/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-kubernetes?color=26272B&labelColor=090422"></a>
-    <a href="https://pypistats.org/packages/prefect-kubernetes/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-kubernetes?color=26272B&labelColor=090422" /></a>
-</p>
-
-
-## Welcome!
-
 `prefect-kubernetes` is a collection of Prefect tasks, flows, and blocks enabling orchestration, observation and management of Kubernetes resources.
 
 Jump to [examples](#example-usage).
 
-## Resources
-
-For more tips on how to use tasks and flows in a Collection, check out [Using Collections](https://docs.prefect.io/collections/usage/)!
-
 ### Installation
+
 Install `prefect-kubernetes` with `pip`:
+
 ```bash
  pip install prefect-kubernetes
  ```
@@ -38,7 +26,6 @@ prefect block register -m prefect_kubernetes
 
 Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
 
-
 ### Example Usage
 
 #### Use `with_options` to customize options on any existing task or flow
@@ -54,7 +41,6 @@ customized_run_namespaced_job = run_namespaced_job.with_options(
 ```
 
 For more tips on how to use tasks and flows in a Collection, check out [Using Collections](https://docs.prefect.io/collections/usage/)!
-
 
 #### Specify and run a Kubernetes Job from a yaml file
 
@@ -92,7 +78,6 @@ with k8s_credentials.get_client("core") as v1_core_client:
     for namespace in v1_core_client.list_namespace().items:
         print(namespace.metadata.name)
 ```
-
 
 #### List jobs in a specific namespace
 
@@ -144,19 +129,23 @@ If you have any questions or issues while using `prefect-kubernetes`, you can fi
 ## Contributing
 
 If you'd like to help contribute to fix an issue or add a feature to `prefect-kubernetes`, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
- 
+
 Here are the steps:
- 
+
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
 3. Install the repository and its dependencies:
+
 ```
  pip install -e ".[dev]"
 ```
+
 4. Make desired changes
 5. Add tests
 6. Install `pre-commit` to perform quality checks prior to commit:
+
 ```
  pre-commit install
  ```
+
 8. `git commit`, `git push`, and create a pull request

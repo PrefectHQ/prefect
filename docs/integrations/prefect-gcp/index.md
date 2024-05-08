@@ -1,12 +1,5 @@
 # `prefect-gcp`
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-gcp/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-gcp?color=26272B&labelColor=090422"></a>
-    <a href="https://pypistats.org/packages/prefect-gcp/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-gcp?color=26272B&labelColor=090422" /></a>
-</p>
-
 `prefect-gcp` makes it easy to leverage the capabilities of Google Cloud Platform (GCP) in your flows, featuring support for Vertex AI, Cloud Run, BigQuery, Cloud Storage, and Secret Manager.
 
 ## Getting Started
@@ -44,7 +37,7 @@ GcpCredentials(
 ```
 
 !!! warning "`service_account_info` vs `service_account_file`"
-    
+
     The advantage of using `service_account_info`, instead of `service_account_file`, is that it is accessible across containers.
     
     If `service_account_file` is used, the provided file path *must be available* in the container executing the flow.
@@ -400,6 +393,7 @@ pip install prefect-gcp
 ```
 
 To use Cloud Storage:
+
 ```bash
 pip install "prefect-gcp[cloud_storage]"
 ```
@@ -411,11 +405,13 @@ pip install "prefect-gcp[bigquery]"
 ```
 
 To use Secret Manager:
+
 ```bash
 pip install "prefect-gcp[secret_manager]"
 ```
 
 To use Vertex AI:
+
 ```bash
 pip install "prefect-gcp[aiplatform]"
 ```
