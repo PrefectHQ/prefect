@@ -1,19 +1,47 @@
-# Integrating shell commands into your dataflow with `prefect-shell`
+# prefect-shell
 
-The prefect-shell collection makes it easy to execute shell commands in your Prefect flows. Check out the examples below to get started!
+Execute shell commands from within Prefect flows.
 
 ## Getting Started
 
-### Integrate with Prefect flows
+### Prerequisites
 
-With prefect-shell, you can bring your trusty shell commands (and/or scripts) straight into the Prefect flow party, complete with awesome Prefect logging.
+- [Prefect installed](/getting-started/installation/).
 
-No more separate logs, just seamless integration. Let's get the shell-abration started!
+### Install `prefect-shell`
+
+<div class="terminal">
+```bash
+pip install -U prefect-shell
+```
+</div>
+
+### Register newly installed block types
+
+Register the block types in the prefect-aws module to make them available for use.
+
+<div class="terminal">
+```bash
+prefect block register -m prefect_shell
+```
+</div>
+
+## Examples
+
+### Integrate shell commands with Prefect flows
+
+With prefect-shell, you can use shell commands (and/or scripts) in Prefect flows to provide observability and resiliency.
+Prefect-shell can be a useful tool if you're transitioning your orchestration from shell scripts to Prefect.
+
+Let's get the shell-abration started!
+
+The Python code below has shell commands embedded in a Prefect flow:
 
 ```python
 from prefect import flow
 from datetime import datetime
 from prefect_shell import ShellOperation
+
 
 @flow
 def download_data():
@@ -49,10 +77,12 @@ def download_data():
         # if you'd like to get the output lines, you can use the `fetch_result` method
         output_lines = download_csv_process.fetch_result()
 
-download_data()
+
+if __name__ == "__main__":
+    download_data()
 ```
 
-Outputs:
+Running this script results in output like this:
 
 ```bash
 14:48:16.550 | INFO    | prefect.engine - Created flow run 'tentacled-chachalaca' for flow 'download-data'
@@ -78,47 +108,23 @@ oad  Upload   Total   Spent    Left  Speed
 14:48:20.203 | INFO    | Flow run 'tentacled-chachalaca' - Finished in state Completed()
 ```
 
-!!! info "Utilize Previously Saved Blocks"
+### Save shell commands in Prefect Blocks
 
-    You can save commands within a `ShellOperation` block, then reuse them across multiple flows, or even plain Python scripts.
-    
-    Save the block with desired commands:
+You can save commands within a `ShellOperation` block, then reuse them across multiple flows.
 
-    ```python
-    from prefect_shell import ShellOperation
+Save the block with desired commands:
 
-    ping_op = ShellOperation(commands=["ping -t 1 prefect.io"])
-    ping_op.save("block-name")
-    ```
+```python
+from prefect_shell import ShellOperation
 
-    Load the saved block:
 
-    ```python
-    from prefect_shell import ShellOperation
+ping_op = ShellOperation(commands=["ping -t 1 prefect.io"])
+ping_op.save("block-name")
 
-    ping_op = ShellOperation.load("block-name")
-    ```
-
-    To [view and edit the blocks](https://orion-docs.prefect.io/ui/blocks/) on Prefect UI:
-
-    ```bash
-    prefect block register -m prefect_shell
-    ```
+# Load the saved block:
+ping_op = ShellOperation.load("block-name")
+```
 
 ## Resources
 
-For more tips on how to use tasks and flows in a Collection, check out [Using Collections](https://docs.prefect.io/collections/usage/)!
-
-### Installation
-
-Install `prefect-shell` with `pip`:
-
-```bash
-pip install -U prefect-shell
-```
-
-Requires an installation of Python 3.8+.
-
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
-
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
+Refer to the prefect-shell API documentation linked in the sidebar to explore all the capabilities of the prefect-shell library.

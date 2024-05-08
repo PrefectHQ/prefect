@@ -4,9 +4,7 @@
 
 Jump to [examples](#example-usage).
 
-### Installation
-
-Install `prefect-kubernetes` with `pip`:
+### Install `prefect-kubernetes`
 
 ```bash
  pip install prefect-kubernetes

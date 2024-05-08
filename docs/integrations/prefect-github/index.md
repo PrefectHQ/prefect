@@ -6,17 +6,7 @@ The tasks within this collection were created by a code generator using the GitH
 
 ## Getting Started
 
-### Python setup
-
-Requires an installation of Python 3.8 or newer.
-
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
-
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Installation
-
-Install `prefect-github` with `pip`:
+### Install `prefect-github`
 
 ```bash
 pip install prefect-github
