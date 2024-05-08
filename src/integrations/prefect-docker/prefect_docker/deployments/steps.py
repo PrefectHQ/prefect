@@ -364,7 +364,33 @@ def cached_build_docker_image(
     additional_tags: Optional[List[str]] = None,
     **build_kwargs,
 ) -> BuildDockerImageResult:
-    """Cached version of `prefect_docker.deployments.steps.build_docker_image`."""
+    """Cached version of `prefect_docker.deployments.steps.build_docker_image`.
+
+    Args:
+        image_name: The name of the Docker image to build, including the registry and
+            repository.
+        dockerfile: The path to the Dockerfile used to build the image. If "auto" is
+            passed, a temporary Dockerfile will be created to build the image.
+        tag: The tag to apply to the built image.
+        additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
+        **build_kwargs: Additional keyword arguments to pass to Docker when building
+            the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
+            documentation.
+
+    Returns:
+        A dictionary containing the image name and tag of the built image.
+
+    Example:
+        Build a Docker image that is cached if the same image is built again in the same `prefect deploy` run:
+        ```yaml
+        build:
+            - prefect_docker.deployments.steps.cached_build_docker_image:
+                id: build-image
+                requires: prefect-docker
+                image_name: repo-name/image-name
+                tag: dev
+        ```
+    """
     return build_docker_image(
         image_name=image_name,
         dockerfile=dockerfile,
@@ -382,7 +408,33 @@ def cached_push_docker_image(
     additional_tags: Optional[List[str]] = None,
     **push_kwargs,
 ) -> PushDockerImageResult:
-    """Cached version of `prefect_docker.deployments.steps.push_docker_image`."""
+    """Cached version of `prefect_docker.deployments.steps.push_docker_image`.
+
+    Args:
+        image_name: The name of the Docker image to push, including the registry and
+            repository.
+        tag: The tag of the Docker image to push.
+        credentials: A dictionary containing the username, password, and URL for the
+            registry to push the image to.
+        additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
+        **push_kwargs: Additional keyword arguments to pass to Docker when pushing
+            the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.push)
+            documentation.
+
+    Returns:
+        A dictionary containing the image name and tag of the pushed image.
+
+    Example:
+        Push a Docker image that is cached if the same image is pushed again in the same `prefect deploy` run:
+        ```yaml
+        push:
+            - prefect_docker.deployments.steps.cached_push_docker_image:
+                requires: prefect-docker
+                image_name: repo-name/image-name
+                tag: dev
+                credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
+        ```
+    """
     return push_docker_image(
         image_name=image_name,
         tag=tag,
