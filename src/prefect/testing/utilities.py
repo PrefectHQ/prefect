@@ -2,7 +2,6 @@
 Internal utilities for tests.
 """
 
-import sys
 import warnings
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
@@ -35,52 +34,9 @@ def exceptions_equal(a, b):
 
 
 # AsyncMock has a new import path in Python 3.8+
-
-if sys.version_info < (3, 8):
-    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-    from mock import AsyncMock  # noqa
-else:
-    from unittest.mock import AsyncMock  # noqa
+from unittest.mock import AsyncMock  # noqa
 
 # MagicMock supports async magic methods in Python 3.8+
-
-if sys.version_info < (3, 8):
-    from unittest.mock import MagicMock as _MagicMock
-    from unittest.mock import MagicProxy as _MagicProxy
-
-    class MagicMock(_MagicMock):
-        def _mock_set_magics(self):
-            """Patch to include proxies for async methods"""
-            super()._mock_set_magics()
-
-            for attr in {"__aenter__", "__aexit__", "__anext__"}:
-                if not hasattr(MagicMock, attr):
-                    setattr(MagicMock, attr, _MagicProxy(attr, self))
-
-        def _get_child_mock(self, **kw):
-            """Patch to return async mocks for async methods"""
-            # This implementation copied from unittest in Python 3.8
-            _new_name = kw.get("_new_name")
-            if _new_name in self.__dict__.get("_spec_asyncs", {}):
-                return AsyncMock(**kw)
-
-            _type = type(self)
-            if issubclass(_type, MagicMock) and _new_name in {
-                "__aenter__",
-                "__aexit__",
-                "__anext__",
-            }:
-                if self._mock_sealed:
-                    attribute = "." + kw["name"] if "name" in kw else "()"
-                    mock_name = self._extract_mock_name() + attribute
-                    raise AttributeError(mock_name)
-
-                return AsyncMock(**kw)
-
-            return super()._get_child_mock(**kw)
-
-else:
-    from unittest.mock import MagicMock
 
 
 def kubernetes_environments_equal(
