@@ -29,7 +29,7 @@ prefect block register -m prefect_aws
 </div>
 
 Below we show how to create blocks with Python code.
-Alternatively, each block can be created through the Prefect UI.
+Alternatively, blocks can be created through the Prefect UI or the API.
 
 ## Save credentials to an AWS Credentials block
 

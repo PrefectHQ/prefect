@@ -1,47 +1,47 @@
 # prefect-docker
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-docker/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-docker?color=26272B&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-docker/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-docker?color=26272B&labelColor=090422" /></a>
-</p>
+The prefect-docker library provides functionality for running flows in Docker containers through Docker work pools.
+This library is necessary for creating deployments that will run in Docker containers in most Prefect work pool infrastructure types.
+See the the [Docker guide](/guides/deployment/docker/) for a walkthrough of creating and running a deployment with a Docker work pool.
 
-## Welcome!
+That functionality is how most users will interact with this library.
+However, the library also provides additional functionality that we explore below.
 
-Prefect integrations for working with Docker.
+## Getting started
 
-Note! The `DockerRegistryCredentials` in `prefect-docker` is a unique block, separate from the `DockerRegistry` in `prefect` core. While `DockerRegistry` implements a few functionality from both `DockerHost` and `DockerRegistryCredentials` for convenience, it does not allow much configuration to interact with a Docker host.
+### Prerequisites
 
-Do not use `DockerRegistry` with this collection. Instead, use `DockerHost` and `DockerRegistryCredentials`.
+- [Prefect installed](/getting-started/installation/) in a virtual environment.
+- [Docker installed](https://www.docker.com/) and running.
 
-## Getting Started
+### Install prefect-docker
 
-### Python setup
-
-Requires an installation of Python 3.8+.
-
-We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
-
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Installation
-
-Install `prefect-docker` with `pip`:
-
+<div class="terminal">
 ```bash
 pip install prefect-docker
 ```
+</div>
 
-Then, register to [view the block](https://docs.prefect.io/concepts/blocks/) on Prefect Cloud:
+### Register newly installed blocks types
 
+Register the block types in the prefect-docker module to make them available for use.
+
+<div class = "terminal">
 ```bash
 prefect block register -m prefect_docker
 ```
+</div>
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
+## Examples
 
-### Pull image, and create, start, log, stop, and remove Docker container
+Create a block [through code](https://docs.prefect.io/concepts/blocks/#saving-blocks), the UI, or the API, before using it in the examples below.
+
+!!! note
+    The `DockerRegistryCredentials` block type in `prefect-docker` is a separate block type from the `DockerRegistry` that comes pre-installed with `prefect`.
+
+## Pull an image and create, start, log, stop, and remove a Docker container
+
+Run the following script to manually pull the latest Prefect image, and then start, stop, and remove a container.
 
 ```python
 from prefect import flow, get_run_logger
@@ -68,9 +68,15 @@ def docker_flow():
     stop_docker_container(container_id=container.id)
     remove_docker_container(container_id=container.id)
     return container
+
+if __name__ == "__main__":
+    docker_flow()
 ```
 
-### Use a custom Docker Host to create a Docker container
+## Use a custom Docker Host to create a Docker container
+
+Run the following script that uses a custom Docker host.
+
 ```python
 from prefect import flow
 from prefect_docker import DockerHost
@@ -88,26 +94,12 @@ def create_docker_container_flow():
         command="echo 'hello world!'"
     )
 
-create_docker_container_flow()
+if __name__ == "__main__":
+    create_docker_container_flow()
 ```
 
 ## Resources
 
-If you encounter any bugs while using `prefect-docker`, feel free to open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
+For assistance using Docker, consult the [Docker documentation](https://docs.docker.com/).
 
-If you have any questions or issues while using `prefect-docker`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
-
-## Development
-
-If you'd like to install a version of `prefect-docker` for development, clone the repository and perform an editable install with `pip`:
-
-```bash
-git clone https://github.com/PrefectHQ/prefect-docker.git
-
-cd prefect-docker/
-
-pip install -e ".[dev]"
-
-# Install linting pre-commit hooks
-pre-commit install
-```
+Refer to the prefect-docker API documentation linked in the sidebar to explore all the capabilities of the prefect-docker library.
