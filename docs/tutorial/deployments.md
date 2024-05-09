@@ -21,30 +21,24 @@ Learn how to use deployments to configure flows for scheduled and remote executi
 
 ## About deployments
 
-Some of the most common reasons to use an orchestration tool like Prefect are for [scheduling](/concepts/schedules/) and [event-based triggering](/concepts/automations/).
-Up to this point, you've observed running Prefect flows as scripts, but this means *you* have been the one manually triggering and managing flow runs.
+[Deployments](/concepts/deployments/) are server-side representations of flows. They store the crucial metadata needed for remote orchestration including when, where, and how a workflow should run.
 
-Deploying a flow exposes an API and UI to:
-
-- trigger new runs, [cancel active runs](/concepts/flows/#cancel-a-flow-run), pause scheduled runs, customize parameters, and more
-- remotely configure schedules and automation rules for your deployments
-- dynamically provision infrastructure using [workers](/tutorials/workers/)
-
-## What is a deployment?
-
-Deploying a flow is the act of specifying where and how it will run.
-This information is encapsulated and sent to Prefect as a [deployment](/concepts/deployments/) that contains the crucial metadata needed for remote orchestration.
-Deployments elevate workflows from functions that you call manually to API-managed entities.
-
-Attributes of a deployment include (but are not limited to):
+Attributes of a deployment include:
 
 - __Flow entrypoint__: path to your flow function
 - __Schedule__ or __Trigger__: optional schedule or triggering rules for this deployment
 - __Tags__: optional text labels for organizing your deployments
 
+Some of the most common reasons to use an orchestration tool like Prefect are for [scheduling](/concepts/schedules/) and [event-based triggering](/concepts/automations/).
+As opposed to manually triggering and managing flow runs, deploying a flow exposes an API and UI that allow you to:
+
+- trigger new runs, [cancel active runs](/concepts/flows/#cancel-a-flow-run), pause scheduled runs, customize parameters, and more
+- remotely configure schedules and automation rules for your deployments
+- dynamically provision infrastructure using [workers](/tutorials/workers/)
+
 ## Create a deployment
 
-Using our `get_repo_info` flow from the previous sections, we can easily create a deployment for it by calling a single method on the flow object: `flow.serve`.
+Continuing with the `get_repo_info` flow from the previous section, create a deployment by calling a single method on the flow object: `flow.serve`.
 
 ```python hl_lines="16-17" title="repo_info.py"
 import httpx
@@ -66,17 +60,17 @@ if __name__ == "__main__":
     get_repo_info.serve(name="my-first-deployment")
 ```
 
-Running this script will do two things:
+Running this script will:
 
-- create a deployment called "my-first-deployment" for your flow in the Prefect API
-- stay running to listen for flow runs for this deployment; when a run is found, it will be *asynchronously executed within a subprocess*
+- create a deployment called ```my-first-deployment``` for your flow in the Prefect API
+- continue running to listen for flow runs for this deployment; when a run is found, it will *asynchronously execute within a subprocess*
 
-!!! warning "Deployments must be defined in static files"
-    Flows can be defined and run interactively, that is, within REPLs or Notebooks.
-    Deployments, on the other hand, require that your flow definition be in a known file (which can be located on a remote filesystem in certain setups, as we'll see in the next section of the tutorial).  
+!!! warning "You must define deployments in static files"
+    You can define and run flows interactively, within REPLs or Notebooks.
+    However, deployments require that your flow definition exist in a known file.  
 
-Because this deployment has no schedule or triggering automation, you will need to use the UI or API to create runs for it.
-Let's use the CLI (in a separate terminal window) to create a run for this deployment:
+Because this deployment has no schedule or triggering automation, you must use the UI or API to create runs for it.
+Use the CLI (in a separate terminal window) to create a run for this deployment:
 
 <div class="terminal">
 
@@ -86,20 +80,20 @@ prefect deployment run 'get-repo-info/my-first-deployment'
 
 </div>
 
-If you are watching either your terminal or your UI, you should see the newly created run execute successfully!  
-Let's take this example further by adding a schedule and additional metadata.
+In your terminal or UI, you should see the newly created run execute successfully.  
+Next, add a schedule and additional metadata.
 
 ### Additional options
 
 The `serve` method on flows exposes many options for the deployment.
-Let's use a few of these options now:
+Here's how to use some of those options:
 
-- `cron`: a keyword that allows us to set a cron string schedule for the deployment; see [schedules](/concepts/schedules/) for more advanced scheduling options
-- `tags`: a keyword that allows us to tag this deployment and its runs for bookkeeping and filtering purposes
-- `description`: a keyword that allows us to document what this deployment does; by default the description is set from the docstring of the flow function, but we did not document our flow function
-- `version`: a keyword that allows us to track changes to our deployment; by default a hash of the file containing the flow is used; popular options include semver tags or git commit hashes
+- `cron`: a keyword that allows you to set a cron string schedule for the deployment; see [schedules](/concepts/schedules/) for more advanced scheduling options
+- `tags`: a keyword that allows you to tag this deployment and its runs for bookkeeping and filtering purposes
+- `description`: a keyword that allows you to document what this deployment does; by default the description is set from the docstring of the flow function (if documented)
+- `version`: a keyword that allows you to track changes to your deployment; uses a hash of the file containing the flow by default; popular options include semver tags or git commit hashes
 
-Let's add these options to our deployment:
+Next, add these options to your deployment:
 
 ```python
 if __name__ == "__main__":
@@ -112,15 +106,15 @@ if __name__ == "__main__":
     )
 ```
 
-When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work!  
-Stop the script in the CLI using `CTRL+C` and your schedule will be automatically paused.
+When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work.  
+Stop the script in the CLI using `CTRL+C` and your schedule automatically pauses.
 
 !!! note "`.serve` is a long-running process"
-    For remotely triggered or scheduled runs to be executed, your script with `flow.serve` must be actively running.
+    To execute remotely triggered or scheduled runs, your script with `flow.serve` must be actively running.
 
-## Running multiple deployments at once
+## Run multiple deployments at once
 
-This method is useful for creating deployments for single flows, but what if we have two or more flows?  This situation only requires a few additional method calls and imports to get up and running:
+This method is useful for creating deployments for single flows. For two or more flows, you must provide a few additional method calls and imports:
 
 ```python hl_lines="2 18-20" title="multi_flow_deployment.py"
 import time
@@ -145,29 +139,26 @@ if __name__ == "__main__":
     serve(slow_deploy, fast_deploy)
 ```
 
-A few observations:
+A few things to note:
 
 - the `flow.to_deployment` interface exposes the *exact same* options as `flow.serve`; this method produces a deployment object
 - the deployments are only registered with the API once `serve(...)` is called
 - when serving multiple deployments, the only requirement is that they share a Python environment; they can be executed and scheduled independently of each other
 
-Spend some time experimenting with this setup.
-A few potential next steps for exploration include:
+A few optional steps for exploration include:
 
-- pausing and unpausing the schedule for the "sleeper" deployment
-- using the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
-- cancelling an active run for the "sleeper" deployment from the UI (good luck cancelling the "fast" one 😉)
+- pause and unpause the schedule for the "sleeper" deployment
+- use the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
+- cancel an active run for the "sleeper" deployment from the UI
 
 !!! tip "Hybrid execution option"
     Another implication of Prefect's deployment interface is that you can choose to use our hybrid execution model.
-    Whether you use Prefect Cloud or host a Prefect server instance yourself, you can run work flows in the environments best suited to their execution.
-    This model allows you efficient use of your infrastructure resources while maintaining the privacy of your code and data.
+    Whether you use Prefect Cloud or host a Prefect server instance, you can run workflows in the environments best suited to their execution.
+    This model enables efficient use of your infrastructure resources while maintaining the privacy of your code and data.
     There is no ingress required.
     For more information [read more about our hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
 
 ## Next steps
-
-Congratulations! You now have your first working deployment.
 
 Deploying flows through the `serve` method is a fast way to start scheduling flows with Prefect.
 However, if your team has more complex infrastructure requirements or you'd like to have Prefect manage flow execution, you can deploy flows to a work pool.
