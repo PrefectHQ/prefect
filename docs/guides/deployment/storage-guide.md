@@ -115,7 +115,7 @@ Alternatively, you can create a Credentials block ahead of time and reference it
 
     1. Install the Prefect-Github library with `pip install -U prefect-github`
     1. Register the blocks in that library to make them available on the server with `prefect block register -m prefect_github`.
-    1. Create a GitHub Credentials block via code or the Prefect UI and reference it as shown above.
+    1. Create a GitHub Credentials block via code or the Prefect UI and reference it as shown:
 
     ```yaml
 
@@ -129,7 +129,7 @@ Alternatively, you can create a Credentials block ahead of time and reference it
 
     1. Install the relevant library with `pip install -U prefect-bitbucket`
     1. Register the blocks in that library with `prefect block register -m prefect_bitbucket` 
-    1. Create a Bitbucket credentials block via code or the Prefect UI and reference it as shown above.
+    1. Create a Bitbucket credentials block via code or the Prefect UI and reference it as shown:
 
     ```yaml
 
@@ -143,7 +143,7 @@ Alternatively, you can create a Credentials block ahead of time and reference it
 
     1. Install the relevant library with `pip install -U prefect-gitlab`
     1. Register the blocks in that library with `prefect block register -m prefect_gitlab` 
-    1. Create a GitLab credentials block via code or the Prefect UI and reference it as shown above.
+    1. Create a GitLab credentials block via code or the Prefect UI and reference it as shown:
 
     ```yaml
 
@@ -210,7 +210,7 @@ Below are the recipe options and the relevant portions of the `prefect.yaml` fil
     1. Register the blocks in Prefect-AWS with `prefect block register -m prefect_aws` 
     1. Create a user with a role with read and write permissions to access the bucket. If using the UI, create an access key pair with *IAM->Users->Security credentials->Access keys->Create access key*. Choose *Use case->Other* and then copy the *Access key* and *Secret access key* values.
     1. Create an AWS Credentials block via code or the Prefect UI. In addition to the block name, most users will fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
-    1. Reference the block as shown in the push and pull steps above. 
+    1. Reference the block as shown in the push and pull steps 
 
 === "Azure Blob Storage container"
 
