@@ -875,6 +875,7 @@ async def deploy(
             and build arguments.
         build: Whether or not to build a new image for the flow. If False, the provided
             image will be used as-is and pulled at runtime.
+        build_logs_sink: A file-like object to write build logs to.
         push: Whether or not to skip pushing the built image to a registry.
         print_next_steps_message: Whether or not to print a message with next steps
             after deploying the deployments.
