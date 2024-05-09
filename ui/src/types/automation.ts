@@ -15,3 +15,20 @@ export class Automation extends BaseAutomation {
     this.actions = automation.actions
   }
 }
+
+export type AutomationFormValues = {
+  id?: string,
+  name?: string,
+  description?: string,
+  trigger?: AutomationTrigger,
+  actions?: AutomationAction[],
+  enabled?: boolean,
+}
+
+export type AutomationActionFormValues = AutomationFormValues & {
+  trigger: AutomationTrigger,
+}
+
+export function isAutomationActionFormValues(value: AutomationFormValues): value is AutomationActionFormValues {
+  return Boolean(value.trigger)
+}
