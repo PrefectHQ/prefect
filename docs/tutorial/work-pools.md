@@ -130,15 +130,15 @@ if __name__ == "__main__":
 
 In the `from_source` method, specify the source of your flow code.
 
-In the `deploy` method, specify the name of our deployment and the name of the work pool that you created earlier.
+In the `deploy` method, specify the name of your deployment and the name of the work pool that you created earlier.
 
 You can store your flow code in any of several types of remote storage.
-In this example, we use a GitHub repository, but you could use a Docker image, as you'll see in an upcoming section of the tutorial.
-Alternatively, you could store your flow code in cloud provider storage such as AWS S3, or within a different git-based cloud provider such as GitLab or Bitbucket.
+This example uses a GitHub repository, but you can also use a Docker image (more information on that later in this tutorial).
+Alternatively, you can store your flow code in cloud provider storage such as AWS S3, or within a different git-based cloud provider such as GitLab or Bitbucket.
 
 !!! note
-    In the example above, we store our code in a GitHub repository.
-    If you make changes to the flow code, you will need to push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
+    In the example above, you stored your code in a GitHub repository.
+    If you make changes to the flow code, you must push those changes to your own GitHub account and update the `source` argument of `from_source` to point to your repository.
 
 Now that you've updated your script, you can run it to register your deployment on Prefect Cloud:
 
@@ -150,7 +150,7 @@ python repo_info.py
 
 </div>
 
-You should see a message in the CLI that your deployment was created with instructions for how to run it.
+You should see a message in the CLI that your deployment was created and instructions for how to run it.
 
 <div class="terminal">
 
@@ -169,7 +169,7 @@ To schedule a run for this deployment, use the following command:
         $ prefect deployment run 'get-repo-info/my-first-deployment'
 
 
-You can also run your flow via the Prefect UI: https://app.prefect.cloud/account/
+You can also run your flow through the Prefect UI: https://app.prefect.cloud/account/
 abc/workspace/123/deployments/deployment/xyz
 ```
 
@@ -178,14 +178,14 @@ abc/workspace/123/deployments/deployment/xyz
 Navigate to your Prefect Cloud UI and view your new deployment.
 Click the **Run** button to trigger a run of your deployment.
 
-Because this deployment was configured with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
+Because you configured this deployment with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
 
 View the logs in the UI.
 
 ### Schedule a deployment run
 
-Now everything is set up for us to submit a flow-run to the work pool.
-Go ahead and run the deployment from the CLI or the UI.
+You're ready to submit a flow-run to the work pool.
+Run the deployment from the CLI (or the UI):
 
 <div class="terminal">
 
@@ -198,8 +198,7 @@ prefect deployment run 'get_repo_info/my-deployment'
 Prefect Managed work pools are a great way to get started with Prefect.  
 See the [Managed Execution guide](/guides/managed-execution/) for more details.
 
-Many users will find that they need more control over the infrastructure that their flows run on.
-Prefect Cloud's push work pools are a popular option in those cases.
+For more control over the infrastructure that your flows run on, we recommend Prefect Cloud's push work pools.
 
 ## Push work pools with automatic infrastructure provisioning
 
