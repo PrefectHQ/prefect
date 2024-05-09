@@ -26,6 +26,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    TextIO,
     Type,
     TypeVar,
     Union,
@@ -938,6 +939,7 @@ class Flow(Generic[P, R]):
         work_pool_name: Optional[str] = None,
         image: Optional[Union[str, DeploymentImage]] = None,
         build: bool = True,
+        build_logs_sink: Optional[TextIO] = None,
         push: bool = True,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict] = None,
@@ -976,6 +978,7 @@ class Flow(Generic[P, R]):
                 and build arguments.
             build: Whether or not to build a new image for the flow. If False, the provided
                 image will be used as-is and pulled at runtime.
+            build_logs_sink: A file-like object to write build logs to.
             push: Whether or not to skip pushing the built image to a registry.
             work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
                 If not provided the default work queue for the work pool will be used.
@@ -1086,6 +1089,7 @@ class Flow(Generic[P, R]):
             work_pool_name=work_pool_name,
             image=image,
             build=build,
+            build_logs_sink=build_logs_sink,
             push=push,
             print_next_steps_message=False,
             ignore_warnings=ignore_warnings,
