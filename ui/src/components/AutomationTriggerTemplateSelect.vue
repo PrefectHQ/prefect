@@ -1,5 +1,5 @@
 <template>
-  <p-select v-model="internalModelValue" empty-message="Select template" :options="options" class="automation-trigger-template-select" />
+  <p-select v-model="template" empty-message="Select template" :options="options" class="automation-trigger-template-select" />
 </template>
 
 <script lang="ts" setup>
@@ -7,14 +7,7 @@
   import { AutomationTriggerTemplate, automationTriggerTemplates, getAutomationTriggerTemplateLabel } from '@prefecthq/prefect-ui-library'
   import { computed } from 'vue'
 
-  const props = defineProps<{
-    modelValue: AutomationTriggerTemplate | null,
-  }>()
-
-  const emit = defineEmits<{
-    (event: 'update:modelValue', value: AutomationTriggerTemplate | null): void,
-  }>()
-
+  const template = defineModel<AutomationTriggerTemplate | null>('template', { required: true })
   /**
    * Currently OSS doesn't have support for enabled/disabled trigger types like cloud does.
    * Only because it wasn't needed at the time of porting automations to OSS.
@@ -25,13 +18,4 @@
       value: type,
     }
   }))
-
-  const internalModelValue = computed({
-    get() {
-      return props.modelValue
-    },
-    set(value) {
-      emit('update:modelValue', value)
-    },
-  })
 </script>
