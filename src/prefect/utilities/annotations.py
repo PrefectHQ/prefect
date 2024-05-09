@@ -1,4 +1,3 @@
-import sys
 import warnings
 from abc import ABC
 from collections import namedtuple
@@ -17,13 +16,7 @@ class BaseAnnotation(
     """
 
     def unwrap(self) -> T:
-        if sys.version_info < (3, 8):
-            # cannot simply return self.value due to recursion error in Python 3.7
-            # also _asdict does not follow convention; it's not an internal method
-            # https://stackoverflow.com/a/26180604
-            return self._asdict()["value"]
-        else:
-            return self.value
+        return self.value
 
     def rewrap(self, value: T) -> "BaseAnnotation[T]":
         return type(self)(value)
