@@ -1,36 +1,33 @@
 # prefect-gitlab
 
-`prefect-gitlab` is a Prefect collection for working with GitLab repositories.
+The prefect-gitlab library is used to fetch code from a GitLab repository for use in Prefect deployments.
 
 ## Getting Started
 
-### Python setup
+### Prerequisites
 
-Requires an installation of Python 3.8 or higher.
+- [Prefect installed](/getting-started/installation/).
+- A [GitLab account](https://gitlab.com/).
 
-We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
+### Install prefect-gitlab
 
-This integration is designed to work with Prefect 2.3.0 or higher. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Installation
-
-Install `prefect-gitlab` with `pip`:
-
+<div class = "terminal">
 ```bash
-pip install prefect-gitlab
+pip install -U prefect-gitlab
 ```
+</div>
 
-Then, register the [block types](https://docs.prefect.io/concepts/blocks/)) in this integration to view the storage block type on Prefect Cloud:
+Register the block types in the prefect-gitlab module to make them available for use.
 
+<div class = "terminal">
 ```bash
 prefect block register -m prefect_gitlab
 ```
+</div>
 
-Note, to use the `load` method on a block, you must already have a block document [saved](https://docs.prefect.io/concepts/blocks/).
+## Examples
 
-## Creating a GitLab storage block
-
-### In Python
+### Create GitLab block for code storage
 
 ```python
 from prefect_gitlab import GitLabRepository
@@ -41,35 +38,34 @@ public_gitlab_block = GitLabRepository(
     repository="https://gitlab.com/testing/my-repository.git"
 )
 
-public_gitlab_block.save()
 
+if __name__ == "__main__":
+    public_gitlab_block.save()
+```
 
-# specific branch or tag of a GitLab repository
+### Specify a branch or tag in the GitLab repository
+
+```python
 branch_gitlab_block = GitLabRepository(
     name="my-gitlab-block",
     reference="branch-or-tag-name",
     repository="https://gitlab.com/testing/my-repository.git"
 )
 
-branch_gitlab_block.save()
 
+if __name__ == "__main__":
+    branch_gitlab_block.save()
+```
 
-# Get all history of a specific branch or tag of a GitLab repository
-branch_gitlab_block = GitLabRepository(
-    name="my-gitlab-block",
-    reference="branch-or-tag-name",
-    git_depth=None,
-    repository="https://gitlab.com/testing/my-repository.git"
-)
+### Specify a private GitLab repository
 
-branch_gitlab_block.save()
-
-# private GitLab repository
+```python
 private_gitlab_block = GitLabRepository(
     name="my-private-gitlab-block",
     repository="https://gitlab.com/testing/my-repository.git",
     access_token="YOUR_GITLAB_PERSONAL_ACCESS_TOKEN"
 )
 
-private_gitlab_block.save()
+if __name__ == "__main__":
+    private_gitlab_block.save()
 ```
