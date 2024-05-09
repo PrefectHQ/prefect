@@ -82,8 +82,7 @@
     }
 
     if (newMode === 'Form') {
-      const updatedTrigger = updateTriggerFromJsonString()
-      template.value = getAutomationTriggerTemplate(updatedTrigger)
+      updateTriggerFromJsonString()
     }
 
     if (newMode === 'JSON') {
