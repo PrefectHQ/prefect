@@ -6,11 +6,10 @@
           <p-button size="sm" icon="PlusIcon" :to="routes.automationCreate()" />
         </template>
 
-        <template #actions>
-          <p-link :href="localization.docs.automations">
+        <template v-if="!empty" #actions>
+          <DocumentationButton :to="localization.docs.automations">
             Documentation
-            <p-icon class="user-menu__icon" icon="ArrowTopRightOnSquareIcon" />
-          </p-link>
+          </DocumentationButton>
         </template>
       </PageHeading>
     </template>
@@ -32,7 +31,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeading, ResultsCount, AutomationsPageEmptyState, localization, useWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
+  import { PageHeading, ResultsCount, AutomationsPageEmptyState, DocumentationButton, localization, useWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import AutomationCard from '@/components/AutomationCard.vue'
