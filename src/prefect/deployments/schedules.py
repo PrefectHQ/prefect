@@ -23,6 +23,8 @@ def create_minimal_deployment_schedule(
 def normalize_to_minimal_deployment_schedules(
     schedules: Optional["FlexibleScheduleList"],
 ) -> List[MinimalDeploymentSchedule]:
+    from prefect.client.schemas.schedules import SCHEDULE_TYPES
+
     try:
         from prefect.server.schemas.schedules import (
             SCHEDULE_TYPES as SERVER_SCHEDULE_TYPES,
