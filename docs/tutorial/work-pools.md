@@ -12,7 +12,9 @@ search:
 
 # Work Pools
 
-## Why work pools?
+Learn how to configure Prefect deployments for scheduled and remote execution with work pools.
+
+## Benefits of work pools
 
 Work pools are a bridge between the Prefect orchestration layer and infrastructure for flow runs that can be dynamically provisioned.
 To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
@@ -21,15 +23,13 @@ To transition from persistent infrastructure to dynamic infrastructure, use `flo
     Earlier in the tutorial you used `serve` to deploy your flows.
     For many use cases, `serve` is sufficient to meet scheduling and orchestration needs.
     Work pools are **optional**.
-    If infrastructure needs escalate, work pools can become a handy tool.
-    The best part?
-    You're not locked into one method.
-    You can seamlessly combine approaches as needed.
+    If infrastructure needs escalate, work pools become a handy tool.
+    But you're not locked into one method and can combine approaches as needed.
 
 !!! note "Deployment definition methods differ slightly for work pools"
     When you use work-pool-based execution, you define deployments differently.
     Deployments for workers are configured with `deploy`, which requires additional configuration.
-    A deployment created with `serve` cannot be used with a work pool.
+    You cannot use a deployment created with `serve` with a work pool.
 
 The primary reason to use work pools is for **dynamic infrastructure provisioning and configuration**.
 For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently.
@@ -37,9 +37,9 @@ In this case, you don't want an idle process running within that infrastructure.
 
 Other advantages to using work pools include:
 
-- You can configure default infrastructure configurations on your work pools that all jobs inherit and can override.
-- Platform teams can use work pools to expose opinionated (and enforced!) interfaces to the infrastructure that they oversee.
-- Work pools can be used to prioritize (or limit) flow runs through the use of [work queues](/concepts/work-pools/#work-queues).
+- Configuring default infrastructure configurations on your work pools that all jobs inherit and can override.
+- Allowing platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
+- Allowing work pools to prioritize (or limit) flow runs through the use of [work queues](/concepts/work-pools/#work-queues).
 
 Prefect provides several [types of work pools](/concepts/work-pools/#work-pool-types).
 Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
@@ -50,7 +50,7 @@ A cloud-provider account, such as AWS, is not required with a Prefect Managed wo
 !!! note "Prefect Cloud"
     This tutorial uses Prefect Cloud to deploy flows to work pools.
     Managed execution and push work pools are available in [Prefect Cloud](https://www.prefect.io/cloud) only.
-    If you are not using Prefect Cloud, please learn about work pools below and then proceed to the [next tutorial](/tutorial/workers/) that uses worker-based work pools.
+    If you are not using Prefect Cloud, learn more about work pools below and then proceed to the [next tutorial](/tutorial/workers/) that uses worker-based work pools.
 
 ### Create a Prefect Managed work pool
 
@@ -76,34 +76,31 @@ prefect work-pool ls
 
 You should see your new `my-managed-pool` in the output list.
 
-Finally, let’s double check that you can see this work pool in the UI.
+Navigate to the **Work Pools** tab in the UI and verify that `my-managed-pool` is listed.
 
-Navigate to the **Work Pools** tab and verify that you see `my-managed-pool` listed.
+You can select **Edit** from the three-dot menu on the work pool card to view the details of your work pool.
 
-Feel free to select **Edit** from the three-dot menu on right of the work pool card to view the details of your work pool.
-
-Work pools contain configuration that is used to provision infrastructure for flow runs.
-For example, you can specify additional Python packages or environment variables that should be set for all deployments that use this work pool.
+Work pools contain configuration details to provision infrastructure for flow runs.
+For example, you can specify additional Python packages or environment variables for all deployments that use this work pool.
 Note that individual deployments can override the work pool configuration.
 
-Now that you’ve set up your work pool, we can deploy a flow to this work pool.
-Let's deploy your tutorial flow to `my-managed-pool`.
+Now that you’ve set up your work pool, you can deploy a flow to it. Deploy your tutorial flow to `my-managed-pool`.
 
 ## Create the deployment
 
-From our previous steps, we now have:
+From the previous steps, you now have:
 
 1. [A flow](/tutorial/flows/)
 2. A work pool
 
-Let's update our `repo_info.py` file to create a deployment in Prefect Cloud.
+Update your `repo_info.py` file to create a deployment in Prefect Cloud.
 
-The updates that we need to make to `repo_info.py` are:
+The updates that you need to make to `repo_info.py` are:
 
 1. Change `flow.serve` to `flow.deploy`.
 2. Tell `flow.deploy` which work pool to deploy to.
 
-Here's what the updated `repo_info.py` looks like:
+The updated `repo_info.py` looks like this:
 
 ```python hl_lines="17-23" title="repo_info.py"
 import httpx
@@ -131,9 +128,9 @@ if __name__ == "__main__":
     )
 ```
 
-In the `from_source` method, we specify the source of our flow code.
+In the `from_source` method, specify the source of your flow code.
 
-In the `deploy` method, we specify the name of our deployment and the name of the work pool that we created earlier.
+In the `deploy` method, specify the name of our deployment and the name of the work pool that you created earlier.
 
 You can store your flow code in any of several types of remote storage.
 In this example, we use a GitHub repository, but you could use a Docker image, as you'll see in an upcoming section of the tutorial.
