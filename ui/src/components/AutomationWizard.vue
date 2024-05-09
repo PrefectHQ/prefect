@@ -21,11 +21,6 @@
     <template #details-step>
       <AutomationWizardStepDetails v-model:automation="automation" />
     </template>
-    <template v-if="wizardRef?.currentStep?.key === 'trigger-step' && triggerAsEventFilter" #footer>
-      <p-heading heading="5">
-        Related Events
-      </p-heading>
-    </template>
   </p-wizard>
 </template>
 
@@ -70,12 +65,4 @@
   function cancel(): void {
     router.back()
   }
-
-  const triggerAsEventFilter = computed(() => {
-    if (automation.value.trigger && !isAutomationTriggerEvent(automation.value.trigger)) {
-      return null
-    }
-
-    return mapper.map('AutomationTriggerEvent', automation.value.trigger, 'WorkspaceEventsFilter')
-  })
 </script>
