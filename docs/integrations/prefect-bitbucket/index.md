@@ -1,6 +1,6 @@
 # prefect-bitbucket
 
-Prefect-bitbucket is a Prefect integration that allows you to interact with Bitbucket repositories and credentials. TK worker need installed for?
+The prefect-bitbucket library makes it easy to interact with Bitbucket repositories and credentials.
 
 ## Getting Started
 

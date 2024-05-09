@@ -1,5 +1,7 @@
 # prefect-github
 
+Prefect-github makes it easy to interact with GitHub repositories and credentials.
+
 ## Getting started
 
 ### Prerequisites
@@ -14,6 +16,10 @@
 pip install prefect-github
 ```
 </div>
+
+## Examples
+
+Create a deployment where the flow code is stored in a private GitHub repository using the `GitHubRepository` block to access the code.
 
 ### Register newly installed block types
 
