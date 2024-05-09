@@ -199,13 +199,27 @@ class TaskRunEngine(Generic[P, R]):
             cache_expiration=cache_expiration,
         )
 
-    def begin_run(self):
+    def begin_run(self, under_txn: Transaction = None) -> str:
+        """
+        Begins by computing and looking up this task's idempotency record.
+        If found, sets state to Completed. Otherwise, attempts to enter Running state
+        and returns the task's idempotency key.
+        """
+        if under_txn:
+            # compute key
+            # attempt to take lock or load and return result
+            # created Completed state if result found
+            # otherwise let it proceed
+            pass
+
         state_details = self._compute_state_details()
         new_state = Running(state_details=state_details)
         state = self.set_state(new_state)
+
         while state.is_pending():
             time.sleep(0.5)
             state = self.set_state(new_state)
+        return key
 
     def set_state(self, state: State, force: bool = False) -> State:
         if not self.task_run:
@@ -217,6 +231,7 @@ class TaskRunEngine(Generic[P, R]):
 
         # currently this is a hack to keep a reference to the state object
         # that has an in-memory result attached to it; using the API state
+
         # could result in losing that reference
         self.task_run.state = new_state
         return new_state
@@ -390,27 +405,29 @@ def run_task_sync(
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start() as run:
-        run.begin_run()
+        with transaction() as txn:
+            run.begin_run(with_txn=txn)
 
-        while run.is_running():
-            with run.enter_run_context():
-                try:
-                    # This is where the task is actually run.
-                    with timeout(seconds=run.task.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, run.parameters or {}
-                        )
-                        result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
+            while run.is_running():
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            with transaction(key=key) as txn:
+                                result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
-                    # If the task run is successful, finalize it.
-                    run.handle_success(result)
+                        # If the task run is successful, finalize it.
+                        run.handle_success(result)
 
-                except Exception as exc:
-                    run.handle_exception(exc)
+                    except Exception as exc:
+                        run.handle_exception(exc)
 
-        if run.state.is_final():
-            for hook in run.get_hooks(run.state):
-                hook()
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state):
+                    hook()
 
         if return_type == "state":
             return run.state
@@ -433,7 +450,7 @@ async def run_task_async(
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start() as run:
-        run.begin_run()
+        key = run.begin_run()
 
         while run.is_running():
             with run.enter_run_context():

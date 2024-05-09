@@ -46,7 +46,7 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    name: str = None
+    key: str = None
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
     __var__ = ContextVar("transaction")
@@ -85,9 +85,9 @@ class Transaction(ContextModel):
                     # set state to failed?!?
                     pass
 
-    def add_task(self, task: Task, task_run: TaskRun) -> None:
+    def add_task(self, task: Task, task_run_id: UUID) -> None:
         self.tasks.append(task)
-        self.state[task_run] = {}
+        self.state[task_run_id] = {}
 
     @classmethod
     def get_active(cls: Type[T]) -> Optional[T]:
