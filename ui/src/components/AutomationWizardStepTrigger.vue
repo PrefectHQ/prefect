@@ -2,7 +2,7 @@
   <p-content class="automation-wizard-step-trigger">
     <p-label label="Trigger Template" :state :message>
       <template #default="{ id }">
-        <AutomationTriggerTemplateSelect :id v-model="template" :state />
+        <AutomationTriggerTemplateSelect :id v-model:template="template" :state />
       </template>
     </p-label>
 
