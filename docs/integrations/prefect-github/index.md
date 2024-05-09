@@ -1,26 +1,31 @@
 # prefect-github
 
-Prefect integrations interacting with GitHub.
+## Getting started
 
-The tasks within this collection were created by a code generator using the GitHub GraphQL schema.
+### Prerequisites
 
-## Getting Started
+- [Prefect installed](/getting-started/installation/).
+- An [GitHub account](https://github.com/).
 
-### Install `prefect-github`
+### Install prefect-github
 
+<div class = "terminal">
 ```bash
 pip install prefect-github
 ```
+</div>
 
-Then, register to [view the block](https://docs.prefect.io/ui/blocks/) on Prefect Cloud:
+### Register newly installed block types
 
+Register the block types in the prefect-github module to make them available for use.
+
+<div class = "terminal">
 ```bash
 prefect block register -m prefect_github
 ```
+</div>
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://orion-docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
-
-### Write and run a flow
+### Query a GitHub repository and add a star
 
 ```python
 from prefect import flow
@@ -45,28 +50,12 @@ def github_add_star_flow():
     return starrable
 
 
-github_add_star_flow()
+if __name__ == "__main__":
+    github_add_star_flow()
 ```
 
 ## Resources
 
-If you encounter any bugs while using `prefect-github`, feel free to open an issue in the [prefect-github](https://github.com/PrefectHQ/prefect-github) repository.
+For assistance using GitHub, consult the [GitHub documentation]().
 
-If you have any questions or issues while using `prefect-github`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
-
-Feel free to ⭐️ or watch [`prefect-github`](https://github.com/PrefectHQ/prefect-github) for updates too!
-
-## Development
-
-If you'd like to install a version of `prefect-github` for development, clone the repository and perform an editable install with `pip`:
-
-```bash
-git clone https://github.com/PrefectHQ/prefect-github.git
-
-cd prefect-github/
-
-pip install -e ".[dev]"
-
-# Install linting pre-commit hooks
-pre-commit install
-```
+Refer to the prefect-github API documentation linked in the sidebar to explore all the capabilities of the prefect-github library.
