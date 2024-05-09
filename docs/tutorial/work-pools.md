@@ -205,8 +205,8 @@ For more control over the infrastructure that your flows run on, we recommend Pr
 Serverless push work pools scale infinitely and provide more configuration options than Prefect Managed work pools.
 
 Prefect provides push work pools for AWS ECS on Fargate, Azure Container Instances, Google Cloud Run, and Modal.
-To use a push work pool, you will need an account with sufficient permissions on the cloud provider that you want to use.
-We'll use GCP for this example.
+Using a push work pool requires an account with sufficient permissions on your cloud provider.
+This example uses GCP.
 
 Setting up the cloud provider pieces for infrastructure can be tricky and time consuming.
 Fortunately, Prefect can automatically provision infrastructure for you and wire it all together to work with your push work pool.
