@@ -26,14 +26,14 @@ To transition from persistent infrastructure to dynamic infrastructure, use `flo
     If infrastructure needs escalate, work pools become a handy tool.
     But you're not locked into one method and can combine approaches as needed.
 
+The primary reason to use work pools is for **dynamic infrastructure provisioning and configuration**.
+For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently.
+In this case, you don't want an idle process running within that infrastructure.
+
 !!! note "Deployment definition methods differ slightly for work pools"
     When you use work-pool-based execution, you define deployments differently.
     Deployments for workers are configured with `deploy`, which requires additional configuration.
     You cannot use a deployment created with `serve` with a work pool.
-
-The primary reason to use work pools is for **dynamic infrastructure provisioning and configuration**.
-For example, you might have a workflow that has expensive infrastructure requirements and is run infrequently.
-In this case, you don't want an idle process running within that infrastructure.
 
 Other advantages to using work pools include:
 
@@ -180,7 +180,7 @@ Click the **Run** button to trigger a run of your deployment.
 
 Because you configured this deployment with a Prefect Managed work pool, Prefect Cloud will run your flow on your behalf.
 
-View the logs in the UI.
+You can view the logs in the UI.
 
 ### Schedule a deployment run
 
@@ -205,33 +205,25 @@ For more control over the infrastructure that your flows run on, we recommend Pr
 Serverless push work pools scale infinitely and provide more configuration options than Prefect Managed work pools.
 
 Prefect provides push work pools for AWS ECS on Fargate, Azure Container Instances, Google Cloud Run, and Modal.
-Using a push work pool requires an account with sufficient permissions on your cloud provider.
+Using a push work pool requires sufficient permissions on your cloud provider account.
 This example uses GCP.
-
-Setting up the cloud provider pieces for infrastructure can be tricky and time consuming.
-Fortunately, Prefect can automatically provision infrastructure for you and wire it all together to work with your push work pool.
 
 ### Create a push work pool with automatic infrastructure provisioning
 
-In your terminal, run the following command to set up a **push work pool**.
+**Prerequisites**:
 
-Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
+- Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
+- If you already have the gcloud CLI installed, update to the latest version with `gcloud components update`.
+- The following permissions in your GCP project:
+    - resourcemanager.projects.list
+    - serviceusage.services.enable
+    - iam.serviceAccounts.create
+    - iam.serviceAccountKeys.create
+    - resourcemanager.projects.setIamPolicy
+    - artifactregistry.repositories.create
+- Docker installed to build and push images to your registry. Install [Docker](https://docs.docker.com/get-docker/).
 
-If you already have the gcloud CLI installed, be sure to update to the latest version with `gcloud components update`.
-
-You will need the following permissions in your GCP project:
-
-- resourcemanager.projects.list
-- serviceusage.services.enable
-- iam.serviceAccounts.create
-- iam.serviceAccountKeys.create
-- resourcemanager.projects.setIamPolicy
-- artifactregistry.repositories.create
-
-Docker is also required to build and push images to your registry.
-You can install Docker [here](https://docs.docker.com/get-docker/).
-
-Run the following command to set up a work pool named `my-cloud-run-pool` of type `cloud-run:push`.
+To set up a work pool named `my-cloud-run-pool` of type `cloud-run:push`, run:
 
 <div class="terminal">
 
@@ -241,9 +233,9 @@ prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-po
 
 </div>
 
-Using the `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically configure it to be ready to execute flows via Cloud Run.
-In your GCP project, this command will activate the Cloud Run API, create a service account, and create a key for the service account, if they don't already exist.
-In your Prefect workspace, this command will create a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) for storing the service account key.
+Using the `--provision-infra` flag allows you to select a GCP project for your work pool and automatically configure it to execute flows through Cloud Run.
+In your GCP project, this command activates the Cloud Run API, and creates a service account and a key (if they don't already exist).
+In your Prefect workspace, this command creates a [`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) for storing the service account key.
 
 Here's an abbreviated example output from running the command:
 
@@ -286,11 +278,11 @@ Created work pool 'my-cloud-run-pool'!
 
 </div>
 
-After infrastructure provisioning completes, you will be logged into your new Artifact Registry repository and the default Docker build namespace will be set to the URL of the repository.
+After infrastructure provisioning completes, you will be logged into your new Artifact Registry repository. The default Docker build namespace is set to the URL of the repository.
 
-While the default namespace is set, any images you build without specifying a registry or username/organization will be pushed to the repository.
+While the default namespace is set, any images you build without specifying a registry or username/organization are pushed to the repository.
 
-To take advantage of this functionality, you can write your deploy script like this:
+To use this functionality, write your deploy script like this:
 
 ```python hl_lines="14" title="example_deploy_script.py"
 from prefect import flow                                                       
@@ -316,24 +308,19 @@ if __name__ == "__main__":
 
 Run the script to create the deployment on the Prefect Cloud server.
 
-Running this script will build a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and push it to your repository.
+Running this script builds a Docker image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` and pushes it to your repository.
 
 !!! tip
     Make sure you have Docker running locally before running this script.
 
 Note that you only need to include an object of the `DeploymentImage` class with the argument `platform="linux/amd64` if you're building your image on a machine with an ARM-based processor.
-Otherwise, you could just pass `image="my-image:latest"` to `deploy`.
+Otherwise, you can pass `image="my-image:latest"` to `deploy`.
 
-Also note that the `cron` argument will schedule the deployment to run at 1am every day.
+Also note that the `cron` argument schedules the deployment to run at 1:00 AM every day.
 See the [schedules](/concepts/schedules/) docs for more information on scheduling options.
 
 See the [Push Work Pool guide](/guides/deployment/push-work-pools/) for more details and example commands for each cloud provider.
 
-## Next step
+## Next steps 
 
-Congratulations!
-You've learned how to deploy flows to work pools.
-If these work pool options meet all of your needs, we encourage you to go deeper with the [concepts docs](/concepts/) or explore our [how-to guides](/guides/) to see examples of particular Prefect use cases.
-
-However, if you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect server instance, we encourage you to see the [next section of the tutorial](/tutorial/workers/).
-There you'll learn how to use work pools that rely on a worker and see how to customize Docker images for container-based infrastructure.
+If you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect server instance, continue to the [next section of the tutorial](/tutorial/workers/). You will learn how to use work pools that rely on a worker and customize Docker images for container-based infrastructure.
