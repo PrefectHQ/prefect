@@ -8,6 +8,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 import datetime
 import inspect
 import os
+import sys
 import tempfile
 import warnings
 from functools import partial, update_wrapper
@@ -939,7 +940,7 @@ class Flow(Generic[P, R]):
         work_pool_name: Optional[str] = None,
         image: Optional[Union[str, DeploymentImage]] = None,
         build: bool = True,
-        build_logs_sink: Optional[TextIO] = None,
+        build_logs_sink: Optional[TextIO] = sys.stdout,
         push: bool = True,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict] = None,
@@ -978,7 +979,8 @@ class Flow(Generic[P, R]):
                 and build arguments.
             build: Whether or not to build a new image for the flow. If False, the provided
                 image will be used as-is and pulled at runtime.
-            build_logs_sink: A file-like object to write build logs to.
+            build_logs_sink: A file-like object to write build logs to. Ignored if `image` is
+                a `DeploymentImage` instance with `stream_progress_to` set.
             push: Whether or not to skip pushing the built image to a registry.
             work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
                 If not provided the default work queue for the work pool will be used.
