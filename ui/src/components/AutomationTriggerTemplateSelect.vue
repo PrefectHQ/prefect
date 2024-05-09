@@ -9,7 +9,7 @@
 
   const template = defineModel<AutomationTriggerTemplate | null>('template', { required: true })
   /**
-   * Currently OSS doesn't have support for enabled/disabled trigger types like cloud does.
+   * Currently OSS doesn't have support for enabled/disabled trigger templates like cloud does.
    * Only because it wasn't needed at the time of porting automations to OSS.
    */
   const options = computed<SelectOptionNormalized[]>(() => automationTriggerTemplates.map(type => {
