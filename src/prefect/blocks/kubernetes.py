@@ -16,12 +16,13 @@ from typing_extensions import Self
 
 from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
+from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
     import kubernetes
     from kubernetes.client.api_client import ApiClient
 else:
-    import kubernetes
+    kubernetes = lazy_import("kubernetes")
 
 
 @deprecated_class(

@@ -128,6 +128,7 @@ from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
 from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
@@ -163,7 +164,7 @@ if TYPE_CHECKING:
 
     from prefect.client.schemas import FlowRun
 else:
-    import kubernetes
+    kubernetes = lazy_import("kubernetes")
 
 MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1
