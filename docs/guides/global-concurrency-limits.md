@@ -263,7 +263,7 @@ if __name__ == "__main__":
 
 Limit the maximum number of parallel processing tasks.
 
-In this scenario we want to limit the number of `process_data` tasks to five at any one time. We do this by using the `concurrency` context manager to request five slots on the `data-processing` concurrency limit. This will block until five slots are free and then submit five more tasks, ensuring that we never exceed the maximum number of parallel processing tasks.
+In this scenario you want to limit the number of `process_data` tasks to five at any one time. You do this by using the `concurrency` context manager to request five slots on the `data-processing` concurrency limit. This will block until five slots are free and then submit five more tasks, ensuring that we never exceed the maximum number of parallel processing tasks.
 
 ```python
 import asyncio
