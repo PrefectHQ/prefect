@@ -37,19 +37,42 @@ A deployment can use flow code in a GitLab repository without this library in th
 - The compute environment is authenticated to the private repository
 - The deployment uses a Secret block to store the required credentials
 
-### Access private flow code stored in a GitLab repository in a Deployment
+### Access flow code stored in a private GitLab repository in a deployment
 
-Use the UI or code to create a GitLab Credentials block.
-Then reference the block in the deployment creation code:
+Create a GitLab Credentials block in the UI or in code. The code below shows how to create a GitLab Credentials block in Python.
+
+```python
+from prefect_gitlab import GitLabCredentials
+
+gitlab_credentials_block = GitLabCredentials(url="https://gitlab.com/org/private-repo.git", token="abc-123")
+
+gitlab_credentials_block.save(name="my-gitlab-credentials-block")
+```
+
+Then use the block during to pass the GitLab access token deployment creation:
 
 ```python
 from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect_gitlab import GitLabCredentials
 
-flow.from_source().deploy(name="my-deploy")
-
+if __name__ == "__main__":
+    flow.from_source(
+        source=GitRepository(
+        url="https://gitlab.com/org/private-repo.git",
+        credentials={
+            "access_token": GitLabCredentials.load("my-gitlab-credentials-block").token
+        }
+    ),
+    entrypoint="my_file.py:my_flow",
+    ).deploy(
+        name="private-gitlab-deploy",
+        work_pool_name="my_pool",
+        build=False
+    )
 ```
 
-If using a `prefect.yaml` file to create the deployment, reference the GitLab Credentials block in the `pull` step:
+Alternatively, if you use a `prefect.yaml` file to create the deployment, reference the GitLab Credentials block in the `pull` step:
 
 ```yaml
 pull:
@@ -60,7 +83,6 @@ pull:
 
 ### Interact with a GitLab repository
 
-Create a GitLab Repository block in the UI or in code.
 The code below shows how to reference a particular branch or tag of a private GitLab repository.
 
 ```python
@@ -85,7 +107,7 @@ Leave the `reference` field empty to use the default branch.
 
 Use the newly created block to interact with the GitLab repository.
 
-For example, download the repository contents with the `.get_directory()` method.
+For example, download the repository contents with the `.get_directory()` method like this:
 
 ```python
 from prefect_gitlab.repositories import GitLabRepository
