@@ -7,7 +7,7 @@ Prefect-github makes it easy to interact with GitHub repositories and credential
 ### Prerequisites
 
 - [Prefect installed](/getting-started/installation/).
-- An [GitHub account](https://github.com/).
+- A [GitHub account](https://github.com/).
 
 ### Install prefect-github
 
@@ -16,10 +16,6 @@ Prefect-github makes it easy to interact with GitHub repositories and credential
 pip install prefect-github
 ```
 </div>
-
-## Examples
-
-Create a deployment where the flow code is stored in a private GitHub repository using the `GitHubRepository` block to access the code.
 
 ### Register newly installed block types
 
@@ -31,7 +27,64 @@ prefect block register -m prefect_github
 ```
 </div>
 
-### Query a GitHub repository and add a star
+## Examples
+
+In the examples below, you create blocks with Python code.
+Alternatively, blocks can be created through the Prefect UI.
+
+To create a deployment and run a deployment where the flow code is stored in a private GitHub repository, you can use the `GitHubCredentials` block.
+
+A deployment can use flow code stored in a GitHub repository without using this library in either of the following cases:
+
+- The repository is public
+- The deployment uses a [Secret block](https://docs.prefect.io/latest/concepts/blocks/) to store the token
+
+Code to create a GitHub Credentials block:
+
+```python
+from prefect_github import GitHubCredentials
+
+github_credentials_block = GitHubCredentials(token="my_token")
+github_credentials_block.save(name="my-github-credentials-block")
+```
+
+### Access flow code stored in a private GitHub repository in a deployment
+
+Use the credentials block you created above to pass the GitHub access token during deployment creation. The code below assumes there's flow code stored in a private GitHub repository.
+
+```python
+from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect_github import GitHubCredentials
+
+
+if __name__ == "__main__":
+    flow.from_source(
+        source=GitRepository(
+        url="https://github.com/org/private-repo.git",
+        credentials=GitHubCredentials.load("my-github-credentials-block")
+    ),
+    entrypoint="my_file.py:my_flow",
+    ).deploy(
+        name="private-github-deploy",
+        work_pool_name="my_pool",
+        build=False
+    )
+```
+
+Alternatively, if you use a `prefect.yaml` file to create the deployment, reference the GitHub Credentials block in the `pull` step:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        credentials: "{{ prefect.blocks.github-credentials.my-github-credentials-block }}"
+```
+
+### Interact with a GitHub repository
+
+You can use prefect-github to create and retrieve issues and PRs from a repository.
+Here's an example of adding a star to a GitHub repository:
 
 ```python
 from prefect import flow
@@ -62,6 +115,6 @@ if __name__ == "__main__":
 
 ## Resources
 
-For assistance using GitHub, consult the [GitHub documentation]().
+For assistance using GitHub, consult the [GitHub documentation](https://docs.github.com).
 
 Refer to the prefect-github API documentation linked in the sidebar to explore all the capabilities of the prefect-github library.

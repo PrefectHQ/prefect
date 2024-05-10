@@ -84,8 +84,8 @@ Alternatively, if you use a `prefect.yaml` file to create the deployment, refere
 ```yaml
 pull:
     - prefect.deployments.steps.git_clone:
-        repository: https://github.com/org/repo.git
-        access_token: "{{ prefect.blocks.bitbucket-credentials.my-credentials }}"
+        credentials: https://bitbucket.org/org/private-repo.git
+        credentials: "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-credentials-block }}"
 ```
 
 ### Interact with a Bitbucket repository

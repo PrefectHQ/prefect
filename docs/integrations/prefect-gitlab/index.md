@@ -46,14 +46,14 @@ Code to create a GitLab Credentials block:
 ```python
 from prefect_gitlab import GitLabCredentials
 
-gitlab_credentials_block = GitLabCredentials(url="https://gitlab.com/my_org/my_private-repo.git", token="my_token")
 
+gitlab_credentials_block = GitLabCredentials(token="my_token")
 gitlab_credentials_block.save(name="my-gitlab-credentials-block")
 ```
 
 ### Access flow code stored in a private GitLab repository in a deployment
 
-Use the credentials block you created above to pass the GitLab access token during deployment creation. The code below assumes there's flow code
+Use the credentials block you created above to pass the GitLab access token during deployment creation. The code below assumes there's flow code in your private GitLab repository.
 
 ```python
 from prefect import flow
@@ -81,7 +81,7 @@ Alternatively, if you use a `prefect.yaml` file to create the deployment, refere
 pull:
     - prefect.deployments.steps.git_clone:
         repository: https://github.com/org/repo.git
-        access_token: "{{ prefect.blocks.gitlab-credentials.my-credentials }}"
+        credentials: "{{ prefect.blocks.gitlab-credentials.my-gitlab-credentials-block }}"
 ```
 
 ### Interact with a GitLab repository
