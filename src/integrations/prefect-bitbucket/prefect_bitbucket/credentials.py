@@ -64,8 +64,8 @@ class BitBucketCredentials(CredentialsBlock):
         default=None, description="The password to authenticate to BitBucket."
     )
     url: str = Field(
-        default="https://api.bitbucket.org/",
-        description="The base URL of your BitBucket instance.",
+        default=None
+        description="The base URL of a BitBucket instance. Leave blank for BitBucket Cloud.",
         title="URL",
     )
 
