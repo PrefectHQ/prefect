@@ -238,7 +238,8 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
     return [i for p in issues for i in p.result()]
 ```
 
-Whenever you run the parent flow, a new run generates for related functions within that as well. Not only is this run tracked as a subflow run of the main flow, but you can also inspect it independently in the UI.
+Whenever you run the parent flow, the subflow is called and runs. 
+In the UI each subflow run is linked to its parent and can be individually inspected. 
 
 ## Next: Deployments
 
