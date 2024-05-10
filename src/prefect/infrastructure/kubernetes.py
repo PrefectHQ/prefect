@@ -598,10 +598,12 @@ class KubernetesJob(Infrastructure):
         return JsonPatch(shortcuts)
 
     def _get_job(self, job_id: str) -> Optional["V1Job"]:
+        from kubernetes.client.exceptions import ApiException
+
         with self.get_batch_client() as batch_client:
             try:
                 job = batch_client.read_namespaced_job(job_id, self.namespace)
-            except kubernetes.client.exceptions.ApiException:
+            except ApiException:
                 self.logger.error(f"Job {job_id!r} was removed.", exc_info=True)
                 return None
             return job
