@@ -8,6 +8,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+    from pydantic import BaseModel as V2BaseModel
 else:
     import pydantic
 
@@ -44,7 +45,7 @@ class TestAutoEnum:
         assert repr(Color.RED) == str(Color.RED) == "Color.RED"
 
     def test_autoenum_can_be_json_serialized_with_default_encoder(self):
-        json.dumps(Color.RED) == "RED"
+        assert json.dumps(Color.RED) == "RED"
 
 
 @pytest.mark.parametrize(
@@ -501,6 +502,21 @@ class TestVisitCollection:
         )
         # Only the first two items should be visited
         assert result == [2, 3, [3, [4, 5, 6]]]
+
+    @pytest.mark.skipif(not HAS_PYDANTIC_V2, reason="Only runs with Pydantic v2")
+    def test_visit_collection_v2_base_model(self, capsys):
+        class V2Model(V2BaseModel):
+            x: int
+            y: int
+
+        input = V2Model(x=1, y=2)
+        result = visit_collection(
+            input, visit_fn=negative_even_numbers, return_data=True
+        )
+        assert result == V2Model(x=1, y=-2)
+        out = capsys.readouterr().out
+        assert "Function called on 1" in out
+        assert "Function called on 2" in out
 
 
 class TestRemoveKeys:

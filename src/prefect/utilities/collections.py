@@ -18,6 +18,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Set,
     Tuple,
@@ -32,6 +33,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+    from pydantic import BaseModel as V2BaseModel
 else:
     import pydantic
 
@@ -78,7 +80,7 @@ VT = TypeVar("VT")
 
 
 def dict_to_flatdict(
-    dct: Dict[KT, Union[Any, Dict[KT, Any]]], _parent: Tuple[KT, ...] = None
+    dct: Dict[KT, Union[Any, Dict[KT, Any]]], _parent: Optional[Tuple[KT, ...]] = None
 ) -> Dict[Tuple[KT, ...], Any]:
     """Converts a (nested) dictionary to a flattened representation.
 
@@ -121,11 +123,11 @@ def flatdict_to_dict(
     typ = type(dct)
     result = cast(Dict[KT, Union[VT, Dict[KT, VT]]], typ())
     for key_tuple, value in dct.items():
-        current_dict = result
+        current_dict: Dict = result
         for prefix_key in key_tuple[:-1]:
             # Build nested dictionaries up for the current key tuple
             # Use `setdefault` in case the nested dict has already been created
-            current_dict = current_dict.setdefault(prefix_key, typ())  # type: ignore
+            current_dict = current_dict.setdefault(prefix_key, typ())
         # Set the value
         current_dict[key_tuple[-1]] = value
 
@@ -166,7 +168,7 @@ def listrepr(objs: Iterable[Any], sep: str = " ") -> str:
 def extract_instances(
     objects: Iterable,
     types: Union[Type[T], Tuple[Type[T], ...]] = object,
-) -> Union[List[T], Dict[Type[T], T]]:
+) -> Union[List[T], Mapping[Type[T], T]]:
     """
     Extract objects from a file and returns a dict of type -> instances
 
@@ -178,21 +180,22 @@ def extract_instances(
         If a single type is given: a list of instances of that type
         If a tuple of types is given: a mapping of type to a list of instances
     """
-    types = ensure_iterable(types)
+    types_: Iterable[Type[T]] = ensure_iterable(types)
 
     # Create a mapping of type -> instance from the exec values
     ret = defaultdict(list)
 
     for o in objects:
         # We iterate here so that the key is the passed type rather than type(o)
-        for type_ in types:
+        for type_ in types_:
             if isinstance(o, type_):
                 ret[type_].append(o)
 
-    if len(types) == 1:
-        return ret[types[0]]
+    list_of_types = list(types_)
+    if len(list_of_types) == 1:
+        return ret[list_of_types[0]]
 
-    return ret
+    return ret  # type: ignore
 
 
 def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]]:
@@ -288,7 +291,7 @@ def visit_collection(
 
     def visit_expression(expr):
         if context is not None:
-            return visit_fn(expr, context)
+            return visit_fn(expr, context)  # type: ignore
         else:
             return visit_fn(expr)
 
@@ -376,6 +379,40 @@ def visit_collection(
 
             # Preserve data about which fields were explicitly set on the original model
             object.__setattr__(model_instance, "__fields_set__", expr.__fields_set__)
+            result = model_instance
+        else:
+            result = None
+
+    elif isinstance(expr, V2BaseModel):
+        expr = cast(V2BaseModel, expr)
+        model_fields = {
+            f
+            for f in expr.model_fields_set.union(expr.model_fields)
+            if hasattr(expr, f)
+        }
+        items = [visit_nested(getattr(expr, key)) for key in model_fields]
+
+        if return_data:
+            # Collect fields with aliases so reconstruction can use the correct field name
+            aliases = {
+                key: info.alias
+                for key, info in expr.model_fields.items()
+                if info.alias is not None
+            }
+
+            model_data = {
+                aliases.get(key) or key: value
+                for key, value in zip(model_fields, items)
+            }
+
+            # Create a new instance of the model using the `create_model` function
+
+            model_instance = typ(**model_data)
+
+            # Restore private attributes after creating the new model
+            for attr in expr.__private_attributes__:
+                setattr(model_instance, attr, getattr(expr, attr))
+
             result = model_instance
         else:
             result = None
