@@ -54,7 +54,7 @@ For practical use, consider the following:
 
 - *Higher values*: Setting `slot_decay_per_second` to a higher value, such as 5.0, results in slots becoming available relatively quickly. In this scenario, a slot that was occupied by a task will free up after just `0.2` (`1.0 / 5.0`) seconds.
 
-- *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, like 0.1, causes slots to become available more slowly. In this scenario it would take `10` (`1.0 / 0.1`) seconds for a slot to become available again after occupancy.
+- *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, such as 0.1, causes slots to become available more slowly. In this scenario, it would take `10` (`1.0 / 0.1`) seconds for a slot to become available after occupancy.
 
 Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the rate of your workflow based on your specific requirements.
 
