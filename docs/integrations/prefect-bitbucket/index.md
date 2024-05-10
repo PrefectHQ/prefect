@@ -13,13 +13,13 @@ The prefect-bitbucket library makes it easy to interact with Bitbucket repositor
 
 <div class = "terminal">
 ```bash
-pip install prefect-bitbucket
+pip install -U prefect-bitbucket
 ```
 </div>
 
 ### Register newly installed block types
 
-Register the block types in the prefect-aws module to make them available for use.
+Register the block types in the prefect-bitbucket module to make them available for use.
 
 <div class = "terminal">
 ```bash
@@ -30,13 +30,13 @@ prefect block register -m prefect_bitbucket
 ## Examples
 
 In the examples below, you create blocks with Python code.
-Alternatively, each block can be created through the Prefect UI.
+Alternatively, blocks can be created through the Prefect UI.
 
 ### Load a pre-existing BitBucketCredentials block
 
 ```python
 from prefect import flow
-from prefect_bitbucket.credentials import BitBucketCredentials
+from prefect_bitbucket import BitBucketCredentials
 
 @flow
 def use_stored_bitbucket_creds_flow():
@@ -44,7 +44,8 @@ def use_stored_bitbucket_creds_flow():
 
     return bitbucket_credentials_block
 
-use_stored_bitbucket_creds_flow()
+if __name__ == "__main__":
+    use_stored_bitbucket_creds_flow()
 ```
 
 ### Create a new BitBucketCredentials block
@@ -60,7 +61,8 @@ def create_new_bitbucket_creds_flow():
         username="my-username"
     )
 
-create_new_bitbucket_creds_flow()
+if __name__ == "__main__":
+    create_new_bitbucket_creds_flow()
 ```
 
 #### Create a BitBucketRepository block for a public repo
@@ -96,7 +98,7 @@ branch_bitbucket_block = BitBucketRepository(
 branch_bitbucket_block.save("my-bitbucket-branch-block")
 ```
 
-#### Create a new BitBucketCredentials block and a BitBucketRepository block for a private repo
+#### Create BitBucketCredentials block and a BitBucketRepository block for a private repo
 
 ```python
 from prefect_bitbucket import BitBucketCredentials, BitBucketRepository

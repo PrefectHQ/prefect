@@ -31,11 +31,10 @@ prefect block register -m prefect_gitlab
 
 To create a deployment and run a deployment where the flow code is stored in a private GitLab repository, you can use the `GitLabCredentials` block.
 
-A deployment can use flow code in a GitLab repository without this library in the following cases:
+Note that a deployment can use flow code in a GitLab repository without this library in any of the following cases:
 
 - The repository is public
-- The compute environment is authenticated to the private repository
-- The deployment uses a Secret block to store the required credentials
+- The deployment uses a Secret block to store the token
 
 ### Access flow code stored in a private GitLab repository in a deployment
 
@@ -44,25 +43,24 @@ Create a GitLab Credentials block in the UI or in code. The code below shows how
 ```python
 from prefect_gitlab import GitLabCredentials
 
-gitlab_credentials_block = GitLabCredentials(url="https://gitlab.com/org/private-repo.git", token="abc-123")
+gitlab_credentials_block = GitLabCredentials(url="https://gitlab.com/my_org/my_private-repo.git", token="my_token")
 
 gitlab_credentials_block.save(name="my-gitlab-credentials-block")
 ```
 
-Then use the block during to pass the GitLab access token deployment creation:
+Then use the block to pass the GitLab access token during deployment creation. The code below assumes there's flow code
 
 ```python
 from prefect import flow
 from prefect.runner.storage import GitRepository
 from prefect_gitlab import GitLabCredentials
 
+
 if __name__ == "__main__":
     flow.from_source(
         source=GitRepository(
         url="https://gitlab.com/org/private-repo.git",
-        credentials={
-            "access_token": GitLabCredentials.load("my-gitlab-credentials-block").token
-        }
+        credentials=GitLabCredentials.load("my-gitlab-credentials-block")
     ),
     entrypoint="my_file.py:my_flow",
     ).deploy(
@@ -83,10 +81,10 @@ pull:
 
 ### Interact with a GitLab repository
 
-The code below shows how to reference a particular branch or tag of a private GitLab repository.
+The code below shows how to reference a particular branch or tag of a GitLab repository.
 
 ```python
-from prefect_gitlab.repositories import GitLabRepository
+from prefect_gitlab import GitLabRepository
 
 def save_private_gitlab_block():
     private_gitlab_block = GitLabRepository(
@@ -102,8 +100,7 @@ if __name__ == "__main__":
     save_private_gitlab_block()
 ```
 
-Leave the `access_token` field empty if the repository is public.
-Leave the `reference` field empty to use the default branch.
+Exclude the `access_token` field if the repository is public and exclude the `reference` field to use the default branch.
 
 Use the newly created block to interact with the GitLab repository.
 
@@ -113,7 +110,7 @@ For example, download the repository contents with the `.get_directory()` method
 from prefect_gitlab.repositories import GitLabRepository
 
 def fetch_repo():
-    private_gitlab_block = GitLabRepository.load("my-private-gitlab-block")
+    private_gitlab_block = GitLabRepository.load("my-gitlab-block")
     repo = private_gitlab_block.get_directory()
     return repo
 
