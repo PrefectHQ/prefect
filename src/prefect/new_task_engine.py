@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -26,7 +26,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures_to_states
-from prefect.logging.loggers import get_logger, task_run_logger
+from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
@@ -215,6 +215,10 @@ class TaskRunEngine(Generic[P, R]):
             include_cache_expiration=True
         )
         self.set_state(terminal_state)
+        self.logger.log(
+            level=logging.INFO,
+            msg=f"Finished in state {terminal_state!r}",
+        )
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -265,7 +269,7 @@ class TaskRunEngine(Generic[P, R]):
             parameters=self.parameters,
             result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
             client=client,
-        ):
+        ), patch_print() if self.task.log_prints else nullcontext():
             # set the logger to the task run logger
             current_logger = self.logger
             try:
@@ -287,12 +291,14 @@ class TaskRunEngine(Generic[P, R]):
                     self.task_run = run_sync(
                         self.task.create_run(
                             client=client,
-                            parameters=self.parameters,
+                            parameters=self.parameters or {},
                             flow_run_context=FlowRunContext.get(),
                             parent_task_run_context=TaskRunContext.get(),
                         )
                     )
-
+                self.logger.info(
+                    f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                )
                 yield self
             except Exception:
                 # regular exceptions are caught and re-raised to the user
@@ -376,10 +382,10 @@ async def run_task_async(
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start() as run:
-        run.begin_run()
+        with run.enter_run_context():
+            run.begin_run()
 
-        while run.is_running():
-            with run.enter_run_context():
+            while run.is_running():
                 try:
                     # This is where the task is actually run.
                     with timeout_async(seconds=run.task.timeout_seconds):
@@ -409,7 +415,7 @@ def run_task(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, State, None]:
+) -> Union[R, State, Coroutine[Any, Any, Union[R, State]], None]:
     kwargs = dict(
         task=task,
         task_run=task_run,

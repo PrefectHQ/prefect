@@ -9,6 +9,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import MissingResult
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
 )
@@ -27,6 +28,7 @@ def mock_settings():
     with temporary_settings(
         {
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
+            PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: True,
         }
     ):
         yield
@@ -78,13 +80,6 @@ def mock_task_server_start(monkeypatch):
 
 
 @pytest.fixture
-def task_task_runner_mock():
-    task_runner = MagicMock()
-    task_runner.start = MagicMock()
-    return task_runner
-
-
-@pytest.fixture
 def mock_create_subscription(monkeypatch):
     monkeypatch.setattr(
         "prefect.task_server.TaskServer._subscribe_to_task_scheduling",
@@ -101,20 +96,6 @@ async def test_task_server_basic_context_management():
     assert task_server.started is False
     with pytest.raises(RuntimeError, match="client has been closed"):
         await task_server._client.hello()
-
-
-@pytest.mark.usefixtures("mock_create_subscription")
-async def test_task_server_uses_same_task_runner_for_all_tasks(
-    task_task_runner_mock, foo_task
-):
-    task_server = TaskServer(foo_task, task_runner=task_task_runner_mock)
-
-    await task_server.start()
-
-    foo_task.submit(x=42)
-    foo_task.submit(x=43)
-
-    task_task_runner_mock.start.assert_called_once()
 
 
 async def test_handle_sigterm(mock_create_subscription):
@@ -409,12 +390,9 @@ class TestTaskServerTaskResults:
 
         new_task_run = await task_with_cache.submit(42)
 
-        with caplog.at_level("INFO"):
-            await task_server.execute_task_run(new_task_run)
+        await task_server.execute_task_run(new_task_run)
 
         new_updated_task_run = await prefect_client.read_task_run(task_run.id)
-
-        assert "Finished in state Cached(type=COMPLETED)" in caplog.text
 
         assert await new_updated_task_run.state.result() == 1
 

@@ -6,9 +6,10 @@ import socket
 import sys
 from contextlib import AsyncExitStack
 from functools import partial
-from typing import List, Optional, Type
+from typing import Iterable
 
 import anyio
+from anyio.abc import TaskGroup
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task, get_client
@@ -18,6 +19,7 @@ from prefect.client.subscriptions import Subscription
 from prefect.engine import emit_task_run_state_change_event, propose_state
 from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
+from prefect.new_task_engine import run_task_async, run_task_sync
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_API_URL,
@@ -25,12 +27,10 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
-from prefect.task_engine import submit_autonomous_task_run_to_engine
-from prefect.task_runners import (
-    BaseTaskRunner,
-    ConcurrentTaskRunner,
+from prefect.utilities.asyncutils import (
+    asyncnullcontext,
+    sync_compatible,
 )
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
@@ -68,14 +68,9 @@ class TaskServer:
             `ConcurrentTaskRunner`.
     """
 
-    def __init__(
-        self,
-        *tasks: Task,
-        task_runner: Optional[Type[BaseTaskRunner]] = None,
-    ):
-        self.tasks: List[Task] = tasks
+    def __init__(self, *tasks: Task):
+        self.tasks: Iterable[Task] = tasks
 
-        self.task_runner: BaseTaskRunner = task_runner or ConcurrentTaskRunner()
         self.started: bool = False
         self.stopping: bool = False
 
@@ -87,7 +82,7 @@ class TaskServer:
                 "TaskServer must be initialized within an async context."
             )
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._runs_task_group: TaskGroup = anyio.create_task_group()
 
     @property
     def _client_id(self) -> str:
@@ -224,15 +219,19 @@ class TaskServer:
             initial_state=task_run.state,
             validated_state=state,
         )
+        if not task.isasync:
+
+            async def _run_task_async(*args, **kwargs):
+                return run_task_sync(*args, **kwargs)
+        else:
+            _run_task_async = run_task_async  # type: ignore
 
         self._runs_task_group.start_soon(
             partial(
-                submit_autonomous_task_run_to_engine,
+                _run_task_async,
                 task=task,
                 task_run=task_run,
                 parameters=parameters,
-                task_runner=self.task_runner,
-                client=self._client,
             )
         )
 
@@ -248,7 +247,6 @@ class TaskServer:
             self._client = get_client()
 
         await self._exit_stack.enter_async_context(self._client)
-        await self._exit_stack.enter_async_context(self.task_runner.start())
         await self._runs_task_group.__aenter__()
 
         self.started = True
@@ -262,14 +260,14 @@ class TaskServer:
 
 
 @sync_compatible
-async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None):
-    """Serve the provided tasks so that their runs may be submitted to and executed.
+async def serve(*tasks: Task):
+    """Serve provided tasks so that their runs may be submitted to and executed.
     in the engine. Tasks do not need to be within a flow run context to be submitted.
     You must `.submit` the same task object that you pass to `serve`.
 
     Args:
-        - tasks: A list of tasks to serve. When a scheduled task run is found for a
-            given task, the task run will be submitted to the engine for execution.
+        - tasks: A list of tasks to serve. When a scheduled task run is found for
+            a given task, the task run will be submitted to the engine for execution.
         - task_runner: The task runner to use for executing the tasks. Defaults to
             `ConcurrentTaskRunner`.
 
@@ -279,11 +277,11 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
         from prefect.task_server import serve
 
         @task(log_prints=True)
-        def say(message: str):
+        async def say(message: str):
             print(message)
 
         @task(log_prints=True)
-        def yell(message: str):
+        async def yell(message: str):
             print(message.upper())
 
         # starts a long-lived process that listens for scheduled runs of these tasks
@@ -297,7 +295,7 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
             " to True."
         )
 
-    task_server = TaskServer(*tasks, task_runner=task_runner)
+    task_server = TaskServer(*tasks)
     try:
         await task_server.start()
 

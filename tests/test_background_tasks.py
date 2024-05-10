@@ -18,6 +18,7 @@ from prefect.results import ResultFactory
 from prefect.server.api.task_runs import TaskQueue
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
@@ -46,6 +47,7 @@ def allow_experimental_task_scheduling():
     with temporary_settings(
         {
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
+            PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: True,
         }
     ):
         yield
@@ -267,7 +269,7 @@ async def test_stuck_pending_tasks_are_reenqueued(
     server = TaskServer(foo_task_with_result_storage)
     with pytest.raises(ValueError):
         with mock.patch(
-            "prefect.task_server.submit_autonomous_task_run_to_engine",
+            "prefect.task_server.run_task_sync",
             side_effect=ValueError("woops"),
         ):
             await server.execute_task_run(task_run)

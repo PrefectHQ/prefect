@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -34,7 +34,7 @@ from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
-from prefect.logging.loggers import flow_run_logger, get_logger
+from prefect.logging.loggers import flow_run_logger, get_logger, patch_print
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
@@ -282,7 +282,7 @@ class FlowRunEngine(Generic[P, R]):
             background_tasks=task_group,
             result_factory=run_sync(ResultFactory.from_flow(self.flow)),
             task_runner=self.flow.task_runner.duplicate(),
-        ):
+        ), patch_print() if self.flow.log_prints else nullcontext():
             # set the logger to the flow run logger
             current_logger = self.logger
             try:
