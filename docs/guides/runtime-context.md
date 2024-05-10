@@ -22,7 +22,7 @@ The run context itself contains many internal objects used by Prefect to manage 
     You may want to mock certain values for testing purposes.  For example, by manually setting an ID or a scheduled start time to ensure your code is functioning properly.  You can mock values in runtime through an environment variable using the schema `PREFECT__RUNTIME__{SUBMODULE}__{KEY_NAME}=value`:
     <div class="terminal">
     ```bash
-    $ export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
+    export PREFECT__RUNTIME__TASK_RUN__FAKE_KEY='foo'
     $ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "foo"
     ```
     </div>
