@@ -1,6 +1,6 @@
 # prefect-gitlab
 
-The prefect-gitlab makes it easy to interact with GitLab repositories and credentials.
+The prefect-gitlab library makes it easy to interact with GitLab repositories and credentials.
 
 ## Getting Started
 
@@ -17,6 +17,8 @@ pip install -U prefect-gitlab
 ```
 </div>
 
+### Register newly installed block types
+
 Register the block types in the prefect-gitlab module to make them available for use.
 
 <div class = "terminal">
@@ -27,18 +29,19 @@ prefect block register -m prefect_gitlab
 
 ## Examples
 
+In the examples below, you create blocks with Python code.
+Alternatively, blocks can be created through the Prefect UI.
+
 ## Store deployment flow code in a private GitLab repository
 
 To create a deployment and run a deployment where the flow code is stored in a private GitLab repository, you can use the `GitLabCredentials` block.
 
-Note that a deployment can use flow code in a GitLab repository without this library in any of the following cases:
+A deployment can use flow code stored in a GitLab repository without using this library in either of the following cases:
 
 - The repository is public
-- The deployment uses a Secret block to store the token
+- The deployment uses a [Secret block](https://docs.prefect.io/latest/concepts/blocks/) to store the token
 
-### Access flow code stored in a private GitLab repository in a deployment
-
-Create a GitLab Credentials block in the UI or in code. The code below shows how to create a GitLab Credentials block in Python.
+Code to create a GitLab Credentials block:
 
 ```python
 from prefect_gitlab import GitLabCredentials
@@ -48,7 +51,9 @@ gitlab_credentials_block = GitLabCredentials(url="https://gitlab.com/my_org/my_p
 gitlab_credentials_block.save(name="my-gitlab-credentials-block")
 ```
 
-Then use the block to pass the GitLab access token during deployment creation. The code below assumes there's flow code
+### Access flow code stored in a private GitLab repository in a deployment
+
+Use the credentials block you created above to pass the GitLab access token during deployment creation. The code below assumes there's flow code
 
 ```python
 from prefect import flow
