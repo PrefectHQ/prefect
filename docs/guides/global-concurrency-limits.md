@@ -200,7 +200,7 @@ if __name__ == "__main__":
 
 ### Throttling task submission
 
-Throttling task submission helps avoid overloading resources, complying with external rate limits, or ensuring a steady, controlled flow of work.
+Throttling task submission helps avoid overloading resources, complying with external rate limits, and ensuring a steady throughput.
 
 In this scenario the `rate_limit` function is used to throttle the submission of tasks. The rate limit acts as a bottleneck, ensuring that tasks are submitted at a controlled rate, governed by the `slot_decay_per_second` setting on the associated concurrency limit.
 
