@@ -144,7 +144,7 @@ Make the following updates in `repo_info.py`:
 2. Tell `flow.deploy` which work pool to deploy to.
 3. Tell `flow.deploy` the name for the Docker image to build.
 
-The updated `repo_info.py` looks like:
+The updated `repo_info.py` looks like this:
 
 ```python hl_lines="17-22" title="repo_info.py"
 import httpx
