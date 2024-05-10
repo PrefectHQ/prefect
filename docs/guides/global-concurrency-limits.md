@@ -229,7 +229,7 @@ if __name__ == "__main__":
 
 Manage the maximum number of concurrent database connections to avoid exhausting database resources.
 
-In this scenario we set up a concurrency limit named `database`. We gave it a maximum concurrency limit that matches the maximum number of database connections we want to allow. We then use the `concurrency` context manager to control the number of database connections allowed at any one time.
+In this scenario you set up a concurrency limit named `database` and gave it a maximum concurrency limit that matches the maximum number of database connections to allow. You then used the `concurrency` context manager to control the number of database connections allowed at any one time.
 
 ```python
 from prefect import flow, task, concurrency
