@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
 Now you're fetching the data you need, but the requests are happening sequentially.
 Tasks expose a [`submit`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method that changes the execution from sequential to concurrent.
-In this specific example, you also need to use the [`result`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method because you are unpacking a list of return values:
+In this example, you also need to use the [`result`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method because you are unpacking a list of return values:
 
 ```python hl_lines="6 11"
 def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
