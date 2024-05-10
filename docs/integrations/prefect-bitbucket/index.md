@@ -46,14 +46,14 @@ Code to create a Bitbucket Credentials block:
 ```python
 from prefect_bitbucket import BitbucketCredentials
 
-bitbucket_credentials_block = BitbucketCredentials(url="https://bitbucket.com/my_org/my_private-repo.git", )
+bitbucket_credentials_block = BitbucketCredentials(token="x-token-auth:my-token")
 
 bitbucket_credentials_block.save(name="my-bitbucket-credentials-block")
 ```
 
 !!! info "Difference between Bitbucket Server and Bitbucket Cloud authentication"
 
-    If using a token to authenticate, for Bitbucket Cloud, only set the `token` to authenticate. For Bitbucket Server, set both the `token` and the `username`.
+    If using a token to authenticate to Bitbucket Cloud, only set the `token` to authenticate. Do not include a value in the `username` field or authentication will fail. If using Bitbucket Server, provide both the `token` and `username` values.
 
 ### Access flow code stored in a private Bitbucket repository in a deployment
 
@@ -68,9 +68,9 @@ from prefect_bitbucket import BitbucketCredentials
 if __name__ == "__main__":
     flow.from_source(
         source=GitRepository(
-        url="https://bitbucket.com/org/private-repo.git",
-        credentials=BitbucketCredentials.load("my-bitbucket-credentials-block")
-    ),
+            url="https://bitbucket.com/org/private-repo.git",
+            credentials=BitbucketCredentials.load("my-bitbucket-credentials-block")
+        ),
     entrypoint="my_file.py:my_flow",
     ).deploy(
         name="private-bitbucket-deploy",
