@@ -65,7 +65,7 @@ class BitBucketCredentials(CredentialsBlock):
     )
     url: str = Field(
         default=None
-        description="The base URL of a BitBucket instance. Leave blank for BitBucket Cloud.",
+        description="The base URL of a BitBucket instance. Leave blank for BitBucket Cloud."
         title="URL",
     )
 
