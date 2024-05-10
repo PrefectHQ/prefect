@@ -3,6 +3,7 @@ import threading
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from prefect.events import Event, RelatedResource, emit_event
+from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
     import kubernetes
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     import kubernetes.watch
     from kubernetes.client import ApiClient, V1Pod
 else:
-    import kubernetes
+    kubernetes = lazy_import("kubernetes")
 
 EVICTED_REASONS = {
     "OOMKilled",
