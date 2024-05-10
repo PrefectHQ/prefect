@@ -111,8 +111,8 @@ def test_lazy_import_allows_deferred_failure_for_missing_module():
     with pytest.raises(ModuleNotFoundError, match="No module named 'flibbidy'") as exc:
         module.foo
     assert (
-        "module = lazy_import" in exc.exconly()
-    ), "Exception should contain original line in message"
+        "No module named 'flibbidy'" in exc.exconly()
+    ), "Exception should contain error message"
 
 
 def test_lazy_import_includes_help_message_for_missing_modules():

@@ -223,26 +223,18 @@ class DelayedImportErrorModule(ModuleType):
     [1]: https://github.com/scientific-python/lazy_loader
     """
 
-    def __init__(self, frame_data, help_message, *args, **kwargs):
-        # self.__frame_data = frame_data
-        self.__frame_data = {}
+    def __init__(self, error_message, help_message, *args, **kwargs):
+        self.__error_message = error_message
         self.__help_message = (
             help_message or "Import errors for this module are only reported when used."
         )
         super().__init__(*args, **kwargs)
 
     def __getattr__(self, attr):
-        print("GETATTR")
-        if attr in ("__class__", "__file__", "__frame_data", "__help_message"):
+        if attr in ("__class__", "__file__", "__help_message"):
             super().__getattr__(attr)
         else:
-            raise ModuleNotFoundError("Deferred module not found")
-            # raise ModuleNotFoundError(
-            #     f"No module named '{fd['spec']}'\n\nThis module was originally imported"
-            #     f" at:\n  File \"{fd['filename']}\", line {fd['lineno']}, in"
-            #     f" {fd['function']}\n\n    {''.join(fd['code_context']).strip()}\n"
-            #     + self.__help_message
-            # )
+            raise ModuleNotFoundError(self.__error_message)
 
 
 def lazy_import(
@@ -267,25 +259,14 @@ def lazy_import(
     spec = importlib.util.find_spec(name)
 
     if spec is None:
+        import_error_message = f"No module named '{name}'.\n{help_message}"
+
         if error_on_import:
-            raise ModuleNotFoundError(f"No module named '{name}'.\n{help_message}")
-        else:
-            try:
-                # THIS IS THE PROBLEM
-                # parent = inspect.stack()[1]
-                # frame_data = {
-                #     "spec": name,
-                #     "filename": parent.filename,
-                #     "lineno": parent.lineno,
-                #     "function": parent.function,
-                #     "code_context": parent.code_context,
-                # }
-                return DelayedImportErrorModule(
-                    {}, help_message, "DelayedImportErrorModule"
-                )
-            finally:
-                pass
-                # del parent
+            raise ModuleNotFoundError(import_error_message)
+
+        return DelayedImportErrorModule(
+            import_error_message, help_message, "DelayedImportErrorModule"
+        )
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
