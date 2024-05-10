@@ -28,7 +28,7 @@ This tutorial provides a guided walk-through of Prefect's core concepts, includi
 2. [Add tasks to it](/tutorial/tasks/)
 3. [Deploy and run the flow locally](/tutorial/deployments/)
 4. [Create a work pool and run the flow on remote infrastructure](/tutorial/work-pools/)
-5.[Using a worker-based deployment](/tutorial/workers/) (For advanced users that need more governance.)
+5. [Create a worker-based deployment](/tutorial/workers/) (For advanced users who need more governance.)
 
 ## Prerequisites
 
