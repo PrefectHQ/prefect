@@ -22,7 +22,7 @@ from prefect.settings import (
     PREFECT_TEST_MODE,
 )
 
-app = PrefectTyper(add_completion=True, no_args_is_help=True)
+app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
 
 def version_callback(value: bool):
