@@ -1,17 +1,12 @@
 from typing import Optional
 
-import pendulum
 import typer
-from rich.pretty import Pretty
-from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
-from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
-from prefect.exceptions import ObjectNotFound
+from prefect.utilities.importtools import lazy_import
+
+rich = lazy_import("rich")
 
 artifact_app = PrefectTyper(
     name="artifact", help="Commands for starting and interacting with artifacts."
@@ -36,7 +31,12 @@ async def list_artifacts(
     """
     List artifacts.
     """
-    table = Table(
+    import pendulum
+
+    from prefect import get_client
+    from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
+
+    table = rich.Table(
         title="Artifacts",
         caption="List Artifacts using `prefect artifact ls`",
         show_header=True,
@@ -123,6 +123,10 @@ async def inspect(
             }
     ]
     """
+    from prefect import get_client
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+    from prefect.client.schemas.sorting import ArtifactSort
 
     async with get_client() as client:
         artifacts = await client.read_artifacts(
@@ -135,7 +139,7 @@ async def inspect(
 
         artifacts = [a.dict(json_compatible=True) for a in artifacts]
 
-        app.console.print(Pretty(artifacts))
+        app.console.print(rich.Pretty(artifacts))
 
 
 @artifact_app.command("delete")
@@ -156,6 +160,11 @@ async def delete(
     Examples:
         $ prefect artifact delete "my-artifact"
     """
+    from prefect import get_client
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+    from prefect.exceptions import ObjectNotFound
+
     if key and artifact_id:
         exit_with_error("Please provide either a key or an artifact_id but not both.")
 

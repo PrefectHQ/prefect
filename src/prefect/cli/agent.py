@@ -7,24 +7,19 @@ from functools import partial
 from typing import List, Optional
 from uuid import UUID
 
-import anyio
 import typer
 
-import prefect
-from prefect.agent import PrefectAgent
 from prefect.cli._types import PrefectTyper, SettingsOption
-from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.client import get_client
-from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
-from prefect.exceptions import ObjectNotFound
 from prefect.settings import (
     PREFECT_AGENT_PREFETCH_SECONDS,
     PREFECT_AGENT_QUERY_INTERVAL,
     PREFECT_API_URL,
 )
-from prefect.utilities.processutils import setup_signal_handlers_agent
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.importtools import lazy_import
+
+anyio = lazy_import("anyio")
+prefect = lazy_import("prefect")
 
 agent_app = PrefectTyper(
     name="agent",
@@ -35,7 +30,6 @@ agent_app = PrefectTyper(
     deprecated_help="Use `prefect worker start` instead. Refer to the upgrade guide for more information: https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/. ",
 )
 app.add_typer(agent_app)
-
 
 ascii_name = r"""
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
@@ -102,6 +96,13 @@ async def start(
     """
     Start an agent process to poll one or more work queues for flow runs.
     """
+    from prefect.agent import PrefectAgent
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client import get_client
+    from prefect.exceptions import ObjectNotFound
+    from prefect.utilities.processutils import setup_signal_handlers_agent
+    from prefect.utilities.services import critical_service_loop
+
     work_queues = work_queues or []
 
     if work_queue is not None:
@@ -261,6 +262,10 @@ async def _check_work_queues_paused(
     Returns:
         - bool: True if work queues are paused, False otherwise
     """
+    from prefect.client import get_client
+    from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
+    from prefect.exceptions import ObjectNotFound
+
     work_queues_list = work_queues or ["default"]
     try:
         work_queues_filter = WorkQueueFilter(

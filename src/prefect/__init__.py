@@ -8,6 +8,8 @@ import pathlib
 import warnings
 import sys
 
+print("HI THERE")
+
 __version_info__ = _version.get_versions()
 __version__ = __version_info__["version"]
 

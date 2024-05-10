@@ -11,28 +11,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import pendulum
 import typer
 import yaml
-from rich.pretty import Pretty
-from rich.table import Table
+from typing_extensions import TYPE_CHECKING
 
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orchestration import PrefectClient, ServerType, get_client
-from prefect.client.schemas.filters import FlowFilter
-from prefect.client.schemas.objects import DeploymentSchedule
-from prefect.client.schemas.schedules import (
-    CronSchedule,
-    IntervalSchedule,
-    RRuleSchedule,
-)
-from prefect.client.utilities import inject_client
-from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
     ObjectAlreadyExists,
     ObjectNotFound,
@@ -40,14 +25,15 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
-from prefect.flow_runs import wait_for_flow_run
-from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import PREFECT_UI_URL
-from prefect.states import Scheduled
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type
-from prefect.utilities.filesystem import create_default_ignore_file
+from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+    from prefect.context import PrefectObjectRegistry
+
+pendulum = lazy_import("pendulum")
 
 
 def str_presenter(dumper, data):
@@ -75,13 +61,17 @@ app.add_typer(deployment_app, aliases=["deployments"])
 
 
 def assert_deployment_name_format(name: str) -> None:
+    from prefect.cli._utilities import exit_with_error
+
     if "/" not in name:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
 
 
-async def get_deployment(client: PrefectClient, name, deployment_id):
+async def get_deployment(client: "PrefectClient", name, deployment_id):
+    from prefect.cli._utilities import exit_with_error
+
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
@@ -103,11 +93,14 @@ async def get_deployment(client: PrefectClient, name, deployment_id):
 async def create_work_queue_and_set_concurrency_limit(
     work_queue_name, work_pool_name, work_queue_concurrency
 ):
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import get_client
+
     async with get_client() as client:
         if work_queue_concurrency is not None and work_queue_name:
             try:
                 try:
-                    await check_work_pool_exists(work_pool_name)
+                    await check_work_pool_exists(work_pool_name, client=client)
                     res = await client.create_work_queue(
                         name=work_queue_name, work_pool_name=work_pool_name
                     )
@@ -167,10 +160,11 @@ async def create_work_queue_and_set_concurrency_limit(
             )
 
 
-@inject_client
 async def check_work_pool_exists(
-    work_pool_name: Optional[str], client: PrefectClient = None
+    work_pool_name: Optional[str], client: "PrefectClient" = None
 ):
+    from prefect.cli._utilities import exit_with_error
+
     if work_pool_name is not None:
         try:
             await client.read_work_pool(work_pool_name=work_pool_name)
@@ -189,10 +183,11 @@ async def check_work_pool_exists(
             exit_with_error("Work pool not found!")
 
 
-@inject_client
 async def _print_deployment_work_pool_instructions(
-    work_pool_name: str, client: PrefectClient = None
+    work_pool_name: str, client: "PrefectClient" = None
 ):
+    from prefect._internal.compatibility.experimental import experiment_enabled
+
     work_pool = await client.read_work_pool(work_pool_name)
     blurb = (
         "\nTo execute flow runs from this deployment, start an agent "
@@ -277,6 +272,11 @@ async def inspect(name: str):
         }
 
     """
+    from rich.pretty import Pretty
+
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import get_client
+
     assert_deployment_name_format(name)
 
     async with get_client() as client:
@@ -355,6 +355,14 @@ async def create_schedule(
     """
     Create a schedule for a given deployment.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.schedules import (
+        CronSchedule,
+        IntervalSchedule,
+        RRuleSchedule,
+    )
+
     assert_deployment_name_format(name)
 
     if sum(option is not None for option in [interval, rrule_string, cron_string]) != 1:
@@ -459,6 +467,9 @@ async def delete_schedule(
     """
     Delete a deployment schedule.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.orchestration import get_client
+
     assert_deployment_name_format(deployment_name)
 
     async with get_client() as client:
@@ -490,6 +501,9 @@ async def pause_schedule(deployment_name: str, schedule_id: UUID):
     """
     Pause a deployment schedule.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.orchestration import get_client
+
     assert_deployment_name_format(deployment_name)
 
     async with get_client() as client:
@@ -521,6 +535,9 @@ async def resume_schedule(deployment_name: str, schedule_id: UUID):
     """
     Resume a deployment schedule.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.orchestration import get_client
+
     assert_deployment_name_format(deployment_name)
 
     async with get_client() as client:
@@ -550,6 +567,17 @@ async def list_schedules(deployment_name: str):
     """
     View all schedules for a deployment.
     """
+    from rich.table import Table
+
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.objects import DeploymentSchedule
+    from prefect.client.schemas.schedules import (
+        CronSchedule,
+        IntervalSchedule,
+        RRuleSchedule,
+    )
+
     assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
@@ -601,6 +629,9 @@ async def clear_schedules(
     """
     Clear all schedules for a deployment.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.orchestration import get_client
+
     assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
@@ -673,6 +704,9 @@ async def _set_schedule(
 
     This command is deprecated. Use 'prefect deployment schedule create' instead.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import get_client
+
     assert_deployment_name_format(name)
 
     exclusive_options = sum(
@@ -736,6 +770,9 @@ async def _pause_schedule(
 
     This command is deprecated. Use `prefect deployment schedule pause` instead.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import get_client
+
     assert_deployment_name_format(name)
 
     async with get_client() as client:
@@ -771,6 +808,9 @@ async def _resume_schedule(
 
     This command is deprecated. Use `prefect deployment schedule resume` instead.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import get_client
+
     # TODO only work if there is one schedule, otherwise error
     assert_deployment_name_format(name)
     async with get_client() as client:
@@ -796,6 +836,11 @@ async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
     """
+    from rich.table import Table
+
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.filters import FlowFilter
+
     async with get_client() as client:
         deployments = await client.read_deployments(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None
@@ -913,6 +958,12 @@ async def run(
     To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
+
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.orchestration import get_client
+    from prefect.flow_runs import wait_for_flow_run
+    from prefect.settings import PREFECT_UI_URL
+    from prefect.states import Scheduled
 
     now = pendulum.now("UTC")
 
@@ -1072,11 +1123,15 @@ async def run(
         )
 
 
-def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
+def _load_deployments(path: Path, quietly=False) -> "PrefectObjectRegistry":
     """
     Load deployments from the path the user gave on the command line, giving helpful
     error messages if they cannot be loaded.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.context import registry_from_script
+    from prefect.deployments import load_deployments_from_yaml
+
     if path.suffix == ".py":
         from_msg = "python script"
         loader = registry_from_script
@@ -1137,6 +1192,11 @@ async def apply(
     """
     Create or update a deployment from a YAML file.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import ServerType, get_client
+    from prefect.deployments import Deployment
+    from prefect.settings import PREFECT_UI_URL
+
     deployment = None
     async with get_client() as client:
         for path in paths:
@@ -1252,6 +1312,9 @@ async def delete(
         $ prefect deployment delete test_flow/test_deployment
         $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client.orchestration import get_client
+
     async with get_client() as client:
         if name is None and deployment_id is not None:
             try:
@@ -1457,6 +1520,19 @@ async def build(
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
     """
+
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.schedules import (
+        CronSchedule,
+        IntervalSchedule,
+        RRuleSchedule,
+    )
+    from prefect.deployments import Deployment
+    from prefect.flows import load_flow_from_entrypoint
+    from prefect.utilities.asyncutils import run_sync_in_worker_thread
+    from prefect.utilities.filesystem import create_default_ignore_file
+
     # validate inputs
     if not name:
         exit_with_error(
@@ -1723,6 +1799,8 @@ def _load_json_key_values(
     Returns:
         A mapping of keys -> parsed values
     """
+    from prefect.cli._utilities import exit_with_error
+
     parsed = {}
 
     def cast_value(value: str) -> Any:

@@ -1,30 +1,29 @@
 """
 Command line interface for working with blocks.
 """
+
 import inspect
-from importlib import import_module
 from pathlib import Path
 from types import ModuleType
 from typing import List, Optional, Type
 
 import typer
-from rich.table import Table
+from typing_extensions import TYPE_CHECKING
 
-from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import get_client
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
-    ProtectedBlockError,
     ScriptError,
     exception_traceback,
 )
-from prefect.settings import PREFECT_UI_URL
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.importtools import load_script_as_module
+from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    from prefect.blocks.core import Block
+
+rich = lazy_import("rich")
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
 blocktypes_app = PrefectTyper(
@@ -36,7 +35,7 @@ blocks_app.add_typer(blocktypes_app, aliases=["types"])
 
 def display_block(block_document):
     block_slug = f"{block_document.block_type.slug}/{block_document.name}"
-    block_table = Table(
+    block_table = rich.Table(
         title=block_slug, show_header=False, show_footer=False, expand=True
     )
     block_table.add_column(style="italic cyan")
@@ -51,7 +50,7 @@ def display_block(block_document):
 
 
 def display_block_type(block_type):
-    block_type_table = Table(
+    block_type_table = rich.Table(
         title=block_type.name, show_header=False, show_footer=False, expand=True
     )
     block_type_table.add_column(style="italic cyan")
@@ -72,7 +71,9 @@ def display_block_type(block_type):
     return block_type_table
 
 
-async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
+async def _register_blocks_in_module(module: ModuleType) -> List[Type["Block"]]:
+    from prefect.blocks.core import Block, InvalidBlockRegistration
+
     registered_blocks = []
     for _, cls in inspect.getmembers(module):
         if Block.is_block_class(cls):
@@ -85,8 +86,8 @@ async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
     return registered_blocks
 
 
-def _build_registered_blocks_table(registered_blocks: List[Type[Block]]):
-    table = Table("Registered Blocks")
+def _build_registered_blocks_table(registered_blocks: List[Type["Block"]]):
+    table = rich.Table("Registered Blocks")
     for block in registered_blocks:
         table.add_row(block.get_block_type_name())
     return table
@@ -123,6 +124,13 @@ async def register(
         Register block types in a .py file:
         $ prefect block register -f my_blocks.py
     """
+    from importlib import import_module
+
+    from prefect.cli._utilities import exit_with_error
+    from prefect.settings import PREFECT_UI_URL
+    from prefect.utilities.asyncutils import run_sync_in_worker_thread
+    from prefect.utilities.importtools import load_script_as_module
+
     # Handles if both options are specified or if neither are specified
     if not (bool(file_path) ^ bool(module_name)):
         exit_with_error(
@@ -182,10 +190,12 @@ async def block_ls():
     """
     View all configured blocks.
     """
+    from prefect.client import get_client
+
     async with get_client() as client:
         blocks = await client.read_block_documents()
 
-    table = Table(
+    table = rich.Table(
         title="Blocks", caption="List Block Types using `prefect block type ls`"
     )
     table.add_column("ID", style="cyan", no_wrap=True)
@@ -214,6 +224,9 @@ async def block_delete(
     """
     Delete a configured block.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client import get_client
+
     async with get_client() as client:
         if slug is None and block_id is not None:
             try:
@@ -250,6 +263,10 @@ async def block_create(
     """
     Generate a link to the Prefect UI to create a block.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client import get_client
+    from prefect.settings import PREFECT_UI_URL
+
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(block_type_slug)
@@ -284,6 +301,9 @@ async def block_inspect(
     """
     Displays details about a configured block.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client import get_client
+
     async with get_client() as client:
         if slug is None and block_id is not None:
             try:
@@ -314,10 +334,12 @@ async def list_types():
     """
     List all block types.
     """
+    from prefect.client import get_client
+
     async with get_client() as client:
         block_types = await client.read_block_types()
 
-    table = Table(
+    table = rich.Table(
         title="Block Types",
         show_lines=True,
     )
@@ -349,6 +371,9 @@ async def blocktype_inspect(
     """
     Display details about a block type.
     """
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client import get_client
+
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
@@ -365,6 +390,13 @@ async def blocktype_delete(
     """
     Delete an unprotected Block Type.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client import get_client
+    from prefect.exceptions import (
+        ObjectNotFound,
+        ProtectedBlockError,
+    )
+
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)

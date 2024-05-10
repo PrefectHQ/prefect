@@ -1,25 +1,12 @@
 """
 Command line interface for working with concurrency limits.
 """
-import textwrap
-
-import pendulum
-
-try:
-    from rich.console import Group
-except ImportError:
-    # Name changed in https://github.com/Textualize/rich/blob/master/CHANGELOG.md#1100---2022-01-09
-    from rich.console import RenderGroup as Group
-
-from rich.panel import Panel
-from rich.pretty import Pretty
-from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import get_client
-from prefect.exceptions import ObjectNotFound
+from prefect.utilities.importtools import lazy_import
+
+pendulum = lazy_import("pendulum")
 
 concurrency_limit_app = PrefectTyper(
     name="concurrency-limit",
@@ -36,6 +23,9 @@ async def create(tag: str, concurrency_limit: int):
     This limit controls how many task runs with that tag may simultaneously be in a
     Running state.
     """
+    import textwrap
+
+    from prefect.client import get_client
 
     async with get_client() as client:
         await client.create_concurrency_limit(
@@ -66,6 +56,20 @@ async def inspect(tag: str):
     View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
     which are currently using a concurrency slot.
     """
+
+    from prefect.cli._utilities import exit_with_error
+    from prefect.client import get_client
+    from prefect.exceptions import ObjectNotFound
+
+    try:
+        from rich.console import Group
+    except ImportError:
+        # Name changed in https://github.com/Textualize/rich/blob/master/CHANGELOG.md#1100---2022-01-09
+        from rich.console import RenderGroup as Group
+
+    from rich.panel import Panel
+    from rich.pretty import Pretty
+    from rich.table import Table
 
     async with get_client() as client:
         try:
@@ -104,6 +108,10 @@ async def ls(limit: int = 15, offset: int = 0):
     """
     View all concurrency limits.
     """
+    from rich.table import Table
+
+    from prefect.client import get_client
+
     table = Table(
         title="Concurrency Limits",
         caption="inspect a concurrency limit to show active task run IDs",
@@ -134,6 +142,9 @@ async def reset(tag: str):
     """
     Resets the concurrency limit slots set on the specified tag.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client import get_client
+    from prefect.exceptions import ObjectNotFound
 
     async with get_client() as client:
         try:
@@ -149,6 +160,9 @@ async def delete(tag: str):
     """
     Delete the concurrency limit set on the specified tag.
     """
+    from prefect.cli._utilities import exit_with_error, exit_with_success
+    from prefect.client import get_client
+    from prefect.exceptions import ObjectNotFound
 
     async with get_client() as client:
         try:
