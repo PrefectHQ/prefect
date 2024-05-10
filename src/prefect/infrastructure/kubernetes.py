@@ -42,7 +42,6 @@ from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFoun
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import stable_hash
-from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
 from prefect.utilities.slugify import slugify
 
@@ -53,7 +52,7 @@ if TYPE_CHECKING:
     import kubernetes.config
     from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
-    kubernetes = lazy_import("kubernetes")
+    import kubernetes
 
 
 class KubernetesImagePullPolicy(enum.Enum):

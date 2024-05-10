@@ -3,14 +3,12 @@ import threading
 import time
 from unittest.mock import MagicMock, call, patch
 
+import kubernetes
 import pytest
 from kubernetes.client import V1Pod
 from prefect_kubernetes.events import EVICTED_REASONS, KubernetesEventsReplicator
 
 from prefect.events import RelatedResource
-from prefect.utilities.importtools import lazy_import
-
-kubernetes = lazy_import("kubernetes")
 
 
 @pytest.fixture
