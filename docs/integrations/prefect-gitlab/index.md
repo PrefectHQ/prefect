@@ -116,8 +116,7 @@ from prefect_gitlab.repositories import GitLabRepository
 
 def fetch_repo():
     private_gitlab_block = GitLabRepository.load("my-gitlab-block")
-    repo = private_gitlab_block.get_directory()
-    return repo
+    private_gitlab_block.get_directory()
 
 if __name__ == "__main__":
     fetch_repo()

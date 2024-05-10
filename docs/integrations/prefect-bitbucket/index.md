@@ -46,14 +46,14 @@ Code to create a Bitbucket Credentials block:
 ```python
 from prefect_bitbucket import BitbucketCredentials
 
-bitbucket_credentials_block = BitbucketCredentials(url="https://bitbucket.com/my_org/my_private-repo.git", token="my_token")
+bitbucket_credentials_block = BitbucketCredentials(url="https://bitbucket.com/my_org/my_private-repo.git", )
 
 bitbucket_credentials_block.save(name="my-bitbucket-credentials-block")
 ```
 
-!!! info "Differences between Bitbucket Server and Bitbucket Cloud"
+!!! info "Difference between Bitbucket Server and Bitbucket Cloud authentication"
 
-    For Bitbucket Cloud, only set the `token` to authenticate. For Bitbucket Server, set both the `token` and the `username`.
+    If using a token to authenticate, for Bitbucket Cloud, only set the `token` to authenticate. For Bitbucket Server, set both the `token` and the `username`.
 
 ### Access flow code stored in a private Bitbucket repository in a deployment
 
@@ -95,21 +95,21 @@ The code below shows how to reference a particular branch or tag of a Bitbucket 
 ```python
 from prefect_bitbucket import BitbucketRepository
 
-def save_private_bitbucket_block():
-    private_bitbucket_block = BitbucketRepository(
-        repository="https://bitbucket.com/testing/my-repository.git",
-        access_token="YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+def save_bitbucket_block():
+    bitbucket_block = BitbucketRepository(
+        repository="https://bitbucket.org/testing/my-repository.git",
         reference="branch-or-tag-name",
     )
 
-    private_bitbucket_block.save("my-private-bitbucket-block")
+    bitbucket_block.save("my-bitbucket-block")
 
 
 if __name__ == "__main__":
-    save_private_bitbucket_block()
+    save_bitbucket_block()
 ```
 
-Exclude the `access_token` field if the repository is public and exclude the `reference` field to use the default branch.
+Exclude the `reference` field to use the default branch.
+Reference a BitbucketCredentials block for authentication if the repository is private.
 
 Use the newly created block to interact with the Bitbucket repository.
 
@@ -119,9 +119,8 @@ For example, download the repository contents with the `.get_directory()` method
 from prefect_bitbucket.repositories import BitbucketRepository
 
 def fetch_repo():
-    private_bitbucket_block = BitbucketRepository.load("my-bitbucket-block")
-    repo = private_bitbucket_block.get_directory()
-    return repo
+    bitbucket_block = BitbucketRepository.load("my-bitbucket-block")
+    bitbucket_block.get_directory()
 
 if __name__ == "__main__":
     fetch_repo()
@@ -129,6 +128,6 @@ if __name__ == "__main__":
 
 ## Resources
 
-For assistance using Bitbucket, consult the [Bitbucket documentation](https://bitbucket.com).
+For assistance using Bitbucket, consult the [Bitbucket documentation](https://bitbucket.org/product/guides).
 
 Refer to the prefect-bitbucket API documentation linked in the sidebar to explore all the capabilities of the prefect-bitbucket library.
