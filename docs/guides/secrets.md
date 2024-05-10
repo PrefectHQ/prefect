@@ -69,7 +69,7 @@ Values for **Access Key ID** and **Secret Access Key** are read from the compute
 Your AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in your `~/.aws/credentials` file, so leave those fields blank or they're saved to the database.
 By leaving those attributes blank, Prefect knows to look to the compute environment.
 
-Specify a region in your `AWSCredentials` block instead of your local AWS config file. The `AwsCredentials` block takes precedence and is more portable.
+Specify a region in your `AWSCredentials` block instead of your local AWS config file. The `AwsCredentials` block takes precedence and is more portable than storing configuration in a file.
 
 Under the hood, Prefect uses the AWS `boto3` client to create a session.
 
