@@ -28,6 +28,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from uuid import uuid4
 
 import anyio.abc
 import pendulum
@@ -64,6 +65,24 @@ if TYPE_CHECKING:
 # This will be populated downstream but must be null here to facilitate loading the
 # default settings.
 GLOBAL_SETTINGS_CONTEXT = None
+
+
+def serialize_context() -> Dict[str, Any]:
+    """
+    Serialize the current context for use in a remote execution environment.
+    """
+
+    flow_run_context = EngineContext.get()
+    task_run_context = TaskRunContext.get()
+    tags_context = TagsContext.get()
+    settings_context = SettingsContext.get()
+
+    return {
+        "flow_run_context": flow_run_context.serialize() if flow_run_context else {},
+        "task_run_context": task_run_context.serialize() if task_run_context else {},
+        "tags_context": tags_context.serialize() if tags_context else {},
+        "settings_context": settings_context.serialize() if settings_context else {},
+    }
 
 
 class ContextModel(BaseModel):
@@ -119,6 +138,11 @@ class ContextModel(BaseModel):
         new = super().copy(**kwargs)
         new._token = None
         return new
+
+    def serialize(self):
+        return self.dict(
+            exclude_unset=True,
+        )
 
 
 class PrefectObjectRegistry(ContextModel):
@@ -215,6 +239,12 @@ class RunContext(ContextModel):
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 
+    def serialize(self):
+        return self.dict(
+            include={"start_time", "input_keyset"},
+            exclude_unset=True,
+        )
+
 
 class EngineContext(RunContext):
     """
@@ -240,11 +270,26 @@ class EngineContext(RunContext):
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
+    # Flag signaling if the flow run context has been serialized and sent
+    # to remote infrastructure.
+    # TODO: Think of a better name
+    detached: bool = False
+
     # Result handling
     result_factory: ResultFactory
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+
+    def get_dynamic_key_for_task_run(self, task: "Task"):
+        if self.detached:
+            return uuid4()
+        elif task.task_key not in self.task_run_dynamic_keys:
+            self.task_run_dynamic_keys[task.task_key] = 0
+        else:
+            self.task_run_dynamic_keys[task.task_key] += 1
+
+        return self.task_run_dynamic_keys[task.task_key]
 
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
@@ -268,6 +313,19 @@ class EngineContext(RunContext):
 
     __var__ = ContextVar("flow_run")
 
+    def serialize(self):
+        return self.dict(
+            include={
+                "flow_run",
+                "flow",
+                "parameters",
+                "log_prints",
+                "start_time",
+                "input_keyset",
+            },
+            exclude_unset=True,
+        )
+
 
 FlowRunContext = EngineContext  # for backwards compatibility
 
@@ -289,6 +347,19 @@ class TaskRunContext(RunContext):
 
     # Result handling
     result_factory: ResultFactory
+
+    def serialize(self):
+        return self.dict(
+            include={
+                "task_run",
+                "task",
+                "parameters",
+                "log_prints",
+                "start_time",
+                "input_keyset",
+            },
+            exclude_unset=True,
+        )
 
     __var__ = ContextVar("task_run")
 

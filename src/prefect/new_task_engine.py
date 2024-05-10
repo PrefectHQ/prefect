@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -13,18 +13,23 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Set,
     TypeVar,
     Union,
     cast,
 )
 from uuid import UUID
 
+import anyio
+import anyio._backends._asyncio
 import pendulum
+from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
@@ -58,12 +63,15 @@ class TaskRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
+    context: Optional[Dict[str, Any]] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
 
     def __post_init__(self):
         if self.parameters is None:
             self.parameters = {}
+        if self.context is None:
+            self.context = {}
 
     @property
     def client(self) -> SyncPrefectClient:
@@ -277,7 +285,9 @@ class TaskRunEngine(Generic[P, R]):
 
     @contextmanager
     def start(
-        self, task_run_id: Optional[UUID] = None
+        self,
+        task_run_id: Optional[UUID] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator["TaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -285,29 +295,50 @@ class TaskRunEngine(Generic[P, R]):
         with get_client(sync_client=True) as client:
             self._client = client
             self._is_started = True
-            try:
-                if not self.task_run:
-                    self.task_run = run_sync(
-                        self.task.create_run(
-                            id=task_run_id,
-                            client=client,
-                            parameters=self.parameters,
-                            flow_run_context=FlowRunContext.get(),
-                            parent_task_run_context=TaskRunContext.get(),
-                        )
-                    )
 
-                yield self
-            except Exception:
-                # regular exceptions are caught and re-raised to the user
-                raise
-            except BaseException as exc:
-                # BaseExceptions are caught and handled as crashes
-                self.handle_crash(exc)
-                raise
-            finally:
-                self._is_started = False
-                self._client = None
+            try:
+                task_group = anyio.create_task_group()
+            except AsyncLibraryNotFoundError:
+                task_group = anyio._backends._asyncio.TaskGroup()
+
+            if self.context and self.context.get("flow_run_context"):
+                flow = self.context["flow_run_context"]["flow"]
+                flow_run_context = FlowRunContext(
+                    **self.context.get("flow_run_context", {}),
+                    client=client,
+                    background_tasks=task_group,
+                    result_factory=run_sync(ResultFactory.from_flow(flow)),
+                    task_runner=flow.task_runner.duplicate(),
+                    detached=True,
+                )
+            else:
+                flow_run_context = nullcontext()
+
+            with flow_run_context:
+                try:
+                    if not self.task_run:
+                        self.task_run = run_sync(
+                            self.task.create_run(
+                                id=task_run_id,
+                                client=client,
+                                parameters=self.parameters,
+                                flow_run_context=FlowRunContext.get(),
+                                parent_task_run_context=TaskRunContext.get(),
+                                extra_task_inputs=dependencies,
+                            )
+                        )
+
+                    yield self
+                except Exception:
+                    # regular exceptions are caught and re-raised to the user
+                    raise
+                except BaseException as exc:
+                    # BaseExceptions are caught and handled as crashes
+                    self.handle_crash(exc)
+                    raise
+                finally:
+                    self._is_started = False
+                    self._client = None
 
     async def get_client(self):
         if not self._is_started:
@@ -333,15 +364,18 @@ def run_task_sync(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
         task=task,
         parameters=parameters,
         task_run=task_run,
+        context=context,
     )
 
     # This is a context manager that keeps track of the run of the task run.
-    with engine.start(task_run_id=task_run_id) as run:
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         run.begin_run()
 
         while run.is_running():
@@ -376,16 +410,20 @@ async def run_task_async(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     """
     Runs a task against the API.
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
-    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    engine = TaskRunEngine[P, R](
+        task=task, parameters=parameters, task_run=task_run, context=context
+    )
 
     # This is a context manager that keeps track of the run of the task run.
-    with engine.start(task_run_id=task_run_id) as run:
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         run.begin_run()
 
         while run.is_running():
@@ -420,6 +458,8 @@ def run_task(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     kwargs = dict(
         task=task,
@@ -428,6 +468,8 @@ def run_task(
         parameters=parameters,
         wait_for=wait_for,
         return_type=return_type,
+        dependencies=dependencies,
+        context=context,
     )
     if task.isasync:
         return run_task_async(**kwargs)

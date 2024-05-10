@@ -527,7 +527,6 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> TaskRun:
         from prefect.utilities.engine import (
-            _dynamic_key_for_task_run,
             _resolve_custom_task_run_name,
             collect_task_run_inputs,
         )
@@ -545,7 +544,7 @@ class Task(Generic[P, R]):
             task_run_name = None
 
         if flow_run_context:
-            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
+            dynamic_key = flow_run_context.get_dynamic_key_for_task_run(self)
         else:
             dynamic_key = uuid4().hex
 
@@ -642,6 +641,9 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
+        task_run_id: Optional[UUID] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        context: Optional[Dict[str, Any]] = None,
         **kwargs: P.kwargs,
     ):
         """
@@ -671,6 +673,9 @@ class Task(Generic[P, R]):
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
+                task_run_id=task_run_id,
+                dependencies=dependencies,
+                context=context,
             )
 
         if (
