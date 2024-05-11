@@ -10,6 +10,10 @@ from prefect._internal.concurrency.cancellation import (
 
 @contextmanager
 def timeout_async(seconds: Optional[float] = None):
+    if seconds is None:
+        yield
+        return
+
     try:
         with cancel_async_after(timeout=seconds):
             yield
@@ -19,6 +23,10 @@ def timeout_async(seconds: Optional[float] = None):
 
 @contextmanager
 def timeout(seconds: Optional[float] = None):
+    if seconds is None:
+        yield
+        return
+
     try:
         with cancel_sync_after(timeout=seconds):
             yield
