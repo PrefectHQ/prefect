@@ -133,7 +133,7 @@ If you want to configure a Secret block ahead of time, create the block via code
 
 pull:
     - prefect.deployments.steps.git_clone:
-        repository: https://bitbucket.org/org/my-private-repo.git
+        repository: https://gitlab.com/org/my-private-repo.git
         access_token: "{{ prefect.blocks.secret.my-block-name }}"
 ```
 
