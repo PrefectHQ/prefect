@@ -218,7 +218,7 @@ def create_bigquery_client():
     bigquery_client = bigquery.Client(credentials=google_auth_credentials)
 ```
 
-If you want to access the underlying client, `prefect-gcp` exposes a `get_client` method from `GcpCredentials`.
+To access the underlying client, use the `get_client` method from `GcpCredentials`.
 
 ```python
 from prefect import flow
