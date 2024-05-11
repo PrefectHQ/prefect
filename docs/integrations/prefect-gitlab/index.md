@@ -34,7 +34,7 @@ Alternatively, blocks can be created through the Prefect UI.
 
 ## Store deployment flow code in a private GitLab repository
 
-To create a deployment and run a deployment where the flow code is stored in a private GitLab repository, you can use the `GitLabCredentials` block.
+To create a deployment where the flow code is stored in a private GitLab repository, you can use the `GitLabCredentials` block.
 
 A deployment can use flow code stored in a GitLab repository without using this library in either of the following cases:
 
