@@ -35,7 +35,7 @@ def event_loop(request):
     see https://github.com/pytest-dev/pytest-asyncio/issues/68
     When running on Windows we need to use a non-default loop for subprocess support.
     """
-    if sys.platform == "win32" and sys.version_info >= (3, 8):
+    if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
     policy = asyncio.get_event_loop_policy()

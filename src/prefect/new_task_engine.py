@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -17,20 +17,13 @@ from typing import (
     Union,
     cast,
 )
-from uuid import uuid4
 
 import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
-from prefect._internal.concurrency.cancellation import (
-    AlarmCancelScope,
-    AsyncCancelScope,
-    CancelledError,
-)
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
@@ -38,7 +31,6 @@ from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
-    Pending,
     Retrying,
     Running,
     StateDetails,
@@ -49,33 +41,13 @@ from prefect.states import (
 from prefect.utilities.asyncutils import A, Async, run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
-    _dynamic_key_for_task_run,
     _get_hook_name,
-    _resolve_custom_task_run_name,
-    collect_task_run_inputs,
     propose_state_sync,
 )
+from prefect.utilities.timeout import timeout, timeout_async
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-
-@asynccontextmanager
-async def timeout_async(seconds: Optional[float] = None):
-    try:
-        with AsyncCancelScope(timeout=seconds):
-            yield
-    except CancelledError:
-        raise TimeoutError(f"Task timed out after {seconds} second(s).")
-
-
-@contextmanager
-def timeout(seconds: Optional[float] = None):
-    try:
-        with AlarmCancelScope(timeout=seconds):
-            yield
-    except CancelledError:
-        raise TimeoutError(f"Task timed out after {seconds} second(s).")
 
 
 @dataclass
@@ -277,48 +249,6 @@ class TaskRunEngine(Generic[P, R]):
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
 
-    def create_task_run(self, client: SyncPrefectClient) -> TaskRun:
-        flow_run_ctx = FlowRunContext.get()
-        parameters = self.parameters or {}
-        try:
-            task_run_name = _resolve_custom_task_run_name(self.task, parameters)
-        except TypeError:
-            task_run_name = None
-
-        # prep input tracking
-        task_inputs = {
-            k: run_sync(collect_task_run_inputs(v)) for k, v in parameters.items()
-        }
-
-        # anticipate nested runs
-        task_run_ctx = TaskRunContext.get()
-        if task_run_ctx:
-            task_inputs["wait_for"] = [TaskRunResult(id=task_run_ctx.task_run.id)]  # type: ignore
-
-        # TODO: implement wait_for
-        #        if wait_for:
-        #            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
-
-        if flow_run_ctx:
-            dynamic_key = _dynamic_key_for_task_run(
-                context=flow_run_ctx, task=self.task
-            )
-        else:
-            dynamic_key = uuid4().hex
-        task_run = client.create_task_run(
-            task=self.task,  # type: ignore
-            name=task_run_name,
-            flow_run_id=(
-                getattr(flow_run_ctx.flow_run, "id", None)
-                if flow_run_ctx and flow_run_ctx.flow_run
-                else None
-            ),
-            dynamic_key=str(dynamic_key),
-            state=Pending(),
-            task_inputs=task_inputs,  # type: ignore
-        )
-        return task_run
-
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
         if client is None:
@@ -336,8 +266,13 @@ class TaskRunEngine(Generic[P, R]):
             result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
             client=client,
         ):
-            self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
-            yield
+            # set the logger to the task run logger
+            current_logger = self.logger
+            try:
+                self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+                yield
+            finally:
+                self.logger = current_logger
 
     @contextmanager
     def start(self) -> Generator["TaskRunEngine", Any, Any]:
@@ -349,7 +284,15 @@ class TaskRunEngine(Generic[P, R]):
             self._is_started = True
             try:
                 if not self.task_run:
-                    self.task_run = self.create_task_run(client)
+                    self.task_run = run_sync(
+                        self.task.create_run(
+                            client=client,
+                            parameters=self.parameters,
+                            flow_run_context=FlowRunContext.get(),
+                            parent_task_run_context=TaskRunContext.get(),
+                        )
+                    )
+
                 yield self
             except Exception:
                 # regular exceptions are caught and re-raised to the user
@@ -439,7 +382,7 @@ async def run_task_async(
             with run.enter_run_context():
                 try:
                     # This is where the task is actually run.
-                    async with timeout_async(seconds=run.task.timeout_seconds):
+                    with timeout_async(seconds=run.task.timeout_seconds):
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
                         )
