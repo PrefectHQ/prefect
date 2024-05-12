@@ -2416,13 +2416,60 @@ class TestPrefectClientDeploymentSchedules:
         )
         assert result[0].active is True
 
-    async def test_update_deployment_schedule_success(self, deployment, prefect_client):
+    async def test_update_deployment_schedule_only_active(
+        self, deployment, prefect_client
+    ):
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert result[0].active is True
+
         await prefect_client.update_deployment_schedule(
             deployment.id, deployment.schedules[0].id, active=False
         )
 
         result = await prefect_client.read_deployment_schedules(deployment.id)
         assert len(result) == 1
+        assert result[0].active is False
+
+    async def test_update_deployment_schedule_only_schedule(
+        self, deployment, prefect_client
+    ):
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert result[0].schedule == IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            schedule=IntervalSchedule(interval=timedelta(minutes=15)),
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].schedule.interval == timedelta(minutes=15)
+
+    async def test_update_deployment_schedule_all_fields(
+        self, deployment, prefect_client
+    ):
+        """
+        A regression test for #13243
+        """
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert result[0].schedule == IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
+        assert result[0].active is True
+
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            schedule=IntervalSchedule(interval=timedelta(minutes=15)),
+            active=False,
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].schedule.interval == timedelta(minutes=15)
         assert result[0].active is False
 
     async def test_delete_deployment_schedule_success(self, deployment, prefect_client):

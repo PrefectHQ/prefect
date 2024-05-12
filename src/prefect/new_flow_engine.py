@@ -1,8 +1,9 @@
 import inspect
+import logging
 import os
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Coroutine,
@@ -30,23 +31,23 @@ from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.deployments import load_flow_from_flow_run
+from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.futures import PrefectFuture, resolve_futures_to_states
-from prefect.logging.loggers import flow_run_logger
+from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
     Running,
     State,
+    exception_to_crashed_state,
     exception_to_failed_state,
     return_value_to_state,
 )
 from prefect.utilities.asyncutils import A, Async, run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
-    _dynamic_key_for_task_run,
     _resolve_custom_flow_run_name,
-    collect_task_run_inputs,
     propose_state_sync,
 )
 
@@ -75,6 +76,7 @@ class FlowRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
+    logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
@@ -104,13 +106,15 @@ class FlowRunEngine(Generic[P, R]):
             state = self.set_state(new_state)
         return state
 
-    def set_state(self, state: State) -> State:
+    def set_state(self, state: State, force: bool = False) -> State:
         """ """
         # prevents any state-setting activity
         if self.short_circuit:
             return self.state
 
-        state = propose_state_sync(self.client, state, flow_run_id=self.flow_run.id)  # type: ignore
+        state = propose_state_sync(
+            self.client, state, flow_run_id=self.flow_run.id, force=force
+        )  # type: ignore
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
@@ -156,6 +160,12 @@ class FlowRunEngine(Generic[P, R]):
         if self.state.is_scheduled():
             state = self.set_state(Running())
         return state
+
+    def handle_crash(self, exc: BaseException) -> None:
+        state = run_sync(exception_to_crashed_state(exc))
+        self.logger.error(f"Crash detected! {state.message}")
+        self.logger.debug("Crash details:", exc_info=exc)
+        self.set_state(state, force=True)
 
     def load_subflow_run(
         self,
@@ -204,36 +214,6 @@ class FlowRunEngine(Generic[P, R]):
             if flow_runs:
                 return flow_runs[-1]
 
-    def create_subflow_task_run(
-        self, client: SyncPrefectClient, context: FlowRunContext
-    ) -> TaskRun:
-        """
-        Adds a task to a parent flow run that represents the execution of a subflow run.
-
-        The task run is referred to as the "parent task run" of the subflow and will be kept
-        in sync with the subflow run's state by the orchestration engine.
-        """
-        dummy_task = Task(
-            name=self.flow.name, fn=self.flow.fn, version=self.flow.version
-        )
-        task_inputs = {
-            k: run_sync(collect_task_run_inputs(v))
-            for k, v in (self.parameters or {}).items()
-        }
-        parent_task_run = client.create_task_run(
-            task=dummy_task,
-            flow_run_id=(
-                context.flow_run.id
-                if getattr(context, "flow_run", None)
-                and isinstance(context.flow_run, FlowRun)
-                else None
-            ),
-            dynamic_key=_dynamic_key_for_task_run(context, dummy_task),  # type: ignore
-            task_inputs=task_inputs,  # type: ignore
-            state=Pending(),
-        )
-        return parent_task_run
-
     def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
         parameters = self.parameters or {}
@@ -242,9 +222,17 @@ class FlowRunEngine(Generic[P, R]):
 
         # this is a subflow run
         if flow_run_ctx:
-            # get the parent task run
-            parent_task_run = self.create_subflow_task_run(
-                client=client, context=flow_run_ctx
+            # add a task to a parent flow run that represents the execution of a subflow run
+            # reuse the logic from the TaskRunEngine to ensure parents are created correctly
+            parent_task = Task(
+                name=self.flow.name, fn=self.flow.fn, version=self.flow.version
+            )
+            parent_task_run = run_sync(
+                parent_task.create_run(
+                    client=self.client,
+                    flow_run_context=flow_run_ctx,
+                    parameters=self.parameters,
+                )
             )
 
             # check if there is already a flow run for this subflow
@@ -295,8 +283,13 @@ class FlowRunEngine(Generic[P, R]):
             result_factory=run_sync(ResultFactory.from_flow(self.flow)),
             task_runner=self.flow.task_runner.duplicate(),
         ):
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
-            yield
+            # set the logger to the flow run logger
+            current_logger = self.logger
+            try:
+                self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+                yield
+            finally:
+                self.logger = current_logger
 
     @contextmanager
     def start(self):
@@ -322,6 +315,7 @@ class FlowRunEngine(Generic[P, R]):
 
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(client)
+                self.logger.debug(f'Created flow run "{self.flow_run.id}"')
 
             # validate prior to context so that context receives validated params
             if self.flow.should_validate_parameters:
@@ -338,6 +332,15 @@ class FlowRunEngine(Generic[P, R]):
                     self.short_circuit = True
             try:
                 yield self
+            except Exception:
+                # regular exceptions are caught and re-raised to the user
+                raise
+            except (Abort, Pause):
+                raise
+            except BaseException as exc:
+                # BaseExceptions are caught and handled as crashes
+                self.handle_crash(exc)
+                raise
             finally:
                 self._is_started = False
                 self._client = None
