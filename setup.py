@@ -40,7 +40,7 @@ setup(
     # Requirements
     python_requires=">=3.8",
     install_requires=install_requires,
-    extras_require={"dev": dev_requires},
+    extras_require={"dev": dev_requires, "dask": "prefect-dask"},
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",
