@@ -27,7 +27,7 @@ from typing import (
     cast,
     overload,
 )
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
@@ -518,8 +518,9 @@ class Task(Generic[P, R]):
 
     async def create_run(
         self,
-        client: Optional[Union[PrefectClient, SyncPrefectClient]],
-        parameters: Dict[str, Any] = None,
+        client: Union[PrefectClient, SyncPrefectClient],
+        id: Optional[UUID] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
@@ -591,6 +592,7 @@ class Task(Generic[P, R]):
                 else None
             ),
             dynamic_key=str(dynamic_key),
+            id=id,
             state=Pending(),
             task_inputs=task_inputs,
             extra_tags=TagsContext.get().current_tags,

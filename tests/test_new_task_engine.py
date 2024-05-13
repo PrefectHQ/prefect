@@ -3,12 +3,12 @@ import logging
 import time
 from typing import List
 from unittest.mock import MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
 from prefect import Task, flow, get_run_logger, task
-from prefect.client.orchestration import SyncPrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import CrashedRun, MissingResult
@@ -59,6 +59,36 @@ class TestTaskRunEngine:
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
+
+
+class TestRunTask:
+    def test_run_task_with_client_provided_uuid(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        @task
+        def foo():
+            return 42
+
+        task_run_id = uuid4()
+
+        run_task_sync(foo, task_run_id=task_run_id)
+
+        task_run = sync_prefect_client.read_task_run(task_run_id)
+        assert task_run.id == task_run_id
+
+    async def test_run_task_async_with_client_provided_uuid(
+        self, prefect_client: PrefectClient
+    ):
+        @task
+        async def foo():
+            return 42
+
+        task_run_id = uuid4()
+
+        await run_task_async(foo, task_run_id=task_run_id)
+
+        task_run = await prefect_client.read_task_run(task_run_id)
+        assert task_run.id == task_run_id
 
 
 class TestTaskRunsAsync:
