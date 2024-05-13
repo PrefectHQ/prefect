@@ -3,13 +3,14 @@
 ## Release 2.19.0
 
 ### Add support for major infrastructure and distributed task integrations
-As `prefect-dask` and other integrations have been added to the `prefect` codebase, this release adds support to `pip install` these integrations directly from the `prefect` package. This change makes it easier to install and use these integrations with Prefect.
+As `prefect-dask` and other integrations have been added to the `prefect` codebase, this release adds support to install these integrations directly from the `prefect` package. This change makes it easier to install and use these integrations with Prefect.
 
 ```bash
 pip install prefect[dask]
 ```
 
 - See the following pull requests for implementation details:
+
     — https://github.com/PrefectHQ/prefect/pull/13289
     - https://github.com/PrefectHQ/prefect/pull/13310
 
