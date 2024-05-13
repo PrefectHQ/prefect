@@ -29,6 +29,7 @@ dependencies = [
   "google-cloud-storage>=2.0.0",
   "tenacity>=8.0.0",
   "python-slugify>=8.0.0",
+  "google-cloud-secret-manager",
 ]
 dynamic = ["version"]
 
