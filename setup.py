@@ -40,7 +40,18 @@ setup(
     # Requirements
     python_requires=">=3.8",
     install_requires=install_requires,
-    extras_require={"dev": dev_requires, "dask": "prefect-dask"},
+    extras_require={
+        "dev": dev_requires,
+        # Infrastructure extras
+        "aws": "prefect-aws",
+        "azure": "prefect-azure",
+        "gcp": "prefect-gcp",
+        "docker": "prefect-docker",
+        "kubernetes": "prefect-kubernetes",
+        # Distributed task execution extras
+        "dask": "prefect-dask",
+        "ray": "prefect-ray",
+    },
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",
