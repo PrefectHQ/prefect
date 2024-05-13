@@ -16,7 +16,7 @@
 
 <script lang="ts" setup>
   import { BreadCrumbs, showToast } from '@prefecthq/prefect-design'
-  import { PageHeading, DocumentationButton, getApiErrorMessage, localization, useCreateAutomationQuery, useWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
+  import { PageHeading, DocumentationButton, getApiErrorMessage, localization, useCreateAutomationQueryParams, useWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
   import { useRouter } from 'vue-router'
   import AutomationWizard from '@/components/AutomationWizard.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -34,7 +34,7 @@
     { text: 'Create' },
   ]
 
-  const { getActions, getTrigger } = useCreateAutomationQuery()
+  const { getActions, getTrigger } = useCreateAutomationQueryParams()
 
   const automation = await getAutomationTemplate()
 
