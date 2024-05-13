@@ -58,6 +58,7 @@ For implementation details, see the following pull requests:
 - https://github.com/PrefectHQ/prefect/pull/13214
 - https://github.com/PrefectHQ/prefect/pull/13218
 - https://github.com/PrefectHQ/prefect/pull/13233
+- https://github.com/PrefectHQ/prefect/pull/13238
 
 ### Enhancements
 - Remove registry conflict warning — https://github.com/PrefectHQ/prefect/pull/13155
@@ -88,10 +89,9 @@ For implementation details, see the following pull requests:
 - Update JSON schema validation for job varariables — https://github.com/PrefectHQ/prefect/pull/13182
 
 ### Documentation
-- Update concepts->block  to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
+- Update block concepts page  to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
 - Switch docs example repo links to prefecthq repos — https://github.com/PrefectHQ/prefect/pull/13258
-- Update global concurrency limit guide with CLI management info — https://github.com/PrefectHQ/prefect/pull/13238
-- Simplify prefect-aws and prefect-dbt docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
+- Simplify `prefect-aws` and `prefect-dbt` docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
 - Expand discussion of resolution order for cloud-provider service auth in doc — https://github.com/PrefectHQ/prefect/pull/13239
 - Fix repo url typo in storage guide — https://github.com/PrefectHQ/prefect/pull/13304
 - Update storage-guide.md — https://github.com/PrefectHQ/prefect/pull/13294
