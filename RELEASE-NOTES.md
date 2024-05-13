@@ -106,7 +106,6 @@ For implementation details, see the following pull requests:
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.18.3...2.19.0
 
-
 ## Release 2.18.3
 
 ### Experimental
