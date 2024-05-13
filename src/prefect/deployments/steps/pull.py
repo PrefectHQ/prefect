@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from prefect.logging.loggers import get_logger
+from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import sync_compatible
 
 deployment_logger = get_logger("deployment")
@@ -106,7 +107,6 @@ async def git_clone(
                 repository: git@github.com:org/repo.git
         ```
     """
-    from prefect.runner.storage import GitRepository
 
     if access_token and credentials:
         raise ValueError(
@@ -162,7 +162,6 @@ async def pull_from_remote_storage(url: str, **settings: Any):
                 secret: {{ prefect.blocks.secret.my-aws-secret-key }}}
         ```
     """
-    from prefect.runner.storage import RemoteStorage
 
     storage = RemoteStorage(url, **settings)
 
@@ -182,7 +181,6 @@ async def pull_with_block(block_document_name: str, block_type_slug: str):
         block_type_slug: The slug of the type of block to use
     """
     from prefect.blocks.core import Block
-    from prefect.runner.storage import BlockStorageAdapter
 
     full_slug = f"{block_type_slug}/{block_document_name}"
     try:
