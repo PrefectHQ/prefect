@@ -1,6 +1,6 @@
 # prefect-docker
 
-The prefect-docker library is required to create deployments that will run in most Prefect work pool infrastructure types.
+The prefect-docker library is required to create deployments that will submit runs to most Prefect work pool infrastructure types.
 See the Prefect [tutorial](https://docs.prefect.io/latest/tutorial/) and the [Docker guide](https://docs.prefect.io/latest/guides/deployment/docker/) to learn how to create and run deployments that use Docker.
 
 ## Getting started
