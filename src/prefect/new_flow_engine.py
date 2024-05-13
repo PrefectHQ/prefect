@@ -5,6 +5,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import (
+    TYPE_CHECKING,
     Any,
     Coroutine,
     Dict,
@@ -25,15 +26,14 @@ from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
 from prefect import Task, get_client
-from prefect.client.orchestration import SyncPrefectClient
-from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.schemas import FlowRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, Pause
-from prefect.flows import Flow, load_flow_from_entrypoint
-from prefect.futures import PrefectFuture, resolve_futures_to_states
+from prefect.flows import load_flow_from_entrypoint
+from prefect.futures import resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.results import ResultFactory
 from prefect.states import (
@@ -54,8 +54,14 @@ from prefect.utilities.engine import (
 P = ParamSpec("P")
 R = TypeVar("R")
 
+if TYPE_CHECKING:
+    from prefect.client.orchestration import SyncPrefectClient
+    from prefect.client.schemas import TaskRun
+    from prefect.flows import Flow
+    from prefect.futures import PrefectFuture
 
-def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
+
+def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, "Flow"]:
     ## TODO: add error handling to update state and log tracebacks
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
@@ -72,13 +78,13 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
 
 @dataclass
 class FlowRunEngine(Generic[P, R]):
-    flow: Optional[Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]] = None
+    flow: Optional[Union["Flow[P, R]", "Flow[P, Coroutine[Any, Any, R]]"]] = None
     parameters: Optional[Dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     _is_started: bool = False
-    _client: Optional[SyncPrefectClient] = None
+    _client: Optional["SyncPrefectClient"] = None
     short_circuit: bool = False
 
     def __post_init__(self):
@@ -89,13 +95,13 @@ class FlowRunEngine(Generic[P, R]):
             self.parameters = {}
 
     @property
-    def client(self) -> SyncPrefectClient:
+    def client(self) -> "SyncPrefectClient":
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         return self._client
 
     @property
-    def state(self) -> State:
+    def state(self) -> "State":
         return self.flow_run.state  # type: ignore
 
     def begin_run(self) -> State:
@@ -169,8 +175,8 @@ class FlowRunEngine(Generic[P, R]):
 
     def load_subflow_run(
         self,
-        parent_task_run: TaskRun,
-        client: SyncPrefectClient,
+        parent_task_run: "TaskRun",
+        client: "SyncPrefectClient",
         context: FlowRunContext,
     ) -> Union[FlowRun, None]:
         """
@@ -214,7 +220,7 @@ class FlowRunEngine(Generic[P, R]):
             if flow_runs:
                 return flow_runs[-1]
 
-    def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
+    def create_flow_run(self, client: "SyncPrefectClient") -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
         parameters = self.parameters or {}
 
@@ -258,7 +264,7 @@ class FlowRunEngine(Generic[P, R]):
         return flow_run
 
     @contextmanager
-    def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+    def enter_run_context(self, client: Optional["SyncPrefectClient"] = None):
         if client is None:
             client = self.client
         if not self.flow_run:
@@ -357,11 +363,11 @@ class FlowRunEngine(Generic[P, R]):
 
 
 async def run_flow_async(
-    flow: Optional[Flow[P, Coroutine[Any, Any, R]]] = None,
+    flow: Optional["Flow[P, Coroutine[Any, Any, R]]"] = None,
     flow_run: Optional[FlowRun] = None,
     flow_run_id: Optional[UUID] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable["PrefectFuture[A, Async]"]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, None]:
     """
@@ -397,10 +403,10 @@ async def run_flow_async(
 
 
 def run_flow_sync(
-    flow: Flow[P, R],
+    flow: "Flow[P, R]",
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable["PrefectFuture[A, Async]"]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
@@ -430,10 +436,10 @@ def run_flow_sync(
 
 
 def run_flow(
-    flow: Flow[P, R],
+    flow: "Flow[P, R]",
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable["PrefectFuture[A, Async]"]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     kwargs = dict(
