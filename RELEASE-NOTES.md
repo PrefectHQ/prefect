@@ -1,5 +1,112 @@
 # Prefect Release Notes
 
+## Release 2.19.0
+
+### Add support for major infrastructure and distributed task integrations
+As `prefect-dask` and other integrations have been added to the `prefect` codebase, this release adds support to `pip install` these integrations directly from the `prefect` package. This change makes it easier to install and use these integrations with Prefect.
+
+```bash
+pip install prefect[dask]
+```
+
+- See the following pull requests for implementation details:
+    — https://github.com/PrefectHQ/prefect/pull/13289
+    - https://github.com/PrefectHQ/prefect/pull/13310
+
+### Support for timeout seconds in global concurrency context manager
+You may want to fail immediately if a global concurrency slot is unavailable. Rather than block and wait, you can now specify a `timeout_seconds` argument in the global concurrency context manager and catch a `TimeoutError` if a slot is not available within the specified time.
+
+```python
+@flow
+def fail_immediately_flow():
+    try:
+        with concurrency("there-can-be-only-one", occupy=1, timeout_seconds=0.1):
+            do_something_resource_intensive()
+    except TimeoutError:
+        return Cancelled(message="Another flow run is already running")
+```
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13262
+
+### Manage global concurrency limits via the CLI
+Global concurrency limits let you control how many operations can run simultaneously-- now you can create, read, edit, and delete global concurrency limits via the Prefect CLI!
+
+To create a new concurrency limit, use the `prefect gcl create` command. You must specify a `--limit` argument, and can optionally specify a `--slot-decay-per-second` and `--disable` argument.
+
+```bash
+prefect gcl create my-concurrency-limit --limit 5 --slot-decay-per-second 1.0
+```
+
+You can inspect the details of a concurrency limit using the `prefect gcl inspect` command:
+
+```bash
+prefect gcl inspect my-concurrency-limit
+```
+
+To update a concurrency limit, use the `prefect gcl update` command. You can update the `--limit`, `--slot-decay-per-second`, `--enable`, and `--disable` arguments:
+
+```bash
+prefect gcl update my-concurrency-limit --limit 10
+```
+
+See all available commands and options by running `prefect gcl --help` or read our [docs](/docs/guides/global-concurrency-limits.md#managing-global-concurrency-limits-and-rate-limits).
+
+For implementation details, see the following pull requests:
+- https://github.com/PrefectHQ/prefect/pull/13194
+- https://github.com/PrefectHQ/prefect/pull/13196
+- https://github.com/PrefectHQ/prefect/pull/13214
+- https://github.com/PrefectHQ/prefect/pull/13218
+- https://github.com/PrefectHQ/prefect/pull/13233
+
+### Enhancements
+- Remove registry conflict warning — https://github.com/PrefectHQ/prefect/pull/13155
+- Remove top-level Artifacts tab from Prefect UI:
+    - https://github.com/PrefectHQ/prefect/pull/13226
+    - https://github.com/PrefectHQ/prefect/pull/13261
+
+### Fixes
+- Fix work pool base job template generation for `ECSTask` block — https://github.com/PrefectHQ/prefect/pull/13256
+- Fix selecting correct files when using ignore file in `GcsBucket`'s `put_directory` — https://github.com/PrefectHQ/prefect/pull/13290
+- Add `Resuming` flow runs to `BypassCancellingFlowRunsWithNoInfra` orchestration policy — https://github.com/PrefectHQ/prefect/pull/13299
+- Fix `apprise 1.8.0` imports — https://github.com/PrefectHQ/prefect/pull/13311
+
+### Experimental
+#### Engine
+- Add crash detection for flow runs — https://github.com/PrefectHQ/prefect/pull/13266
+- Consolidate run creation logic on Task — https://github.com/PrefectHQ/prefect/pull/13271
+- Skip timeout context if not needed — https://github.com/PrefectHQ/prefect/pull/13306
+- Add parent task tracking — https://github.com/PrefectHQ/prefect/pull/12915
+- Syncify task engine — https://github.com/PrefectHQ/prefect/pull/13234
+- Syncify flow engine — https://github.com/PrefectHQ/prefect/pull/13246
+- Use Prefect-specific `TestClient` for sync calls — https://github.com/PrefectHQ/prefect/pull/13265
+- Add new sync compatibility setting — https://github.com/PrefectHQ/prefect/pull/13224
+
+#### Deployment Schedule Behavior
+- Add new fields to `DeploymentSchedule` schemas — https://github.com/PrefectHQ/prefect/pull/13204
+- Allow both `active` and `schedule` parameters in `update_deployment_schedule` method — https://github.com/PrefectHQ/prefect/pull/13259
+- Update JSON schema validation for job varariables — https://github.com/PrefectHQ/prefect/pull/13182
+
+### Documentation
+- Update concepts->block  to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
+- Switch docs example repo links to prefecthq repos — https://github.com/PrefectHQ/prefect/pull/13258
+- Update global concurrency limit guide with CLI management info — https://github.com/PrefectHQ/prefect/pull/13238
+- Simplify prefect-aws and prefect-dbt docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
+- Expand discussion of resolution order for cloud-provider service auth in doc — https://github.com/PrefectHQ/prefect/pull/13239
+- Fix repo url typo in storage guide — https://github.com/PrefectHQ/prefect/pull/13304
+- Update storage-guide.md — https://github.com/PrefectHQ/prefect/pull/13294
+- Update integration libraries — https://github.com/PrefectHQ/prefect/pull/13277
+- Edit review of Hosting a Prefect server instance — https://github.com/PrefectHQ/prefect/pull/13225
+
+### Integrations
+- Add pre-built Prefect DBT tasks — https://github.com/PrefectHQ/prefect/pull/12964
+
+### Contributors
+- @Andrew-S-Rosen
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.18.3...2.19.0
+
+
 ## Release 2.18.3
 
 ### Experimental

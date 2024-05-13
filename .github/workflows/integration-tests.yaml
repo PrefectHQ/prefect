@@ -123,6 +123,8 @@ jobs:
             server-incompatible: false
           - prefect-version: "2.18"
             server-incompatible: false
+          - prefect-version: "2.19"
+            server-incompatible: false
 
     steps:
       - uses: actions/checkout@v4
