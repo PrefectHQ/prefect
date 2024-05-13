@@ -1018,8 +1018,10 @@ class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
     exiting the flow and tearing down infra.
 
     The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
-    to clean up, we can transition directly to `Cancelled`. Runs that are `AwaitingRetry` are
-    a `Scheduled` state that may have associated infrastructure.
+    to clean up, we can transition directly to `Cancelled`. Runs that are `Resuming` are in a
+    `Scheduled` state that were previously `Suspended` and do not yet have infrastructure.
+
+    Runs that are `AwaitingRetry` are a `Scheduled` state that may have associated infrastructure.
     """
 
     FROM_STATES = {StateType.SCHEDULED, StateType.PAUSED}
@@ -1034,6 +1036,7 @@ class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
         if (
             initial_state.type == states.StateType.SCHEDULED
             and not context.run.infrastructure_pid
+            or initial_state.name == "Resuming"
         ):
             await self.reject_transition(
                 state=states.Cancelled(),
