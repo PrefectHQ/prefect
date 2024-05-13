@@ -71,6 +71,7 @@ For implementation details, see the following pull requests:
 - Fix selecting correct files when using ignore file in `GcsBucket`'s `put_directory` — https://github.com/PrefectHQ/prefect/pull/13290
 - Add `Resuming` flow runs to `BypassCancellingFlowRunsWithNoInfra` orchestration policy — https://github.com/PrefectHQ/prefect/pull/13299
 - Fix `apprise 1.8.0` imports — https://github.com/PrefectHQ/prefect/pull/13311
+- Remove `dataclass` from custom constrained types - https://github.com/PrefectHQ/prefect/pull/13257
 
 ### Experimental
 #### Engine
