@@ -86,11 +86,12 @@ import logging
 import os
 import random
 import sys
-import threading
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
+from threading import current_thread
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Dict,
@@ -119,13 +120,12 @@ from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
-    TaskRunInput,
 )
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort
@@ -182,7 +182,6 @@ from prefect.states import (
 )
 from prefect.task_runners import (
     CONCURRENCY_MESSAGES,
-    BaseTaskRunner,
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
@@ -215,6 +214,14 @@ from prefect.utilities.engine import (
     should_log_prints,
     wait_for_task_runs_and_report_crashes,
 )
+
+if TYPE_CHECKING:
+    from threading import Thread
+
+    from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import TaskRunInput
+    from prefect.task_runners import BaseTaskRunner
+
 
 R = TypeVar("R")
 T = TypeVar("T")
@@ -261,7 +268,7 @@ def enter_flow_run_engine_from_flow_call(
         wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
-        user_thread=threading.current_thread(),
+        user_thread=current_thread(),
     )
 
     # On completion of root flows, wait for the global thread to ensure that
@@ -319,7 +326,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
         create_call(
             retrieve_flow_then_begin_flow_run,
             flow_run_id,
-            user_thread=threading.current_thread(),
+            user_thread=current_thread(),
         ),
         contexts=[capture_sigterm()],
     )
@@ -334,8 +341,8 @@ async def create_then_begin_flow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    client: PrefectClient,
-    user_thread: threading.Thread,
+    client: "PrefectClient",
+    user_thread: "Thread",
 ) -> Any:
     """
     Async entrypoint for flow calls
@@ -401,8 +408,8 @@ async def create_then_begin_flow_run(
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
     flow_run_id: UUID,
-    client: PrefectClient,
-    user_thread: threading.Thread,
+    client: "PrefectClient",
+    user_thread: "Thread",
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -483,8 +490,8 @@ async def begin_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     parameters: Dict[str, Any],
-    client: PrefectClient,
-    user_thread: threading.Thread,
+    client: "PrefectClient",
+    user_thread: "Thread",
 ) -> State:
     """
     Begins execution of a flow run; blocks until completion of the flow run
@@ -593,8 +600,8 @@ async def create_and_begin_subflow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    client: PrefectClient,
-    user_thread: threading.Thread,
+    client: "PrefectClient",
+    user_thread: "Thread",
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -760,9 +767,9 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     interruptible: bool,
-    client: PrefectClient,
+    client: "PrefectClient",
     partial_flow_run_context: FlowRunContext,
-    user_thread: threading.Thread,
+    user_thread: "Thread",
 ) -> State:
     """
     Executes a flow run.
@@ -1218,7 +1225,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: "PrefectClient" = None,
 ) -> None:
     ...
 
@@ -1229,7 +1236,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: "PrefectClient" = None,
 ) -> T:
     ...
 
@@ -1244,7 +1251,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: "PrefectClient" = None,
 ) -> Optional[T]:
     """
     Suspends a flow run by stopping code execution until resumed.
@@ -1373,7 +1380,7 @@ def enter_task_run_engine(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    task_runner: Optional[BaseTaskRunner],
+    task_runner: Optional["BaseTaskRunner"],
     mapped: bool,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]:
     """Sync entrypoint for task calls"""
@@ -1427,7 +1434,7 @@ async def begin_task_map(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    task_runner: Optional[BaseTaskRunner],
+    task_runner: Optional["BaseTaskRunner"],
     autonomous: bool = False,
 ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]]:
     """Async entrypoint for task mapping"""
@@ -1534,8 +1541,8 @@ async def get_task_call_return_value(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    task_runner: Optional[BaseTaskRunner],
-    extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    task_runner: Optional["BaseTaskRunner"],
+    extra_task_inputs: Optional[Dict[str, Set["TaskRunInput"]]] = None,
 ):
     extra_task_inputs = extra_task_inputs or {}
 
@@ -1562,8 +1569,8 @@ async def create_task_run_future(
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    task_runner: Optional[BaseTaskRunner],
-    extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    task_runner: Optional["BaseTaskRunner"],
+    extra_task_inputs: Dict[str, Set["TaskRunInput"]],
 ) -> PrefectFuture:
     # Default to the flow run's task runner
     task_runner = task_runner or flow_run_context.task_runner
@@ -1622,8 +1629,8 @@ async def create_task_run_then_submit(
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    task_runner: BaseTaskRunner,
-    extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    task_runner: "BaseTaskRunner",
+    extra_task_inputs: Dict[str, Set["TaskRunInput"]],
 ) -> None:
     task_run = (
         await create_task_run(
@@ -1662,7 +1669,7 @@ async def create_task_run(
     parameters: Dict[str, Any],
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
-    extra_task_inputs: Dict[str, Set[TaskRunInput]],
+    extra_task_inputs: Dict[str, Set["TaskRunInput"]],
 ) -> TaskRun:
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
@@ -1699,7 +1706,7 @@ async def submit_task_run(
     parameters: Dict[str, Any],
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
-    task_runner: BaseTaskRunner,
+    task_runner: "BaseTaskRunner",
 ) -> PrefectFuture:
     logger = get_run_logger(flow_run_context)
 
@@ -1861,7 +1868,7 @@ async def orchestrate_task_run(
     result_factory: ResultFactory,
     log_prints: bool,
     interruptible: bool,
-    client: PrefectClient,
+    client: "PrefectClient",
 ) -> State:
     """
     Execute a task run
@@ -2199,7 +2206,9 @@ async def orchestrate_task_run(
 
 
 @asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow: Flow):
+async def report_flow_run_crashes(
+    flow_run: FlowRun, client: "PrefectClient", flow: Flow
+):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -2237,7 +2246,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient, flow
 
 
 @asynccontextmanager
-async def report_task_run_crashes(task_run: TaskRun, client: PrefectClient):
+async def report_task_run_crashes(task_run: TaskRun, client: "PrefectClient"):
     """
     Detect task run crashes during this context and update the run to a proper final
     state.
