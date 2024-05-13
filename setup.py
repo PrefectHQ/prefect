@@ -48,9 +48,22 @@ setup(
         "gcp": "prefect-gcp",
         "docker": "prefect-docker",
         "kubernetes": "prefect-kubernetes",
+        "shell": "prefect-shell",
         # Distributed task execution extras
         "dask": "prefect-dask",
         "ray": "prefect-ray",
+        # Version control extras
+        "bitbucket": "prefect-bitbucket",
+        "github": "prefect-github",
+        "gitlab": "prefect-gitlab",
+        # Database extras
+        "databricks": "prefect-databricks",
+        "dbt": "prefect-dbt",
+        "snowflake": "prefect-snowflake",
+        "sqlalchemy": "prefect-sqlalchemy",
+        # Monitoring extras
+        "email": "prefect-email",
+        "slack": "prefect-slack",
     },
     classifiers=[
         "Natural Language :: English",
