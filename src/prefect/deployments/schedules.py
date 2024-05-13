@@ -20,6 +20,7 @@ def create_minimal_deployment_schedule(
     max_active_runs: Optional[int] = None,
     catchup: bool = False,
 ) -> MinimalDeploymentSchedule:
+    """Create a MinimalDeploymentSchedule object from common schedule parameters."""
     return MinimalDeploymentSchedule(
         schedule=schedule,
         active=active if active is not None else True,
