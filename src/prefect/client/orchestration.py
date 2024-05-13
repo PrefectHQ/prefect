@@ -31,7 +31,7 @@ from prefect.client.schemas import sorting
 from prefect.events import filters
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
 )
 
 if HAS_PYDANTIC_V2:
@@ -175,7 +175,9 @@ class ServerType(AutoEnum):
         if self == ServerType.CLOUD:
             return True
 
-        return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
+        return (
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
+        )
 
 
 def get_client(
@@ -3144,7 +3146,7 @@ class PrefectClient:
         response.raise_for_status()
 
     def _raise_for_unsupported_automations(self) -> NoReturn:
-        if not PREFECT_EXPERIMENTAL_EVENTS:
+        if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
             raise RuntimeError(
                 "The current server and client configuration does not support "
                 "events.  Enable experimental events support with the "

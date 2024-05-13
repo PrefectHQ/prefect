@@ -35,7 +35,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
 )
 
 if TYPE_CHECKING:
@@ -54,7 +54,7 @@ def get_events_client(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-    elif PREFECT_EXPERIMENTAL_EVENTS:
+    elif PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
         if PREFECT_API_URL:
             return PrefectEventsClient(
                 reconnection_attempts=reconnection_attempts,
@@ -79,7 +79,7 @@ def get_events_subscriber(
         return PrefectCloudEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
-    elif PREFECT_EXPERIMENTAL_EVENTS:
+    elif PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
         return PrefectEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
@@ -179,7 +179,7 @@ class PrefectEphemeralEventsClient(EventsClient):
     """A Prefect Events client that sends events to an ephemeral Prefect server"""
 
     def __init__(self):
-        if not PREFECT_EXPERIMENTAL_EVENTS:
+        if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
             raise ValueError(
                 "PrefectEphemeralEventsClient can only be used when "
                 "PREFECT_EXPERIMENTAL_EVENTS is set to True"

@@ -15,7 +15,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
     temporary_settings,
 )
 from prefect.testing.fixtures import Puppeteer, Recorder
@@ -28,7 +28,7 @@ def no_viable_settings(events_disabled):
             PREFECT_API_URL: "https://locally/api",
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: False,
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: False,
         }
     ):
         yield
@@ -46,7 +46,7 @@ def ephemeral_settings():
             PREFECT_API_URL: None,
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: True,
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True,
         }
     ):
         yield
@@ -63,7 +63,7 @@ def server_settings():
             PREFECT_API_URL: "https://locally/api",
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: True,
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True,
         }
     ):
         yield
@@ -80,7 +80,7 @@ def cloud_settings():
             PREFECT_API_URL: "https://cloudy/api/accounts/1/workspaces/2",
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
             PREFECT_API_KEY: "howdy-doody",
-            PREFECT_EXPERIMENTAL_EVENTS: False,
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: False,
         }
     ):
         yield
