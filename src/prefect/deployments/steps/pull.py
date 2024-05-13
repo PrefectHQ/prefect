@@ -107,7 +107,6 @@ async def git_clone(
                 repository: git@github.com:org/repo.git
         ```
     """
-
     if access_token and credentials:
         raise ValueError(
             "Please provide either an access token or credentials but not both."
@@ -162,7 +161,6 @@ async def pull_from_remote_storage(url: str, **settings: Any):
                 secret: {{ prefect.blocks.secret.my-aws-secret-key }}}
         ```
     """
-
     storage = RemoteStorage(url, **settings)
 
     await storage.pull_code()
