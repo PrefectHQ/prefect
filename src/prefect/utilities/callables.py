@@ -531,7 +531,7 @@ def generate_signature_from_source(
         if default is not None:
             try:
                 def_code = compile(ast.Expression(default), "<string>", "eval")
-                default = eval(def_code)
+                default = eval(def_code, namespace)
             except Exception as e:
                 logger.debug(
                     "Failed to evaluate default value for %s: %s", param.name, e
@@ -592,7 +592,7 @@ def get_docstring_from_source(source_code: str, func_name: str) -> Optional[str]
     if (
         func_def.body
         and isinstance(func_def.body[0], ast.Expr)
-        and isinstance(func_def.body[0].value, (ast.Str, ast.Constant))
+        and isinstance(func_def.body[0].value, ast.Constant)
     ):
-        return func_def.body[0].value.s
+        return func_def.body[0].value.value
     return None
