@@ -2411,8 +2411,14 @@ async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> 
             factory = await ResultFactory.from_autonomous_task(task, client=client)
             await factory.store_parameters(parameters_id, parameters)
 
+        try:
+            task_run_name = _resolve_custom_task_run_name(task, parameters)
+        except TypeError:
+            task_run_name = None
+
         task_run = await client.create_task_run(
             task=task,
+            name=task_run_name,
             flow_run_id=None,
             dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
             state=state,

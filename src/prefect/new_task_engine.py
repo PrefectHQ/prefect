@@ -143,7 +143,7 @@ class TaskRunEngine(Generic[P, R]):
         task_run_context = TaskRunContext.get()
         cache_key = (
             self.task.cache_key_fn(
-                task_run_context,
+                task_run_context or TaskRunContext.construct(task=self.task),
                 self.parameters or {},
             )
             if self.task.cache_key_fn
@@ -382,10 +382,10 @@ async def run_task_async(
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start() as run:
-        with run.enter_run_context():
-            run.begin_run()
+        run.begin_run()
 
-            while run.is_running():
+        while run.is_running():
+            with run.enter_run_context():
                 try:
                     # This is where the task is actually run.
                     with timeout_async(seconds=run.task.timeout_seconds):
