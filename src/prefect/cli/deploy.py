@@ -58,14 +58,15 @@ from prefect.deployments.base import (
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
-from prefect.flows import load_flow_from_entrypoint
+from prefect.flows import load_flow_name_from_entrypoint
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.callables import parameter_schema
+from prefect.utilities.callables import (
+    parameter_schema_from_entrypoint,
+)
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import (
@@ -470,18 +471,10 @@ async def _run_single_deploy(
                 "You can also provide an entrypoint in a prefect.yaml file."
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
-    if deploy_config.get("flow_name") and deploy_config.get("entrypoint"):
-        raise ValueError(
-            "Received an entrypoint and a flow name for this deployment. Please provide"
-            " either an entrypoint or a flow name."
-        )
 
     # entrypoint logic
     if deploy_config.get("entrypoint"):
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, deploy_config["entrypoint"]
-        )
-        deploy_config["flow_name"] = flow.name
+        flow = load_flow_name_from_entrypoint(deploy_config["entrypoint"])
 
     deployment_name = deploy_config.get("name")
     if not deployment_name:
@@ -489,7 +482,9 @@ async def _run_single_deploy(
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
 
-    deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
+    deploy_config["parameter_openapi_schema"] = parameter_schema_from_entrypoint(
+        deploy_config["entrypoint"]
+    )
 
     deploy_config["schedules"] = _construct_schedules(
         deploy_config,
