@@ -1501,6 +1501,11 @@ PREFECT_RUNNER_SERVER_ENABLE = Setting(bool, default=False)
 Whether or not to enable the runner's webserver.
 """
 
+PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS = Setting(int, default=50)
+"""
+The maximum number of scheduled runs to create for a deployment.
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
@@ -1612,6 +1617,11 @@ Whether or not to enable experimental work queue status in-place of work queue h
 PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE = Setting(bool, default=False)
 """
 Whether or not to enable experimental new engine.
+"""
+
+PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
+"""
+Whether or not to disable the sync_compatible decorator utility.
 """
 
 
@@ -1744,6 +1754,7 @@ PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
 """
 How long to cache related resource data for emitting server-side vents
 """
+
 
 # Deprecated settings ------------------------------------------------------------------
 

@@ -7,7 +7,6 @@ Module containing the base workflow task class and decorator - for most use case
 import datetime
 import inspect
 import os
-import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -33,9 +32,15 @@ from uuid import uuid4
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import TaskRunInput
-from prefect.context import FlowRunContext, PrefectObjectRegistry, TagsContext
+from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.context import (
+    FlowRunContext,
+    PrefectObjectRegistry,
+    TagsContext,
+    TaskRunContext,
+)
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.results import ResultSerializer, ResultStorage
@@ -332,33 +337,7 @@ class Task(Generic[P, R]):
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
-
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
-        # Warn if this task's `name` conflicts with another task while having a
-        # different function. This is to detect the case where two or more tasks
-        # share a name or are lambdas, which should result in a warning, and to
-        # differentiate it from the case where the task was 'copied' via
-        # `with_options`, which should not result in a warning.
-        registry = PrefectObjectRegistry.get()
-
-        if registry and any(
-            other
-            for other in registry.get_instances(Task)
-            if other.name == self.name and id(other.fn) != id(self.fn)
-        ):
-            try:
-                file = inspect.getsourcefile(self.fn)
-                line_number = inspect.getsourcelines(self.fn)[1]
-            except TypeError:
-                file = "unknown"
-                line_number = "unknown"
-
-            warnings.warn(
-                f"A task named {self.name!r} and defined at '{file}:{line_number}' "
-                "conflicts with another task. Consider specifying a unique `name` "
-                "parameter in the task definition:\n\n "
-                "`@task(name='my_unique_name', ...)`"
-            )
         self.on_completion = on_completion
         self.on_failure = on_failure
 
@@ -539,48 +518,93 @@ class Task(Generic[P, R]):
 
     async def create_run(
         self,
-        flow_run_context: FlowRunContext,
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]],
+        client: Optional[Union[PrefectClient, SyncPrefectClient]],
+        parameters: Dict[str, Any] = None,
+        flow_run_context: Optional[FlowRunContext] = None,
+        parent_task_run_context: Optional[TaskRunContext] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> TaskRun:
-        # TODO: Investigate if we can replace create_task_run on the task run engine
-        # with this method. Would require updating to work without the flow run context.
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
+            _resolve_custom_task_run_name,
             collect_task_run_inputs,
         )
 
-        dynamic_key = _dynamic_key_for_task_run(flow_run_context, self)
+        if flow_run_context is None:
+            flow_run_context = FlowRunContext.get()
+        if parent_task_run_context is None:
+            parent_task_run_context = TaskRunContext.get()
+        if parameters is None:
+            parameters = {}
+
+        try:
+            task_run_name = _resolve_custom_task_run_name(self, parameters)
+        except TypeError:
+            task_run_name = None
+
+        if flow_run_context:
+            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
+        else:
+            dynamic_key = uuid4().hex
+
+        # collect task inputs
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
+
+        # check if this task has a parent task run based on running in another
+        # task run's existing context. A task run is only considered a parent if
+        # it is in the same flow run (because otherwise presumably the child is
+        # in a subflow, so the subflow serves as the parent) or if there is no
+        # flow run
+        if parent_task_run_context:
+            # there is no flow run
+            if not flow_run_context:
+                task_inputs["__parents__"] = [
+                    TaskRunResult(id=parent_task_run_context.task_run.id)
+                ]
+            # there is a flow run and the task run is in the same flow run
+            elif (
+                flow_run_context
+                and parent_task_run_context.task_run.flow_run_id
+                == flow_run_context.flow_run.id
+            ):
+                task_inputs["__parents__"] = [
+                    TaskRunResult(id=parent_task_run_context.task_run.id)
+                ]
+
         if wait_for:
             task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
         # Join extra task inputs
-        extra_task_inputs = extra_task_inputs or {}
-        for k, extras in extra_task_inputs.items():
+        for k, extras in (extra_task_inputs or {}).items():
             task_inputs[k] = task_inputs[k].union(extras)
 
-        flow_run_logger = get_run_logger(flow_run_context)
-
-        task_run = await flow_run_context.client.create_task_run(
+        # create the task run
+        task_run = client.create_task_run(
             task=self,
-            name=f"{self.name} - {dynamic_key}",
-            flow_run_id=flow_run_context.flow_run.id,
-            dynamic_key=dynamic_key,
+            name=task_run_name,
+            flow_run_id=(
+                getattr(flow_run_context.flow_run, "id", None)
+                if flow_run_context and flow_run_context.flow_run
+                else None
+            ),
+            dynamic_key=str(dynamic_key),
             state=Pending(),
-            extra_tags=TagsContext.get().current_tags,
             task_inputs=task_inputs,
+            extra_tags=TagsContext.get().current_tags,
         )
+        # the new engine uses sync clients but old engines use async clients
+        if inspect.isawaitable(task_run):
+            task_run = await task_run
 
-        if flow_run_context.flow_run:
-            flow_run_logger.info(
+        if flow_run_context and flow_run_context.flow_run:
+            get_run_logger(flow_run_context).debug(
                 f"Created task run {task_run.name!r} for task {self.name!r}"
             )
         else:
-            logger.info(f"Created task run {task_run.name!r} for task {self.name!r}")
+            logger.debug(f"Created task run {task_run.name!r} for task {self.name!r}")
 
         return task_run
 
@@ -637,21 +661,15 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        # new engine currently only compatible with async tasks
         if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import run_task, run_task_sync
+            from prefect.new_task_engine import run_task
 
-            run_kwargs = dict(
+            return run_task(
                 task=self,
                 parameters=parameters,
                 wait_for=wait_for,
                 return_type=return_type,
             )
-            if self.isasync:
-                # this returns an awaitable coroutine
-                return run_task(**run_kwargs)
-            else:
-                return run_task_sync(**run_kwargs)
 
         if (
             PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
@@ -931,11 +949,12 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]],
         return_state: bool,
     ):
-        from prefect.new_task_engine import run_task
+        from prefect.new_task_engine import run_task_async
 
         task_runner = flow_run_context.task_runner
 
         task_run = await self.create_run(
+            client=flow_run_context.client,
             flow_run_context=flow_run_context,
             parameters=parameters,
             wait_for=wait_for,
@@ -952,7 +971,7 @@ class Task(Generic[P, R]):
         await task_runner.submit(
             key=future.key,
             call=partial(
-                run_task,
+                run_task_async,
                 task=self,
                 task_run=task_run,
                 parameters=parameters,

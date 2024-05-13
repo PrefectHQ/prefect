@@ -1,16 +1,17 @@
 import logging
 from textwrap import dedent
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
 
 from prefect import Flow, flow, get_run_logger, task
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext
-from prefect.exceptions import ParameterTypeError
+from prefect.context import FlowRunContext, TaskRunContext
+from prefect.exceptions import CrashedRun, ParameterTypeError
 from prefect.new_flow_engine import (
     FlowRunEngine,
     load_flow_and_flow_run,
@@ -54,16 +55,14 @@ class TestFlowRunEngine:
 
     async def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
-        async with engine.start():
+        with engine.start():
             client = engine.client
-            assert isinstance(client, PrefectClient)
+            assert isinstance(client, SyncPrefectClient)
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_load_flow_from_entrypoint(
-        self, monkeypatch, prefect_client, tmp_path, flow_run
-    ):
+    async def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
         flow_code = """
         from prefect import flow
 
@@ -75,7 +74,7 @@ class TestFlowRunEngine:
         fpath.write_text(dedent(flow_code))
 
         monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
-        loaded_flow_run, flow = await load_flow_and_flow_run(flow_run.id)
+        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
         assert loaded_flow_run.id == flow_run.id
         assert flow.fn() == "woof!"
 
@@ -124,13 +123,13 @@ class TestFlowRunsAsync:
         ):
             await state.result()
 
-    async def test_flow_run_name(self, prefect_client):
+    async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
         async def foo(x):
             return FlowRunContext.get().flow_run.id
 
         result = await run_flow(foo, parameters=dict(x="blue"))
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
 
@@ -178,17 +177,17 @@ class TestFlowRunsAsync:
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
 
-    async def test_flow_ends_in_completed(self, prefect_client):
+    async def test_flow_ends_in_completed(self, sync_prefect_client):
         @flow
         async def foo():
             return FlowRunContext.get().flow_run.id
 
         result = await run_flow(foo)
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_flow_ends_in_failed(self, prefect_client):
+    async def test_flow_ends_in_failed(self, sync_prefect_client):
         ID = None
 
         @flow
@@ -200,32 +199,37 @@ class TestFlowRunsAsync:
         with pytest.raises(ValueError, match="xyz"):
             await run_flow(foo)
 
-        run = await prefect_client.read_flow_run(ID)
+        run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
 
-    @pytest.mark.skip(reason="Haven't wired up subflows yet")
-    async def test_flow_tracks_nested_parent_as_dependency(self, prefect_client):
-        @flow
-        async def inner():
-            return FlowRunContext.get().flow_run.id
+    def test_subflow_inside_task_tracks_all_parents(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        tracker = {}
 
         @flow
-        async def outer():
-            id1 = await inner()
-            return (id1, FlowRunContext.get().flow_run.id)
+        def flow_3():
+            tracker["flow_3"] = FlowRunContext.get().flow_run.id
 
-        a, b = await run_flow(outer)
-        assert a != b
+        @task
+        def task_2():
+            tracker["task_2"] = TaskRunContext.get().task_run.id
+            flow_3()
 
-        # assertions on outer
-        outer_run = await prefect_client.read_flow_run(b)
-        assert outer_run.flow_inputs == {}
+        @flow
+        def flow_1():
+            task_2()
 
-        # assertions on inner
-        inner_run = await prefect_client.read_flow_run(a)
-        assert "wait_for" in inner_run.flow_inputs
-        assert inner_run.flow_inputs["wait_for"][0].id == b
+        flow_1()
+
+        # retrieve the flow 3 subflow run
+        l3 = sync_prefect_client.read_flow_run(tracker["flow_3"])
+        # retrieve the dummy task for the flow 3 subflow run
+        l3_dummy = sync_prefect_client.read_task_run(l3.parent_task_run_id)
+
+        # assert the parent of the dummy task is task 2
+        assert l3_dummy.task_inputs["__parents__"][0].id == tracker["task_2"]
 
 
 class TestFlowRunsSync:
@@ -272,13 +276,13 @@ class TestFlowRunsSync:
         ):
             await state.result()
 
-    async def test_flow_run_name(self, prefect_client):
+    async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
         def foo(x):
             return FlowRunContext.get().flow_run.id
 
         result = run_flow_sync(foo, parameters=dict(x="blue"))
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.name == "name is blue"
 
@@ -326,17 +330,17 @@ class TestFlowRunsSync:
         assert record.message == "hey yall"
         assert record.levelname == "CRITICAL"
 
-    async def test_flow_ends_in_completed(self, prefect_client):
+    async def test_flow_ends_in_completed(self, sync_prefect_client):
         @flow
         def foo():
             return FlowRunContext.get().flow_run.id
 
         result = run_flow_sync(foo)
-        run = await prefect_client.read_flow_run(result)
+        run = sync_prefect_client.read_flow_run(result)
 
         assert run.state_type == StateType.COMPLETED
 
-    async def test_flow_ends_in_failed(self, prefect_client):
+    async def test_flow_ends_in_failed(self, sync_prefect_client):
         ID = None
 
         @flow
@@ -348,7 +352,7 @@ class TestFlowRunsSync:
         with pytest.raises(ValueError, match="xyz"):
             run_flow_sync(foo)
 
-        run = await prefect_client.read_flow_run(ID)
+        run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
 
@@ -466,7 +470,7 @@ class TestFlowRetries:
         assert task_run_count == 2, "Task should be reset and run again"
 
     @pytest.mark.xfail
-    async def test_flow_retry_with_branched_tasks(self, prefect_client):
+    async def test_flow_retry_with_branched_tasks(self, sync_prefect_client):
         flow_run_count = 0
 
         @task
@@ -494,7 +498,7 @@ class TestFlowRetries:
 
         # The state is pulled from the API and needs to be decoded
         document = await (await my_flow().result()).result()
-        result = await prefect_client.retrieve_data(document)
+        result = sync_prefect_client.retrieve_data(document)
 
         assert result == "bar"
         # AssertionError: assert 'foo' == 'bar'
@@ -503,7 +507,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -531,7 +535,7 @@ class TestFlowRetries:
         assert child_run_count == 2, "Child flow should be reset and run again"
 
         # Ensure that the tracking task run for the subflow is reset and tracked
-        task_runs = await prefect_client.read_task_runs(
+        task_runs = sync_prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(
                 id={"any_": [state.state_details.flow_run_id]}
             )
@@ -569,7 +573,7 @@ class TestFlowRetries:
         assert child_run_count == 1, "Child flow should not run again"
 
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         child_flow_run_count = 0
         flow_run_count = 0
@@ -604,10 +608,10 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
 
-        child_flow_run = await prefect_client.read_flow_run(
+        child_flow_run = sync_prefect_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
-        child_flow_runs = await prefect_client.read_flow_runs(
+        child_flow_runs = sync_prefect_client.read_flow_runs(
             flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
             sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
@@ -794,3 +798,69 @@ class TestFlowRetries:
         assert (
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
+
+
+class TestFlowCrashDetection:
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_flow(
+        self, prefect_client, interrupt_type
+    ):
+        @flow
+        async def my_flow():
+            raise interrupt_type()
+
+        with pytest.raises(interrupt_type):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_flow_sync(
+        self, prefect_client, interrupt_type
+    ):
+        @flow
+        def my_flow():
+            raise interrupt_type()
+
+        with pytest.raises(interrupt_type):
+            my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_orchestration_crashes_flow(
+        self, prefect_client, interrupt_type, monkeypatch
+    ):
+        monkeypatch.setattr(
+            FlowRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
+        )
+
+        @flow
+        async def my_flow():
+            pass
+
+        with pytest.raises(interrupt_type):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()

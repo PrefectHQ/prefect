@@ -7,8 +7,7 @@ from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID, uuid4
 
-import jsonschema
-
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -17,7 +16,6 @@ else:
     from pydantic import Field, HttpUrl, root_validator, validator
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     get_or_create_state_name,
@@ -34,12 +32,14 @@ from prefect._internal.schemas.validators import (
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
+    validate_schedule_max_scheduled_runs,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
-from prefect.types import NonNegativeInteger, PositiveInteger
+from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
+from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
@@ -126,6 +126,24 @@ class DeploymentScheduleCreate(ActionBaseModel):
     schedule: schemas.schedules.SCHEDULE_TYPES = Field(
         default=..., description="The schedule for the deployment."
     )
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+    catchup: bool = Field(
+        default=False,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
+    )
+
+    @validator("max_scheduled_runs")
+    def validate_max_scheduled_runs(cls, v):
+        return validate_schedule_max_scheduled_runs(
+            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+        )
 
 
 class DeploymentScheduleUpdate(ActionBaseModel):
@@ -135,6 +153,27 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
         default=None, description="The schedule for the deployment."
     )
+
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+
+    catchup: Optional[bool] = Field(
+        default=None,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
+    )
+
+    @validator("max_scheduled_runs")
+    def validate_max_scheduled_runs(cls, v):
+        return validate_schedule_max_scheduled_runs(
+            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+        )
 
 
 class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
@@ -209,23 +248,28 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     )
 
     def check_valid_configuration(self, base_job_template: dict):
-        """Check that the combination of base_job_template defaults
-        and job_variables conforms to the specified schema.
         """
+        Check that the combination of base_job_template defaults and job_variables
+        conforms to the specified schema.
+
+        NOTE: This method does not hydrate block references in default values within the
+        base job template to validate them. Failing to do this can cause user-facing
+        errors. Instead of this method, use `validate_job_variables_for_deployment`
+        function from `prefect_cloud.orion.api.validation`.
+        """
+        # This import is here to avoid a circular import
+        from prefect.utilities.schema_tools import validate
+
         variables_schema = deepcopy(base_job_template.get("variables"))
 
         if variables_schema is not None:
-            # jsonschema considers required fields, even if that field has a default,
-            # to still be required. To get around this we remove the fields from
-            # required if there is a default present.
-            required = variables_schema.get("required")
-            properties = variables_schema.get("properties")
-            if required is not None and properties is not None:
-                for k, v in properties.items():
-                    if "default" in v and k in required:
-                        required.remove(k)
-
-            jsonschema.validate(self.job_variables, variables_schema)
+            validate(
+                self.job_variables,
+                variables_schema,
+                raise_on_error=True,
+                preprocess=True,
+                ignore_required=True,
+            )
 
     @validator("parameters")
     def _validate_parameters_conform_to_schema(cls, value, values):
@@ -293,24 +337,31 @@ class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
         allow_population_by_field_name = True
 
     def check_valid_configuration(self, base_job_template: dict):
-        """Check that the combination of base_job_template defaults
-        and job_variables conforms to the specified schema.
         """
+        Check that the combination of base_job_template defaults and job_variables
+        conforms to the schema specified in the base_job_template.
+
+        NOTE: This method does not hydrate block references in default values within the
+        base job template to validate them. Failing to do this can cause user-facing
+        errors. Instead of this method, use `validate_job_variables_for_deployment`
+        function from `prefect_cloud.orion.api.validation`.
+        """
+        # This import is here to avoid a circular import
+        from prefect.utilities.schema_tools import validate
+
         variables_schema = deepcopy(base_job_template.get("variables"))
 
         if variables_schema is not None:
-            # jsonschema considers required fields, even if that field has a default,
-            # to still be required. To get around this we remove the fields from
-            # required if there is a default present.
-            required = variables_schema.get("required")
-            properties = variables_schema.get("properties")
-            if required is not None and properties is not None:
-                for k, v in properties.items():
-                    if "default" in v and k in required:
-                        required.remove(k)
-
-        if variables_schema is not None:
-            jsonschema.validate(self.job_variables, variables_schema)
+            errors = validate(
+                self.job_variables,
+                variables_schema,
+                raise_on_error=False,
+                preprocess=True,
+                ignore_required=True,
+            )
+            if errors:
+                for error in errors:
+                    raise error
 
 
 class FlowRunUpdate(ActionBaseModel):
@@ -580,10 +631,14 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
         default=True, description="Whether the concurrency limit is active."
     )
     name: str = Field(default=..., description="The name of the concurrency limit.")
-    limit: int = Field(default=..., description="The concurrency limit.")
-    active_slots: int = Field(default=0, description="The number of active slots.")
-    denied_slots: int = Field(default=0, description="The number of denied slots.")
-    slot_decay_per_second: float = Field(
+    limit: NonNegativeInteger = Field(default=..., description="The concurrency limit.")
+    active_slots: NonNegativeInteger = Field(
+        default=0, description="The number of active slots."
+    )
+    denied_slots: NonNegativeInteger = Field(
+        default=0, description="The number of denied slots."
+    )
+    slot_decay_per_second: NonNegativeFloat = Field(
         default=0,
         description="The decay rate for active slots when used as a rate limit.",
     )
@@ -598,10 +653,14 @@ class ConcurrencyLimitV2Update(ActionBaseModel):
 
     active: Optional[bool] = Field(None)
     name: Optional[str] = Field(None)
-    limit: Optional[int] = Field(None)
-    active_slots: Optional[int] = Field(None)
-    denied_slots: Optional[int] = Field(None)
-    slot_decay_per_second: Optional[float] = Field(None)
+    limit: Optional[NonNegativeInteger] = Field(None)
+    active_slots: Optional[NonNegativeInteger] = Field(None)
+    denied_slots: Optional[NonNegativeInteger] = Field(None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
 
 
 class BlockTypeCreate(ActionBaseModel):
@@ -747,8 +806,8 @@ def validate_base_job_template(v):
         return v
 
     job_config = v.get("job_configuration")
-    variables = v.get("variables")
-    if not (job_config and variables):
+    variables_schema = v.get("variables")
+    if not (job_config and variables_schema):
         raise ValueError(
             "The `base_job_template` must contain both a `job_configuration` key"
             " and a `variables` key."
@@ -761,7 +820,7 @@ def validate_base_job_template(v):
         found_variables = find_placeholders(json.dumps(template))
         template_variables.update({placeholder.name for placeholder in found_variables})
 
-    provided_variables = set(variables["properties"].keys())
+    provided_variables = set(variables_schema.get("properties", {}).keys())
     if not template_variables.issubset(provided_variables):
         missing_variables = template_variables - provided_variables
         raise ValueError(
