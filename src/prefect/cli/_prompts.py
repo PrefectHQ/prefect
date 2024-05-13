@@ -1,6 +1,7 @@
 """
 Utilities for prompting the user for input
 """
+
 import os
 import shutil
 from datetime import timedelta
@@ -238,6 +239,21 @@ class CronTimezonePrompt(PromptBase[str]):
             raise InvalidResponse(self.validate_error_message)
 
 
+def prompt_for_max_active_runs_and_catchup(console):
+    """
+    Prompt the user for the maximum number of active runs and whether to catch up on missed runs.
+    """
+    max_active_runs = prompt(
+        "Maximum number of active runs (leave blank for unlimited)",
+        default=None,
+    )
+    catchup = confirm(
+        "Catch up on missed runs?",
+        default=False,
+    )
+    return max_active_runs, catchup
+
+
 def prompt_cron_schedule(console):
     """
     Prompt the user for a cron string and timezone.
@@ -361,8 +377,15 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
                 "Would you like to activate this schedule?", default=True
             )
 
+            max_active_runs, catchup = prompt_for_max_active_runs_and_catchup(console)
+
             schedules.append(
-                MinimalDeploymentSchedule(schedule=schedule, active=is_schedule_active)
+                MinimalDeploymentSchedule(
+                    schedule=schedule,
+                    active=is_schedule_active,
+                    max_active_runs=max_active_runs,
+                    catchup=catchup,
+                )
             )
 
             add_schedule = confirm(
@@ -376,7 +399,7 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
 async def prompt_select_work_pool(
     console: Console,
     prompt: str = "Which work pool would you like to deploy this flow to?",
-    client: PrefectClient = None,
+    client: Optional[PrefectClient] = None,
 ) -> str:
     work_pools = await client.read_work_pools()
     work_pool_options = [
