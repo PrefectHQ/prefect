@@ -2,7 +2,7 @@
 
 ## Release 2.19.0
 
-### Add support for major infrastructure and distributed task integrations
+### Support for major infrastructure and distributed task integrations
 As `prefect-dask` and other integrations have been added to the `prefect` codebase, this release adds these integrations as `extra` requirements of the `prefect` package, making it easier to install support for everything in your Prefect stack.
 
 ```bash
