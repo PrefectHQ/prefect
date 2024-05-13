@@ -89,8 +89,8 @@ For implementation details, see the following pull requests:
 - Update JSON schema validation for job varariables — https://github.com/PrefectHQ/prefect/pull/13182
 
 ### Documentation
-- Update block concepts page  to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
-- Switch docs example repo links to prefecthq repos — https://github.com/PrefectHQ/prefect/pull/13258
+- Update block concepts page to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
+- Update example repo links to `prefecthq` repos — https://github.com/PrefectHQ/prefect/pull/13258
 - Simplify `prefect-aws` and `prefect-dbt` docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
 - Expand discussion of resolution order for cloud-provider service auth in doc — https://github.com/PrefectHQ/prefect/pull/13239
 - Fix repo url typo in storage guide — https://github.com/PrefectHQ/prefect/pull/13304
