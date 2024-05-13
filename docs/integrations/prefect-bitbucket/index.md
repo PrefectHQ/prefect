@@ -41,7 +41,7 @@ A deployment can use flow code stored in a Bitbucket repository without using th
 - The repository is public
 - The deployment uses a [Secret block](https://docs.prefect.io/latest/concepts/blocks/) to store the token
 
-Code to create a Bitbucket Credentials block:
+Create a Bitbucket Credentials block:
 
 ```python
 from prefect_bitbucket import BitbucketCredentials

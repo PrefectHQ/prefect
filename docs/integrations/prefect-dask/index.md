@@ -127,7 +127,7 @@ For additional time savings with Dask, you could distribute large workloads over
 
 Suppose you have an existing Dask client/cluster such as a `dask.dataframe.DataFrame`, and you want to add observability.
 
-With `prefect-dask`, no major overhaul is necessary because Prefect was designed for incremental adoption. Here are the steps:
+With `prefect-dask`, it takes just a few steps:
 
 1. Add imports
 2. Add `task` and `flow` decorators

@@ -36,8 +36,8 @@ Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) 
 
 See the [ECS guide](/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
 
-If you're using Prefect Cloud and your organization's security posture allows storing credentials in blocks, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) are a great option.
-They provide all the benefits of ECS along with a quick setup and no worker needed.
+If you're using Prefect Cloud, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) provide all the benefits of ECS with a quick setup and no worker needed.
+
 
 In the examples below, you create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.
