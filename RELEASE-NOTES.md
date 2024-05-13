@@ -10,7 +10,7 @@ pip install prefect[dask]
 ```
 
 See the following pull requests for implementation details:
-— https://github.com/PrefectHQ/prefect/pull/13289
+- https://github.com/PrefectHQ/prefect/pull/13289
 - https://github.com/PrefectHQ/prefect/pull/13310
 
 ### Support for timeout seconds in global concurrency context manager
