@@ -235,7 +235,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
+        from apprise.plugins.pagerduty import NotifyPagerDuty
 
         url = SecretStr(
             NotifyPagerDuty(
@@ -303,7 +303,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyTwilio import NotifyTwilio
+        from apprise.plugins.twilio import NotifyTwilio
 
         url = SecretStr(
             NotifyTwilio(
@@ -401,7 +401,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
+        from apprise.plugins.opsgenie import NotifyOpsgenie
 
         targets = []
         if self.target_user:
@@ -489,7 +489,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyMattermost import NotifyMattermost
+        from apprise.plugins.mattermost import NotifyMattermost
 
         url = SecretStr(
             NotifyMattermost(
@@ -582,7 +582,7 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyDiscord import NotifyDiscord
+        from apprise.plugins.discord import NotifyDiscord
 
         url = SecretStr(
             NotifyDiscord(
@@ -773,7 +773,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifySendGrid import NotifySendGrid
+        from apprise.plugins.sendgrid import NotifySendGrid
 
         url = SecretStr(
             NotifySendGrid(
