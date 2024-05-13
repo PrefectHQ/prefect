@@ -1,8 +1,12 @@
 """Module containing credentials for interacting with dbt CLI"""
 
-from typing import Any, Dict, Optional, Union
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional, Type, Union
 
+import yaml
 from pydantic import VERSION as PYDANTIC_VERSION
+from typing_extensions import Self
 
 from prefect.blocks.core import Block
 
@@ -27,6 +31,13 @@ try:
     from prefect_dbt.cli.configs.postgres import PostgresTargetConfigs
 except ImportError:
     PostgresTargetConfigs = None
+
+from prefect_dbt.cli.configs.base import MissingExtrasRequireError
+
+try:
+    from prefect_gcp.credentials import GcpCredentials
+except ModuleNotFoundError as e:
+    raise MissingExtrasRequireError("BigQuery") from e
 
 
 class DbtCliProfile(Block):
@@ -158,3 +169,67 @@ class DbtCliProfile(Block):
             },
         }
         return profile
+
+    @classmethod
+    def from_file(cls: Type[Self], project_name: str, default_target: str = None, path: Path = None) -> Self:
+        profiles_path = Path(
+            path
+            or os.getenv("DBT_PROFILES_DIR", str(Path.home()) + "/.dbt/profiles.yml")
+        )
+        profiles_path = profiles_path.expanduser().resolve()
+
+        # Load the entire profile yaml
+        profile_file_contents = profiles_path.read_text()
+        profiles_dict = yaml.safe_load(profile_file_contents)
+
+        project_dict = profiles_dict.get(project_name)
+        if project_dict is None:
+            raise ValueError(
+                f"Project {project_name!r} not found in profile.yml. "
+                "Make sure there is a project configured "
+            )
+        block_name = project_name + "_dbt_cli_profile"
+        global_configs = None
+        target_config = None
+
+        for key, value in project_dict.items():
+            if key == "target" and default_target is None:
+                default_target = value
+            elif key == "config":
+                global_configs = GlobalConfigs()
+            elif key == "outputs":
+                outputs_dict = value
+                for _, output_dict in outputs_dict.items():
+                    if output_dict["type"] == "snowflake":
+                        target_config = SnowflakeTargetConfigs()
+                    elif output_dict["type"] == "bigquery":
+                        target_configs = BigQueryTargetConfigs(
+                            name=block_name,
+                            schema=output_dict["dataset"],
+                            credentials=GcpCredentials(
+                                path=Path(output_dict["keyfile"]).expanduser().resolve()
+                            )
+                        )
+                    elif output_dict["type"] == "postgres":
+                        target_configs = PostgresTargetConfigs()
+                    else:
+                        target_configs = TargetConfigs()
+
+        return cls(
+            name=block_name,
+            target=default_target,
+            target_configs=target_configs,
+            global_configs=GlobalConfigs() if not global_configs else global_configs,
+        )
+
+    def parse_snowflake_target_config_from_yaml():
+        pass
+
+    def parse_big_query_target_config_from_yaml():
+        pass
+
+    def parse_postgres_target_config_from_yaml():
+        pass
+
+    def parse_target_config_from_yaml():
+        pass

@@ -31,7 +31,7 @@ async def trigger_dbt_cli_command(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-cli-command-summary",
-    **command_kwargs: Dict[str, Any],
+    extra_command_args: List[str] = None,
 ) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
@@ -156,8 +156,9 @@ async def trigger_dbt_cli_command(
         cli_args.append("--project-dir")
         cli_args.append(project_dir)
 
-    if command_kwargs:
-        cli_args.append(command_kwargs)
+    if extra_command_args:
+        for value in extra_command_args:
+            cli_args.append(value)
 
     # fix up empty shell_run_command_kwargs
     dbt_runner_client = dbtRunner()
@@ -394,7 +395,7 @@ async def run_dbt_build(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-build-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -447,7 +448,7 @@ async def run_dbt_build(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
     return results
 
@@ -460,7 +461,7 @@ async def run_dbt_model(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-run-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
@@ -513,7 +514,7 @@ async def run_dbt_model(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
@@ -527,7 +528,7 @@ async def run_dbt_test(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-test-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
@@ -580,7 +581,7 @@ async def run_dbt_test(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
@@ -594,7 +595,7 @@ async def run_dbt_snapshot(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-snapshot-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
@@ -647,7 +648,7 @@ async def run_dbt_snapshot(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
@@ -661,7 +662,7 @@ async def run_dbt_seed(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-seed-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
@@ -714,7 +715,7 @@ async def run_dbt_seed(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
