@@ -292,6 +292,8 @@ class KubernetesJob(Infrastructure):
         return KubernetesJobResult(identifier=pid, status_code=status_code)
 
     async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
+        # We import this here to preserve the laziness of the kubernetes import at the
+        # module level.
         from kubernetes.client.exceptions import ApiException
 
         self._configure_kubernetes_library_client()
