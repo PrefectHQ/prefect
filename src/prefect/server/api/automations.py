@@ -50,7 +50,7 @@ def automations_enabled() -> bool:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Automations are not enabled. Please enable the"
-            " PREFECT_EXPERIMENTAL_EVENTS and"
+            " PREFECT_EXPERIMENTAL_ENABLE_EVENTS and"
             " PREFECT_API_SERVICES_TRIGGERS_ENABLED settings.",
         )
 

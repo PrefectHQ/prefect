@@ -66,7 +66,7 @@ def get_events_client(
     raise RuntimeError(
         "The current server and client configuration does not support "
         "events.  Enable experimental events support with the "
-        "PREFECT_EXPERIMENTAL_EVENTS setting."
+        "PREFECT_EXPERIMENTAL_ENABLE_EVENTS setting."
     )
 
 
@@ -87,7 +87,7 @@ def get_events_subscriber(
     raise RuntimeError(
         "The current server and client configuration does not support "
         "events.  Enable experimental events support with the "
-        "PREFECT_EXPERIMENTAL_EVENTS setting."
+        "PREFECT_EXPERIMENTAL_ENABLE_EVENTS setting."
     )
 
 
@@ -182,7 +182,7 @@ class PrefectEphemeralEventsClient(EventsClient):
         if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
             raise ValueError(
                 "PrefectEphemeralEventsClient can only be used when "
-                "PREFECT_EXPERIMENTAL_EVENTS is set to True"
+                "PREFECT_EXPERIMENTAL_ENABLE_EVENTS is set to True"
             )
         if PREFECT_API_KEY.value():
             raise ValueError(

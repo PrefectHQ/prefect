@@ -38,7 +38,7 @@ def events_enabled() -> bool:
     if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Events are not enabled. Please enable the PREFECT_EXPERIMENTAL_EVENTS setting.",
+            detail="Events are not enabled. Please enable the PREFECT_EXPERIMENTAL_ENABLE_EVENTS setting.",
         )
 
 

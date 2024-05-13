@@ -3150,7 +3150,7 @@ class PrefectClient:
             raise RuntimeError(
                 "The current server and client configuration does not support "
                 "events.  Enable experimental events support with the "
-                "PREFECT_EXPERIMENTAL_EVENTS setting."
+                "PREFECT_EXPERIMENTAL_ENABLE_EVENTS setting."
             )
         else:
             raise RuntimeError(
