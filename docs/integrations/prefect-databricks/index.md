@@ -1,14 +1,4 @@
 # prefect-databricks
- 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-databricks/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-databricks?color=0052FF&labelColor=090422"></a>
-    <a href="https://github.com/PrefectHQ/prefect-databricks/" alt="Stars">
-    <a href="https://pepy.tech/badge/prefect-databricks/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-databricks?color=0052FF&labelColor=090422" /></a>
-</p>
-
-## Welcome!
 
 Prefect integrations for interacting with Databricks
 
@@ -16,25 +6,22 @@ The tasks within this collection were created by a code generator using the serv
 
 The service's REST API documentation can be found [here](https://docs.databricks.com/dev-tools/api/latest/index.html).
 
-## Getting Started
+## Getting started
 
-### Python setup
+### Prerequisites
 
-Requires an installation of Python 3.8+.
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
+- A [Databricks account](https://databricks.com/) and the necessary permissions to access desired services.
 
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
+### Install `prefect-databricks`
 
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Installation
-
-Install `prefect-databricks` with `pip`:
-
+<div class="terminal">
 ```bash
 pip install prefect-databricks
 ```
+</div>
 
-### Lists jobs on the Databricks instance
+### List jobs on the Databricks instance
 
 ```python
 from prefect import flow
@@ -136,3 +123,9 @@ jobs_runs_submit_flow("/Users/username@gmail.com/example.ipynb", name="Marvin")
 ```
 
 Note, instead of using the built-in models, you may also input valid JSON. For example, `AutoScale(min_workers=1, max_workers=2)` is equivalent to `{"min_workers": 1, "max_workers": 2}`.
+
+## Resources
+
+For assistance using Databricks, consult the [Databricks documentation](https://www.databricks.com/databricks-documentation).
+
+Refer to the prefect-databricks API documentation linked in the sidebar to explore all the capabilities of the prefect-databricks library.
