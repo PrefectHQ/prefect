@@ -18,7 +18,7 @@ pip install -U prefect-aws
 ```
 </div>
 
-### Register newly installed blocks types
+### Register newly installed block types
 
 Register the block types in the prefect-aws module to make them available for use.
 
@@ -28,10 +28,20 @@ prefect block register -m prefect_aws
 ```
 </div>
 
-Below we show how to create blocks with Python code.
+## Examples
+
+### Run flows on AWS ECS
+
+Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
+
+See the [ECS guide](/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
+
+If you're using Prefect Cloud, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) provide all the benefits of ECS with a quick setup and no worker needed.
+
+In the examples below, you create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.
 
-## Save credentials to an AWS Credentials block
+### Save credentials to an AWS Credentials block
 
 Use of most AWS services requires an authenticated session.
 Prefect makes it simple to provide credentials via a AWS Credentials block.
@@ -58,7 +68,7 @@ Prefect is using the Boto3 library under the hood.
 To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
 
-See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in [this guide](/guides/secrets/).
+See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in [this guide](https://docs.prefect.io/latest/guides/secrets/).
 
 Here's how to load the saved credentials:
 
@@ -71,7 +81,7 @@ AwsCredentials.load("BLOCK-NAME-PLACEHOLDER")
 
 The AWS Credentials block is often nested within other blocks, such as `S3Bucket` or `AwsSecret`, and provides authentication for those services.
 
-## Read and write files to AWS S3
+### Read and write files to AWS S3
 
 Upload a file to an AWS S3 bucket and download the same file under a different file name.
 The following code assumes that the bucket already exists:
@@ -105,7 +115,7 @@ if __name__ == "__main__":
     s3_flow()
 ```
 
-## Save secrets with AWS Secrets Manager
+### Access secrets with AWS Secrets Manager
 
 Write a secret to AWS Secrets Manager, read the secret data, delete the secret, and return the secret data.
 
@@ -127,15 +137,6 @@ def secrets_manager_flow():
 if __name__ == "__main__":
     secrets_manager_flow()
 ```
-
-## Run flows on AWS ECS
-
-Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
-
-See the [ECS guide](/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
-
-If you're using Prefect Cloud and your organization's security posture allows storing credentials in blocks, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) are a great option.
-They provide all the benefits of ECS with a quick setup and no worker needed.
 
 ## Resources
 

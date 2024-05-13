@@ -1,10 +1,10 @@
 # Usage Guide
 
-Below is a guide on how to use `prefect-dask` effectively.
+Use `prefect-dask` to speed up code with parallelization.
 
-## Running tasks on Dask
+## Run tasks on Dask
 
-The `DaskTaskRunner` is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler. 
+The `DaskTaskRunner` is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler.
 
 By default, a temporary Dask cluster is created for the duration of the flow run.
 
@@ -73,7 +73,7 @@ def my_flow():
 
 !!! warning "Multiprocessing safety"
     Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
-    in scripts must be guarded with `if __name__ == "__main__":` or you will encounter 
+    in scripts must be guarded with `if __name__ == "__main__":` or you will encounter
     warnings and errors.
 
 If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically. The number of workers used is based on the number of cores available to your execution environment. The default provides a mix of processes and threads that should work well for most workloads. If you want to specify this explicitly, you can pass values for `n_workers` or `threads_per_worker` to `cluster_kwargs`.
@@ -113,7 +113,7 @@ The context managers can be used the same way in both `flow` run contexts and `t
 
 !!! warning "Resolving futures in sync client"
     Note, by default, `dask_collection.compute()` returns concrete values while `client.compute(dask_collection)` returns Dask Futures. Therefore, if you call `client.compute`, you must resolve all futures before exiting out of the context manager by either:
-    
+
     1. setting `sync=True`
     ```python
     with get_dask_client() as client:
@@ -152,14 +152,15 @@ async def dask_flow():
 
 asyncio.run(dask_flow())
 ```
+
 !!! warning "Resolving futures in async client"
     With the async client, you do not need to set `sync=True` or call `result()`.
 
-    However you must `await client.compute(dask_collection)` before exiting out of the context manager.
+    However, you must `await client.compute(dask_collection)` before exiting the context manager.
 
     To invoke `compute` from the Dask collection, set `sync=False` and call `result()` before exiting out of the context manager: `await dask_collection.compute(sync=False)`.
 
-## Using a temporary cluster
+## Use a temporary cluster
 
 The `DaskTaskRunner` is capable of creating a temporary cluster using any of [Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html). This can be useful when you want each flow run to have its own Dask cluster, allowing for per-flow adaptive scaling.
 
@@ -180,14 +181,14 @@ DaskTaskRunner(
 )
 ```
 
-## Connecting to an existing cluster
+## Connect to an existing cluster
 
 Multiple Prefect flow runs can all use the same existing Dask cluster. You might manage a single long-running Dask cluster (maybe using the Dask [Helm Chart](https://docs.dask.org/en/latest/setup/kubernetes-helm.html)) and configure flows to connect to it during execution. This has a few downsides when compared to using a temporary cluster (as described above):
 
 - All workers in the cluster must have dependencies installed for all flows you intend to run.
 - Multiple flow runs may compete for resources. Dask tries to do a good job sharing resources between tasks, but you may still run into issues.
 
-That said, you may prefer managing a single long-running cluster. 
+That said, you may prefer managing a single long-running cluster.
 
 To configure a `DaskTaskRunner` to connect to an existing cluster, pass in the address of the scheduler to the `address` argument:
 
@@ -270,5 +271,3 @@ def my_flow():
         future = show(2)
         future = show(3)
 ```
-
-For more tips on how to use tasks and flows in a Collection, check out [Using Collections](https://docs.prefect.io/collections/usage/)!
