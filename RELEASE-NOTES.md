@@ -3,15 +3,24 @@
 ## Release 2.19.0
 
 ### Add support for major infrastructure and distributed task integrations
-As `prefect-dask` and other integrations have been added to the `prefect` codebase, this release adds support to install these integrations directly from the `prefect` package. This change makes it easier to install and use these integrations with Prefect.
+As `prefect-dask` and other integrations have been added to the `prefect` codebase, this release adds these integrations as `extra` requirements of the `prefect` package, making it easier to install support for everything in your Prefect stack.
 
 ```bash
 pip install prefect[dask]
 ```
 
+We loved this community contribution so much, we did it for all our first-party integrations.
+
+```bash
+pip install prefect[aws,kubernetes,dask,dbt,sqlalchemy,slack]
+```
+
+You can see the full list of Prefect's `extra` requirements in [our `setup.py`](https://github.com/PrefectHQ/prefect/blob/main/setup.py#L43).
+
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13289
 - https://github.com/PrefectHQ/prefect/pull/13310
+- https://github.com/PrefectHQ/prefect/pull/13320
 
 ### Support for timeout seconds in global concurrency context manager
 You may want to fail immediately if a global concurrency slot is unavailable. Rather than block and wait, you can now specify a `timeout_seconds` argument in the global concurrency context manager and catch a `TimeoutError` if a slot is not available within the specified time.
