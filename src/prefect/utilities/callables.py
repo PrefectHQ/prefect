@@ -342,8 +342,8 @@ def parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema:
         if not spec or not spec.origin:
             raise ValueError(f"Could not find module {path!r}")
         source_code = Path(spec.origin).read_text()
-    signature = generate_signature_from_source(source_code, func_name)
-    docstring = get_docstring_from_source(source_code, func_name)
+    signature = _generate_signature_from_source(source_code, func_name)
+    docstring = _get_docstring_from_source(source_code, func_name)
     return generate_parameter_schema(signature, parameter_docstrings(docstring))
 
 
@@ -397,79 +397,7 @@ def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]
             )
 
 
-def expand_mapping_parameters(
-    func: Callable, parameters: Dict[str, Any]
-) -> List[Dict[str, Any]]:
-    """
-    Generates a list of call parameters to be used for individual calls in a mapping
-    operation.
-
-    Args:
-        func: The function to be called
-        parameters: A dictionary of parameters with iterables to be mapped over
-
-    Returns:
-        List: A list of dictionaries to be used as parameters for each
-            call in the mapping operation
-    """
-    # Ensure that any parameters in kwargs are expanded before this check
-    parameters = explode_variadic_parameter(func, parameters)
-
-    iterable_parameters = {}
-    static_parameters = {}
-    annotated_parameters = {}
-    for key, val in parameters.items():
-        if isinstance(val, (allow_failure, quote)):
-            # Unwrap annotated parameters to determine if they are iterable
-            annotated_parameters[key] = val
-            val = val.unwrap()
-
-        if isinstance(val, unmapped):
-            static_parameters[key] = val.value
-        elif isiterable(val):
-            iterable_parameters[key] = list(val)
-        else:
-            static_parameters[key] = val
-
-    if not len(iterable_parameters):
-        raise MappingMissingIterable(
-            "No iterable parameters were received. Parameters for map must "
-            f"include at least one iterable. Parameters: {parameters}"
-        )
-
-    iterable_parameter_lengths = {
-        key: len(val) for key, val in iterable_parameters.items()
-    }
-    lengths = set(iterable_parameter_lengths.values())
-    if len(lengths) > 1:
-        raise MappingLengthMismatch(
-            "Received iterable parameters with different lengths. Parameters for map"
-            f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
-        )
-
-    map_length = list(lengths)[0]
-
-    call_parameters_list = []
-    for i in range(map_length):
-        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
-        call_parameters.update({key: value for key, value in static_parameters.items()})
-
-        # Add default values for parameters; these are skipped earlier since they should
-        # not be mapped over
-        for key, value in get_parameter_defaults(func).items():
-            call_parameters.setdefault(key, value)
-
-        # Re-apply annotations to each key again
-        for key, annotation in annotated_parameters.items():
-            call_parameters[key] = annotation.rewrap(call_parameters[key])
-
-        # Collapse any previously exploded kwargs
-        call_parameters_list.append(collapse_variadic_parameters(func, call_parameters))
-
-    return call_parameters_list
-
-
-def generate_signature_from_source(
+def _generate_signature_from_source(
     source_code: str, func_name: str
 ) -> inspect.Signature:
     """
@@ -565,7 +493,7 @@ def generate_signature_from_source(
     return inspect.Signature(parameters, return_annotation=return_annotation)
 
 
-def get_docstring_from_source(source_code: str, func_name: str) -> Optional[str]:
+def _get_docstring_from_source(source_code: str, func_name: str) -> Optional[str]:
     """
     Extract the docstring of a function from its source code.
 
@@ -596,3 +524,75 @@ def get_docstring_from_source(source_code: str, func_name: str) -> Optional[str]
     ):
         return func_def.body[0].value.value
     return None
+
+
+def expand_mapping_parameters(
+    func: Callable, parameters: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    Generates a list of call parameters to be used for individual calls in a mapping
+    operation.
+
+    Args:
+        func: The function to be called
+        parameters: A dictionary of parameters with iterables to be mapped over
+
+    Returns:
+        List: A list of dictionaries to be used as parameters for each
+            call in the mapping operation
+    """
+    # Ensure that any parameters in kwargs are expanded before this check
+    parameters = explode_variadic_parameter(func, parameters)
+
+    iterable_parameters = {}
+    static_parameters = {}
+    annotated_parameters = {}
+    for key, val in parameters.items():
+        if isinstance(val, (allow_failure, quote)):
+            # Unwrap annotated parameters to determine if they are iterable
+            annotated_parameters[key] = val
+            val = val.unwrap()
+
+        if isinstance(val, unmapped):
+            static_parameters[key] = val.value
+        elif isiterable(val):
+            iterable_parameters[key] = list(val)
+        else:
+            static_parameters[key] = val
+
+    if not len(iterable_parameters):
+        raise MappingMissingIterable(
+            "No iterable parameters were received. Parameters for map must "
+            f"include at least one iterable. Parameters: {parameters}"
+        )
+
+    iterable_parameter_lengths = {
+        key: len(val) for key, val in iterable_parameters.items()
+    }
+    lengths = set(iterable_parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received iterable parameters with different lengths. Parameters for map"
+            f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0]
+
+    call_parameters_list = []
+    for i in range(map_length):
+        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
+        call_parameters.update({key: value for key, value in static_parameters.items()})
+
+        # Add default values for parameters; these are skipped earlier since they should
+        # not be mapped over
+        for key, value in get_parameter_defaults(func).items():
+            call_parameters.setdefault(key, value)
+
+        # Re-apply annotations to each key again
+        for key, annotation in annotated_parameters.items():
+            call_parameters[key] = annotation.rewrap(call_parameters[key])
+
+        # Collapse any previously exploded kwargs
+        call_parameters_list.append(collapse_variadic_parameters(func, call_parameters))
+
+    return call_parameters_list
