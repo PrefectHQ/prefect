@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from rich.traceback import Traceback
 from typing_extensions import Self
 
+import prefect
+
 
 def _trim_traceback(
     tb: TracebackType, remove_modules: Iterable[ModuleType]
@@ -131,8 +133,6 @@ class ScriptError(PrefectException):
         user_exc: Exception,
         path: str,
     ) -> None:
-        from prefect.utilities import importtools
-
         message = f"Script at {str(path)!r} encountered an exception: {user_exc!r}"
         super().__init__(message)
         self.user_exc = user_exc
@@ -140,7 +140,7 @@ class ScriptError(PrefectException):
         # Strip script run information from the traceback
         self.user_exc.__traceback__ = _trim_traceback(
             self.user_exc.__traceback__,
-            remove_modules=[importtools],
+            remove_modules=[prefect.utilities.importtools],
         )
 
 
