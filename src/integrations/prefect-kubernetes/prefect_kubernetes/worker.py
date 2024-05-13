@@ -104,33 +104,26 @@ import asyncio
 import base64
 import enum
 import json
-import logging
 import math
 import os
 import shlex
 import time
 from contextlib import contextmanager
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Generator, Optional, Tuple, Union
 
-import anyio.abc
 from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ObjectMeta, V1Secret
 from pydantic import VERSION as PYDANTIC_VERSION
 
-from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.exceptions import (
     InfrastructureError,
     InfrastructureNotAvailable,
     InfrastructureNotFound,
 )
-from prefect.server.schemas.core import Flow
-from prefect.server.schemas.responses import DeploymentResponse
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
-from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -146,7 +139,6 @@ else:
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal
 
-from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
     _slugify_label_key,
     _slugify_label_value,
@@ -155,6 +147,10 @@ from prefect_kubernetes.utilities import (
 )
 
 if TYPE_CHECKING:
+    import logging
+    from datetime import datetime
+
+    import anyio.abc
     import kubernetes
     import kubernetes.client
     import kubernetes.client.exceptions
@@ -162,7 +158,12 @@ if TYPE_CHECKING:
     import kubernetes.watch
     from kubernetes.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
 
+    from prefect.blocks.kubernetes import KubernetesClusterConfig
     from prefect.client.schemas import FlowRun
+    from prefect.server.schemas.core import Flow
+    from prefect.server.schemas.responses import DeploymentResponse
+
+
 else:
     kubernetes = lazy_import("kubernetes")
 
@@ -264,7 +265,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
 
     namespace: str = Field(default="default")
     job_manifest: Dict[str, Any] = Field(template=_get_default_job_manifest_template())
-    cluster_config: Optional[KubernetesClusterConfig] = Field(default=None)
+    cluster_config: Optional["KubernetesClusterConfig"] = Field(default=None)
     job_watch_timeout_seconds: Optional[int] = Field(default=None)
     pod_watch_timeout_seconds: int = Field(default=60)
     stream_output: bool = Field(default=True)
@@ -453,6 +454,8 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
 
     def _populate_generate_name_if_not_present(self):
         """Ensures that the generateName is present in the job manifest."""
+        from prefect.utilities.templating import find_placeholders
+
         manifest_generate_name = self.job_manifest["metadata"].get("generateName", "")
         has_placeholder = len(find_placeholders(manifest_generate_name)) > 0
         # if name wasn't present during template rendering, generateName will be
@@ -523,7 +526,7 @@ class KubernetesWorkerVariables(BaseVariables):
             "If set, output will be streamed from the job to local standard output."
         ),
     )
-    cluster_config: Optional[KubernetesClusterConfig] = Field(
+    cluster_config: Optional["KubernetesClusterConfig"] = Field(
         default=None,
         description="The Kubernetes cluster config to use for job creation.",
     )
@@ -555,7 +558,7 @@ class KubernetesWorker(BaseWorker):
         self,
         flow_run: "FlowRun",
         configuration: KubernetesWorkerJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus] = None,
+        task_status: Optional["anyio.abc.TaskStatus"] = None,
     ) -> KubernetesWorkerResult:
         """
         Executes a flow run within a Kubernetes Job and waits for the flow run
@@ -571,6 +574,8 @@ class KubernetesWorker(BaseWorker):
             KubernetesWorkerResult: A result object containing information about the
                 final state of the flow run
         """
+        from prefect_kubernetes.events import KubernetesEventsReplicator
+
         logger = self.get_flow_run_logger(flow_run)
 
         with self._get_configured_kubernetes_client(configuration) as client:
@@ -945,7 +950,7 @@ class KubernetesWorker(BaseWorker):
 
     def _watch_job(
         self,
-        logger: logging.Logger,
+        logger: "logging.Logger",
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
@@ -1103,7 +1108,7 @@ class KubernetesWorker(BaseWorker):
 
     def _get_job(
         self,
-        logger: logging.Logger,
+        logger: "logging.Logger",
         job_id: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
@@ -1121,7 +1126,7 @@ class KubernetesWorker(BaseWorker):
 
     def _get_job_pod(
         self,
-        logger: logging.Logger,
+        logger: "logging.Logger",
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
@@ -1163,7 +1168,7 @@ class KubernetesWorker(BaseWorker):
 
     def _log_recent_events(
         self,
-        logger: logging.Logger,
+        logger: "logging.Logger",
         job_name: str,
         pod_name: Optional[str],
         configuration: KubernetesWorkerJobConfiguration,
@@ -1173,7 +1178,7 @@ class KubernetesWorker(BaseWorker):
         a Pod may not have been able to start and log them to the provided logger."""
         from kubernetes.client.models import CoreV1Event, CoreV1EventList
 
-        def best_event_time(event: CoreV1Event) -> datetime:
+        def best_event_time(event: CoreV1Event) -> "datetime":
             """Choose the best timestamp from a Kubernetes event"""
             return event.event_time or event.last_timestamp
 
