@@ -1944,7 +1944,9 @@ async def load_flow_from_flow_run(
     return flow
 
 
-def load_flow_argument_from_entrypoint(entrypoint: str, arg: str = "name"):
+def load_flow_argument_from_entrypoint(
+    entrypoint: str, arg: str = "name"
+) -> Optional[str]:
     """
     Extract a flow argument from an entrypoint string.
 
@@ -1970,10 +1972,15 @@ def load_flow_argument_from_entrypoint(entrypoint: str, arg: str = "name"):
         source_code = Path(spec.origin).read_text()
     parsed_code = ast.parse(source_code)
     func_def = next(
-        node
-        for node in ast.walk(parsed_code)
-        if isinstance(node, ast.FunctionDef) and node.name == func_name
+        (
+            node
+            for node in ast.walk(parsed_code)
+            if isinstance(node, ast.FunctionDef) and node.name == func_name
+        ),
+        None,
     )
+    if not func_def:
+        raise ValueError(f"Could not find flow {func_name!r} in {path!r}")
     for decorator in func_def.decorator_list:
         if (
             isinstance(decorator, ast.Call)
