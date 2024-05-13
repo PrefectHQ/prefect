@@ -94,7 +94,7 @@ goodbye marvin
 
 ## Run tasks in parallel with Dask
 
-You could argue that this basic flow doesn't benefit from parallel execution, but let's proceed so you can see just how simple it is to use the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/).
+This basic flow won't benefit from parallel execution, but let's proceed so you can see just how simple it is to use the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) for more complex flows.
 
 Configure your flow to use the `DaskTaskRunner`:
 
