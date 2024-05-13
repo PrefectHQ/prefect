@@ -141,7 +141,7 @@ python dask_flow.py
 ```
 </div>
 
-`DaskTaskRunner` automatically creates a local Dask cluster, then starts executing all of the tasks in parallel. The results do not return in the same order as the sequential code above.
+`DaskTaskRunner` automatically creates a local Dask cluster, then starts executing all of the task runs in parallel. The results do not return in the same order as the sequential code above.
 
 Abbreviated output:
 
