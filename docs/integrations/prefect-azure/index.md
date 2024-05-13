@@ -80,8 +80,7 @@ Run flows on [Azure Container Instances (ACI)](https://learn.microsoft.com/en-us
 
 See the [Azure Container Instances Worker Guide](/aci_worker/) for a walkthrough of using ACI in a hybrid work pool.
 
-If you're using Prefect Cloud and your organization's security posture allows storing credentials in blocks, [ACI push work pools](/guides/deployment/push-work-pools/#__tabbed_1_2) are a great option.
-They provide all the benefits of ACI with a quick setup and no worker needed.
+If you're using Prefect Cloud, [ACI push work pools](/guides/deployment/push-work-pools/#__tabbed_1_2) provide all the benefits of ACI with a quick setup and no worker needed.
 
 ## Resources
 

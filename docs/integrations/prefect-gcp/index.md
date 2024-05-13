@@ -83,8 +83,7 @@ Run flows on [Google Cloud Run](https://cloud.google.com/run) or [Vertex AI](htt
 
 See the [Google Cloud Run Worker Guide](/gcp-worker-guide/) for a walkthrough of using Google Cloud Run to run workflows with a hybrid work pool.
 
-If you're using Prefect Cloud and your organization's security posture allows storing credentials in blocks, [Google Cloud Run push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_3) are a great option.
-They provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
+If you're using Prefect Cloud, [Google Cloud Run push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_3) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
 
 ### Use Prefect with Google BigQuery
 

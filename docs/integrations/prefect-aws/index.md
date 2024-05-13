@@ -38,7 +38,6 @@ See the [ECS guide](/ecs_guide/) for a walkthrough of using ECS in a hybrid work
 
 If you're using Prefect Cloud, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) provide all the benefits of ECS with a quick setup and no worker needed.
 
-
 In the examples below, you create blocks with Python code.
 Alternatively, each block can be created through the Prefect UI.
 
