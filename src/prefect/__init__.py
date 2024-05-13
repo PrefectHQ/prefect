@@ -27,11 +27,10 @@ del _version, pathlib
 
 
 # Import user-facing API
-from prefect.runner import Runner, serve
 from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
-from prefect.flows import flow, Flow
+from prefect.flows import flow, Flow, serve
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.manifests import Manifest
@@ -147,7 +146,6 @@ __all__ = [
     "task",
     "Task",
     "unmapped",
-    "Runner",
     "serve",
     "deploy",
     "pause_flow_run",
