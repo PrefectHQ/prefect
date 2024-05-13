@@ -363,6 +363,20 @@ class AliasedModuleLoader(Loader):
 
 
 def safe_load_namespace(source_code: str):
+    """
+    Safely load a namespace from source code.
+
+    This function will attempt to import all modules and classes defined in the source
+    code. If an import fails, the error is caught and the import is skipped. This function
+    will also attempt to compile and evaluate class and function definitions locally.
+
+    Args:
+        source_code: The source code to load
+
+    Returns:
+        The namespace loaded from the source code. Can be used when evaluating source
+        code.
+    """
     parsed_code = ast.parse(source_code)
 
     namespace = {}

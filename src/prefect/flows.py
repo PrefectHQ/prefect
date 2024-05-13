@@ -1944,7 +1944,20 @@ async def load_flow_from_flow_run(
     return flow
 
 
-def load_flow_name_from_entrypoint(entrypoint: str):
+def load_flow_argument_from_entrypoint(entrypoint: str, arg: str = "name"):
+    """
+    Extract a flow argument from an entrypoint string.
+
+    Loads the source code of the entrypoint and extracts the flow argument from the
+    `flow` decorator.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
+            to a flow function
+
+    Returns:
+        The flow argument value
+    """
     if ":" in entrypoint:
         # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
         path, func_name = entrypoint.rsplit(":", maxsplit=1)
@@ -1967,8 +1980,12 @@ def load_flow_name_from_entrypoint(entrypoint: str):
             and getattr(decorator.func, "id", "") == "flow"
         ):
             for keyword in decorator.keywords:
-                if keyword.arg == "name":
-                    return keyword.value.s  # Return the string value of the argument
-    return func_name.replace(
-        "_", "-"
-    )  # If no matching decorator or keyword argument is found
+                if keyword.arg == arg:
+                    return (
+                        keyword.value.value
+                    )  # Return the string value of the argument
+
+    if arg == "name":
+        return func_name.replace(
+            "_", "-"
+        )  # If no matching decorator or keyword argument is found
