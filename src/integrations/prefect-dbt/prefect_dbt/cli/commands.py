@@ -53,8 +53,14 @@ async def trigger_dbt_cli_command(
         dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
             Note! This is optional and will raise an error if profiles.yml already exists
             under profile_dir and overwrite_profiles is set to False.
-        **shell_run_command_kwargs: Additional keyword arguments to pass to
-            [shell_run_command](https://prefecthq.github.io/prefect-shell/commands/#prefect_shell.commands.shell_run_command).
+        create_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt build results using the specified artifact key.
+            Defaults to True.
+        artifact_key: The key under which to store
+            the dbt build results artifact in Prefect.
+            Defaults to 'dbt-seed-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt command.
+            These arguments get appended to the command that gets passed to the dbtRunner client.
 
     Returns:
         last_line_cli_output (str): The last line of the CLI output will be returned
@@ -420,6 +426,7 @@ async def run_dbt_build(
         artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-build-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt build command.
 
     Example:
     ```python
@@ -486,6 +493,7 @@ async def run_dbt_model(
         artifact_key: The key under which to store
             the dbt run results artifact in Prefect.
             Defaults to 'dbt-run-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt run command.
 
     Example:
     ```python
@@ -553,6 +561,7 @@ async def run_dbt_test(
         artifact_key: The key under which to store
             the dbt test results artifact in Prefect.
             Defaults to 'dbt-test-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt test command.
 
     Example:
     ```python
@@ -620,6 +629,7 @@ async def run_dbt_snapshot(
         artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-snapshot-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt snapshot command.
 
     Example:
     ```python
@@ -687,6 +697,7 @@ async def run_dbt_seed(
         artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-seed-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt seed command.
 
     Example:
     ```python
