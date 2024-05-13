@@ -205,7 +205,7 @@ goodbye marvin
 ```
 </div>
 
-The tasks are not submitted to the `DaskTaskRunner`; instead, they run sequentially.
+The task runs are not submitted to the `DaskTaskRunner`; instead, they run sequentially.
 
 ## Run tasks in parallel with Ray
 
