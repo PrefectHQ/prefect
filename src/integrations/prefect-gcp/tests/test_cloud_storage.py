@@ -187,12 +187,14 @@ class TestGcsBucket:
         (local_path / "abc.html").write_text("<div>abc</div>")
         (local_path / "cab.txt").write_text("cab")
         (local_path / "some_dir").mkdir()
+        (local_path / "some_dir" / "nested_abc.html").write_text("<div>abc</div>")
+        (local_path / "some_dir" / "nested_cab.txt").write_text("cab")
 
-        expected = 2
+        expected = 4
         if ignore:
             ignore_file = tmp_path / "ignore.txt"
             ignore_file.write_text("*.html")
-            expected -= 1
+            expected -= 2
         else:
             ignore_file = None
 
