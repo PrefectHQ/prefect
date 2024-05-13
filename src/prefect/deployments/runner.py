@@ -70,7 +70,6 @@ from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
-from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -91,6 +90,8 @@ from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
+    from prefect.runner.storage import RunnerStorage
+
 
 __all__ = ["RunnerDeployment"]
 
@@ -190,7 +191,7 @@ class RunnerDeployment(BaseModel):
             " this deployment."
         ),
     )
-    storage: Optional[RunnerStorage] = Field(
+    storage: Optional["RunnerStorage"] = Field(
         default=None,
         description=(
             "The storage object used to retrieve flow code for this deployment."
@@ -675,7 +676,7 @@ class RunnerDeployment(BaseModel):
     @sync_compatible
     async def from_storage(
         cls,
-        storage: RunnerStorage,
+        storage: "RunnerStorage",
         entrypoint: str,
         name: str,
         interval: Optional[

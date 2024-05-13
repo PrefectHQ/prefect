@@ -79,11 +79,6 @@ from prefect.filesystems import ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
-from prefect.runner.storage import (
-    BlockStorageAdapter,
-    RunnerStorage,
-    create_storage_from_url,
-)
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
@@ -126,6 +121,7 @@ logger = get_logger("flows")
 
 if TYPE_CHECKING:
     from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+    from prefect.runner.storage import RunnerStorage
 
 
 @PrefectObjectRegistry.register_instances
@@ -350,7 +346,7 @@ class Flow(Generic[P, R]):
         self.on_running = on_running
 
         # Used for flows loaded from remote storage
-        self._storage: Optional[RunnerStorage] = None
+        self._storage: Optional["RunnerStorage"] = None
         self._entrypoint: Optional[str] = None
 
         module = fn.__module__
@@ -858,7 +854,7 @@ class Flow(Generic[P, R]):
     @sync_compatible
     async def from_source(
         cls: Type[F],
-        source: Union[str, RunnerStorage, ReadableDeploymentStorage],
+        source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
     ) -> F:
         """
@@ -907,6 +903,12 @@ class Flow(Generic[P, R]):
             my_flow()
             ```
         """
+        from prefect.runner.storage import (
+            BlockStorageAdapter,
+            RunnerStorage,
+            create_storage_from_url,
+        )
+
         if isinstance(source, str):
             storage = create_storage_from_url(source)
         elif isinstance(source, RunnerStorage):
