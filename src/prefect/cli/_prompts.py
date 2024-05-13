@@ -34,7 +34,10 @@ from prefect.deployments.base import (
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.container import DockerRegistry
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
+    PREFECT_UI_URL,
+)
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
@@ -376,17 +379,20 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
             is_schedule_active = confirm(
                 "Would you like to activate this schedule?", default=True
             )
+            minimal_schedule_kwargs = {
+                "schedule": schedule,
+                "active": is_schedule_active,
+            }
 
-            max_active_runs, catchup = prompt_for_max_active_runs_and_catchup(console)
-
-            schedules.append(
-                MinimalDeploymentSchedule(
-                    schedule=schedule,
-                    active=is_schedule_active,
-                    max_active_runs=max_active_runs,
-                    catchup=catchup,
+            if PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY:
+                max_active_runs, catchup = prompt_for_max_active_runs_and_catchup(
+                    console
                 )
-            )
+                minimal_schedule_kwargs.update(
+                    {"max_active_runs": max_active_runs, "catchup": catchup}
+                )
+
+            schedules.append(MinimalDeploymentSchedule(**minimal_schedule_kwargs))
 
             add_schedule = confirm(
                 "Would you like to add another schedule?", default=False

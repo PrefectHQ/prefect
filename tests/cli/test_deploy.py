@@ -52,6 +52,7 @@ from prefect.server.schemas.actions import (
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -62,6 +63,12 @@ from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
+
+
+@pytest.fixture
+def enable_schedule_concurrency():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY: True}):
+        yield
 
 
 @pytest.fixture
@@ -2660,7 +2667,7 @@ class TestSchedules:
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
-    @pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("project_dir", "enable_schedule_concurrency")
     async def test_deploy_with_max_active_runs_and_catchup_provided_for_schedule(
         self, work_pool, prefect_client
     ):
@@ -2699,7 +2706,9 @@ class TestSchedules:
         assert deployment.schedules[0].max_active_runs == 5
         assert deployment.schedules[0].catchup is True
 
-    @pytest.mark.usefixtures("project_dir", "interactive_console")
+    @pytest.mark.usefixtures(
+        "project_dir", "interactive_console", "enable_schedule_concurrency"
+    )
     async def test_deploy_with_max_active_runs_and_catchup_interactive(
         self, work_pool, prefect_client
     ):
@@ -4283,6 +4292,8 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_no_changes_does_not_prompt_save(self):
@@ -4326,6 +4337,8 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
         invoke_and_assert(
@@ -4357,6 +4370,8 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_changes_prompts_save(self):
@@ -4504,6 +4519,8 @@ class TestSaveUserInputs:
             "rrule": "FREQ=MINUTELY",
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
     async def test_save_user_inputs_with_actions(self):
