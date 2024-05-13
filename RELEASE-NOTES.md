@@ -9,10 +9,9 @@ As `prefect-dask` and other integrations have been added to the `prefect` codeba
 pip install prefect[dask]
 ```
 
-- See the following pull requests for implementation details:
-
-    — https://github.com/PrefectHQ/prefect/pull/13289
-    - https://github.com/PrefectHQ/prefect/pull/13310
+See the following pull requests for implementation details:
+— https://github.com/PrefectHQ/prefect/pull/13289
+- https://github.com/PrefectHQ/prefect/pull/13310
 
 ### Support for timeout seconds in global concurrency context manager
 You may want to fail immediately if a global concurrency slot is unavailable. Rather than block and wait, you can now specify a `timeout_seconds` argument in the global concurrency context manager and catch a `TimeoutError` if a slot is not available within the specified time.
