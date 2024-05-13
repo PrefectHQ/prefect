@@ -89,14 +89,14 @@ For implementation details, see the following pull requests:
 - Update JSON schema validation for job varariables — https://github.com/PrefectHQ/prefect/pull/13182
 
 ### Documentation
-- Update block concepts page to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
+- Update block concept page to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
 - Update example repo links to `prefecthq` repos — https://github.com/PrefectHQ/prefect/pull/13258
-- Simplify `prefect-aws` and `prefect-dbt` docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
-- Expand discussion of resolution order for cloud-provider service auth in doc — https://github.com/PrefectHQ/prefect/pull/13239
-- Fix repo url typo in storage guide — https://github.com/PrefectHQ/prefect/pull/13304
 - Update storage guide — https://github.com/PrefectHQ/prefect/pull/13294
 - Update integration libraries — https://github.com/PrefectHQ/prefect/pull/13277
-- Updating `Hosting a Prefect server instance` page — https://github.com/PrefectHQ/prefect/pull/13225
+- Update `Hosting a Prefect server instance` page — https://github.com/PrefectHQ/prefect/pull/13225
+- Simplify `prefect-aws` and `prefect-dbt` docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
+- Expand discussion of resolution order for cloud-provider service auth — https://github.com/PrefectHQ/prefect/pull/13239
+- Fix repo url typo in storage guide — https://github.com/PrefectHQ/prefect/pull/13304
 
 ### Integrations
 - Add pre-built Prefect DBT tasks — https://github.com/PrefectHQ/prefect/pull/12964
