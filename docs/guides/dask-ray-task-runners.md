@@ -77,7 +77,7 @@ python sequential_flow.py
 ```
 </div>
 
-If you remove the log messages from the output and just look at the printed output from the tasks, you see they're executed sequentially:
+If you remove the log messages from the output and just look at the printed output from the task runs, you see they're executed sequentially:
 
 <div class="terminal">
 ``` bash
