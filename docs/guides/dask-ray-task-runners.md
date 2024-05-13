@@ -219,7 +219,7 @@ To configure your flow to use the `RayTaskRunner`:
 3. Specify the task runner when the flow is defined using the `task_runner=RayTaskRunner` argument.
 
 !!! warning "Ray environment limitations"
-    While we're excited about parallel task execution via Ray, there are a few inherent limitations with Ray you should be aware of:
+    While we're excited about parallel task execution via Ray, there are a few limitations with Ray you should be aware of:
 
     - Support for Python 3.11 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
     - Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
