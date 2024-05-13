@@ -4,6 +4,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Coroutine,
@@ -21,14 +22,11 @@ from typing import (
 import pendulum
 from typing_extensions import ParamSpec
 
-from prefect import Task, get_client
-from prefect.client.orchestration import SyncPrefectClient
-from prefect.client.schemas import TaskRun
+from prefect import get_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.futures import PrefectFuture, resolve_futures_to_states
+from prefect.futures import resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
     Retrying,
@@ -46,32 +44,39 @@ from prefect.utilities.engine import (
 )
 from prefect.utilities.timeout import timeout, timeout_async
 
+if TYPE_CHECKING:
+    from prefect import Task
+    from prefect.client.orchestration import SyncPrefectClient
+    from prefect.client.schemas import State, TaskRun
+    from prefect.futures import PrefectFuture
+
+
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
 @dataclass
 class TaskRunEngine(Generic[P, R]):
-    task: Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]
+    task: Union["Task[P, R]", "Task[P, Coroutine[Any, Any, R]]"]
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
     parameters: Optional[Dict[str, Any]] = None
-    task_run: Optional[TaskRun] = None
+    task_run: Optional["TaskRun"] = None
     retries: int = 0
     _is_started: bool = False
-    _client: Optional[SyncPrefectClient] = None
+    _client: Optional["SyncPrefectClient"] = None
 
     def __post_init__(self):
         if self.parameters is None:
             self.parameters = {}
 
     @property
-    def client(self) -> SyncPrefectClient:
+    def client(self) -> "SyncPrefectClient":
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         return self._client
 
     @property
-    def state(self) -> State:
+    def state(self) -> "State":
         if not self.task_run:
             raise ValueError("Task run is not set")
         return self.task_run.state
@@ -79,7 +84,7 @@ class TaskRunEngine(Generic[P, R]):
     @property
     def can_retry(self) -> bool:
         retry_condition: Optional[
-            Callable[[Task[P, Coroutine[Any, Any, R]], TaskRun, State], bool]
+            Callable[[Task[P, Coroutine[Any, Any, R]], "TaskRun", "State"], bool]
         ] = self.task.retry_condition_fn
         if not self.task_run:
             raise ValueError("Task run is not set")
@@ -87,7 +92,7 @@ class TaskRunEngine(Generic[P, R]):
             self.task, self.task_run, self.state
         )
 
-    def get_hooks(self, state: State, as_async: bool = False) -> Iterable[Callable]:
+    def get_hooks(self, state: "State", as_async: bool = False) -> Iterable[Callable]:
         task = self.task
         task_run = self.task_run
 
@@ -179,7 +184,7 @@ class TaskRunEngine(Generic[P, R]):
             time.sleep(0.2)
             state = self.set_state(new_state)
 
-    def set_state(self, state: State, force: bool = False) -> State:
+    def set_state(self, state: "State", force: bool = False) -> "State":
         if not self.task_run:
             raise ValueError("Task run is not set")
         new_state = propose_state_sync(
@@ -250,7 +255,7 @@ class TaskRunEngine(Generic[P, R]):
         self.set_state(state, force=True)
 
     @contextmanager
-    def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+    def enter_run_context(self, client: Optional["SyncPrefectClient"] = None):
         if client is None:
             client = self.client
         if not self.task_run:
@@ -323,12 +328,12 @@ class TaskRunEngine(Generic[P, R]):
 
 
 def run_task_sync(
-    task: Task[P, R],
-    task_run: Optional[TaskRun] = None,
+    task: "Task[P, R]",
+    task_run: Optional["TaskRun"] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable["PrefectFuture[A, Async]"]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, State, None]:
+) -> Union[R, "State", None]:
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
 
     # This is a context manager that keeps track of the run of the task run.
@@ -361,12 +366,12 @@ def run_task_sync(
 
 
 async def run_task_async(
-    task: Task[P, Coroutine[Any, Any, R]],
-    task_run: Optional[TaskRun] = None,
+    task: "Task[P, Coroutine[Any, Any, R]]",
+    task_run: Optional["TaskRun"] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable["PrefectFuture[A, Async]"]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, State, None]:
+) -> Union[R, "State", None]:
     """
     Runs a task against the API.
 
@@ -404,12 +409,12 @@ async def run_task_async(
 
 
 def run_task(
-    task: Task[P, R],
-    task_run: Optional[TaskRun] = None,
+    task: "Task[P, R]",
+    task_run: Optional["TaskRun"] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable["PrefectFuture[A, Async]"]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, State, None]:
+) -> Union[R, "State", None]:
     kwargs = dict(
         task=task,
         task_run=task_run,
