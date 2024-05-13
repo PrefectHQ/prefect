@@ -2994,6 +2994,35 @@ class TestBypassCancellingFlowRunsWithNoInfra:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.CANCELLED
 
+    async def test_rejects_cancelling_resuming_flow_and_sets_to_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Suspended flows should skip the cancelling state and be set immediately to cancelled
+        because they don't have infra to shut down.
+        """
+
+        intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_state_name="Resuming",
+        )
+
+        # Resuming flows have infra pids
+        ctx.run.infrastructure_pid = "my-pid-42"
+
+        async with BypassCancellingFlowRunsWithNoInfra(
+            ctx, *intended_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
+
     async def test_accepts_cancelling_flow_run_with_pid(
         self,
         session,
