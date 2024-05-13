@@ -1,3 +1,4 @@
+import uuid
 from uuid import uuid4
 
 import pendulum
@@ -144,6 +145,57 @@ class TestCreateTaskRun:
             response.json()["exception_detail"][0]["msg"]
             == "`retry_jitter_factor` must be >= 0."
         )
+
+    async def test_create_task_run_with_client_provided_id(self, flow_run, client):
+        client_provided_id = uuid.uuid4()
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+            "id": str(client_provided_id),
+        }
+        response = await client.post(
+            "/task_runs/",
+            json=task_run_data,
+        )
+        assert response.status_code == 201
+        assert response.json()["id"] == str(client_provided_id)
+
+    async def test_create_task_run_with_same_client_provided_id(
+        self,
+        flow_run,
+        client,
+    ):
+        client_provided_id = uuid.uuid4()
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+            "id": str(client_provided_id),
+        }
+        response = await client.post(
+            "/task_runs/",
+            json=task_run_data,
+        )
+        assert response.status_code == 201
+        assert response.json()["id"] == str(client_provided_id)
+
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "1",
+            "id": str(client_provided_id),
+        }
+
+        response = await client.post(
+            "/task_runs/",
+            json=task_run_data,
+        )
+
+        assert response.status_code == 409
 
 
 class TestReadTaskRun:
