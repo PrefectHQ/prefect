@@ -94,9 +94,9 @@ For implementation details, see the following pull requests:
 - Simplify `prefect-aws` and `prefect-dbt` docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
 - Expand discussion of resolution order for cloud-provider service auth in doc — https://github.com/PrefectHQ/prefect/pull/13239
 - Fix repo url typo in storage guide — https://github.com/PrefectHQ/prefect/pull/13304
-- Update storage-guide.md — https://github.com/PrefectHQ/prefect/pull/13294
+- Update storage guide — https://github.com/PrefectHQ/prefect/pull/13294
 - Update integration libraries — https://github.com/PrefectHQ/prefect/pull/13277
-- Edit review of Hosting a Prefect server instance — https://github.com/PrefectHQ/prefect/pull/13225
+- Updating `Hosting a Prefect server instance` page — https://github.com/PrefectHQ/prefect/pull/13225
 
 ### Integrations
 - Add pre-built Prefect DBT tasks — https://github.com/PrefectHQ/prefect/pull/12964
