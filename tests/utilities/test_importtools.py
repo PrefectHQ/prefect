@@ -273,8 +273,8 @@ def test_safe_load_namespace():
     assert "now" not in namespace
     # module-level classes should be present
     assert "MyModel" in namespace
-    # module-level functions should not be present
-    assert "my_fn" not in namespace
+    # module-level functions should be present
+    assert "my_fn" in namespace
 
     assert namespace["MyModel"].__name__ == "MyModel"
 

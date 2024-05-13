@@ -415,10 +415,14 @@ def safe_load_namespace(source_code: str):
 
     # Handle local class definitions
     for node in ast.walk(parsed_code):
-        if isinstance(node, ast.ClassDef):
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef)):
             try:
-                # Compile and evaluate each class and function definition locally
-                code = compile(ast.Module(body=[node]), filename="<ast>", mode="exec")
+                # Compile and execute each class and function definition locally
+                code = compile(
+                    ast.Module(body=[node], type_ignores=[]),
+                    filename="<ast>",
+                    mode="exec",
+                )
                 exec(code, namespace)
             except Exception as e:
                 logger.debug("Failed to compile class definition: %s", e)
