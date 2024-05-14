@@ -34,33 +34,17 @@ from typing import (
 )
 from uuid import UUID
 
+import pydantic.v1 as pydantic
+from prefect._vendor.fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError as V2ValidationError
+from pydantic.v1 import BaseModel as V1BaseModel
+from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic import ValidationError as V2ValidationError
-    from pydantic.v1 import BaseModel as V1BaseModel
-    from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
-
-    from ._internal.pydantic.v2_schema import is_v2_type
-    from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
-    from ._internal.pydantic.v2_validated_func import (
-        V2ValidatedFunction as ValidatedFunction,
-    )
-
-else:
-    import pydantic
-    from pydantic.decorator import ValidatedFunction
-
-    V2ValidationError = None
-
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
@@ -115,6 +99,12 @@ from prefect.utilities.visualization import (
     get_task_viz_tracker,
     track_viz_task,
     visualize_task_dependencies,
+)
+
+from ._internal.pydantic.v2_schema import is_v2_type
+from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
+from ._internal.pydantic.v2_validated_func import (
+    V2ValidatedFunction as ValidatedFunction,
 )
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
