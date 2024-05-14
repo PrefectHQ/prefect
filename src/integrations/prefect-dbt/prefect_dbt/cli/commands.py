@@ -3,7 +3,6 @@
 import os
 from pathlib import Path, PosixPath
 from typing import Any, Dict, List, Optional, Union
-from uuid import UUID
 
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
@@ -778,7 +777,7 @@ async def run_dbt_seed(
     return results
 
 
-def create_summary_markdown(results: dbtRunnerResult, command: str) -> UUID:
+def create_summary_markdown(results: dbtRunnerResult, command: str) -> str:
     """
     Creates a Prefect task artifact summarizing the results
     of the above predefined prefrect-dbt task.
@@ -830,7 +829,7 @@ def create_summary_markdown(results: dbtRunnerResult, command: str) -> UUID:
     return markdown
 
 
-def _create_node_info_md(node_name, resource_type, message, path, compiled_code):
+def _create_node_info_md(node_name, resource_type, message, path, compiled_code) -> str:
     """
     Creates template for unsuccessful node information
     """
@@ -852,7 +851,7 @@ Compiled code:
 """
 
 
-def create_unsuccessful_markdown(results: dbtRunnerResult, command: str) -> UUID:
+def create_unsuccessful_markdown(results: dbtRunnerResult, command: str) -> str:
     """
     Creates a Prefect task markdown artifact summarizing the results
     of unsuccessful nodes, including compiled code.
@@ -863,7 +862,7 @@ def create_unsuccessful_markdown(results: dbtRunnerResult, command: str) -> UUID
         errored_nodes = []
         skipped_nodes = []
         warned_nodes = []
-        markdown = """"""
+        markdown = ""
         for r in results.result.results:
             if r.status == NodeStatus.Fail:
                 failed_nodes.append(r)
