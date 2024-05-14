@@ -220,7 +220,7 @@ def create_event_driven_automation():
     return response.json()
 ```
  
-After running this function, you will see the changes that came from the post request within the UI. Keep in mind the context will be "custom" on UI. 
+After running this function, you will see the new automation with a "custom" in the UI.
 
 Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names`. You can see this new deployment get initiated with the custom parameters outlined above. 
 
