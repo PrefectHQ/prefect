@@ -31,7 +31,6 @@ import prefect.server.schemas as schemas
 from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
 from prefect.events import DeploymentTriggerTypes
