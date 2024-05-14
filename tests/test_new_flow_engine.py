@@ -1234,7 +1234,7 @@ class TestSuspendFlowRun:
                 await asyncio.sleep(0.1)
 
             # Sleep for a bit to let some of `suspendable_flow`s tasks complete
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.5)
 
             await suspend_flow_run(flow_run_id=flow_run_id)
 

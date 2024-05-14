@@ -48,6 +48,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_API_URL,
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
@@ -333,10 +334,11 @@ def pytest_sessionstart(session):
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
             # Code is being executed in a unit test context
             PREFECT_UNIT_TEST_MODE: True,
-            # Events: disable the event persister, which may lock the DB during
-            # tests while writing events
+            # Events: disable the event persister and triggers service, which may
+            # lock the DB during tests while writing events
             PREFECT_EXPERIMENTAL_EVENTS: True,
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
+            PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
         },
         source=__file__,
     )
