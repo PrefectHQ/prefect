@@ -15,7 +15,7 @@ else:
 import pytest
 from sqlalchemy.exc import InterfaceError
 
-from prefect import get_client
+from prefect.client import get_client
 from prefect.server import models
 from prefect.server.schemas import actions, core, filters, schedules, states
 
