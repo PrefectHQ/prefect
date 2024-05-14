@@ -30,7 +30,6 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitV2
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_EVENTS, temporary_settings
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
 
@@ -403,26 +402,23 @@ async def task_run_states(session, task_run, task_run_state):
 
 @pytest.fixture
 async def storage_document_id(prefect_client, tmpdir):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_EVENTS: False}):
-        return await LocalFileSystem(basepath=str(tmpdir)).save(
-            name=f"local-test-{uuid.uuid4()}", client=prefect_client
-        )
+    return await LocalFileSystem(basepath=str(tmpdir)).save(
+        name=f"local-test-{uuid.uuid4()}", client=prefect_client
+    )
 
 
 @pytest.fixture
 async def infrastructure_document_id(prefect_client):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_EVENTS: False}):
-        return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-            is_anonymous=True, client=prefect_client
-        )
+    return await Process(env={"MY_TEST_VARIABLE": 1})._save(
+        is_anonymous=True, client=prefect_client
+    )
 
 
 @pytest.fixture
 async def infrastructure_document_id_2(prefect_client):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_EVENTS: False}):
-        return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-            is_anonymous=True, client=prefect_client
-        )
+    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
+        is_anonymous=True, client=prefect_client
+    )
 
 
 @pytest.fixture

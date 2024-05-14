@@ -5345,30 +5345,6 @@ class TestDeploymentTrigger:
                 triggers[0].as_automation()
             )
 
-        async def test_create_deployment_triggers_events_disabled_noop(
-            self, events_disabled
-        ):
-            client = AsyncMock()
-            client.server_type = ServerType.SERVER
-
-            trigger_spec = {
-                "enabled": True,
-                "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                "expect": ["prefect.flow-run.Completed"],
-                "match_related": {
-                    "prefect.resource.name": "seed",
-                    "prefect.resource.role": "flow",
-                },
-            }
-
-            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
-            deployment_id = uuid4()
-
-            await _create_deployment_triggers(client, deployment_id, triggers)
-
-            client.delete_resource_owned_automations.assert_not_called()
-            client.create_automation.assert_not_called()
-
         async def test_triggers_creation_orchestrated(
             self, project_dir, prefect_client, work_pool
         ):

@@ -34,7 +34,6 @@ from prefect.server.models.workers import (
 )
 from prefect.server.schemas.states import StateType
 from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_EVENTS
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMFlowRun, ORMWorkQueue
@@ -537,9 +536,6 @@ async def mark_work_queues_ready(
             ready_work_queue_ids=ready_work_queue_ids,
         )
 
-    if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
-        return
-
     # Emit events for any work queues that have transitioned to ready during this poll
     # Uses a separate transaction to avoid keeping locks open longer from the updates
     # in the previous transaction
@@ -579,9 +575,6 @@ async def mark_work_queues_not_ready(
             .where(db.WorkQueue.id.in_(work_queue_ids))
             .values(status=WorkQueueStatus.NOT_READY)
         )
-
-    if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
-        return
 
     # Emit events for any work queues that have transitioned to ready during this poll
     # Uses a separate transaction to avoid keeping locks open longer from the updates

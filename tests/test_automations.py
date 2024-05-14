@@ -7,13 +7,6 @@ from prefect.automations import Automation
 from prefect.events.schemas.automations import EventTrigger, Posture
 from prefect.server.events import ResourceSpecification
 from prefect.server.events.actions import DoNothing
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_EVENTS, temporary_settings
-
-
-@pytest.fixture(autouse=True)
-def enable_task_scheduling():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True}):
-        yield
 
 
 @pytest.fixture
