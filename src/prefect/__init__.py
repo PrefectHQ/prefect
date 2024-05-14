@@ -40,6 +40,17 @@ if TYPE_CHECKING:
     from prefect.flows import flow, serve
     from prefect.tasks import task
 
+    # Import modules that register types
+    import prefect.serializers
+    import prefect.deprecated.data_documents
+    import prefect.deprecated.packaging
+    import prefect.blocks.kubernetes
+    import prefect.blocks.notifications
+    import prefect.blocks.system
+    import prefect.infrastructure.process
+    import prefect.infrastructure.kubernetes
+    import prefect.infrastructure.container
+
 
 _lazy_imports = {
     "get_client": "prefect.client.orchestration",
@@ -60,6 +71,15 @@ _lazy_imports = {
     "flow": "prefect.flows",
     "serve": "prefect.flows",
     "task": "prefect.tasks",
+    "prefect.serializers": "prefect.serializers",
+    "prefect.deprecated.data_documents": "prefect.deprecated.data_documents",
+    "prefect.deprecated.packaging": "prefect.deprecated.packaging",
+    "prefect.blocks.kubernetes": "prefect.blocks.kubernetes",
+    "prefect.blocks.notifications": "prefect.blocks.notifications",
+    "prefect.blocks.system": "prefect.blocks.system",
+    "prefect.infrastructure.process": "prefect.infrastructure.process",
+    "prefect.infrastructure.kubernetes": "prefect.infrastructure.kubernetes",
+    "prefect.infrastructure.container": "prefect.infrastructure.container",
 }
 
 
@@ -79,17 +99,6 @@ from prefect.results import BaseResult
 from prefect.flows import Flow
 from prefect.tasks import Task
 
-
-# Import modules that register types
-import prefect.serializers
-import prefect.deprecated.data_documents
-import prefect.deprecated.packaging
-import prefect.blocks.kubernetes
-import prefect.blocks.notifications
-import prefect.blocks.system
-import prefect.infrastructure.process
-import prefect.infrastructure.kubernetes
-import prefect.infrastructure.container
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
