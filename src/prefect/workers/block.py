@@ -11,10 +11,7 @@ from prefect.client.schemas.objects import BlockDocument
 from prefect.utilities.collections import get_from_dict
 from prefect.workers.base import BaseWorker, BaseWorkerResult
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
 
 from prefect.client.utilities import inject_client
 from prefect.events import RelatedResource
