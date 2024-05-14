@@ -32,11 +32,13 @@ from prefect._internal.schemas.validators import (
     validate_parameter_openapi_schema,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
+    validate_schedule_max_scheduled_runs,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
@@ -124,6 +126,24 @@ class DeploymentScheduleCreate(ActionBaseModel):
     schedule: schemas.schedules.SCHEDULE_TYPES = Field(
         default=..., description="The schedule for the deployment."
     )
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+    catchup: bool = Field(
+        default=False,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
+    )
+
+    @validator("max_scheduled_runs")
+    def validate_max_scheduled_runs(cls, v):
+        return validate_schedule_max_scheduled_runs(
+            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+        )
 
 
 class DeploymentScheduleUpdate(ActionBaseModel):
@@ -133,6 +153,27 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
         default=None, description="The schedule for the deployment."
     )
+
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+
+    catchup: Optional[bool] = Field(
+        default=None,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
+    )
+
+    @validator("max_scheduled_runs")
+    def validate_max_scheduled_runs(cls, v):
+        return validate_schedule_max_scheduled_runs(
+            v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
+        )
 
 
 class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
@@ -380,6 +421,10 @@ class StateCreate(ActionBaseModel):
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
+    id: Optional[UUID] = Field(
+        default=None,
+        description="The ID to assign to the task run. If not provided, a random UUID will be generated.",
+    )
     # TaskRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
         default=None, description="The state of the task run to create"
@@ -590,10 +635,14 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
         default=True, description="Whether the concurrency limit is active."
     )
     name: str = Field(default=..., description="The name of the concurrency limit.")
-    limit: int = Field(default=..., description="The concurrency limit.")
-    active_slots: int = Field(default=0, description="The number of active slots.")
-    denied_slots: int = Field(default=0, description="The number of denied slots.")
-    slot_decay_per_second: float = Field(
+    limit: NonNegativeInteger = Field(default=..., description="The concurrency limit.")
+    active_slots: NonNegativeInteger = Field(
+        default=0, description="The number of active slots."
+    )
+    denied_slots: NonNegativeInteger = Field(
+        default=0, description="The number of denied slots."
+    )
+    slot_decay_per_second: NonNegativeFloat = Field(
         default=0,
         description="The decay rate for active slots when used as a rate limit.",
     )

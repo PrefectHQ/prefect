@@ -52,6 +52,53 @@ For practical use, consider the following:
 
 Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the rate of your workflow based on your specific requirements.
 
+### Via the UI
+
+You can create, read, edit, and delete concurrency limits via the Prefect UI.
+
+When creating a concurrency limit, you can specify the following parameters:
+
+- **Name**: The name of the concurrency limit. This name is also how you'll reference the concurrency limit in your code. Special characters, such as `/`, `%`, `&`, `>`, `<`, are not allowed.
+- **Concurrency Limit**: The maximum number of slots that can be occupied on this concurrency limit.
+- **Slot Decay Per Second**: Controls the rate at which slots are released when the concurrency limit is used as a rate limit. This value must be configured when using the `rate_limit` function.
+- **Active**: Whether or not the concurrency limit is in an active state.
+
+### Via the CLI
+
+You can create, read, edit, and delete global concurrency limits via the Prefect CLI.
+
+To create a new concurrency limit, use the `prefect gcl create` command. You must specify a `--limit` argument, and can optionally specify a `--slot-decay-per-second` and `--disable` argument.
+
+```bash
+prefect gcl create my-concurrency-limit --limit 5 --slot-decay-per-second 1.0
+```
+
+You can inspect the details of a concurrency limit using the `prefect gcl inspect` command:
+
+```bash
+prefect gcl inspect my-concurrency-limit
+```
+
+To update a concurrency limit, use the `prefect gcl update` command. You can update the `--limit`, `--slot-decay-per-second`, `--enable`, and `--disable` arguments:
+
+```bash
+prefect gcl update my-concurrency-limit --limit 10
+```
+
+```bash
+prefect gcl update my-concurrency-limit --disable
+```
+
+To delete a concurrency limit, use the `prefect gcl delete` command:
+
+```bash
+prefect gcl delete my-concurrency-limit
+Are you sure you want to delete global concurrency limit 'my-concurrency-limit'? [y/N]: y
+Deleted global concurrency limit with name 'my-concurrency-limit'.
+```
+
+See all available commands and options by running `prefect gcl --help`.
+
 ## Using the `concurrency` context manager
 
 The `concurrency`context manager allows control over the maximum number of concurrent operations. Select either the synchronous (`sync`) or asynchronous (`async`) version, depending on your use case. Here's how to use it:

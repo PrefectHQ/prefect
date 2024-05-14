@@ -690,7 +690,9 @@ class TaskRun(ObjectBaseModel):
     task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
         default_factory=dict,
         description=(
-            "Tracks the source of inputs to a task run. Used for internal bookkeeping."
+            "Tracks the source of inputs to a task run. Used for internal bookkeeping. "
+            "Note the special __parents__ key, used to indicate a parent/child "
+            "relationship that may or may not include an input or wait_for semantic."
         ),
     )
     state_type: Optional[StateType] = Field(
@@ -930,6 +932,18 @@ class DeploymentSchedule(ObjectBaseModel):
     )
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
+    )
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+    catchup: bool = Field(
+        default=False,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
 
