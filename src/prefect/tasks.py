@@ -529,7 +529,7 @@ class Task(Generic[P, R]):
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
             _resolve_custom_task_run_name,
-            collect_task_run_inputs,
+            collect_task_run_inputs_sync,
         )
 
         if flow_run_context is None:
@@ -551,7 +551,7 @@ class Task(Generic[P, R]):
 
         # collect task inputs
         task_inputs = {
-            k: await collect_task_run_inputs(v) for k, v in parameters.items()
+            k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
         }
 
         # check if this task has a parent task run based on running in another
@@ -576,7 +576,7 @@ class Task(Generic[P, R]):
                 ]
 
         if wait_for:
-            task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+            task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
 
         # Join extra task inputs
         for k, extras in (extra_task_inputs or {}).items():

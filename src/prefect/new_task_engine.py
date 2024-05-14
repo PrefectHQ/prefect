@@ -39,16 +39,15 @@ from prefect.states import (
     StateDetails,
     exception_to_crashed_state,
     exception_to_failed_state,
-    is_state,
     return_value_to_state,
 )
-from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import StopVisiting, visit_collection
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     propose_state_sync,
+    resolve_input,
 )
 from prefect.utilities.math import clamped_poisson_interval
 from prefect.utilities.timeout import timeout, timeout_async
@@ -64,6 +63,7 @@ class TaskRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
+    wait_for: Optional[Iterable[PrefectFuture]] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
 
@@ -179,84 +179,8 @@ class TaskRunEngine(Generic[P, R]):
         )
 
     def _resolve_parameters(self):
-        futures = set()
-
-        states = set()
-        result_by_state = {}
-
         if not self.parameters:
             return {}
-
-        def collect_futures_and_states(expr, context):
-            # Expressions inside quotes should not be traversed
-            if isinstance(context.get("annotation"), quote):
-                raise StopVisiting()
-
-            if isinstance(expr, PrefectFuture):
-                futures.add(expr)
-            if is_state(expr):
-                states.add(expr)
-
-            return expr
-
-        visit_collection(
-            self.parameters,
-            visit_fn=collect_futures_and_states,
-            return_data=False,
-            max_depth=-1,
-            context={},
-        )
-
-        # Wait for all futures so we do not block when we retrieve the state in `resolve_input`
-        for future in futures:
-            future.wait()
-            states.add(future.state)
-
-        finished_states = [state for state in states if state.is_final()]
-
-        state_results = []
-        for state in finished_states:
-            _result = state.result(raise_on_failure=False, fetch=True)
-            if inspect.isawaitable(_result):
-                _result = run_sync(_result)
-            state_results.append(_result)
-
-        for state, result in zip(finished_states, state_results):
-            result_by_state[state] = result
-
-        def resolve_input(expr, context):
-            state = None
-
-            # Expressions inside quotes should not be modified
-            if isinstance(context.get("annotation"), quote):
-                raise StopVisiting()
-
-            if isinstance(expr, PrefectFuture):
-                state = expr._final_state
-            elif is_state(expr):
-                state = expr
-            else:
-                return expr
-
-            assert state
-
-            # Do not allow uncompleted upstreams except failures when `allow_failure` has
-            # been used
-            if not state.is_completed() and not (
-                # TODO: Note that the contextual annotation here is only at the current level
-                #       if `allow_failure` is used then another annotation is used, this will
-                #       incorrectly evaluate to false — to resolve this, we must track all
-                #       annotations wrapping the current expression but this is not yet
-                #       implemented.
-                isinstance(context.get("annotation"), allow_failure)
-                and state.is_failed()
-            ):
-                raise UpstreamTaskError(
-                    f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
-                    " 'COMPLETED' state."
-                )
-
-            return result_by_state.get(state)
 
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
@@ -280,9 +204,23 @@ class TaskRunEngine(Generic[P, R]):
 
         self.parameters = resolved_parameters
 
-    def begin_run(self):
+    def _wait_for_dependencies(self):
+        if not self.wait_for:
+            return
+
+        visit_collection(
+            self.wait_for,
+            visit_fn=resolve_input,
+            return_data=False,
+            max_depth=-1,
+            remove_annotations=True,
+            context={},
+        )
+
+    def begin_run(self, wait_for: Optional[Iterable[PrefectFuture]] = None):
         state_details = self._compute_state_details()
         self._resolve_parameters()
+        self._wait_for_dependencies()
         new_state = Running(state_details=state_details)
         state = self.set_state(new_state)
 
@@ -422,6 +360,7 @@ class TaskRunEngine(Generic[P, R]):
                             parameters=self.parameters,
                             flow_run_context=FlowRunContext.get(),
                             parent_task_run_context=TaskRunContext.get(),
+                            wait_for=self.wait_for,
                         )
                     )
 
@@ -455,9 +394,7 @@ def run_task_sync(
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
-        task=task,
-        parameters=parameters,
-        task_run=task_run,
+        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
     )
 
     # This is a context manager that keeps track of the run of the task run.
@@ -502,7 +439,9 @@ async def run_task_async(
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
-    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    engine = TaskRunEngine[P, R](
+        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
+    )
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id) as run:

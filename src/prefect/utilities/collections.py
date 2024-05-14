@@ -220,7 +220,7 @@ class StopVisiting(BaseException):
 
 def visit_collection(
     expr,
-    visit_fn: Callable[[Any], Any],
+    visit_fn: Callable[[Any, Optional[dict]], Any],
     return_data: bool = False,
     max_depth: int = -1,
     context: Optional[dict] = None,
@@ -247,8 +247,10 @@ def visit_collection(
 
     Args:
         expr (Any): a Python object or expression
-        visit_fn (Callable[[Any], Awaitable[Any]]): an async function that
-            will be applied to every non-collection element of expr.
+        visit_fn (Callable[[Any, Optional[dict]], Awaitable[Any]]): a function that
+            will be applied to every non-collection element of expr. The function can
+            accept one or two arguments. If two arguments are accepted, the second
+            argument will be the context dictionary.
         return_data (bool): if `True`, a copy of `expr` containing data modified
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
