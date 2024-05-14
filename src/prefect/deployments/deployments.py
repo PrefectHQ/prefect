@@ -23,7 +23,6 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
     deprecated_callable,
