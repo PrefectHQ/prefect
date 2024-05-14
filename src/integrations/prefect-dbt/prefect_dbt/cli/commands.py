@@ -114,9 +114,10 @@ async def trigger_dbt_cli_command(
                 target_configs=target_configs,
             )
             result = trigger_dbt_cli_command(
-                "dbt debug",
+                "dbt run",
                 overwrite_profiles=True,
-                dbt_cli_profile=dbt_cli_profile
+                dbt_cli_profile=dbt_cli_profile,
+                extra_command_args=["--model", "foo_model"]
             )
             return result
 
@@ -436,7 +437,8 @@ async def run_dbt_build(
         @flow
         def dbt_test_flow():
             dbt_build_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -503,7 +505,8 @@ async def run_dbt_model(
         @flow
         def dbt_test_flow():
             dbt_run_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -571,7 +574,8 @@ async def run_dbt_test(
         @flow
         def dbt_test_flow():
             dbt_test_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -639,7 +643,8 @@ async def run_dbt_snapshot(
         @flow
         def dbt_test_flow():
             dbt_snapshot_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--fail-fast"]
             )
     ```
 
@@ -707,7 +712,8 @@ async def run_dbt_seed(
         @flow
         def dbt_test_flow():
             dbt_seed_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--fail-fast"]
             )
     ```
 
