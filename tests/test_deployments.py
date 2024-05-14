@@ -1,6 +1,7 @@
 import datetime
 import json
 import re
+from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import uuid4
 
@@ -30,7 +31,6 @@ import prefect.server.schemas as schemas
 from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import PrefectClient
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
 from prefect.events import DeploymentTriggerTypes
@@ -47,6 +47,9 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.utilities.slugify import slugify
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @pytest.fixture(autouse=True)
@@ -1442,7 +1445,7 @@ class TestRunDeployment:
         assert flow_run_a.id == flow_run_b.id
 
     async def test_links_to_parent_flow_run_when_used_in_flow_by_default(
-        self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
+        self, test_deployment, use_hosted_api_server, prefect_client: "PrefectClient"
     ):
         d, deployment_id = test_deployment
 
@@ -1462,7 +1465,7 @@ class TestRunDeployment:
         assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
 
     async def test_optionally_does_not_link_to_parent_flow_run_when_used_in_flow(
-        self, test_deployment, use_hosted_api_server, prefect_client: PrefectClient
+        self, test_deployment, use_hosted_api_server, prefect_client: "PrefectClient"
     ):
         d, deployment_id = test_deployment
 
@@ -1548,7 +1551,7 @@ class TestRunDeployment:
 
 class TestLoadFlowFromFlowRun:
     async def test_load_flow_from_module_entrypoint(
-        self, prefect_client: PrefectClient, monkeypatch
+        self, prefect_client: "PrefectClient", monkeypatch
     ):
         @flow
         def pretend_flow():

@@ -6,6 +6,7 @@ import signal
 import time
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -24,7 +25,6 @@ import prefect
 import prefect.context
 import prefect.plugins
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import (
     StateType,
@@ -65,6 +65,9 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
@@ -119,7 +122,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
 
 
 async def wait_for_task_runs_and_report_crashes(
-    task_run_futures: Iterable[PrefectFuture], client: PrefectClient
+    task_run_futures: Iterable[PrefectFuture], client: "PrefectClient"
 ) -> Literal[True]:
     crash_exceptions = []
 
@@ -311,7 +314,7 @@ async def resolve_inputs(
 
 
 async def propose_state(
-    client: PrefectClient,
+    client: "PrefectClient",
     state: State[object],
     force: bool = False,
     task_run_id: Optional[UUID] = None,
@@ -412,7 +415,7 @@ async def propose_state(
 
 
 def propose_state_sync(
-    client: SyncPrefectClient,
+    client: "SyncPrefectClient",
     state: State[object],
     force: bool = False,
     task_run_id: Optional[UUID] = None,
@@ -664,7 +667,7 @@ def _get_hook_name(hook: Callable) -> str:
     )
 
 
-async def check_api_reachable(client: PrefectClient, fail_message: str):
+async def check_api_reachable(client: "PrefectClient", fail_message: str):
     # Do not perform a healthcheck if it exists and is not expired
     api_url = str(client.api_url)
     if api_url in API_HEALTHCHECKS:

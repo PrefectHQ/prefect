@@ -1,13 +1,15 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 import anyio
 
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.logging import get_logger
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @inject_client
@@ -15,7 +17,7 @@ async def wait_for_flow_run(
     flow_run_id: UUID,
     timeout: Optional[int] = 10800,
     poll_interval: int = 5,
-    client: Optional[PrefectClient] = None,
+    client: Optional["PrefectClient"] = None,
     log_states: bool = False,
 ) -> FlowRun:
     """

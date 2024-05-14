@@ -8,7 +8,7 @@ import textwrap
 import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -22,7 +22,7 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.filters import FlowFilter
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import (
@@ -48,6 +48,9 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type
 from prefect.utilities.filesystem import create_default_ignore_file
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 def str_presenter(dumper, data):
@@ -81,7 +84,7 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-async def get_deployment(client: PrefectClient, name, deployment_id):
+async def get_deployment(client: "PrefectClient", name, deployment_id):
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
@@ -169,7 +172,7 @@ async def create_work_queue_and_set_concurrency_limit(
 
 @inject_client
 async def check_work_pool_exists(
-    work_pool_name: Optional[str], client: PrefectClient = None
+    work_pool_name: Optional[str], client: "PrefectClient" = None
 ):
     if work_pool_name is not None:
         try:
@@ -191,7 +194,7 @@ async def check_work_pool_exists(
 
 @inject_client
 async def _print_deployment_work_pool_instructions(
-    work_pool_name: str, client: PrefectClient = None
+    work_pool_name: str, client: "PrefectClient" = None
 ):
     work_pool = await client.read_work_pool(work_pool_name)
     blurb = (

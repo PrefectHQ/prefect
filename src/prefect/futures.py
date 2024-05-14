@@ -26,7 +26,6 @@ import anyio
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_async
-from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
 from prefect.utilities.annotations import quote
@@ -34,6 +33,7 @@ from prefect.utilities.asyncutils import A, Async, Sync, sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 
 if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
     from prefect.task_runners import BaseTaskRunner
 
 
@@ -238,17 +238,17 @@ class PrefectFuture(Generic[R, A]):
 
     @overload
     def get_state(
-        self: "PrefectFuture[R, Async]", client: PrefectClient = None
+        self: "PrefectFuture[R, Async]", client: "PrefectClient" = None
     ) -> Awaitable[State[R]]:
         ...
 
     @overload
     def get_state(
-        self: "PrefectFuture[R, Sync]", client: PrefectClient = None
+        self: "PrefectFuture[R, Sync]", client: "PrefectClient" = None
     ) -> State[R]:
         ...
 
-    def get_state(self, client: PrefectClient = None):
+    def get_state(self, client: "PrefectClient" = None):
         """
         Get the current state of the task run.
         """
@@ -258,7 +258,7 @@ class PrefectFuture(Generic[R, A]):
             return cast(State[R], sync(self._get_state, client=client))
 
     @inject_client
-    async def _get_state(self, client: PrefectClient = None) -> State[R]:
+    async def _get_state(self, client: "PrefectClient" = None) -> State[R]:
         assert client is not None  # always injected
 
         # We must wait for the task run id to be populated

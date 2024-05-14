@@ -18,7 +18,7 @@ import subprocess
 import time
 from copy import deepcopy
 from textwrap import dedent
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import UUID
 
 from anyio import run_process
@@ -29,7 +29,6 @@ from rich.prompt import Confirm
 from rich.syntax import Syntax
 
 from prefect.cli._prompts import prompt, prompt_select_from_table
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -37,6 +36,9 @@ from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     update_current_profile,
 )
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 class AzureCLI:
@@ -684,7 +686,7 @@ class ContainerInstancePushProvisioner:
         client_id: str,
         tenant_id: str,
         client_secret: str,
-        client: PrefectClient,
+        client: "PrefectClient",
     ) -> UUID:
         """
         Creates a credentials block for Azure Container Instance.
@@ -755,7 +757,7 @@ class ContainerInstancePushProvisioner:
             raise e
 
     async def _aci_credentials_block_exists(
-        self, block_name: str, client: PrefectClient
+        self, block_name: str, client: "PrefectClient"
     ) -> bool:
         """
         Checks if an ACI credentials block with the given name already exists.
@@ -782,7 +784,9 @@ class ContainerInstancePushProvisioner:
         else:
             return False
 
-    async def _create_provision_table(self, work_pool_name: str, client: PrefectClient):
+    async def _create_provision_table(
+        self, work_pool_name: str, client: "PrefectClient"
+    ):
         return Panel(
             dedent(
                 f"""\
@@ -809,7 +813,7 @@ class ContainerInstancePushProvisioner:
         )
 
     async def _customize_resource_names(
-        self, work_pool_name: str, client: PrefectClient
+        self, work_pool_name: str, client: "PrefectClient"
     ) -> bool:
         self._resource_group_name = prompt(
             "Please enter a name for the resource group",
@@ -851,7 +855,7 @@ class ContainerInstancePushProvisioner:
         self,
         work_pool_name: str,
         base_job_template: Dict[str, Any],
-        client: Optional[PrefectClient] = None,
+        client: Optional["PrefectClient"] = None,
     ) -> Dict[str, Any]:
         """
         Orchestrates the provisioning of Azure resources and setup for the push work pool.
