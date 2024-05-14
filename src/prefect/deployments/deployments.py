@@ -9,7 +9,7 @@ import sys
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -40,7 +40,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
     FlowRun,
@@ -71,6 +71,9 @@ from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
 
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+
 logger = get_logger("deployments")
 
 
@@ -83,7 +86,7 @@ logger = get_logger("deployments")
 @inject_client
 async def run_deployment(
     name: Union[str, UUID],
-    client: Optional[PrefectClient] = None,
+    client: Optional["PrefectClient"] = None,
     parameters: Optional[dict] = None,
     scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
@@ -241,7 +244,7 @@ async def run_deployment(
 @inject_client
 async def load_flow_from_flow_run(
     flow_run: FlowRun,
-    client: PrefectClient,
+    client: "PrefectClient",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
 ) -> Flow:

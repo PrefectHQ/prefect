@@ -3,6 +3,7 @@ DEPRECATION WARNING:
 This module is deprecated as of March 2024 and will not be available after September 2024.
 """
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from prefect._internal.compatibility.deprecated import deprecated_class
@@ -16,7 +17,6 @@ else:
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.deprecated.packaging.base import PackageManifest, Packager, Serializer
 from prefect.deprecated.packaging.serializers import SourceSerializer
@@ -24,6 +24,9 @@ from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFil
 from prefect.flows import Flow
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.hashing import stable_hash
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @deprecated_class(start_date="Mar 2024")
@@ -40,7 +43,7 @@ class FilePackageManifest(PackageManifest):
     filesystem_id: UUID
 
     @inject_client
-    async def unpackage(self, client: PrefectClient) -> Flow:
+    async def unpackage(self, client: "PrefectClient") -> Flow:
         block_document = await client.read_block_document(self.filesystem_id)
         filesystem: ReadableFileSystem = Block._from_block_document(block_document)
         content = await filesystem.read_path(self.key)
