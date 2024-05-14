@@ -10,7 +10,7 @@ on:
       - compat-tests
   push:
     branches:
-      - main
+      - 2.x
 
 # Limit concurrency by workflow/branch combination.
 #

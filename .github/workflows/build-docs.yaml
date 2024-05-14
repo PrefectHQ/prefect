@@ -3,7 +3,7 @@ name: Update Docs
 on:
   push:
     branches:
-      - main
+      - 2.x
     paths:
       - 'docs/**'
       - 'netlify.toml'
@@ -23,7 +23,7 @@ jobs:
         if [[ $GITHUB_EVENT_NAME == "release" ]]; then
           version="${{ github.event.release.tag_name }}"
         fi
-        
+
         curl -XPOST -H "Authorization: Bearer $REPO_ACCESS_TOKEN" \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \

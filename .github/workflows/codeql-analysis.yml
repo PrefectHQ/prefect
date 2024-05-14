@@ -3,11 +3,11 @@ name: "CodeQL"
 on:
   push:
     branches:
-      - main
+      - 2.x
 
   pull_request:
     branches:
-      - main
+      - 2.x
     paths:
       - .github/workflows/codeql-analysis.yaml
       - "**/*.py"

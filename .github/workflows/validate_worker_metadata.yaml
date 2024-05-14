@@ -2,7 +2,7 @@ name: Ensure JSON views are valid on PR
 on:
   pull_request:
     branches:
-      - main
+      - 2.x
     paths:
       - "src/prefect/server/api/collections_data/views/*.json"
 jobs:

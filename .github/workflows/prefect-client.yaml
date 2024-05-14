@@ -3,7 +3,7 @@ name: Verify prefect-client build
 on:
   pull_request:
     branches:
-      - main
+      - 2.x
     paths:
       - src/prefect/**/*.py
       - requirements.txt
@@ -11,7 +11,7 @@ on:
       - setup.cfg
   push:
     branches:
-      - main
+      - 2.x
     paths:
       - src/prefect/**/*.py
       - requirements.txt
@@ -50,7 +50,7 @@ jobs:
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
 
       - name: Prepare files for prefect-client build (omit the local build)
-        run: sh client/build_client.sh   
+        run: sh client/build_client.sh
         env:
           TMPDIR: ${{ env.TMPDIR }}
 
@@ -68,7 +68,7 @@ jobs:
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
           PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
-      
+
       - name: Install prefect from source
         run: pip install .
 
@@ -81,7 +81,7 @@ jobs:
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
           PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
-      
+
       - name: Publish build artifacts
         if: ${{ inputs.upload-artifacts }}
         uses: actions/upload-artifact@v4

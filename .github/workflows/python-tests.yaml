@@ -18,7 +18,7 @@ on:
       - Dockerfile
   push:
     branches:
-      - main
+      - 2.x
     paths:
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
