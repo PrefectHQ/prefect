@@ -14,20 +14,12 @@ from uuid import UUID
 
 import orjson
 import pendulum
+from pydantic.v1 import Field, HttpUrl, root_validator, validator
+from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
 )
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import NonNegativeInteger, PositiveInteger
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, root_validator, validator
-else:
-    from pydantic import Field, HttpUrl, root_validator, validator
-
-from typing_extensions import Literal
-
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect._internal.schemas.validators import (
@@ -46,6 +38,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
+from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
 
