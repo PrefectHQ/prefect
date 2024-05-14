@@ -14,7 +14,7 @@ from prefect.events.clients import (
 from prefect.events.worker import EventsWorker
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
     temporary_settings,
 )
 
@@ -40,7 +40,7 @@ def test_worker_instance_null_client_events_disabled():
     with temporary_settings(
         updates={
             PREFECT_API_URL: None,
-            PREFECT_EXPERIMENTAL_EVENTS: False,
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: False,
         }
     ):
         worker = EventsWorker.instance()

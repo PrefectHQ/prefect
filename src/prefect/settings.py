@@ -66,35 +66,19 @@ from typing import (
 from urllib.parse import urlparse
 
 import toml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_settings
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-else:
-    from pydantic import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-
+from pydantic.v1 import (
+    BaseModel,
+    BaseSettings,
+    Field,
+    create_model,
+    fields,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -1459,7 +1443,7 @@ Whether or not to enable flow run input.
 
 # Prefect Events feature flags
 
-PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_EVENTS = Setting(bool, default=False)
 """
 Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
 will always emit events during flow and task runs regardless of this setting.
@@ -1624,6 +1608,7 @@ PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
 Whether or not to disable the sync_compatible decorator utility.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 
 # Defaults -----------------------------------------------------------------------------
 
