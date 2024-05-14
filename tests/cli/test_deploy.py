@@ -910,7 +910,7 @@ class TestProjectDeploy:
             )
 
             with open("Dockerfile", "w") as f:
-                f.write("FROM python:3.8-slim\n")
+                f.write("FROM python:3.9-slim\n")
 
             prefect_yaml = {
                 "build": [
@@ -1010,7 +1010,7 @@ class TestProjectDeploy:
             )
 
             with open("Dockerfile", "w") as f:
-                f.write("FROM python:3.8-slim\n")
+                f.write("FROM python:3.9-slim\n")
 
             prefect_yaml = {
                 "build": [
@@ -1110,7 +1110,7 @@ class TestProjectDeploy:
             )
 
             with open("Dockerfile", "w") as f:
-                f.write("FROM python:3.8-slim\n")
+                f.write("FROM python:3.9-slim\n")
             prefect_yaml = {
                 "build": [
                     {
@@ -5804,7 +5804,7 @@ class TestDeployDockerBuildSteps:
             prefect_config = yaml.safe_load(f)
 
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         prefect_config["build"] = [
             {
@@ -5938,7 +5938,7 @@ class TestDeployDockerBuildSteps:
         self, docker_work_pool, mock_build_docker_image
     ):
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -6003,7 +6003,7 @@ class TestDeployDockerBuildSteps:
         self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -6076,7 +6076,7 @@ class TestDeployDockerBuildSteps:
         self, docker_work_pool
     ):
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,

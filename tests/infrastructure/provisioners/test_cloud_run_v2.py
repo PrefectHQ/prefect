@@ -98,7 +98,7 @@ default_cloud_run_v2_push_base_job_template = {
             "image": {
                 "title": "Image Name",
                 "description": "The image to use for the Cloud Run job. If not provided the default Prefect image will be used.",
-                "default": "prefecthq/prefect:2-latest",
+                "default": "prefecthq/prefect:3-latest",
                 "type": "string",
             },
             "args": {

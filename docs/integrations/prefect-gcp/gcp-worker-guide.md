@@ -117,7 +117,7 @@ Once those variables are set, run the following shell command to deploy your wor
 Don't forget to replace `<YOUR-SERVICE-ACCOUNT-NAME>` with the name of the service account you created in the first step of this guide, and replace `<WORK-POOL-NAME>` with the name of the work pool you created in the second step.
 
 ```bash
-gcloud run deploy prefect-worker --image=prefecthq/prefect:2-latest \
+gcloud run deploy prefect-worker --image=prefecthq/prefect:3-latest \
 --set-env-vars PREFECT_API_URL=$PREFECT_API_URL,PREFECT_API_KEY=$PREFECT_API_KEY \
 --service-account <YOUR-SERVICE-ACCOUNT-NAME> \
 --no-cpu-throttling \
@@ -162,10 +162,10 @@ def mark_it_down(temp):
     markdown_report = f"""# Weather Report
 ## Recent weather
 
-| Time        | Temperature |
-|:--------------|-------:|
-| Now | {temp} |
-| In 1 hour       | {temp + 2} |
+| Time      | Temperature |
+| :-------- | ----------: |
+| Now       |      {temp} |
+| In 1 hour |  {temp + 2} |
 """
     create_markdown_artifact(
         key="weather-report",
@@ -259,7 +259,7 @@ deployments:
 ```
 
 !!!Tip
-    After copying the example above, don't forget to replace `<WORKING-DIRECTORY>` with the name of the directory where your flow folder and `prefect.yaml` live. You'll also need to replace `<PATH-TO-ARTIFACT-REGISTRY>` with the path to the Docker repository in your Google Artifact Registry. 
+    After copying the example above, don't forget to replace `<WORKING-DIRECTORY>` with the name of the directory where your flow folder and `prefect.yaml` live. You'll also need to replace `<PATH-TO-ARTIFACT-REGISTRY>` with the path to the Docker repository in your Google Artifact Registry.
 
 To get a better understanding of the different components of the `prefect.yaml` file above and what they do, feel free to read this next section. Otherwise, you can skip ahead to *Flow Deployment*.
 

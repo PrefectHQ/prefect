@@ -296,7 +296,7 @@ using the flow entrypoint instead. - https://github.com/PrefectHQ/prefect/pull/1
 - Fix type-hinting for self-validating fields — https://github.com/PrefectHQ/prefect/pull/12710
 - Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
 
- 
+
 #### Events and Automations
 - Implement the `run-deployment` automation action — https://github.com/PrefectHQ/prefect/pull/12677
 - Implement the `send-notification` action — https://github.com/PrefectHQ/prefect/pull/12693
@@ -343,7 +343,7 @@ using the flow entrypoint instead. - https://github.com/PrefectHQ/prefect/pull/1
 * @hboehmer-IW made their first contribution in https://github.com/PrefectHQ/prefect/pull/12721
 * @avriiil made their first contribution in https://github.com/PrefectHQ/prefect/pull/12748
 * @takashimakazuki made their first contribution in https://github.com/PrefectHQ/prefect/pull/12761
-  
+
 ### Integrations
 - Add support for a capacity provider — https://github.com/PrefectHQ/prefect-aws/pull/407
 - Improve error handling for task creation — https://github.com/PrefectHQ/prefect-aws/pull/406
@@ -392,7 +392,7 @@ print(answer.value)
 Refer to the [docs](https://docs.prefect.io/latest/guides/variables/#accessing-variables) for more information and see the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
 
 ### Enhancements
-- Allow flows inside tasks 
+- Allow flows inside tasks
     — https://github.com/PrefectHQ/prefect/pull/12559
     — https://github.com/PrefectHQ/prefect/pull/12607
 - Add `User-Agent` header containing the running Prefect version — https://github.com/PrefectHQ/prefect/pull/12601
@@ -600,7 +600,7 @@ It is now easier to bulk select and delete flow runs through the UI. Listings of
 ![image](https://github.com/PrefectHQ/prefect/assets/42048900/2431caf4-c1be-4afd-bcff-3c24fa94dc64)
 
 See the following pull request for implementation details:
-- https://github.com/PrefectHQ/prefect/pull/12356 
+- https://github.com/PrefectHQ/prefect/pull/12356
 - https://github.com/PrefectHQ/prefect-ui-library/pull/2227
 - https://github.com/PrefectHQ/prefect/pull/12285
 
@@ -635,7 +635,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - Add upstream dependencies guide to docs — https://github.com/PrefectHQ/prefect/pull/12351
 - Update documentation on event and metric automation triggers — https://github.com/PrefectHQ/prefect/pull/12366
 - Add documentation on compound and sequence automation triggers — https://github.com/PrefectHQ/prefect/pull/12374
-- Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376 
+- Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376
 
 ### Uncategorized
 - Pin `BuildKit` to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
@@ -3597,7 +3597,7 @@ This release resolves bugs preventing UI form inputs from being rendered and par
 
 ### Prefect no longer supports Python 3.7
 
-Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this release drops Python 3.7 support. Prefect now requires Python 3.8 or later.
+Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this release drops Python 3.7 support. Prefect now requires Python 3.9 or later.
 
 ### Enhancements
 
@@ -3711,7 +3711,7 @@ See the following pull requests for implementation details:
 
 ### Documentation
 
-- Adjust docs to reflect Prefect requires Python 3.8 — <https://github.com/PrefectHQ/prefect/pull/9853>
+- Adjust docs to reflect Prefect requires Python 3.9 — <https://github.com/PrefectHQ/prefect/pull/9853>
 - Add custom `pull` step examples to deployment management docs — <https://github.com/PrefectHQ/prefect/pull/10073>
 - Add troubleshooting guide to docs — <https://github.com/PrefectHQ/prefect/pull/10079>
 - Add information on finding Prefect Cloud account id and workspace id — <https://github.com/PrefectHQ/prefect/pull/10103>
@@ -5620,7 +5620,7 @@ In 2.7.8, we announced that we were publishing development Docker images, includ
 You can try one of the new images by including the `--platform` specifier, e.g.:
 
 ```bash
-docker run --platform linux/arm64 --pull always prefecthq/prefect:2-latest prefect version
+docker run --platform linux/arm64 --pull always prefecthq/prefect:3-latest prefect version
 ```
 
 We will be publishing images for the following architectures:

@@ -76,9 +76,6 @@ class ThreadShield:
 
 
 class CancelledError(asyncio.CancelledError):
-    # In Python 3.7, `asyncio.CancelledError` is identical to `concurrent.futures.CancelledError`
-    # but in 3.8+ it is a separate class that inherits from `BaseException` instead
-    # See https://bugs.python.org/issue32528
     # We want our `CancelledError` to be treated as a `BaseException` and defining it
     # here simplifies downstream logic that needs to know "which" cancelled error to
     # handle.

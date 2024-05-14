@@ -4,7 +4,6 @@ import sys
 from typing import Dict, List, Set
 
 PYTHON_VERSIONS = [
-    "3.8",
     "3.9",
     "3.10",
     "3.11",
@@ -12,7 +11,7 @@ PYTHON_VERSIONS = [
 ]
 
 SKIP_VERSIONS = {
-    "prefect-ray": ["3.8", "3.12"],
+    "prefect-ray": ["3.12"],
 }
 
 

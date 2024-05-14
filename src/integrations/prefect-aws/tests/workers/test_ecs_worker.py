@@ -46,7 +46,7 @@ from prefect_aws.workers.ecs_worker import (
 TEST_TASK_DEFINITION_YAML = """
 containerDefinitions:
 - cpu: 1024
-  image: prefecthq/prefect:2.1.0-python3.8
+  image: prefecthq/prefect:2.1.0-python3.9
   memory: 2048
   name: prefect
 family: prefect

@@ -1,4 +1,4 @@
-""" <!-- # noqa -->
+"""<!-- # noqa -->
 
 Module containing the Cloud Run worker used for executing flow runs as Cloud Run jobs.
 
@@ -471,7 +471,7 @@ class CloudRunWorkerVariables(BaseVariables):
             "If not set, the latest Prefect image will be used. "
             "See https://cloud.google.com/run/docs/deploying#images."
         ),
-        example="docker.io/prefecthq/prefect:2-latest",
+        example="docker.io/prefecthq/prefect:3-latest",
     )
     cpu: Optional[str] = Field(
         default=None,

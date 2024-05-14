@@ -133,7 +133,7 @@ default_cloud_run_push_base_job_template = {
                     " Prefect image will be used. See"
                     " https://cloud.google.com/run/docs/deploying#images."
                 ),
-                "example": "docker.io/prefecthq/prefect:2-latest",
+                "example": "docker.io/prefecthq/prefect:3-latest",
                 "type": "string",
             },
             "cpu": {
