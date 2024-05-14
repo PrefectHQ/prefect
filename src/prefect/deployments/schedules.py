@@ -17,10 +17,15 @@ FlexibleScheduleList = Sequence[Union[MinimalDeploymentSchedule, dict, SCHEDULE_
 def create_minimal_deployment_schedule(
     schedule: SCHEDULE_TYPES,
     active: Optional[bool] = True,
+    max_active_runs: Optional[int] = None,
+    catchup: bool = False,
 ) -> MinimalDeploymentSchedule:
+    """Create a MinimalDeploymentSchedule object from common schedule parameters."""
     return MinimalDeploymentSchedule(
         schedule=schedule,
         active=active if active is not None else True,
+        max_active_runs=max_active_runs,
+        catchup=catchup,
     )
 
 

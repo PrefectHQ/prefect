@@ -1624,6 +1624,7 @@ PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
 Whether or not to disable the sync_compatible decorator utility.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 
 # Defaults -----------------------------------------------------------------------------
 
