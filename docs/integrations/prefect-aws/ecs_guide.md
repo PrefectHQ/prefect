@@ -40,8 +40,8 @@ graph TB
 
     subgraph ecs_task["ECS task execution"]
     style ecs_task text-align:center,display:flex
-    
-   
+
+
     flow_run((Flow run))
 
     end
@@ -67,8 +67,8 @@ graph TB
 !!! tip "ECS tasks != Prefect tasks"
     An ECS task is **not** the same thing as a [Prefect task](https://docs.prefect.io/latest/concepts/tasks/#tasks-overview).
 
-    ECS tasks are groupings of containers that run within an ECS Cluster. An ECS task's behavior is determined by its task definition. 
-    
+    ECS tasks are groupings of containers that run within an ECS Cluster. An ECS task's behavior is determined by its task definition.
+
     An [*ECS task definition*](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) is the blueprint for the ECS task. It describes which Docker containers to run and what you want to have happen inside these containers.
 
 ECS tasks are instances of a task definition. A Task Execution launches container(s) as defined in the task definition **until they are stopped or exit on their own**. This setup is ideal for ephemeral processes such as a Prefect flow run.
@@ -189,7 +189,7 @@ Next, create an ECS task definition that specifies the Docker image for the Pref
     "containerDefinitions": [
         {
             "name": "prefect-worker",
-            "image": "prefecthq/prefect:2-latest",
+            "image": "prefecthq/prefect:3-latest",
             "cpu": 512,
             "memory": 1024,
             "essential": true,
@@ -300,7 +300,7 @@ To have Prefect build your image when deploying your flow create a `prefect.yaml
 ```yaml
 name: ecs-worker-guide
 # this is pre-populated by running prefect init
-prefect-version: 2.14.20 
+prefect-version: 2.14.20
 
 # build section allows you to manage and build docker images
 build:

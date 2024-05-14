@@ -98,7 +98,6 @@ class PrefectFormatter(logging.Formatter):
             init_kwargs["defaults"] = defaults
             style_kwargs["defaults"] = defaults
 
-        # validate added in 3.8
         init_kwargs["validate"] = validate
 
         super().__init__(format, datefmt, style, **init_kwargs)

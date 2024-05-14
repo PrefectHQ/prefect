@@ -67,7 +67,7 @@ CONDA_ENV_EXPORT_SIMPLE_JSON = r"""
     "defaults"
   ],
   "dependencies": [
-    "python=3.8",
+    "python=3.9",
     "sqlite==3.31.1",
     "certifi"
   ],
@@ -83,7 +83,7 @@ CONDA_ENV_EXPORT_WITH_BUILDS_JSON = r"""
   ],
   "dependencies": [
     "certifi=2022.5.18.1=py38hecd8cb5_0",
-    "python=3.8.3=h26836e1_1",
+    "python=3.9.3=h26836e1_1",
     "sqlite=3.31.1=h5c1f38d_1"
   ],
   "name": "flirty-crocodile",
@@ -97,7 +97,7 @@ CONDA_ENV_EXPORT_WITH_PIP_JSON = r"""
     "defaults"
   ],
   "dependencies": [
-    "python=3.8",
+    "python=3.9",
     "sqlite==3.31.1",
     "certifi",
     {
@@ -216,7 +216,7 @@ class TestCurrentEnvironmentCondaRequirements:
             capture_output=True,
         )
         assert requirements == [
-            CondaRequirement("python=3.8"),
+            CondaRequirement("python=3.9"),
             CondaRequirement("sqlite==3.31.1"),
             CondaRequirement("certifi"),
         ]
@@ -230,7 +230,7 @@ class TestCurrentEnvironmentCondaRequirements:
         )
         assert requirements == [
             CondaRequirement("certifi=2022.5.18.1=py38hecd8cb5_0"),
-            CondaRequirement("python=3.8.3=h26836e1_1"),
+            CondaRequirement("python=3.9.3=h26836e1_1"),
             CondaRequirement("sqlite=3.31.1=h5c1f38d_1"),
         ]
         assert all(req.build is not None for req in requirements)
@@ -239,7 +239,7 @@ class TestCurrentEnvironmentCondaRequirements:
         mock_conda_process.return_value.stdout = CONDA_ENV_EXPORT_WITH_PIP_JSON
         requirements = current_environment_conda_requirements()
         assert requirements == [
-            CondaRequirement("python=3.8"),
+            CondaRequirement("python=3.9"),
             CondaRequirement("sqlite==3.31.1"),
             CondaRequirement("certifi"),
         ]

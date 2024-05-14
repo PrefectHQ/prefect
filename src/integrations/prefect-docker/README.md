@@ -19,7 +19,7 @@ Do not use `DockerRegistry` with this collection. Instead, use `DockerHost` and 
 
 ### Python setup
 
-Requires an installation of Python 3.8+.
+Requires an installation of Python 3.9+.
 
 We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
 

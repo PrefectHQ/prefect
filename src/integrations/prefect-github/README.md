@@ -1,5 +1,5 @@
 # prefect-github
- 
+
 <p align="center">
     <a href="https://pypi.python.org/pypi/prefect-github/" alt="PyPI version">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-github?color=26272B&labelColor=090422"></a>
@@ -17,7 +17,7 @@ The tasks within this collection were created by a code generator using the GitH
 
 ### Python setup
 
-Requires an installation of Python 3.8 or newer.
+Requires an installation of Python 3.9 or newer.
 
 We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
 

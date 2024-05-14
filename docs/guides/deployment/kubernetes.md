@@ -38,9 +38,9 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
 === "AWS"
 
-    One easy way to get set up with a cluster in EKS is with [`eksctl`](https://eksctl.io/). 
-    Node pools can be backed by either EC2 instances or FARGATE. 
-    Let's choose FARGATE so there's less to manage. 
+    One easy way to get set up with a cluster in EKS is with [`eksctl`](https://eksctl.io/).
+    Node pools can be backed by either EC2 instances or FARGATE.
+    Let's choose FARGATE so there's less to manage.
     The following command takes around 15 minutes and must not be interrupted:
 
     ```bash
@@ -53,8 +53,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
 
 === "GCP"
 
-    You can get a GKE cluster up and running with a few commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install). 
-    We'll build a bare-bones cluster that is accessible over the open internet - this should **not** be used in a production environment. 
+    You can get a GKE cluster up and running with a few commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install).
+    We'll build a bare-bones cluster that is accessible over the open internet - this should **not** be used in a production environment.
     To deploy the cluster, your project must have a VPC network configured.
 
     First, authenticate to GCP by setting the following configuration options.
@@ -69,7 +69,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud config set compute/zone <AVAILABILITY-ZONE>
     ```
 
-    Next, deploy the cluster - this command will take ~15 minutes to complete. 
+    Next, deploy the cluster - this command will take ~15 minutes to complete.
     Once the cluster has been created, authenticate to the cluster.
 
     ```bash
@@ -83,13 +83,13 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     ```
 
     !!! Warning "GCP Gotchas"
-      
+
       - You'll need to enable the default service account in the IAM console, or specify a different service account with the appropriate permissions to be used.
 
       ```
       ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
       ```
-      
+
       - Organization policy blocks creation of external (public) IPs. You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
 
       ```
@@ -148,7 +148,7 @@ If you already have a registry, skip ahead to the next section.
 
     ```bash
     # Create artifact registry repository to host your custom image
-    # Replace the repository name with your own value; it can be the 
+    # Replace the repository name with your own value; it can be the
     # same name as your image
     gcloud artifacts repositories create <REPOSITORY-NAME> \
     --repository-format=docker --location=us
@@ -206,7 +206,7 @@ Set the Kubernetes namespace to create jobs within, such as `prefect`. By defaul
 **Image**
 
 Specify the Docker container image for created jobs.
-If not set, the latest Prefect 2 image will be used (i.e. `prefecthq/prefect:2-latest`).
+If not set, the latest Prefect 2 image will be used (i.e. `prefecthq/prefect:3-latest`).
 Note that you can override this on each deployment through `job_variables`.
 
 **Image Pull Policy**
@@ -507,7 +507,7 @@ source prefect-demo/bin/activate
 # Install dependencies of your flow
 prefect-demo/bin/pip install -r requirements.txt
 
-# Authenticate to Prefect & select the appropriate 
+# Authenticate to Prefect & select the appropriate
 # workspace to deploy your flows to
 prefect-demo/bin/prefect cloud login
 ```

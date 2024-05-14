@@ -7,13 +7,15 @@ name = "prefect-dask"
 dependencies = [
   "anyio >= 3.7.1, < 4.0.0",
   "prefect>=2.13.5",
-  "distributed==2022.2.0; python_version < '3.8'",
-  "distributed>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*; python_version >= '3.8'", # don't allow versions from 2023.3.2 to 2023.5 (inclusive) due to issue with get_client starting in 2023.3.2 (fixed in 2023.6.0) - https://github.com/dask/distributed/issues/7763
+  # don't allow versions from 2023.3.2 to 2023.5 (inclusive) due to issue with
+  # get_client starting in 2023.3.2 (fixed in 2023.6.0)
+  # https://github.com/dask/distributed/issues/7763
+  "distributed>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*",
 ]
 dynamic = ["version"]
 description = "Prefect integrations with the Dask execution framework."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
@@ -23,7 +25,6 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -39,7 +40,6 @@ dev = [
   "mkdocs-material",
   "mkdocs",
   "mkdocstrings[python]",
-  "mock; python_version < '3.8'",
   "mypy",
   "pillow",
   "pre-commit",

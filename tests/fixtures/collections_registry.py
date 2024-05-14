@@ -114,7 +114,7 @@ def k8s_default_base_job_template():
                         "The image reference of a container image to use for created"
                         " jobs. If not set, the latest Prefect image will be used."
                     ),
-                    "example": "docker.io/prefecthq/prefect:2-latest",
+                    "example": "docker.io/prefecthq/prefect:3-latest",
                     "type": "string",
                 },
                 "service_account_name": {
@@ -300,7 +300,7 @@ def docker_default_base_job_template():
                         "The image reference of a container image to use for created"
                         " jobs. If not set, the latest Prefect image will be used."
                     ),
-                    "example": "docker.io/prefecthq/prefect:2-latest",
+                    "example": "docker.io/prefecthq/prefect:3-latest",
                     "type": "string",
                 },
                 "image_pull_policy": {

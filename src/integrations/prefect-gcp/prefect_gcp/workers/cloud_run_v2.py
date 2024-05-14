@@ -299,7 +299,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
 class CloudRunWorkerV2Variables(BaseVariables):
     """
-    Default variables for the Cloud Run worker V2.
+    Default variables for the v2 Cloud Run worker.
 
     The schema for this class is used to populate the `variables` section of the
     default base job template.
@@ -319,7 +319,7 @@ class CloudRunWorkerV2Variables(BaseVariables):
         description="The region in which to run the Cloud Run job",
     )
     image: Optional[str] = Field(
-        default="prefecthq/prefect:2-latest",
+        default="prefecthq/prefect:3-latest",
         title="Image Name",
         description=(
             "The image to use for the Cloud Run job. "

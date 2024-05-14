@@ -5,7 +5,7 @@ set -e
 
 expected_prefect=`prefect --version`
 
-for python in 3.8 3.9 3.10 3.11; do
+for python in 3.9 3.10 3.11 3.12; do
     for flavor in '' 'conda'; do
         flavor_arg=''
         flavor_tag=''

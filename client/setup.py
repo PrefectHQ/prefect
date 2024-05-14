@@ -29,7 +29,7 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     # Requirements
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=install_requires,
     extras_require={"notifications": ["apprise>=1.1.0, <2.0.0"]},
     classifiers=[
@@ -38,7 +38,6 @@ setup(
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",

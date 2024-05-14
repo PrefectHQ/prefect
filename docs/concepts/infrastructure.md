@@ -47,7 +47,7 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
     Flows and tasks can both use configuration objects to manage the environment in which code runs.
 
     Flows use infrastructure.
-    
+
     Tasks use task runners. For more on how task runners work, see [Task Runners](/concepts/task-runners/).
 
 ## Using infrastructure
@@ -107,7 +107,7 @@ infrastructure:
   - python
   - -m
   - prefect.engine
-  image: prefecthq/prefect:2-latest
+  image: prefecthq/prefect:3-latest
   image_pull_policy: null
   networks: []
   network_mode: null
@@ -119,7 +119,7 @@ infrastructure:
   privileged: false
   block_type_slug: docker-container
   _block_type_slug: docker-container
-  
+
 ###
 ### DO NOT EDIT BELOW THIS LINE
 ###
@@ -185,12 +185,12 @@ Current environment variables and Prefect settings will be included in the creat
 
 `Process` supports the following settings:
 
-| Attributes | Description |
-| ---- | ---- |
-| command | A list of strings specifying the command to start the flow run. In most cases you should not override this. |
-| env | Environment variables to set for the new process. |
-| labels | Labels for the process. Labels are for metadata purposes only and cannot be attached to the process itself. |
-| name | A name for the process. For display purposes only. |
+| Attributes | Description                                                                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
+| command    | A list of strings specifying the command to start the flow run. In most cases you should not override this. |
+| env        | Environment variables to set for the new process.                                                           |
+| labels     | Labels for the process. Labels are for metadata purposes only and cannot be attached to the process itself. |
+| name       | A name for the process. For display purposes only.                                                          |
 
 ### DockerContainer
 
@@ -205,20 +205,20 @@ Requirements for `DockerContainer`:
 
 `DockerContainer` supports the following settings:
 
-| Attributes | Description |
-| ---- | ---- |
-| auto_remove | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection. |
-| command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
-| env | Environment variables to set for the container. |
-| image | An optional string specifying the name of a Docker image to use. Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry, use a corresponding registry block, e.g. `DockerRegistry` or ensure otherwise that your execution layer is authenticated to pull the image from the image registry. |
-| image_pull_policy | Specifies if the image should be pulled. One of 'ALWAYS', 'NEVER', 'IF_NOT_PRESENT'. |
-| image_registry | A [`DockerRegistry`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) block containing credentials to use if `image` is stored in a private image registry. |
-| labels | An optional dictionary of labels, mapping name to value. |
-| name | An optional name for the container. |
-| networks | An optional list of strings specifying Docker networks to connect the container to. |
-| network_mode | Set the network mode for the created container. Defaults to 'host' if a local API url is detected, otherwise the Docker default of 'bridge' is used. If 'networks' is set, this cannot be set. |
-| stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
-| volumes | An optional list of volume mount strings in the format of "local_path:container_path". |
+| Attributes        | Description                                                                                                                                                                                                                                                                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| auto_remove       | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection.                                                                                                                                                                                                          |
+| command           | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this.                                                                                                                                                                                                          |
+| env               | Environment variables to set for the container.                                                                                                                                                                                                                                                                                              |
+| image             | An optional string specifying the name of a Docker image to use. Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry, use a corresponding registry block, e.g. `DockerRegistry` or ensure otherwise that your execution layer is authenticated to pull the image from the image registry. |
+| image_pull_policy | Specifies if the image should be pulled. One of 'ALWAYS', 'NEVER', 'IF_NOT_PRESENT'.                                                                                                                                                                                                                                                         |
+| image_registry    | A [`DockerRegistry`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) block containing credentials to use if `image` is stored in a private image registry.                                                                                                                                                    |
+| labels            | An optional dictionary of labels, mapping name to value.                                                                                                                                                                                                                                                                                     |
+| name              | An optional name for the container.                                                                                                                                                                                                                                                                                                          |
+| networks          | An optional list of strings specifying Docker networks to connect the container to.                                                                                                                                                                                                                                                          |
+| network_mode      | Set the network mode for the created container. Defaults to 'host' if a local API url is detected, otherwise the Docker default of 'bridge' is used. If 'networks' is set, this cannot be set.                                                                                                                                               |
+| stream_output     | Bool indicating whether to stream output from the subprocess to local standard output.                                                                                                                                                                                                                                                       |
+| volumes           | An optional list of volume mount strings in the format of "local_path:container_path".                                                                                                                                                                                                                                                       |
 
 Prefect automatically sets a Docker image matching the Python and Prefect version you're using at deployment time. You can see all available images at [Docker Hub](https://hub.docker.com/r/prefecthq/prefect/tags?page=1&name=2.0).
 
@@ -236,23 +236,23 @@ The Prefect CLI command `prefect kubernetes manifest server` automatically gener
 
 `KubernetesJob` supports the following settings:
 
-| Attributes | Description |
-| ---- | ---- |
-| cluster_config | An optional Kubernetes cluster config to use for this job. |
-| command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
-| customizations | A list of JSON 6902 patches to apply to the base Job manifest. Alternatively, a valid JSON string is allowed (handy for deployments CLI).|
-| env | Environment variables to set for the container. |
-| finished_job_ttl | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
-| image | String specifying the tag of a Docker image to use for the Job. |
-| image_pull_policy | The Kubernetes image pull policy to use for job containers. |
-| job | The base manifest for the Kubernetes Job. |
-| job_watch_timeout_seconds | Number of seconds to watch for job creation before timing out (defaults to None). |
-| labels | Dictionary of labels to add to the Job. |
-| name | An optional name for the job. |
-| namespace | String signifying the Kubernetes namespace to use. |
-| pod_watch_timeout_seconds | Number of seconds to watch for pod creation before timing out (default 60). |
-| service_account_name | An optional string specifying which Kubernetes service account to use. |
-| stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
+| Attributes                | Description                                                                                                                                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| cluster_config            | An optional Kubernetes cluster config to use for this job.                                                                                                                                     |
+| command                   | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this.                                                            |
+| customizations            | A list of JSON 6902 patches to apply to the base Job manifest. Alternatively, a valid JSON string is allowed (handy for deployments CLI).                                                      |
+| env                       | Environment variables to set for the container.                                                                                                                                                |
+| finished_job_ttl          | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
+| image                     | String specifying the tag of a Docker image to use for the Job.                                                                                                                                |
+| image_pull_policy         | The Kubernetes image pull policy to use for job containers.                                                                                                                                    |
+| job                       | The base manifest for the Kubernetes Job.                                                                                                                                                      |
+| job_watch_timeout_seconds | Number of seconds to watch for job creation before timing out (defaults to None).                                                                                                              |
+| labels                    | Dictionary of labels to add to the Job.                                                                                                                                                        |
+| name                      | An optional name for the job.                                                                                                                                                                  |
+| namespace                 | String signifying the Kubernetes namespace to use.                                                                                                                                             |
+| pod_watch_timeout_seconds | Number of seconds to watch for pod creation before timing out (default 60).                                                                                                                    |
+| service_account_name      | An optional string specifying which Kubernetes service account to use.                                                                                                                         |
+| stream_output             | Bool indicating whether to stream output from the subprocess to local standard output.                                                                                                         |
 
 #### KubernetesJob overrides and customizations
 
@@ -299,7 +299,7 @@ k8s_job.save("devk8s")
 A `Deployment` with infra-overrides defined in Python:
 
 ```python
-infra_overrides={ 
+infra_overrides={
     "customizations": [
             {
                 "op": "add",
@@ -344,17 +344,17 @@ Requirements for `ECSTask`:
 - The ephemeral Prefect API won't work with ECS directly. You must have a Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 - The `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
 - The `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
-- You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:  
+- You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:
 
 ```Dockerfile
-FROM prefecthq/prefect:2-python3.9  # example base image 
+FROM prefecthq/prefect:2-python3.9  # example base image
 RUN pip install s3fs prefect-aws
 ```
 
 !!! tip "Make sure to allocate enough CPU and memory to your agent, and consider adding retries"
     When you start a Prefect agent on AWS ECS Fargate, allocate as much [CPU and memory](https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-defs.html#fargate-tasks-size) as needed for your workloads. Your agent needs enough resources to appropriately provision infrastructure for your flow runs and to monitor their execution. Otherwise, your flow runs may [get stuck](https://github.com/PrefectHQ/prefect-aws/issues/156#issuecomment-1320748748) in a `Pending` state. Alternatively, set a work-queue concurrency limit to ensure that the agent will not try to process all runs at the same time.
 
-    Some API calls to provision infrastructure may fail due to unexpected issues on the client side (for example, transient errors such as `ConnectionError`, `HTTPClientError`, or `RequestTimeout`), or due to server-side rate limiting from the AWS service. To mitigate those issues, we recommend adding [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables) such as `AWS_MAX_ATTEMPTS` (can be set to an integer value such as 10) and `AWS_RETRY_MODE` (can be set to a string value including `standard` or `adaptive` modes). Those environment variables must be added within the *agent* environment, e.g. on your ECS service running the agent, rather than on the `ECSTask` infrastructure block. 
+    Some API calls to provision infrastructure may fail due to unexpected issues on the client side (for example, transient errors such as `ConnectionError`, `HTTPClientError`, or `RequestTimeout`), or due to server-side rate limiting from the AWS service. To mitigate those issues, we recommend adding [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables) such as `AWS_MAX_ATTEMPTS` (can be set to an integer value such as 10) and `AWS_RETRY_MODE` (can be set to a string value including `standard` or `adaptive` modes). Those environment variables must be added within the *agent* environment, e.g. on your ECS service running the agent, rather than on the `ECSTask` infrastructure block.
 
 ## Docker images
 

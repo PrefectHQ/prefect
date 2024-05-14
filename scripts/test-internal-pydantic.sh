@@ -1,4 +1,4 @@
-versions=(3.12 3.8)
+versions=(3.12 3.9)
 pydantic=("pydantic<2" "pydantic<3")
 
 for version in "${versions[@]}"; do

@@ -6,6 +6,7 @@ It has been replaced by the Kubernetes worker from the prefect-kubernetes packag
 
 For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 """
+
 import copy
 import enum
 import math
@@ -97,7 +98,7 @@ class KubernetesJob(Infrastructure):
             be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
             manually removed.
         image: An optional string specifying the image reference of a container image
-            to use for the job, for example, docker.io/prefecthq/prefect:2-latest. The
+            to use for the job, for example, docker.io/prefecthq/prefect:3-latest. The
             behavior is as described in https://kubernetes.io/docs/concepts/containers/images/#image-names.
             Defaults to the Prefect image.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
@@ -123,7 +124,7 @@ class KubernetesJob(Infrastructure):
         default=None,
         description=(
             "The image reference of a container image to use for the job, for example,"
-            " `docker.io/prefecthq/prefect:2-latest`.The behavior is as described in"
+            " `docker.io/prefecthq/prefect:3-latest`.The behavior is as described in"
             " the Kubernetes documentation and uses the latest version of Prefect by"
             " default, unless an image is already present in a provided job manifest."
         ),
