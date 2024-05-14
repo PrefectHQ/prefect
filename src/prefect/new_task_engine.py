@@ -25,12 +25,12 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import State
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.exceptions import Abort, Pause
+from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
     Paused,
@@ -39,10 +39,13 @@ from prefect.states import (
     StateDetails,
     exception_to_crashed_state,
     exception_to_failed_state,
+    is_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import A, Async, run_sync
+from prefect.utilities.annotations import allow_failure, quote
+from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     propose_state_sync,
@@ -175,8 +178,111 @@ class TaskRunEngine(Generic[P, R]):
             cache_expiration=cache_expiration,
         )
 
+    def _resolve_parameters(self):
+        futures = set()
+
+        states = set()
+        result_by_state = {}
+
+        if not self.parameters:
+            return {}
+
+        def collect_futures_and_states(expr, context):
+            # Expressions inside quotes should not be traversed
+            if isinstance(context.get("annotation"), quote):
+                raise StopVisiting()
+
+            if isinstance(expr, PrefectFuture):
+                futures.add(expr)
+            if is_state(expr):
+                states.add(expr)
+
+            return expr
+
+        visit_collection(
+            self.parameters,
+            visit_fn=collect_futures_and_states,
+            return_data=False,
+            max_depth=-1,
+            context={},
+        )
+
+        # Wait for all futures so we do not block when we retrieve the state in `resolve_input`
+        for future in futures:
+            future.wait()
+            states.add(future.state)
+
+        finished_states = [state for state in states if state.is_final()]
+
+        state_results = []
+        for state in finished_states:
+            _result = state.result(raise_on_failure=False, fetch=True)
+            if inspect.isawaitable(_result):
+                _result = run_sync(_result)
+            state_results.append(_result)
+
+        for state, result in zip(finished_states, state_results):
+            result_by_state[state] = result
+
+        def resolve_input(expr, context):
+            state = None
+
+            # Expressions inside quotes should not be modified
+            if isinstance(context.get("annotation"), quote):
+                raise StopVisiting()
+
+            if isinstance(expr, PrefectFuture):
+                state = expr._final_state
+            elif is_state(expr):
+                state = expr
+            else:
+                return expr
+
+            assert state
+
+            # Do not allow uncompleted upstreams except failures when `allow_failure` has
+            # been used
+            if not state.is_completed() and not (
+                # TODO: Note that the contextual annotation here is only at the current level
+                #       if `allow_failure` is used then another annotation is used, this will
+                #       incorrectly evaluate to false — to resolve this, we must track all
+                #       annotations wrapping the current expression but this is not yet
+                #       implemented.
+                isinstance(context.get("annotation"), allow_failure)
+                and state.is_failed()
+            ):
+                raise UpstreamTaskError(
+                    f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
+                    " 'COMPLETED' state."
+                )
+
+            return result_by_state.get(state)
+
+        resolved_parameters = {}
+        for parameter, value in self.parameters.items():
+            try:
+                resolved_parameters[parameter] = visit_collection(
+                    value,
+                    visit_fn=resolve_input,
+                    return_data=True,
+                    max_depth=-1,
+                    remove_annotations=True,
+                    context={},
+                )
+            except UpstreamTaskError:
+                raise
+            except Exception as exc:
+                raise PrefectException(
+                    f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                    " parameter type is not supported, consider using the `quote`"
+                    " annotation to skip resolution of inputs."
+                ) from exc
+
+        self.parameters = resolved_parameters
+
     def begin_run(self):
         state_details = self._compute_state_details()
+        self._resolve_parameters()
         new_state = Running(state_details=state_details)
         state = self.set_state(new_state)
 
@@ -229,7 +335,7 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Result factory is not set")
         terminal_state = run_sync(
             return_value_to_state(
-                run_sync(resolve_futures_to_states(result)),
+                resolve_futures_to_states(result),
                 result_factory=result_factory,
             )
         )
@@ -298,7 +404,8 @@ class TaskRunEngine(Generic[P, R]):
 
     @contextmanager
     def start(
-        self, task_run_id: Optional[UUID] = None
+        self,
+        task_run_id: Optional[UUID] = None,
     ) -> Generator["TaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -344,7 +451,7 @@ def run_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
@@ -387,7 +494,7 @@ async def run_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     """
@@ -430,7 +537,7 @@ def run_task(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     kwargs = dict(
