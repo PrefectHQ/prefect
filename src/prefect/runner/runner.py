@@ -368,13 +368,13 @@ class Runner:
                 runner.start()
             ```
         """
+        from prefect.runner.server import start_webserver
+
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
 
         if webserver or PREFECT_RUNNER_SERVER_ENABLE.value():
-            from prefect.runner.server import start_webserver
-
             # we'll start the ASGI server in a separate thread so that
             # uvicorn does not block the main thread
             server_thread = threading.Thread(
