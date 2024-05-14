@@ -226,7 +226,7 @@ Run the underlying flow and see the deployment kick off after 30 seconds. This r
 
 With a few simple changes, you can programmatically create an automation that triggers flow runs with custom parameters. 
 
-## Use an underlying .yaml file
+## Use an .yaml file
 
 You can take this a step further by using your own .yaml version of the automation, and registering that file with the UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
 
