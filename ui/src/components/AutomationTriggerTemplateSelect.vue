@@ -8,7 +8,8 @@
   import { computed } from 'vue'
 
   const template = defineModel<AutomationTriggerTemplate | null>('template', { required: true })
-  /**
+
+  /*
    * Currently OSS doesn't have support for enabled/disabled trigger templates like cloud does.
    * Only because it wasn't needed at the time of porting automations to OSS.
    */

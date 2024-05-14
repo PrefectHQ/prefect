@@ -53,7 +53,7 @@
 </script>
 
 <style>
-.automations\ {
+.automations {
   --virtual-scroller-item-gap: theme('spacing.2')
 }
 </style>
