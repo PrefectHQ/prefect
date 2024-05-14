@@ -5,7 +5,6 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
@@ -129,17 +128,7 @@ def oss_api_setup(events_api_url: str):
         yield
 
 
-@pytest.fixture
-def enable_oss_events():
-    with temporary_settings(
-        updates={
-            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True,
-        }
-    ):
-        yield
-
-
-@pytest.mark.usefixtures("oss_api_setup", "enable_oss_events")
+@pytest.mark.usefixtures("oss_api_setup")
 async def test_stream_oss_events(
     example_event_1: Event,
     example_event_2: Event,

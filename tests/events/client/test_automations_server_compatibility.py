@@ -43,11 +43,6 @@ from prefect.events.schemas.deployment_triggers import (
     DeploymentSequenceTrigger,
     DeploymentTriggerTypes,
 )
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
-    temporary_settings,
-)
 
 CLIENT_TRIGGER_TYPES: List[Type[Trigger]] = list(TriggerTypes.__args__)  # type: ignore[attr-defined]
 CLOUD_ONLY_TRIGGER_TYPES: Set[Type[Trigger]] = {MetricTrigger}
@@ -125,17 +120,6 @@ EXAMPLE_TRIGGERS: List[TriggerTypes] = [
         ]
     ),
 ]
-
-
-@pytest.fixture(autouse=True)
-def enable_events():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True,
-            PREFECT_API_SERVICES_TRIGGERS_ENABLED: True,
-        }
-    ):
-        yield
 
 
 def test_all_triggers_represented():

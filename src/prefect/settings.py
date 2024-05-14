@@ -92,6 +92,8 @@ REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
     "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS",
+    "PREFECT_EXPERIMENTAL_EVENTS",
     "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
     "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
     "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
@@ -1442,13 +1444,6 @@ Whether or not to enable flow run input.
 
 
 # Prefect Events feature flags
-
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS = Setting(bool, default=False)
-"""
-Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
-will always emit events during flow and task runs regardless of this setting.
-"""
-
 
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """

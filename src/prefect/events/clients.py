@@ -31,12 +31,7 @@ from websockets.exceptions import (
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.events import Event
 from prefect.logging import get_logger
-from prefect.settings import (
-    PREFECT_API_KEY,
-    PREFECT_API_URL,
-    PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
-)
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -54,20 +49,13 @@ def get_events_client(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-    elif PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
-        if PREFECT_API_URL:
-            return PrefectEventsClient(
-                reconnection_attempts=reconnection_attempts,
-                checkpoint_every=checkpoint_every,
-            )
-        else:
-            return PrefectEphemeralEventsClient()
-
-    raise RuntimeError(
-        "The current server and client configuration does not support "
-        "events.  Enable experimental events support with the "
-        "PREFECT_EXPERIMENTAL_ENABLE_EVENTS setting."
-    )
+    elif PREFECT_API_URL:
+        return PrefectEventsClient(
+            reconnection_attempts=reconnection_attempts,
+            checkpoint_every=checkpoint_every,
+        )
+    else:
+        return PrefectEphemeralEventsClient()
 
 
 def get_events_subscriber(
@@ -79,16 +67,10 @@ def get_events_subscriber(
         return PrefectCloudEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
-    elif PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
+    else:
         return PrefectEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
-
-    raise RuntimeError(
-        "The current server and client configuration does not support "
-        "events.  Enable experimental events support with the "
-        "PREFECT_EXPERIMENTAL_ENABLE_EVENTS setting."
-    )
 
 
 class EventsClient(abc.ABC):
@@ -179,11 +161,6 @@ class PrefectEphemeralEventsClient(EventsClient):
     """A Prefect Events client that sends events to an ephemeral Prefect server"""
 
     def __init__(self):
-        if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
-            raise ValueError(
-                "PrefectEphemeralEventsClient can only be used when "
-                "PREFECT_EXPERIMENTAL_ENABLE_EVENTS is set to True"
-            )
         if PREFECT_API_KEY.value():
             raise ValueError(
                 "PrefectEphemeralEventsClient cannot be used when PREFECT_API_KEY is set."
