@@ -41,6 +41,7 @@ from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.deployments.steps.core import run_steps
@@ -70,7 +71,6 @@ if TYPE_CHECKING:
         FlowRun,
         MinimalDeploymentSchedule,
     )
-    from prefect.client.schemas.schedules import SCHEDULE_TYPES
     from prefect.deployments.schedules import (
         FlexibleScheduleList,
     )
@@ -564,7 +564,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedule: Optional["SCHEDULE_TYPES"] = Field(default=None)
+    schedule: Optional[SCHEDULE_TYPES] = Field(default=None)
     schedules: List["MinimalDeploymentSchedule"] = Field(
         default_factory=list,
         description="The schedules to run this deployment on.",
