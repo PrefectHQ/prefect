@@ -299,7 +299,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
 class CloudRunWorkerV2Variables(BaseVariables):
     """
-    Default variables for the Cloud Run worker V2.
+    Default variables for the v2 Cloud Run worker.
 
     The schema for this class is used to populate the `variables` section of the
     default base job template.
