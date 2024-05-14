@@ -44,7 +44,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
     temporary_settings,
 )
 from prefect.utilities.slugify import slugify
@@ -932,7 +932,7 @@ class TestDeploymentApply:
             updates={
                 PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{uuid4()}/workspaces/{uuid4()}",
                 PREFECT_CLOUD_API_URL: "https://api.prefect.cloud/api/",
-                PREFECT_EXPERIMENTAL_EVENTS: False,
+                PREFECT_EXPERIMENTAL_ENABLE_EVENTS: False,
             }
         ):
             assert get_client().server_type.supports_automations()
@@ -984,7 +984,7 @@ class TestDeploymentApply:
             updates={
                 PREFECT_API_URL: "http://localhost:4242/api",
                 PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False,
-                PREFECT_EXPERIMENTAL_EVENTS: True,
+                PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True,
             }
         ):
             assert get_client().server_type.supports_automations()

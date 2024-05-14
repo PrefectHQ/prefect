@@ -5,7 +5,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
@@ -133,7 +133,7 @@ def oss_api_setup(events_api_url: str):
 def enable_oss_events():
     with temporary_settings(
         updates={
-            PREFECT_EXPERIMENTAL_EVENTS: True,
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True,
         }
     ):
         yield
