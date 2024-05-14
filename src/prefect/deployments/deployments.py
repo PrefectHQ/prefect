@@ -898,26 +898,25 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
-            if client.server_type.supports_automations():
-                try:
-                    # The triggers defined in the deployment spec are, essentially,
-                    # anonymous and attempting truly sync them with cloud is not
-                    # feasible. Instead, we remove all automations that are owned
-                    # by the deployment, meaning that they were created via this
-                    # mechanism below, and then recreate them.
-                    await client.delete_resource_owned_automations(
-                        f"prefect.deployment.{deployment_id}"
-                    )
-                except PrefectHTTPStatusError as e:
-                    if e.response.status_code == 404:
-                        # This Prefect server does not support automations, so we can safely
-                        # ignore this 404 and move on.
-                        return deployment_id
-                    raise e
+            try:
+                # The triggers defined in the deployment spec are, essentially,
+                # anonymous and attempting truly sync them with cloud is not
+                # feasible. Instead, we remove all automations that are owned
+                # by the deployment, meaning that they were created via this
+                # mechanism below, and then recreate them.
+                await client.delete_resource_owned_automations(
+                    f"prefect.deployment.{deployment_id}"
+                )
+            except PrefectHTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # This Prefect server does not support automations, so we can safely
+                    # ignore this 404 and move on.
+                    return deployment_id
+                raise e
 
-                for trigger in self.triggers:
-                    trigger.set_deployment_id(deployment_id)
-                    await client.create_automation(trigger.as_automation())
+            for trigger in self.triggers:
+                trigger.set_deployment_id(deployment_id)
+                await client.create_automation(trigger.as_automation())
 
             return deployment_id
 
