@@ -15,7 +15,7 @@ from other systems in your ecosystem.  Each webhook exposes a unique URL endpoin
 receive events from other systems and transforms them into Prefect
 [events](/cloud/events/) for use in [automations](/cloud/automations/).
 
-Webhooks are defined by two essential components: a unique URL, and a template that translates incoming web requests to a Prefect event.
+Webhooks are defined by two essential components: a unique URL and a template that translates incoming web requests to a Prefect event.
 
 ## Configure webhooks
 
