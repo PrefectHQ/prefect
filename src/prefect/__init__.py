@@ -79,6 +79,10 @@ prefect.logging.get_logger("profiles").debug(
     f"Using profile {prefect.context.get_settings_context().profile.name!r}"
 )
 
+# Ensure moved names are accessible at old locations
+prefect.client.get_client = get_client
+prefect.client.PrefectClient = PrefectClient
+
 
 from prefect._internal.compatibility.deprecated import (
     inject_renamed_module_alias_finder,
