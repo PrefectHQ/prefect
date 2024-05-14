@@ -232,7 +232,7 @@ You can take this a step further by using your own .yaml version of the automati
 
 First start with creating the .yaml file to house the automation specification:
 
-```yaml
+```yaml title="automation.yaml"
 name: Cancel long running flows
 description: Cancel any flow run after an hour of execution
 trigger:
