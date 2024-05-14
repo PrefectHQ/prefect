@@ -1,8 +1,8 @@
 """Module containing tasks and flows for interacting with dbt CLI"""
+
 import os
 from pathlib import Path, PosixPath
 from typing import Any, Dict, List, Optional, Union
-from uuid import UUID
 
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
@@ -29,9 +29,11 @@ async def trigger_dbt_cli_command(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-cli-command-summary",
-    extra_command_args: List[str] = None,
+    create_summary_artifact: bool = True,
+    create_unsuccessful_artifact: bool = True,
+    summary_artifact_key: str = "dbt-cli-command-summary",
+    unsuccessful_artifact_key: str = "dbt-cli-command-unsuccessful",
+    extra_command_args: Optional[List[str]] = None,
 ) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
@@ -178,11 +180,27 @@ async def trigger_dbt_cli_command(
         raise result.exception
 
     # Creating the dbt Summary Markdown if enabled
-    if create_artifact and isinstance(result.result, RunExecutionResult):
+    if create_summary_artifact and isinstance(result.result, RunExecutionResult):
         markdown = create_summary_markdown(result, command)
         artifact_id = await create_markdown_artifact(
             markdown=markdown,
-            key=artifact_key,
+            key=summary_artifact_key,
+        )
+        if not artifact_id:
+            logger.error(f"Artifact was not created for dbt {command} task")
+        else:
+            logger.info(
+                f"dbt {command} task completed successfully with artifact {artifact_id}"
+            )
+    if (
+        create_unsuccessful_artifact
+        and isinstance(result.result, RunExecutionResult)
+        and not result.success
+    ):
+        markdown = create_unsuccessful_markdown(result, command)
+        artifact_id = await create_markdown_artifact(
+            markdown=markdown,
+            key=unsuccessful_artifact_key,
         )
         if not artifact_id:
             logger.error(f"Artifact was not created for dbt {command} task")
@@ -401,9 +419,11 @@ async def run_dbt_build(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-build-task-summary",
-    extra_command_args: List[str] = None,
+    create_summary_artifact: bool = True,
+    create_unsuccessful_artifact: bool = True,
+    summary_artifact_key: str = "dbt-build-task-summary",
+    unsuccessful_artifact_key: str = "dbt-build-task-unsuccessful",
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -456,8 +476,10 @@ async def run_dbt_build(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
+        create_summary_artifact=create_summary_artifact,
+        create_unsuccessful_artifact=create_unsuccessful_artifact,
+        summary_artifact_key=summary_artifact_key,
+        unsuccessful_artifact_key=unsuccessful_artifact_key,
         extra_command_args=extra_command_args,
     )
     return results
@@ -469,9 +491,11 @@ async def run_dbt_model(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-run-task-summary",
-    extra_command_args: List[str] = None,
+    create_summary_artifact: bool = True,
+    create_unsuccessful_artifact: bool = True,
+    summary_artifact_key: str = "dbt-run-task-summary",
+    unsuccessful_artifact_key: str = "dbt-run-task-unsuccessful",
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
@@ -524,8 +548,10 @@ async def run_dbt_model(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
+        create_summary_artifact=create_summary_artifact,
+        create_unsuccessful_artifact=create_unsuccessful_artifact,
+        summary_artifact_key=summary_artifact_key,
+        unsuccessful_artifact_key=unsuccessful_artifact_key,
         extra_command_args=extra_command_args,
     )
 
@@ -538,9 +564,11 @@ async def run_dbt_test(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-test-task-summary",
-    extra_command_args: List[str] = None,
+    create_summary_artifact: bool = True,
+    create_unsuccessful_artifact: bool = True,
+    summary_artifact_key: str = "dbt-test-task-summary",
+    unsuccessful_artifact_key: str = "dbt-test-task-unsuccessful",
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
@@ -593,8 +621,10 @@ async def run_dbt_test(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
+        create_summary_artifact=create_summary_artifact,
+        create_unsuccessful_artifact=create_unsuccessful_artifact,
+        summary_artifact_key=summary_artifact_key,
+        unsuccessful_artifact_key=unsuccessful_artifact_key,
         extra_command_args=extra_command_args,
     )
 
@@ -607,9 +637,11 @@ async def run_dbt_snapshot(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-snapshot-task-summary",
-    extra_command_args: List[str] = None,
+    create_summary_artifact: bool = True,
+    create_unsuccessful_artifact: bool = True,
+    summary_artifact_key: str = "dbt-snapshot-task-summary",
+    unsuccessful_artifact_key: str = "dbt-snapshot-task-unsuccessful",
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
@@ -662,8 +694,10 @@ async def run_dbt_snapshot(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
+        create_summary_artifact=create_summary_artifact,
+        create_unsuccessful_artifact=create_unsuccessful_artifact,
+        summary_artifact_key=summary_artifact_key,
+        unsuccessful_artifact_key=unsuccessful_artifact_key,
         extra_command_args=extra_command_args,
     )
 
@@ -676,9 +710,11 @@ async def run_dbt_seed(
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
     dbt_cli_profile: Optional[DbtCliProfile] = None,
-    create_artifact: bool = True,
-    artifact_key: str = "dbt-seed-task-summary",
-    extra_command_args: List[str] = None,
+    create_summary_artifact: bool = True,
+    create_unsuccessful_artifact: bool = True,
+    summary_artifact_key: str = "dbt-seed-task-summary",
+    unsuccessful_artifact_key: str = "dbt-seed-task-unsuccessful",
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
@@ -731,15 +767,17 @@ async def run_dbt_seed(
         project_dir=project_dir,
         overwrite_profiles=overwrite_profiles,
         dbt_cli_profile=dbt_cli_profile,
-        create_artifact=create_artifact,
-        artifact_key=artifact_key,
+        create_summary_artifact=create_summary_artifact,
+        create_unsuccessful_artifact=create_unsuccessful_artifact,
+        summary_artifact_key=summary_artifact_key,
+        unsuccessful_artifact_key=unsuccessful_artifact_key,
         extra_command_args=extra_command_args,
     )
 
     return results
 
 
-def create_summary_markdown(results: dbtRunnerResult, command: str) -> UUID:
+def create_summary_markdown(results: dbtRunnerResult, command: str) -> str:
     """
     Creates a Prefect task artifact summarizing the results
     of the above predefined prefrect-dbt task.
@@ -789,3 +827,106 @@ def create_summary_markdown(results: dbtRunnerResult, command: str) -> UUID:
         markdown += f""" ## Skipped Runs 🚫\n\n{skipped_runs_str}\n\n"""
 
     return markdown
+
+
+def _create_node_info_md(node_name, resource_type, message, path, compiled_code) -> str:
+    """
+    Creates template for unsuccessful node information
+    """
+    return f"""
+`{node_name}`
+
+Type: {resource_type}
+
+Message: "{message}"
+
+Path: {path}
+
+Compiled code:
+
+```sql
+{compiled_code}
+```
+
+"""
+
+
+def create_unsuccessful_markdown(results: dbtRunnerResult, command: str) -> str:
+    """
+    Creates a Prefect task markdown artifact summarizing the results
+    of unsuccessful nodes, including compiled code.
+    """
+    if results.exception is None:
+        failed_nodes = []
+        successful_nodes = []
+        errored_nodes = []
+        skipped_nodes = []
+        warned_nodes = []
+        markdown = ""
+        for r in results.result.results:
+            if r.status == NodeStatus.Fail:
+                failed_nodes.append(r)
+            elif r.status == NodeStatus.Error:
+                errored_nodes.append(r)
+            elif r.status == NodeStatus.Skipped:
+                skipped_nodes.append(r)
+            elif r.status == NodeStatus.Success:
+                successful_nodes.append(r)
+            elif r.status == NodeStatus.Warn:
+                warned_nodes.append(r)
+
+        markdown += f"""# dbt {command} Task Unsuccessful
+
+| Successes | Errors | Failures | Skips | Warnings |
+| :-------: | :----: | :------: | :---: | :------: |
+| {len(successful_nodes)} |  {len(errored_nodes)} | {len(failed_nodes)} | {len(skipped_nodes)} | {len(warned_nodes)} |
+
+----
+
+"""
+        if len(errored_nodes) > 0:
+            markdown += "\n## Errored Nodes:\n"
+            for n in errored_nodes:
+                markdown += _create_node_info_md(
+                    n.node.name,
+                    n.node.resource_type,
+                    n.message,
+                    n.node.path,
+                    n.node.compiled_code,
+                )
+        if len(failed_nodes) > 0:
+            markdown += "\n## Failed Nodes:\n"
+            for n in failed_nodes:
+                markdown += _create_node_info_md(
+                    n.node.name,
+                    n.node.resource_type,
+                    n.message,
+                    n.node.path,
+                    n.node.compiled_code,
+                )
+        if len(skipped_nodes) > 0:
+            markdown += "\n## Skipped Nodes:\n"
+            for n in skipped_nodes:
+                markdown += _create_node_info_md(
+                    n.node.name,
+                    n.node.resource_type,
+                    n.message,
+                    n.node.path,
+                    n.node.compiled_code,
+                )
+        if len(warned_nodes) > 0:
+            markdown += "\n## Warned Nodes:\n"
+            for n in warned_nodes:
+                markdown += _create_node_info_md(
+                    n.node.name,
+                    n.node.resource_type,
+                    n.message,
+                    n.node.path,
+                    n.node.compiled_code,
+                )
+        return markdown
+    elif not results.success and results.exception is not None:
+        markdown = f"""## dbt {command} Task Unsuccessful
+
+Run results contained the following exception: {results.exception}"""
+        return markdown
