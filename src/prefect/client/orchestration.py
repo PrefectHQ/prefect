@@ -133,7 +133,6 @@ from prefect.client.schemas.sorting import (
     LogSort,
     TaskRunSort,
 )
-from prefect.deprecated.data_documents import DataDocument
 from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -2532,37 +2531,6 @@ class PrefectClient:
 
         response = await self._client.post("/logs/filter", json=body)
         return pydantic.parse_obj_as(List[Log], response.json())
-
-    async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
-        """
-        Recursively decode possibly nested data documents.
-
-        "server" encoded documents will be retrieved from the server.
-
-        Args:
-            datadoc: The data document to resolve
-
-        Returns:
-            a decoded object, the innermost data
-        """
-        if not isinstance(datadoc, DataDocument):
-            raise TypeError(
-                f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
-            )
-
-        async def resolve_inner(data):
-            if isinstance(data, bytes):
-                try:
-                    data = DataDocument.parse_raw(data)
-                except pydantic.ValidationError:
-                    return data
-
-            if isinstance(data, DataDocument):
-                return await resolve_inner(data.decode())
-
-            return data
-
-        return await resolve_inner(datadoc)
 
     async def send_worker_heartbeat(
         self,

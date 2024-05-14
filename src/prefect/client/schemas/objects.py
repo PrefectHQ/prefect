@@ -50,7 +50,6 @@ from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
 
 if TYPE_CHECKING:
-    from prefect.deprecated.data_documents import DataDocument
     from prefect.results import BaseResult
 
 
@@ -149,7 +148,7 @@ class State(ObjectBaseModel, Generic[R]):
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
+    data: Union["BaseResult[R]", Any] = Field(
         default=None,
     )
 
@@ -333,12 +332,7 @@ class State(ObjectBaseModel, Generic[R]):
 
         `MyCompletedState(message="my message", type=COMPLETED, result=...)`
         """
-        from prefect.deprecated.data_documents import DataDocument
-
-        if isinstance(self.data, DataDocument):
-            result = self.data.decode()
-        else:
-            result = self.data
+        result = self.data
 
         display = dict(
             message=repr(self.message),

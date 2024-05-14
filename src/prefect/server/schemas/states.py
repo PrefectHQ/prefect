@@ -255,12 +255,7 @@ class State(StateBaseModel):
 
         `MyCompletedState(message="my message", type=COMPLETED, result=...)`
         """
-        from prefect.deprecated.data_documents import DataDocument
-
-        if isinstance(self.data, DataDocument):
-            result = self.data.decode()
-        else:
-            result = self.data
+        result = self.data
 
         display = dict(
             message=repr(self.message),

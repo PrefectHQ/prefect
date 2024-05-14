@@ -44,8 +44,6 @@ import prefect.runtime
 
 # Import modules that register types
 import prefect.serializers
-import prefect.deprecated.data_documents
-import prefect.deprecated.packaging
 import prefect.blocks.kubernetes
 import prefect.blocks.notifications
 import prefect.blocks.system
@@ -63,12 +61,8 @@ import prefect.client.schemas
 
 prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
 prefect.context.TaskRunContext.update_forward_refs(Task=Task)
-prefect.client.schemas.State.update_forward_refs(
-    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
-)
-prefect.client.schemas.StateCreate.update_forward_refs(
-    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
-)
+prefect.client.schemas.State.update_forward_refs(BaseResult=BaseResult)
+prefect.client.schemas.StateCreate.update_forward_refs(BaseResult=BaseResult)
 
 
 prefect.plugins.load_extra_entrypoints()
