@@ -12,7 +12,7 @@ on:
       - Dockerfile
   push:
     branches:
-      - main
+      - 2.x
     paths:
       - .github/workflows/integration-tests.yaml
       - "**/*.py"

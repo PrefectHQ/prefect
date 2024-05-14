@@ -6,7 +6,7 @@ on:
       - "src/integrations/*/**"
   push:
     branches:
-      - main
+      - 2.x
     paths:
       - "src/integrations/*/**"
 

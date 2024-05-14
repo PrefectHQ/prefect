@@ -8,7 +8,7 @@ on:
       - .nvmrc
   push:
     branches:
-      - main
+      - 2.x
 
 permissions:
   contents: read
