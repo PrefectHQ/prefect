@@ -1,16 +1,11 @@
 """
 Command line interface for working with profiles
 """
+
 import os
 from typing import List, Optional
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic.v1 as pydantic
 import typer
 
 import prefect.context
