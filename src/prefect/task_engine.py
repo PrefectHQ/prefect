@@ -11,7 +11,6 @@ import anyio
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect.client.schemas.objects import TaskRun
 from prefect.context import EngineContext
 from prefect.engine import (
     begin_task_map,
@@ -19,13 +18,14 @@ from prefect.engine import (
     wait_for_task_runs_and_report_crashes,
 )
 from prefect.results import ResultFactory
-from prefect.task_runners import BaseTaskRunner
-from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import TaskRun
     from prefect.futures import PrefectFuture
+    from prefect.task_runners import BaseTaskRunner
+    from prefect.tasks import Task
 
 
 EngineReturnType = Literal["future", "state", "result"]
@@ -33,9 +33,9 @@ EngineReturnType = Literal["future", "state", "result"]
 
 @sync_compatible
 async def submit_autonomous_task_run_to_engine(
-    task: Task,
+    task: "Task",
     task_run: TaskRun,
-    task_runner: BaseTaskRunner,
+    task_runner: "BaseTaskRunner",
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable["PrefectFuture"]] = None,
     mapped: bool = False,
