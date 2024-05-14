@@ -34,8 +34,7 @@ async def trigger_dbt_cli_command(
     create_unsuccessful_artifact: bool = True,
     summary_artifact_key: str = "dbt-cli-command-summary",
     unsuccessful_artifact_key: str = "dbt-cli-command-unsuccessful",
-    extra_command_args: List[str] = None,
-
+    extra_command_args: Optional[List[str]] = None,
 ) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
@@ -425,7 +424,7 @@ async def run_dbt_build(
     create_unsuccessful_artifact: bool = True,
     summary_artifact_key: str = "dbt-build-task-summary",
     unsuccessful_artifact_key: str = "dbt-build-task-unsuccessful",
-    extra_command_args: List[str] = None,
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -497,7 +496,7 @@ async def run_dbt_model(
     create_unsuccessful_artifact: bool = True,
     summary_artifact_key: str = "dbt-run-task-summary",
     unsuccessful_artifact_key: str = "dbt-run-task-unsuccessful",
-    extra_command_args: List[str] = None,
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
@@ -570,7 +569,7 @@ async def run_dbt_test(
     create_unsuccessful_artifact: bool = True,
     summary_artifact_key: str = "dbt-test-task-summary",
     unsuccessful_artifact_key: str = "dbt-test-task-unsuccessful",
-    extra_command_args: List[str] = None,
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
@@ -643,7 +642,7 @@ async def run_dbt_snapshot(
     create_unsuccessful_artifact: bool = True,
     summary_artifact_key: str = "dbt-snapshot-task-summary",
     unsuccessful_artifact_key: str = "dbt-snapshot-task-unsuccessful",
-    extra_command_args: List[str] = None,
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
@@ -716,7 +715,7 @@ async def run_dbt_seed(
     create_unsuccessful_artifact: bool = True,
     summary_artifact_key: str = "dbt-seed-task-summary",
     unsuccessful_artifact_key: str = "dbt-seed-task-unsuccessful",
-    extra_command_args: List[str] = None,
+    extra_command_args: Optional[List[str]] = None,
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
