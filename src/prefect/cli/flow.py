@@ -7,10 +7,10 @@ from typing import List, Optional
 import typer
 from rich.table import Table
 
+from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.client import get_client
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import construct_schedule
 from prefect.client.schemas.sorting import FlowSort

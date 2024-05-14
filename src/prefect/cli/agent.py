@@ -11,11 +11,11 @@ import anyio
 import typer
 
 import prefect
+from prefect import get_client
 from prefect.agent import PrefectAgent
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.client import get_client
 from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.exceptions import ObjectNotFound
 from prefect.settings import (

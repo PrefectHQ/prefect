@@ -35,7 +35,7 @@ Note some important details:
    allow None values, the Pydantic model will fail to validate at runtime.
 """
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.exc import DBAPIError, NoInspectionAvailable
@@ -45,13 +45,15 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.events.actions import RunDeployment
-from prefect.server.schemas.core import Deployment, WorkPool
 from prefect.utilities.schema_tools import ValidationError, is_valid_schema, validate
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 else:
     import pydantic
+
+if TYPE_CHECKING:
+    from prefect.server.schemas.core import Deployment, WorkPool
 
 logger = get_logger("server.api.validation")
 
@@ -213,7 +215,7 @@ async def _validate_work_pool_job_variables(
 
 async def validate_job_variables_for_deployment_flow_run(
     session: AsyncSession,
-    deployment: Deployment,
+    deployment: "Deployment",
     flow_run: FlowRunAction,
 ) -> None:
     """
@@ -255,7 +257,7 @@ async def validate_job_variables_for_deployment_flow_run(
 
 async def validate_job_variables_for_deployment(
     session: AsyncSession,
-    work_pool: WorkPool,
+    work_pool: "WorkPool",
     deployment: DeploymentAction,
 ) -> None:
     """
