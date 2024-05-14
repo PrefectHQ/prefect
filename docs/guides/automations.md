@@ -252,7 +252,7 @@ actions:
   - type: "cancel-flow-run"
 ```
 
-Make a helper function that applies this YAML file with the REST API function. 
+Make a helper function that applies this YAML file with the REST API. 
 ```python
 import yaml
 
