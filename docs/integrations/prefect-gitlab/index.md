@@ -1,84 +1,129 @@
 # prefect-gitlab
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-gitlab/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-gitlab?color=26272B&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-gitlab/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-gitlab?color=26272B&labelColor=090422" /></a>
-</p>
-
-## Welcome!
-
-`prefect-gitlab` is a Prefect collection for working with GitLab repositories.
+The prefect-gitlab library makes it easy to interact with GitLab repositories and credentials.
 
 ## Getting Started
 
-### Python setup
+### Prerequisites
 
-Requires an installation of Python 3.8 or higher.
+- [Prefect installed](/getting-started/installation/).
+- A [GitLab account](https://gitlab.com/).
 
-We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
+### Install prefect-gitlab
 
-This integration is designed to work with Prefect 2.3.0 or higher. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Installation
-
-Install `prefect-gitlab` with `pip`:
-
+<div class = "terminal">
 ```bash
-pip install prefect-gitlab
+pip install -U prefect-gitlab
 ```
+</div>
 
-Then, register the [block types](https://docs.prefect.io/concepts/blocks/)) in this integration to view the storage block type on Prefect Cloud:
+### Register newly installed block types
 
+Register the block types in the prefect-gitlab module to make them available for use.
+
+<div class = "terminal">
 ```bash
 prefect block register -m prefect_gitlab
 ```
+</div>
 
-Note, to use the `load` method on a block, you must already have a block document [saved](https://docs.prefect.io/concepts/blocks/).
+## Examples
 
-## Creating a GitLab storage block
+In the examples below, you create blocks with Python code.
+Alternatively, blocks can be created through the Prefect UI.
 
-### In Python
+## Store deployment flow code in a private GitLab repository
+
+To create a deployment where the flow code is stored in a private GitLab repository, you can use the `GitLabCredentials` block.
+
+A deployment can use flow code stored in a GitLab repository without using this library in either of the following cases:
+
+- The repository is public
+- The deployment uses a [Secret block](https://docs.prefect.io/latest/concepts/blocks/) to store the token
+
+Code to create a GitLab Credentials block:
+
+```python
+from prefect_gitlab import GitLabCredentials
+
+
+gitlab_credentials_block = GitLabCredentials(token="my_token")
+gitlab_credentials_block.save(name="my-gitlab-credentials-block")
+```
+
+### Access flow code stored in a private GitLab repository in a deployment
+
+Use the credentials block you created above to pass the GitLab access token during deployment creation. The code below assumes there's flow code in your private GitLab repository.
+
+```python
+from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect_gitlab import GitLabCredentials
+
+
+if __name__ == "__main__":
+    flow.from_source(
+        source=GitRepository(
+        url="https://gitlab.com/org/private-repo.git",
+        credentials=GitLabCredentials.load("my-gitlab-credentials-block")
+    ),
+    entrypoint="my_file.py:my_flow",
+    ).deploy(
+        name="private-gitlab-deploy",
+        work_pool_name="my_pool",
+        build=False
+    )
+```
+
+Alternatively, if you use a `prefect.yaml` file to create the deployment, reference the GitLab Credentials block in the `pull` step:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        credentials: "{{ prefect.blocks.gitlab-credentials.my-gitlab-credentials-block }}"
+```
+
+### Interact with a GitLab repository
+
+The code below shows how to reference a particular branch or tag of a GitLab repository.
 
 ```python
 from prefect_gitlab import GitLabRepository
 
-# public GitLab repository
-public_gitlab_block = GitLabRepository(
-    name="my-gitlab-block",
-    repository="https://gitlab.com/testing/my-repository.git"
-)
+def save_private_gitlab_block():
+    private_gitlab_block = GitLabRepository(
+        repository="https://gitlab.com/testing/my-repository.git",
+        access_token="YOUR_GITLAB_PERSONAL_ACCESS_TOKEN",
+        reference="branch-or-tag-name",
+    )
 
-public_gitlab_block.save()
-
-
-# specific branch or tag of a GitLab repository
-branch_gitlab_block = GitLabRepository(
-    name="my-gitlab-block",
-    reference="branch-or-tag-name",
-    repository="https://gitlab.com/testing/my-repository.git"
-)
-
-branch_gitlab_block.save()
+    private_gitlab_block.save("my-private-gitlab-block")
 
 
-# Get all history of a specific branch or tag of a GitLab repository
-branch_gitlab_block = GitLabRepository(
-    name="my-gitlab-block",
-    reference="branch-or-tag-name",
-    git_depth=None,
-    repository="https://gitlab.com/testing/my-repository.git"
-)
-
-branch_gitlab_block.save()
-
-# private GitLab repository
-private_gitlab_block = GitLabRepository(
-    name="my-private-gitlab-block",
-    repository="https://gitlab.com/testing/my-repository.git",
-    access_token="YOUR_GITLAB_PERSONAL_ACCESS_TOKEN"
-)
-
-private_gitlab_block.save()
+if __name__ == "__main__":
+    save_private_gitlab_block()
 ```
+
+Exclude the `access_token` field if the repository is public and exclude the `reference` field to use the default branch.
+
+Use the newly created block to interact with the GitLab repository.
+
+For example, download the repository contents with the `.get_directory()` method like this:
+
+```python
+from prefect_gitlab.repositories import GitLabRepository
+
+def fetch_repo():
+    private_gitlab_block = GitLabRepository.load("my-gitlab-block")
+    private_gitlab_block.get_directory()
+
+if __name__ == "__main__":
+    fetch_repo()
+```
+
+## Resources
+
+For assistance using GitLab, consult the [GitLab documentation](https://gitlab.com).
+
+Refer to the prefect-gitlab API documentation linked in the sidebar to explore all the capabilities of the prefect-gitlab library.
