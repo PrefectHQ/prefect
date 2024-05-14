@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
 import typer
@@ -47,7 +47,7 @@ from prefect.cli._utilities import (
     exit_with_error,
 )
 from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.client.orchestration import ServerType
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -80,6 +80,9 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @app.command()
@@ -440,7 +443,7 @@ async def _run_single_deploy(
     deploy_config: Dict,
     actions: Dict,
     options: Optional[Dict] = None,
-    client: PrefectClient = None,
+    client: "PrefectClient" = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
@@ -1610,7 +1613,7 @@ def _initialize_deployment_triggers(
 
 
 async def _create_deployment_triggers(
-    client: PrefectClient,
+    client: "PrefectClient",
     deployment_id: UUID,
     triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]],
 ):

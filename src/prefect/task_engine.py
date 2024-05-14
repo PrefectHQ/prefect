@@ -34,7 +34,7 @@ EngineReturnType = Literal["future", "state", "result"]
 @sync_compatible
 async def submit_autonomous_task_run_to_engine(
     task: "Task",
-    task_run: TaskRun,
+    task_run: "TaskRun",
     task_runner: "BaseTaskRunner",
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable["PrefectFuture"]] = None,
