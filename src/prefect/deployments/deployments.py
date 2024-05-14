@@ -6,6 +6,7 @@ import importlib
 import json
 import os
 import sys
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
@@ -22,7 +23,6 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-from datetime import datetime
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
