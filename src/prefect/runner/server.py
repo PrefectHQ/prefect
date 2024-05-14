@@ -7,7 +7,6 @@ from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
 from prefect._vendor.fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingFlowError, ScriptError
@@ -30,10 +29,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 
 logger = get_logger("webserver")
 

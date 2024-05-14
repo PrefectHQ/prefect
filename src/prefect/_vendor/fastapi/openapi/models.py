@@ -2,14 +2,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 
 from prefect._vendor.fastapi.logger import logger
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import AnyUrl, BaseModel, Field
-else:
-    from pydantic import AnyUrl, BaseModel, Field
-
+from pydantic.v1 import AnyUrl, BaseModel, Field
 from typing_extensions import Annotated, Literal
 from typing_extensions import deprecated as typing_deprecated
 
@@ -18,10 +11,7 @@ try:
 
     assert email_validator  # make autoflake ignore the unused import
 
-    if HAS_PYDANTIC_V2:
-        from pydantic.v1 import EmailStr
-    else:
-        from pydantic import EmailStr
+    from pydantic.v1 import EmailStr
 
 except ImportError:  # pragma: no cover
 

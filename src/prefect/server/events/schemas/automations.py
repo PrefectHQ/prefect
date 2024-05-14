@@ -19,17 +19,9 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+from pydantic.v1 import Field, PrivateAttr, root_validator, validator
+from pydantic.v1.fields import ModelField
 from typing_extensions import TypeAlias
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-    from pydantic.v1.fields import ModelField
-else:
-    from pydantic import Field, PrivateAttr, root_validator, validator
-    from pydantic.fields import ModelField
-
 
 from prefect.logging import get_logger
 from prefect.server.events.actions import ActionTypes

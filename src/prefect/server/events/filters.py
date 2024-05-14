@@ -5,9 +5,9 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from pydantic.v1 import Field, PrivateAttr
 from sqlalchemy.sql import Select
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.server.database.interface import PrefectDBInterface
@@ -19,12 +19,6 @@ from prefect.server.utilities.database import json_extract
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr
-else:
-    from pydantic import Field, PrivateAttr
-
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument

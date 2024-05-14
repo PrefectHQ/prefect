@@ -1,16 +1,10 @@
 from pathlib import Path
 from typing import List, Type
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import infer_python_version
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, validate_arguments, validator
-else:
-    from pydantic import BaseModel, Field, validate_arguments, validator
-
+from pydantic.v1 import BaseModel, Field, validate_arguments, validator
 from typing_extensions import Self
 
+from prefect._internal.schemas.validators import infer_python_version
 from prefect.software.pip import PipRequirement, current_environment_requirements
 
 

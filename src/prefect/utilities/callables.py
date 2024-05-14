@@ -7,25 +7,17 @@ from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic.v1_schema import has_v1_type_as_param
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-
-    from prefect._internal.pydantic.v2_schema import (
-        create_v2_schema,
-        process_v2_params,
-    )
-else:
-    import pydantic
-
+import pydantic.v1 as pydantic
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from typing_extensions import Literal
 
+from prefect._internal.pydantic.v1_schema import has_v1_type_as_param
+from prefect._internal.pydantic.v2_schema import (
+    create_v2_schema,
+    process_v2_params,
+)
 from prefect.exceptions import (
     ParameterBindError,
     ReservedArgumentError,
@@ -325,7 +317,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     class ModelConfig:
         arbitrary_types_allowed = True
 
-    if HAS_PYDANTIC_V2 and not has_v1_type_as_param(signature):
+    if not has_v1_type_as_param(signature):
         create_schema = create_v2_schema
         process_params = process_v2_params
     else:

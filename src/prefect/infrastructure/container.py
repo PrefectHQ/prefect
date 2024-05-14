@@ -6,6 +6,7 @@ It has been replaced by the Docker worker from the prefect-docker package, which
 
 For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 """
+
 import json
 import re
 import shlex
@@ -17,18 +18,11 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import packaging.version
-
-from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
+from pydantic.v1 import Field, validator
 from typing_extensions import Literal
 
 import prefect
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.core import Block, SecretStr
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult

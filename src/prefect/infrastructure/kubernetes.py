@@ -18,11 +18,12 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 
 import anyio.abc
 import yaml
+from pydantic.v1 import Field, root_validator, validator
+from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import (
     deprecated_class,
 )
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
     cast_k8s_job_customizations,
     set_default_image,
@@ -30,14 +31,6 @@ from prefect._internal.schemas.validators import (
     validate_k8s_job_compatible_values,
     validate_k8s_job_required_components,
 )
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
-
-from typing_extensions import Literal
-
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult

@@ -3,21 +3,15 @@ from urllib.parse import quote
 from uuid import UUID
 
 import httpx
+import pydantic.v1 as pydantic
 from httpx import Response
 from prefect._vendor.starlette import status
 from typing_extensions import Self
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.exceptions import ObjectNotFound
-from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 from prefect.client.base import PrefectHttpxAsyncClient
+from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
+from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
 from prefect.server.schemas.responses import DeploymentResponse

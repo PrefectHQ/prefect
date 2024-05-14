@@ -1,19 +1,14 @@
 from functools import partial
 from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, cast, overload
 
+import pydantic.v1 as pydantic_v1
 from jsonpatch import JsonPatch as JsonPatchBase
 from pydantic_core import to_jsonable_python
 from typing_extensions import Self
 
 from prefect._internal.pydantic.utilities.model_dump import model_dump
-from prefect.pydantic import HAS_PYDANTIC_V2
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic_v1
-else:
-    import pydantic as pydantic_v1
 
 D = TypeVar("D", bound=Any)
 M = TypeVar("M", bound=pydantic_v1.BaseModel)

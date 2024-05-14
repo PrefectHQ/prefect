@@ -15,12 +15,7 @@ import functools
 import warnings
 from typing import Any, Callable, Optional, Set, Type, TypeVar
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
+import pydantic.v1 as pydantic
 
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
 from prefect.utilities.callables import get_call_parameters

@@ -4,7 +4,6 @@ from uuid import UUID
 import orjson
 import pydantic
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.utilities import client_injector
 from prefect.context import FlowRunContext
 from prefect.exceptions import PrefectHTTPStatusError
@@ -14,8 +13,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-if HAS_PYDANTIC_V2:
-    from prefect._internal.pydantic.v2_schema import is_v2_model
+from prefect._internal.pydantic.v2_schema import is_v2_model
 
 
 def ensure_flow_run_id(flow_run_id: Optional[UUID] = None) -> UUID:
@@ -41,7 +39,7 @@ async def create_flow_run_input_from_model(
         if context is not None and context.flow_run is not None:
             sender = f"prefect.flow-run.{context.flow_run.id}"
 
-    if HAS_PYDANTIC_V2 and is_v2_model(model_instance):
+    if is_v2_model(model_instance):
         json_safe = orjson.loads(model_instance.model_dump_json())
     else:
         json_safe = orjson.loads(model_instance.json())
