@@ -1756,6 +1756,16 @@ How long to cache related resource data for emitting server-side vents
 """
 
 
+def automation_settings_enabled() -> bool:
+    """
+    Whether or not automations are enabled.
+    """
+    return (
+        PREFECT_EXPERIMENTAL_EVENTS.value()
+        and PREFECT_API_SERVICES_TRIGGERS_ENABLED.value()
+    )
+
+
 # Deprecated settings ------------------------------------------------------------------
 
 

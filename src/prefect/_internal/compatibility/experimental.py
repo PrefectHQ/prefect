@@ -22,7 +22,12 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_WARN,
+    SETTING_VARIABLES,
+    Setting,
+    automation_settings_enabled,
+)
 from prefect.utilities.callables import get_call_parameters
 
 T = TypeVar("T", bound=Callable[..., Any])
@@ -254,8 +259,12 @@ def enabled_experiments() -> Set[str]:
     """
     Return the set of all enabled experiments.
     """
-    return {
+    enabled_experimental_settings = {
         name[len("PREFECT_EXPERIMENTAL_ENABLE_") :].lower()
         for name, setting in SETTING_VARIABLES.items()
         if name.startswith("PREFECT_EXPERIMENTAL_ENABLE_") and setting.value()
     }
+    if automation_settings_enabled():
+        enabled_experimental_settings.add("automations")
+
+    return enabled_experimental_settings
