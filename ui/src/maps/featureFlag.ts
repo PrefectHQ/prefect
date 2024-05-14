@@ -15,6 +15,8 @@ export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag
       return 'access:deploymentStatus'
     case 'work_queue_status':
       return 'access:workQueueStatus'
+    case 'automations':
+      return 'access:automations'
     default:
       // we want to have a ts error here but we don't want to break the app so returning null rather than throwing an error
       // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars

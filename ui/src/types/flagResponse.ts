@@ -4,3 +4,4 @@ export type FlagResponse =
 | 'artifacts'
 | 'deployment_status'
 | 'work_queue_status'
+| 'automations'
