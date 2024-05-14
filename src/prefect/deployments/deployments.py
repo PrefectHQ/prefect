@@ -9,7 +9,7 @@ import sys
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -34,18 +34,12 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import (
-    FlowRun,
-    MinimalDeploymentSchedule,
-)
+from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
-from prefect.deployments.schedules import (
-    FlexibleScheduleList,
-)
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
@@ -55,7 +49,7 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.states import Scheduled
@@ -64,6 +58,15 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.slugify import slugify
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import FlowRun
+    from prefect.deployments.schedules import (
+        FlexibleScheduleList,
+    )
+    from prefect.flows import Flow
+
 
 logger = get_logger("deployments")
 
@@ -77,7 +80,7 @@ logger = get_logger("deployments")
 @inject_client
 async def run_deployment(
     name: Union[str, UUID],
-    client: Optional[PrefectClient] = None,
+    client: Optional["PrefectClient"] = None,
     parameters: Optional[dict] = None,
     scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
@@ -89,7 +92,7 @@ async def run_deployment(
     as_subflow: Optional[bool] = True,
     infra_overrides: Optional[dict] = None,
     job_variables: Optional[dict] = None,
-) -> FlowRun:
+) -> "FlowRun":
     """
     Create a flow run for a deployment and return it after completion or a timeout.
 
@@ -234,11 +237,11 @@ async def run_deployment(
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: FlowRun,
-    client: PrefectClient,
+    flow_run: "FlowRun",
+    client: "PrefectClient",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
-) -> Flow:
+) -> "Flow":
     """
     Load a flow from the location/script provided in a deployment's storage document.
 
@@ -923,14 +926,14 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
     @sync_compatible
     async def build_from_flow(
         cls,
-        flow: Flow,
+        flow: "Flow",
         name: str,
         output: str = None,
         skip_upload: bool = False,
         ignore_file: str = ".prefectignore",
         apply: bool = False,
         load_existing: bool = True,
-        schedules: Optional[FlexibleScheduleList] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
         **kwargs,
     ) -> "Deployment":
         """
