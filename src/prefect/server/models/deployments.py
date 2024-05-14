@@ -25,7 +25,6 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
-    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
 )
 
 if TYPE_CHECKING:
@@ -976,9 +975,6 @@ async def mark_deployments_ready(
         if not unready_deployments:
             return
 
-        if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
-            return
-
         async with PrefectServerEventsClient() as events:
             for deployment_id in unready_deployments:
                 await events.emit(
@@ -1029,9 +1025,6 @@ async def mark_deployments_not_ready(
         )
 
         if not ready_deployments:
-            return
-
-        if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
             return
 
         async with PrefectServerEventsClient() as events:
