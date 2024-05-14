@@ -20,7 +20,7 @@ Variable values are commonly loaded at flow runtime. But you can load them in ot
 
 ## Manage variables
 
-Create, read, edit, and delete variables through the Prefect UI, API, and CLI. Names must adhere to these traditional variable naming conventions:
+Create, read, edit, and delete variables through the Prefect UI, API, or CLI. Names must adhere to these traditional variable naming conventions:
 
 - Have no more than 255 characters
 - Only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
