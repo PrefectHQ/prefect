@@ -22,6 +22,8 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
+from datetime import datetime
+
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
     deprecated_callable,
@@ -65,8 +67,6 @@ from prefect.utilities.filesystem import relative_path_to_current_platform, tmpc
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
     from prefect.deployments.schedules import (
@@ -89,7 +89,7 @@ async def run_deployment(
     name: Union[str, UUID],
     client: Optional["PrefectClient"] = None,
     parameters: Optional[dict] = None,
-    scheduled_time: Optional["datetime"] = None,
+    scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
     timeout: Optional[float] = None,
     poll_interval: Optional[float] = 5,
@@ -613,7 +613,7 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
         default_factory=ParameterSchema,
         description="The parameter schema of the flow, including defaults.",
     )
-    timestamp: "datetime" = Field(default_factory=partial(pendulum.now, "UTC"))
+    timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
     triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
