@@ -32,7 +32,6 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.context import (
@@ -51,7 +50,6 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
 from prefect.states import Pending, State
-from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
 from prefect.utilities.callables import (
@@ -67,7 +65,9 @@ from prefect.utilities.visualization import (
 )
 
 if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.context import TaskRunContext
+    from prefect.task_runners import BaseTaskRunner
 
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -518,7 +518,7 @@ class Task(Generic[P, R]):
 
     async def create_run(
         self,
-        client: Union[PrefectClient, SyncPrefectClient],
+        client: Union["PrefectClient", "SyncPrefectClient"],
         id: Optional[UUID] = None,
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
@@ -1186,7 +1186,7 @@ class Task(Generic[P, R]):
             mapped=True,
         )
 
-    def serve(self, task_runner: Optional[BaseTaskRunner] = None) -> "Task":
+    def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.

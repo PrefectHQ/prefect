@@ -67,7 +67,6 @@ if TYPE_CHECKING:
     )
     from prefect.flows import Flow
 
-
 logger = get_logger("deployments")
 
 

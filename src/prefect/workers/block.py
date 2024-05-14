@@ -7,7 +7,6 @@ from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
 
 from prefect._internal.schemas.validators import validate_block_is_infrastructure
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import BlockDocument
 from prefect.client.utilities import inject_client
 from prefect.events import RelatedResource
@@ -17,6 +16,7 @@ from prefect.utilities.templating import apply_values
 from prefect.workers.base import BaseWorker, BaseWorkerResult
 
 if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import Flow, FlowRun
     from prefect.client.schemas.responses import DeploymentResponse
 

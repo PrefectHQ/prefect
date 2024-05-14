@@ -1,11 +1,13 @@
-from typing import Any, Dict, Optional, Protocol, Type
+from typing import TYPE_CHECKING, Any, Dict, Optional, Protocol, Type
 
-from prefect.client.orchestration import PrefectClient
 from prefect.infrastructure.provisioners.modal import ModalPushProvisioner
 from .cloud_run import CloudRunPushProvisioner
 from .container_instance import ContainerInstancePushProvisioner
 from .ecs import ElasticContainerServicePushProvisioner
 import rich.console
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 _provisioners = {
     "cloud-run:push": CloudRunPushProvisioner,
@@ -29,7 +31,7 @@ class Provisioner(Protocol):
         self,
         work_pool_name: str,
         base_job_template: Dict[str, Any],
-        client: Optional[PrefectClient] = None,
+        client: Optional["PrefectClient"] = None,
     ) -> Dict[str, Any]:
         ...
 
