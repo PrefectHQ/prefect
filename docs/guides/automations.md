@@ -414,4 +414,4 @@ deployments:
 
 You've seen how to create automations with the UI, REST API, and a trigger defined in a `prefect.yaml` deployment definition.
 
-To learn more about events that can act as automation triggers, see the [events docs](/concepts/events/).  To learn more about event webhooks in particular, see the [webhooks guide](/guides/webhooks/).
+To learn more about Prefect events, which can trigger automations, see the [events docs](/concepts/events/). Prefect Cloud can receive external events webhooks. See the [webhooks guide](/guides/webhooks/) to learn how to create them.
