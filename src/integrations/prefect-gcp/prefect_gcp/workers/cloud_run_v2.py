@@ -319,7 +319,7 @@ class CloudRunWorkerV2Variables(BaseVariables):
         description="The region in which to run the Cloud Run job",
     )
     image: Optional[str] = Field(
-        default="prefecthq/prefect:2-latest",
+        default="prefecthq/prefect:3-latest",
         title="Image Name",
         description=(
             "The image to use for the Cloud Run job. "
