@@ -11,21 +11,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, List
 
+import pydantic.v1 as pydantic
+from typing_extensions import Literal
+
 from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
     validate_picklelib,
     validate_picklelib_and_modules,
     validate_picklelib_version,
 )
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
-from typing_extensions import Literal
-
 from prefect.deprecated.packaging.base import Serializer
 from prefect.utilities.importtools import (
     from_qualified_name,
