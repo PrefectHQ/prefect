@@ -31,7 +31,7 @@ async def trigger_dbt_cli_command(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-cli-command-summary",
-    **command_kwargs: Dict[str, Any],
+    extra_command_args: List[str] = None,
 ) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
@@ -53,8 +53,15 @@ async def trigger_dbt_cli_command(
         dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
             Note! This is optional and will raise an error if profiles.yml already exists
             under profile_dir and overwrite_profiles is set to False.
-        **shell_run_command_kwargs: Additional keyword arguments to pass to
-            [shell_run_command](https://prefecthq.github.io/prefect-shell/commands/#prefect_shell.commands.shell_run_command).
+        create_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt build results using the specified artifact key.
+            Defaults to True.
+        artifact_key: The key under which to store
+            the dbt build results artifact in Prefect.
+            Defaults to 'dbt-seed-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt command.
+            These arguments get appended to the command that gets passed to the dbtRunner client.
+            Example: extra_command_args=["--model", "foo_model"]
 
     Returns:
         last_line_cli_output (str): The last line of the CLI output will be returned
@@ -108,9 +115,10 @@ async def trigger_dbt_cli_command(
                 target_configs=target_configs,
             )
             result = trigger_dbt_cli_command(
-                "dbt debug",
+                "dbt run",
                 overwrite_profiles=True,
-                dbt_cli_profile=dbt_cli_profile
+                dbt_cli_profile=dbt_cli_profile,
+                extra_command_args=["--model", "foo_model"]
             )
             return result
 
@@ -156,8 +164,9 @@ async def trigger_dbt_cli_command(
         cli_args.append("--project-dir")
         cli_args.append(project_dir)
 
-    if command_kwargs:
-        cli_args.append(command_kwargs)
+    if extra_command_args:
+        for value in extra_command_args:
+            cli_args.append(value)
 
     # fix up empty shell_run_command_kwargs
     dbt_runner_client = dbtRunner()
@@ -394,7 +403,7 @@ async def run_dbt_build(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-build-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -419,6 +428,7 @@ async def run_dbt_build(
         artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-build-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt build command.
 
     Example:
     ```python
@@ -428,7 +438,8 @@ async def run_dbt_build(
         @flow
         def dbt_test_flow():
             dbt_build_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -447,7 +458,7 @@ async def run_dbt_build(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
     return results
 
@@ -460,7 +471,7 @@ async def run_dbt_model(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-run-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
@@ -485,6 +496,7 @@ async def run_dbt_model(
         artifact_key: The key under which to store
             the dbt run results artifact in Prefect.
             Defaults to 'dbt-run-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt run command.
 
     Example:
     ```python
@@ -494,7 +506,8 @@ async def run_dbt_model(
         @flow
         def dbt_test_flow():
             dbt_run_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -513,7 +526,7 @@ async def run_dbt_model(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
@@ -527,7 +540,7 @@ async def run_dbt_test(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-test-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
@@ -552,6 +565,7 @@ async def run_dbt_test(
         artifact_key: The key under which to store
             the dbt test results artifact in Prefect.
             Defaults to 'dbt-test-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt test command.
 
     Example:
     ```python
@@ -561,7 +575,8 @@ async def run_dbt_test(
         @flow
         def dbt_test_flow():
             dbt_test_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--model", "foo_model"]
             )
     ```
 
@@ -580,7 +595,7 @@ async def run_dbt_test(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
@@ -594,7 +609,7 @@ async def run_dbt_snapshot(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-snapshot-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
@@ -619,6 +634,7 @@ async def run_dbt_snapshot(
         artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-snapshot-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt snapshot command.
 
     Example:
     ```python
@@ -628,7 +644,8 @@ async def run_dbt_snapshot(
         @flow
         def dbt_test_flow():
             dbt_snapshot_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--fail-fast"]
             )
     ```
 
@@ -647,7 +664,7 @@ async def run_dbt_snapshot(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
@@ -661,7 +678,7 @@ async def run_dbt_seed(
     dbt_cli_profile: Optional[DbtCliProfile] = None,
     create_artifact: bool = True,
     artifact_key: str = "dbt-seed-task-summary",
-    **command_kwargs,
+    extra_command_args: List[str] = None,
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
@@ -686,6 +703,7 @@ async def run_dbt_seed(
         artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-seed-task-summary'.
+        extra_command_args: Additional command arguments to pass to the dbt seed command.
 
     Example:
     ```python
@@ -695,7 +713,8 @@ async def run_dbt_seed(
         @flow
         def dbt_test_flow():
             dbt_seed_task(
-                project_dir="/Users/test/my_dbt_project_dir"
+                project_dir="/Users/test/my_dbt_project_dir",
+                extra_command_args=["--fail-fast"]
             )
     ```
 
@@ -714,7 +733,7 @@ async def run_dbt_seed(
         dbt_cli_profile=dbt_cli_profile,
         create_artifact=create_artifact,
         artifact_key=artifact_key,
-        **command_kwargs,
+        extra_command_args=extra_command_args,
     )
 
     return results
