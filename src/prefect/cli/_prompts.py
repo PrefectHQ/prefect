@@ -26,7 +26,7 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.client.utilities import inject_client
+from prefect.client.utilities import client_injector
 from prefect.deployments.base import (
     _get_git_remote_origin_url,
     _search_for_flow_functions,
@@ -242,19 +242,26 @@ class CronTimezonePrompt(PromptBase[str]):
             raise InvalidResponse(self.validate_error_message)
 
 
-def prompt_for_max_active_runs_and_catchup(console):
+def prompt_for_schedule_max_active_runs(console) -> int:
     """
-    Prompt the user for the maximum number of active runs and whether to catch up on missed runs.
+    Prompt the user for the maximum number of active runs for a schedule.
     """
-    max_active_runs = prompt(
-        "Maximum number of active runs (leave blank for unlimited)",
+    return prompt(
+        "Maximum number of active runs for this schedule (leave blank for unlimited)",
+        console=console,
         default=None,
     )
-    catchup = confirm(
-        "Catch up on missed runs?",
+
+
+def prompt_for_schedule_catchup(console) -> bool:
+    """
+    Prompt the user for whether to catchup on missed runs for a schedule.
+    """
+    return Confirm.ask(
+        "[bold][green]?[/] Catch up on late flow runs?",
+        console=console,
         default=False,
     )
-    return max_active_runs, catchup
 
 
 def prompt_cron_schedule(console):
@@ -385,9 +392,9 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
             }
 
             if PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY:
-                max_active_runs, catchup = prompt_for_max_active_runs_and_catchup(
-                    console
-                )
+                max_active_runs = prompt_for_schedule_max_active_runs(console)
+                catchup = prompt_for_schedule_catchup(console)
+
                 minimal_schedule_kwargs.update(
                     {"max_active_runs": max_active_runs, "catchup": catchup}
                 )
@@ -401,11 +408,11 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
     return schedules
 
 
-@inject_client
+@client_injector
 async def prompt_select_work_pool(
+    client: PrefectClient,
     console: Console,
     prompt: str = "Which work pool would you like to deploy this flow to?",
-    client: Optional[PrefectClient] = None,
 ) -> str:
     work_pools = await client.read_work_pools()
     work_pool_options = [
@@ -414,7 +421,7 @@ async def prompt_select_work_pool(
         if work_pool.type != "prefect-agent"
     ]
     if not work_pool_options:
-        work_pool = await prompt_create_work_pool(console, client=client)
+        work_pool = await prompt_create_work_pool(console)
         return work_pool.name
     else:
         selected_work_pool_row = prompt_select_from_table(
@@ -590,10 +597,10 @@ async def prompt_push_custom_docker_image(
     }, build_docker_image_step
 
 
-@inject_client
+@client_injector
 async def prompt_create_work_pool(
+    client: PrefectClient,
     console: Console,
-    client: PrefectClient = None,
 ):
     if not confirm(
         (
@@ -699,9 +706,9 @@ async def prompt_entrypoint(console: Console) -> str:
     return f"{selected_flow['filepath']}:{selected_flow['function_name']}"
 
 
-@inject_client
+@client_injector
 async def prompt_select_remote_flow_storage(
-    console: Console, client: PrefectClient = None
+    client: PrefectClient, console: Console
 ) -> Optional[str]:
     valid_slugs_for_context = set()
 
@@ -762,9 +769,11 @@ async def prompt_select_remote_flow_storage(
     return selected_flow_storage_row["slug"]
 
 
-@inject_client
+@client_injector
 async def prompt_select_blob_storage_credentials(
-    console: Console, storage_provider: str, client: PrefectClient = None
+    client: PrefectClient,
+    console: Console,
+    storage_provider: str,
 ) -> str:
     """
     Prompt the user for blob storage credentials.

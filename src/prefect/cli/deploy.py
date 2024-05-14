@@ -520,8 +520,7 @@ async def _run_single_deploy(
                     " another work pool to deploy to."
                 )
                 deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-                    app.console,
-                    client=client,
+                    app.console
                 )
         except ObjectNotFound:
             raise ValueError(
@@ -539,7 +538,7 @@ async def _run_single_deploy(
         if not isinstance(deploy_config.get("work_pool"), dict):
             deploy_config["work_pool"] = {}
         deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-            console=app.console, client=client
+            console=app.console
         )
 
     docker_build_steps = [
