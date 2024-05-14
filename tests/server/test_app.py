@@ -36,6 +36,7 @@ def test_app_exposes_ui_settings():
     flags = set(json.pop("flags"))
     assert flags == {
         "artifacts",
+        "automations",
         "workers",
         "work_pools",
         "workspace_dashboard",
@@ -66,6 +67,7 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "work_pools",
         "workers",
         "artifacts",
+        "automations",
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
