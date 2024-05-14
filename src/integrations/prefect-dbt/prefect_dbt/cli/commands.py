@@ -812,6 +812,9 @@ def create_summary_markdown(results: dbtRunnerResult, command: str) -> UUID:
 
 
 def _create_node_info_md(node_name, resource_type, message, path, compiled_code):
+    """
+    Creates template for unsuccessful node information
+    """
     return f"""
 `{node_name}`
 
@@ -831,6 +834,10 @@ Compiled code:
 
 
 def create_unsuccessful_markdown(results: dbtRunnerResult, command: str) -> UUID:
+    """
+    Creates a Prefect task markdown artifact summarizing the results
+    of unsuccessful nodes, including compiled code.
+    """
     if results.exception is None:
         failed_nodes = []
         successful_nodes = []
