@@ -49,4 +49,4 @@ def normalize_to_minimal_deployment_schedules(
 
 
 def _is_server_schema(obj: Any):
-    return obj.__class__.__module__ == "prefect.server.schemas.schedules"
+    return obj.__class__.__module__.startswith("prefect.server.schemas")
