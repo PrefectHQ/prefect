@@ -38,16 +38,10 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (

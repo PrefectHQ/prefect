@@ -10,20 +10,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
+import pydantic.v1 as pydantic
 import typer
 import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from yaml.error import YAMLError
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 
 import prefect
 from prefect._internal.compatibility.deprecated import (
