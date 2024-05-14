@@ -33,10 +33,10 @@ def exceptions_equal(a, b):
     return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
 
 
-# AsyncMock has a new import path in Python 3.8+
+# AsyncMock has a new import path in Python 3.9+
 from unittest.mock import AsyncMock  # noqa
 
-# MagicMock supports async magic methods in Python 3.8+
+# MagicMock supports async magic methods in Python 3.9+
 from unittest.mock import MagicMock  # noqa
 
 
