@@ -185,7 +185,7 @@ from prefect import flow
 
 @flow(retries=3, retry_delay_seconds=5, log_prints=True)
 def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-    url = f"https://api.github.com/raepos/{repo_name}"
+    url = f"https://api.github.com/repos/{repo_name}"
     response = httpx.get(url)
     response.raise_for_status()
     repo = response.json()
