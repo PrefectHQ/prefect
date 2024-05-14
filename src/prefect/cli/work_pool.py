@@ -9,21 +9,18 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
-from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
 )
 from prefect.cli.root import app, is_interactive
-from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
     _provisioners,
     get_infrastructure_provisioner_for_work_pool_type,
 )
-from prefect.settings import update_current_profile
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,
@@ -36,6 +33,8 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
 def set_work_pool_as_default(name: str):
+    from prefect.settings import update_current_profile
+
     profile = update_current_profile({"PREFECT_DEFAULT_WORK_POOL_NAME": name})
     app.console.print(
         f"Set {name!r} as default work pool for profile {profile.name!r}\n",
@@ -115,6 +114,9 @@ async def create(
             $ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
 
     """
+    from prefect.cli._prompts import prompt_select_from_table
+    from prefect.client.collections import get_collections_metadata_client
+
     if not name.lower().strip("'\" "):
         exit_with_error("Work pool name cannot be empty.")
     async with get_client() as client:
