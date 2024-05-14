@@ -25,7 +25,7 @@ When a function becomes a flow, its behavior changes, giving it the following ad
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- Flows can be elevated to a [deployment](/concepts/deployments/), which exposes a remote API for interacting with it.
+- A flow can be elevated to a [deployment](/concepts/deployments/), which exposes a remote API for interacting with it.
 
 ## Run your first flow
 
