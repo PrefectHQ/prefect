@@ -61,6 +61,7 @@ async def trigger_dbt_cli_command(
             Defaults to 'dbt-seed-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt command.
             These arguments get appended to the command that gets passed to the dbtRunner client.
+            Example: extra_command_args=["--model", "foo_model"]
 
     Returns:
         last_line_cli_output (str): The last line of the CLI output will be returned
