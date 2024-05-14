@@ -15,13 +15,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import AnyHttpUrl, Field, root_validator, validator
-else:
-    from pydantic import AnyHttpUrl, Field, root_validator, validator
+from pydantic.v1 import AnyHttpUrl, Field, root_validator, validator
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
