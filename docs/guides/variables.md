@@ -15,7 +15,7 @@ Variables are intended for values with infrequent writes and frequent reads, but
 
 Variable values are commonly loaded at flow runtime. But you can load them in other contexts, such as when passing configuration information to Prefect in a `prefect.yaml` file's deployment steps.
 
-!!! warning "Variables are not Encrypted"
+!!! warning "Variables are not encrypted"
     We do not recommend using variables to store sensitive information. Instead, use [Secret blocks](https://docs.prefect.io/concepts/blocks/#prefect-built-in-blocks) to store and access sensitive information.
 
 ## Manage variables
