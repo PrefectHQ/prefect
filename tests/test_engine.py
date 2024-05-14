@@ -2386,7 +2386,7 @@ class TestFlowRunCrashes:
         try:
             yield
         except BaseException:
-            # In Python 3.9+ cancellation raises a `BaseException` that will not
+            # In Python 3.8+ cancellation raises a `BaseException` that will not
             # be captured by `orchestrate_flow_run` and needs to be trapped here to
             # prevent the test from failing before we can assert things are 'Crashed'
             pass

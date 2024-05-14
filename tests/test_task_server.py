@@ -40,7 +40,7 @@ async def clear_cached_filesystems():
 
 
 # model defined outside of the test function to avoid pickling issues
-# on pydantic v1 / Python 3.9, see https://github.com/cloudpipe/cloudpickle/issues/408
+# on pydantic v1 / Python 3.8, see https://github.com/cloudpipe/cloudpickle/issues/408
 class BreakfastSpot(BaseModel):
     name: str
     location: str
