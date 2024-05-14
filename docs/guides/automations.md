@@ -333,7 +333,7 @@ Install Marvin with `pip install marvin` and [set your OpenAI API key](https://w
 
 You can add a trigger to run a deployment in response to a specific event. 
 
-Here's an example with Marvin's AI functions. It will take in a Pandas DataFrame and use the AI function to analyze it. 
+This example takes in a Pandas DataFrame and uses an AI function to analyze it. 
 
 Here is an example of pulling in that data and classifying using Marvin AI. The dummy data is based on classifications you have already created.
 
