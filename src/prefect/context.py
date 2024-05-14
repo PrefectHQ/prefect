@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
 
+
 # Define the global settings context variable
 # This will be populated downstream but must be null here to facilitate loading the
 # default settings.
@@ -132,7 +133,7 @@ class PrefectObjectRegistry(ContextModel):
         capture_failures: If set, failures during __init__ will be silenced and tracked.
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: "DateTimeTZ" = Field(default_factory=lambda: pendulum.now("UTC"))
 
     _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
         default_factory=lambda: defaultdict(list)
@@ -211,9 +212,9 @@ class RunContext(ContextModel):
         client: The Prefect client instance being used for API communication
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: "DateTimeTZ" = Field(default_factory=lambda: pendulum.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
-    client: Union[PrefectClient, SyncPrefectClient]
+    client: Union["PrefectClient", "SyncPrefectClient"]
 
 
 class EngineContext(RunContext):
@@ -234,14 +235,14 @@ class EngineContext(RunContext):
     """
 
     flow: Optional["Flow"] = None
-    flow_run: Optional[FlowRun] = None
-    autonomous_task_run: Optional[TaskRun] = None
-    task_runner: BaseTaskRunner
+    flow_run: Optional["FlowRun"] = None
+    autonomous_task_run: Optional["TaskRun"] = None
+    task_runner: "BaseTaskRunner"
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
     # Result handling
-    result_factory: ResultFactory
+    result_factory: "ResultFactory"
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -250,10 +251,10 @@ class EngineContext(RunContext):
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
     # Tracking for objects created by this flow run
-    task_run_futures: List[PrefectFuture] = Field(default_factory=list)
-    task_run_states: List[State] = Field(default_factory=list)
-    task_run_results: Dict[int, State] = Field(default_factory=dict)
-    flow_run_states: List[State] = Field(default_factory=list)
+    task_run_futures: List["PrefectFuture"] = Field(default_factory=list)
+    task_run_states: List["State"] = Field(default_factory=list)
+    task_run_results: Dict[int, "State"] = Field(default_factory=dict)
+    flow_run_states: List["State"] = Field(default_factory=list)
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
@@ -283,12 +284,12 @@ class TaskRunContext(RunContext):
     """
 
     task: "Task"
-    task_run: TaskRun
+    task_run: "TaskRun"
     log_prints: bool = False
     parameters: Dict[str, Any]
 
     # Result handling
-    result_factory: ResultFactory
+    result_factory: "ResultFactory"
 
     __var__ = ContextVar("task_run")
 
@@ -322,7 +323,7 @@ class SettingsContext(ContextModel):
         settings: The complete settings model.
     """
 
-    profile: Profile
+    profile: "Profile"
     settings: Settings
 
     __var__ = ContextVar("settings")
@@ -379,7 +380,7 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     )
 
 
-def get_settings_context() -> SettingsContext:
+def get_settings_context() -> "SettingsContext":
     """
     Get the current settings context which contains profile information and the
     settings that are being used.
@@ -471,7 +472,7 @@ def registry_from_script(
 
 @contextmanager
 def use_profile(
-    profile: Union[Profile, str],
+    profile: Union["Profile", str],
     override_environment_variables: bool = False,
     include_current_context: bool = True,
 ):

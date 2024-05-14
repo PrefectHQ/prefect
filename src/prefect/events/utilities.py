@@ -1,10 +1,8 @@
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-
-from prefect._internal.schemas.fields import DateTimeTZ
 
 from .clients import (
     AssertingEventsClient,
@@ -12,21 +10,25 @@ from .clients import (
     PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
-from .schemas.events import Event, RelatedResource
 from .worker import EventsWorker, should_emit_events
 
 TIGHT_TIMING = timedelta(minutes=5)
+
+if TYPE_CHECKING:
+    from prefect._internal.schemas.fields import DateTimeTZ
+
+    from .schemas.events import Event, RelatedResource
 
 
 def emit_event(
     event: str,
     resource: Dict[str, str],
-    occurred: Optional[DateTimeTZ] = None,
-    related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
+    occurred: Optional["DateTimeTZ"] = None,
+    related: Optional[Union[List[Dict[str, str]], List["RelatedResource"]]] = None,
     payload: Optional[Dict[str, Any]] = None,
     id: Optional[UUID] = None,
-    follows: Optional[Event] = None,
-) -> Optional[Event]:
+    follows: Optional["Event"] = None,
+) -> Optional["Event"]:
     """
     Send an event to Prefect Cloud.
 

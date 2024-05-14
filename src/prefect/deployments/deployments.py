@@ -9,7 +9,7 @@ import sys
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -48,7 +48,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import inject_client
-from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
+from prefect.context import PrefectObjectRegistry
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
 )
@@ -72,6 +72,9 @@ from prefect.utilities.filesystem import relative_path_to_current_platform, tmpc
 from prefect.utilities.slugify import slugify
 
 logger = get_logger("deployments")
+
+if TYPE_CHECKING:
+    from prefect.context import FlowRunContext, TaskRunContext
 
 
 @sync_compatible

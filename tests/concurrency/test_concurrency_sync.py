@@ -1,4 +1,5 @@
 import asyncio
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -10,8 +11,10 @@ from prefect.concurrency.asyncio import (
 )
 from prefect.concurrency.sync import concurrency, rate_limit
 from prefect.events.clients import AssertingEventsClient
-from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimitV2
+
+if TYPE_CHECKING:
+    from prefect.events.worker import EventsWorker
 
 
 def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
@@ -51,7 +54,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
 def test_concurrency_emits_events(
     concurrency_limit: ConcurrencyLimitV2,
     other_concurrency_limit: ConcurrencyLimitV2,
-    asserting_events_worker: EventsWorker,
+    asserting_events_worker: "EventsWorker",
     mock_should_emit_events,
     reset_worker_events,
 ):
@@ -262,7 +265,7 @@ def test_rate_limit_mixed_sync_async(
 def test_rate_limit_emits_events(
     concurrency_limit_with_decay: ConcurrencyLimitV2,
     other_concurrency_limit_with_decay: ConcurrencyLimitV2,
-    asserting_events_worker: EventsWorker,
+    asserting_events_worker: "EventsWorker",
     mock_should_emit_events,
     reset_worker_events,
 ):
