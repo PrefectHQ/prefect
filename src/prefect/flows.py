@@ -343,23 +343,6 @@ class Flow(Generic[P, R]):
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
-
-        # Check for collision in the registry
-        registry = PrefectObjectRegistry.get()
-
-        if registry and any(
-            other
-            for other in registry.get_instances(Flow)
-            if other.name == self.name and id(other.fn) != id(self.fn)
-        ):
-            file = inspect.getsourcefile(self.fn)
-            line_number = inspect.getsourcelines(self.fn)[1]
-            warnings.warn(
-                f"A flow named {self.name!r} and defined at '{file}:{line_number}' "
-                "conflicts with another flow. Consider specifying a unique `name` "
-                "parameter in the flow definition:\n\n "
-                "`@flow(name='my_unique_name', ...)`"
-            )
         self.on_completion = on_completion
         self.on_failure = on_failure
         self.on_cancellation = on_cancellation
@@ -1719,3 +1702,94 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
         tmpfile.close()
         os.remove(tmpfile.name)
     return flow
+
+
+@sync_compatible
+async def serve(
+    *args: "RunnerDeployment",
+    pause_on_shutdown: bool = True,
+    print_starting_message: bool = True,
+    limit: Optional[int] = None,
+    **kwargs,
+):
+    """
+    Serve the provided list of deployments.
+
+    Args:
+        *args: A list of deployments to serve.
+        pause_on_shutdown: A boolean for whether or not to automatically pause
+            deployment schedules on shutdown.
+        print_starting_message: Whether or not to print message to the console
+            on startup.
+        limit: The maximum number of runs that can be executed concurrently.
+        **kwargs: Additional keyword arguments to pass to the runner.
+
+    Examples:
+        Prepare two deployments and serve them:
+
+        ```python
+        import datetime
+
+        from prefect import flow, serve
+
+        @flow
+        def my_flow(name):
+            print(f"hello {name}")
+
+        @flow
+        def my_other_flow(name):
+            print(f"goodbye {name}")
+
+        if __name__ == "__main__":
+            # Run once a day
+            hello_deploy = my_flow.to_deployment(
+                "hello", tags=["dev"], interval=datetime.timedelta(days=1)
+            )
+
+            # Run every Sunday at 4:00 AM
+            bye_deploy = my_other_flow.to_deployment(
+                "goodbye", tags=["dev"], cron="0 4 * * sun"
+            )
+
+            serve(hello_deploy, bye_deploy)
+        ```
+    """
+    from rich.console import Console, Group
+    from rich.table import Table
+
+    from prefect.runner import Runner
+
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
+    for deployment in args:
+        await runner.add_deployment(deployment)
+
+    if print_starting_message:
+        help_message_top = (
+            "[green]Your deployments are being served and polling for"
+            " scheduled runs!\n[/]"
+        )
+
+        table = Table(title="Deployments", show_header=False)
+
+        table.add_column(style="blue", no_wrap=True)
+
+        for deployment in args:
+            table.add_row(f"{deployment.flow_name}/{deployment.name}")
+
+        help_message_bottom = (
+            "\nTo trigger any of these deployments, use the"
+            " following command:\n[blue]\n\t$ prefect deployment run"
+            " [DEPLOYMENT_NAME]\n[/]"
+        )
+        if PREFECT_UI_URL:
+            help_message_bottom += (
+                "\nYou can also trigger your deployments via the Prefect UI:"
+                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+            )
+
+        console = Console()
+        console.print(
+            Group(help_message_top, table, help_message_bottom), soft_wrap=True
+        )
+
+    await runner.start()

@@ -461,7 +461,7 @@ class TestClient(httpx.Client):
         ] = httpx._client.USE_CLIENT_DEFAULT,
         extensions: typing.Optional[typing.Dict[str, typing.Any]] = None,
     ) -> httpx.Response:
-        url = self.base_url.join(url)
+        url = self._merge_url(url)
         redirect = self._choose_redirect_arg(follow_redirects, allow_redirects)
         return super().request(
             method,

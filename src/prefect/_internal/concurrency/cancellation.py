@@ -581,6 +581,8 @@ def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseExcep
 
     This will not interrupt long-running system calls like `sleep` or `wait`.
     """
+    if not thread.ident:
+        raise ValueError("Thread is not started.")
     ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(
         ctypes.c_long(thread.ident), ctypes.py_object(exc_type)
     )

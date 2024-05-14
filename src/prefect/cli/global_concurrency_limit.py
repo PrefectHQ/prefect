@@ -9,11 +9,23 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
-from prefect.exceptions import ObjectNotFound
+from prefect.client.schemas.actions import (
+    GlobalConcurrencyLimitCreate,
+    GlobalConcurrencyLimitUpdate,
+)
+from prefect.exceptions import (
+    ObjectNotFound,
+    PrefectHTTPStatusError,
+)
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
 
 global_concurrency_limit_app = PrefectTyper(
     name="global-concurrency-limit",
@@ -214,3 +226,174 @@ async def disable_global_concurrency_limit(
             exit_with_error(f"Global concurrency limit {name!r} not found.")
 
     exit_with_success(f"Disabled global concurrency limit with name {name!r}.")
+
+
+@global_concurrency_limit_app.command("update")
+async def update_global_concurrency_limit(
+    name: str = typer.Argument(
+        ..., help="The name of the global concurrency limit to update."
+    ),
+    enable: Optional[bool] = typer.Option(
+        None, "--enable", help="Enable the global concurrency limit."
+    ),
+    disable: Optional[bool] = typer.Option(
+        None, "--disable", help="Disable the global concurrency limit."
+    ),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", "-l", help="The limit of the global concurrency limit."
+    ),
+    active_slots: Optional[int] = typer.Option(
+        None, "--active-slots", help="The number of active slots."
+    ),
+    slot_decay_per_second: Optional[float] = typer.Option(
+        None, "--slot-decay-per-second", help="The slot decay per second."
+    ),
+):
+    """
+    Update a global concurrency limit.
+
+    Arguments:
+        name (str): The name of the global concurrency limit to update.
+        enable (Optional[bool]): Enable the global concurrency limit.
+        disable (Optional[bool]): Disable the global concurrency limit.
+        limit (Optional[int]): The limit of the global concurrency limit.
+        active_slots (Optional[int]): The number of active slots.
+        slot_decay_per_second (Optional[float]): The slot decay per second.
+
+    Examples:
+        $ prefect global-concurrency-limit update my-gcl --limit 10
+        $ prefect gcl update my-gcl --active-slots 5
+        $ prefect gcl update my-gcl --slot-decay-per-second 0.5
+        $ prefect gcl update my-gcl --enable
+        $ prefect gcl update my-gcl --disable --limit 5
+    """
+    gcl = GlobalConcurrencyLimitUpdate()
+
+    if enable and disable:
+        exit_with_error(
+            "Cannot enable and disable a global concurrency limit at the same time."
+        )
+
+    if enable:
+        gcl.active = True
+    if disable:
+        gcl.active = False
+
+    if limit is not None:
+        gcl.limit = limit
+
+    if active_slots is not None:
+        gcl.active_slots = active_slots
+
+    if slot_decay_per_second is not None:
+        gcl.slot_decay_per_second = slot_decay_per_second
+
+    if not gcl.dict(exclude_unset=True, shallow=True):
+        exit_with_error("No update arguments provided.")
+
+    try:
+        GlobalConcurrencyLimitUpdate(**gcl.dict())
+    except ValidationError as exc:
+        exit_with_error(f"Invalid arguments provided: {exc}")
+    except Exception as exc:
+        exit_with_error(f"Error creating global concurrency limit: {exc}")
+
+    async with get_client() as client:
+        try:
+            await client.update_global_concurrency_limit(
+                name=name, concurrency_limit=gcl
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Global concurrency limit {name!r} not found.")
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 422:
+                parsed_response = exc.response.json()
+
+                error_message = parsed_response["exception_detail"][0]["msg"]
+
+                exit_with_error(
+                    f"Error updating global concurrency limit: {error_message}"
+                )
+
+    exit_with_success(f"Updated global concurrency limit with name {name!r}.")
+
+
+@global_concurrency_limit_app.command("create")
+async def create_global_concurrency_limit(
+    name: str = typer.Argument(
+        ..., help="The name of the global concurrency limit to create."
+    ),
+    limit: int = typer.Option(
+        ..., "--limit", "-l", help="The limit of the global concurrency limit."
+    ),
+    disable: Optional[bool] = typer.Option(
+        None, "--disable", help="Create an inactive global concurrency limit."
+    ),
+    active_slots: Optional[int] = typer.Option(
+        0, "--active-slots", help="The number of active slots."
+    ),
+    slot_decay_per_second: Optional[float] = typer.Option(
+        0.0, "--slot-decay-per-second", help="The slot decay per second."
+    ),
+):
+    """
+    Create a global concurrency limit.
+
+    Arguments:
+
+        name (str): The name of the global concurrency limit to create.
+
+        limit (int): The limit of the global concurrency limit.
+
+        disable (Optional[bool]): Create an inactive global concurrency limit.
+
+        active_slots (Optional[int]): The number of active slots.
+
+        slot_decay_per_second (Optional[float]): The slot decay per second.
+
+    Examples:
+
+        $ prefect global-concurrency-limit create my-gcl --limit 10
+
+        $ prefect gcl create my-gcl --limit 5 --active-slots 3
+
+        $ prefect gcl create my-gcl --limit 5 --active-slots 3 --slot-decay-per-second 0.5
+
+        $ prefect gcl create my-gcl --limit 5 --inactive
+    """
+    async with get_client() as client:
+        try:
+            await client.read_global_concurrency_limit_by_name(name=name)
+        except ObjectNotFound:
+            pass
+        else:
+            exit_with_error(
+                f"Global concurrency limit {name!r} already exists. Please try creating with a different name."
+            )
+
+    try:
+        gcl = GlobalConcurrencyLimitCreate(
+            name=name,
+            limit=limit,
+            active=False if disable else True,
+            active_slots=active_slots,
+            slot_decay_per_second=slot_decay_per_second,
+        )
+
+    except ValidationError as exc:
+        exit_with_error(f"Invalid arguments provided: {exc}")
+    except Exception as exc:
+        exit_with_error(f"Error creating global concurrency limit: {exc}")
+
+    async with get_client() as client:
+        try:
+            gcl_id = await client.create_global_concurrency_limit(concurrency_limit=gcl)
+        except PrefectHTTPStatusError as exc:
+            parsed_response = exc.response.json()
+            exc = parsed_response["exception_detail"][0]["msg"]
+
+            exit_with_error(f"Error updating global concurrency limit: {exc}")
+
+    exit_with_success(
+        f"Created global concurrency limit with name {name!r} and ID '{gcl_id}'. Run `prefect gcl inspect {name}` to view details."
+    )

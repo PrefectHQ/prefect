@@ -25,25 +25,12 @@ __ui_static_path__ = __module_path__ / "server" / "ui"
 
 del _version, pathlib
 
-if sys.version_info < (3, 8):
-    warnings.warn(
-        (
-            "Prefect dropped support for Python 3.7 when it reached end-of-life"
-            " . To use new versions of Prefect, you will need"
-            " to upgrade to Python 3.8+. See https://devguide.python.org/versions/ for "
-            " more details."
-        ),
-        FutureWarning,
-        stacklevel=2,
-    )
-
 
 # Import user-facing API
-from prefect.runner import Runner, serve
 from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
-from prefect.flows import flow, Flow
+from prefect.flows import flow, Flow, serve
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.manifests import Manifest
@@ -159,7 +146,6 @@ __all__ = [
     "task",
     "Task",
     "unmapped",
-    "Runner",
     "serve",
     "deploy",
     "pause_flow_run",
