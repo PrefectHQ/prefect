@@ -22,14 +22,8 @@ from typing import (
 )
 from uuid import UUID
 
+from pydantic.v1 import Field, PrivateAttr
 from typing_extensions import TypeAlias
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr
-else:
-    from pydantic import Field, PrivateAttr  # type: ignore
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.schemas.bases import PrefectBaseModel

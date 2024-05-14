@@ -7,12 +7,7 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic.v1 import Field
 
 import prefect.server.schemas as schemas
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
