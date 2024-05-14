@@ -10,14 +10,7 @@ import dateutil.rrule
 import pendulum
 import pytz
 from croniter import croniter
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import PositiveDuration
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
+from pydantic.v1 import Field, validator
 
 from prefect._internal.schemas.validators import (
     default_anchor_date,
@@ -28,6 +21,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.types import PositiveDuration
 
 MAX_ITERATIONS = 1000
 

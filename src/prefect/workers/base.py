@@ -7,14 +7,7 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import return_v_or_none
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
 
 import prefect
 from prefect._internal.compatibility.experimental import (
@@ -22,6 +15,7 @@ from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
     experiment_enabled,
 )
+from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (

@@ -1,14 +1,7 @@
 from typing import Any, Callable, List, Optional, Sequence
 
 from prefect._vendor.fastapi import params
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1.fields import Undefined
-else:
-    from pydantic.fields import Undefined
-
+from pydantic.v1.fields import Undefined
 from typing_extensions import Annotated, deprecated
 
 

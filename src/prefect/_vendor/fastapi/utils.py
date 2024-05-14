@@ -18,22 +18,11 @@ from weakref import WeakKeyDictionary
 from prefect._vendor.fastapi.datastructures import DefaultPlaceholder, DefaultType
 from prefect._vendor.fastapi.exceptions import FastAPIError
 from prefect._vendor.fastapi.openapi.constants import REF_PREFIX
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseConfig, BaseModel, create_model
-    from pydantic.v1.class_validators import Validator
-    from pydantic.v1.fields import FieldInfo, ModelField, UndefinedType
-    from pydantic.v1.schema import model_process_schema
-    from pydantic.v1.utils import lenient_issubclass
-else:
-    from pydantic import BaseConfig, BaseModel, create_model
-    from pydantic.class_validators import Validator
-    from pydantic.fields import FieldInfo, ModelField, UndefinedType
-    from pydantic.schema import model_process_schema
-    from pydantic.utils import lenient_issubclass
-
+from pydantic.v1 import BaseConfig, BaseModel, create_model
+from pydantic.v1.class_validators import Validator
+from pydantic.v1.fields import FieldInfo, ModelField, UndefinedType
+from pydantic.v1.schema import model_process_schema
+from pydantic.v1.utils import lenient_issubclass
 
 if TYPE_CHECKING:  # pragma: nocover
     from .routing import APIRoute

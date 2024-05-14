@@ -22,31 +22,17 @@ from prefect._vendor.fastapi.utils import (
     get_model_definitions,
     is_body_allowed_for_status_code,
 )
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-    from pydantic.v1.fields import ModelField, Undefined
-    from pydantic.v1.schema import (
-        field_schema,
-        get_flat_models_from_fields,
-        get_model_name_map,
-    )
-    from pydantic.v1.utils import lenient_issubclass
-else:
-    from pydantic import BaseModel
-    from pydantic.fields import ModelField, Undefined
-    from pydantic.schema import (
-        field_schema,
-        get_flat_models_from_fields,
-        get_model_name_map,
-    )
-    from pydantic.utils import lenient_issubclass
-
 from prefect._vendor.starlette.responses import JSONResponse
 from prefect._vendor.starlette.routing import BaseRoute
 from prefect._vendor.starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
+from pydantic.v1 import BaseModel
+from pydantic.v1.fields import ModelField, Undefined
+from pydantic.v1.schema import (
+    field_schema,
+    get_flat_models_from_fields,
+    get_model_name_map,
+)
+from pydantic.v1.utils import lenient_issubclass
 
 validation_error_definition = {
     "title": "ValidationError",

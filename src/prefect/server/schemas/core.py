@@ -7,15 +7,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
 from typing_extensions import Literal, Self
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import PositiveInteger
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, HttpUrl, root_validator, validator
 
 import prefect.server.database
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
@@ -42,7 +35,7 @@ from prefect.server.utilities.schemas.bases import (
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeInteger
+from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 

@@ -22,14 +22,7 @@ from types import TracebackType
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import sqlalchemy as sa
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic.v1 import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger

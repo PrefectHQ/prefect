@@ -2,18 +2,13 @@ from typing import List, Optional, Tuple, cast
 from uuid import UUID
 
 import pendulum
+from pydantic.v1 import Field, PrivateAttr
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr
-else:
-    from pydantic import Field, PrivateAttr  # type: ignore
 
 
 class AutomationFilterCreated(PrefectBaseModel):

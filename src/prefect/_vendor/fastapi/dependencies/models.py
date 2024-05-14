@@ -1,13 +1,7 @@
 from typing import Any, Callable, List, Optional, Sequence
 
 from prefect._vendor.fastapi.security.base import SecurityBase
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1.fields import ModelField
-else:
-    from pydantic.fields import ModelField
+from pydantic.v1.fields import ModelField
 
 
 class SecurityRequirement:

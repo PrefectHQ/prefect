@@ -1,14 +1,7 @@
 from typing import Any, TypeVar
 
 import orjson
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
-
+from pydantic.v1 import BaseModel
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)

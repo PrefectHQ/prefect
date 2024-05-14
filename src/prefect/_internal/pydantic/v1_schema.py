@@ -1,12 +1,9 @@
 import inspect
 import typing
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from pydantic.v1 import BaseModel as V1BaseModel
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel as V1BaseModel
-else:
-    from pydantic import BaseModel as V1BaseModel
+from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 
 def is_v1_model(v) -> bool:

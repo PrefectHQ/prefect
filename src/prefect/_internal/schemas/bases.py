@@ -11,18 +11,10 @@ from uuid import UUID, uuid4
 
 import orjson
 import pendulum
+import pydantic.v1 as pydantic
 from packaging.version import Version
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import BaseModel, Field, SecretField
-    from pydantic.v1.json import custom_pydantic_encoder
-else:
-    import pydantic
-    from pydantic import BaseModel, Field, SecretField
-    from pydantic.json import custom_pydantic_encoder
+from pydantic.v1 import BaseModel, Field, SecretField
+from pydantic.v1.json import custom_pydantic_encoder
 
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible

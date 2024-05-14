@@ -1,18 +1,11 @@
 from typing import Any, Dict, Optional, Sequence, Type
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, ValidationError, create_model
-    from pydantic.v1.error_wrappers import ErrorList
-else:
-    from pydantic import BaseModel, ValidationError, create_model
-    from pydantic.error_wrappers import ErrorList
-
 from prefect._vendor.starlette.exceptions import HTTPException as StarletteHTTPException
 from prefect._vendor.starlette.exceptions import (
     WebSocketException as WebSocketException,  # noqa: F401
 )
+from pydantic.v1 import BaseModel, ValidationError, create_model
+from pydantic.v1.error_wrappers import ErrorList
 
 
 class HTTPException(StarletteHTTPException):

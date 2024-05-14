@@ -43,20 +43,6 @@ from prefect._vendor.fastapi.utils import (
     get_value_or_default,
     is_body_allowed_for_status_code,
 )
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-    from pydantic.v1.error_wrappers import ErrorWrapper, ValidationError
-    from pydantic.v1.fields import ModelField, Undefined
-    from pydantic.v1.utils import lenient_issubclass
-else:
-    from pydantic import BaseModel
-    from pydantic.error_wrappers import ErrorWrapper, ValidationError
-    from pydantic.fields import ModelField, Undefined
-    from pydantic.utils import lenient_issubclass
-
 from prefect._vendor.starlette import routing
 from prefect._vendor.starlette.concurrency import run_in_threadpool
 from prefect._vendor.starlette.exceptions import HTTPException
@@ -73,6 +59,10 @@ from prefect._vendor.starlette.routing import (
 from prefect._vendor.starlette.routing import Mount as Mount  # noqa
 from prefect._vendor.starlette.types import ASGIApp, Lifespan, Scope
 from prefect._vendor.starlette.websockets import WebSocket
+from pydantic.v1 import BaseModel
+from pydantic.v1.error_wrappers import ErrorWrapper, ValidationError
+from pydantic.v1.fields import ModelField, Undefined
+from pydantic.v1.utils import lenient_issubclass
 
 
 def _prepare_response_content(
