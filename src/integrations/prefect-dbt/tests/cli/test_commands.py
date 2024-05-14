@@ -266,14 +266,14 @@ def test_trigger_dbt_cli_command_project_dir(profiles_dir, dbt_cli_profile_bare)
 
 
 @pytest.mark.usefixtures("dbt_runner_ls_result")
-def test_trigger_dbt_cli_command_shell_kwargs(profiles_dir, dbt_cli_profile_bare):
+def test_trigger_dbt_cli_command_extra_command_args(profiles_dir, dbt_cli_profile_bare):
     @flow
     def test_flow():
         return trigger_dbt_cli_command(
             "dbt ls",
-            return_all=True,
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
+            extra_command_args=["--return_all", "True"],
         )
 
     result = test_flow()
