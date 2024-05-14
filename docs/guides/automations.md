@@ -224,7 +224,7 @@ After running this function, you will see the new automation with a "custom" in 
 
 Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names`. You can see this new deployment get initiated with the custom parameters outlined above. 
 
-In a few quick changes, you can programmatically create an automation that deploys workflows with custom parameters. 
+With a few simple changes, you can programmatically create an automation that triggers flow runs with custom parameters. 
 
 ## Use an underlying .yaml file
 
