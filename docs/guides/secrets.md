@@ -77,7 +77,7 @@ Under the hood, Prefect is using the AWS `boto3` client to create a session.
 In the **AwsCredentials** section of the form, click **Add +** and create an AWS Credentials block by entering the necessary values.
 
 Values for **Access Key ID** and **Secret Access Key** are read from the compute environment.
-Your AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in your `~/.aws/credentials` file, so leave those fields blank or they're saved to the database.
+Your AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in your `~/.aws/credentials` file, so leave those fields blank or they will be saved to the database.
 By leaving those attributes blank, Prefect knows to look to the compute environment.
 If the compute environment contains the necessary credentials, Prefect will use them to authenticate in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 
