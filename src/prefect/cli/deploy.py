@@ -520,8 +520,7 @@ async def _run_single_deploy(
                     " another work pool to deploy to."
                 )
                 deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-                    app.console,
-                    client=client,
+                    app.console
                 )
         except ObjectNotFound:
             raise ValueError(
@@ -539,7 +538,7 @@ async def _run_single_deploy(
         if not isinstance(deploy_config.get("work_pool"), dict):
             deploy_config["work_pool"] = {}
         deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-            console=app.console, client=client
+            console=app.console
         )
 
     docker_build_steps = [
@@ -760,6 +759,7 @@ async def _run_single_deploy(
                     f" deployment configuration file[/red] at {prefect_file}"
                 )
             else:
+                deploy_config_before_templating.update({"schedules": _schedules})
                 _save_deployment_to_prefect_file(
                     deploy_config_before_templating,
                     build_steps=build_steps or None,
@@ -876,6 +876,8 @@ def _schedule_config_to_deployment_schedule(
     rrule = schedule_config.get("rrule")
     timezone = schedule_config.get("timezone")
     schedule_active = schedule_config.get("active", True)
+    max_active_runs = schedule_config.get("max_active_runs")
+    catchup = schedule_config.get("catchup", False)
 
     if cron:
         cron_kwargs = {"cron": cron, "timezone": timezone}
@@ -904,7 +906,12 @@ def _schedule_config_to_deployment_schedule(
             f"Unknown schedule type. Please provide a valid schedule. schedule={schedule_config}"
         )
 
-    return MinimalDeploymentSchedule(schedule=schedule, active=schedule_active)
+    return MinimalDeploymentSchedule(
+        schedule=schedule,
+        active=schedule_active,
+        max_active_runs=max_active_runs,
+        catchup=catchup,
+    )
 
 
 def _merge_with_default_deploy_config(deploy_config: Dict):
