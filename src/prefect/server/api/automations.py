@@ -25,25 +25,18 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
-)
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.utilities.schema_tools.validation import (
     ValidationError as JSONSchemaValidationError,
 )
 
 
 def automations_enabled() -> bool:
-    if (
-        not PREFECT_EXPERIMENTAL_ENABLE_EVENTS
-        or not PREFECT_API_SERVICES_TRIGGERS_ENABLED
-    ):
+    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Automations are not enabled. Please enable the"
-            " PREFECT_EXPERIMENTAL_ENABLE_EVENTS and"
-            " PREFECT_API_SERVICES_TRIGGERS_ENABLED settings.",
+            " PREFECT_API_SERVICES_TRIGGERS_ENABLED setting.",
         )
 
 
