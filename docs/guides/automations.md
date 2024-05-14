@@ -228,7 +228,7 @@ With a few simple changes, you can programmatically create an automation that tr
 
 ## Use an .yaml file
 
-You can take this a step further by using your own .yaml version of the automation, and registering that file with the UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
+You can take this a step further by specifying the automation in a .yaml file, and then registering that specification with the API.
 
 First start with creating the .yaml file to house the automation specification:
 
