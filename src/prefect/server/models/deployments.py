@@ -144,6 +144,8 @@ async def create_deployment(
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
                     active=schedule.active,  # type: ignore[call-arg]
+                    max_active_runs=schedule.max_active_runs,
+                    catchup=schedule.catchup,
                 )
                 for schedule in schedules
             ],
