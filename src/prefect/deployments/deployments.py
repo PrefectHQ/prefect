@@ -15,13 +15,7 @@ from uuid import UUID
 import anyio
 import pendulum
 import yaml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
+from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,

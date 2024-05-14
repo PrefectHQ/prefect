@@ -5,16 +5,10 @@ This module is deprecated as of March 2024 and will not be available after Septe
 
 from uuid import UUID
 
-from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic.v1 import Field
 from typing_extensions import Literal
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.system import JSON
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
