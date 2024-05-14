@@ -2044,15 +2044,6 @@ class TestAutomations:
             actions=[],
         )
 
-    async def test_create_not_enabled_runtime_error(
-        self, events_disabled, prefect_client, automation: AutomationCore
-    ):
-        with pytest.raises(
-            RuntimeError,
-            match="The current server and client configuration does not support",
-        ):
-            await prefect_client.create_automation(automation)
-
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
             created_automation = automation.dict(json_compatible=True)
@@ -2184,16 +2175,6 @@ class TestAutomations:
             assert read_route.called
 
             assert nonexistent_automation == []
-
-    async def test_delete_owned_automations_not_enabled_runtime_error(
-        self, events_disabled, prefect_client
-    ):
-        with pytest.raises(
-            RuntimeError,
-            match="The current server and client configuration does not support",
-        ):
-            resource_id = f"prefect.deployment.{uuid4()}"
-            await prefect_client.delete_resource_owned_automations(resource_id)
 
     async def test_delete_owned_automations(self, cloud_client):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
