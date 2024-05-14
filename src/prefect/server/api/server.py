@@ -582,13 +582,13 @@ def create_app(
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
         if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
+            prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_EVENTS.value()
             and prefect.settings.PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED.value()
         ):
             service_instances.append(EventLogger())
 
         if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
+            prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_EVENTS.value()
             and prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value()
         ):
             service_instances.append(ReactiveTriggers())
@@ -596,13 +596,13 @@ def create_app(
             service_instances.append(Actions())
 
         if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
+            prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_EVENTS
             and prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED
         ):
             service_instances.append(EventPersister())
 
         if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
+            prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_EVENTS
             and prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED
         ):
             service_instances.append(stream.Distributor())

@@ -29,16 +29,16 @@ from prefect.server.events.storage import (
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_EVENTS
 
 logger = get_logger(__name__)
 
 
 def events_enabled() -> bool:
-    if not PREFECT_EXPERIMENTAL_EVENTS:
+    if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Events are not enabled. Please enable the PREFECT_EXPERIMENTAL_EVENTS setting.",
+            detail="Events are not enabled. Please enable the PREFECT_EXPERIMENTAL_ENABLE_EVENTS setting.",
         )
 
 

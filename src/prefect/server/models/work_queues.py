@@ -22,7 +22,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.models.events import work_queue_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_EVENTS
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import parse_obj_as
@@ -544,7 +544,7 @@ async def mark_work_queues_ready(
             ready_work_queue_ids=ready_work_queue_ids,
         )
 
-    if not PREFECT_EXPERIMENTAL_EVENTS:
+    if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
         return
 
     # Emit events for any work queues that have transitioned to ready during this poll
@@ -587,7 +587,7 @@ async def mark_work_queues_not_ready(
             .values(status=WorkQueueStatus.NOT_READY)
         )
 
-    if not PREFECT_EXPERIMENTAL_EVENTS:
+    if not PREFECT_EXPERIMENTAL_ENABLE_EVENTS:
         return
 
     # Emit events for any work queues that have transitioned to ready during this poll

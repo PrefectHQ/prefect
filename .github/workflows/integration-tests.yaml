@@ -155,7 +155,6 @@ jobs:
       - name: Start server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
         env:
-          PREFECT_EXPERIMENTAL_EVENTS: True
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: >
           docker run
@@ -163,6 +162,7 @@ jobs:
           --detach
           --publish 4200:4200
           ${{ matrix.extra_docker_run_options }}
+          --env PREFECT_EXPERIMENTAL_ENABLE_EVENTS=True
           --env PREFECT_EXPERIMENTAL_EVENTS=True
           --env PREFECT_LOGGING_SERVER_LEVEL=DEBUG
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
@@ -177,6 +177,7 @@ jobs:
         if: ${{ ! matrix.server-incompatible }}
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True
           PREFECT_EXPERIMENTAL_EVENTS: True
         run: >
           TEST_SERVER_VERSION=${{ matrix.prefect-version }}
@@ -197,6 +198,7 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_EXPERIMENTAL_EVENTS: True
+          PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
         run: |
           # First, we must stop the server container if it exists
@@ -214,6 +216,7 @@ jobs:
           --env TEST_SERVER_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           --env TEST_CLIENT_VERSION=${{ matrix.client_version }}
           --env PREFECT_API_URL="http://127.0.0.1:4200/api"
+          --env PREFECT_EXPERIMENTAL_ENABLE_EVENTS=True
           --env PREFECT_EXPERIMENTAL_EVENTS=True
           --volume $(pwd)/flows:/opt/prefect/integration/flows
           --volume $(pwd)/scripts:/opt/prefect/integration/scripts

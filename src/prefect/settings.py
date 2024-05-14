@@ -1459,7 +1459,7 @@ Whether or not to enable flow run input.
 
 # Prefect Events feature flags
 
-PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_EVENTS = Setting(bool, default=False)
 """
 Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
 will always emit events during flow and task runs regardless of this setting.

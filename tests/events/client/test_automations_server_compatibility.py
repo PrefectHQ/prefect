@@ -45,7 +45,7 @@ from prefect.events.schemas.deployment_triggers import (
 )
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
     temporary_settings,
 )
 
@@ -131,7 +131,7 @@ EXAMPLE_TRIGGERS: List[TriggerTypes] = [
 def enable_events():
     with temporary_settings(
         {
-            PREFECT_EXPERIMENTAL_EVENTS: True,
+            PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True,
             PREFECT_API_SERVICES_TRIGGERS_ENABLED: True,
         }
     ):
