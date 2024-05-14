@@ -8,11 +8,6 @@ from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
 from prefect._internal.schemas.validators import validate_block_is_infrastructure
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import BlockDocument
-from prefect.utilities.collections import get_from_dict
-from prefect.workers.base import BaseWorker, BaseWorkerResult
-
-from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
-
 from prefect.client.utilities import inject_client
 from prefect.events import RelatedResource
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
