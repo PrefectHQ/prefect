@@ -84,12 +84,8 @@ prefect.client.PrefectClient = PrefectClient
 
 from prefect._internal.compatibility.deprecated import (
     inject_renamed_module_alias_finder,
-    register_renamed_module,
 )
 
-register_renamed_module(
-    "prefect.packaging", "prefect.deprecated.packaging", start_date="Mar 2024"
-)
 inject_renamed_module_alias_finder()
 
 
