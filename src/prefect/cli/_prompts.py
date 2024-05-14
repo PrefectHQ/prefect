@@ -6,7 +6,7 @@ import os
 import shutil
 from datetime import timedelta
 from getpass import GetPassWarning
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import readchar
 from rich.console import Console, Group
@@ -18,7 +18,6 @@ from rich.text import Text
 
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate, WorkPoolCreate
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import (
@@ -40,6 +39,10 @@ from prefect.settings import (
 )
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+
 
 STORAGE_PROVIDER_TO_CREDS_BLOCK = {
     "s3": "aws-credentials",
@@ -410,7 +413,7 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
 
 @client_injector
 async def prompt_select_work_pool(
-    client: PrefectClient,
+    client: "PrefectClient",
     console: Console,
     prompt: str = "Which work pool would you like to deploy this flow to?",
 ) -> str:
@@ -599,7 +602,7 @@ async def prompt_push_custom_docker_image(
 
 @client_injector
 async def prompt_create_work_pool(
-    client: PrefectClient,
+    client: "PrefectClient",
     console: Console,
 ):
     if not confirm(
@@ -708,7 +711,7 @@ async def prompt_entrypoint(console: Console) -> str:
 
 @client_injector
 async def prompt_select_remote_flow_storage(
-    client: PrefectClient, console: Console
+    client: "PrefectClient", console: Console
 ) -> Optional[str]:
     valid_slugs_for_context = set()
 
@@ -771,7 +774,7 @@ async def prompt_select_remote_flow_storage(
 
 @client_injector
 async def prompt_select_blob_storage_credentials(
-    client: PrefectClient,
+    client: "PrefectClient",
     console: Console,
     storage_provider: str,
 ) -> str:

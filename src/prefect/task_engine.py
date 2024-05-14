@@ -1,5 +1,6 @@
 from contextlib import AsyncExitStack
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
@@ -10,7 +11,6 @@ import anyio
 from typing_extensions import Literal
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import TaskRun
 from prefect.context import EngineContext
 from prefect.engine import (
@@ -18,11 +18,15 @@ from prefect.engine import (
     get_task_call_return_value,
     wait_for_task_runs_and_report_crashes,
 )
-from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+    from prefect.futures import PrefectFuture
+
 
 EngineReturnType = Literal["future", "state", "result"]
 
@@ -33,11 +37,11 @@ async def submit_autonomous_task_run_to_engine(
     task_run: TaskRun,
     task_runner: BaseTaskRunner,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable["PrefectFuture"]] = None,
     mapped: bool = False,
     return_type: EngineReturnType = "future",
-    client: Optional[PrefectClient] = None,
-) -> PrefectFuture:
+    client: Optional["PrefectClient"] = None,
+) -> "PrefectFuture":
     async with AsyncExitStack() as stack:
         parameters = parameters or {}
         with EngineContext(
