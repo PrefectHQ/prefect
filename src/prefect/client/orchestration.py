@@ -21,33 +21,20 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-from typing_extensions import ParamSpec
-
-from prefect._internal.compatibility.deprecated import (
-    handle_deprecated_infra_overrides_parameter,
-)
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.schemas import sorting
-from prefect.events import filters
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
-)
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic.v1 as pydantic
 from asgi_lifespan import LifespanManager
 from prefect._vendor.starlette import status
+from typing_extensions import ParamSpec
 
 import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
+from prefect._internal.compatibility.deprecated import (
+    handle_deprecated_infra_overrides_parameter,
+)
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -133,6 +120,7 @@ from prefect.client.schemas.sorting import (
     LogSort,
     TaskRunSort,
 )
+from prefect.events import filters
 from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -140,11 +128,13 @@ from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.collections import AutoEnum
