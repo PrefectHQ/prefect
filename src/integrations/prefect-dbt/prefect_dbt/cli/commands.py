@@ -871,11 +871,11 @@ def consolidate_run_results(results: dbtRunnerResult) -> dict:
         for r in results.result.results:
             if r.status == NodeStatus.Fail:
                 run_results["Fail"].append(r)
-            elif r.status == NodeStatus.Error:
+            elif r.status == NodeStatus.Error or r.status == NodeStatus.RuntimeErr:
                 run_results["Error"].append(r)
             elif r.status == NodeStatus.Skipped:
                 run_results["Skipped"].append(r)
-            elif r.status == NodeStatus.Success:
+            elif r.status == NodeStatus.Success or r.status == NodeStatus.Pass:
                 run_results["Success"].append(r)
             elif r.status == NodeStatus.Warn:
                 run_results["Warn"].append(r)
