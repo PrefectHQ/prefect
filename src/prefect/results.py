@@ -16,7 +16,8 @@ from typing import (
 )
 from uuid import UUID
 
-import pydantic.v1 as pydantic
+import pydantic
+from pydantic_core import PydanticUndefinedType
 from typing_extensions import ParamSpec, Self
 
 import prefect
@@ -487,10 +488,7 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     def __new__(cls: Type[Self], **kwargs) -> Self:
         if "type" in kwargs:
-            try:
-                subcls = lookup_type(cls, dispatch_key=kwargs["type"])
-            except KeyError as exc:
-                raise pydantic.ValidationError(errors=[exc], model=cls)
+            subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             return super().__new__(subcls)
         else:
             return super().__new__(cls)
@@ -522,7 +520,10 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):
-        return cls.__fields__.get("type").get_default()
+        value = cls.model_fields.get("type").get_default()
+        if isinstance(value, PydanticUndefinedType):
+            return None
+        return value
 
 
 class UnpersistedResult(BaseResult):
@@ -530,7 +531,7 @@ class UnpersistedResult(BaseResult):
     Result type for results that are not persisted outside of local memory.
     """
 
-    type = "unpersisted"
+    type: str = "unpersisted"
 
     @sync_compatible
     async def get(self) -> R:
@@ -565,7 +566,7 @@ class LiteralResult(BaseResult):
     They are not persisted to external result storage.
     """
 
-    type = "literal"
+    type: str = "literal"
     value: Any
 
     def has_cached_object(self) -> bool:
@@ -602,7 +603,7 @@ class PersistedResult(BaseResult):
     content was written.
     """
 
-    type = "reference"
+    type: str = "reference"
 
     serializer_type: str
     storage_block_id: uuid.UUID
@@ -735,7 +736,7 @@ class UnknownResult(BaseResult):
     completed task.
     """
 
-    type = "unknown"
+    type: str = "unknown"
     value: None
 
     def has_cached_object(self) -> bool:

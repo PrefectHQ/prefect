@@ -127,9 +127,12 @@ def instrument_method_calls_on_class_instances(cls: Type) -> Type:
                 f"Unable to instrument class {cls}. Class must define {method_name!r}."
             )
 
+    exclude_methods = getattr(cls, "_events_excluded_methods", [])
+    if hasattr(exclude_methods, "default"):
+        exclude_methods = exclude_methods.default
     for method_name, method in instrumentable_methods(
         cls,
-        exclude_methods=getattr(cls, "_events_excluded_methods", []),
+        exclude_methods=exclude_methods,
     ):
         setattr(cls, method_name, instrument_instance_method_call(method))
     return cls

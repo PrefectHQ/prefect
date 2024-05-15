@@ -1,27 +1,23 @@
 import abc
-import io
 import json
 import urllib.parse
 from pathlib import Path
-from shutil import ignore_patterns
-from tempfile import TemporaryDirectory
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
-from pydantic.v1 import Field, SecretStr, validator
+from pydantic import AfterValidator, Field, SecretStr
+from typing_extensions import Annotated
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.schemas.validators import (
     stringify_path,
     validate_basepath,
-    validate_github_access_token,
 )
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
-from prefect.utilities.processutils import run_process
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -70,6 +66,9 @@ class WritableDeploymentStorage(Block, abc.ABC):
         pass
 
 
+StrPath = Annotated[str, AfterValidator(stringify_path)]
+
+
 class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a local file system.
@@ -89,13 +88,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         "https://docs.prefect.io/concepts/filesystems/#local-filesystem"
     )
 
-    basepath: Optional[str] = Field(
+    basepath: Optional[StrPath] = Field(
         default=None, description="Default local path for this block to write to."
     )
-
-    @validator("basepath", pre=True)
-    def cast_pathlib(cls, value):
-        return stringify_path(value)
 
     def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
@@ -239,6 +234,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         return str(path)
 
 
+ValidBasepath = Annotated[str, AfterValidator(validate_basepath)]
+
+
 class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a remote file system.
@@ -261,7 +259,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         "https://docs.prefect.io/concepts/filesystems/#remote-file-system"
     )
 
-    basepath: str = Field(
+    basepath: ValidBasepath = Field(
         default=...,
         description="Default path for this block to write to.",
         examples=["s3://my-bucket/my-folder/"],
@@ -273,10 +271,6 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     # Cache for the configured fsspec file system used for access
     _filesystem: fsspec.AbstractFileSystem = None
-
-    @validator("basepath")
-    def check_basepath(cls, value):
-        return validate_basepath(value)
 
     def _resolve_path(self, path: str) -> str:
         base_scheme, base_netloc, base_urlpath, _, _ = urllib.parse.urlsplit(
@@ -809,7 +803,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         default=None, title="SMB Password", description="Password for SMB access."
     )
     smb_host: str = Field(
-        default=..., tile="SMB server/hostname", description="SMB server/hostname."
+        default=..., title="SMB server/hostname", description="SMB server/hostname."
     )
     smb_port: Optional[int] = Field(
         default=None, title="SMB port", description="SMB port (default: 445)."
@@ -875,139 +869,3 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
-
-
-@deprecated_class(
-    start_date="Mar 2024",
-    help="Use the `GitHubRepository` block from prefect-github instead.",
-)
-class GitHub(ReadableDeploymentStorage):
-    """
-        DEPRECATION WARNING:
-
-        This class is deprecated as of March 2024 and will not be available after September 2024.
-        It has been replaced by `GitHubRepository` from the `prefect-github` package, which offers
-        enhanced functionality and better a better user experience.
-    q
-        Interact with files stored on GitHub repositories.
-    """
-
-    _block_type_name = "GitHub"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/41971cfecfea5f79ff334164f06ecb34d1038dd4-250x250.png"
-    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#github"
-
-    repository: str = Field(
-        default=...,
-        description=(
-            "The URL of a GitHub repository to read from, in either HTTPS or SSH"
-            " format."
-        ),
-    )
-    reference: Optional[str] = Field(
-        default=None,
-        description="An optional reference to pin to; can be a branch name or tag.",
-    )
-    access_token: Optional[SecretStr] = Field(
-        name="Personal Access Token",
-        default=None,
-        description=(
-            "A GitHub Personal Access Token (PAT) with repo scope."
-            " To use a fine-grained PAT, provide '{username}:{PAT}' as the value."
-        ),
-    )
-    include_git_objects: bool = Field(
-        default=True,
-        description=(
-            "Whether to include git objects when copying the repo contents to a"
-            " directory."
-        ),
-    )
-
-    @validator("access_token")
-    def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
-        return validate_github_access_token(v, values)
-
-    def _create_repo_url(self) -> str:
-        """Format the URL provided to the `git clone` command.
-
-        For private repos: https://<oauth-key>@github.com/<username>/<repo>.git
-        All other repos should be the same as `self.repository`.
-        """
-        url_components = urllib.parse.urlparse(self.repository)
-        if url_components.scheme == "https" and self.access_token is not None:
-            updated_components = url_components._replace(
-                netloc=f"{self.access_token.get_secret_value()}@{url_components.netloc}"
-            )
-            full_url = urllib.parse.urlunparse(updated_components)
-        else:
-            full_url = self.repository
-
-        return full_url
-
-    @staticmethod
-    def _get_paths(
-        dst_dir: Union[str, None], src_dir: str, sub_directory: str
-    ) -> Tuple[str, str]:
-        """Returns the fully formed paths for GitHubRepository contents in the form
-        (content_source, content_destination).
-        """
-        if dst_dir is None:
-            content_destination = Path(".").absolute()
-        else:
-            content_destination = Path(dst_dir)
-
-        content_source = Path(src_dir)
-
-        if sub_directory:
-            content_destination = content_destination.joinpath(sub_directory)
-            content_source = content_source.joinpath(sub_directory)
-
-        return str(content_source), str(content_destination)
-
-    @sync_compatible
-    async def get_directory(
-        self, from_path: Optional[str] = None, local_path: Optional[str] = None
-    ) -> None:
-        """
-        Clones a GitHub project specified in `from_path` to the provided `local_path`;
-        defaults to cloning the repository reference configured on the Block to the
-        present working directory.
-
-        Args:
-            from_path: If provided, interpreted as a subdirectory of the underlying
-                repository that will be copied to the provided local path.
-            local_path: A local path to clone to; defaults to present working directory.
-        """
-        # CONSTRUCT COMMAND
-        cmd = ["git", "clone", self._create_repo_url()]
-        if self.reference:
-            cmd += ["-b", self.reference]
-
-        # Limit git history
-        cmd += ["--depth", "1"]
-
-        # Clone to a temporary directory and move the subdirectory over
-        with TemporaryDirectory(suffix="prefect") as tmp_dir:
-            cmd.append(tmp_dir)
-
-            err_stream = io.StringIO()
-            out_stream = io.StringIO()
-            process = await run_process(cmd, stream_output=(out_stream, err_stream))
-            if process.returncode != 0:
-                err_stream.seek(0)
-                raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
-
-            content_source, content_destination = self._get_paths(
-                dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
-            )
-
-            ignore_func = None
-            if not self.include_git_objects:
-                ignore_func = ignore_patterns(".git")
-
-            copytree(
-                src=content_source,
-                dst=content_destination,
-                dirs_exist_ok=True,
-                ignore=ignore_func,
-            )

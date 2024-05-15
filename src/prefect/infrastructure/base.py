@@ -6,33 +6,27 @@ Infrastructure blocks have been replaced by workers, which offer enhanced functi
 
 For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 """
+
 import abc
 import shlex
 import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import anyio.abc
+import pydantic
+from rich.console import Console
+from typing_extensions import Self
 
+import prefect
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.compatibility.experimental import (
     EXPERIMENTAL_WARNING,
     ExperimentalFeature,
     experiment_enabled,
 )
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.exceptions import ObjectAlreadyExists
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
-from rich.console import Console
-from typing_extensions import Self
-
-import prefect
-from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
