@@ -31,7 +31,7 @@ from typing import (
 
 import anyio.abc
 import pendulum
-from pydantic.v1 import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging
 import prefect.logging.configuration
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 # Define the global settings context variable
 # This will be populated downstream but must be null here to facilitate loading the
 # default settings.
-GLOBAL_SETTINGS_CONTEXT = None
+GLOBAL_SETTINGS_CONTEXT = None  # type: ignore
 
 
 class ContextModel(BaseModel):

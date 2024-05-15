@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
 import fsspec
-from pydantic.v1 import Field, SecretStr, validator
+from pydantic import Field, SecretStr, field_validator
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.schemas.validators import (
@@ -93,7 +93,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         default=None, description="Default local path for this block to write to."
     )
 
-    @validator("basepath", pre=True)
+    @field_validator("basepath", mode="before")
     def cast_pathlib(cls, value):
         return stringify_path(value)
 
@@ -125,7 +125,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     @sync_compatible
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
@@ -274,7 +274,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     # Cache for the configured fsspec file system used for access
     _filesystem: fsspec.AbstractFileSystem = None
 
-    @validator("basepath")
+    @field_validator("basepath")
     def check_basepath(cls, value):
         return validate_basepath(value)
 
@@ -923,7 +923,7 @@ class GitHub(ReadableDeploymentStorage):
         ),
     )
 
-    @validator("access_token")
+    @field_validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
         return validate_github_access_token(v, values)
 

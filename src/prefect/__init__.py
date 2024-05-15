@@ -59,8 +59,8 @@ import prefect.client.schemas
 
 prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
 prefect.context.TaskRunContext.update_forward_refs(Task=Task)
-prefect.client.schemas.State.update_forward_refs(BaseResult=BaseResult)
-prefect.client.schemas.StateCreate.update_forward_refs(BaseResult=BaseResult)
+prefect.client.schemas.State.model_rebuild(BaseResult=BaseResult)
+prefect.client.schemas.StateCreate.model_rebuild(BaseResult=BaseResult)
 
 
 prefect.plugins.load_extra_entrypoints()

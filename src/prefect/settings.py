@@ -66,14 +66,14 @@ from typing import (
 from urllib.parse import urlparse
 
 import toml
-from pydantic.v1 import (
+from pydantic import (
     BaseModel,
     BaseSettings,
     Field,
     create_model,
+    field_validator,
     fields,
-    root_validator,
-    validator,
+    model_validator,
 )
 from typing_extensions import Literal
 
@@ -1798,14 +1798,14 @@ class Settings(SettingsFieldsMixin):
             value = setting.value_callback(self, value)
         return value
 
-    @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
+    @field_validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
     def check_valid_log_level(cls, value):
         if isinstance(value, str):
             value = value.upper()
         logging._checkLevel(value)
         return value
 
-    @root_validator
+    @model_validator
     def post_root_validators(cls, values):
         """
         Add root validation functions for settings here.
@@ -1821,9 +1821,9 @@ class Settings(SettingsFieldsMixin):
 
     def copy_with_update(
         self,
-        updates: Mapping[Setting, Any] = None,
-        set_defaults: Mapping[Setting, Any] = None,
-        restore_defaults: Iterable[Setting] = None,
+        updates: Optional[Mapping[Setting, Any]] = None,
+        set_defaults: Optional[Mapping[Setting, Any]] = None,
+        restore_defaults: Optional[Iterable[Setting]] = None,
     ) -> "Settings":
         """
         Create a new `Settings` object with validation.
@@ -1878,7 +1878,7 @@ class Settings(SettingsFieldsMixin):
         return str(hash(tuple((key, value) for key, value in env_variables.items())))
 
     def to_environment_variables(
-        self, include: Iterable[Setting] = None, exclude_unset: bool = False
+        self, include: Optional[Iterable[Setting]] = None, exclude_unset: bool = False
     ) -> Dict[str, str]:
         """
         Convert the settings object to environment variables.
@@ -1929,7 +1929,7 @@ class Settings(SettingsFieldsMixin):
 
 # Functions to instantiate `Settings` instances
 
-_DEFAULTS_CACHE: Settings = None
+_DEFAULTS_CACHE: Optional[Settings] = None
 _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 
@@ -2038,7 +2038,7 @@ class Profile(BaseModel):
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path]
 
-    @validator("settings", pre=True)
+    @field_validator("settings", mode="before")
     def map_names_to_settings(cls, value):
         return validate_settings(value)
 

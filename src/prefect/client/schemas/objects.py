@@ -117,11 +117,11 @@ class StateDetails(PrefectBaseModel):
     task_run_id: Optional[UUID] = None
     # for task runs that represent subflows, the subflow's run ID
     child_flow_run_id: Optional[UUID] = None
-    scheduled_time: DateTimeTZ = None
+    scheduled_time: Optional[DateTimeTZ] = None
     cache_key: Optional[str] = None
-    cache_expiration: DateTimeTZ = None
+    cache_expiration: Optional[DateTimeTZ] = None
     untrackable_result: bool = False
-    pause_timeout: DateTimeTZ = None
+    pause_timeout: Optional[DateTimeTZ] = None
     pause_reschedule: bool = False
     pause_key: Optional[str] = None
     run_input_keyset: Optional[Dict[str, str]] = None
@@ -522,7 +522,7 @@ class FlowRun(ObjectBaseModel):
     state: Optional[State] = Field(
         default=None,
         description="The state of the flow run.",
-        examples=[State(type=StateType.COMPLETED)],
+        examples=["State(type=StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
         default=None, description="Job variables for the flow run."
@@ -734,7 +734,7 @@ class TaskRun(ObjectBaseModel):
     state: Optional[State] = Field(
         default=None,
         description="The state of the flow run.",
-        examples=[State(type=StateType.COMPLETED)],
+        examples=["State(type=StateType.COMPLETED)"],
     )
 
     @validator("name", pre=True)

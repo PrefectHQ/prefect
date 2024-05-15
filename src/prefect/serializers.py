@@ -15,13 +15,13 @@ import abc
 import base64
 from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
-from pydantic.v1 import (
+from pydantic import (
     BaseModel,
     Field,
+    TypeAdapter,
     ValidationError,
-    parse_obj_as,
-    root_validator,
-    validator,
+    field_validator,
+    model_validator,
 )
 from typing_extensions import Literal, Self
 
@@ -61,7 +61,9 @@ def prefect_json_object_decoder(result: dict):
     with `prefect_json_object_encoder`
     """
     if "__class__" in result:
-        return parse_obj_as(from_qualified_name(result["__class__"]), result["data"])
+        return TypeAdapter(from_qualified_name(result["__class__"])).validate_python(
+            result["data"]
+        )
     elif "__exc_type__" in result:
         return from_qualified_name(result["__exc_type__"])(result["message"])
     else:
@@ -121,13 +123,13 @@ class PickleSerializer(Serializer):
     type: Literal["pickle"] = "pickle"
 
     picklelib: str = "cloudpickle"
-    picklelib_version: str = None
+    picklelib_version: Optional[str] = None
 
-    @validator("picklelib")
+    @field_validator("picklelib")
     def check_picklelib(cls, value):
         return validate_picklelib(value)
 
-    @root_validator
+    @model_validator(mode="before")
     def check_picklelib_version(cls, values):
         return validate_picklelib_version(values)
 
@@ -173,11 +175,11 @@ class JSONSerializer(Serializer):
     dumps_kwargs: Dict[str, Any] = Field(default_factory=dict)
     loads_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
-    @validator("dumps_kwargs")
+    @field_validator("dumps_kwargs")
     def dumps_kwargs_cannot_contain_default(cls, value):
         return validate_dump_kwargs(value)
 
-    @validator("loads_kwargs")
+    @field_validator("loads_kwargs")
     def loads_kwargs_cannot_contain_object_hook(cls, value):
         return validate_load_kwargs(value)
 
@@ -217,11 +219,11 @@ class CompressedSerializer(Serializer):
     serializer: Serializer
     compressionlib: str = "lzma"
 
-    @validator("serializer", pre=True)
+    @field_validator("serializer", mode="before")
     def validate_serializer(cls, value):
         return cast_type_names_to_serializers(value)
 
-    @validator("compressionlib")
+    @field_validator("compressionlib")
     def check_compressionlib(cls, value):
         return validate_compressionlib(value)
 

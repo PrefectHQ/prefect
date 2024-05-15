@@ -16,7 +16,7 @@ from typing import (
 )
 from uuid import UUID
 
-import pydantic.v1 as pydantic
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError
 from typing_extensions import ParamSpec, Self
 
 import prefect
@@ -171,7 +171,7 @@ def _format_user_supplied_storage_key(key):
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
-class ResultFactory(pydantic.BaseModel):
+class ResultFactory(BaseModel):
     """
     A utility to generate `Result` types.
     """
@@ -475,7 +475,7 @@ class ResultFactory(pydantic.BaseModel):
 
 
 @register_base_type
-class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
+class BaseResult(BaseModel, abc.ABC, Generic[R]):
     type: str
     artifact_type: Optional[str]
     artifact_description: Optional[str]
@@ -490,12 +490,12 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             except KeyError as exc:
-                raise pydantic.ValidationError(errors=[exc], model=cls)
+                raise ValidationError(errors=[exc], model=cls)
             return super().__new__(subcls)
         else:
             return super().__new__(cls)
 
-    _cache: Any = pydantic.PrivateAttr(NotSet)
+    _cache: Any = PrivateAttr(NotSet)
 
     def _cache_object(self, obj: Any) -> None:
         self._cache = obj
@@ -522,7 +522,7 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):
-        return cls.__fields__.get("type").get_default()
+        return cls.model_fields.get("type").get_default()
 
 
 class UnpersistedResult(BaseResult):
@@ -565,7 +565,7 @@ class LiteralResult(BaseResult):
     They are not persisted to external result storage.
     """
 
-    type = "literal"
+    type: str = "literal"
     value: Any
 
     def has_cached_object(self) -> bool:
@@ -602,13 +602,13 @@ class PersistedResult(BaseResult):
     content was written.
     """
 
-    type = "reference"
+    type: str = "reference"
 
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
 
-    _should_cache_object: bool = pydantic.PrivateAttr(default=True)
+    _should_cache_object: bool = PrivateAttr(default=True)
 
     @sync_compatible
     @inject_client
@@ -709,7 +709,7 @@ class PersistedResult(BaseResult):
         return result
 
 
-class PersistedResultBlob(pydantic.BaseModel):
+class PersistedResultBlob(BaseModel):
     """
     The format of the content stored by a persisted result.
 
@@ -718,10 +718,10 @@ class PersistedResultBlob(pydantic.BaseModel):
 
     serializer: Serializer
     data: bytes
-    prefect_version: str = pydantic.Field(default=prefect.__version__)
+    prefect_version: str = Field(default=prefect.__version__)
 
     def to_bytes(self) -> bytes:
-        return self.json().encode()
+        return self.model_dump_json().encode()
 
 
 class UnknownResult(BaseResult):
@@ -735,7 +735,7 @@ class UnknownResult(BaseResult):
     completed task.
     """
 
-    type = "unknown"
+    type: str = "unknown"
     value: None
 
     def has_cached_object(self) -> bool:

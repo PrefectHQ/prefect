@@ -16,7 +16,7 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 import pendulum
-from pydantic.v1 import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 from pydantic.v1.schema import default_ref_template
 
 from prefect.utilities.callables import get_call_parameters
@@ -291,7 +291,7 @@ class DeprecatedInfraOverridesField(BaseModel):
         description="Deprecated field. Use `job_variables` instead.",
     )
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def _job_variables_from_infra_overrides(
         cls, values: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -342,7 +342,7 @@ class DeprecatedInfraOverridesField(BaseModel):
             exclude = {"job_variables"}
         kwargs["exclude"] = exclude
 
-        return super().dict(**kwargs)
+        return super().model_dump(**kwargs)
 
     @classmethod
     def schema(
