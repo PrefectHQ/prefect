@@ -25,7 +25,7 @@ In this guide we will:
 
 ## Prerequisites
 
-* An environment with a linux operating system with [systemd](https://systemd.io/) and Python 3.8 or later.
+* An environment with a linux operating system with [systemd](https://systemd.io/) and Python 3.9 or later.
 * A superuser account (you can run `sudo` commands).
 * A Prefect Cloud account, or a local instance of a Prefect server running on your network.
 * If daemonizing a worker, you'll need a Prefect [deployment](/concepts/deployments/) with a [work pool](/concepts/work-pools/) your worker can connect to.
@@ -127,7 +127,7 @@ from prefect import flow
 @flow(log_prints=True)
 def say_hi():
     print("Hello!")
-    
+
 if __name__=="__main__":
     say_hi.serve(name="Greeting from daemonized .serve")
 ```
@@ -156,7 +156,7 @@ sudo vim my-prefect-service.service
 
 ```title="my-prefect-service.service"
 [Unit]
-Description=Prefect serve 
+Description=Prefect serve
 
 [Service]
 User=prefect
