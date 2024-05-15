@@ -2,7 +2,6 @@ import anyio
 from packaging.version import Version
 
 import prefect
-from prefect.deployments import Deployment
 from prefect.utilities.callables import parameter_schema
 
 
@@ -19,18 +18,21 @@ async def apply_deployment(deployment):
 
 if __name__ == "__main__":
     # Create deployment
-    if Version(prefect.__version__) < Version("2.1.0"):
-        deployment = Deployment(
-            name="test-deployment",
-            flow_name=hello.name,
-            parameter_openapi_schema=parameter_schema(hello),
-        )
-        anyio.run(apply_deployment, deployment)
-    else:
-        deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
-        deployment.apply()
+    if Version(prefect.__version__) < Version("3.0.0"):
+        from prefect.deployments import Deployment
 
-    # Update deployment
-    deployment.tags = ["test"]
-    if Version(prefect.__version__) >= Version("2.1.0"):
-        deployment.apply()
+        if Version(prefect.__version__) < Version("2.1.0"):
+            deployment = Deployment(
+                name="test-deployment",
+                flow_name=hello.name,
+                parameter_openapi_schema=parameter_schema(hello),
+            )
+            anyio.run(apply_deployment, deployment)
+        else:
+            deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
+            deployment.apply()
+
+        # Update deployment
+        deployment.tags = ["test"]
+        if Version(prefect.__version__) >= Version("2.1.0"):
+            deployment.apply()

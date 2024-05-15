@@ -6,7 +6,6 @@ import anyio
 from packaging.version import Version
 
 import prefect
-from prefect.deployments import Deployment
 from prefect.utilities.callables import parameter_schema
 
 
@@ -41,6 +40,8 @@ async def read_flow_run(flow_run_id):
 def main():
     # Create deployment
     if Version(prefect.__version__) < Version("2.1.0"):
+        from prefect.deployments import Deployment
+
         deployment = Deployment(
             name="test-deployment",
             flow_name=hello.name,
