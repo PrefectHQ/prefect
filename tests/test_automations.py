@@ -7,6 +7,13 @@ from prefect.automations import Automation
 from prefect.events.schemas.automations import EventTrigger, Posture
 from prefect.server.events import ResourceSpecification
 from prefect.server.events.actions import DoNothing
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
+
+
+@pytest.fixture(autouse=True)
+def enable_triggers():
+    with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
+        yield
 
 
 @pytest.fixture
