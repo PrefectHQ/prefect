@@ -222,17 +222,20 @@ class TaskRunEngine(Generic[P, R]):
             self._resolve_parameters()
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
-            new_state = Pending(
-                name="NotReady",
-                message=str(upstream_exc),
+            state = self.set_state(
+                Pending(
+                    name="NotReady",
+                    message=str(upstream_exc),
+                ),
                 # if orchestrating a run already in a pending state, force orchestration to
                 # update the state name
                 force=self.state.is_pending(),
             )
+            return
         else:
             state_details = self._compute_state_details()
             new_state = Running(state_details=state_details)
-        state = self.set_state(new_state)
+            state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
         backoff_count = 0

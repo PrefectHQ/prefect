@@ -58,7 +58,10 @@ class PrefectFuture(abc.ABC, Generic[R]):
 
 class PrefectConcurrentFuture(PrefectFuture):
     def wait(self, timeout: Optional[float] = None) -> None:
-        result = self._wrapped_future.result(timeout=timeout)
+        try:
+            result = self._wrapped_future.result(timeout=timeout)
+        except TimeoutError:
+            return
         if isinstance(result, State):
             self._final_state = result
 
