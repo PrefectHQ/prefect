@@ -265,6 +265,7 @@ async def test_replicate_successful_pod_events(replicator, successful_pod_stream
             ),
         ]
     )
+    mock_watch.stop.assert_called_once_with()
 
 
 @pytest.mark.asyncio
@@ -451,3 +452,4 @@ async def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
             ),
         ]
     )
+    mock_watch.stop.assert_called_once_with()

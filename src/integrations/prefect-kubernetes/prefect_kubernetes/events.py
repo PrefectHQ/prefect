@@ -63,7 +63,7 @@ class KubernetesEventsReplicator:
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         """Stop the Kubernetes event watcher and ensure all tasks are completed before exiting the context."""
-        self._watch.stop()
+        # self._watch.stop()
         self._state = "STOPPED"
         if self._task:
             await self._task
