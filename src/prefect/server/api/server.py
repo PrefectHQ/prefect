@@ -37,7 +37,6 @@ from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.events import stream
 from prefect.server.events.services.actions import Actions
-from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.events.services.event_persister import EventPersister
 from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
 from prefect.server.exceptions import ObjectNotFoundError
@@ -581,30 +580,15 @@ def create_app(
         if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
-            and prefect.settings.PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED.value()
-        ):
-            service_instances.append(EventLogger())
-
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
-            and prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value()
-        ):
+        if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
             service_instances.append(ReactiveTriggers())
             service_instances.append(ProactiveTriggers())
             service_instances.append(Actions())
 
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
-            and prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED
-        ):
+        if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
             service_instances.append(EventPersister())
 
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
-            and prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED
-        ):
+        if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
             service_instances.append(stream.Distributor())
 
         loop = asyncio.get_running_loop()

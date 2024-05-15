@@ -15,6 +15,14 @@ import abc
 import base64
 from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
+from pydantic.v1 import (
+    BaseModel,
+    Field,
+    ValidationError,
+    parse_obj_as,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
@@ -25,29 +33,9 @@ from prefect._internal.schemas.validators import (
     validate_picklelib,
     validate_picklelib_version,
 )
-from prefect.pydantic import HAS_PYDANTIC_V2
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect.utilities.pydantic import custom_pydantic_encoder
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import (
-        BaseModel,
-        Field,
-        ValidationError,
-        parse_obj_as,
-        root_validator,
-        validator,
-    )
-else:
-    from pydantic import (
-        BaseModel,
-        Field,
-        ValidationError,
-        parse_obj_as,
-        root_validator,
-        validator,
-    )
 
 D = TypeVar("D")
 

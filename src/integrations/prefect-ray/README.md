@@ -20,7 +20,7 @@ Provides a `RayTaskRunner` that enables Prefect flows to run tasks execute tasks
 
 ### Python setup
 
-Requires an installation of Python 3.8 or newer.
+Requires an installation of Python 3.9 or newer.
 
 We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
 
@@ -38,7 +38,7 @@ Users running Apple Silicon (such as M1 macs) should check out the Ray docs [her
 
 ## Running tasks on Ray
 
-The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/concepts/task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution. 
+The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/concepts/task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution.
 
 By default, a temporary Ray instance is created for the duration of the flow run.
 
@@ -92,7 +92,7 @@ from prefect_ray.task_runners import RayTaskRunner
 
 @flow(task_runner=RayTaskRunner())
 def my_flow():
-    ... 
+    ...
 ```
 
 This flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`.
@@ -103,15 +103,15 @@ from prefect_ray.task_runners import RayTaskRunner
 
 @flow(task_runner=RayTaskRunner(address="ray://192.0.2.255:8786"))
 def my_flow():
-    ... 
+    ...
 ```
 
 `RayTaskRunner` accepts the following optional parameters:
 
-| Parameter | Description |
-| --- | --- |
-| address | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
-| init_kwargs | Additional kwargs to use when calling `ray.init`. |
+| Parameter   | Description                                                                                                                         |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| address     | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
+| init_kwargs | Additional kwargs to use when calling `ray.init`.                                                                                   |
 
 Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
@@ -124,7 +124,7 @@ Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray
 
 When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance. To resolve these issues, we recommend taking the following steps when working with a remote Ray cluster:
 
-1. By default, Prefect will not persist any data to the filesystem of the remote ray worker. However, if you want to take advantage of Prefect's caching ability, you will need to configure a remote result storage to persist results across task runs. 
+1. By default, Prefect will not persist any data to the filesystem of the remote ray worker. However, if you want to take advantage of Prefect's caching ability, you will need to configure a remote result storage to persist results across task runs.
 
 We recommend using the [Prefect UI to configure a storage block](https://docs.prefect.io/concepts/blocks/) to use for remote results storage.
 
