@@ -15,6 +15,7 @@ from fastapi import (
     Path,
     status,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
@@ -30,7 +31,6 @@ from prefect.server.models.work_queues import (
 )
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
 if TYPE_CHECKING:
@@ -328,10 +328,10 @@ async def get_scheduled_flow_runs(
     work_queue_names: List[str] = Body(
         None, description="The names of work pool queues"
     ),
-    scheduled_before: DateTimeTZ = Body(
+    scheduled_before: DateTime = Body(
         None, description="The maximum time to look for scheduled flow runs"
     ),
-    scheduled_after: DateTimeTZ = Body(
+    scheduled_after: DateTime = Body(
         None, description="The minimum time to look for scheduled flow runs"
     ),
     limit: int = dependencies.LimitBody(),

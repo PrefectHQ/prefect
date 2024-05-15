@@ -18,6 +18,7 @@ from fastapi import (
     status,
 )
 from prefect._vendor.starlette.websockets import WebSocketDisconnect
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -31,7 +32,6 @@ from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("server.api")
@@ -122,8 +122,8 @@ async def count_task_runs(
 
 @router.post("/history")
 async def task_run_history(
-    history_start: DateTimeTZ = Body(..., description="The history's start time."),
-    history_end: DateTimeTZ = Body(..., description="The history's end time."),
+    history_start: DateTime = Body(..., description="The history's start time."),
+    history_end: DateTime = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description=(

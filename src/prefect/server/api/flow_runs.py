@@ -19,6 +19,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse, PlainTextResponse
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
@@ -38,7 +39,6 @@ from prefect.server.orchestration import dependencies as orchestration_dependenc
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 from prefect.utilities import schema_tools
 
@@ -228,8 +228,8 @@ async def average_flow_run_lateness(
 
 @router.post("/history")
 async def flow_run_history(
-    history_start: DateTimeTZ = Body(..., description="The history's start time."),
-    history_end: DateTimeTZ = Body(..., description="The history's end time."),
+    history_start: DateTime = Body(..., description="The history's start time."),
+    history_end: DateTime = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description=(

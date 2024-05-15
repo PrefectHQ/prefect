@@ -20,12 +20,12 @@ from pydantic import (
     HttpUrl,
     field_validator,
     model_validator,
-    validator,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
-from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
+from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     get_or_create_state_name,
@@ -121,11 +121,11 @@ class StateDetails(PrefectBaseModel):
     task_run_id: Optional[UUID] = None
     # for task runs that represent subflows, the subflow's run ID
     child_flow_run_id: Optional[UUID] = None
-    scheduled_time: Optional[DateTimeTZ] = None
+    scheduled_time: Optional[DateTime] = None
     cache_key: Optional[str] = None
-    cache_expiration: Optional[DateTimeTZ] = None
+    cache_expiration: Optional[DateTime] = None
     untrackable_result: bool = False
-    pause_timeout: Optional[DateTimeTZ] = None
+    pause_timeout: Optional[DateTime] = None
     pause_reschedule: bool = False
     pause_key: Optional[str] = None
     run_input_keyset: Optional[Dict[str, str]] = None
@@ -142,7 +142,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Union["BaseResult[R]", Any] = Field(
@@ -466,18 +466,18 @@ class FlowRun(ObjectBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-    expected_start_time: Optional[DateTimeTZ] = Field(
+    expected_start_time: Optional[DateTime] = Field(
         default=None,
         description="The flow run's expected start time.",
     )
-    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+    next_scheduled_start_time: Optional[DateTime] = Field(
         default=None,
         description="The next time the flow run is scheduled to start.",
     )
-    start_time: Optional[DateTimeTZ] = Field(
+    start_time: Optional[DateTime] = Field(
         default=None, description="The actual start time."
     )
-    end_time: Optional[DateTimeTZ] = Field(
+    end_time: Optional[DateTime] = Field(
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
@@ -662,7 +662,7 @@ class TaskRun(ObjectBaseModel):
             " the task run."
         ),
     )
-    cache_expiration: Optional[DateTimeTZ] = Field(
+    cache_expiration: Optional[DateTime] = Field(
         default=None, description="Specifies when the cached state should expire."
     )
     task_version: Optional[str] = Field(
@@ -703,21 +703,21 @@ class TaskRun(ObjectBaseModel):
             " associated with."
         ),
     )
-    expected_start_time: Optional[DateTimeTZ] = Field(
+    expected_start_time: Optional[DateTime] = Field(
         default=None,
         description="The task run's expected start time.",
     )
 
     # the next scheduled start time will be populated
     # whenever the run is in a scheduled state
-    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+    next_scheduled_start_time: Optional[DateTime] = Field(
         default=None,
         description="The next time the task run is scheduled to start.",
     )
-    start_time: Optional[DateTimeTZ] = Field(
+    start_time: Optional[DateTime] = Field(
         default=None, description="The actual start time."
     )
-    end_time: Optional[DateTimeTZ] = Field(
+    end_time: Optional[DateTime] = Field(
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
@@ -998,7 +998,7 @@ class Deployment(ObjectBaseModel):
             " be scheduled."
         ),
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
@@ -1177,7 +1177,7 @@ class Log(ObjectBaseModel):
     name: str = Field(default=..., description="The logger name.")
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
-    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(
         default=None, description="The flow run ID associated with the log."
     )
@@ -1228,7 +1228,7 @@ class WorkQueue(ObjectBaseModel):
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None, description="The last time an agent polled this queue for work."
     )
     status: Optional[WorkQueueStatus] = Field(
@@ -1258,7 +1258,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
+        self, late_runs_count: int, last_polled: Optional[DateTime] = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1293,7 +1293,7 @@ class WorkQueueStatusDetail(PrefectBaseModel):
     late_runs_count: int = Field(
         default=0, description="The number of late flow runs in the work queue."
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None, description="The last time an agent polled this queue for work."
     )
     health_check_policy: WorkQueueHealthPolicy = Field(
@@ -1352,7 +1352,7 @@ class Agent(ObjectBaseModel):
     work_queue_id: UUID = Field(
         default=..., description="The work queue with which the agent is associated."
     )
-    last_activity_time: Optional[DateTimeTZ] = Field(
+    last_activity_time: Optional[DateTime] = Field(
         default=None, description="The last time this agent polled for work."
     )
 
@@ -1400,9 +1400,8 @@ class WorkPool(ObjectBaseModel):
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
-    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
-    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
-    @validator("default_queue_id", always=True)
+    @field_validator("default_queue_id")
+    @classmethod
     def helpful_error_for_missing_default_queue_id(cls, v):
         return validate_default_queue_id_not_none(v)
 
@@ -1590,6 +1589,6 @@ class CsrfToken(ObjectBaseModel):
     client: str = Field(
         default=..., description="The client id associated with the CSRF token"
     )
-    expiration: DateTimeTZ = Field(
+    expiration: DateTime = Field(
         default=..., description="The expiration time of the CSRF token"
     )

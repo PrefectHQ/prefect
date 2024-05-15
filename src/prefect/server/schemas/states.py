@@ -18,7 +18,7 @@ from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
     PrefectBaseModel,
 )
-from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.fields import DateTime
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -75,11 +75,11 @@ class StateDetails(PrefectBaseModel):
     task_run_id: UUID = None
     # for task runs that represent subflows, the subflow's run ID
     child_flow_run_id: UUID = None
-    scheduled_time: DateTimeTZ = None
+    scheduled_time: DateTime = None
     cache_key: str = None
-    cache_expiration: DateTimeTZ = None
+    cache_expiration: DateTime = None
     untrackable_result: bool = False
-    pause_timeout: DateTimeTZ = None
+    pause_timeout: DateTime = None
     pause_reschedule: bool = False
     pause_key: str = None
     run_input_keyset: Optional[Dict[str, str]] = None
@@ -116,7 +116,7 @@ class State(StateBaseModel):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     data: Optional[Any] = Field(
         default=None,

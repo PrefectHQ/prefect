@@ -30,8 +30,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTimeTZ
-from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.server.utilities.schemas.fields import DateTime
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
@@ -384,7 +383,7 @@ class StateCreate(ActionBaseModel):
         description="The details of the state to create",
     )
 
-    timestamp: Optional[DateTimeTZ] = Field(default=None, repr=False)
+    timestamp: Optional[DateTime] = Field(default=None, repr=False)
     id: Optional[UUID] = Field(default=None, repr=False)
 
     @field_validator("name", mode="before")
@@ -432,7 +431,7 @@ class TaskRunCreate(ActionBaseModel):
             " the task run."
         ),
     )
-    cache_expiration: Optional[DateTimeTZ] = Field(
+    cache_expiration: Optional[DateTime] = Field(
         default=None, description="Specifies when the cached state should expire."
     )
     task_version: Optional[str] = Field(
@@ -539,11 +538,6 @@ class FlowRunCreate(ActionBaseModel):
         ),
         deprecated=True,
     )
-
-    # TODO[pydantic]: The `Config` class inherits from another class, please create the `model_config` manually.
-    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-config for more information.
-    class Config(ActionBaseModel.Config):
-        json_dumps = orjson_dumps_extra_compatible
 
     @field_validator("name", mode="before")
     @classmethod
@@ -783,7 +777,7 @@ class LogCreate(ActionBaseModel):
     name: str = Field(default=..., description="The logger name.")
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
-    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
 
@@ -908,7 +902,7 @@ class WorkQueueUpdate(ActionBaseModel):
     )
     concurrency_limit: Optional[NonNegativeInteger] = Field(None)
     priority: Optional[PositiveInteger] = Field(None)
-    last_polled: Optional[DateTimeTZ] = Field(None)
+    last_polled: Optional[DateTime] = Field(None)
 
     # DEPRECATED
 

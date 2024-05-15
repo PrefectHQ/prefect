@@ -18,7 +18,6 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 from rich.live import Live
 from rich.table import Table

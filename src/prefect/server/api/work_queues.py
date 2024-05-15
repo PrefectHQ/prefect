@@ -15,6 +15,7 @@ from fastapi import (
     Path,
     status,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -27,7 +28,6 @@ from prefect.server.models.work_queues import (
     mark_work_queues_ready,
 )
 from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
@@ -124,7 +124,7 @@ async def read_work_queue_runs(
     background_tasks: BackgroundTasks,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
-    scheduled_before: DateTimeTZ = Body(
+    scheduled_before: DateTime = Body(
         None,
         description=(
             "Only flow runs scheduled to start before this time will be returned."

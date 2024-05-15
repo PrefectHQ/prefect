@@ -9,8 +9,7 @@ from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field
-
-from prefect._internal.schemas.fields import DateTimeTZ
+from pydantic_extra_types.pendulum_dt import DateTime
 
 T = TypeVar("T")
 
@@ -97,8 +96,8 @@ class ObjectBaseModel(IDBaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    created: Optional[DateTimeTZ] = Field(default=None, repr=False)
-    updated: Optional[DateTimeTZ] = Field(default=None, repr=False)
+    created: Optional[DateTime] = Field(default=None, repr=False)
+    updated: Optional[DateTime] = Field(default=None, repr=False)
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})

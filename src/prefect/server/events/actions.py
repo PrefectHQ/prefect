@@ -559,7 +559,7 @@ class DeploymentAction(Action):
         None, description="The identifier of the deployment"
     )
 
-    @model_validator
+    @model_validator(mode="before")
     def selected_deployment_requires_id(cls, values):
         wants_selected_deployment = values.get("source") == "selected"
         has_deployment_id = bool(values.get("deployment_id"))
@@ -1194,7 +1194,7 @@ class WorkPoolAction(Action):
         description="The identifier of the work pool to pause",
     )
 
-    @model_validator
+    @model_validator(mode="before")
     def selected_work_pool_requires_id(cls, values):
         wants_selected_work_pool = values.get("source") == "selected"
         has_work_pool_id = bool(values.get("work_pool_id"))
@@ -1327,7 +1327,7 @@ class WorkQueueAction(Action):
         None, description="The identifier of the work queue to pause"
     )
 
-    @model_validator
+    @model_validator(mode="before")
     def selected_work_queue_requires_id(cls, values):
         wants_selected_work_queue = values.get("source") == "selected"
         has_work_queue_id = bool(values.get("work_queue_id"))
@@ -1446,7 +1446,7 @@ class AutomationAction(Action):
         None, description="The identifier of the automation to act on"
     )
 
-    @model_validator
+    @model_validator(mode="before")
     def selected_automation_requires_id(cls, values):
         wants_selected_automation = values.get("source") == "selected"
         has_automation_id = bool(values.get("automation_id"))

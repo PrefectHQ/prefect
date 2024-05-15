@@ -10,6 +10,7 @@ import jsonschema.exceptions
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect._vendor.starlette.background import BackgroundTasks
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -24,7 +25,6 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
@@ -384,7 +384,7 @@ async def get_scheduled_flow_runs_for_deployments(
     deployment_ids: List[UUID] = Body(
         default=..., description="The deployment IDs to get scheduled runs for"
     ),
-    scheduled_before: DateTimeTZ = Body(
+    scheduled_before: DateTime = Body(
         None, description="The maximum time to look for scheduled flow runs"
     ),
     limit: int = dependencies.LimitBody(),
@@ -472,8 +472,8 @@ async def delete_deployment(
 @router.post("/{id}/schedule")
 async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    start_time: DateTimeTZ = Body(None, description="The earliest date to schedule"),
-    end_time: DateTimeTZ = Body(None, description="The latest date to schedule"),
+    start_time: DateTime = Body(None, description="The earliest date to schedule"),
+    end_time: DateTime = Body(None, description="The latest date to schedule"),
     min_time: datetime.timedelta = Body(
         None,
         description=(

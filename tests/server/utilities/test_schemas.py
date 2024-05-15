@@ -17,7 +17,7 @@ else:
 import pytest
 
 from prefect.server.utilities.schemas import (
-    DateTimeTZ,
+    DateTime,
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
@@ -235,7 +235,7 @@ class TestDatetimeTZ:
     class Model(pydantic.BaseModel):
         dt: datetime.datetime
         dtp: pendulum.DateTime
-        dttz: DateTimeTZ
+        dttz: DateTime
 
     async def test_tz_adds_timezone(self):
         model = self.Model(

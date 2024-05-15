@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-from pydantic import Field, field_validator, model_validator, validator
+from pydantic import Field, field_validator, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
@@ -320,7 +320,7 @@ class TaskRunCreate(ActionBaseModel):
         ),
     )
     cache_key: Optional[str] = Field(None)
-    cache_expiration: Optional[objects.DateTimeTZ] = Field(None)
+    cache_expiration: Optional[objects.DateTime] = Field(None)
     task_version: Optional[str] = Field(None)
     empirical_policy: objects.TaskRunPolicy = Field(
         default_factory=objects.TaskRunPolicy,
@@ -436,9 +436,7 @@ class BlockTypeCreate(ActionBaseModel):
     )
 
     # validators
-    _validate_slug_format = validator("slug", allow_reuse=True)(
-        validate_block_type_slug
-    )
+    _validate_slug_format = field_validator("slug")(validate_block_type_slug)
 
 
 class BlockTypeUpdate(ActionBaseModel):
@@ -494,9 +492,7 @@ class BlockDocumentCreate(ActionBaseModel):
         ),
     )
 
-    _validate_name_format = validator("name", allow_reuse=True)(
-        validate_block_document_name
-    )
+    _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
@@ -539,7 +535,7 @@ class LogCreate(ActionBaseModel):
     name: str = Field(default=..., description="The logger name.")
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
-    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
 
@@ -615,7 +611,7 @@ class WorkQueueUpdate(ActionBaseModel):
     )
     concurrency_limit: Optional[int] = Field(None)
     priority: Optional[int] = Field(None)
-    last_polled: Optional[DateTimeTZ] = Field(None)
+    last_polled: Optional[DateTime] = Field(None)
 
     # DEPRECATED
 
@@ -682,9 +678,7 @@ class ArtifactCreate(ActionBaseModel):
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
 
-    _validate_artifact_format = validator("key", allow_reuse=True)(
-        validate_artifact_key
-    )
+    _validate_artifact_format = field_validator("key")(validate_artifact_key)
 
 
 class ArtifactUpdate(ActionBaseModel):
@@ -713,7 +707,7 @@ class VariableCreate(ActionBaseModel):
     tags: Optional[List[str]] = Field(default=None)
 
     # validators
-    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+    _validate_name_format = field_validator("name")(validate_variable_name)
 
 
 class VariableUpdate(ActionBaseModel):
@@ -734,7 +728,7 @@ class VariableUpdate(ActionBaseModel):
     tags: Optional[List[str]] = Field(default=None)
 
     # validators
-    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+    _validate_name_format = field_validator("name")(validate_variable_name)
 
 
 class GlobalConcurrencyLimitCreate(ActionBaseModel):

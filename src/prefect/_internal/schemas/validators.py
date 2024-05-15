@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Uni
 import jsonschema
 import pendulum
 import yaml
+from pydantic_extra_types.pendulum_dt import DateTime
 
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -373,7 +373,7 @@ def reconcile_paused_deployment(values):
     return values
 
 
-def default_anchor_date(v: DateTimeTZ) -> DateTimeTZ:
+def default_anchor_date(v: DateTime) -> DateTime:
     if v is None:
         return pendulum.now("UTC")
     return pendulum.instance(v)

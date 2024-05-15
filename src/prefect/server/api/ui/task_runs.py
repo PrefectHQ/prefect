@@ -6,13 +6,14 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
 from pydantic import Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
+from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("orion.api.ui.task_runs")
@@ -87,7 +88,7 @@ async def read_dashboard_task_run_counts(
     bucket_count = 20
     start_time = task_runs.start_time.after_.start_of("minute")
     end_time = cast(
-        DateTimeTZ,
+        DateTime,
         (
             task_runs.start_time.before_.end_of("minute")
             if task_runs.start_time.before_
@@ -101,7 +102,7 @@ async def read_dashboard_task_run_counts(
         # Gather the raw counts. The counts are divided into buckets of time
         # and each bucket contains the number of successful and failed task
         # runs.
-        # SQLAlchemy doesn't play nicely with our DateTimeTZ type so we convert it
+        # SQLAlchemy doesn't play nicely with our DateTime type so we convert it
         # to a datetime object.
         start_datetime = datetime(
             start_time.year,

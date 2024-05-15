@@ -575,7 +575,6 @@ class Deployment(BaseModel):
     work_queue_name: Optional[str] = Field(
         "default",
         description="The work queue for the deployment.",
-        yaml_comment="The work queue that will handle this deployment's runs",
     )
     work_pool_name: Optional[str] = Field(
         default=None, description="The work pool for the deployment"
@@ -595,7 +594,7 @@ class Deployment(BaseModel):
     )
     storage: Optional[Block] = Field(
         None,
-        help="The remote storage to use for this workflow.",
+        description="The remote storage to use for this workflow.",
     )
     path: Optional[str] = Field(
         default=None,

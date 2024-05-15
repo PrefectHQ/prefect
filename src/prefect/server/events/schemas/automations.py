@@ -37,7 +37,7 @@ from prefect.server.events.schemas.events import (
     matches,
 )
 from prefect.server.schemas.actions import ActionBaseModel
-from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas import DateTime, ORMBaseModel, PrefectBaseModel
 from prefect.types import NonNegativeDuration
 from prefect.utilities.collections import AutoEnum
 
@@ -60,8 +60,6 @@ class Trigger(PrefectBaseModel, abc.ABC):
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
     """
-
-    __slots__ = ("__weakref__",)
 
     type: str
 
@@ -575,8 +573,6 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
 
 
 class Automation(ORMBaseModel, AutomationCore, extra="ignore"):
-    __slots__ = ("__weakref__",)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.trigger._set_parent(self)
@@ -621,7 +617,7 @@ class Firing(PrefectBaseModel):
         ...,
         description="The state changes represented by this Firing",
     )
-    triggered: DateTimeTZ = Field(
+    triggered: DateTime = Field(
         ...,
         description=(
             "The time at which this trigger fired, which may differ from the "
@@ -695,7 +691,7 @@ class TriggeredAction(PrefectBaseModel):
 
     firing: Firing = Field(None, description="The Firing that prompted this action")
 
-    triggered: DateTimeTZ = Field(..., description="When this action was triggered")
+    triggered: DateTime = Field(..., description="When this action was triggered")
     triggering_labels: Dict[str, str] = Field(
         ...,
         description=(

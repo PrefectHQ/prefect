@@ -32,12 +32,12 @@ from typing import (
 import anyio.abc
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
@@ -124,7 +124,7 @@ class PrefectObjectRegistry(ContextModel):
         capture_failures: If set, failures during __init__ will be silenced and tracked.
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
     _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
         default_factory=lambda: defaultdict(list)
@@ -203,7 +203,7 @@ class RunContext(ContextModel):
         client: The Prefect client instance being used for API communication
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 

@@ -15,6 +15,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
 
 import prefect.server.database
@@ -39,7 +40,6 @@ from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
 )
-from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
@@ -118,7 +118,7 @@ class FlowRunPolicy(PrefectBaseModel):
         default=False, description="Indicates if this run is resuming from a pause."
     )
 
-    @model_validator
+    @model_validator(mode="before")
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
@@ -220,18 +220,18 @@ class FlowRun(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-    expected_start_time: Optional[DateTimeTZ] = Field(
+    expected_start_time: Optional[DateTime] = Field(
         default=None,
         description="The flow run's expected start time.",
     )
-    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+    next_scheduled_start_time: Optional[DateTime] = Field(
         default=None,
         description="The next time the flow run is scheduled to start.",
     )
-    start_time: Optional[DateTimeTZ] = Field(
+    start_time: Optional[DateTime] = Field(
         default=None, description="The actual start time."
     )
-    end_time: Optional[DateTimeTZ] = Field(
+    end_time: Optional[DateTime] = Field(
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
@@ -330,7 +330,7 @@ class TaskRunPolicy(PrefectBaseModel):
         default=None, description="Determines the amount a retry should jitter"
     )
 
-    @model_validator
+    @model_validator(mode="before")
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
@@ -404,7 +404,7 @@ class TaskRun(ORMBaseModel):
             " the task run."
         ),
     )
-    cache_expiration: Optional[DateTimeTZ] = Field(
+    cache_expiration: Optional[DateTime] = Field(
         default=None, description="Specifies when the cached state should expire."
     )
     task_version: Optional[str] = Field(
@@ -443,21 +443,21 @@ class TaskRun(ORMBaseModel):
             " associated with."
         ),
     )
-    expected_start_time: Optional[DateTimeTZ] = Field(
+    expected_start_time: Optional[DateTime] = Field(
         default=None,
         description="The task run's expected start time.",
     )
 
     # the next scheduled start time will be populated
     # whenever the run is in a scheduled state
-    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+    next_scheduled_start_time: Optional[DateTime] = Field(
         default=None,
         description="The next time the task run is scheduled to start.",
     )
-    start_time: Optional[DateTimeTZ] = Field(
+    start_time: Optional[DateTime] = Field(
         default=None, description="The actual start time."
     )
-    end_time: Optional[DateTimeTZ] = Field(
+    end_time: Optional[DateTime] = Field(
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
@@ -575,7 +575,7 @@ class Deployment(ORMBaseModel):
             " be scheduled."
         ),
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
@@ -786,7 +786,7 @@ class BlockDocument(ORMBaseModel):
         # and will inherit this validator
         return raise_on_name_with_banned_characters(v)
 
-    @model_validator
+    @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -858,7 +858,7 @@ class BlockDocumentReference(ORMBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
-    @model_validator
+    @model_validator(mode="before")
     def validate_parent_and_ref_are_different(cls, values):
         return validate_parent_and_ref_diff(values)
 
@@ -902,7 +902,7 @@ class Log(ORMBaseModel):
     name: str = Field(default=..., description="The logger name.")
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
-    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(
         default=None, description="The flow run ID associated with the log."
     )
@@ -952,7 +952,7 @@ class WorkQueue(ORMBaseModel):
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None, description="The last time an agent polled this queue for work."
     )
 
@@ -979,7 +979,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
+        self, late_runs_count: int, last_polled: Optional[DateTime] = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1014,7 +1014,7 @@ class WorkQueueStatusDetail(PrefectBaseModel):
     late_runs_count: int = Field(
         default=0, description="The number of late flow runs in the work queue."
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None, description="The last time an agent polled this queue for work."
     )
     health_check_policy: WorkQueueHealthPolicy = Field(
@@ -1073,7 +1073,7 @@ class Agent(ORMBaseModel):
     work_queue_id: UUID = Field(
         default=..., description="The work queue with which the agent is associated."
     )
-    last_activity_time: Optional[DateTimeTZ] = Field(
+    last_activity_time: Optional[DateTime] = Field(
         default=None, description="The last time this agent polled for work."
     )
 
@@ -1285,6 +1285,6 @@ class CsrfToken(ORMBaseModel):
     client: str = Field(
         default=..., description="The client id associated with the CSRF token"
     )
-    expiration: DateTimeTZ = Field(
+    expiration: DateTime = Field(
         default=..., description="The expiration time of the CSRF token"
     )

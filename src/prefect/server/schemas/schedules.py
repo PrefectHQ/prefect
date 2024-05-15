@@ -20,7 +20,7 @@ from prefect._internal.schemas.validators import (
     validate_rrule_timezone,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTimeTZ
+from prefect.server.utilities.schemas.fields import DateTime
 from prefect.types import PositiveDuration
 
 MAX_ITERATIONS = 1000
@@ -66,7 +66,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     Args:
         interval (datetime.timedelta): an interval to schedule on.
-        anchor_date (DateTimeTZ, optional): an anchor date to schedule increments against;
+        anchor_date (DateTime, optional): an anchor date to schedule increments against;
             if not provided, the current timestamp will be used.
         timezone (str, optional): a valid timezone string.
     """
@@ -74,7 +74,7 @@ class IntervalSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     interval: PositiveDuration
-    anchor_date: Optional[DateTimeTZ] = None
+    anchor_date: Optional[DateTime] = None
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
     @field_validator("anchor_date")

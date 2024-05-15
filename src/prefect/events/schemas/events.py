@@ -16,9 +16,9 @@ from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import ConfigDict, Field, RootModel, field_validator, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
@@ -102,7 +102,7 @@ class RelatedResource(Resource):
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
-    occurred: DateTimeTZ = Field(
+    occurred: DateTime = Field(
         default_factory=lambda: pendulum.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
@@ -181,7 +181,7 @@ class ReceivedEvent(Event):
 
     model_config = ConfigDict(from_attributes=True)
 
-    received: DateTimeTZ = Field(
+    received: DateTime = Field(
         ...,
         description="When the event was received by Prefect Cloud",
     )

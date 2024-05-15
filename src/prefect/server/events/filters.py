@@ -6,10 +6,10 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.sql import Select
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas.filters import (
     PrefectFilterBaseModel,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 class AutomationFilterCreated(PrefectFilterBaseModel):
     """Filter by `Automation.created`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include automations created before this datetime",
     )
@@ -111,15 +111,15 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
 
 class EventOccurredFilter(EventDataFilter):
-    since: DateTimeTZ = Field(
+    since: DateTime = Field(
         default_factory=lambda: cast(
-            DateTimeTZ,
+            DateTime,
             pendulum.now("UTC").start_of("day").subtract(days=180),
         ),
         description="Only include events after this time (inclusive)",
     )
-    until: DateTimeTZ = Field(
-        default_factory=lambda: cast(DateTimeTZ, pendulum.now("UTC")),
+    until: DateTime = Field(
+        default_factory=lambda: cast(DateTime, pendulum.now("UTC")),
         description="Only include events prior to this time (inclusive)",
     )
 

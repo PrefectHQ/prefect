@@ -9,13 +9,13 @@ from typing_extensions import TypeAlias
 # as we have been in class definitions, also guaranteeing that we'll be applying these
 # validators by importing this module.
 
-DateTimeTZ: TypeAlias = pendulum.DateTime
+DateTime: TypeAlias = pendulum.DateTime
 
 
 def _datetime_patched_classmethod(function):
-    if hasattr(DateTimeTZ, function.__name__):
+    if hasattr(DateTime, function.__name__):
         return function
-    setattr(DateTimeTZ, function.__name__, classmethod(function))
+    setattr(DateTime, function.__name__, classmethod(function))
     return function
 
 

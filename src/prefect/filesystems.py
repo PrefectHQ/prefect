@@ -809,7 +809,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         default=None, title="SMB Password", description="Password for SMB access."
     )
     smb_host: str = Field(
-        default=..., tile="SMB server/hostname", description="SMB server/hostname."
+        default=..., title="SMB server/hostname", description="SMB server/hostname."
     )
     smb_port: Optional[int] = Field(
         default=None, title="SMB port", description="SMB port (default: 445)."
@@ -908,7 +908,7 @@ class GitHub(ReadableDeploymentStorage):
         description="An optional reference to pin to; can be a branch name or tag.",
     )
     access_token: Optional[SecretStr] = Field(
-        name="Personal Access Token",
+        title="Personal Access Token",
         default=None,
         description=(
             "A GitHub Personal Access Token (PAT) with repo scope."

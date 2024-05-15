@@ -257,7 +257,6 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
     range: timedelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
-        minimum=300.0,
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
             "used to determine the time range over which the query will be executed. "
@@ -266,8 +265,6 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
     firing_for: timedelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
-        minimum=300.0,
-        exclusiveMinimum=False,
         description=(
             "The duration (seconds) for which the metric query must breach "
             "or resolve continuously before the state is updated and the "
@@ -275,6 +272,12 @@ class MetricTriggerQuery(PrefectBaseModel):
             "The minimum value is 300 seconds (5 minutes)."
         ),
     )
+
+    @field_validator("range", "firing_for")
+    def enforce_minimum_range(cls, value: timedelta):
+        if value < timedelta(seconds=300):
+            raise ValueError("The minimum range is 300 seconds (5 minutes)")
+        return value
 
 
 class MetricTrigger(ResourceTrigger):

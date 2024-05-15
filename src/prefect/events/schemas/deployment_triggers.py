@@ -22,8 +22,8 @@ from typing import (
 )
 from uuid import UUID
 
-from pydantic import Field, PrivateAttr
-from typing_extensions import TypeAlias
+from pydantic import Field, PrivateAttr, model_validator
+from typing_extensions import Self, TypeAlias
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -211,14 +211,20 @@ class DeploymentTrigger(PrefectBaseModel):
     )
     within: timedelta = Field(
         timedelta(0),
-        minimum=0.0,
-        exclusiveMinimum=False,
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
             "Proactive triggers"
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_within(self) -> Self:
+        if self.posture == Posture.Proactive and self.within < timedelta(seconds=10):
+            raise ValueError(
+                "Proactive triggers must have a within period of at least 10 seconds"
+            )
+        return self
 
     # from MetricTrigger
 

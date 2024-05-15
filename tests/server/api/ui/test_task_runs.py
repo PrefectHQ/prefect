@@ -3,12 +3,12 @@ from typing import Tuple, cast
 import pendulum
 import pytest
 from httpx import AsyncClient
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
 from prefect.server.api.ui.task_runs import TaskRunCount
 from prefect.server.schemas import actions, core, filters, states
-from prefect.server.utilities.schemas import DateTimeTZ
 
 
 class TestReadDashboardTaskRunCounts:
@@ -17,8 +17,8 @@ class TestReadDashboardTaskRunCounts:
         return "/ui/task_runs/dashboard/counts"
 
     @pytest.fixture
-    def time_window(self) -> Tuple[DateTimeTZ, DateTimeTZ]:
-        now = cast(DateTimeTZ, pendulum.datetime(2023, 6, 1, 18, tz="UTC"))
+    def time_window(self) -> Tuple[DateTime, DateTime]:
+        now = cast(DateTime, pendulum.datetime(2023, 6, 1, 18, tz="UTC"))
         return (now, now.subtract(hours=8))
 
     @pytest.fixture
@@ -177,7 +177,7 @@ class TestReadTaskRunCountsByState:
         create_flow_runs,
     ):
         task_runs_per_flow_run = 27
-        now = cast(DateTimeTZ, pendulum.datetime(2023, 6, 1, 18, tz="UTC"))
+        now = cast(DateTime, pendulum.datetime(2023, 6, 1, 18, tz="UTC"))
 
         for flow_run in create_flow_runs:
             for i in range(task_runs_per_flow_run):
