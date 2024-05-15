@@ -9,6 +9,7 @@ import datetime
 import inspect
 import json
 import os
+import re
 import sys
 import tempfile
 import warnings
@@ -46,7 +47,6 @@ from typing_extensions import Literal, ParamSpec, Self
 
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
@@ -58,6 +58,7 @@ from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
+    InvalidNameError,
     MissingFlowError,
     ObjectNotFound,
     ParameterTypeError,
@@ -83,6 +84,7 @@ from prefect.settings import (
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     is_async_fn,
@@ -275,7 +277,7 @@ class Flow(Generic[P, R]):
 
         # Validate name if given
         if name:
-            raise_on_name_with_banned_characters(name)
+            _raise_on_name_with_banned_characters(name)
 
         self.name = name or fn.__name__.replace("_", "-")
 
@@ -663,7 +665,8 @@ class Flow(Generic[P, R]):
         from prefect.deployments.runner import RunnerDeployment
 
         if not name.endswith(".py"):
-            raise_on_name_with_banned_characters(name)
+            _raise_on_name_with_banned_characters(name)
+
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
@@ -1545,6 +1548,23 @@ def flow(
                 on_running=on_running,
             ),
         )
+
+
+def _raise_on_name_with_banned_characters(name: str) -> str:
+    """
+    Raise an InvalidNameError if the given name contains any invalid
+    characters.
+    """
+    if name is None:
+        return name
+
+    if not re.match(WITHOUT_BANNED_CHARACTERS, name):
+        raise InvalidNameError(
+            f"Name {name!r} contains an invalid character. "
+            f"Must not contain any of: {BANNED_CHARACTERS}."
+        )
+
+    return name
 
 
 # Add from_source so it is available on the flow function we all know and love

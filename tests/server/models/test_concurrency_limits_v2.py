@@ -101,7 +101,7 @@ async def test_create_concurrency_limit(session: AsyncSession):
 async def test_create_concurrency_limit_with_invalid_name_raises(session: AsyncSession):
     with pytest.raises(
         pydantic.error_wrappers.ValidationError,
-        match="contains an invalid character",
+        match="String should match pattern",
     ):
         await create_concurrency_limit(
             session=session,
@@ -286,7 +286,7 @@ async def test_update_concurrency_limit_with_invalid_name_raises(
 ):
     with pytest.raises(
         pydantic.error_wrappers.ValidationError,
-        match="contains an invalid character",
+        match="String should match pattern",
     ):
         await update_concurrency_limit(
             session=session,

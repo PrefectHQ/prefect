@@ -42,8 +42,6 @@ import prefect.runtime
 
 # Import modules that register types
 import prefect.serializers
-import prefect.deprecated.data_documents
-import prefect.deprecated.packaging
 import prefect.blocks.kubernetes
 import prefect.blocks.notifications
 import prefect.blocks.system
@@ -61,12 +59,8 @@ import prefect.client.schemas
 
 prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
 prefect.context.TaskRunContext.update_forward_refs(Task=Task)
-prefect.client.schemas.State.update_forward_refs(
-    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
-)
-prefect.client.schemas.StateCreate.update_forward_refs(
-    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
-)
+prefect.client.schemas.State.update_forward_refs(BaseResult=BaseResult)
+prefect.client.schemas.StateCreate.update_forward_refs(BaseResult=BaseResult)
 
 
 prefect.plugins.load_extra_entrypoints()
@@ -86,12 +80,8 @@ prefect.client.PrefectClient = PrefectClient
 
 from prefect._internal.compatibility.deprecated import (
     inject_renamed_module_alias_finder,
-    register_renamed_module,
 )
 
-register_renamed_module(
-    "prefect.packaging", "prefect.deprecated.packaging", start_date="Mar 2024"
-)
 inject_renamed_module_alias_finder()
 
 
