@@ -22,9 +22,7 @@ from prefect import flow, task
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
-from prefect.infrastructure import Process
 from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
@@ -179,44 +177,6 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
         setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
-
-
-@pytest.mark.skip(reason="Will address with other infra compatibility improvements.")
-@pytest.mark.enable_api_log_handler
-async def test_flow_run_respects_extra_loggers(prefect_client, logger_test_deployment):
-    """
-    Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
-    intended. This avoids side-effects of modifying the loggers in this test run without
-    confusing mocking.
-    """
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        logger_test_deployment
-    )
-
-    assert (
-        await Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
-        .prepare_for_flow_run(flow_run)
-        .run()
-    )
-
-    state = (await prefect_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state, prefect_client)
-    api_logs = await prefect_client.read_logs()
-    api_log_messages = [log.message for log in api_logs]
-
-    extra_logger = logging.getLogger("prefect.extra")
-
-    # Configures 'foo' to match 'prefect.extra'
-    assert settings["foo"]["handlers"] == [
-        handler.name for handler in extra_logger.handlers
-    ]
-    assert settings["foo"]["level"] == extra_logger.level
-    assert "Hello from foo" in api_log_messages
-
-    # Does not configure 'bar'
-    assert settings["bar"]["handlers"] == []
-    assert settings["bar"]["level"] == logging.NOTSET
-    assert "Hello from bar" not in api_log_messages
 
 
 @pytest.mark.parametrize("name", ["default", None, ""])

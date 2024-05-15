@@ -13,10 +13,6 @@ from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State
 from prefect.client.schemas import StateDetails, StateType
-from prefect.deprecated.data_documents import (
-    DataDocument,
-    result_from_state_with_data_document,
-)
 from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
@@ -60,13 +56,8 @@ def get_state_result(
                 DeprecationWarning,
                 stacklevel=2,
             )
-        # Backwards compatibility
-        if isinstance(state.data, DataDocument):
-            return result_from_state_with_data_document(
-                state, raise_on_failure=raise_on_failure
-            )
-        else:
-            return state.data
+
+        return state.data
     else:
         return _get_state_result(state, raise_on_failure=raise_on_failure)
 
@@ -90,11 +81,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     ):
         raise await get_state_exception(state)
 
-    if isinstance(state.data, DataDocument):
-        result = result_from_state_with_data_document(
-            state, raise_on_failure=raise_on_failure
-        )
-    elif isinstance(state.data, BaseResult):
+    if isinstance(state.data, BaseResult):
         result = await state.data.get()
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():
@@ -244,11 +231,6 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         and not retval.state_details.task_run_id
     ):
         state = retval
-
-        # Do not modify states with data documents attached; backwards compatibility
-        if isinstance(state.data, DataDocument):
-            return state
-
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
