@@ -6,9 +6,6 @@ from prefect.deployments.base import (
 
 from prefect.deployments.deployments import (
     run_deployment,
-    load_flow_from_flow_run,
-    load_deployments_from_yaml,
-    Deployment,
 )
 from prefect.deployments.runner import (
     RunnerDeployment,
