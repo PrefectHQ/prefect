@@ -22,7 +22,14 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic.v1 import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    HttpUrl,
+    SecretBytes,
+    SecretStr,
+    ValidationError,
+)
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
@@ -116,7 +123,9 @@ def _is_subclass(cls, parent_cls) -> bool:
     return inspect.isclass(cls) and issubclass(cls, parent_cls)
 
 
-def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
+def _collect_secret_fields(
+    name: str, type_: Type[BaseModel], secrets: List[str]
+) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
     secrets list, supporting nested Union / BaseModel fields. Also, note, this function
@@ -127,8 +136,8 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
             _collect_secret_fields(name, union_type, secrets)
         return
     elif _is_subclass(type_, BaseModel):
-        for field in type_.__fields__.values():
-            _collect_secret_fields(f"{name}.{field.name}", field.type_, secrets)
+        for field_name, field in type_.model_fields.items():
+            _collect_secret_fields(f"{name}.{field_name}", field.annotation, secrets)
         return
 
     if type_ in (SecretStr, SecretBytes):
@@ -138,7 +147,9 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
         # field are secret and should be obfuscated.
         secrets.append(f"{name}.*")
     elif Block.is_block_class(type_):
-        secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
+        secrets.extend(
+            f"{name}.{s}" for s in type_.model_json_schema()["secret_fields"]
+        )
 
 
 def _should_update_block_type(
@@ -184,6 +195,48 @@ class BlockNotSavedError(RuntimeError):
     pass
 
 
+def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
+    """
+    Customizes Pydantic's schema generation feature to add blocks related information.
+    """
+    schema["block_type_slug"] = model.get_block_type_slug()
+    # Ensures args and code examples aren't included in the schema
+    description = model.get_description()
+    if description:
+        schema["description"] = description
+    else:
+        # Prevent the description of the base class from being included in the schema
+        schema.pop("description", None)
+
+    # create a list of secret field names
+    # secret fields include both top-level keys and dot-delimited nested secret keys
+    # A wildcard (*) means that all fields under a given key are secret.
+    # for example: ["x", "y", "z.*", "child.a"]
+    # means the top-level keys "x" and "y", all keys under "z", and the key "a" of a block
+    # nested under the "child" key are all secret. There is no limit to nesting.
+    secrets = schema["secret_fields"] = []
+    for name, field in model.model_fields.items():
+        _collect_secret_fields(name, field.annotation, secrets)
+
+    # create block schema references
+    refs = schema["block_schema_references"] = {}
+    for name, field in model.model_fields.items():
+        if Block.is_block_class(field.annotation):
+            refs[name] = field.annotation._to_block_schema_reference_dict()
+        if get_origin(field.annotation) is Union:
+            for type_ in get_args(field.annotation):
+                if Block.is_block_class(type_):
+                    if isinstance(refs.get(name), list):
+                        refs[name].append(type_._to_block_schema_reference_dict())
+                    elif isinstance(refs.get(name), dict):
+                        refs[name] = [
+                            refs[name],
+                            type_._to_block_schema_reference_dict(),
+                        ]
+                    else:
+                        refs[name] = type_._to_block_schema_reference_dict()
+
+
 @register_base_type
 @instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
@@ -203,56 +256,11 @@ class Block(BaseModel, ABC):
     initialization.
     """
 
-    class Config:
-        extra = "allow"
-
-        json_encoders = {SecretDict: lambda v: v.dict()}
-
-        @staticmethod
-        def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
-            """
-            Customizes Pydantic's schema generation feature to add blocks related information.
-            """
-            schema["block_type_slug"] = model.get_block_type_slug()
-            # Ensures args and code examples aren't included in the schema
-            description = model.get_description()
-            if description:
-                schema["description"] = description
-            else:
-                # Prevent the description of the base class from being included in the schema
-                schema.pop("description", None)
-
-            # create a list of secret field names
-            # secret fields include both top-level keys and dot-delimited nested secret keys
-            # A wildcard (*) means that all fields under a given key are secret.
-            # for example: ["x", "y", "z.*", "child.a"]
-            # means the top-level keys "x" and "y", all keys under "z", and the key "a" of a block
-            # nested under the "child" key are all secret. There is no limit to nesting.
-            secrets = schema["secret_fields"] = []
-            for field in model.__fields__.values():
-                _collect_secret_fields(field.name, field.type_, secrets)
-
-            # create block schema references
-            refs = schema["block_schema_references"] = {}
-            for field in model.__fields__.values():
-                if Block.is_block_class(field.type_):
-                    refs[field.name] = field.type_._to_block_schema_reference_dict()
-                if get_origin(field.type_) is Union:
-                    for type_ in get_args(field.type_):
-                        if Block.is_block_class(type_):
-                            if isinstance(refs.get(field.name), list):
-                                refs[field.name].append(
-                                    type_._to_block_schema_reference_dict()
-                                )
-                            elif isinstance(refs.get(field.name), dict):
-                                refs[field.name] = [
-                                    refs[field.name],
-                                    type_._to_block_schema_reference_dict(),
-                                ]
-                            else:
-                                refs[
-                                    field.name
-                                ] = type_._to_block_schema_reference_dict()
+    model_config = ConfigDict(
+        extra="allow",
+        json_encoders={SecretDict: lambda v: v.dict()},
+        json_schema_extra=schema_extra,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -309,11 +317,11 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def get_block_type_name(cls):
-        return cls._block_type_name or cls.__name__
+        return cls._block_type_name.default or cls.__name__
 
     @classmethod
     def get_block_type_slug(cls):
-        return slugify(cls._block_type_slug or cls.get_block_type_name())
+        return slugify(cls._block_type_slug.default or cls.get_block_type_name())
 
     @classmethod
     def get_block_capabilities(cls) -> FrozenSet[str]:
@@ -321,13 +329,14 @@ class Block(BaseModel, ABC):
         Returns the block capabilities for this Block. Recursively collects all block
         capabilities of all parent classes into a single frozenset.
         """
-        return frozenset(
-            {
-                c
-                for base in (cls,) + cls.__mro__
-                for c in getattr(base, "_block_schema_capabilities", []) or []
-            }
-        )
+        capabilities = set()
+        for base in (cls,) + cls.__mro__:
+            block_schema_capabilities = getattr(base, "_block_schema_capabilities", [])
+            if hasattr(block_schema_capabilities, "default"):
+                block_schema_capabilities = block_schema_capabilities.default or []
+            for c in block_schema_capabilities:
+                capabilities.add(c)
+        return frozenset(capabilities)
 
     @classmethod
     def _get_current_package_version(cls):
@@ -347,7 +356,7 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def get_block_schema_version(cls) -> str:
-        return cls._block_schema_version or cls._get_current_package_version()
+        return cls._block_schema_version.default or cls._get_current_package_version()
 
     @classmethod
     def _to_block_schema_reference_dict(cls):
@@ -477,12 +486,14 @@ class Block(BaseModel, ABC):
         Returns:
             BlockSchema: The corresponding block schema.
         """
-        fields = cls.schema()
+        fields = cls.model_json_schema()
         return BlockSchema(
-            id=cls._block_schema_id if cls._block_schema_id is not None else uuid4(),
+            id=cls._block_schema_id.default
+            if cls._block_schema_id.default is not None
+            else uuid4(),
             checksum=cls._calculate_schema_checksum(),
             fields=fields,
-            block_type_id=block_type_id or cls._block_type_id,
+            block_type_id=block_type_id or cls._block_type_id.default,
             block_type=cls._to_block_type(),
             capabilities=list(cls.get_block_capabilities()),
             version=cls.get_block_schema_version(),
@@ -508,7 +519,7 @@ class Block(BaseModel, ABC):
         Returns the description for the current block. Attempts to parse
         description from class docstring if an override is not defined.
         """
-        description = cls._description
+        description = cls._description.default
         # If no description override has been provided, find the first text section
         # and use that as the description
         if description is None and cls.__doc__ is not None:
@@ -532,7 +543,9 @@ class Block(BaseModel, ABC):
         code example from the class docstring if an override is not provided.
         """
         code_example = (
-            dedent(cls._code_example) if cls._code_example is not None else None
+            dedent(cls._code_example.default)
+            if cls._code_example.default is not None
+            else None
         )
         # If no code example override has been provided, attempt to find a examples
         # section or an admonition with the annotation "example" and use that as the
@@ -589,11 +602,11 @@ class Block(BaseModel, ABC):
             BlockType: The corresponding block type.
         """
         return BlockType(
-            id=cls._block_type_id or uuid4(),
+            id=cls._block_type_id.default or uuid4(),
             slug=cls.get_block_type_slug(),
             name=cls.get_block_type_name(),
-            logo_url=cls._logo_url,
-            documentation_url=cls._documentation_url,
+            logo_url=cls._logo_url.default,
+            documentation_url=cls._documentation_url.default,
             description=cls.get_description(),
             code_example=cls.get_code_example(),
         )
@@ -838,7 +851,7 @@ class Block(BaseModel, ABC):
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(
                     f"Could not fully load {block_document_name!r} of block type"
-                    f" {cls._block_type_slug!r} - this is likely because one or more"
+                    f" {cls.get_block_type_slug()!r} - this is likely because one or more"
                     " required fields were added to the schema for"
                     f" {cls.__name__!r} that did not exist on the class when this block"
                     " was last saved. Please specify values for new field(s):"
@@ -849,7 +862,7 @@ class Block(BaseModel, ABC):
                 return cls.construct(**block_document.data, **missing_block_data)
             raise RuntimeError(
                 f"Unable to load {block_document_name!r} of block type"
-                f" {cls._block_type_slug!r} due to failed validation. To load without"
+                f" {cls.get_block_type_slug()!r} due to failed validation. To load without"
                 " validation, try loading again with `validate=False`."
             ) from e
 
@@ -1043,21 +1056,9 @@ class Block(BaseModel, ABC):
         block_type_slug = kwargs.pop("block_type_slug", None)
         if block_type_slug:
             subcls = lookup_type(cls, dispatch_key=block_type_slug)
-            m = super().__new__(subcls)
-            # NOTE: This is a workaround for an obscure issue where copied models were
-            #       missing attributes. This pattern is from Pydantic's
-            #       `BaseModel._copy_and_set_values`.
-            #       The issue this fixes could not be reproduced in unit tests that
-            #       directly targeted dispatch handling and was only observed when
-            #       copying then saving infrastructure blocks on deployment models.
-            object.__setattr__(m, "__dict__", kwargs)
-            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
-            return m
+            return super().__new__(subcls)
         else:
-            m = super().__new__(cls)
-            object.__setattr__(m, "__dict__", kwargs)
-            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
-            return m
+            return super().__new__(cls)
 
     def get_block_placeholder(self) -> str:
         """

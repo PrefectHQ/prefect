@@ -6,8 +6,8 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Depends, HTTPException, Path, Response, status
-from prefect._vendor.fastapi.param_functions import Body
+from fastapi import Depends, HTTPException, Path, Response, status
+from fastapi.param_functions import Body
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

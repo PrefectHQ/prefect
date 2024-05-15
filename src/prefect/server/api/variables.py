@@ -2,11 +2,10 @@
 Routes for interacting with variable objects
 """
 
-
 from typing import List, Optional
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models

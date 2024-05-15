@@ -11,6 +11,8 @@ class NonNegativeInteger(int):
     schema: ClassVar[CoreSchema] = core_schema.int_schema(ge=0)
 
     @classmethod
+    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
+    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
     def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 
@@ -31,6 +33,8 @@ class PositiveInteger(int):
     schema: ClassVar[CoreSchema] = core_schema.int_schema(gt=0)
 
     @classmethod
+    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
+    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
     def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 
@@ -49,6 +53,8 @@ class NonNegativeFloat(float):
     schema: ClassVar[CoreSchema] = core_schema.float_schema(ge=0)
 
     @classmethod
+    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
+    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
     def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 
@@ -69,6 +75,8 @@ class NonNegativeDuration(timedelta):
     schema: ClassVar = core_schema.timedelta_schema(ge=timedelta(seconds=0))
 
     @classmethod
+    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
+    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
     def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 
@@ -89,6 +97,8 @@ class PositiveDuration(timedelta):
     schema: ClassVar = core_schema.timedelta_schema(gt=timedelta(seconds=0))
 
     @classmethod
+    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
+    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
     def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
         yield cls.validate
 

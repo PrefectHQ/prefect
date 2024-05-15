@@ -12,7 +12,7 @@ import uuid
 from typing import List, Union
 
 import pendulum
-import pydantic.v1 as pydantic
+import pydantic
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.compiler import compiles

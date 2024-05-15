@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from pydantic.v1 import Field, PrivateAttr
+from pydantic import Field, PrivateAttr
 from sqlalchemy.sql import Select
 
 from prefect._internal.schemas.bases import PrefectBaseModel

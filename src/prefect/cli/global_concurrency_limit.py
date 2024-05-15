@@ -5,7 +5,7 @@ from typing import Optional
 import orjson
 import pendulum
 import typer
-from pydantic.v1 import ValidationError
+from pydantic import ValidationError
 from rich.pretty import Pretty
 from rich.table import Table
 
@@ -122,7 +122,7 @@ async def inspect_global_concurrency_limit(
             exit_with_error(f"Global concurrency limit {name!r} not found.")
 
     if output:
-        gcl_limit = gcl_limit.dict(json_compatible=True)
+        gcl_limit = gcl_limit.model_dump(mode="json")
         json_output = orjson.dumps(gcl_limit, option=orjson.OPT_INDENT_2).decode()
         if not file_path:
             app.console.print(json_output)

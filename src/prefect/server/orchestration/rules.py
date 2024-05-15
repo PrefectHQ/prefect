@@ -22,7 +22,7 @@ from types import TracebackType
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import sqlalchemy as sa
-from pydantic.v1 import Field
+from pydantic import ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
@@ -89,8 +89,7 @@ class OrchestrationContext(PrefectBaseModel):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     session: Optional[Union[sa.orm.Session, AsyncSession]] = ...
     initial_state: Optional[states.State] = ...

@@ -46,7 +46,6 @@ import prefect.blocks.kubernetes
 import prefect.blocks.notifications
 import prefect.blocks.system
 import prefect.infrastructure.process
-import prefect.infrastructure.kubernetes
 import prefect.infrastructure.container
 
 # Initialize the process-wide profile and registry at import time
@@ -57,10 +56,10 @@ prefect.context.initialize_object_registry()
 # Perform any forward-ref updates needed for Pydantic models
 import prefect.client.schemas
 
-prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
-prefect.context.TaskRunContext.update_forward_refs(Task=Task)
-prefect.client.schemas.State.model_rebuild(BaseResult=BaseResult)
-prefect.client.schemas.StateCreate.model_rebuild(BaseResult=BaseResult)
+prefect.context.FlowRunContext.model_rebuild()
+prefect.context.TaskRunContext.model_rebuild()
+prefect.client.schemas.State.model_rebuild()
+prefect.client.schemas.StateCreate.model_rebuild()
 
 
 prefect.plugins.load_extra_entrypoints()

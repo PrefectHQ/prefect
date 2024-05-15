@@ -1,7 +1,7 @@
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path, status
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas

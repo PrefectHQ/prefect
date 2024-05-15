@@ -7,8 +7,8 @@ import inspect
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Callable, Coroutine, Sequence, Set, get_type_hints
 
-from prefect._vendor.fastapi import APIRouter, Request, Response, status
-from prefect._vendor.fastapi.routing import APIRoute, BaseRoute
+from fastapi import APIRouter, Request, Response, status
+from fastapi.routing import APIRoute, BaseRoute
 from prefect._vendor.starlette.routing import Route as StarletteRoute
 
 

@@ -1,4 +1,4 @@
-r"""
+"""
 Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
@@ -31,7 +31,8 @@ from typing import (
 
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from typing_extensions import Self
 
 import prefect.logging
 import prefect.logging.configuration
@@ -68,12 +69,8 @@ class ContextModel(BaseModel):
 
     # The context variable for storing data must be defined by the child class
     __var__: ContextVar
-    _token: Token = PrivateAttr(None)
-
-    class Config:
-        # allow_mutation = False
-        arbitrary_types_allowed = True
-        extra = "forbid"
+    _token: Optional[Token] = PrivateAttr(None)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
     def __enter__(self):
         if self._token is not None:
@@ -92,7 +89,8 @@ class ContextModel(BaseModel):
         self._token = None
 
     @classmethod
-    def get(cls: Type[T]) -> Optional[T]:
+    def get(cls: Type[Self]) -> Optional[Self]:
+        """Get the current context instance"""
         return cls.__var__.get(None)
 
     def copy(self, **kwargs):
@@ -563,7 +561,7 @@ def root_settings_context():
 
 
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
-GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None
+GLOBAL_OBJECT_REGISTRY: Optional[ContextManager[PrefectObjectRegistry]] = None
 
 
 def initialize_object_registry():

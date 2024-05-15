@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import anyio
 import anyio.abc
-from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 from prefect._internal.schemas.validators import validate_block_is_infrastructure
 from prefect.blocks.core import Block
@@ -26,7 +26,8 @@ class BlockWorkerJobConfiguration(BaseModel):
         default=..., description="The infrastructure block to use for job creation."
     )
 
-    @validator("block")
+    @field_validator("block")
+    @classmethod
     def _validate_infrastructure_block(cls, v):
         return validate_block_is_infrastructure(v)
 

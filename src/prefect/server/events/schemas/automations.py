@@ -19,8 +19,12 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-from pydantic.v1.fields import ModelField
+from pydantic import (
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import TypeAlias
 
 from prefect.logging import get_logger
@@ -34,6 +38,7 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.server.schemas.actions import ActionBaseModel
 from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
+from prefect.types import NonNegativeDuration
 from prefect.utilities.collections import AutoEnum
 
 logger = get_logger(__name__)
@@ -142,7 +147,7 @@ class CompositeTrigger(Trigger, abc.ABC):
             payload={
                 "triggering_labels": firing.triggering_labels,
                 "triggering_event": (
-                    triggering_event.dict(json_compatible=True)
+                    triggering_event.model_dump(mode="json")
                     if triggering_event
                     else None
                 ),
@@ -190,7 +195,8 @@ class CompoundTrigger(CompositeTrigger):
     def ready_to_fire(self, firings: Sequence["Firing"]) -> bool:
         return len(firings) >= self.num_expected_firings
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         require = values.get("require")
 
@@ -303,10 +309,8 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
-        timedelta(0),
-        minimum=0.0,
-        exclusiveMinimum=False,
+    within: NonNegativeDuration = Field(
+        timedelta(seconds=0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -314,16 +318,8 @@ class EventTrigger(ResourceTrigger):
         ),
     )
 
-    @validator("within")
-    def enforce_minimum_within(
-        cls, value: timedelta, values, config, field: ModelField
-    ):
-        minimum = field.field_info.extra["minimum"]
-        if value.total_seconds() < minimum:
-            raise ValueError("The minimum within is 0 seconds")
-        return value
-
-    @root_validator(skip_on_failure=True)
+    @model_validator(mode="before")
+    @classmethod
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
         posture: Optional[Posture] = values.get("posture")
         within: Optional[timedelta] = values.get("within")
@@ -443,7 +439,7 @@ class EventTrigger(ResourceTrigger):
             payload={
                 "triggering_labels": firing.triggering_labels,
                 "triggering_event": (
-                    triggering_event.dict(json_compatible=True)
+                    triggering_event.model_dump(mode="json")
                     if triggering_event
                     else None
                 ),
@@ -505,7 +501,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                 return trigger
         return None
 
-    @root_validator
+    @model_validator(mode="before")
     def prevent_run_deployment_loops(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Detects potential infinite loops in automations with RunDeployment actions"""
         from prefect.server.events.actions import RunDeployment
@@ -666,7 +662,8 @@ class Firing(PrefectBaseModel):
         ),
     )
 
-    @validator("trigger_states")
+    @field_validator("trigger_states")
+    @classmethod
     def validate_trigger_states(cls, value: Set[TriggerState]):
         if not value:
             raise ValueError("At least one trigger state must be provided")
@@ -742,5 +739,5 @@ class TriggeredAction(PrefectBaseModel):
         return self.firing.all_events() if self.firing else []
 
 
-CompoundTrigger.update_forward_refs()
-SequenceTrigger.update_forward_refs()
+CompoundTrigger.model_rebuild()
+SequenceTrigger.model_rebuild()

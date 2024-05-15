@@ -3,6 +3,7 @@ import textwrap
 from datetime import timedelta
 from enum import Enum
 from typing import (
+    Annotated,
     Any,
     Dict,
     List,
@@ -14,8 +15,13 @@ from typing import (
 )
 from uuid import UUID
 
-from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-from pydantic.v1.fields import ModelField
+from pydantic import (
+    AfterValidator,
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -159,10 +165,11 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
+    within: Annotated[
+        timedelta,
+        AfterValidator(lambda v: v >= timedelta(0)),
+    ] = Field(
         timedelta(0),
-        minimum=0.0,
-        exclusiveMinimum=False,
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -170,13 +177,12 @@ class EventTrigger(ResourceTrigger):
         ),
     )
 
-    @validator("within")
-    def enforce_minimum_within(
-        cls, value: timedelta, values, config, field: ModelField
-    ):
+    @field_validator("within")
+    def enforce_minimum_within(cls, value: timedelta, field):
         return validate_trigger_within(value, field)
 
-    @root_validator(skip_on_failure=True)
+    @model_validator(mode="before")
+    @classmethod
     def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
         posture: Optional[Posture] = values.get("posture")
         within: Optional[timedelta] = values.get("within")
@@ -252,7 +258,6 @@ class MetricTriggerQuery(PrefectBaseModel):
     range: timedelta = Field(
         timedelta(seconds=300),  # defaults to 5 minutes
         minimum=300.0,
-        exclusiveMinimum=False,
         description=(
             "The lookback duration (seconds) for a metric query. This duration is "
             "used to determine the time range over which the query will be executed. "
@@ -319,7 +324,7 @@ class CompoundTrigger(CompositeTrigger):
     type: Literal["compound"] = "compound"
     require: Union[int, Literal["any", "all"]]
 
-    @root_validator
+    @model_validator(mode="before")
     def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         require = values.get("require")
 
@@ -380,8 +385,8 @@ TriggerTypes: TypeAlias = Union[
 ]
 """The union of all concrete trigger types that a user may actually create"""
 
-CompoundTrigger.update_forward_refs()
-SequenceTrigger.update_forward_refs()
+CompoundTrigger.model_rebuild()
+SequenceTrigger.model_rebuild()
 
 
 class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg]

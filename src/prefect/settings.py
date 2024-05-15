@@ -68,13 +68,13 @@ from urllib.parse import urlparse
 import toml
 from pydantic import (
     BaseModel,
-    BaseSettings,
+    ConfigDict,
     Field,
     create_model,
     field_validator,
     fields,
-    model_validator,
 )
+from pydantic_settings import BaseSettings
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -596,7 +596,7 @@ This is recommended only during development, e.g. when using self-signed certifi
 """
 
 PREFECT_API_SSL_CERT_FILE = Setting(
-    str,
+    Optional[str],
     default=os.environ.get("SSL_CERT_FILE"),
 )
 """
@@ -606,7 +606,7 @@ If left unset, the setting will default to the value provided by the `SSL_CERT_F
 """
 
 PREFECT_API_URL = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -625,7 +625,7 @@ we would like to silence this warning so we will set it to `FALSE`.
 """
 
 PREFECT_API_KEY = Setting(
-    str,
+    Optional[str],
     default=None,
     is_secret=True,
 )
@@ -694,7 +694,7 @@ PREFECT_CLOUD_API_URL = Setting(
 
 
 PREFECT_CLOUD_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     deprecated=True,
     deprecated_start_date="Dec 2022",
@@ -718,7 +718,7 @@ When using an ephemeral server, this will be `None`.
 
 
 PREFECT_CLOUD_UI_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_cloud_ui_url,
 )
@@ -932,7 +932,7 @@ The following options are available:
 """
 
 PREFECT_SQLALCHEMY_POOL_SIZE = Setting(
-    int,
+    Optional[int],
     default=None,
 )
 """
@@ -940,7 +940,7 @@ Controls connection pool size when using a PostgreSQL database with the Prefect 
 """
 
 PREFECT_SQLALCHEMY_MAX_OVERFLOW = Setting(
-    int,
+    Optional[int],
     default=None,
 )
 """
@@ -1026,7 +1026,7 @@ registered.
 """
 
 PREFECT_API_DATABASE_PASSWORD = Setting(
-    str,
+    Optional[str],
     default=None,
     is_secret=True,
 )
@@ -1037,7 +1037,7 @@ To use this setting, you must include it in your connection URL.
 """
 
 PREFECT_API_DATABASE_CONNECTION_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_database_connection_url,
     is_secret=True,
@@ -1299,7 +1299,7 @@ PREFECT_UI_ENABLED = Setting(
 """Whether or not to serve the Prefect UI."""
 
 PREFECT_UI_API_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_ui_api_url,
 )
@@ -1608,18 +1608,18 @@ PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 # Defaults -----------------------------------------------------------------------------
 
 PREFECT_DEFAULT_RESULT_STORAGE_BLOCK = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """The `block-type/block-document` slug of a block to use as the default result storage."""
 
-PREFECT_DEFAULT_WORK_POOL_NAME = Setting(str, default=None)
+PREFECT_DEFAULT_WORK_POOL_NAME = Setting(Optional[str], default=None)
 """
 The default work pool to deploy to.
 """
 
 PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -1639,7 +1639,7 @@ Defaults to the root path.
 """
 
 PREFECT_UI_STATIC_DIRECTORY = Setting(
-    str,
+    Optional[str],
     default=None,
 )
 """
@@ -1805,19 +1805,20 @@ class Settings(SettingsFieldsMixin):
         logging._checkLevel(value)
         return value
 
-    @model_validator
-    def post_root_validators(cls, values):
-        """
-        Add root validation functions for settings here.
-        """
-        # TODO: We could probably register these dynamically but this is the simpler
-        #       approach for now. We can explore more interesting validation features
-        #       in the future.
-        values = max_log_size_smaller_than_batch_size(values)
-        values = warn_on_database_password_value_without_usage(values)
-        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
-            values = warn_on_misconfigured_api_url(values)
-        return values
+    # @model_validator(mode="before")
+    # @classmethod
+    # def post_root_validators(cls, values):
+    #     """
+    #     Add root validation functions for settings here.
+    #     """
+    #     # TODO: We could probably register these dynamically but this is the simpler
+    #     #       approach for now. We can explore more interesting validation features
+    #     #       in the future.
+    #     values = max_log_size_smaller_than_batch_size(values)
+    #     values = warn_on_database_password_value_without_usage(values)
+    #     if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+    #         values = warn_on_misconfigured_api_url(values)
+    #     return values
 
     def copy_with_update(
         self,
@@ -1923,8 +1924,7 @@ class Settings(SettingsFieldsMixin):
         # Cast to strings and drop null values
         return {key: str(value) for key, value in env.items() if value is not None}
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 # Functions to instantiate `Settings` instances
@@ -2036,7 +2036,7 @@ class Profile(BaseModel):
 
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
-    source: Optional[Path]
+    source: Optional[Path] = None
 
     @field_validator("settings", mode="before")
     def map_names_to_settings(cls, value):
@@ -2075,8 +2075,7 @@ class Profile(BaseModel):
                 changed.append((setting, setting.deprecated_renamed_to))
         return changed
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ProfilesCollection:

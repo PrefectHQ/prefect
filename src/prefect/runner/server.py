@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import pendulum
 import uvicorn
-from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
-from prefect._vendor.fastapi.responses import JSONResponse
+from fastapi import APIRouter, FastAPI, HTTPException, status
+from fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
-from pydantic.v1 import BaseModel
+from pydantic import BaseModel
 
 logger = get_logger("webserver")
 
@@ -232,7 +232,7 @@ def _build_generic_endpoint_for_flows(
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
-            content=flow_run.dict(json_compatible=True),
+            content=flow_run.model_dump(mode="json"),
         )
 
     return _create_flow_run_for_flow_from_fqn

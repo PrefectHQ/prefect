@@ -22,7 +22,7 @@ from typing import (
 )
 from uuid import UUID
 
-from pydantic.v1 import Field, PrivateAttr
+from pydantic import Field, PrivateAttr
 from typing_extensions import TypeAlias
 
 from prefect._internal.compatibility.deprecated import deprecated_class
@@ -80,7 +80,7 @@ class DeploymentEventTrigger(BaseDeploymentTrigger, EventTrigger):
     period of time.
     """
 
-    trigger_type = EventTrigger
+    trigger_type: type = EventTrigger
 
 
 class DeploymentMetricTrigger(BaseDeploymentTrigger, MetricTrigger):
@@ -88,21 +88,21 @@ class DeploymentMetricTrigger(BaseDeploymentTrigger, MetricTrigger):
     A trigger that fires based on the results of a metric query.
     """
 
-    trigger_type = MetricTrigger
+    trigger_type: type = MetricTrigger
 
 
 class DeploymentCompoundTrigger(BaseDeploymentTrigger, CompoundTrigger):
     """A composite trigger that requires some number of triggers to have
     fired within the given time period"""
 
-    trigger_type = CompoundTrigger
+    trigger_type: type = CompoundTrigger
 
 
 class DeploymentSequenceTrigger(BaseDeploymentTrigger, SequenceTrigger):
     """A composite trigger that requires some number of triggers to have fired
     within the given time period in a specific order"""
 
-    trigger_type = SequenceTrigger
+    trigger_type: type = SequenceTrigger
 
 
 # Concrete deployment trigger types

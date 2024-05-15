@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import fsspec
 from anyio import run_process
-from pydantic.v1 import SecretStr
+from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block, BlockNotSavedError

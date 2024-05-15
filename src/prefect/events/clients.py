@@ -194,7 +194,7 @@ class PrefectEphemeralEventsClient(EventsClient):
     async def _emit(self, event: Event) -> None:
         await self._http_client.post(
             "/events",
-            json=[event.dict(json_compatible=True)],
+            json=[event.model_dump(mode="json")],
         )
 
 
@@ -466,7 +466,7 @@ class PrefectEventSubscriber:
         logger.debug("  filtering events since %s...", self._filter.occurred.since)
         filter_message = {
             "type": "filter",
-            "filter": self._filter.dict(json_compatible=True),
+            "filter": self._filter.model_dump(mode="json"),
         }
         await self._websocket.send(orjson.dumps(filter_message).decode())
 

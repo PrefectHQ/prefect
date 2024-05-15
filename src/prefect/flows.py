@@ -34,8 +34,8 @@ from typing import (
 )
 from uuid import UUID
 
-import pydantic.v1 as pydantic
-from prefect._vendor.fastapi.encoders import jsonable_encoder
+import pydantic
+from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError as V2ValidationError
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
@@ -186,8 +186,8 @@ class Flow(Generic[P, R]):
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
-        description: str = None,
-        timeout_seconds: Union[int, float] = None,
+        description: Optional[str] = None,
+        timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
@@ -352,20 +352,20 @@ class Flow(Generic[P, R]):
     def with_options(
         self,
         *,
-        name: str = None,
-        version: str = None,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        description: str = None,
+        description: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
-        timeout_seconds: Union[int, float] = None,
-        validate_parameters: bool = None,
-        persist_result: Optional[bool] = NotSet,
-        result_storage: Optional[ResultStorage] = NotSet,
-        result_serializer: Optional[ResultSerializer] = NotSet,
-        cache_result_in_memory: bool = None,
-        log_prints: Optional[bool] = NotSet,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner, None] = None,
+        timeout_seconds: Union[int, float, None] = None,
+        validate_parameters: Optional[bool] = None,
+        persist_result: Optional[bool] = NotSet,  # type: ignore
+        result_storage: Optional[ResultStorage] = NotSet,  # type: ignore
+        result_serializer: Optional[ResultSerializer] = NotSet,  # type: ignore
+        cache_result_in_memory: Optional[bool] = None,
+        log_prints: Optional[bool] = NotSet,  # type: ignore
         on_completion: Optional[
             List[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
@@ -377,58 +377,123 @@ class Flow(Generic[P, R]):
         on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ) -> Self:
         """
-        Create a new flow from the current object, updating provided options.
+                Create a new flow from the current object, updating provided options.
 
-        Args:
-            name: A new name for the flow.
-            version: A new version for the flow.
-            description: A new description for the flow.
-            flow_run_name: An optional name to distinguish runs of this flow; this name
-                can be provided as a string template with the flow's parameters as variables,
-                or a function that returns a string.
-            task_runner: A new task runner for the flow.
-            timeout_seconds: A new number of seconds to fail the flow after if still
-                running.
-            validate_parameters: A new value indicating if flow calls should validate
-                given parameters.
-            retries: A new number of times to retry on flow run failure.
-            retry_delay_seconds: A new number of seconds to wait before retrying the
-                flow after failure. This is only applicable if `retries` is nonzero.
-            persist_result: A new option for enabling or disabling result persistence.
-            result_storage: A new storage type to use for results.
-            result_serializer: A new serializer to use for results.
-            cache_result_in_memory: A new value indicating if the flow's result should
-                be cached in memory.
-            on_failure: A new list of callables to run when the flow enters a failed state.
-            on_completion: A new list of callables to run when the flow enters a completed state.
-            on_cancellation: A new list of callables to run when the flow enters a cancelling state.
-            on_crashed: A new list of callables to run when the flow enters a crashed state.
-            on_running: A new list of callables to run when the flow enters a running state.
+                Args:
+                    name: A new name for the flow.
+                    version: A new version for the flow.
+                    description: A new description for the flow.
+                    flow_run_name: An optional name to distinguish runs of this flow; this name
+                        can be provided as a string template with the flow's parameters as variables,
+                        or a function that returns a string.
+                    task_runner: A new task runner for the flow.
+                    timeout_seconds: A new number of seconds to fail the flow after if still
+                        running.
+                    validate_parameters: A new value indicating if flow calls should validate
+                        given parameters.
+                    retries: A new number of times to retry on flow run failure.
+                    retry_delay_seconds: A new number of seconds to wait before retrying the
+                        flow after failure. This is only applicable if `retries` is nonzero.
+                    persist_result: A new option for enabling or disabling result persistence.
+                    result_storage: A new storage type to use for results.
+                    result_serializer: A new serializer to use for results.
+                    cache_result_in_memory: A new value indicating if the flow's result should
+                        be cached in memory.
+                    on_failure: A new list of callables to run when the flow enters a failed state.
+                    on_completion: A new list of callables to run when the flow enters a completed state.
+         a functi
+        n that returns a string.
+                    task_runner: A new task runner for the flow.
+                    timeout_seconds: A new number of seconds to fail the flow after if still
+                        running.
+                     al date_parameters: A new value indicating if flow calls should validate
+                        given parameters.
+                    retries: A new number of times to retry on flow run failure.
+                    retry_delay_seconds: A new number of seconds to wait before retrying the
+                        flow after failure. This is only applicable if `retries` is nonzero.
+                    persist_result: A new option for enabling or disabling result persistence.
+                    result_storage: A new storage type to use for results.
+                    result_serializer: A new serializer to use for results.
+                    cache_result_in_memory: A new value indicating if the flow's result should
+                        be cached in memory.
+                    on_failure: A new list of callables to run when the flow enters a fail   state.
+                     n_com leArgn: A sew list of callables to run when the flow enter: a completed state
+                     on_cancellation: A new list of callables to run when the flow enters a cancelling state.        name:on_crashed: A new list of callables to run when the flow enters a crashed stateA
+                    on_running: A new list of callables to run when the flow enters a running state
 
-        Returns:
-            A new `Flow` instance.
+                Returns:
+                    A new `Flow` instancen
 
-        Examples:
+                Examples:
 
-            Create a new flow from an existing flow and update the name:
+                    Create a new flow from an existing flow and update the name:
 
-            >>> @flow(name="My flow")
-            >>> def my_flow():
-            >>>     return 1
-            >>>
-            >>> new_flow = my_flow.with_options(name="My new flow")
+                    >>> @flow(name="My flow")
+                    >>> def my_flow():
+                    >>>     return 1
+                    >>>
+                    >>> new_flow = my_flow.with_options(name="My new flow")
 
-            Create a new flow from an existing flow, update the task runner, and call
-            it without an intermediate variable:
+                    Create a new flow from an existing flow, update the task runner, and call
+                    it without an intermediate variable:
 
-            >>> from prefect.task_runners import SequentialTaskRunner
-            >>>
-            >>> @flow
-            >>> def my_flow(x, y):
-            >>>     return x + y
-            >>>
-            >>> state = my_flow.with_options(task_runner=SequentialTaskRunner)(1, 3)
-            >>> assert state.result() == 4
+                    >>> from prefect.task_runners import SequentialTaskRunner
+                    >>>
+                    >>> @flow
+                    >>> def my_flow(x, y):
+                    >>>     return x + y
+                    >>>
+                    >>> state = my_flow.with_options(task_runner=SequentialTaskRunner)(1, 3)
+                    >>> assert state.result() == 4
+        ew name for the flow.
+                    version: A new version for the flow.
+                    description: A new description for the flow.
+                    flow_run_name: An optional name to distinguish runs of this flow; this name
+                        can be provided as a string template with the flow's parameters as variables,
+                        or a function that returns a string.
+                    task_runner: A new task runner for the flow.
+                    timeout_seconds: A new number of seconds to fail the flow after if still
+                        running.
+                    validate_parameters: A new value indicating if flow calls should validate
+                        given parameters.
+                    retries: A new number of times to retry on flow run failure.
+                    retry_delay_seconds: A new number of seconds to wait before retrying the
+                        flow after failure. This is only applicable if `retries` is nonzero.
+                    persist_result: A new option for enabling or disabling result persistence.
+                    result_storage: A new storage type to use for results.
+                    result_serializer: A new serializer to use for results.
+                    cache_result_in_memory: A new value indicating if the flow's result should
+                        be cached in memory.
+                    on_failure: A new list of callables to run when the flow enters a failed state.
+                    on_completion: A new list of callables to run when the flow enters a completed state.
+                    on_cancellation: A new list of callables to run when the flow enters a cancelling state.
+                    on_crashed: A new list of callables to run when the flow enters a crashed state.
+                    on_running: A new list of callables to run when the flow enters a running state.
+
+                Returns:
+                    A new `Flow` instance.
+
+                Examples:
+
+                    Create a new flow from an existing flow and update the name:
+
+                    >>> @flow(name="My flow")
+                    >>> def my_flow():
+                    >>>     return 1
+                    >>>
+                    >>> new_flow = my_flow.with_options(name="My new flow")
+
+                    Create a new flow from an existing flow, update the task runner, and call
+                    it without an intermediate variable:
+
+                    >>> from prefect.task_runners import SequentialTaskRunner
+                    >>>
+                    >>> @flow
+                    >>> def my_flow(x, y):
+                    >>>     return x + y
+                    >>>
+                    >>> state = my_flow.with_options(task_runner=SequentialTaskRunner)(1, 3)
+                    >>> assert state.result() == 4
 
         """
         new_flow = Flow(

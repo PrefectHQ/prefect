@@ -297,7 +297,7 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
     Returns:
         - Dict: the schedule as a dictionary
     """
-    schedule_config = schedule.dict()
+    schedule_config = schedule.model_dump()
     schedule_config["interval"] = schedule_config["interval"].total_seconds()
     schedule_config["anchor_date"] = schedule_config["anchor_date"].isoformat()
 

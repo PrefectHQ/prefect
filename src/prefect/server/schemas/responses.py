@@ -6,11 +6,10 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic.v1 import Field
+from pydantic import ConfigDict, Field
 from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect.server.schemas.core import (
     CreatedBy,
     FlowRunPolicy,
@@ -153,8 +152,7 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID
@@ -323,7 +321,7 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
-class DeploymentResponse(DeprecatedInfraOverridesField, ORMBaseModel):
+class DeploymentResponse(ORMBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."

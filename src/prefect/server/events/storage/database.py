@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Sequence, Tuple
 
-import pydantic.v1 as pydantic
+import pydantic
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased

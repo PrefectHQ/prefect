@@ -3,13 +3,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-from pydantic.v1 import Field, root_validator, validator
+from pydantic import Field, field_validator, model_validator, validator
 
 import prefect.client.schemas.objects as objects
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
@@ -110,7 +108,8 @@ class DeploymentScheduleCreate(ActionBaseModel):
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
-    @validator("max_scheduled_runs")
+    @field_validator("max_scheduled_runs")
+    @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
@@ -140,17 +139,19 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
-    @validator("max_scheduled_runs")
+    @field_validator("max_scheduled_runs")
+    @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
 
 
-class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
+class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
 
@@ -215,14 +216,16 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
             jsonschema.validate(self.job_variables, variables_schema)
 
 
-class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
+class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
 
-    @validator("schedule")
+    @field_validator("schedule")
+    @classmethod
     def validate_none_schedule(cls, v):
         return return_none_schedule(v)
 
@@ -367,9 +370,6 @@ class FlowRunCreate(ActionBaseModel):
     tags: List[str] = Field(default_factory=list)
     idempotency_key: Optional[str] = Field(None)
 
-    class Config(ActionBaseModel.Config):
-        json_dumps = orjson_dumps_extra_compatible
-
 
 class DeploymentFlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run from a deployment."""
@@ -498,7 +498,7 @@ class BlockDocumentCreate(ActionBaseModel):
         validate_block_document_name
     )
 
-    @root_validator
+    @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -655,7 +655,8 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
         ],
     )
 
-    @validator("message_template")
+    @field_validator("message_template")
+    @classmethod
     def validate_message_template_variables(cls, v):
         return validate_message_template_variables(v)
 
@@ -762,7 +763,8 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -776,6 +778,7 @@ class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     active_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)

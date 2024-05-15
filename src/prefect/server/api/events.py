@@ -1,10 +1,10 @@
 import base64
 from typing import List, Optional
 
-from prefect._vendor.fastapi import Response, WebSocket, status
-from prefect._vendor.fastapi.exceptions import HTTPException
-from prefect._vendor.fastapi.param_functions import Depends, Path
-from prefect._vendor.fastapi.params import Body, Query
+from fastapi import Response, WebSocket, status
+from fastapi.exceptions import HTTPException
+from fastapi.param_functions import Depends, Path
+from fastapi.params import Body, Query
 from prefect._vendor.starlette.requests import Request
 from prefect._vendor.starlette.status import WS_1002_PROTOCOL_ERROR
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -115,7 +115,7 @@ async def stream_workspace_events_out(
                 for event in sorted(backfill, key=lambda e: e.occurred):
                     backfilled_ids.add(event.id)
                     await websocket.send_json(
-                        {"type": "event", "event": event.dict(json_compatible=True)}
+                        {"type": "event", "event": event.model_dump(mode="json")}
                     )
 
             # ...before resuming the ongoing stream of events
@@ -125,7 +125,7 @@ async def stream_workspace_events_out(
                     continue
 
                 await websocket.send_json(
-                    {"type": "event", "event": event.dict(json_compatible=True)}
+                    {"type": "event", "event": event.model_dump(mode="json")}
                 )
 
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover

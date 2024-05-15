@@ -20,7 +20,7 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-import pydantic.v1 as pydantic
+import pydantic
 from asgi_lifespan import LifespanManager
 from prefect._vendor.starlette import status
 from typing_extensions import ParamSpec
@@ -433,7 +433,7 @@ class PrefectClient:
         """
         flow_data = FlowCreate(name=flow_name)
         response = await self._client.post(
-            "/flows/", json=flow_data.dict(json_compatible=True)
+            "/flows/", json=flow_data.model_dump(mode="json")
         )
 
         flow_id = response.json().get("id")
@@ -488,29 +488,23 @@ class PrefectClient:
             a list of Flow model representations of the flows
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True, exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "deployments": (
-                deployment_filter.dict(json_compatible=True)
-                if deployment_filter
-                else None
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
             ),
             "work_pools": (
-                work_pool_filter.dict(json_compatible=True)
-                if work_pool_filter
-                else None
+                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
             ),
             "work_queues": (
-                work_queue_filter.dict(json_compatible=True)
-                if work_queue_filter
-                else None
+                work_queue_filter.model_dump(mode="json") if work_queue_filter else None
             ),
             "sort": sort,
             "limit": limit,
@@ -660,7 +654,7 @@ class PrefectClient:
             ),
         )
 
-        flow_run_create_json = flow_run_create.dict(json_compatible=True)
+        flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = await self._client.post("/flow_runs/", json=flow_run_create_json)
         flow_run = FlowRun.parse_obj(response.json())
 
@@ -770,7 +764,7 @@ class PrefectClient:
         )
         response = await self._client.post(
             "/concurrency_limits/",
-            json=concurrency_limit_create.dict(json_compatible=True),
+            json=concurrency_limit_create.model_dump(mode="json"),
         )
 
         concurrency_limit_id = response.json().get("id")
@@ -949,7 +943,7 @@ class PrefectClient:
         if priority is not None:
             create_model.priority = priority
 
-        data = create_model.dict(json_compatible=True)
+        data = create_model.model_dump(mode="json")
         try:
             if work_pool_name is not None:
                 response = await self._client.post(
@@ -1722,7 +1716,7 @@ class PrefectClient:
         # TODO: We are likely to remove this method once we have considered the
         #       packaging interface for deployments further.
         response = await self._client.post(
-            "/deployments/", json=schema.dict(json_compatible=True)
+            "/deployments/", json=schema.model_dump(mode="json")
         )
         deployment_id = response.json().get("id")
         if not deployment_id:
@@ -1811,29 +1805,23 @@ class PrefectClient:
                 of the deployments
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True, exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "deployments": (
-                deployment_filter.dict(json_compatible=True)
-                if deployment_filter
-                else None
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
             ),
             "work_pools": (
-                work_pool_filter.dict(json_compatible=True)
-                if work_pool_filter
-                else None
+                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
             ),
             "work_pool_queues": (
-                work_queue_filter.dict(json_compatible=True)
-                if work_queue_filter
-                else None
+                work_queue_filter.model_dump(mode="json") if work_queue_filter else None
             ),
             "limit": limit,
             "offset": offset,
@@ -1889,7 +1877,7 @@ class PrefectClient:
         ]
 
         json = [
-            deployment_schedule_create.dict(json_compatible=True)
+            deployment_schedule_create.model_dump(mode="json")
             for deployment_schedule_create in deployment_schedule_create
         ]
         response = await self._client.post(
@@ -2053,29 +2041,23 @@ class PrefectClient:
                 of the flow runs
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True, exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "deployments": (
-                deployment_filter.dict(json_compatible=True)
-                if deployment_filter
-                else None
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
             ),
             "work_pools": (
-                work_pool_filter.dict(json_compatible=True)
-                if work_pool_filter
-                else None
+                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
             ),
             "work_pool_queues": (
-                work_queue_filter.dict(json_compatible=True)
-                if work_queue_filter
-                else None
+                work_queue_filter.model_dump(mode="json") if work_queue_filter else None
             ),
             "sort": sort,
             "limit": limit,
@@ -2109,7 +2091,7 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.dict(json_compatible=True), force=force),
+                json=dict(state=state_create.model_dump(mode="json"), force=force),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -2253,19 +2235,17 @@ class PrefectClient:
                 of the task runs
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True, exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "deployments": (
-                deployment_filter.dict(json_compatible=True)
-                if deployment_filter
-                else None
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
             ),
             "sort": sort,
             "limit": limit,
@@ -2314,7 +2294,7 @@ class PrefectClient:
         state_create.state_details.task_run_id = task_run_id
         response = await self._client.post(
             f"/task_runs/{task_run_id}/set_state",
-            json=dict(state=state_create.dict(json_compatible=True), force=force),
+            json=dict(state=state_create.model_dump(mode="json"), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
 
@@ -2343,7 +2323,7 @@ class PrefectClient:
             logs: An iterable of `LogCreate` objects or already json-compatible dicts
         """
         serialized_logs = [
-            log.dict(json_compatible=True) if isinstance(log, LogCreate) else log
+            log.model_dump(mode="json") if isinstance(log, LogCreate) else log
             for log in logs
         ]
         await self._client.post("/logs/", json=serialized_logs)
@@ -2380,7 +2360,7 @@ class PrefectClient:
         )
         response = await self._client.post(
             "/flow_run_notification_policies/",
-            json=policy.dict(json_compatible=True),
+            json=policy.model_dump(mode="json"),
         )
 
         policy_id = response.json().get("id")
@@ -2479,7 +2459,7 @@ class PrefectClient:
         """
         body = {
             "flow_run_notification_policy_filter": (
-                flow_run_notification_policy_filter.dict(json_compatible=True)
+                flow_run_notification_policy_filter.model_dump(mode="json")
                 if flow_run_notification_policy_filter
                 else None
             ),
@@ -2502,7 +2482,7 @@ class PrefectClient:
         Read flow and task run logs.
         """
         body = {
-            "logs": log_filter.dict(json_compatible=True) if log_filter else None,
+            "logs": log_filter.model_dump(mode="json") if log_filter else None,
             "limit": limit,
             "offset": offset,
             "sort": sort,
@@ -2606,9 +2586,7 @@ class PrefectClient:
             "limit": limit,
             "offset": offset,
             "work_pools": (
-                work_pool_filter.dict(json_compatible=True)
-                if work_pool_filter
-                else None
+                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
             ),
         }
         response = await self._client.post("/work_pools/filter", json=body)
@@ -2823,13 +2801,13 @@ class PrefectClient:
         """
         body = {
             "artifacts": (
-                artifact_filter.dict(json_compatible=True) if artifact_filter else None
+                artifact_filter.model_dump(mode="json") if artifact_filter else None
             ),
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+                flow_run_filter.model_dump(mode="json") if flow_run_filter else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "sort": sort,
             "limit": limit,
@@ -2863,13 +2841,13 @@ class PrefectClient:
         """
         body = {
             "artifacts": (
-                artifact_filter.dict(json_compatible=True) if artifact_filter else None
+                artifact_filter.model_dump(mode="json") if artifact_filter else None
             ),
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+                flow_run_filter.model_dump(mode="json") if flow_run_filter else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "sort": sort,
             "limit": limit,
@@ -3099,7 +3077,7 @@ class PrefectClient:
         """Creates an automation in Prefect Cloud."""
         response = await self._client.post(
             "/automations/",
-            json=automation.dict(json_compatible=True),
+            json=automation.model_dump(mode="json"),
         )
 
         return UUID(response.json()["id"])
@@ -3173,7 +3151,7 @@ class PrefectClient:
             "/automations/filter",
             json={
                 "sort": sorting.AutomationSort.UPDATED_DESC,
-                "automations": automation_filter.dict(json_compatible=True)
+                "automations": automation_filter.model_dump(mode="json")
                 if automation_filter
                 else None,
             },
@@ -3522,9 +3500,7 @@ class SyncPrefectClient:
             the ID of the flow in the backend
         """
         flow_data = FlowCreate(name=flow_name)
-        response = self._client.post(
-            "/flows/", json=flow_data.dict(json_compatible=True)
-        )
+        response = self._client.post("/flows/", json=flow_data.model_dump(mode="json"))
 
         flow_id = response.json().get("id")
         if not flow_id:
@@ -3587,7 +3563,7 @@ class SyncPrefectClient:
             ),
         )
 
-        flow_run_create_json = flow_run_create.dict(json_compatible=True)
+        flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = self._client.post("/flow_runs/", json=flow_run_create_json)
         flow_run = FlowRun.parse_obj(response.json())
 
@@ -3649,29 +3625,23 @@ class SyncPrefectClient:
                 of the flow runs
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True, exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "deployments": (
-                deployment_filter.dict(json_compatible=True)
-                if deployment_filter
-                else None
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
             ),
             "work_pools": (
-                work_pool_filter.dict(json_compatible=True)
-                if work_pool_filter
-                else None
+                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
             ),
             "work_pool_queues": (
-                work_queue_filter.dict(json_compatible=True)
-                if work_queue_filter
-                else None
+                work_queue_filter.model_dump(mode="json") if work_queue_filter else None
             ),
             "sort": sort,
             "limit": limit,
@@ -3705,7 +3675,7 @@ class SyncPrefectClient:
         try:
             response = self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.dict(json_compatible=True), force=force),
+                json=dict(state=state_create.model_dump(mode="json"), force=force),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -3825,19 +3795,17 @@ class SyncPrefectClient:
                 of the task runs
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True, exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
             "task_runs": (
-                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
             ),
             "deployments": (
-                deployment_filter.dict(json_compatible=True)
-                if deployment_filter
-                else None
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
             ),
             "sort": sort,
             "limit": limit,
@@ -3868,7 +3836,7 @@ class SyncPrefectClient:
         state_create.state_details.task_run_id = task_run_id
         response = self._client.post(
             f"/task_runs/{task_run_id}/set_state",
-            json=dict(state=state_create.dict(json_compatible=True), force=force),
+            json=dict(state=state_create.model_dump(mode="json"), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
 

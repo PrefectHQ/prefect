@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import packaging.version
-from pydantic.v1 import Field, validator
+from pydantic import Field, field_validator
 from typing_extensions import Literal
 
 import prefect
@@ -310,7 +310,8 @@ class DockerContainer(Infrastructure):
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/14a315b79990200db7341e42553e23650b34bb96-250x250.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer"
 
-    @validator("labels")
+    @field_validator("labels")
+    @classmethod
     def convert_labels_to_docker_format(cls, labels: Dict[str, str]):
         labels = labels or {}
         new_labels = {}
@@ -323,7 +324,8 @@ class DockerContainer(Infrastructure):
                 new_labels[name] = value
         return new_labels
 
-    @validator("volumes")
+    @field_validator("volumes")
+    @classmethod
     def check_volume_format(cls, volumes):
         for volume in volumes:
             if ":" not in volume:

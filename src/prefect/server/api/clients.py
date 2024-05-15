@@ -3,7 +3,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 import httpx
-import pydantic.v1 as pydantic
+import pydantic
 from httpx import Response
 from prefect._vendor.starlette import status
 from typing_extensions import Self
@@ -69,7 +69,7 @@ class OrchestrationClient(BaseClient):
     ) -> Response:
         return await self._http_client.post(
             f"/deployments/{deployment_id}/create_flow_run",
-            json=flow_run_create.dict(json_compatible=True),
+            json=flow_run_create.model_dump(mode="json"),
         )
 
     async def read_flow_run_raw(self, flow_run_id: UUID) -> Response:
@@ -94,7 +94,7 @@ class OrchestrationClient(BaseClient):
         return await self._http_client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json={
-                "state": state.dict(json_compatible=True),
+                "state": state.model_dump(mode="json"),
                 "force": False,
             },
         )

@@ -284,7 +284,7 @@ async def inspect(name: str):
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
 
-        deployment_json = deployment.dict(json_compatible=True)
+        deployment_json = deployment.model_dump(mode="json")
 
         if deployment.infrastructure_document_id:
             deployment_json["infrastructure"] = Block._from_block_document(

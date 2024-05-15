@@ -15,7 +15,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic.v1 import Field, root_validator, validator
+from pydantic import ConfigDict, Field, RootModel, field_validator, model_validator
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
@@ -33,7 +33,8 @@ logger = get_logger(__name__)
 class Resource(Labelled):
     """An observable business object of interest to the user"""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def enforce_maximum_labels(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -47,7 +48,8 @@ class Resource(Labelled):
 
         return values
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def requires_resource_id(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -74,7 +76,8 @@ class Resource(Labelled):
 class RelatedResource(Resource):
     """A Resource with a specific role in an Event"""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def requires_resource_role(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -148,7 +151,8 @@ class Event(PrefectBaseModel):
             resources[related.role].append(related)
         return resources
 
-    @validator("related")
+    @field_validator("related")
+    @classmethod
     def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
         if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
             raise ValueError(
@@ -175,8 +179,7 @@ class ReceivedEvent(Event):
     """The server-side view of an event that has happened to a Resource after it has
     been received by the server"""
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
     received: DateTimeTZ = Field(
         ...,
@@ -204,35 +207,26 @@ def matches(expected: str, value: Optional[str]) -> bool:
     return match if positive else not match
 
 
-class ResourceSpecification(PrefectBaseModel):
-    """A specification that may match zero, one, or many resources, used to target or
-    select a set of resources in a query or automation.  A resource must match at least
-    one value of all of the provided labels"""
-
-    __root__: Dict[str, Union[str, List[str]]]
-
+class ResourceSpecification(RootModel[Dict[str, Union[str, List[str]]]]):
     def matches_every_resource(self) -> bool:
-        return len(self) == 0
+        return len(self.root) == 0
 
     def matches_every_resource_of_kind(self, prefix: str) -> bool:
         if self.matches_every_resource():
             return True
-
-        if len(self.__root__) == 1:
-            if resource_id := self.__root__.get("prefect.resource.id"):
+        if len(self.root) == 1:
+            resource_id = self.root.get("prefect.resource.id")
+            if resource_id:
                 values = [resource_id] if isinstance(resource_id, str) else resource_id
                 return any(value == f"{prefix}.*" for value in values)
-
         return False
 
     def includes(self, candidates: Iterable[Resource]) -> bool:
         if self.matches_every_resource():
             return True
-
         for candidate in candidates:
             if self.matches(candidate):
                 return True
-
         return False
 
     def matches(self, resource: Resource) -> bool:
@@ -245,14 +239,14 @@ class ResourceSpecification(PrefectBaseModel):
     def items(self) -> Iterable[Tuple[str, List[str]]]:
         return [
             (label, [value] if isinstance(value, str) else value)
-            for label, value in self.__root__.items()
+            for label, value in self.root.items()
         ]
 
     def __contains__(self, key: str) -> bool:
-        return self.__root__.__contains__(key)
+        return key in self.root
 
     def __getitem__(self, key: str) -> List[str]:
-        value = self.__root__[key]
+        value = self.root[key]
         if not value:
             return []
         if not isinstance(value, list):
@@ -262,7 +256,7 @@ class ResourceSpecification(PrefectBaseModel):
     def pop(
         self, key: str, default: Optional[Union[str, List[str]]] = None
     ) -> Optional[List[str]]:
-        value = self.__root__.pop(key, default)
+        value = self.root.pop(key, default)
         if not value:
             return []
         if not isinstance(value, list):
@@ -272,7 +266,7 @@ class ResourceSpecification(PrefectBaseModel):
     def get(
         self, key: str, default: Optional[Union[str, List[str]]] = None
     ) -> Optional[List[str]]:
-        value = self.__root__.get(key, default)
+        value = self.root.get(key, default)
         if not value:
             return []
         if not isinstance(value, list):
@@ -280,7 +274,7 @@ class ResourceSpecification(PrefectBaseModel):
         return value
 
     def __len__(self) -> int:
-        return len(self.__root__)
+        return len(self.root)
 
     def deepcopy(self) -> "ResourceSpecification":
-        return ResourceSpecification.parse_obj(copy.deepcopy(self.__root__))
+        return ResourceSpecification(root=copy.deepcopy(self.root))

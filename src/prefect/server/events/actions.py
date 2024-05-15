@@ -33,8 +33,7 @@ import orjson
 import pendulum
 from cachetools import TTLCache
 from httpx import Response
-from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-from pydantic.v1.fields import ModelField
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 from typing_extensions import TypeAlias
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
@@ -184,7 +183,7 @@ class Action(PrefectBaseModel, abc.ABC):
         """Common logging context for all actions"""
         return {
             "automation": str(triggered_action.automation.id),
-            "action": self.dict(json_compatible=True),
+            "action": self.model_dump(mode="json"),
             "triggering_event": (
                 {
                     "id": triggered_action.triggering_event.id,
@@ -560,7 +559,7 @@ class DeploymentAction(Action):
         None, description="The identifier of the deployment"
     )
 
-    @root_validator
+    @model_validator
     def selected_deployment_requires_id(cls, values):
         wants_selected_deployment = values.get("source") == "selected"
         has_deployment_id = bool(values.get("deployment_id"))
@@ -704,9 +703,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
         return response
 
-    @validator("parameters")
+    @field_validator("parameters")
     def validate_parameters(
-        cls, value: Optional[Dict[str, Any]], field: ModelField
+        cls, value: Optional[Dict[str, Any]], field
     ) -> Optional[Dict[str, Any]]:
         if not value:
             return value
@@ -1022,7 +1021,8 @@ class CallWebhook(JinjaTemplateAction):
         description="An optional templatable payload to send when calling the webhook.",
     )
 
-    @validator("payload", pre=True)
+    @field_validator("payload", mode="before")
+    @classmethod
     def ensure_payload_is_a_string(
         cls, value: Union[str, Dict[str, Any], None]
     ) -> Optional[str]:
@@ -1038,7 +1038,8 @@ class CallWebhook(JinjaTemplateAction):
 
         return orjson.dumps(value, option=orjson.OPT_INDENT_2).decode()
 
-    @validator("payload")
+    @field_validator("payload")
+    @classmethod
     def validate_payload_templates(cls, value: Optional[str]) -> Optional[str]:
         """
         Validate user-provided payload template.
@@ -1119,8 +1120,8 @@ class SendNotification(JinjaTemplateAction):
     subject: str = Field("Prefect automated notification")
     body: str = Field(description="The text of the notification to send")
 
-    @validator("subject", "body")
-    def is_valid_template(cls, value: str, field: ModelField) -> str:
+    @field_validator("subject", "body")
+    def is_valid_template(cls, value: str, field) -> str:
         return cls.validate_template(value, field.name)
 
     async def _get_notification_block(
@@ -1193,7 +1194,7 @@ class WorkPoolAction(Action):
         description="The identifier of the work pool to pause",
     )
 
-    @root_validator
+    @model_validator
     def selected_work_pool_requires_id(cls, values):
         wants_selected_work_pool = values.get("source") == "selected"
         has_work_pool_id = bool(values.get("work_pool_id"))
@@ -1242,7 +1243,7 @@ class WorkPoolCommandAction(WorkPoolAction, ExternalDataAction):
         work_pool = await self.target_work_pool(triggered_action)
 
         self._resulting_related_resources += [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                     "prefect.resource.name": work_pool.name,
@@ -1326,7 +1327,7 @@ class WorkQueueAction(Action):
         None, description="The identifier of the work queue to pause"
     )
 
-    @root_validator
+    @model_validator
     def selected_work_queue_requires_id(cls, values):
         wants_selected_work_queue = values.get("source") == "selected"
         has_work_queue_id = bool(values.get("work_queue_id"))
@@ -1445,7 +1446,7 @@ class AutomationAction(Action):
         None, description="The identifier of the automation to act on"
     )
 
-    @root_validator
+    @model_validator
     def selected_automation_requires_id(cls, values):
         wants_selected_automation = values.get("source") == "selected"
         has_automation_id = bool(values.get("automation_id"))

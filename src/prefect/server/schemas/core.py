@@ -7,11 +7,17 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import Literal, Self
 
 import prefect.server.database
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     list_length_50_or_less,
@@ -74,7 +80,8 @@ class Flow(ORMBaseModel):
         examples=[["tag-1", "tag-2"]],
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -111,7 +118,7 @@ class FlowRunPolicy(PrefectBaseModel):
         default=False, description="Indicates if this run is resuming from a pause."
     )
 
-    @root_validator
+    @model_validator
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
@@ -275,7 +282,8 @@ class FlowRun(ORMBaseModel):
         description="Variables used as overrides in the base job template",
     )
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -322,15 +330,17 @@ class TaskRunPolicy(PrefectBaseModel):
         default=None, description="Determines the amount a retry should jitter"
     )
 
-    @root_validator
+    @model_validator
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
-    @validator("retry_delay")
+    @field_validator("retry_delay")
+    @classmethod
     def validate_configured_retry_delays(cls, v):
         return list_length_50_or_less(v)
 
-    @validator("retry_jitter_factor")
+    @field_validator("retry_jitter_factor")
+    @classmethod
     def validate_jitter_factor(cls, v):
         return validate_not_negative(v)
 
@@ -341,9 +351,7 @@ class TaskRunInput(PrefectBaseModel):
     could include, constants, parameters, or other task runs.
     """
 
-    # freeze TaskRunInputs to allow them to be placed in sets
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
     input_type: str
 
@@ -475,11 +483,13 @@ class TaskRun(ORMBaseModel):
         default=None, description="The current task run state."
     )
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
-    @validator("cache_key")
+    @field_validator("cache_key")
+    @classmethod
     def validate_cache_key(cls, cache_key):
         return validate_cache_key_length(cache_key)
 
@@ -508,14 +518,15 @@ class DeploymentSchedule(ORMBaseModel):
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
-    @validator("max_scheduled_runs")
+    @field_validator("max_scheduled_runs")
+    @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
 
 
-class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
+class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")
@@ -619,11 +630,10 @@ class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+    model_config = ConfigDict(populate_by_name=True)
 
-    class Config:
-        allow_population_by_field_name = True
-
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -659,7 +669,8 @@ class ConcurrencyLimitV2(ORMBaseModel):
         default=2.0, description="The average amount of time a slot is occupied."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -687,7 +698,8 @@ class BlockType(ORMBaseModel):
         default=False, description="Protected block types cannot be modified via API."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -767,13 +779,14 @@ class BlockDocument(ORMBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
         return raise_on_name_with_banned_characters(v)
 
-    @root_validator
+    @model_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -845,7 +858,7 @@ class BlockDocumentReference(ORMBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
-    @root_validator
+    @model_validator
     def validate_parent_and_ref_are_different(cls, values):
         return validate_parent_and_ref_diff(values)
 
@@ -943,7 +956,8 @@ class WorkQueue(ORMBaseModel):
         default=None, description="The last time an agent polled this queue for work."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -1040,7 +1054,8 @@ class FlowRunNotificationPolicy(ORMBaseModel):
         ],
     )
 
-    @validator("message_template")
+    @field_validator("message_template")
+    @classmethod
     def validate_message_template_variables(cls, v):
         return validate_message_template_variables(v)
 
@@ -1093,17 +1108,18 @@ class WorkPool(ORMBaseModel):
         None, description="The id of the pool's default queue."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
-    @validator("default_queue_id", always=True)
+    @field_validator("default_queue_id")
     def helpful_error_for_missing_default_queue_id(cls, v):
         return validate_default_queue_id_not_none(v)
 
     @classmethod
     def from_orm(cls, work_pool: "ORMWorkPool") -> Self:
-        parsed: WorkPool = super().from_orm(work_pool)
+        parsed: WorkPool = super().model_validate(work_pool)
         if work_pool.type == "prefect-agent":
             parsed.status = None
         return parsed
@@ -1127,8 +1143,8 @@ class Worker(ORMBaseModel):
     )
 
 
-Flow.update_forward_refs()
-FlowRun.update_forward_refs()
+Flow.model_rebuild()
+FlowRun.model_rebuild()
 
 
 class Artifact(ORMBaseModel):
@@ -1185,7 +1201,8 @@ class Artifact(ORMBaseModel):
 
         return cls(data=data, **artifact_info)
 
-    @validator("metadata_")
+    @field_validator("metadata_")
+    @classmethod
     def validate_metadata_length(cls, v):
         return validate_max_metadata_length(v)
 
@@ -1253,7 +1270,8 @@ class FlowRunInput(ORMBaseModel):
     value: str = Field(description="The value of the input.")
     sender: Optional[str] = Field(description="The sender of the input.")
 
-    @validator("key", check_fields=False)
+    @field_validator("key", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         raise_on_name_alphanumeric_dashes_only(v)
         return v

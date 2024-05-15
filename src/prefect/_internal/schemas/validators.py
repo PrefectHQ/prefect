@@ -21,8 +21,6 @@ import jsonschema
 import pendulum
 import yaml
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
@@ -40,13 +38,6 @@ if TYPE_CHECKING:
     from prefect.blocks.core import Block
     from prefect.events.schemas import DeploymentTrigger
     from prefect.utilities.callables import ParameterSchema
-
-    if HAS_PYDANTIC_V2:
-        if USE_PYDANTIC_V2:
-            # TODO: we need to account for rewriting the validator to not use ModelField
-            pass
-        if not USE_PYDANTIC_V2:
-            from pydantic.v1.fields import ModelField
 
 
 def raise_on_name_with_banned_characters(name: str) -> str:
@@ -489,12 +480,11 @@ def validate_rrule_string(v: str) -> str:
 
 
 def validate_trigger_within(
-    value: datetime.timedelta, field: "ModelField"
+    value: datetime.timedelta, minimum: int = 0
 ) -> datetime.timedelta:
     """
     Validate that the `within` field is greater than the minimum value.
     """
-    minimum = field.field_info.extra["minimum"]
     if value.total_seconds() < minimum:
         raise ValueError("The minimum `within` is 0 seconds")
     return value

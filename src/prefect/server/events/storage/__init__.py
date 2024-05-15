@@ -25,7 +25,7 @@ def to_page_token(
     return b64encode(
         json.dumps(
             {
-                "filter": filter.dict(json_compatible=True),
+                "filter": filter.model_dump(mode="json"),
                 "count": count,
                 "page_size": page_size,
                 "offset": current_offset + page_size,

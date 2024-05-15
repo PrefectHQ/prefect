@@ -7,8 +7,8 @@ from base64 import b64decode
 from typing import Optional
 from uuid import UUID
 
+from fastapi import Body, Depends, Header, HTTPException, status
 from packaging.version import Version
-from prefect._vendor.fastapi import Body, Depends, Header, HTTPException, status
 from prefect._vendor.starlette.requests import Request
 
 from prefect.server import schemas

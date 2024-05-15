@@ -8,7 +8,7 @@ from uuid import UUID
 
 import anyio
 import pendulum
-from prefect._vendor.fastapi import (
+from fastapi import (
     Body,
     Depends,
     HTTPException,
@@ -300,7 +300,7 @@ async def scheduled_task_subscription(websocket: WebSocket):
             continue
 
         try:
-            await websocket.send_json(task_run.dict(json_compatible=True))
+            await websocket.send_json(task_run.model_dump(mode="json"))
 
             acknowledgement = await websocket.receive_json()
             ack_type = acknowledgement.get("type")

@@ -7,7 +7,7 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 import prefect
 from prefect._internal.compatibility.experimental import (
@@ -101,7 +101,8 @@ class BaseJobConfiguration(BaseModel):
     def is_using_a_runner(self):
         return self.command is not None and "prefect flow-run execute" in self.command
 
-    @validator("command")
+    @field_validator("command")
+    @classmethod
     def _coerce_command(cls, v):
         return return_v_or_none(v)
 
@@ -957,7 +958,7 @@ class BaseWorker(abc.ABC):
         return {
             "name": self.name,
             "work_pool": (
-                self._work_pool.dict(json_compatible=True)
+                self._work_pool.model_dump(mode="json")
                 if self._work_pool is not None
                 else None
             ),

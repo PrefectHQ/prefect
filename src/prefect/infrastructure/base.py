@@ -13,7 +13,7 @@ import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import anyio.abc
-import pydantic.v1 as pydantic
+import pydantic
 from rich.console import Console
 from typing_extensions import Self
 

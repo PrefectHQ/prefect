@@ -15,10 +15,16 @@ from uuid import UUID
 import anyio
 import pendulum
 import yaml
-from pydantic.v1 import BaseModel, Field, parse_obj_as, root_validator, validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
 
 from prefect._internal.compatibility.deprecated import (
-    DeprecatedInfraOverridesField,
     deprecated_callable,
     deprecated_class,
     deprecated_parameter,
@@ -334,7 +340,7 @@ def load_deployments_from_yaml(
                 deployment_dict = yaml.safe_load(yaml.serialize(node))
                 # The return value is not necessary, just instantiating the Deployment
                 # is enough to get it recorded on the registry
-                parse_obj_as(Deployment, deployment_dict)
+                TypeAdapter(Deployment).validate_python(deployment_dict)
 
     return registry
 
@@ -345,7 +351,7 @@ def load_deployments_from_yaml(
     " Refer to the upgrade guide for more information:"
     " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
 )
-class Deployment(DeprecatedInfraOverridesField, BaseModel):
+class Deployment(BaseModel):
     """
     DEPRECATION WARNING:
 
@@ -422,10 +428,13 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
 
     """
 
-    class Config:
-        json_encoders = {SecretDict: lambda v: v.dict()}
-        validate_assignment = True
-        extra = "forbid"
+    # TODO[pydantic]: The following keys were removed: `json_encoders`.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-config for more information.
+    model_config = ConfigDict(
+        json_encoders={SecretDict: lambda v: v.dict()},
+        validate_assignment=True,
+        extra="forbid",
+    )
 
     @property
     def _editable_fields(self) -> List[str]:
@@ -619,27 +628,32 @@ class Deployment(DeprecatedInfraOverridesField, BaseModel):
         ),
     )
 
-    @validator("infrastructure", pre=True)
+    @field_validator("infrastructure", mode="before")
+    @classmethod
     def validate_infrastructure_capabilities(cls, value):
         return infrastructure_must_have_capabilities(value)
 
-    @validator("storage", pre=True)
+    @field_validator("storage", mode="before")
+    @classmethod
     def validate_storage(cls, value):
         return storage_must_have_capabilities(value)
 
-    @validator("parameter_openapi_schema", pre=True)
+    @field_validator("parameter_openapi_schema", mode="before")
+    @classmethod
     def validate_parameter_openapi_schema(cls, value):
         return handle_openapi_schema(value)
 
-    @validator("triggers")
+    @field_validator("triggers")
     def validate_triggers(cls, field_value, values):
         return validate_automation_names(field_value, values)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def validate_schedule(cls, values):
         return validate_deprecated_schedule_fields(values, logger)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def validate_backwards_compatibility_for_schedule(cls, values):
         return reconcile_schedules(cls, values)
 

@@ -7,7 +7,7 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from pydantic.v1 import Field
+from pydantic import ConfigDict, Field
 
 import prefect.server.schemas as schemas
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
@@ -37,8 +37,7 @@ class Operator(AutoEnum):
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     def as_sql_filter(self, db: "PrefectDBInterface") -> "BooleanClauseList":
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""

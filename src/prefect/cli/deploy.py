@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
-import pydantic.v1 as pydantic
+import pydantic
 import typer
 import yaml
 from rich.console import Console

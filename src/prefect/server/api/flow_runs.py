@@ -9,7 +9,7 @@ from uuid import UUID
 import orjson
 import pendulum
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from fastapi import (
     Body,
     Depends,
     HTTPException,
@@ -18,7 +18,7 @@ from prefect._vendor.fastapi import (
     Response,
     status,
 )
-from prefect._vendor.fastapi.responses import ORJSONResponse, PlainTextResponse
+from fastapi.responses import ORJSONResponse, PlainTextResponse
 from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
@@ -506,7 +506,7 @@ async def read_flow_runs(
         # In particular, the FastAPI encoder is very slow for large, nested objects.
         # See: https://github.com/tiangolo/fastapi/issues/1224
         encoded = [
-            schemas.responses.FlowRunResponse.from_orm(fr).dict(json_compatible=True)
+            schemas.responses.FlowRunResponse.from_orm(fr).model_dump(mode="json")
             for fr in db_flow_runs
         ]
         return ORJSONResponse(content=encoded)

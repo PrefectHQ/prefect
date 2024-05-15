@@ -1,20 +1,21 @@
 from functools import partial
 from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, cast, overload
 
-import pydantic.v1 as pydantic_v1
+import pydantic
 from jsonpatch import JsonPatch as JsonPatchBase
-from pydantic_core import to_jsonable_python
+from pydantic import GetJsonSchemaHandler
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import core_schema, to_jsonable_python
 from typing_extensions import Self
 
-from prefect._internal.pydantic.utilities.model_dump import model_dump
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
 D = TypeVar("D", bound=Any)
-M = TypeVar("M", bound=pydantic_v1.BaseModel)
+M = TypeVar("M", bound=pydantic.BaseModel)
 
 
-def _reduce_model(model: pydantic_v1.BaseModel):
+def _reduce_model(model: pydantic.BaseModel):
     """
     Helper for serializing a cythonized model with cloudpickle.
 
@@ -48,7 +49,7 @@ def add_cloudpickle_reduction(
     ...
 
 
-def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
+def add_cloudpickle_reduction(__model_cls: Optional[Type[M]] = None, **kwargs: Any):
     """
     Adds a `__reducer__` to the given class that ensures it is cloudpickle compatible.
 
@@ -78,7 +79,7 @@ def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
         )
 
 
-def get_class_fields_only(model: Type[pydantic_v1.BaseModel]) -> set:
+def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
@@ -87,7 +88,7 @@ def get_class_fields_only(model: Type[pydantic_v1.BaseModel]) -> set:
     parent_class_fields = set()
 
     for base in model.__class__.__bases__:
-        if issubclass(base, pydantic_v1.BaseModel):
+        if issubclass(base, pydantic.BaseModel):
             parent_class_fields.update(base.__annotations__.keys())
 
     return (subclass_class_fields - parent_class_fields) | (
@@ -130,7 +131,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
 
     elif defines_dispatch_key and not defines_type_field:
         # Add a type field to store the value of the dispatch key
-        model_cls.__fields__["type"] = pydantic_v1.fields.ModelField(
+        model_cls.__fields__["type"] = pydantic.fields.ModelField(
             name="type",
             type_=str,
             required=True,
@@ -176,7 +177,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             except KeyError as exc:
-                raise pydantic_v1.ValidationError(errors=[exc], model=cls)
+                raise pydantic.ValidationError(errors=[exc], model=cls)
             return cls_new(subcls)
         else:
             return cls_new(cls)
@@ -202,7 +203,7 @@ class PartialModel(Generic[M]):
     a field already has a value.
 
     Example:
-        >>> class MyModel(pydantic_v1.BaseModel):
+        >>> class MyModel(pydantic.BaseModel):
         >>>     x: int
         >>>     y: str
         >>>     z: float
@@ -232,7 +233,7 @@ class PartialModel(Generic[M]):
             raise ValueError(f"Field {name!r} has already been set.")
 
     def raise_if_not_in_model(self, name):
-        if name not in self.model_cls.__fields__:
+        if name not in self.model_cls.model_fields:
             raise ValueError(f"Field {name!r} is not present in the model.")
 
     def __setattr__(self, __name: str, __value: Any) -> None:
@@ -252,8 +253,12 @@ class PartialModel(Generic[M]):
 
 class JsonPatch(JsonPatchBase):
     @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(
+    def __get_pydantic_json_schema__(
+        cls, core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        json_schema = handler(core_schema)
+        json_schema = handler.resolve_ref_schema(json_schema)
+        json_schema.update(
             {
                 "type": "array",
                 "format": "rfc6902",
@@ -263,6 +268,7 @@ class JsonPatch(JsonPatchBase):
                 },
             }
         )
+        return json_schema
 
 
 def custom_pydantic_encoder(
@@ -277,7 +283,7 @@ def custom_pydantic_encoder(
 
         return encoder(obj)
     else:  # We have exited the for loop without finding a suitable encoder
-        if isinstance(obj, pydantic_v1.BaseModel):
-            return model_dump(obj, mode="json")
+        if isinstance(obj, pydantic.BaseModel):
+            return obj.model_dump(mode="json")
         else:
             return to_jsonable_python(obj)

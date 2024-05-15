@@ -152,8 +152,8 @@ async def update_automation(
         # automation to see if anything fails validation.
         Automation.parse_obj(
             {
-                **automation.dict(json_compatible=True),
-                **automation_update.dict(json_compatible=True),
+                **automation.model_dump(mode="json"),
+                **automation_update.model_dump(mode="json"),
             }
         )
 

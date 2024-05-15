@@ -8,7 +8,7 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect._vendor.starlette.background import BackgroundTasks
 
 import prefect.server.api.dependencies as dependencies

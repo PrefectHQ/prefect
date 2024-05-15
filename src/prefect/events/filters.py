@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple, cast
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import Field, PrivateAttr
+from pydantic import Field, PrivateAttr
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ

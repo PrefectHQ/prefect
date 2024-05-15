@@ -16,7 +16,8 @@ from typing import (
 )
 from uuid import UUID
 
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
+from pydantic_core import PydanticUndefinedType
 from typing_extensions import ParamSpec, Self
 
 import prefect
@@ -84,7 +85,7 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
         PREFECT_LOCAL_STORAGE_PATH.value(),
     )
 
-    async def get_storage():
+    async def get_storage() -> WritableFileSystem:
         try:
             return await Block.load(default_storage_name)
         except ValueError as e:
@@ -179,7 +180,7 @@ class ResultFactory(BaseModel):
     persist_result: bool
     cache_result_in_memory: bool
     serializer: Serializer
-    storage_block_id: Optional[uuid.UUID]
+    storage_block_id: Optional[uuid.UUID] = None
     storage_block: WritableFileSystem
     storage_key_fn: Callable[[], str]
 
@@ -477,8 +478,8 @@ class ResultFactory(BaseModel):
 @register_base_type
 class BaseResult(BaseModel, abc.ABC, Generic[R]):
     type: str
-    artifact_type: Optional[str]
-    artifact_description: Optional[str]
+    artifact_type: Optional[str] = None
+    artifact_description: Optional[str] = None
 
     def __init__(self, **data: Any) -> None:
         type_string = get_dispatch_key(self) if type(self) != BaseResult else "__base__"
@@ -517,12 +518,12 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
     ) -> "BaseResult[R]":
         ...
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):
-        return cls.model_fields.get("type").get_default()
+        default = cls.model_fields.get("type").get_default()
+        return cls.__name__ if isinstance(default, PydanticUndefinedType) else default
 
 
 class UnpersistedResult(BaseResult):
@@ -530,7 +531,7 @@ class UnpersistedResult(BaseResult):
     Result type for results that are not persisted outside of local memory.
     """
 
-    type = "unpersisted"
+    type: str = "unpersisted"
 
     @sync_compatible
     async def get(self) -> R:
@@ -566,7 +567,7 @@ class LiteralResult(BaseResult):
     """
 
     type: str = "literal"
-    value: Any
+    value: Any = None
 
     def has_cached_object(self) -> bool:
         # This result type always has the object cached in memory

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from prefect._vendor.fastapi import (
+from fastapi import (
     WebSocket,
 )
 from prefect._vendor.starlette.status import (

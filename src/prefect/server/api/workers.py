@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from fastapi import (
     BackgroundTasks,
     Body,
     Depends,

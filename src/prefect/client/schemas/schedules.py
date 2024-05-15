@@ -8,7 +8,7 @@ from typing import Optional, Union
 import dateutil
 import dateutil.rrule
 import pendulum
-from pydantic.v1 import Field, validator
+from pydantic import ConfigDict, Field, field_validator
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
@@ -55,19 +55,19 @@ class IntervalSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    class Config:
-        extra = "forbid"
-        exclude_none = True
+    model_config = ConfigDict(extra="forbid", exclude_none=True)
 
     interval: PositiveDuration
     anchor_date: Optional[DateTimeTZ] = None
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
-    @validator("anchor_date", always=True)
+    @field_validator("anchor_date")
+    @classmethod
     def validate_anchor_date(cls, v):
         return default_anchor_date(v)
 
-    @validator("timezone", always=True)
+    @field_validator("timezone")
+    @classmethod
     def validate_default_timezone(cls, v, values):
         return default_timezone(v, values=values)
 
@@ -97,8 +97,7 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -109,11 +108,13 @@ class CronSchedule(PrefectBaseModel):
         ),
     )
 
-    @validator("timezone")
+    @field_validator("timezone")
+    @classmethod
     def valid_timezone(cls, v):
         return default_timezone(v)
 
-    @validator("cron")
+    @field_validator("cron")
+    @classmethod
     def valid_cron_string(cls, v):
         return validate_cron_string(v)
 
@@ -141,13 +142,13 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
-    @validator("rrule")
+    @field_validator("rrule")
+    @classmethod
     def validate_rrule_str(cls, v):
         return validate_rrule_string(v)
 
@@ -254,14 +255,13 @@ class RRuleSchedule(PrefectBaseModel):
 
             return rrule
 
-    @validator("timezone", always=True)
+    @field_validator("timezone")
     def valid_timezone(cls, v):
         return validate_rrule_timezone(v)
 
 
 class NoSchedule(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule]

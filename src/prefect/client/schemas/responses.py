@@ -2,11 +2,10 @@ import datetime
 from typing import Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
-from pydantic.v1 import Field
+from pydantic import ConfigDict, Field
 from typing_extensions import Literal
 
 import prefect.client.schemas.objects as objects
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -141,8 +140,7 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID
@@ -273,7 +271,7 @@ class FlowRunResponse(ObjectBaseModel):
     state: Optional[objects.State] = Field(
         default=None,
         description="The state of the flow run.",
-        examples=[objects.State(type=objects.StateType.COMPLETED)],
+        examples=["objects.State(type=objects.StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
         default=None, description="Job variables for the flow run."
@@ -304,7 +302,7 @@ class FlowRunResponse(ObjectBaseModel):
         return super().__eq__(other)
 
 
-class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
+class DeploymentResponse(ObjectBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
@@ -417,8 +415,7 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
-    class Config:
-        extra = "ignore"  # 2024/4/1
+    model_config = ConfigDict(extra="ignore")
 
     id: UUID
     name: str

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import Field, root_validator, validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from prefect._internal.schemas.validators import (
     get_or_create_state_name,
@@ -52,11 +52,13 @@ class CountByState(PrefectBaseModel):
     CANCELLING: int = Field(default=0)
     SCHEDULED: int = Field(default=0)
 
-    @validator("*")
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
+    @field_validator("*")
     @classmethod
-    def check_key(cls, value, field):
-        if field.name not in StateType.__members__:
-            raise ValueError(f"{field.name} is not a valid StateType")
+    def check_key(cls, value, info):
+        if info.name not in StateType.__members__:
+            raise ValueError(f"{info.name} is not a valid StateType")
         return value
 
 
@@ -110,8 +112,7 @@ class StateBaseModel(IDBaseModel):
 class State(StateBaseModel):
     """Represents the state of a run."""
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
     type: StateType
     name: Optional[str] = Field(default=None)
@@ -155,11 +156,11 @@ class State(StateBaseModel):
         state_data["data"] = with_data
         return cls(**state_data)
 
-    @validator("name", always=True)
-    def default_name_from_type(cls, v, *, values, **kwargs):
+    @field_validator("name")
+    def default_name_from_type(cls, v, values):
         return get_or_create_state_name(v, values)
 
-    @root_validator
+    @model_validator(mode="before")
     def default_scheduled_start_time(cls, values):
         return set_default_scheduled_time(cls, values)
 

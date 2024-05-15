@@ -95,8 +95,7 @@ class ObjectBaseModel(IDBaseModel):
     equality comparisons.
     """
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
     created: Optional[DateTimeTZ] = Field(default=None, repr=False)
     updated: Optional[DateTimeTZ] = Field(default=None, repr=False)

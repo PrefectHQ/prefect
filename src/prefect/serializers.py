@@ -17,6 +17,7 @@ from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     TypeAdapter,
     ValidationError,
@@ -102,12 +103,11 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
     def loads(self, blob: bytes) -> D:
         """Decode the blob of bytes into an object."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     @classmethod
-    def __dispatch_key__(cls):
-        return cls.__fields__.get("type").get_default()
+    def __dispatch_key__(cls) -> str:
+        return cls.__name__
 
 
 class PickleSerializer(Serializer):

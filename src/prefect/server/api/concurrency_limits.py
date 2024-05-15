@@ -1,11 +1,12 @@
 """
 Routes for interacting with concurrency limit objects.
 """
+
 from typing import List, Optional
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

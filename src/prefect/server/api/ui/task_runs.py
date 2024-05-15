@@ -4,8 +4,8 @@ from typing import List, Optional, cast
 
 import pendulum
 import sqlalchemy as sa
-from prefect._vendor.fastapi import Depends, HTTPException, status
-from pydantic.v1 import Field
+from fastapi import Depends, HTTPException, status
+from pydantic import Field
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger

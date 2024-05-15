@@ -20,7 +20,7 @@ from typing import Dict, Tuple, Union
 
 import anyio
 import anyio.abc
-from pydantic.v1 import Field
+from pydantic import Field
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import deprecated_class

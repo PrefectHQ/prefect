@@ -14,12 +14,16 @@ from uuid import UUID
 
 import orjson
 import pendulum
-from pydantic.v1 import Field, HttpUrl, root_validator, validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    HttpUrl,
+    field_validator,
+    model_validator,
+    validator,
+)
 from typing_extensions import Literal
 
-from prefect._internal.compatibility.deprecated import (
-    DeprecatedInfraOverridesField,
-)
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect._internal.schemas.validators import (
@@ -249,11 +253,11 @@ class State(ObjectBaseModel, Generic[R]):
             state_details=self.state_details,
         )
 
-    @validator("name", always=True)
-    def default_name_from_type(cls, v, *, values, **kwargs):
+    @field_validator("name", mode="before")
+    def default_name_from_type(cls, v, values):
         return get_or_create_state_name(v, values)
 
-    @root_validator
+    @model_validator(mode="before")
     def default_scheduled_start_time(cls, values):
         """
         TODO: This should throw an error instead of setting a default but is out of
@@ -393,7 +397,7 @@ class FlowRunPolicy(PrefectBaseModel):
         default=False, description="Indicates if this run is resuming from a pause."
     )
 
-    @root_validator
+    @model_validator(mode="before")
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
@@ -552,7 +556,8 @@ class FlowRun(ObjectBaseModel):
             )
         return super().__eq__(other)
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -585,15 +590,17 @@ class TaskRunPolicy(PrefectBaseModel):
         default=None, description="Determines the amount a retry should jitter"
     )
 
-    @root_validator
+    @model_validator(mode="before")
     def populate_deprecated_fields(cls, values):
         return set_run_policy_deprecated_fields(values)
 
-    @validator("retry_delay")
+    @field_validator("retry_delay")
+    @classmethod
     def validate_configured_retry_delays(cls, v):
         return list_length_50_or_less(v)
 
-    @validator("retry_jitter_factor")
+    @field_validator("retry_jitter_factor")
+    @classmethod
     def validate_jitter_factor(cls, v):
         return validate_not_negative(v)
 
@@ -604,9 +611,7 @@ class TaskRunInput(PrefectBaseModel):
     could include, constants, parameters, or other task runs.
     """
 
-    # freeze TaskRunInputs to allow them to be placed in sets
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
     input_type: str
 
@@ -737,7 +742,8 @@ class TaskRun(ObjectBaseModel):
         examples=["State(type=StateType.COMPLETED)"],
     )
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_default_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -756,9 +762,7 @@ class Workspace(PrefectBaseModel):
     workspace_name: str = Field(..., description="The workspace name.")
     workspace_description: str = Field(..., description="Description of the workspace.")
     workspace_handle: str = Field(..., description="The workspace's unique handle.")
-
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
     @property
     def handle(self) -> str:
@@ -814,7 +818,8 @@ class BlockType(ObjectBaseModel):
         default=False, description="Protected block types cannot be modified via API."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -872,13 +877,14 @@ class BlockDocument(ObjectBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         # the BlockDocumentCreate subclass allows name=None
         # and will inherit this validator
         return raise_on_name_with_banned_characters(v)
 
-    @root_validator
+    @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -895,7 +901,8 @@ class Flow(ObjectBaseModel):
         examples=[["tag-1", "tag-2"]],
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -942,7 +949,7 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
-class Deployment(DeprecatedInfraOverridesField, ObjectBaseModel):
+class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(default=..., description="The name of the deployment.")
@@ -1047,7 +1054,8 @@ class Deployment(DeprecatedInfraOverridesField, ObjectBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -1125,7 +1133,7 @@ class BlockDocumentReference(ObjectBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
-    @root_validator
+    @model_validator(mode="before")
     def validate_parent_and_ref_are_different(cls, values):
         return validate_parent_and_ref_diff(values)
 
@@ -1227,7 +1235,8 @@ class WorkQueue(ObjectBaseModel):
         default=None, description="The queue status."
     )
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
@@ -1324,7 +1333,8 @@ class FlowRunNotificationPolicy(ObjectBaseModel):
         ],
     )
 
-    @validator("message_template")
+    @field_validator("message_template")
+    @classmethod
     def validate_message_template_variables(cls, v):
         return validate_message_template_variables(v)
 
@@ -1385,10 +1395,13 @@ class WorkPool(ObjectBaseModel):
     def is_managed_pool(self) -> bool:
         return self.type.endswith(":managed")
 
-    @validator("name", check_fields=False)
+    @field_validator("name", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         return raise_on_name_with_banned_characters(v)
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):
         return validate_default_queue_id_not_none(v)
@@ -1416,8 +1429,8 @@ class Worker(ObjectBaseModel):
     )
 
 
-Flow.update_forward_refs()
-FlowRun.update_forward_refs()
+Flow.model_rebuild()
+# FlowRun.model_rebuild()
 
 
 class Artifact(ObjectBaseModel):
@@ -1456,7 +1469,8 @@ class Artifact(ObjectBaseModel):
         default=None, description="The task run associated with the artifact."
     )
 
-    @validator("metadata_")
+    @field_validator("metadata_")
+    @classmethod
     def validate_metadata_length(cls, v):
         return validate_max_metadata_length(v)
 
@@ -1534,7 +1548,8 @@ class FlowRunInput(ObjectBaseModel):
         """
         return orjson.loads(self.value)
 
-    @validator("key", check_fields=False)
+    @field_validator("key", check_fields=False)
+    @classmethod
     def validate_name_characters(cls, v):
         raise_on_name_alphanumeric_dashes_only(v)
         return v

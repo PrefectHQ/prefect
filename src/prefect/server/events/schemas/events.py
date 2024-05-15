@@ -15,7 +15,7 @@ from typing import (
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import AnyHttpUrl, Field, root_validator, validator
+from pydantic import AnyHttpUrl, Field, field_validator, model_validator
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
@@ -31,7 +31,8 @@ logger = get_logger(__name__)
 class Resource(Labelled):
     """An observable business object of interest to the user"""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def enforce_maximum_labels(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -45,7 +46,8 @@ class Resource(Labelled):
 
         return values
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def requires_resource_id(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -72,7 +74,8 @@ class Resource(Labelled):
 class RelatedResource(Resource):
     """A Resource with a specific role in an Event"""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def requires_resource_role(cls, values: Dict[str, Any]):
         labels = values.get("__root__")
         if not isinstance(labels, dict):
@@ -144,7 +147,8 @@ class Event(PrefectBaseModel):
             resources[related.role].append(related)
         return resources
 
-    @validator("related")
+    @field_validator("related")
+    @classmethod
     def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
         if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
             raise ValueError(
@@ -155,7 +159,7 @@ class Event(PrefectBaseModel):
         return value
 
     def receive(self, received: Optional[pendulum.DateTime] = None) -> "ReceivedEvent":
-        kwargs = self.dict()
+        kwargs = self.model_dump()
         if received is not None:
             kwargs["received"] = received
         return ReceivedEvent(**kwargs)
@@ -183,7 +187,7 @@ class ReceivedEvent(Event, extra="ignore", orm_mode=True):
     )
 
     def as_database_row(self) -> Dict[str, Any]:
-        row = self.dict()
+        row = self.model_dump()
         row["resource_id"] = self.resource.id
         row["recorded"] = pendulum.now("UTC")
         row["related_resource_ids"] = [related.id for related in self.related]
@@ -191,7 +195,7 @@ class ReceivedEvent(Event, extra="ignore", orm_mode=True):
 
     def as_database_resource_rows(self) -> List[Dict[str, Any]]:
         def without_id_and_role(resource: Resource) -> Dict[str, str]:
-            d: Dict[str, str] = resource.dict()["__root__"]
+            d: Dict[str, str] = resource.model_dump()["__root__"]
             d.pop("prefect.resource.id", None)
             d.pop("prefect.resource.role", None)
             return d

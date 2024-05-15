@@ -38,7 +38,14 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
@@ -138,8 +145,7 @@ class RunnerDeployment(BaseModel):
             available settings.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
@@ -226,16 +232,18 @@ class RunnerDeployment(BaseModel):
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
 
-    @validator("triggers", allow_reuse=True)
+    @field_validator("triggers")
     def validate_automation_names(cls, field_value, values):
         """Ensure that each trigger has a name for its automation if none is provided."""
         return validate_automation_names(field_value, values)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_paused(cls, values):
         return reconcile_paused_deployment(values)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_schedules(cls, values):
         return reconcile_schedules_runner(values)
 

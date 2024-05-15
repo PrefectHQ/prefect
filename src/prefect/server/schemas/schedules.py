@@ -10,7 +10,7 @@ import dateutil.rrule
 import pendulum
 import pytz
 from croniter import croniter
-from pydantic.v1 import Field, validator
+from pydantic import ConfigDict, Field, field_validator
 
 from prefect._internal.schemas.validators import (
     default_anchor_date,
@@ -71,27 +71,25 @@ class IntervalSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string.
     """
 
-    class Config:
-        extra = "forbid"
-        exclude_none = True
+    model_config = ConfigDict(extra="forbid")
 
     interval: PositiveDuration
-    anchor_date: DateTimeTZ = None
+    anchor_date: Optional[DateTimeTZ] = None
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
-    @validator("anchor_date", always=True)
+    @field_validator("anchor_date")
     def validate_anchor_date(cls, v):
         return default_anchor_date(v)
 
-    @validator("timezone", always=True)
-    def validate_timezone(cls, v, *, values, **kwargs):
+    @field_validator("timezone")
+    def validate_timezone(cls, v, values):
         return default_timezone(v, values)
 
     async def get_dates(
         self,
-        n: int = None,
-        start: datetime.datetime = None,
-        end: datetime.datetime = None,
+        n: Optional[int] = None,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
     ) -> List[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
@@ -112,19 +110,19 @@ class IntervalSchedule(PrefectBaseModel):
 
     def _get_dates_generator(
         self,
-        n: int = None,
-        start: datetime.datetime = None,
-        end: datetime.datetime = None,
+        n: Optional[int] = None,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
     ) -> Generator[pendulum.DateTime, None, None]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
         Args:
-            n (int): The number of dates to generate
-            start (datetime.datetime, optional): The first returned date will be on or
+            n (Optional[int]): The number of dates to generate
+            start (Optional[datetime.datetime]): The first returned date will be on or
                 after this date. Defaults to None.  If a timezone-naive datetime is
                 provided, it is assumed to be in the schedule's timezone.
-            end (datetime.datetime, optional): The maximum scheduled date to return. If
+            end (Optional[datetime.datetime]): The maximum scheduled date to return. If
                 a timezone-naive datetime is provided, it is assumed to be in the
                 schedule's timezone.
 
@@ -211,8 +209,7 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -223,11 +220,13 @@ class CronSchedule(PrefectBaseModel):
         ),
     )
 
-    @validator("timezone")
+    @field_validator("timezone")
+    @classmethod
     def validate_timezone(cls, v, *, values, **kwargs):
         return default_timezone(v, values)
 
-    @validator("cron")
+    @field_validator("cron")
+    @classmethod
     def valid_cron_string(cls, v):
         return validate_cron_string(v)
 
@@ -364,13 +363,13 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
-    @validator("rrule")
+    @field_validator("rrule")
+    @classmethod
     def validate_rrule_str(cls, v):
         return validate_rrule_string(v)
 
@@ -477,7 +476,9 @@ class RRuleSchedule(PrefectBaseModel):
 
             return rrule
 
-    @validator("timezone", always=True)
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
+    @field_validator("timezone")
     def valid_timezone(cls, v):
         return validate_rrule_timezone(v)
 

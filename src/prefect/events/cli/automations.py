@@ -149,9 +149,9 @@ async def inspect(
 
     if yaml or json:
         if isinstance(automation, list):
-            automation = [a.dict(json_compatible=True) for a in automation]
+            automation = [a.model_dump(mode="json") for a in automation]
         elif isinstance(automation, Automation):
-            automation = automation.dict(json_compatible=True)
+            automation = automation.model_dump(mode="json")
         if yaml:
             app.console.print(pyyaml.dump(automation, sort_keys=False))
         elif json:

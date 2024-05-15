@@ -4,6 +4,7 @@ cachetools >= 5.3, < 6.0
 cloudpickle >= 2.0, < 4.0
 coolname >= 1.0.4, < 3.0.0
 croniter >= 1.0.12, < 3.0.0
+fastapi >= 0.111.0, < 1.0.0
 fsspec >= 2022.5.0
 graphviz >= 0.20.1
 griffe >= 0.20.0

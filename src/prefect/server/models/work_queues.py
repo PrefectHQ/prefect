@@ -17,7 +17,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from pydantic.v1 import parse_obj_as
+from pydantic import parse_obj_as
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

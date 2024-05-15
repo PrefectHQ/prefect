@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
-import pydantic.v1 as pydantic
+import pydantic
 from prefect._vendor.starlette import status
 
 import prefect.context

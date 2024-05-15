@@ -6,7 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from fastapi import (
     BackgroundTasks,
     Body,
     Depends,

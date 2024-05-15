@@ -6,7 +6,7 @@ import datetime
 import json
 from typing import List
 
-import pydantic.v1 as pydantic
+import pydantic
 import sqlalchemy as sa
 from typing_extensions import Literal
 

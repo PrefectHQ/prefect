@@ -2,8 +2,8 @@ import datetime
 from typing import List
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends
-from pydantic.v1 import Field
+from fastapi import Body, Depends
+from pydantic import Field
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
