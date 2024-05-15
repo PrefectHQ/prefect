@@ -5,7 +5,6 @@ from prefect.cli.root import app
 # Import CLI submodules to register them to the app
 # isort: split
 
-import prefect.cli.agent
 import prefect.cli.artifact
 import prefect.cli.block
 import prefect.cli.cloud
