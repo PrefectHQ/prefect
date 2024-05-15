@@ -8,6 +8,7 @@ const featureFlags = [
   'access:deploymentStatus',
   'access:workQueueStatus',
   'access:flowRunInfraOverrides',
+  'access:automations',
 ] as const
 
 export type FeatureFlag = typeof featureFlags[number] | WorkspaceFeatureFlag
