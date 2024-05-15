@@ -10,7 +10,6 @@ import datetime
 import json
 import logging
 import re
-import sys
 import urllib.parse
 import warnings
 from copy import copy
@@ -589,7 +588,6 @@ def set_default_image(values: dict) -> dict:
     """
     Set the default image for a Kubernetes job if not provided.
     """
-    from prefect.utilities.dockerutils import get_prefect_image_name
 
     job = values.get("job")
     image = values.get("image")
@@ -882,33 +880,11 @@ def check_volume_format(volumes: List[str]) -> List[str]:
     return volumes
 
 
-def assign_default_base_image(values: Mapping[str, Any]) -> Mapping[str, Any]:
-    from prefect.software.conda import CondaEnvironment
-
-    if not values.get("base_image") and not values.get("dockerfile"):
-        values["base_image"] = get_prefect_image_name(
-            flavor=(
-                "conda"
-                if isinstance(values.get("python_environment"), CondaEnvironment)
-                else None
-            )
-        )
-    return values
-
-
 def base_image_xor_dockerfile(values: Mapping[str, Any]):
     if values.get("base_image") and values.get("dockerfile"):
         raise ValueError(
             "Either `base_image` or `dockerfile` should be provided, but not both"
         )
-    return values
-
-
-def set_default_python_environment(values: Mapping[str, Any]) -> Mapping[str, Any]:
-    from prefect.software.python import PythonEnvironment
-
-    if values.get("base_image") and not values.get("python_environment"):
-        values["python_environment"] = PythonEnvironment.from_environment()
     return values
 
 
@@ -974,12 +950,6 @@ def set_run_policy_deprecated_fields(values: dict) -> dict:
 
 
 ### PYTHON ENVIRONMENT SCHEMA VALIDATORS ###
-
-
-def infer_python_version(value: Optional[str]) -> Optional[str]:
-    if value is None:
-        return f"{sys.version_info.major}.{sys.version_info.minor}"
-    return value
 
 
 def return_v_or_none(v: Optional[str]) -> Optional[str]:
