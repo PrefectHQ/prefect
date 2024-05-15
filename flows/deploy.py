@@ -5,7 +5,6 @@ import sys
 from packaging.version import Version
 
 import prefect
-import prefect.flow_runs
 
 # The version oldest version this test runs with
 SUPPORTED_VERSION = "2.6.0"
