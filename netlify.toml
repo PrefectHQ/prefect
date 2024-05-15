@@ -847,6 +847,25 @@ from = "/latest/collections/overview/"
 to = "/integrations/catalog/"
 status = 301
 
+[[redirects]]
+from = "/latest/concepts/deployments-block-based/"
+to = "/latest/concepts/deployments/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/infrastructure/"
+to = "/latest/concepts/deployments/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/storage/"
+to = "/latest/concepts/blocks/"
+status = 301
+
+[[redirects]]
+from = "/latest/concepts/agents/"
+to = "/latest/concepts/work-pools/"
+status = 301
 
 
 [[headers]]
