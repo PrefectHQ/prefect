@@ -4,6 +4,7 @@ import inspect
 import time
 from asyncio import Event, sleep
 from functools import partial, wraps
+from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -2652,9 +2653,11 @@ class TestTaskWithOptions:
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "bar"
 
-    def test_with_options_uses_existing_settings_when_no_override(self):
+    def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
         def cache_key_fn(*_):
             return "cache hit"
+
+        storage = LocalFileSystem(basepath=tmp_path)
 
         @task(
             name="Initial task",
@@ -2666,7 +2669,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=5,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=storage,
             cache_result_in_memory=False,
             timeout_seconds=42,
             refresh_cache=True,
@@ -2690,17 +2693,17 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 5
         assert task_with_options.persist_result is False
         assert task_with_options.result_serializer == "json"
-        assert task_with_options.result_storage == LocalFileSystem()
+        assert task_with_options.result_storage == storage
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "test"
 
-    def test_with_options_can_unset_result_options_with_none(self):
+    def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @task(
             persist_result=True,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=LocalFileSystem(basepath=tmp_path),
             refresh_cache=True,
             result_storage_key="test",
         )
