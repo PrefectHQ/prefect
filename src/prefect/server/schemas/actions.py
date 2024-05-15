@@ -7,7 +7,16 @@ from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID, uuid4
 
-from pydantic.v1 import Field, HttpUrl, root_validator, validator
+from pydantic.v1 import (
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
@@ -1032,7 +1041,9 @@ class VariableCreate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: Union[
+        StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
@@ -1057,7 +1068,9 @@ class VariableUpdate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Optional[str] = Field(
+    value: Union[
+        StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],

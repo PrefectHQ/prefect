@@ -7,7 +7,17 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
+from pydantic.v1 import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal, Self
 
 import prefect.server.database
@@ -1203,7 +1213,9 @@ class Variable(ORMBaseModel):
         examples=["my-variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: Union[
+        StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
