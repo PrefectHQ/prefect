@@ -8,7 +8,11 @@ from prefect.client.orchestration import PrefectClient
 from prefect.deployments import Deployment
 from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.server.schemas.schedules import IntervalSchedule
-from prefect.settings import PREFECT_UI_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -257,6 +261,11 @@ class TestOutputMessages:
 
 
 class TestDeploymentSchedules:
+    @pytest.fixture(autouse=True)
+    def enable_triggers(self):
+        with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
+            yield
+
     @pytest.fixture
     async def flojo(self, prefect_client):
         @flow
