@@ -17,7 +17,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
-from prefect.deployments.deployments import load_flow_from_flow_run
+from prefect.flows import load_flow_from_flow_run
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
