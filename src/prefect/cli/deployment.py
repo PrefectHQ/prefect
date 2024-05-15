@@ -22,7 +22,7 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orchestration import ServerType, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowFilter
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import (
@@ -32,7 +32,7 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.client.utilities import inject_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import Deployment, load_deployments_from_yaml
+from prefect.deployments import load_deployments_from_yaml
 from prefect.exceptions import (
     ObjectAlreadyExists,
     ObjectNotFound,
@@ -1101,135 +1101,6 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
         exit_with_error("No deployments found!", style="yellow")
 
     return specs
-
-
-@deployment_app.command(
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_name="deployment apply",
-    deprecated_help="Use 'prefect deploy' to deploy flows via YAML instead.",
-)
-async def apply(
-    paths: List[str] = typer.Argument(
-        ...,
-        help="One or more paths to deployment YAML files.",
-    ),
-    upload: bool = typer.Option(
-        False,
-        "--upload",
-        help=(
-            "A flag that, when provided, uploads this deployment's files to remote"
-            " storage."
-        ),
-    ),
-    work_queue_concurrency: int = typer.Option(
-        None,
-        "--limit",
-        "-l",
-        help=(
-            "Sets the concurrency limit on the work queue that handles this"
-            " deployment's runs"
-        ),
-    ),
-):
-    """
-    Create or update a deployment from a YAML file.
-    """
-    deployment = None
-    async with get_client() as client:
-        for path in paths:
-            try:
-                deployment = await Deployment.load_from_yaml(path)
-                app.console.print(
-                    f"Successfully loaded {deployment.name!r}", style="green"
-                )
-            except Exception as exc:
-                exit_with_error(
-                    f"'{path!s}' did not conform to deployment spec: {exc!r}"
-                )
-
-            assert deployment
-
-            await create_work_queue_and_set_concurrency_limit(
-                deployment.work_queue_name,
-                deployment.work_pool_name,
-                work_queue_concurrency,
-            )
-
-            if upload:
-                if (
-                    deployment.storage
-                    and "put-directory" in deployment.storage.get_block_capabilities()
-                ):
-                    file_count = await deployment.upload_to_storage()
-                    if file_count:
-                        app.console.print(
-                            (
-                                f"Successfully uploaded {file_count} files to"
-                                f" {deployment.location}"
-                            ),
-                            style="green",
-                        )
-                else:
-                    app.console.print(
-                        (
-                            f"Deployment storage {deployment.storage} does not have"
-                            " upload capabilities; no files uploaded."
-                        ),
-                        style="red",
-                    )
-            await check_work_pool_exists(
-                work_pool_name=deployment.work_pool_name, client=client
-            )
-
-            if client.server_type != ServerType.CLOUD and deployment.triggers:
-                app.console.print(
-                    (
-                        "Deployment triggers are only supported on "
-                        f"Prefect Cloud. Triggers defined in {path!r} will be "
-                        "ignored."
-                    ),
-                    style="red",
-                )
-
-            deployment_id = await deployment.apply()
-            app.console.print(
-                (
-                    f"Deployment '{deployment.flow_name}/{deployment.name}'"
-                    f" successfully created with id '{deployment_id}'."
-                ),
-                style="green",
-            )
-
-            if PREFECT_UI_URL:
-                app.console.print(
-                    "View Deployment in UI:"
-                    f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
-                )
-
-            if deployment.work_pool_name is not None:
-                await _print_deployment_work_pool_instructions(
-                    work_pool_name=deployment.work_pool_name, client=client
-                )
-            elif deployment.work_queue_name is not None:
-                app.console.print(
-                    "\nTo execute flow runs from this deployment, start an agent that"
-                    f" pulls work from the {deployment.work_queue_name!r} work queue:"
-                )
-                app.console.print(
-                    f"$ prefect agent start -q {deployment.work_queue_name!r}",
-                    style="blue",
-                )
-            else:
-                app.console.print(
-                    (
-                        "\nThis deployment does not specify a work queue name, which"
-                        " means agents will not be able to pick up its runs. To add a"
-                        " work queue, edit the deployment spec and re-run this command,"
-                        " or visit the deployment in the UI."
-                    ),
-                    style="red",
-                )
 
 
 @deployment_app.command()
