@@ -1,6 +1,6 @@
 # prefect-ray
 
-[Ray](https://docs.ray.io/en/latest/index.html) helps you run your flow in parallel and distribute runs over multiple machines.
+[Ray](https://docs.ray.io/en/latest/index.html) can run the tasks in your flow in parallel by distributing them over multiple machines.
 The `prefect-ray` integration makes it easy speed up your flow runs by integrating Ray into your code.
 
 ## Getting Started
