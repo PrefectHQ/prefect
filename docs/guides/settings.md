@@ -10,18 +10,19 @@ search:
   boost: 2
 ---
 
-# Profiles & Configuration
+# Profiles and Configuration
 
-Prefect's local settings are [documented][prefect.settings.Settings] and type-validated. 
+Learn how to configure your Prefect local settings to customize your workflow environment. These settings are type-validated and [documented][prefect.settings.Settings]. 
 
-By modifying the default settings, you can customize various aspects of the system. 
+## Profiles
+
 You can override a setting with an environment variable or by updating the setting in a Prefect [profile](#configuration-profiles).
 
 Prefect profiles are persisted groups of settings on your local machine. A single profile is always active.
 
-Initially, a default profile named `default` is active and contains no settings overrides.
+Initially, a `default` profile is active and contains no settings overrides.
 
-All currently active settings can be viewed from the command line by running the following command:
+To view active settings from the command line, run:
 
 <div class="terminal">
 ```bash
@@ -44,8 +45,8 @@ The `PREFECT_API_KEY` value specifies the [API key](/ui/cloud-api-keys/#create-a
 PREFECT_API_KEY="[API-KEY]"
 ```
 
-Generally, you will set the `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile by running `prefect cloud login`. 
-If you're curious, read more about [managing API keys](/cloud/users/api-keys/). 
+To set the `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
+Read more about [managing API keys](/cloud/users/api-keys/). 
 
 ### PREFECT_API_URL
 
@@ -59,7 +60,7 @@ PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/
 ```
 </div>
 
-You can view your Account ID and Workspace ID in your browser URL when at a Prefect Cloud workspace page. 
+View your Account ID and Workspace ID in your browser URL within a Prefect Cloud workspace page. 
 For example: <https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here>.
 
 If using a local Prefect server instance, set your API URL like this:
@@ -74,13 +75,13 @@ PREFECT_API_URL="http://127.0.0.1:4200/api"
 
     If using a [worker](/concepts/work-pools/) (agent and block-based deployments are legacy) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your worker is running.
 
-    If you want the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+    For the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 !!! tip "Running the Prefect UI behind a reverse proxy"
 
-    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server instance also needs to be configured to know how to connect to the API. 
-    The [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL) should be set to the external proxy URL (e.g. if your external URL is <https://prefect-server.example.com/> then set `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). 
-    You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_UI_API_URL` is not set.
+    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
+    The [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL) should be set to the external proxy URL (for example, if your external URL is <https://prefect-server.example.com/> then set `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). 
+    You can also set [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL. This setting is a fallback if `PREFECT_UI_API_URL` is not set.
 
 ### PREFECT_HOME
 
@@ -129,13 +130,13 @@ PREFECT_CLIENT_CSRF_SUPPORT_ENABLED=True
 
 ### Database settings
 
-If running a self-hosted Prefect server instance, there are several database configuration settings you can read about [here](/host/).
+If running a self-hosted Prefect server instance, there are several [database configuration settings](/host/) to consider.
 
 ### Logging settings
 
-Prefect provides several logging configuration settings that you can read about in the [logging docs](/concepts/logs/).
+Prefect provides several [logging configuration settings](/concepts/logs/).
 
-## Configuring settings
+## Configure settings
 
 The `prefect config` CLI commands enable you to view, set, and unset settings.
 
@@ -145,7 +146,7 @@ The `prefect config` CLI commands enable you to view, set, and unset settings.
 | unset | Restore the default value for a setting. |
 | view | Display the current settings. |
 
-### Viewing settings from the CLI
+### View settings from the CLI
 
 The `prefect config view` command will display settings that override default values.
 
@@ -176,7 +177,7 @@ PREFECT_API_URL='None' (from defaults)
 ...
 ```
 
-### Setting and clearing values
+### Set and clear values
 
 The `prefect config set` command lets you change the value of a default setting.
 
@@ -190,17 +191,17 @@ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 ```
 
-If you want to configure a setting to use its default value, use the `prefect config unset` command.
+To configure a setting to use its default value, use `prefect config unset`.
 
 ```bash
 prefect config unset PREFECT_API_URL
 ```
 
-### Overriding defaults with environment variables
+### Override defaults with environment variables
 
-All settings have keys that match the environment variable that can be used to override them.
+All settings have keys that match the environment variable to override them.
 
-For example, configuring the home directory:
+For example, to configure the home directory:
 
 <div class="terminal">
 ```bash
@@ -215,7 +216,7 @@ import prefect.settings
 prefect.settings.PREFECT_HOME.value()  # PosixPath('/path/to/home')
 ```
 
-Configuring the a server instance's port:
+Configure a server instance's port:
 
 <div class="terminal">
 ```bash
@@ -266,7 +267,7 @@ PREFECT_PROFILE="test"
 ```
 </div>
 
-### Creating and removing profiles
+### Create and remove profiles
 
 Create a new profile with no settings:
 
@@ -304,7 +305,7 @@ Removed profile 'test'.
 ```
 </div>
 
-Removing the default profile resets it:
+Remove the default profile to reset it:
 
 <div class="terminal">
 ```bash
@@ -357,7 +358,7 @@ Updated profile 'default'
 ```
 </div>
 
-### Inspecting profiles
+### Inspect profiles
 
 See a list of available profiles:
 
@@ -384,9 +385,9 @@ PREFECT_API_KEY='xxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
 ### Using profiles
 
-The profile named `default` is used by default. There are several methods to switch to another profile.
+The `default` profile is used by default. There are several methods to switch to another profile.
 
-The recommended method is to use the `prefect profile use` command with the name of the profile:
+We recommend using the `prefect profile use` command with the name of the profile:
 
 <div class="terminal">
 ```bash
@@ -439,11 +440,11 @@ $ prefect-foo config view
 
 ## Conflicts with environment variables
 
-If setting the profile from the CLI with `--profile`, environment variables that conflict with settings in the profile will be ignored.
+If setting the profile from the CLI with `--profile`, environment variables that conflict with settings in the profile are ignored.
 
-In all other cases, environment variables will take precedence over the value in the profile.
+In all other cases, environment variables take precedence over the value in the profile.
 
-For example, a value set in a profile will be used by default:
+For example, a value set in a profile is used by default:
 
 <div class="terminal">
 ```bash
@@ -454,7 +455,7 @@ PREFECT_LOGGING_LEVEL='ERROR' (from profile)
 ```
 </div>
 
-But, setting an environment variable will override the profile setting:
+But, setting an environment variable overrides the profile setting:
 
 <div class="terminal">
 ```bash
