@@ -5,7 +5,6 @@
 import sys
 from typing import TYPE_CHECKING
 from . import _version
-import importlib
 import pathlib
 
 __version_info__ = _version.get_versions()
@@ -26,7 +25,6 @@ __ui_static_path__ = __module_path__ / "server" / "ui"
 del _version, pathlib
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import get_client, PrefectClient
     from prefect.context import tags
     from prefect.manifests import Manifest
     from prefect.client.cloud import get_cloud_client, CloudClient
@@ -41,8 +39,6 @@ if TYPE_CHECKING:
 
     # Import modules that register types
     import prefect.serializers
-    import prefect.deprecated.data_documents
-    import prefect.deprecated.packaging
     import prefect.blocks.kubernetes
     import prefect.blocks.notifications
     import prefect.blocks.system
@@ -50,8 +46,10 @@ if TYPE_CHECKING:
     import prefect.infrastructure.kubernetes
     import prefect.infrastructure.container
 
+from prefect.client.orchestration import get_client, PrefectClient
 
-_lazy_imports = {
+
+_dynamic_imports = {
     "get_client": "prefect.client.orchestration",
     "PrefectClient": "prefect.client.orchestration",
     "tags": "prefect.context",
@@ -83,8 +81,10 @@ _lazy_imports = {
 
 
 def __getattr__(attr_name: str) -> object:
-    if attr_name in _lazy_imports:
-        module = importlib.import_module(_lazy_imports[attr_name])
+    from importlib import import_module
+
+    if attr_name in _dynamic_imports:
+        module = import_module(_dynamic_imports[attr_name])
         value = getattr(module, attr_name)
         setattr(sys.modules[__name__], attr_name, value)
         return value
