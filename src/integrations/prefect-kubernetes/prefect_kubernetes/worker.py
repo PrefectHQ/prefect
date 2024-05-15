@@ -726,7 +726,7 @@ class KubernetesWorker(BaseWorker):
         api_key = manifest_api_key_env.get("value")
         if api_key:
             secret_name = f"prefect-{_slugify_name(self.name)}-api-key"
-            secret = self._upsert_secret(
+            secret = await self._upsert_secret(
                 name=secret_name,
                 value=api_key,
                 namespace=configuration.namespace,

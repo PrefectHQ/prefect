@@ -1,10 +1,15 @@
 import asyncio
-from typing import Dict, List, Optional
-
-import kubernetes_asyncio as kubernetes
-from kubernetes_asyncio.client import CoreV1Api, V1Pod
+import threading
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from prefect.events import Event, RelatedResource, emit_event
+from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    import kubernetes_asyncio as kubernetes
+    from kubernetes_asyncio.client import ApiClient, V1Pod
+else:
+    kubernetes = lazy_import("kubernetes_asyncio")
 
 EVICTED_REASONS = {
     "OOMKilled",
@@ -21,11 +26,11 @@ FINAL_PHASES = {"Succeeded", "Failed"}
 
 
 class KubernetesEventsReplicator:
-    """Replicates Kubernetes pod events to Prefect events asynchronously."""
+    """Replicates Kubernetes pod events to Prefect events."""
 
     def __init__(
         self,
-        client: "kubernetes.client.ApiClient",
+        client: "ApiClient",
         job_name: str,
         namespace: str,
         worker_resource: Dict[str, str],
@@ -36,6 +41,7 @@ class KubernetesEventsReplicator:
         self._job_name = job_name
         self._namespace = namespace
         self._timeout_seconds = timeout_seconds
+
         # All events emitted by this replicator have the pod itself as the
         # resource. The `worker_resource` is what the worker uses when it's
         # the primary resource, so here it's turned into a related resource
@@ -45,19 +51,22 @@ class KubernetesEventsReplicator:
         self._related_resources = related_resources + [worker_related_resource]
 
         self._watch = kubernetes.watch.Watch()
+        self._thread = threading.Thread(target=self._replicate_pod_events)
+
         self._state = "READY"
 
     async def __aenter__(self):
         """Start the Kubernetes event watcher when entering the context."""
         self._task = asyncio.create_task(self._replicate_pod_events())
+        self._state = "STARTED"
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         """Stop the Kubernetes event watcher and ensure all tasks are completed before exiting the context."""
         self._watch.stop()
+        self._state = "STOPPED"
         if self._task:
             await self._task
-        self._state = "STOPPED"
 
     def _pod_as_resource(self, pod: "V1Pod") -> Dict[str, str]:
         """Convert a pod to a resource dictionary"""
@@ -72,8 +81,7 @@ class KubernetesEventsReplicator:
         seen_phases = set()
         last_event = None
 
-        # try:
-        core_client = CoreV1Api(api_client=self._client)
+        core_client = kubernetes.client.CoreV1Api(api_client=self._client)
         async for event in self._watch.stream(
             func=core_client.list_namespaced_pod,
             namespace=self._namespace,
@@ -87,8 +95,6 @@ class KubernetesEventsReplicator:
                 seen_phases.add(phase)
                 if phase in FINAL_PHASES:
                     self._watch.stop()
-        # finally:
-        #     self._client.rest_client.pool_manager.clear()
 
     async def _emit_pod_event(
         self,

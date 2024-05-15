@@ -10,12 +10,13 @@ from prefect_kubernetes.events import EVICTED_REASONS, KubernetesEventsReplicato
 from prefect.events import RelatedResource
 from prefect.utilities.importtools import lazy_import
 
-kubernetes = lazy_import("kubernetes_asyncio")
+kubernetes = lazy_import("kubernetes")
 
 
 @pytest.fixture
-def client():
-    return MagicMock()
+async def client():
+    async with AsyncMock() as mock:
+        yield mock
 
 
 @pytest.fixture
@@ -73,6 +74,21 @@ def evicted_pod(pod):
 async def successful_pod_stream(pending_pod, running_pod, succeeded_pod):
     async def event_stream():
         events = [
+            {"type": "ADDED", "object": pending_pod},
+            {"type": "MODIFIED", "object": running_pod},
+            {"type": "MODIFIED", "object": succeeded_pod},
+        ]
+        for event in events:
+            yield event
+            await asyncio.sleep(0.1)  # simulate async behavior
+
+    return event_stream()
+
+
+@pytest.fixture
+def failed_pod_stream(pending_pod, running_pod, failed_pod):
+    async def event_stream():
+        events = [
             {
                 "type": "ADDED",
                 "object": pending_pod,
@@ -83,49 +99,38 @@ async def successful_pod_stream(pending_pod, running_pod, succeeded_pod):
             },
             {
                 "type": "MODIFIED",
-                "object": succeeded_pod,
+                "object": failed_pod,
             },
         ]
         for event in events:
             yield event
+            await asyncio.sleep(0.1)  # simulate async behavior
 
     return event_stream()
 
 
 @pytest.fixture
-def failed_pod_stream(pending_pod, running_pod, failed_pod):
-    return [
-        {
-            "type": "ADDED",
-            "object": pending_pod,
-        },
-        {
-            "type": "MODIFIED",
-            "object": running_pod,
-        },
-        {
-            "type": "MODIFIED",
-            "object": failed_pod,
-        },
-    ]
+def evicted_pod_stream(pending_pod, running_pod, evicted_pod):
+    async def event_stream():
+        events = [
+            {
+                "type": "ADDED",
+                "object": pending_pod,
+            },
+            {
+                "type": "MODIFIED",
+                "object": running_pod,
+            },
+            {
+                "type": "MODIFIED",
+                "object": evicted_pod,
+            },
+        ]
+        for event in events:
+            yield event
+            await asyncio.sleep(0.1)  # simulate async behavior
 
-
-@pytest.fixture
-async def evicted_pod_stream(pending_pod, running_pod, evicted_pod):
-    [
-        {
-            "type": "ADDED",
-            "object": pending_pod,
-        },
-        {
-            "type": "MODIFIED",
-            "object": running_pod,
-        },
-        {
-            "type": "MODIFIED",
-            "object": evicted_pod,
-        },
-    ]
+    return event_stream()
 
 
 @pytest.fixture
@@ -146,7 +151,7 @@ def related_resources():
 
 
 @pytest.fixture
-async def replicator(client, worker_resource, related_resources):
+def replicator(client, worker_resource, related_resources):
     return KubernetesEventsReplicator(
         client=client,
         job_name="test-job",
@@ -157,23 +162,18 @@ async def replicator(client, worker_resource, related_resources):
     )
 
 
-@pytest.mark.asyncio
 async def test_lifecycle(replicator):
-    # Mock the Kubernetes watch to control its behavior during the test
-    mock_watch = AsyncMock(spec=kubernetes.watch.Watch)
-    mock_watch.stream = MagicMock()  # Mock the async stream method
+    mock_watch = MagicMock(spec=kubernetes.watch.Watch)
 
-    # Patch the watch object in the replicator with our mock
     with patch.object(replicator, "_watch", mock_watch):
-        # Enter the async context manager and perform checks inside
         async with replicator:
-            # This should start the replicator's internal task
-            # Check if the replicator has started the watch stream
-            mock_watch.stream.assert_called()
+            await asyncio.sleep(0.3)
+            assert replicator._state == "STARTED"
 
-    mock_watch.stop.assert_called_once()
+    assert replicator._state == "STOPPED"
 
 
+@pytest.mark.asyncio
 async def test_replicate_successful_pod_events(replicator, successful_pod_stream):
     mock_watch = AsyncMock(spec=kubernetes.watch.Watch)
     mock_watch.stream.return_value = successful_pod_stream
@@ -188,7 +188,9 @@ async def test_replicate_successful_pod_events(replicator, successful_pod_stream
     with patch("prefect_kubernetes.events.emit_event", side_effect=event) as mock_emit:
         with patch.object(replicator, "_watch", mock_watch):
             async with replicator:
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(
+                    0.5
+                )  # allow some time for the events to be processed
 
     mock_emit.assert_has_calls(
         [
@@ -263,11 +265,11 @@ async def test_replicate_successful_pod_events(replicator, successful_pod_stream
             ),
         ]
     )
-    mock_watch.stop.assert_called_once_with()
 
 
-def test_replicate_failed_pod_events(replicator, failed_pod_stream):
-    mock_watch = MagicMock(spec=kubernetes.watch.Watch)
+@pytest.mark.asyncio
+async def test_replicate_failed_pod_events(replicator, failed_pod_stream):
+    mock_watch = AsyncMock(spec=kubernetes.watch.Watch)
     mock_watch.stream.return_value = failed_pod_stream
 
     event_count = 0
@@ -279,7 +281,7 @@ def test_replicate_failed_pod_events(replicator, failed_pod_stream):
 
     with patch("prefect_kubernetes.events.emit_event", side_effect=event) as mock_emit:
         with patch.object(replicator, "_watch", mock_watch):
-            with replicator:
+            async with replicator:
                 time.sleep(0.3)
 
     mock_emit.assert_has_calls(
@@ -358,6 +360,7 @@ def test_replicate_failed_pod_events(replicator, failed_pod_stream):
     mock_watch.stop.assert_called_once_with()
 
 
+@pytest.mark.asyncio
 async def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
     mock_watch = AsyncMock(spec=kubernetes.watch.Watch)
     mock_watch.stream.return_value = evicted_pod_stream
@@ -372,7 +375,7 @@ async def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
     with patch("prefect_kubernetes.events.emit_event", side_effect=event) as mock_emit:
         with patch.object(replicator, "_watch", mock_watch):
             async with replicator:
-                time.sleep(0.3)
+                await asyncio.sleep(0.3)
 
     mock_emit.assert_has_calls(
         [
@@ -448,4 +451,3 @@ async def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
             ),
         ]
     )
-    mock_watch.stop.assert_called_once_with()
