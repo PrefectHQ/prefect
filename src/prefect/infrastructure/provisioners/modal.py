@@ -2,19 +2,22 @@ import importlib
 import shlex
 import sys
 from copy import deepcopy
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from anyio import run_process
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.schemas.objects import BlockDocument
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+
 
 modal = lazy_import("modal")
 
@@ -24,7 +27,7 @@ class ModalPushProvisioner:
     A infrastructure provisioner for Modal push work pools.
     """
 
-    def __init__(self, client: Optional[PrefectClient] = None):
+    def __init__(self, client: Optional["PrefectClient"] = None):
         self._console = Console()
 
     @property
@@ -91,7 +94,7 @@ class ModalPushProvisioner:
         block_document_name: str,
         modal_token_id: str,
         modal_token_secret: str,
-        client: PrefectClient,
+        client: "PrefectClient",
     ) -> BlockDocument:
         """
         Creates a ModalCredentials block containing the provided token ID and secret.
@@ -142,7 +145,7 @@ class ModalPushProvisioner:
         self,
         work_pool_name: str,
         base_job_template: Dict[str, Any],
-        client: Optional[PrefectClient] = None,
+        client: Optional["PrefectClient"] = None,
     ) -> Dict[str, Any]:
         """
         Provisions resources necessary for a Modal push work pool.

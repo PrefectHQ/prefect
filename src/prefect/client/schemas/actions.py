@@ -3,23 +3,16 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
+from pydantic.v1 import Field, root_validator, validator
 
 import prefect.client.schemas.objects as objects
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
-    raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
     return_none_schedule,
     validate_message_template_variables,
@@ -29,12 +22,17 @@ from prefect._internal.schemas.validators import (
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
+from prefect.types import (
+    Name,
+    NonEmptyishName,
+    NonNegativeFloat,
+    NonNegativeInteger,
+    PositiveInteger,
+)
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.deprecated.data_documents import DataDocument
     from prefect.results import BaseResult
 
 R = TypeVar("R")
@@ -69,7 +67,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
+    data: Union["BaseResult[R]", Any] = Field(
         default=None,
     )
 
@@ -554,7 +552,7 @@ class LogCreate(ActionBaseModel):
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = Field(
+    name: NonEmptyishName = Field(
         description="The name of the work pool.",
     )
     description: Optional[str] = Field(None)
@@ -746,7 +744,7 @@ class VariableUpdate(ActionBaseModel):
 class GlobalConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a global concurrency limit."""
 
-    name: str = Field(description="The name of the global concurrency limit.")
+    name: Name = Field(description="The name of the global concurrency limit.")
     limit: NonNegativeInteger = Field(
         description=(
             "The maximum number of slots that can be occupied on this concurrency"
@@ -769,20 +767,12 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a global concurrency limit."""
 
-    name: Optional[str] = Field(None)
+    name: Optional[Name] = Field(None)
     limit: Optional[NonNegativeInteger] = Field(None)
     active: Optional[NonNegativeInteger] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)

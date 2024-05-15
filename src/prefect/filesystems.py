@@ -9,15 +9,9 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
 import fsspec
+from pydantic.v1 import Field, SecretStr, validator
 
 from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, SecretStr, validator
-else:
-    from pydantic import Field, SecretStr, validator
-
 from prefect._internal.schemas.validators import (
     stringify_path,
     validate_basepath,

@@ -2,12 +2,11 @@
 
 # Setup version and path constants
 
+import sys
 from typing import TYPE_CHECKING
 from . import _version
 import importlib
 import pathlib
-import warnings
-import sys
 
 __version_info__ = _version.get_versions()
 __version__ = __version_info__["version"]
@@ -110,12 +109,8 @@ import prefect.client.schemas
 
 prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
 prefect.context.TaskRunContext.update_forward_refs(Task=Task)
-prefect.client.schemas.State.update_forward_refs(
-    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
-)
-prefect.client.schemas.StateCreate.update_forward_refs(
-    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
-)
+prefect.client.schemas.State.update_forward_refs(BaseResult=BaseResult)
+prefect.client.schemas.StateCreate.update_forward_refs(BaseResult=BaseResult)
 
 
 prefect.plugins.load_extra_entrypoints()
@@ -128,14 +123,15 @@ prefect.logging.get_logger("profiles").debug(
     f"Using profile {prefect.context.get_settings_context().profile.name!r}"
 )
 
+# Ensure moved names are accessible at old locations
+prefect.client.get_client = get_client
+prefect.client.PrefectClient = PrefectClient
+
+
 from prefect._internal.compatibility.deprecated import (
     inject_renamed_module_alias_finder,
-    register_renamed_module,
 )
 
-register_renamed_module(
-    "prefect.packaging", "prefect.deprecated.packaging", start_date="Mar 2024"
-)
 inject_renamed_module_alias_finder()
 
 

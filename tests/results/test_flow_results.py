@@ -1,5 +1,6 @@
 import base64
 import pickle
+from pathlib import Path
 
 import pytest
 
@@ -453,13 +454,13 @@ def test_flow_server_state_schema_result_is_respected(persist_result, return_sta
             assert state.result(raise_on_failure=False) == return_state.data
 
 
-async def test_root_flow_default_remote_storage():
+async def test_root_flow_default_remote_storage(tmp_path: Path):
     @flow
     async def foo():
         result_fac = get_run_context().result_factory
         return result_fac.storage_block
 
-    block = LocalFileSystem()
+    block = LocalFileSystem(basepath=tmp_path)
     await block.save("my-result-storage")
 
     with temporary_settings(
