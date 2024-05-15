@@ -242,7 +242,7 @@ In more complex scenarios, CI/CD processes often need to accommodate several add
 - Handling independent deployment of distinct groupings of work, as in a monorepo
 - Efficiently using build time to avoid repeated work
 
-This [example repository](https://github.com/kevingrismore/cicd-example-workspaces) demonstrates addressing each of these considerations with a combination of Prefect's and GitHub's capabilities.
+This [example repository](https://github.com/kevingrismore/cicd-example-workspaces) addresses each of these considerations with a combination of Prefect's and GitHub's capabilities.
 
 ### Deploy to multiple workspaces
 
