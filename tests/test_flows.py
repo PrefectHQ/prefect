@@ -339,7 +339,9 @@ class TestFlowWithOptions:
         assert flow_with_options.on_cancellation == [cancellation_hook]
         assert flow_with_options.on_crashed == [crash_hook]
 
-    def test_with_options_uses_existing_settings_when_no_override(self):
+    def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
+        storage = LocalFileSystem(basepath=tmp_path)
+
         @flow(
             name="Initial flow",
             description="Flow before with options",
@@ -350,7 +352,7 @@ class TestFlowWithOptions:
             retry_delay_seconds=20,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=storage,
             cache_result_in_memory=False,
             log_prints=False,
         )
@@ -369,7 +371,7 @@ class TestFlowWithOptions:
         assert flow_with_options.retry_delay_seconds == 20
         assert flow_with_options.persist_result is False
         assert flow_with_options.result_serializer == "json"
-        assert flow_with_options.result_storage == LocalFileSystem()
+        assert flow_with_options.result_storage == storage
         assert flow_with_options.cache_result_in_memory is False
         assert flow_with_options.log_prints is False
 
@@ -408,11 +410,11 @@ class TestFlowWithOptions:
         flow_with_options = initial_flow.with_options()
         assert flow_with_options.flow_run_name is generate_flow_run_name
 
-    def test_with_options_can_unset_result_options_with_none(self):
+    def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @flow(
             persist_result=True,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=LocalFileSystem(basepath=tmp_path),
         )
         def initial_flow():
             pass
