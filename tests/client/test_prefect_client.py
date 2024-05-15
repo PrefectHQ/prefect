@@ -1,6 +1,5 @@
 import json
 import os
-import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
@@ -73,7 +72,6 @@ from prefect.client.schemas.responses import (
 )
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
-from prefect.deprecated.data_documents import DataDocument
 from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.settings import (
@@ -1462,40 +1460,6 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
         timeout=ANY,
         enable_csrf_support=ANY,
     )
-
-
-class TestResolveDataDoc:
-    @pytest.fixture(autouse=True)
-    def ignore_deprecation_warnings(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
-            yield
-
-    async def test_does_not_allow_other_types(self, prefect_client):
-        with pytest.raises(TypeError, match="invalid type str"):
-            await prefect_client.resolve_datadoc("foo")
-
-    async def test_resolves_data_document(self, prefect_client):
-        innermost = await prefect_client.resolve_datadoc(
-            DataDocument.encode("cloudpickle", "hello")
-        )
-        assert innermost == "hello"
-
-    async def test_resolves_nested_data_documents(self, prefect_client):
-        innermost = await prefect_client.resolve_datadoc(
-            DataDocument.encode("cloudpickle", DataDocument.encode("json", "hello"))
-        )
-        assert innermost == "hello"
-
-    async def test_resolves_nested_data_documents_when_inner_is_bytes(
-        self, prefect_client
-    ):
-        innermost = await prefect_client.resolve_datadoc(
-            DataDocument.encode(
-                "cloudpickle", DataDocument.encode("json", "hello").json().encode()
-            )
-        )
-        assert innermost == "hello"
 
 
 class TestClientAPIVersionRequests:
