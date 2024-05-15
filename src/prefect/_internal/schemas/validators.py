@@ -24,7 +24,7 @@ import yaml
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
 from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
+from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -32,7 +32,6 @@ from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import JsonPatch
 
-BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
@@ -47,20 +46,6 @@ if TYPE_CHECKING:
             pass
         if not USE_PYDANTIC_V2:
             from pydantic.v1.fields import ModelField
-
-
-def raise_on_name_with_banned_characters(name: str) -> str:
-    """
-    Raise an InvalidNameError if the given name contains any invalid
-    characters.
-    """
-    if name is not None:
-        if any(c in name for c in BANNED_CHARACTERS):
-            raise InvalidNameError(
-                f"Name {name!r} contains an invalid character. "
-                f"Must not contain any of: {BANNED_CHARACTERS}."
-            )
-    return name
 
 
 def raise_on_name_alphanumeric_dashes_only(
