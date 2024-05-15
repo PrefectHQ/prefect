@@ -333,9 +333,8 @@ def pytest_sessionstart(session):
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
             # Code is being executed in a unit test context
             PREFECT_UNIT_TEST_MODE: True,
-            PREFECT_EXPERIMENTAL_EVENTS: True,
-            # Events: disable the event persister and triggers service, which may lock the DB during
-            # tests while writing events
+            # Events: disable the event persister and triggers service, which may
+            # lock the DB during tests while writing events
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
             PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
         },
