@@ -15,7 +15,7 @@ if Version(prefect.__version__) < Version(SUPPORTED_VERSION):
 
 
 async def main():
-    if Version(prefect.__version__) >= Version("2.19.0"):
+    if Version(prefect.__version__) >= Version("2.18.0"):
         try:
             TEST_SERVER_VERSION = os.environ.get(
                 "TEST_SERVER_VERSION", prefect.__version__
