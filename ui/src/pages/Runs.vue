@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="flow-runs">
     <template #header>
-      <PageHeadingFlowRuns :filter="dashboardFilter" :hide-actions="empty" @update:filter="setDashboardFilter" />
+      <PageHeadingRuns :filter="dashboardFilter" :hide-actions="empty" @update:filter="setDashboardFilter" />
     </template>
 
     <template v-if="loaded">
@@ -61,7 +61,7 @@
 <script lang="ts" setup>
   import { Getter, PEmptyResults, media } from '@prefecthq/prefect-design'
   import {
-    PageHeadingFlowRuns,
+    PageHeadingRuns,
     FlowRunsPageEmptyState,
     FlowRunsSort,
     FlowRunList,
@@ -129,7 +129,7 @@
   const selectedFlowRuns = ref([])
 
   function clear(): void {
-    router.push(routes.flowRuns())
+    router.push(routes.runs())
   }
 
   const deleteFlowRuns = (): void => {

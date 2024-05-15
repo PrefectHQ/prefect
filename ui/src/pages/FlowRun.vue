@@ -115,7 +115,7 @@
   })
 
   function goToFlowRuns(): void {
-    router.push(routes.flowRuns())
+    router.push(routes.runs())
   }
 
   const stateType = computed(() => flowRun.value?.stateType)
