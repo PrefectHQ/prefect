@@ -35,13 +35,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic.v1 as pydantic
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-from pydantic import ValidationError as V2ValidationError
-from pydantic.v1 import BaseModel as V1BaseModel
-from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
-from rich.console import Console
-from typing_extensions import Literal, ParamSpec, Self
-
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
@@ -58,6 +51,7 @@ from prefect.exceptions import (
     ParameterTypeError,
     UnspecifiedFlowError,
 )
+from prefect.fastapi.encoders import jsonable_encoder
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
@@ -99,6 +93,11 @@ from prefect.utilities.visualization import (
     track_viz_task,
     visualize_task_dependencies,
 )
+from pydantic import ValidationError as V2ValidationError
+from pydantic.v1 import BaseModel as V1BaseModel
+from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
+from rich.console import Console
+from typing_extensions import Literal, ParamSpec, Self
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -1737,10 +1736,9 @@ async def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
+    from prefect.runner import Runner
     from rich.console import Console, Group
     from rich.table import Table
-
-    from prefect.runner import Runner
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:

@@ -3,20 +3,19 @@ from typing import Any, AsyncGenerator, AsyncIterable, List, Tuple
 
 import pendulum
 import pytest
-from prefect._vendor.starlette.status import (
-    WS_1002_PROTOCOL_ERROR,
-    WS_1008_POLICY_VIOLATION,
-)
-from prefect._vendor.starlette.testclient import TestClient
-from prefect._vendor.starlette.websockets import WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from prefect.server.events.filters import (
     EventFilter,
     EventOccurredFilter,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage import database
+from prefect.starlette.status import (
+    WS_1002_PROTOCOL_ERROR,
+    WS_1008_POLICY_VIOLATION,
+)
+from prefect.starlette.testclient import TestClient
+from prefect.starlette.websockets import WebSocketDisconnect
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture

@@ -8,11 +8,10 @@ from typing import Optional
 from uuid import UUID
 
 from packaging.version import Version
-from prefect._vendor.fastapi import Body, Depends, Header, HTTPException, status
-from prefect._vendor.starlette.requests import Request
-
+from prefect.fastapi import Body, Depends, Header, HTTPException, status
 from prefect.server import schemas
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
+from prefect.starlette.requests import Request
 
 
 def provide_request_api_version(x_prefect_api_version: str = Header(None)):

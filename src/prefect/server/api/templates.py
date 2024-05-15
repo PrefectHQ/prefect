@@ -1,7 +1,6 @@
 import orjson
 from jinja2.exceptions import TemplateSyntaxError
-from prefect._vendor.fastapi import Body, Response
-
+from prefect.fastapi import Body, Response
 from prefect.server.utilities.server import PrefectRouter
 from prefect.server.utilities.user_templates import (
     TemplateSecurityError,

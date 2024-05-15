@@ -3,11 +3,9 @@ from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
-import pydantic.v1 as pydantic
-from prefect._vendor.starlette import status
-
 import prefect.context
 import prefect.settings
+import pydantic.v1 as pydantic
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas import Workspace
 from prefect.exceptions import PrefectException
@@ -16,6 +14,7 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
+from prefect.starlette import status
 
 PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 

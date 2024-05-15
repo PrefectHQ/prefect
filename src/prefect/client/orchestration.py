@@ -20,15 +20,12 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-import pydantic.v1 as pydantic
-from asgi_lifespan import LifespanManager
-from prefect._vendor.starlette import status
-from typing_extensions import ParamSpec
-
 import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
+import pydantic.v1 as pydantic
+from asgi_lifespan import LifespanManager
 from prefect._internal.compatibility.deprecated import (
     handle_deprecated_infra_overrides_parameter,
 )
@@ -134,7 +131,9 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
+from prefect.starlette import status
 from prefect.utilities.collections import AutoEnum
+from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -3173,9 +3172,11 @@ class PrefectClient:
             "/automations/filter",
             json={
                 "sort": sorting.AutomationSort.UPDATED_DESC,
-                "automations": automation_filter.dict(json_compatible=True)
-                if automation_filter
-                else None,
+                "automations": (
+                    automation_filter.dict(json_compatible=True)
+                    if automation_filter
+                    else None
+                ),
             },
         )
 

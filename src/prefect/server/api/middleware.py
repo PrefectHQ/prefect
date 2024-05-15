@@ -1,13 +1,12 @@
 from typing import Awaitable, Callable
 
-from prefect._vendor.fastapi import status
-from prefect._vendor.starlette.middleware.base import BaseHTTPMiddleware
-from prefect._vendor.starlette.requests import Request
-from prefect._vendor.starlette.responses import JSONResponse, Response
-
 from prefect import settings
+from prefect.fastapi import status
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
+from prefect.starlette.middleware.base import BaseHTTPMiddleware
+from prefect.starlette.requests import Request
+from prefect.starlette.responses import JSONResponse, Response
 
 NextMiddlewareFunction = Callable[[Request], Awaitable[Response]]
 

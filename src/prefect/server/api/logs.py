@@ -4,11 +4,10 @@ Routes for interacting with log objects.
 
 from typing import List
 
-from prefect._vendor.fastapi import Body, Depends, status
-
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.fastapi import Body, Depends, status
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter

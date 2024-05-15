@@ -15,8 +15,8 @@ import httpx
 import readchar
 import typer
 import uvicorn
-from prefect._vendor.fastapi import FastAPI
-from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
+from prefect.fastapi import FastAPI
+from prefect.fastapi.middleware.cors import CORSMiddleware
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 

@@ -4,9 +4,7 @@ import httpx
 import pytest
 import sqlalchemy as sa
 from httpx import ASGITransport
-from prefect._vendor.fastapi import FastAPI, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from prefect.fastapi import FastAPI, status
 from prefect.server import models, schemas
 from prefect.server.api.middleware import CsrfMiddleware
 from prefect.server.database.interface import PrefectDBInterface
@@ -14,6 +12,7 @@ from prefect.settings import (
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     temporary_settings,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 app = FastAPI()
 app.add_middleware(CsrfMiddleware)

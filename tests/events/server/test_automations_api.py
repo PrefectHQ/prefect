@@ -11,17 +11,15 @@ import pytest
 import sqlalchemy as sa
 from httpx import ASGITransport, AsyncClient
 from pendulum.datetime import DateTime
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from sqlalchemy.ext.asyncio import AsyncSession
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
 else:
     import pydantic
 
-from prefect._vendor.fastapi.applications import FastAPI
-
+from prefect.fastapi.applications import FastAPI
 from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas
 from prefect.server.api.validation import ValidationError

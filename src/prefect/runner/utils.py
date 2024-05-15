@@ -1,10 +1,9 @@
 from copy import deepcopy
 from typing import Any, Dict
 
-from prefect._vendor.fastapi import FastAPI
-from prefect._vendor.fastapi.openapi.utils import get_openapi
-
 from prefect import __version__ as PREFECT_VERSION
+from prefect.fastapi import FastAPI
+from prefect.fastapi.openapi.utils import get_openapi
 
 
 def inject_schemas_into_openapi(

@@ -5,8 +5,6 @@ from uuid import uuid4
 import pendulum
 import pytest
 import sqlalchemy as sa
-from prefect._vendor.starlette import status
-
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
@@ -17,6 +15,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+from prefect.starlette import status
 
 
 def assert_status_events(deployment_name: str, events: List[str]):

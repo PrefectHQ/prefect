@@ -8,9 +8,7 @@ import httpx
 import pendulum
 import pytest
 from httpx import ASGITransport, AsyncClient
-from prefect._vendor.fastapi.applications import FastAPI
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from prefect.fastapi.applications import FastAPI
 from prefect.server import models
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -44,6 +42,7 @@ from prefect.server.schemas.states import (
     StateDetails,
     StateType,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture(autouse=True)

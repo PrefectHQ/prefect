@@ -11,10 +11,6 @@ import anyio
 import httpx
 import pendulum
 import pytest
-from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
-from websockets.exceptions import ConnectionClosed
-from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
-
 from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.filters import EventFilter
@@ -25,8 +21,11 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
+from prefect.starlette.status import WS_1008_POLICY_VIOLATION
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.processutils import open_process
+from websockets.exceptions import ConnectionClosed
+from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 
 @pytest.fixture(autouse=True)

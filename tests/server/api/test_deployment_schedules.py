@@ -6,10 +6,10 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 from httpx import AsyncClient
-from prefect._vendor.fastapi import status
-
+from prefect.fastapi import status
 from prefect.server import models, schemas
 from prefect.server.database.interface import PrefectDBInterface
+
 from tests.server import AsyncSessionGetter
 
 

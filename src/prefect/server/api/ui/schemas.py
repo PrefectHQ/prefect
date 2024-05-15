@@ -1,7 +1,6 @@
 from typing import Any, Dict
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, status
-
+from prefect.fastapi import Body, Depends, HTTPException, status
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface

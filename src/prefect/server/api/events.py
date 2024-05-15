@@ -1,14 +1,10 @@
 import base64
 from typing import List, Optional
 
-from prefect._vendor.fastapi import Response, WebSocket, status
-from prefect._vendor.fastapi.exceptions import HTTPException
-from prefect._vendor.fastapi.param_functions import Depends, Path
-from prefect._vendor.fastapi.params import Body, Query
-from prefect._vendor.starlette.requests import Request
-from prefect._vendor.starlette.status import WS_1002_PROTOCOL_ERROR
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from prefect.fastapi import Response, WebSocket, status
+from prefect.fastapi.exceptions import HTTPException
+from prefect.fastapi.param_functions import Depends, Path
+from prefect.fastapi.params import Body, Query
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import is_ephemeral_request
 from prefect.server.database.dependencies import provide_database_interface
@@ -29,6 +25,9 @@ from prefect.server.events.storage import (
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
+from prefect.starlette.requests import Request
+from prefect.starlette.status import WS_1002_PROTOCOL_ERROR
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 

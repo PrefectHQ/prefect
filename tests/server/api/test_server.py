@@ -7,9 +7,8 @@ import pytest
 import sqlalchemy as sa
 import toml
 from httpx import ASGITransport, AsyncClient
-from prefect._vendor.fastapi import APIRouter, status, testclient
-
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.fastapi import APIRouter, status, testclient
 from prefect.server.api.server import (
     API_ROUTERS,
     SQLITE_LOCKED_MSG,

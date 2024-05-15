@@ -4,13 +4,11 @@ from typing import Any, AsyncGenerator, Dict, List, Tuple
 from unittest import mock
 
 import httpx
-import pytest
-from httpx import AsyncClient, Request, Response
-from prefect._vendor.starlette import status
-
 import prefect
 import prefect.client
 import prefect.client.constants
+import pytest
+from httpx import AsyncClient, Request, Response
 from prefect.client.base import PrefectHttpxAsyncClient, PrefectResponse
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
@@ -20,6 +18,7 @@ from prefect.settings import (
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
     temporary_settings,
 )
+from prefect.starlette import status
 from prefect.testing.utilities import AsyncMock
 
 now = datetime.now(timezone.utc)

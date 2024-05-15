@@ -5,9 +5,8 @@ from uuid import UUID, uuid4
 import orjson
 import pendulum
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from sqlalchemy.ext.asyncio import AsyncSession
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
@@ -16,14 +15,13 @@ else:
 
 import pytest
 import sqlalchemy as sa
-from prefect._vendor.starlette import status
-
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.schemas.states import StateType
+from prefect.starlette import status
 
 
 class TestCreateFlowRun:

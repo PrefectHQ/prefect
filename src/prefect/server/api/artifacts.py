@@ -1,13 +1,13 @@
 """
 Routes for interacting with artifact objects.
 """
+
 from typing import List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
-
 import prefect.server.api.dependencies as dependencies
+from prefect.fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface

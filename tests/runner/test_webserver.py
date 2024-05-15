@@ -4,11 +4,10 @@ from unittest import mock
 
 import pydantic
 import pytest
-from prefect._vendor.fastapi.testclient import TestClient
-
 from prefect import flow
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import FlowRun
+from prefect.fastapi.testclient import TestClient
 from prefect.runner import Runner
 from prefect.runner.server import build_server
 from prefect.settings import (

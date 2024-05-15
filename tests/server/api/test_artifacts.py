@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pendulum
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -10,10 +9,9 @@ else:
     import pydantic
 
 import pytest
-from prefect._vendor.starlette import status
-
 from prefect.server import models, schemas
 from prefect.server.schemas import actions
+from prefect.starlette import status
 
 
 @pytest.fixture

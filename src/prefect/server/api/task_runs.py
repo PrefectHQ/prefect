@@ -8,7 +8,10 @@ from uuid import UUID
 
 import anyio
 import pendulum
-from prefect._vendor.fastapi import (
+import prefect.server.api.dependencies as dependencies
+import prefect.server.models as models
+import prefect.server.schemas as schemas
+from prefect.fastapi import (
     Body,
     Depends,
     HTTPException,
@@ -17,11 +20,6 @@ from prefect._vendor.fastapi import (
     WebSocket,
     status,
 )
-from prefect._vendor.starlette.websockets import WebSocketDisconnect
-
-import prefect.server.api.dependencies as dependencies
-import prefect.server.models as models
-import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
@@ -33,6 +31,7 @@ from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.starlette.websockets import WebSocketDisconnect
 
 logger = get_logger("server.api")
 

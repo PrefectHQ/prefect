@@ -1,10 +1,11 @@
 """
 Routes for interacting with block schema objects.
 """
+
 from typing import List, Optional
 from uuid import UUID
 
-from prefect._vendor.fastapi import (
+from prefect.fastapi import (
     Body,
     Depends,
     HTTPException,
@@ -13,7 +14,6 @@ from prefect._vendor.fastapi import (
     Response,
     status,
 )
-
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
 from prefect.server.database.dependencies import provide_database_interface

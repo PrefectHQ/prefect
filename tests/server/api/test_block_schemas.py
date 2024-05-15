@@ -9,12 +9,11 @@ else:
     import pydantic
 
 import pytest
-from prefect._vendor.starlette import status
-
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.starlette import status
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 

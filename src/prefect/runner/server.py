@@ -3,13 +3,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import pendulum
 import uvicorn
-from prefect._vendor.fastapi import APIRouter, FastAPI, HTTPException, status
-from prefect._vendor.fastapi.responses import JSONResponse
-from typing_extensions import Literal
-
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingFlowError, ScriptError
+from prefect.fastapi import APIRouter, FastAPI, HTTPException, status
+from prefect.fastapi.responses import JSONResponse
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flows_from_script
 from prefect.logging import get_logger
 from prefect.runner.utils import (
@@ -24,6 +22,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_PORT,
 )
 from prefect.utilities.asyncutils import sync_compatible
+from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse

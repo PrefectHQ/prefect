@@ -9,10 +9,6 @@ from uuid import UUID
 import httpx
 import pendulum
 import typer
-from prefect._vendor.starlette import status
-from rich.pretty import Pretty
-from rich.table import Table
-
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
@@ -21,6 +17,9 @@ from prefect.client.schemas.filters import LogFilter, TaskRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
+from prefect.starlette import status
+from rich.pretty import Pretty
+from rich.table import Table
 
 task_run_app = PrefectTyper(
     name="task-run", help="Commands for interacting with task runs."

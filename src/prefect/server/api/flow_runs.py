@@ -8,8 +8,11 @@ from uuid import UUID
 
 import orjson
 import pendulum
+import prefect.server.api.dependencies as dependencies
+import prefect.server.models as models
+import prefect.server.schemas as schemas
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from prefect.fastapi import (
     Body,
     Depends,
     HTTPException,
@@ -18,12 +21,7 @@ from prefect._vendor.fastapi import (
     Response,
     status,
 )
-from prefect._vendor.fastapi.responses import ORJSONResponse, PlainTextResponse
-from sqlalchemy.exc import IntegrityError
-
-import prefect.server.api.dependencies as dependencies
-import prefect.server.models as models
-import prefect.server.schemas as schemas
+from prefect.fastapi.responses import ORJSONResponse, PlainTextResponse
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
@@ -41,6 +39,7 @@ from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 from prefect.utilities import schema_tools
+from sqlalchemy.exc import IntegrityError
 
 logger = get_logger("server.api")
 

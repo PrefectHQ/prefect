@@ -8,12 +8,10 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
-from prefect._vendor.starlette.background import BackgroundTasks
-
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
@@ -26,6 +24,7 @@ from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from prefect.starlette.background import BackgroundTasks
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,

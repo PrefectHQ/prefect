@@ -5,8 +5,11 @@ Routes for interacting with work queue objects.
 from typing import List, Optional
 from uuid import UUID
 
+import prefect.server.api.dependencies as dependencies
+import prefect.server.models as models
+import prefect.server.schemas as schemas
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from prefect.fastapi import (
     BackgroundTasks,
     Body,
     Depends,
@@ -15,10 +18,6 @@ from prefect._vendor.fastapi import (
     Path,
     status,
 )
-
-import prefect.server.api.dependencies as dependencies
-import prefect.server.models as models
-import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.deployments import mark_deployments_ready

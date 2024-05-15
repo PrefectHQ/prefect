@@ -6,12 +6,11 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Depends, HTTPException, Path, Response, status
-from prefect._vendor.fastapi.param_functions import Body
-
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.fastapi import Depends, HTTPException, Path, Response, status
+from prefect.fastapi.param_functions import Body
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter

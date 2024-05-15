@@ -14,25 +14,23 @@ from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, Tupl
 
 import anyio
 import asyncpg
-import sqlalchemy as sa
-import sqlalchemy.exc
-import sqlalchemy.orm.exc
-from prefect._vendor.fastapi import APIRouter, Depends, FastAPI, Request, status
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-from prefect._vendor.fastapi.exceptions import RequestValidationError
-from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
-from prefect._vendor.fastapi.middleware.gzip import GZipMiddleware
-from prefect._vendor.fastapi.openapi.utils import get_openapi
-from prefect._vendor.fastapi.responses import JSONResponse
-from prefect._vendor.fastapi.staticfiles import StaticFiles
-from prefect._vendor.starlette.exceptions import HTTPException
-
 import prefect
 import prefect.server.api as api
 import prefect.server.services as services
 import prefect.settings
+import sqlalchemy as sa
+import sqlalchemy.exc
+import sqlalchemy.orm.exc
 from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.fastapi import APIRouter, Depends, FastAPI, Request, status
+from prefect.fastapi.encoders import jsonable_encoder
+from prefect.fastapi.exceptions import RequestValidationError
+from prefect.fastapi.middleware.cors import CORSMiddleware
+from prefect.fastapi.middleware.gzip import GZipMiddleware
+from prefect.fastapi.openapi.utils import get_openapi
+from prefect.fastapi.responses import JSONResponse
+from prefect.fastapi.staticfiles import StaticFiles
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.events import stream
@@ -49,6 +47,7 @@ from prefect.settings import (
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_UI_SERVE_BASE,
 )
+from prefect.starlette.exceptions import HTTPException
 from prefect.utilities.hashing import hash_objects
 
 TITLE = "Prefect Server"
@@ -424,9 +423,8 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
     Decorator to handle skipping the wrapped function if the block registry has
     not changed since the last invocation
     """
-    import toml
-
     import prefect.plugins
+    import toml
     from prefect.blocks.core import Block
     from prefect.server.models.block_registration import _load_collection_blocks_data
     from prefect.utilities.dispatch import get_registry_for_type

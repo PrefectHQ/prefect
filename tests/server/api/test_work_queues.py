@@ -4,7 +4,6 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.statuses import WorkQueueStatus
@@ -15,11 +14,10 @@ else:
     import pydantic
 
 import pytest
-from prefect._vendor.starlette import status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
+from prefect.starlette import status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture(autouse=True)

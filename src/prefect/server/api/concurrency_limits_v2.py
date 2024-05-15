@@ -1,10 +1,9 @@
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
-
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.fastapi import Body, Depends, HTTPException, Path, status
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface

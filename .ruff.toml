@@ -23,4 +23,4 @@ lint.ignore = ["E501"]
 "src/prefect/server/database/migrations/**/*" = ["E501"]
 
 [lint.isort]
-known-third-party = ["prefect._vendor"]
+known-third-party = ["prefect"]

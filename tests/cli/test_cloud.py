@@ -6,9 +6,6 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import readchar
-from prefect._vendor.starlette import status
-from typer import Exit
-
 from prefect.cli.cloud import LoginFailed, LoginSuccess
 from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context, use_profile
@@ -26,7 +23,9 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.starlette import status
 from prefect.testing.cli import invoke_and_assert
+from typer import Exit
 
 
 def gen_test_workspace(**kwargs) -> Workspace:

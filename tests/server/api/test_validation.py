@@ -2,9 +2,7 @@ from typing import Type, Union
 from uuid import UUID
 
 import pytest
-from prefect._vendor.fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from prefect.fastapi import HTTPException
 from prefect.server import models, schemas
 from prefect.server.api.validation import (
     validate_job_variable_defaults_for_work_pool,
@@ -17,6 +15,7 @@ from prefect.server.schemas.actions import (
     DeploymentFlowRunCreate,
     DeploymentUpdate,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture

@@ -1,12 +1,11 @@
-from prefect._vendor.fastapi import Depends, Query, status
-from prefect._vendor.starlette.exceptions import HTTPException
-
+from prefect.fastapi import Depends, Query, status
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_SERVER_CSRF_PROTECTION_ENABLED
+from prefect.starlette.exceptions import HTTPException
 
 logger = get_logger("server.api")
 

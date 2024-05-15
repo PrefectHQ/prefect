@@ -2,19 +2,17 @@
 Routes for interacting with variable objects
 """
 
-
 from typing import List, Optional
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from prefect.fastapi import Body, Depends, HTTPException, Path, status
 from prefect.server import models
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import actions, core, filters, sorting
 from prefect.server.utilities.server import PrefectRouter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_variable_or_404(session: AsyncSession, variable_id: UUID):

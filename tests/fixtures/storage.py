@@ -1,6 +1,7 @@
 """
 Fixtures that create a small distributed storage API, including a storage block
 """
+
 import subprocess
 import sys
 from typing import Any, Optional
@@ -8,9 +9,8 @@ from typing import Any, Optional
 import anyio
 import httpx
 import pytest
-from prefect._vendor.fastapi import Body, FastAPI, status
-from prefect._vendor.fastapi.exceptions import RequestValidationError
-
+from prefect.fastapi import Body, FastAPI, status
+from prefect.fastapi.exceptions import RequestValidationError
 from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import validation_exception_handler
 

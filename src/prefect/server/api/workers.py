@@ -6,8 +6,11 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
 import pendulum
+import prefect.server.api.dependencies as dependencies
+import prefect.server.models as models
+import prefect.server.schemas as schemas
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from prefect.fastapi import (
     BackgroundTasks,
     Body,
     Depends,
@@ -15,11 +18,6 @@ from prefect._vendor.fastapi import (
     Path,
     status,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
-
-import prefect.server.api.dependencies as dependencies
-import prefect.server.models as models
-import prefect.server.schemas as schemas
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
@@ -32,6 +30,7 @@ from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkQueue

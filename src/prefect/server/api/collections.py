@@ -4,8 +4,7 @@ from typing import Any, Dict
 import httpx
 from anyio import Path
 from cachetools import TTLCache
-from prefect._vendor.fastapi import HTTPException, status
-
+from prefect.fastapi import HTTPException, status
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/collections", tags=["Collections"])

@@ -1,9 +1,8 @@
 from typing import Union
 
 import uvicorn
-from prefect._vendor.fastapi import APIRouter, FastAPI, status
-from prefect._vendor.fastapi.responses import JSONResponse
-
+from prefect.fastapi import APIRouter, FastAPI, status
+from prefect.fastapi.responses import JSONResponse
 from prefect.settings import (
     PREFECT_WORKER_WEBSERVER_HOST,
     PREFECT_WORKER_WEBSERVER_PORT,

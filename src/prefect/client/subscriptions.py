@@ -4,12 +4,11 @@ from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 import orjson
 import websockets
 import websockets.exceptions
-from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
-from typing_extensions import Self
-
 from prefect._internal.schemas.bases import IDBaseModel
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.starlette.status import WS_1008_POLICY_VIOLATION
+from typing_extensions import Self
 
 logger = get_logger(__name__)
 

@@ -2,11 +2,8 @@ from typing import Optional, Sequence
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
-from prefect._vendor.fastapi.exceptions import RequestValidationError
-from pydantic.v1 import ValidationError
-from pydantic.v1.error_wrappers import ErrorWrapper
-
+from prefect.fastapi import Body, Depends, HTTPException, Path, status
+from prefect.fastapi.exceptions import RequestValidationError
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.api.validation import (
     validate_job_variables_for_run_deployment_action,
@@ -29,6 +26,8 @@ from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.utilities.schema_tools.validation import (
     ValidationError as JSONSchemaValidationError,
 )
+from pydantic.v1 import ValidationError
+from pydantic.v1.error_wrappers import ErrorWrapper
 
 
 def automations_enabled() -> bool:

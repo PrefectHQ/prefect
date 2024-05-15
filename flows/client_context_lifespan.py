@@ -1,6 +1,5 @@
-from packaging.version import Version
-
 import prefect
+from packaging.version import Version
 
 # Only run these tests if the version is at least 2.13.0
 if Version(prefect.__version__) < Version("2.13.0"):
@@ -13,11 +12,10 @@ from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
 import anyio
-from prefect._vendor.fastapi import FastAPI
-
 import prefect.context
 import prefect.exceptions
 from prefect.client.orchestration import PrefectClient
+from prefect.fastapi import FastAPI
 
 
 def make_lifespan(startup, shutdown) -> callable:

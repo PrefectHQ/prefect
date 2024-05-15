@@ -3,7 +3,6 @@ from typing import List
 
 import pendulum
 from packaging import version
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -13,8 +12,7 @@ else:
 
 import pytest
 import sqlalchemy as sa
-from prefect._vendor.fastapi import Response, status
-
+from prefect.fastapi import Response, status
 from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.states import StateType

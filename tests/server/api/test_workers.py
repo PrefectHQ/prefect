@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import List
 
 import pendulum
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.schemas.statuses import WorkQueueStatus
 
@@ -11,15 +10,14 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-import pytest
-from prefect._vendor.starlette import status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 import prefect
+import pytest
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
+from prefect.starlette import status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 RESERVED_POOL_NAMES = [
     "Prefect",

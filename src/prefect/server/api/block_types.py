@@ -2,9 +2,8 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Query, status
-
 from prefect.blocks.core import _should_update_block_type
+from prefect.fastapi import Body, Depends, HTTPException, Path, Query, status
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
 from prefect.server.database.dependencies import provide_database_interface

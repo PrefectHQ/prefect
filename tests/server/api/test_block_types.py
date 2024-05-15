@@ -3,7 +3,6 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -11,14 +10,13 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-import pytest
-from prefect._vendor.starlette import status
-
 import prefect
+import pytest
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.server.schemas.core import BlockDocument, BlockType
+from prefect.starlette import status
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.slugify import slugify
 

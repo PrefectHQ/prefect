@@ -2,9 +2,8 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from prefect._vendor.fastapi import FastAPI
-from prefect._vendor.fastapi.testclient import TestClient
-
+from prefect.fastapi import FastAPI
+from prefect.fastapi.testclient import TestClient
 from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
 
 

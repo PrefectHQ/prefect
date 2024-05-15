@@ -11,7 +11,6 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -19,14 +18,11 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-import pytest
-import respx
-from prefect._vendor.fastapi import Depends, FastAPI, status
-from prefect._vendor.fastapi.security import HTTPBearer
-
 import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
+import pytest
+import respx
 from prefect import flow, tags
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
@@ -73,6 +69,8 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
+from prefect.fastapi import Depends, FastAPI, status
+from prefect.fastapi.security import HTTPBearer
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,

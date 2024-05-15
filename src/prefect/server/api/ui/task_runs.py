@@ -3,17 +3,16 @@ from datetime import datetime, timezone
 from typing import List, Optional, cast
 
 import pendulum
-import sqlalchemy as sa
-from prefect._vendor.fastapi import Depends, HTTPException, status
-from pydantic.v1 import Field
-
 import prefect.server.schemas as schemas
+import sqlalchemy as sa
+from prefect.fastapi import Depends, HTTPException, status
 from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
+from pydantic.v1 import Field
 
 logger = get_logger("orion.api.ui.task_runs")
 

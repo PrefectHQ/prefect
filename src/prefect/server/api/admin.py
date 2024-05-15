@@ -1,10 +1,10 @@
 """
 Routes for admin-level interactions with the Prefect REST API.
 """
-from prefect._vendor.fastapi import Body, Depends, Response, status
 
 import prefect
 import prefect.settings
+from prefect.fastapi import Body, Depends, Response, status
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter

@@ -12,13 +12,12 @@ else:
     from pydantic import SecretBytes, SecretStr
 
 import pytest
-from prefect._vendor.starlette import status
-
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.server.schemas.core import BlockDocument
+from prefect.starlette import status
 from prefect.utilities.names import obfuscate_string
 
 
