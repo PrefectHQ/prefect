@@ -3,24 +3,21 @@ DEPRECATION WARNING:
 This module is deprecated as of March 2024 and will not be available after September 2024.
 """
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic.v1 import Field
 from typing_extensions import Literal
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.system import JSON
-from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.deprecated.packaging.base import PackageManifest, Packager, Serializer
 from prefect.deprecated.packaging.serializers import SourceSerializer
 from prefect.flows import Flow
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @deprecated_class(start_date="Mar 2024")
@@ -36,7 +33,7 @@ class OrionPackageManifest(PackageManifest):
     block_document_id: UUID
 
     @inject_client
-    async def unpackage(self, client: PrefectClient) -> Flow:
+    async def unpackage(self, client: "PrefectClient") -> Flow:
         document = await client.read_block_document(self.block_document_id)
         block = JSON._from_block_document(document)
         serialized_flow: str = block.value["flow"]
