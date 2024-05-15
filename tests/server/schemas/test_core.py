@@ -48,15 +48,15 @@ async def test_valid_names(name):
     ],
 )
 async def test_invalid_names(name):
-    with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
+    with pytest.raises(pydantic.ValidationError, match="String should match pattern"):
         assert schemas.core.Flow(name=name)
-    with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
+    with pytest.raises(pydantic.ValidationError, match="String should match pattern"):
         assert schemas.core.Deployment(
             name=name,
             flow_id=uuid4(),
             manifest_path="file.json",
         )
-    with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
+    with pytest.raises(pydantic.ValidationError, match="String should match pattern"):
         assert schemas.core.BlockDocument(
             name=name, block_schema_id=uuid4(), block_type_id=uuid4()
         )
