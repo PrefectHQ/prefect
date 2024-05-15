@@ -164,7 +164,7 @@ class TestCreateWorkQueue:
     async def test_create_work_queue_with_invalid_characters_fails(self, client, name):
         response = await client.post("/work_queues/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        assert b"contains an invalid character" in response.content
+        assert b"String should match pattern" in response.content
 
     async def test_create_work_queue_initially_is_not_ready(self, client):
         response = await client.post("/work_queues/", json=dict(name=str(uuid.uuid4())))
