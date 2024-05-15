@@ -9,7 +9,6 @@ from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.server.schemas.schedules import IntervalSchedule
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_UI_URL,
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
