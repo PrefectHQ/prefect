@@ -11,7 +11,6 @@ else:
 
 import pytest
 
-from prefect.deprecated.data_documents import DataDocument
 from prefect.server.schemas.states import (
     AwaitingRetry,
     Completed,
@@ -63,11 +62,6 @@ class TestState:
         assert isinstance(new_state.id, UUID)
         # New state timestamp
         assert new_state.timestamp >= dt
-
-    def test_state_result_warns_and_uses_client_result(self):
-        state = State(data=DataDocument(encoding="text", blob=b"abc"), type="COMPLETED")
-        with pytest.warns(DeprecationWarning, match="`result` is no longer supported"):
-            assert state.result() == "abc"
 
 
 class TestStateTypeFunctions:
@@ -189,10 +183,3 @@ class TestRepresentation:
 
     async def test_state_str_includes_type_if_name_is_custom(self):
         assert str(Failed(message="abc", name="Foo")) == "Foo('abc', type=FAILED)"
-
-    async def test_state_repr_includes_message_and_type_and_result(self):
-        data = DataDocument(encoding="text", blob=b"abc")
-        assert (
-            repr(Completed(message="I'm done", data=data))
-            == """Completed(message="I'm done", type=COMPLETED, result='abc')"""
-        )
