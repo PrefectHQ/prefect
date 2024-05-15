@@ -8,9 +8,11 @@ search:
   boost: 2
 ---
 
-# Specifying Upstream Dependencies
+# Specify Upstream Dependencies
 
-Results from a task can be provided to other tasks (or subflows) as upstream dependencies. Prefect uses upstream dependencies in two ways:
+Learn how to run tasks in a desired order.
+
+You can provide results from a task to other tasks (or subflows) as upstream dependencies. Prefect uses upstream dependencies in two ways:
 
 1. To populate dependency arrows in the flow run graph
 2. To determine execution order for [concurrently submitted](/concepts/task-runners) units of work that depend on each other
@@ -18,7 +20,7 @@ Results from a task can be provided to other tasks (or subflows) as upstream dep
 !!! note "Tasks vs. other functions"
     **Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including subflows, do not carry the same information about their origin as task results.
 
-When using non-sequential task runners such as the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted tasks is not guaranteed unless their dependencies are specified.
+When using non-sequential task runners such as the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) or [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/), the order of execution for submitted tasks is not guaranteed unless you specify their dependencies.
 
 For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave with and without upstream dependencies by clicking on the tabs below.
 
@@ -102,7 +104,7 @@ For example, compare how tasks submitted to the `ConcurrentTaskRunner` behave wi
 
 ## Determination methods
 
-A task or subflow's upstream dependencies can be inferred automatically via its inputs, or stated explicitly via the `wait_for` parameter.
+A task or subflow's upstream dependencies can be inferred automatically through its inputs, or stated explicitly with the `wait_for` parameter.
 
 ### Automatic
 
@@ -198,7 +200,7 @@ def final_task():
 
 For more complex workflows, parts of your logic may require additional resources, different infrastructure, or independent parallel execution. A typical approach for addressing these needs is to execute that logic as separate [deployment](/concepts/deployments) runs from within a flow.
 
-Composing deployment runs into a flow so that they can be treated as upstream dependencies is as simple as calling [`run_deployment`](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) from within a task.
+Compose deployment runs into a flow and treat them as upstream dependencies by calling [`run_deployment`](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) from within a task.
 
 Given a deployment `process-user` of flow `parallel-work`, a flow of deployments might look like this:
 
@@ -239,7 +241,7 @@ def downstream_task():
     print("I'm downstream!")
 ```
 
-By default, deployments started from `run_deployment` will also appear as subflows for tracking purposes. This behavior can be disabled by setting the `as_subflow` parameter for `run_deployment` to `False`.
+By default, deployments started from `run_deployment` will also appear as subflows for tracking purposes. Disable this behavior by setting the `as_subflow` parameter for `run_deployment` to `False`.
 
 <figure markdown="span">
   ![Flow of deployments](/img/guides/flow-of-deployments.png)
