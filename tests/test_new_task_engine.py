@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from pathlib import Path
 from typing import List
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -345,7 +346,7 @@ class TestTaskRunsAsync:
 
         assert await api_state.result() == str(run_id)
 
-    async def test_task_runs_respect_cache_key(self):
+    async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
         async def first():
             return 42
@@ -354,7 +355,7 @@ class TestTaskRunsAsync:
         async def second():
             return 500
 
-        fs = LocalFileSystem(base_url="/tmp/prefect")
+        fs = LocalFileSystem(basepath=tmp_path)
 
         one = await run_task_async(first.with_options(result_storage=fs))
         two = await run_task_async(second.with_options(result_storage=fs))
@@ -543,7 +544,7 @@ class TestTaskRunsSync:
 
         assert await api_state.result() == str(run_id)
 
-    async def test_task_runs_respect_cache_key(self):
+    async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
         def first():
             return 42
@@ -552,7 +553,7 @@ class TestTaskRunsSync:
         def second():
             return 500
 
-        fs = LocalFileSystem(base_url="/tmp/prefect")
+        fs = LocalFileSystem(basepath=tmp_path)
 
         one = run_task_sync(first.with_options(result_storage=fs))
         two = run_task_sync(second.with_options(result_storage=fs))
