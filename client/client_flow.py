@@ -1,5 +1,6 @@
+from typing import Any
+
 from prefect import flow, task
-from prefect.concurrency import asyncio, events, services, sync  # noqa: F401
 
 
 def skip_remote_run():
@@ -18,7 +19,7 @@ def skip_remote_run():
 
 
 @task
-def smoke_test_task(*args, **kwargs):
+def smoke_test_task(*args: Any, **kwargs: Any):
     print(args, kwargs)
 
 
