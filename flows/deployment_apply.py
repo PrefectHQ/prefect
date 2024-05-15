@@ -18,7 +18,7 @@ async def apply_deployment(deployment):
 
 if __name__ == "__main__":
     # Create deployment
-    if Version(prefect.__version__) < Version("3.0.0"):
+    if Version(prefect.__version__) <= Version("2.19.0"):
         from prefect.deployments import Deployment
 
         if Version(prefect.__version__) < Version("2.1.0"):

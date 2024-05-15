@@ -39,7 +39,7 @@ async def read_flow_run(flow_run_id):
 
 def main():
     # Create deployment
-    if Version(prefect.__version__) < Version("3.0.0"):
+    if Version(prefect.__version__) <= Version("2.19.0"):
         from prefect.deployments import Deployment
     if Version(prefect.__version__) < Version("2.1.0"):
         deployment = Deployment(
