@@ -17,10 +17,10 @@ async def apply_deployment(deployment):
 
 
 if __name__ == "__main__":
-    # Create deployment
     if Version(prefect.__version__) <= Version("2.19.0"):
         from prefect.deployments import Deployment
 
+        # Create deployment
         if Version(prefect.__version__) < Version("2.1.0"):
             deployment = Deployment(
                 name="test-deployment",
