@@ -8,6 +8,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 import datetime
 import inspect
 import os
+import re
 import tempfile
 import warnings
 from functools import partial, update_wrapper
@@ -34,34 +35,16 @@ from typing import (
 )
 from uuid import UUID
 
+import pydantic.v1 as pydantic
+from prefect._vendor.fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError as V2ValidationError
+from pydantic.v1 import BaseModel as V1BaseModel
+from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic import ValidationError as V2ValidationError
-    from pydantic.v1 import BaseModel as V1BaseModel
-    from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
-
-    from ._internal.pydantic.v2_schema import is_v2_type
-    from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
-    from ._internal.pydantic.v2_validated_func import (
-        V2ValidatedFunction as ValidatedFunction,
-    )
-
-else:
-    import pydantic
-    from pydantic.decorator import ValidatedFunction
-
-    V2ValidationError = None
-
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
@@ -70,6 +53,7 @@ from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
+    InvalidNameError,
     MissingFlowError,
     ObjectNotFound,
     ParameterTypeError,
@@ -94,6 +78,7 @@ from prefect.settings import (
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 from prefect.utilities.callables import (
@@ -115,6 +100,12 @@ from prefect.utilities.visualization import (
     get_task_viz_tracker,
     track_viz_task,
     visualize_task_dependencies,
+)
+
+from ._internal.pydantic.v2_schema import is_v2_type
+from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
+from ._internal.pydantic.v2_validated_func import (
+    V2ValidatedFunction as ValidatedFunction,
 )
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -273,7 +264,7 @@ class Flow(Generic[P, R]):
 
         # Validate name if given
         if name:
-            raise_on_name_with_banned_characters(name)
+            _raise_on_name_with_banned_characters(name)
 
         self.name = name or fn.__name__.replace("_", "-")
 
@@ -503,30 +494,24 @@ class Flow(Generic[P, R]):
         """
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
-        if HAS_PYDANTIC_V2:
-            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
-                isinstance(o, V1BaseModel) for o in kwargs.values()
+        has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
+            isinstance(o, V1BaseModel) for o in kwargs.values()
+        )
+        has_v2_types = any(is_v2_type(o) for o in args) or any(
+            is_v2_type(o) for o in kwargs.values()
+        )
+
+        if has_v1_models and has_v2_types:
+            raise ParameterTypeError(
+                "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
             )
-            has_v2_types = any(is_v2_type(o) for o in args) or any(
-                is_v2_type(o) for o in kwargs.values()
+
+        if has_v1_models:
+            validated_fn = V1ValidatedFunction(
+                self.fn, config={"arbitrary_types_allowed": True}
             )
-
-            if has_v1_models and has_v2_types:
-                raise ParameterTypeError(
-                    "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
-                )
-
-            if has_v1_models:
-                validated_fn = V1ValidatedFunction(
-                    self.fn, config={"arbitrary_types_allowed": True}
-                )
-            else:
-                validated_fn = V2ValidatedFunction(
-                    self.fn, config={"arbitrary_types_allowed": True}
-                )
-
         else:
-            validated_fn = ValidatedFunction(
+            validated_fn = V2ValidatedFunction(
                 self.fn, config={"arbitrary_types_allowed": True}
             )
 
@@ -667,7 +652,8 @@ class Flow(Generic[P, R]):
         from prefect.deployments.runner import RunnerDeployment
 
         if not name.endswith(".py"):
-            raise_on_name_with_banned_characters(name)
+            _raise_on_name_with_banned_characters(name)
+
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
@@ -1551,6 +1537,23 @@ def flow(
         )
 
 
+def _raise_on_name_with_banned_characters(name: str) -> str:
+    """
+    Raise an InvalidNameError if the given name contains any invalid
+    characters.
+    """
+    if name is None:
+        return name
+
+    if not re.match(WITHOUT_BANNED_CHARACTERS, name):
+        raise InvalidNameError(
+            f"Name {name!r} contains an invalid character. "
+            f"Must not contain any of: {BANNED_CHARACTERS}."
+        )
+
+    return name
+
+
 # Add from_source so it is available on the flow function we all know and love
 flow.from_source = Flow.from_source
 
@@ -1702,3 +1705,94 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
         tmpfile.close()
         os.remove(tmpfile.name)
     return flow
+
+
+@sync_compatible
+async def serve(
+    *args: "RunnerDeployment",
+    pause_on_shutdown: bool = True,
+    print_starting_message: bool = True,
+    limit: Optional[int] = None,
+    **kwargs,
+):
+    """
+    Serve the provided list of deployments.
+
+    Args:
+        *args: A list of deployments to serve.
+        pause_on_shutdown: A boolean for whether or not to automatically pause
+            deployment schedules on shutdown.
+        print_starting_message: Whether or not to print message to the console
+            on startup.
+        limit: The maximum number of runs that can be executed concurrently.
+        **kwargs: Additional keyword arguments to pass to the runner.
+
+    Examples:
+        Prepare two deployments and serve them:
+
+        ```python
+        import datetime
+
+        from prefect import flow, serve
+
+        @flow
+        def my_flow(name):
+            print(f"hello {name}")
+
+        @flow
+        def my_other_flow(name):
+            print(f"goodbye {name}")
+
+        if __name__ == "__main__":
+            # Run once a day
+            hello_deploy = my_flow.to_deployment(
+                "hello", tags=["dev"], interval=datetime.timedelta(days=1)
+            )
+
+            # Run every Sunday at 4:00 AM
+            bye_deploy = my_other_flow.to_deployment(
+                "goodbye", tags=["dev"], cron="0 4 * * sun"
+            )
+
+            serve(hello_deploy, bye_deploy)
+        ```
+    """
+    from rich.console import Console, Group
+    from rich.table import Table
+
+    from prefect.runner import Runner
+
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
+    for deployment in args:
+        await runner.add_deployment(deployment)
+
+    if print_starting_message:
+        help_message_top = (
+            "[green]Your deployments are being served and polling for"
+            " scheduled runs!\n[/]"
+        )
+
+        table = Table(title="Deployments", show_header=False)
+
+        table.add_column(style="blue", no_wrap=True)
+
+        for deployment in args:
+            table.add_row(f"{deployment.flow_name}/{deployment.name}")
+
+        help_message_bottom = (
+            "\nTo trigger any of these deployments, use the"
+            " following command:\n[blue]\n\t$ prefect deployment run"
+            " [DEPLOYMENT_NAME]\n[/]"
+        )
+        if PREFECT_UI_URL:
+            help_message_bottom += (
+                "\nYou can also trigger your deployments via the Prefect UI:"
+                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+            )
+
+        console = Console()
+        console.print(
+            Group(help_message_top, table, help_message_bottom), soft_wrap=True
+        )
+
+    await runner.start()

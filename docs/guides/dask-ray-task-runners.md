@@ -46,13 +46,16 @@ Import the `SequentialTaskRunner`, specify a `task_runner` on the flow, and call
 from prefect import flow, task
 from prefect.task_runners import SequentialTaskRunner
 
+
 @task
 def say_hello(name):
     print(f"hello {name}")
 
+
 @task
 def say_goodbye(name):
     print(f"goodbye {name}")
+
 
 @flow(task_runner=SequentialTaskRunner())
 def greetings(names):
@@ -60,49 +63,15 @@ def greetings(names):
         say_hello.submit(name)
         say_goodbye.submit(name)
 
-greetings(["arthur", "trillian", "ford", "marvin"])
+if __name__ == "__main__":
+    greetings(["arthur", "trillian", "ford", "marvin"])
 ```
 
-Save this as `sequential_flow.py` and run it in a terminal. You'll see output similar to the following:
+Save this code as `sequential_flow.py` and run it.
 
 <div class="terminal">
 ```bash
-$ python sequential_flow.py
-16:51:17.967 | INFO    | prefect.engine - Created flow run 'humongous-mink' for flow 'greetings'
-16:51:17.967 | INFO    | Flow run 'humongous-mink' - Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...
-16:51:18.038 | INFO    | Flow run 'humongous-mink' - Created task run 'say_hello-811087cd-0' for task 'say_hello'
-16:51:18.038 | INFO    | Flow run 'humongous-mink' - Executing 'say_hello-811087cd-0' immediately...
-hello arthur
-16:51:18.060 | INFO    | Task run 'say_hello-811087cd-0' - Finished in state Completed()
-16:51:18.107 | INFO    | Flow run 'humongous-mink' - Created task run 'say_goodbye-261e56a8-0' for task 'say_goodbye'
-16:51:18.107 | INFO    | Flow run 'humongous-mink' - Executing 'say_goodbye-261e56a8-0' immediately...
-goodbye arthur
-16:51:18.123 | INFO    | Task run 'say_goodbye-261e56a8-0' - Finished in state Completed()
-16:51:18.134 | INFO    | Flow run 'humongous-mink' - Created task run 'say_hello-811087cd-1' for task 'say_hello'
-16:51:18.134 | INFO    | Flow run 'humongous-mink' - Executing 'say_hello-811087cd-1' immediately...
-hello trillian
-16:51:18.150 | INFO    | Task run 'say_hello-811087cd-1' - Finished in state Completed()
-16:51:18.159 | INFO    | Flow run 'humongous-mink' - Created task run 'say_goodbye-261e56a8-1' for task 'say_goodbye'
-16:51:18.159 | INFO    | Flow run 'humongous-mink' - Executing 'say_goodbye-261e56a8-1' immediately...
-goodbye trillian
-16:51:18.181 | INFO    | Task run 'say_goodbye-261e56a8-1' - Finished in state Completed()
-16:51:18.190 | INFO    | Flow run 'humongous-mink' - Created task run 'say_hello-811087cd-2' for task 'say_hello'
-16:51:18.190 | INFO    | Flow run 'humongous-mink' - Executing 'say_hello-811087cd-2' immediately...
-hello ford
-16:51:18.210 | INFO    | Task run 'say_hello-811087cd-2' - Finished in state Completed()
-16:51:18.219 | INFO    | Flow run 'humongous-mink' - Created task run 'say_goodbye-261e56a8-2' for task 'say_goodbye'
-16:51:18.219 | INFO    | Flow run 'humongous-mink' - Executing 'say_goodbye-261e56a8-2' immediately...
-goodbye ford
-16:51:18.237 | INFO    | Task run 'say_goodbye-261e56a8-2' - Finished in state Completed()
-16:51:18.246 | INFO    | Flow run 'humongous-mink' - Created task run 'say_hello-811087cd-3' for task 'say_hello'
-16:51:18.246 | INFO    | Flow run 'humongous-mink' - Executing 'say_hello-811087cd-3' immediately...
-hello marvin
-16:51:18.264 | INFO    | Task run 'say_hello-811087cd-3' - Finished in state Completed()
-16:51:18.273 | INFO    | Flow run 'humongous-mink' - Created task run 'say_goodbye-261e56a8-3' for task 'say_goodbye'
-16:51:18.273 | INFO    | Flow run 'humongous-mink' - Executing 'say_goodbye-261e56a8-3' immediately...
-goodbye marvin
-16:51:18.290 | INFO    | Task run 'say_goodbye-261e56a8-3' - Finished in state Completed()
-16:51:18.321 | INFO    | Flow run 'humongous-mink' - Finished in state Completed('All states completed.')
+python sequential_flow.py
 ```
 </div>
 
@@ -110,7 +79,6 @@ If you take out the log messages and just look at the printed output of the task
 
 <div class="terminal">
 ``` bash
-$ python sequential_flow.py
 hello arthur
 goodbye arthur
 hello trillian
@@ -129,9 +97,11 @@ This simple flow doesn't gain much from parallel execution, but it illustrates h
 Configure your flow to use the `DaskTaskRunner`:
 
 1. Ensure the `prefect-dask` collection is installed by running `pip install prefect-dask`.
+
 2. In your flow code, import `DaskTaskRunner` from `prefect_dask.task_runners`.
 3. Assign it as the task runner when the flow is defined using the `task_runner=DaskTaskRunner` argument.
-4. Use the `.submit` method when calling functions.
+4. Use the `.submit` method when calling task-decorated functions.
+
 
 This is the same flow as above, with a few minor changes to use `DaskTaskRunner` where we previously configured `SequentialTaskRunner`. Install `prefect-dask`, make these changes, then save the updated code as `dask_flow.py`.
 
@@ -139,13 +109,16 @@ This is the same flow as above, with a few minor changes to use `DaskTaskRunner`
 from prefect import flow, task
 from prefect_dask.task_runners import DaskTaskRunner
 
+
 @task
 def say_hello(name):
     print(f"hello {name}")
 
+
 @task
 def say_goodbye(name):
     print(f"goodbye {name}")
+
 
 @flow(task_runner=DaskTaskRunner())
 def greetings(names):
@@ -153,55 +126,33 @@ def greetings(names):
         say_hello.submit(name)
         say_goodbye.submit(name)
 
+
 if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
 ```
 
 Note that, because you're using `DaskTaskRunner` in a script, you must use `if __name__ == "__main__":` or you'll see warnings and errors.
 
-Now run `dask_flow.py`. If you get a warning about accepting incoming network connections, that's okay - everything is local in this example.
+Run `dask_flow.py`. If you get a warning about accepting incoming network connections, that's okay - everything is local in this example.
 
 <div class="terminal">
 ```bash
-$ python dask_flow.py
-19:29:03.798 | INFO    | prefect.engine - Created flow run 'fine-bison' for flow 'greetings'
-
-19:29:03.798 | INFO    | Flow run 'fine-bison' - Using task runner 'DaskTaskRunner'
-
-19:29:04.080 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-16:54:18.465 | INFO    | prefect.engine - Created flow run 'radical-finch' for flow 'greetings'
-16:54:18.465 | INFO    | Flow run 'radical-finch' - Starting 'DaskTaskRunner'; submitted tasks will be run concurrently...
-16:54:18.465 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-16:54:19.811 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at <http://127.0.0.1:8787/status>
-16:54:19.881 | INFO    | Flow run 'radical-finch' - Created task run 'say_hello-811087cd-0' for task 'say_hello'
-16:54:20.364 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_hello-811087cd-0' for execution.
-16:54:20.379 | INFO    | Flow run 'radical-finch' - Created task run 'say_goodbye-261e56a8-0' for task 'say_goodbye'
-16:54:20.386 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_goodbye-261e56a8-0' for execution.
-16:54:20.397 | INFO    | Flow run 'radical-finch' - Created task run 'say_hello-811087cd-1' for task 'say_hello'
-16:54:20.401 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_hello-811087cd-1' for execution.
-16:54:20.417 | INFO    | Flow run 'radical-finch' - Created task run 'say_goodbye-261e56a8-1' for task 'say_goodbye'
-16:54:20.423 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_goodbye-261e56a8-1' for execution.
-16:54:20.443 | INFO    | Flow run 'radical-finch' - Created task run 'say_hello-811087cd-2' for task 'say_hello'
-16:54:20.449 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_hello-811087cd-2' for execution.
-16:54:20.462 | INFO    | Flow run 'radical-finch' - Created task run 'say_goodbye-261e56a8-2' for task 'say_goodbye'
-16:54:20.474 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_goodbye-261e56a8-2' for execution.
-16:54:20.500 | INFO    | Flow run 'radical-finch' - Created task run 'say_hello-811087cd-3' for task 'say_hello'
-16:54:20.511 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_hello-811087cd-3' for execution.
-16:54:20.544 | INFO    | Flow run 'radical-finch' - Created task run 'say_goodbye-261e56a8-3' for task 'say_goodbye'
-16:54:20.555 | INFO    | Flow run 'radical-finch' - Submitted task run 'say_goodbye-261e56a8-3' for execution.
-hello arthur
-goodbye ford
-goodbye arthur
-hello ford
-goodbye marvin
-goodbye trillian
-hello trillian
-hello marvin
-
+python dask_flow.py
 ```
 </div>
 
-`DaskTaskRunner` automatically creates a local Dask cluster, then starts executing all of the tasks in parallel. The results do not return in the same order as the sequential code above.
+`DaskTaskRunner` automatically creates a local Dask cluster, then starts executing all of the task runs in parallel. The results do not return in the same order as the sequential code above.
+
+Abbreviated output:
+
+<div class="terminal">
+```bash
+goodbye marvin
+hello arthur
+goodbye ford
+hello trillian
+```
+</div>
 
 Notice what happens if you do not use the `submit` method when calling tasks:
 
@@ -231,67 +182,45 @@ if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
 ```
 
+Run the script:
+
 <div class="terminal">
 ```bash
-$ python dask_flow.py
-
-16:57:34.534 | INFO    | prefect.engine - Created flow run 'papaya-honeybee' for flow 'greetings'
-16:57:34.534 | INFO    | Flow run 'papaya-honeybee' - Starting 'DaskTaskRunner'; submitted tasks will be run concurrently...
-16:57:34.535 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-16:57:35.715 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at <http://127.0.0.1:8787/status>
-16:57:35.787 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_hello-811087cd-0' for task 'say_hello'
-16:57:35.788 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_hello-811087cd-0' immediately...
-hello arthur
-16:57:35.810 | INFO    | Task run 'say_hello-811087cd-0' - Finished in state Completed()
-16:57:35.820 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_goodbye-261e56a8-0' for task 'say_goodbye'
-16:57:35.820 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_goodbye-261e56a8-0' immediately...
-goodbye arthur
-16:57:35.840 | INFO    | Task run 'say_goodbye-261e56a8-0' - Finished in state Completed()
-16:57:35.849 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_hello-811087cd-1' for task 'say_hello'
-16:57:35.849 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_hello-811087cd-1' immediately...
-hello trillian
-16:57:35.869 | INFO    | Task run 'say_hello-811087cd-1' - Finished in state Completed()
-16:57:35.878 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_goodbye-261e56a8-1' for task 'say_goodbye'
-16:57:35.878 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_goodbye-261e56a8-1' immediately...
-goodbye trillian
-16:57:35.894 | INFO    | Task run 'say_goodbye-261e56a8-1' - Finished in state Completed()
-16:57:35.907 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_hello-811087cd-2' for task 'say_hello'
-16:57:35.907 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_hello-811087cd-2' immediately...
-hello ford
-16:57:35.924 | INFO    | Task run 'say_hello-811087cd-2' - Finished in state Completed()
-16:57:35.933 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_goodbye-261e56a8-2' for task 'say_goodbye'
-16:57:35.933 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_goodbye-261e56a8-2' immediately...
-goodbye ford
-16:57:35.951 | INFO    | Task run 'say_goodbye-261e56a8-2' - Finished in state Completed()
-16:57:35.959 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_hello-811087cd-3' for task 'say_hello'
-16:57:35.959 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_hello-811087cd-3' immediately...
-hello marvin
-16:57:35.976 | INFO    | Task run 'say_hello-811087cd-3' - Finished in state Completed()
-16:57:35.985 | INFO    | Flow run 'papaya-honeybee' - Created task run 'say_goodbye-261e56a8-3' for task 'say_goodbye'
-16:57:35.985 | INFO    | Flow run 'papaya-honeybee' - Executing 'say_goodbye-261e56a8-3' immediately...
-goodbye marvin
-16:57:36.004 | INFO    | Task run 'say_goodbye-261e56a8-3' - Finished in state Completed()
-16:57:36.289 | INFO    | Flow run 'papaya-honeybee' - Finished in state Completed('All states completed.')
-
+python dask_flow.py
 ```
 </div>
 
-The tasks are not submitted to the `DaskTaskRunner` and are run sequentially.
+Once again, the tasks run sequentially. Here's the output with logs removed.
 
+<div class="terminal">
+```bash
+hello arthur
+goodbye arthur
+hello trillian
+goodbye trillian
+hello ford
+goodbye ford
+hello marvin
+goodbye marvin
+```
+</div>
+
+The task runs are not submitted to the `DaskTaskRunner`; instead, they run sequentially.
 
 ## Run parallel tasks with Ray
 
 To flexibly apply the appropriate task runner for your workflow, use the same flow as above, with a few minor changes to use the [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) where you previously configured `DaskTaskRunner`. 
 
+
 Configure your flow to use the `RayTaskRunner`:
 
-1. Make sure the `prefect-ray` collection is installed by running `pip install prefect-ray`.
+1. Install `prefect-ray` into your environment with `pip install -U prefect-ray`.
 2. In your flow code, import `RayTaskRunner` from `prefect_ray.task_runners`.
-3. Assign it as the task runner when the flow is defined using the `task_runner=RayTaskRunner` argument.
+3. Specify the task runner when the flow is defined using the `task_runner=RayTaskRunner` argument.
 
 !!! warning "Ray environment limitations"
     While we're excited about parallel task execution through Ray to Prefect, there are some inherent limitations with Ray:
-    
+
     - Support for Python 3.11 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
     - Ray's Windows support is currently in beta.
 

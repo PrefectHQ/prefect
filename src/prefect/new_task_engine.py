@@ -17,6 +17,7 @@ from typing import (
     Union,
     cast,
 )
+from uuid import UUID
 
 import pendulum
 from typing_extensions import ParamSpec
@@ -25,12 +26,14 @@ from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.exceptions import Abort, Pause
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
 from prefect.results import ResultFactory
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
+    Paused,
     Retrying,
     Running,
     StateDetails,
@@ -44,6 +47,7 @@ from prefect.utilities.engine import (
     _get_hook_name,
     propose_state_sync,
 )
+from prefect.utilities.math import clamped_poisson_interval
 from prefect.utilities.timeout import timeout, timeout_async
 
 P = ParamSpec("P")
@@ -175,17 +179,35 @@ class TaskRunEngine(Generic[P, R]):
         state_details = self._compute_state_details()
         new_state = Running(state_details=state_details)
         state = self.set_state(new_state)
-        while state.is_pending():
-            time.sleep(0.2)
+
+        BACKOFF_MAX = 10
+        backoff_count = 0
+
+        # TODO: Could this listen for state change events instead of polling?
+        while state.is_pending() or state.is_paused():
+            if backoff_count < BACKOFF_MAX:
+                backoff_count += 1
+            interval = clamped_poisson_interval(
+                average_interval=backoff_count, clamping_factor=0.3
+            )
+            time.sleep(interval)
             state = self.set_state(new_state)
 
     def set_state(self, state: State, force: bool = False) -> State:
         if not self.task_run:
             raise ValueError("Task run is not set")
-        new_state = propose_state_sync(
-            self.client, state, task_run_id=self.task_run.id, force=force
-        )
-        # type: ignore
+        try:
+            new_state = propose_state_sync(
+                self.client, state, task_run_id=self.task_run.id, force=force
+            )
+        except Pause as exc:
+            # We shouldn't get a pause signal without a state, but if this happens,
+            # just use a Paused state to assume an in-process pause.
+            new_state = exc.state if exc.state else Paused()
+            if new_state.state_details.pause_reschedule:
+                # If we're being asked to pause and reschedule, we should exit the
+                # task and expect to be resumed later.
+                raise
 
         # currently this is a hack to keep a reference to the state object
         # that has an in-memory result attached to it; using the API state
@@ -275,7 +297,9 @@ class TaskRunEngine(Generic[P, R]):
                 self.logger = current_logger
 
     @contextmanager
-    def start(self) -> Generator["TaskRunEngine", Any, Any]:
+    def start(
+        self, task_run_id: Optional[UUID] = None
+    ) -> Generator["TaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
         """
@@ -286,6 +310,7 @@ class TaskRunEngine(Generic[P, R]):
                 if not self.task_run:
                     self.task_run = run_sync(
                         self.task.create_run(
+                            id=task_run_id,
                             client=client,
                             parameters=self.parameters,
                             flow_run_context=FlowRunContext.get(),
@@ -297,6 +322,9 @@ class TaskRunEngine(Generic[P, R]):
             except Exception:
                 # regular exceptions are caught and re-raised to the user
                 raise
+            except (Pause, Abort):
+                # Do not capture internal signals as crashes
+                raise
             except BaseException as exc:
                 # BaseExceptions are caught and handled as crashes
                 self.handle_crash(exc)
@@ -305,34 +333,28 @@ class TaskRunEngine(Generic[P, R]):
                 self._is_started = False
                 self._client = None
 
-    async def get_client(self):
-        if not self._is_started:
-            raise RuntimeError("Engine has not started.")
-        else:
-            return self._client
-
     def is_running(self) -> bool:
         if getattr(self, "task_run", None) is None:
             return False
         return getattr(self, "task_run").state.is_running()
 
-    def is_pending(self) -> bool:
-        if getattr(self, "task_run", None) is None:
-            return False  # TODO: handle this differently?
-        return getattr(self, "task_run").state.is_pending()
-
 
 def run_task_sync(
     task: Task[P, R],
+    task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
-    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    engine = TaskRunEngine[P, R](
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+    )
 
     # This is a context manager that keeps track of the run of the task run.
-    with engine.start() as run:
+    with engine.start(task_run_id=task_run_id) as run:
         run.begin_run()
 
         while run.is_running():
@@ -362,6 +384,7 @@ def run_task_sync(
 
 async def run_task_async(
     task: Task[P, Coroutine[Any, Any, R]],
+    task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
@@ -375,7 +398,7 @@ async def run_task_async(
     engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
 
     # This is a context manager that keeps track of the run of the task run.
-    with engine.start() as run:
+    with engine.start(task_run_id=task_run_id) as run:
         run.begin_run()
 
         while run.is_running():
@@ -390,7 +413,6 @@ async def run_task_async(
 
                     # If the task run is successful, finalize it.
                     run.handle_success(result)
-
                 except Exception as exc:
                     run.handle_exception(exc)
 
@@ -405,6 +427,7 @@ async def run_task_async(
 
 def run_task(
     task: Task[P, R],
+    task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
@@ -412,6 +435,7 @@ def run_task(
 ) -> Union[R, State, None]:
     kwargs = dict(
         task=task,
+        task_run_id=task_run_id,
         task_run=task_run,
         parameters=parameters,
         wait_for=wait_for,

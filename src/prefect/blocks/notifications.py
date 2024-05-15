@@ -2,19 +2,13 @@ import logging
 from abc import ABC
 from typing import Dict, List, Optional
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.logging import LogEavesdropper
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import AnyHttpUrl, Field, SecretStr
-else:
-    from pydantic import AnyHttpUrl, Field, SecretStr
-
+from pydantic.v1 import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.fields import SecretDict
 from prefect.events.instrument import instrument_instance_method_call
+from prefect.logging import LogEavesdropper
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.templating import apply_values, find_placeholders
 
@@ -235,7 +229,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
+        from apprise.plugins.pagerduty import NotifyPagerDuty
 
         url = SecretStr(
             NotifyPagerDuty(
@@ -303,7 +297,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyTwilio import NotifyTwilio
+        from apprise.plugins.twilio import NotifyTwilio
 
         url = SecretStr(
             NotifyTwilio(
@@ -401,7 +395,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
+        from apprise.plugins.opsgenie import NotifyOpsgenie
 
         targets = []
         if self.target_user:
@@ -489,7 +483,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyMattermost import NotifyMattermost
+        from apprise.plugins.mattermost import NotifyMattermost
 
         url = SecretStr(
             NotifyMattermost(
@@ -582,7 +576,7 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifyDiscord import NotifyDiscord
+        from apprise.plugins.discord import NotifyDiscord
 
         url = SecretStr(
             NotifyDiscord(
@@ -773,7 +767,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.NotifySendGrid import NotifySendGrid
+        from apprise.plugins.sendgrid import NotifySendGrid
 
         url = SecretStr(
             NotifySendGrid(

@@ -52,6 +52,7 @@ from prefect.server.schemas.actions import (
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -62,6 +63,12 @@ from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
+
+
+@pytest.fixture
+def enable_schedule_concurrency():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY: True}):
+        yield
 
 
 @pytest.fixture
@@ -903,7 +910,7 @@ class TestProjectDeploy:
             )
 
             with open("Dockerfile", "w") as f:
-                f.write("FROM python:3.8-slim\n")
+                f.write("FROM python:3.9-slim\n")
 
             prefect_yaml = {
                 "build": [
@@ -1003,7 +1010,7 @@ class TestProjectDeploy:
             )
 
             with open("Dockerfile", "w") as f:
-                f.write("FROM python:3.8-slim\n")
+                f.write("FROM python:3.9-slim\n")
 
             prefect_yaml = {
                 "build": [
@@ -1103,7 +1110,7 @@ class TestProjectDeploy:
             )
 
             with open("Dockerfile", "w") as f:
-                f.write("FROM python:3.8-slim\n")
+                f.write("FROM python:3.9-slim\n")
             prefect_yaml = {
                 "build": [
                     {
@@ -2660,6 +2667,88 @@ class TestSchedules:
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
+    @pytest.mark.usefixtures("project_dir", "enable_schedule_concurrency")
+    async def test_deploy_with_max_active_runs_and_catchup_provided_for_schedule(
+        self, work_pool, prefect_client
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+                "schedules": [
+                    {
+                        "interval": 42,
+                        "max_active_runs": 5,
+                        "catchup": True,
+                    }
+                ],
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.schedules[0].max_active_runs == 5
+        assert deployment.schedules[0].catchup is True
+
+    @pytest.mark.usefixtures(
+        "project_dir", "interactive_console", "enable_schedule_concurrency"
+    )
+    async def test_deploy_with_max_active_runs_and_catchup_interactive(
+        self, work_pool, prefect_client
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Confirm schedule creation
+                readchar.key.ENTER
+                # Select interval schedule
+                + readchar.key.ENTER
+                # Enter interval
+                + "42"
+                + readchar.key.ENTER
+                # accept schedule being active
+                + readchar.key.ENTER
+                # Enter max active runs
+                + "5"
+                + readchar.key.ENTER
+                # Enter catchup
+                + "y"
+                + readchar.key.ENTER
+                # decline adding another schedule
+                + readchar.key.ENTER
+                # decline save
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.schedules[0].max_active_runs == 5
+        assert deployment.schedules[0].catchup is True
+
 
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
@@ -4203,6 +4292,8 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_no_changes_does_not_prompt_save(self):
@@ -4246,6 +4337,8 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
         invoke_and_assert(
@@ -4277,6 +4370,8 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_changes_prompts_save(self):
@@ -4424,6 +4519,8 @@ class TestSaveUserInputs:
             "rrule": "FREQ=MINUTELY",
             "timezone": "UTC",
             "active": True,
+            "max_active_runs": None,
+            "catchup": False,
         }
 
     async def test_save_user_inputs_with_actions(self):
@@ -5248,30 +5345,6 @@ class TestDeploymentTrigger:
                 triggers[0].as_automation()
             )
 
-        async def test_create_deployment_triggers_events_disabled_noop(
-            self, events_disabled
-        ):
-            client = AsyncMock()
-            client.server_type = ServerType.SERVER
-
-            trigger_spec = {
-                "enabled": True,
-                "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                "expect": ["prefect.flow-run.Completed"],
-                "match_related": {
-                    "prefect.resource.name": "seed",
-                    "prefect.resource.role": "flow",
-                },
-            }
-
-            triggers = _initialize_deployment_triggers("my_deployment", [trigger_spec])
-            deployment_id = uuid4()
-
-            await _create_deployment_triggers(client, deployment_id, triggers)
-
-            client.delete_resource_owned_automations.assert_not_called()
-            client.create_automation.assert_not_called()
-
         async def test_triggers_creation_orchestrated(
             self, project_dir, prefect_client, work_pool
         ):
@@ -5707,7 +5780,7 @@ class TestDeployDockerBuildSteps:
             prefect_config = yaml.safe_load(f)
 
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         prefect_config["build"] = [
             {
@@ -5841,7 +5914,7 @@ class TestDeployDockerBuildSteps:
         self, docker_work_pool, mock_build_docker_image
     ):
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -5906,7 +5979,7 @@ class TestDeployDockerBuildSteps:
         self, docker_work_pool, monkeypatch, mock_build_docker_image
     ):
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -5979,7 +6052,7 @@ class TestDeployDockerBuildSteps:
         self, docker_work_pool
     ):
         with open("Dockerfile", "w") as f:
-            f.write("FROM python:3.8-slim\n")
+            f.write("FROM python:3.9-slim\n")
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,

@@ -7,14 +7,12 @@ from prefect.client.schemas.objects import State
 from prefect.events import Event
 from prefect.events.clients import (
     AssertingEventsClient,
-    NullEventsClient,
     PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from prefect.events.worker import EventsWorker
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 
@@ -34,17 +32,6 @@ def test_emits_event_via_client(asserting_events_worker: EventsWorker, event: Ev
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert asserting_events_worker._client.events == [event]
-
-
-def test_worker_instance_null_client_events_disabled():
-    with temporary_settings(
-        updates={
-            PREFECT_API_URL: None,
-            PREFECT_EXPERIMENTAL_EVENTS: False,
-        }
-    ):
-        worker = EventsWorker.instance()
-        assert worker.client_type == NullEventsClient
 
 
 def test_worker_instance_ephemeral_client_no_api_url():

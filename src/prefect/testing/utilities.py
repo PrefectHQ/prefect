@@ -7,12 +7,12 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import TemporaryDirectory
-from typing import Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 
 import prefect.context
 import prefect.settings
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
 from prefect.filesystems import ReadableFileSystem
@@ -20,6 +20,9 @@ from prefect.results import PersistedResult
 from prefect.serializers import Serializer
 from prefect.server.database.dependencies import temporary_database_interface
 from prefect.states import State
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 def exceptions_equal(a, b):
@@ -33,10 +36,10 @@ def exceptions_equal(a, b):
     return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
 
 
-# AsyncMock has a new import path in Python 3.8+
+# AsyncMock has a new import path in Python 3.9+
 from unittest.mock import AsyncMock  # noqa
 
-# MagicMock supports async magic methods in Python 3.8+
+# MagicMock supports async magic methods in Python 3.9+
 from unittest.mock import MagicMock  # noqa
 
 
@@ -130,7 +133,7 @@ def prefect_test_harness():
             yield
 
 
-async def get_most_recent_flow_run(client: PrefectClient = None):
+async def get_most_recent_flow_run(client: "PrefectClient" = None):
     if client is None:
         client = get_client()
 
