@@ -100,7 +100,6 @@ For more information about work pools and workers,
 checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
 """
 
-import asyncio
 import base64
 import enum
 import json
@@ -109,13 +108,22 @@ import math
 import os
 import shlex
 import time
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Generator, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Dict,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import anyio.abc
-from kubernetes.client.exceptions import ApiException
-from kubernetes.client.models import V1ObjectMeta, V1Secret
+from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
+from kubernetes_asyncio.client.exceptions import ApiException
+from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -126,7 +134,6 @@ from prefect.exceptions import (
 )
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
@@ -143,7 +150,6 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import Field, validator
 
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal
 
 from prefect_kubernetes.events import KubernetesEventsReplicator
@@ -151,20 +157,15 @@ from prefect_kubernetes.utilities import (
     _slugify_label_key,
     _slugify_label_value,
     _slugify_name,
-    enable_socket_keep_alive,
 )
 
 if TYPE_CHECKING:
-    import kubernetes
-    import kubernetes.client
-    import kubernetes.client.exceptions
-    import kubernetes.config
-    import kubernetes.watch
-    from kubernetes.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
+    import kubernetes_asyncio as kubernetes
 
     from prefect.client.schemas import FlowRun
 else:
-    kubernetes = lazy_import("kubernetes")
+    kubernetes = lazy_import("kubernetes_asyncio")
+
 
 MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1
@@ -573,14 +574,12 @@ class KubernetesWorker(BaseWorker):
         """
         logger = self.get_flow_run_logger(flow_run)
 
-        with self._get_configured_kubernetes_client(configuration) as client:
+        k8s_clients_config = await self._get_k8s_config(configuration)
+        async with ApiClient(k8s_clients_config) as client:
             logger.info("Creating Kubernetes job...")
-            job = await run_sync_in_worker_thread(
-                self._create_job, configuration, client
-            )
-            pid = await run_sync_in_worker_thread(
-                self._get_infrastructure_pid, job, client
-            )
+
+            job = await self._create_job(configuration, client)
+            pid = await self._get_infrastructure_pid(job, client)
             # Indicate that the job has started
             if task_status is not None:
                 task_status.started(pid)
@@ -598,9 +597,9 @@ class KubernetesWorker(BaseWorker):
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
             )
 
-            with events_replicator:
-                status_code = await run_sync_in_worker_thread(
-                    self._watch_job, logger, job.metadata.name, configuration, client
+            async with events_replicator:
+                status_code = await self._watch_job(
+                    logger, job.metadata.name, configuration, client
                 )
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
@@ -614,9 +613,7 @@ class KubernetesWorker(BaseWorker):
         Stops a job for a cancelled flow run based on the provided infrastructure PID
         and run configuration.
         """
-        await run_sync_in_worker_thread(
-            self._stop_job, infrastructure_pid, configuration, grace_seconds
-        )
+        await self._stop_job(infrastructure_pid, configuration, grace_seconds)
 
     async def teardown(self, *exc_info):
         await super().teardown(*exc_info)
@@ -625,33 +622,29 @@ class KubernetesWorker(BaseWorker):
 
     async def _clean_up_created_secrets(self):
         """Deletes any secrets created during the worker's operation."""
-        coros = []
         for key, configuration in self._created_secrets.items():
-            with self._get_configured_kubernetes_client(configuration) as client:
-                with self._get_core_client(client) as core_client:
-                    coros.append(
-                        run_sync_in_worker_thread(
-                            core_client.delete_namespaced_secret,
-                            name=key[0],
-                            namespace=key[1],
-                        )
-                    )
-
-        results = await asyncio.gather(*coros, return_exceptions=True)
-        for result in results:
-            if isinstance(result, Exception):
-                self._logger.warning(
-                    "Failed to delete created secret with exception: %s", result
+            k8s_clients_config = await self._get_k8s_config(configuration)
+            async with ApiClient(k8s_clients_config) as client:
+                v1 = client.CoreV1Api(client)
+                result = await v1.delete_namespaced_secret(
+                    name=key[0],
+                    namespace=key[1],
                 )
 
-    def _stop_job(
+                if isinstance(result, Exception):
+                    self._logger.warning(
+                        "Failed to delete created secret with exception: %s", result
+                    )
+
+    async def _stop_job(
         self,
         infrastructure_pid: str,
         configuration: KubernetesWorkerJobConfiguration,
         grace_seconds: int = 30,
     ):
         """Removes the given Job from the Kubernetes cluster"""
-        with self._get_configured_kubernetes_client(configuration) as client:
+        k8s_clients_config = await self._get_k8s_config(configuration)
+        async with ApiClient(k8s_clients_config) as client:
             job_cluster_uid, job_namespace, job_name = self._parse_infrastructure_pid(
                 infrastructure_pid
             )
@@ -691,42 +684,31 @@ class KubernetesWorker(BaseWorker):
                     else:
                         raise
 
-    @contextmanager
-    def _get_configured_kubernetes_client(
-        self, configuration: KubernetesWorkerJobConfiguration
-    ) -> Generator["ApiClient", None, None]:
+    async def _get_k8s_config(self, configuration: KubernetesWorkerJobConfiguration):
         """
-        Returns a configured Kubernetes client.
+        Returns a Kubernetes client configuration based on the provided configuration.
         """
-
         try:
             if configuration.cluster_config:
-                client = kubernetes.config.new_client_from_config_dict(
+                # Load configuration from a dictionary if cluster_config is provided
+                await kubernetes.config.load_kube_config_from_dict(
                     config_dict=configuration.cluster_config.config,
                     context=configuration.cluster_config.context_name,
                 )
             else:
-                # If no hardcoded config specified, try to load Kubernetes configuration
-                # within a cluster. If that doesn't work, try to load the configuration
-                # from the local environment, allowing any further ConfigExceptions to
-                # bubble up.
+                # Try to load in-cluster configuration first
                 try:
-                    kubernetes.config.load_incluster_config()
-                    config = kubernetes.client.Configuration.get_default_copy()
-                    client = kubernetes.client.ApiClient(configuration=config)
+                    await kubernetes.config.load_incluster_config()
                 except kubernetes.config.ConfigException:
-                    client = kubernetes.config.new_client_from_config()
+                    # Fallback to the local kubeconfig if in-cluster config fails
+                    await kubernetes.config.load_kube_config()
+        except Exception as e:
+            raise RuntimeError("Failed to load Kubernetes configuration") from e
 
-            if os.environ.get(
-                "PREFECT_KUBERNETES_WORKER_ADD_TCP_KEEPALIVE", "TRUE"
-            ).strip().lower() in ("true", "1"):
-                enable_socket_keep_alive(client)
+        # Retrieve and return the default configuration copy
+        return kubernetes.client.Configuration.get_default_copy()
 
-            yield client
-        finally:
-            client.rest_client.pool_manager.clear()
-
-    def _replace_api_key_with_secret(
+    async def _replace_api_key_with_secret(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
     ):
         """Replaces the PREFECT_API_KEY environment variable with a Kubernetes secret"""
@@ -767,16 +749,16 @@ class KubernetesWorker(BaseWorker):
                 "env"
             ] = manifest_env
 
-    @retry(
-        stop=stop_after_attempt(MAX_ATTEMPTS),
-        wait=wait_fixed(RETRY_MIN_DELAY_SECONDS)
-        + wait_random(
-            RETRY_MIN_DELAY_JITTER_SECONDS,
-            RETRY_MAX_DELAY_JITTER_SECONDS,
-        ),
-        reraise=True,
-    )
-    def _create_job(
+    # @retry(
+    #     stop=stop_after_attempt(MAX_ATTEMPTS),
+    #     wait=wait_fixed(RETRY_MIN_DELAY_SECONDS)
+    #     + wait_random(
+    #         RETRY_MIN_DELAY_JITTER_SECONDS,
+    #         RETRY_MAX_DELAY_JITTER_SECONDS,
+    #     ),
+    #     reraise=True,
+    # )
+    async def _create_job(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
     ) -> "V1Job":
         """
@@ -785,14 +767,15 @@ class KubernetesWorker(BaseWorker):
         if os.environ.get(
             "PREFECT_KUBERNETES_WORKER_STORE_PREFECT_API_IN_SECRET", ""
         ).strip().lower() in ("true", "1"):
-            self._replace_api_key_with_secret(
+            await self._replace_api_key_with_secret(
                 configuration=configuration, client=client
             )
         try:
-            with self._get_batch_client(client) as batch_client:
-                job = batch_client.create_namespaced_job(
-                    configuration.namespace, configuration.job_manifest
-                )
+            batch_client = BatchV1Api(client)
+            job = await batch_client.create_namespaced_job(
+                configuration.namespace,
+                configuration.job_manifest,
+            )
         except kubernetes.client.exceptions.ApiException as exc:
             # Parse the reason and message from the response if feasible
             message = ""
@@ -807,56 +790,56 @@ class KubernetesWorker(BaseWorker):
 
         return job
 
-    def _upsert_secret(
+    async def _upsert_secret(
         self, name: str, value: str, namespace: str, client: "ApiClient"
     ):
         encoded_value = base64.b64encode(value.encode("utf-8")).decode("utf-8")
-        with self._get_core_client(client) as core_client:
-            try:
-                # Get the current version of the Secret and update it with the
-                # new value
-                current_secret = core_client.read_namespaced_secret(
-                    name=name, namespace=namespace
-                )
-                current_secret.data = {"value": encoded_value}
-                secret = core_client.replace_namespaced_secret(
-                    name=name, namespace=namespace, body=current_secret
-                )
-            except ApiException as exc:
-                if exc.status != 404:
-                    raise
-                # Create the secret if it doesn't already exist
-                metadata = V1ObjectMeta(name=name, namespace=namespace)
-                secret = V1Secret(
-                    api_version="v1",
-                    kind="Secret",
-                    metadata=metadata,
-                    data={"value": encoded_value},
-                )
-                secret = core_client.create_namespaced_secret(
-                    namespace=namespace, body=secret
-                )
-            return secret
+        core_client = CoreV1Api(client)
+        try:
+            # Get the current version of the Secret and update it with the
+            # new value
+            current_secret = await core_client.read_namespaced_secret(
+                name=name, namespace=namespace
+            )
+            current_secret.data = {"value": encoded_value}
+            secret = await core_client.replace_namespaced_secret(
+                name=name, namespace=namespace, body=current_secret
+            )
+        except ApiException as exc:
+            if exc.status != 404:
+                raise
+            # Create the secret if it doesn't already exist
+            metadata = V1ObjectMeta(name=name, namespace=namespace)
+            secret = V1Secret(
+                api_version="v1",
+                kind="Secret",
+                metadata=metadata,
+                data={"value": encoded_value},
+            )
+            secret = await core_client.create_namespaced_secret(
+                namespace=namespace, body=secret
+            )
+        return secret
 
-    @contextmanager
-    def _get_batch_client(
+    @asynccontextmanager
+    async def _get_batch_client(
         self, client: "ApiClient"
-    ) -> Generator["BatchV1Api", None, None]:
+    ) -> AsyncGenerator["BatchV1Api", None]:
         """
         Context manager for retrieving a Kubernetes batch client.
         """
         try:
-            yield kubernetes.client.BatchV1Api(api_client=client)
+            yield BatchV1Api(api_client=client)
         finally:
-            client.rest_client.pool_manager.clear()
+            client.close()
 
-    def _get_infrastructure_pid(self, job: "V1Job", client: "ApiClient") -> str:
+    async def _get_infrastructure_pid(self, job: "V1Job", client: "ApiClient") -> str:
         """
         Generates a Kubernetes infrastructure PID.
 
         The PID is in the format: "<cluster uid>:<namespace>:<job name>".
         """
-        cluster_uid = self._get_cluster_uid(client)
+        cluster_uid = await self._get_cluster_uid(client)
         pid = f"{cluster_uid}:{job.metadata.namespace}:{job.metadata.name}"
         return pid
 
@@ -871,19 +854,19 @@ class KubernetesWorker(BaseWorker):
         cluster_uid, namespace, job_name = infrastructure_pid.split(":", 2)
         return cluster_uid, namespace, job_name
 
-    @contextmanager
-    def _get_core_client(
-        self, client: "ApiClient"
-    ) -> Generator["CoreV1Api", None, None]:
-        """
-        Context manager for retrieving a Kubernetes core client.
-        """
-        try:
-            yield kubernetes.client.CoreV1Api(api_client=client)
-        finally:
-            client.rest_client.pool_manager.clear()
+    # @asynccontextmanager
+    # async def _get_core_client(
+    #     self, client: "ApiClient"
+    # ) -> AsyncGenerator["CoreV1Api", None]:
+    #     """
+    #     Context manager for retrieving a Kubernetes core client.
+    #     """
+    #     try:
+    #         yield kubernetes.client.CoreV1Api(api_client=client)
+    #     finally:
+    #         client.close()
 
-    def _get_cluster_uid(self, client: "ApiClient") -> str:
+    async def _get_cluster_uid(self, client: "ApiClient") -> str:
         """
         Gets a unique id for the current cluster being used.
 
@@ -903,20 +886,20 @@ class KubernetesWorker(BaseWorker):
             return env_cluster_uid
 
         # Read the UID from the cluster namespace
-        with self._get_core_client(client) as core_client:
-            namespace = core_client.read_namespace("kube-system")
+        v1 = CoreV1Api(client)
+        namespace = await v1.read_namespace("kube-system")
         cluster_uid = namespace.metadata.uid
 
         return cluster_uid
 
-    def _job_events(
+    async def _job_events(
         self,
         watch: kubernetes.watch.Watch,
-        batch_client: kubernetes.client.BatchV1Api,
+        batch_client: BatchV1Api,
         job_name: str,
         namespace: str,
         watch_kwargs: dict,
-    ) -> Generator[Union[Any, dict, str], Any, None]:
+    ) -> AsyncGenerator[Union[Any, dict, str], Any]:
         """
         Stream job events.
 
@@ -927,15 +910,16 @@ class KubernetesWorker(BaseWorker):
         """
         while True:
             try:
-                return watch.stream(
+                async for event in watch.stream(
                     func=batch_client.list_namespaced_job,
                     namespace=namespace,
                     field_selector=f"metadata.name={job_name}",
                     **watch_kwargs,
-                )
+                ):
+                    yield event
             except ApiException as e:
                 if e.status == 410:
-                    job_list = batch_client.list_namespaced_job(
+                    job_list = await batch_client.list_namespaced_job(
                         namespace=namespace, field_selector=f"metadata.name={job_name}"
                     )
                     resource_version = job_list.metadata.resource_version
@@ -943,7 +927,7 @@ class KubernetesWorker(BaseWorker):
                 else:
                     raise
 
-    def _watch_job(
+    async def _watch_job(
         self,
         logger: logging.Logger,
         job_name: str,
@@ -957,11 +941,11 @@ class KubernetesWorker(BaseWorker):
         """
         logger.debug(f"Job {job_name!r}: Monitoring job...")
 
-        job = self._get_job(logger, job_name, configuration, client)
+        job = await self._get_job(logger, job_name, configuration, client)
         if not job:
             return -1
 
-        pod = self._get_job_pod(logger, job_name, configuration, client)
+        pod = await self._get_job_pod(logger, job_name, configuration, client)
         if not pod:
             return -1
 
@@ -973,135 +957,132 @@ class KubernetesWorker(BaseWorker):
         )
 
         if configuration.stream_output:
-            with self._get_core_client(client) as core_client:
-                logs = core_client.read_namespaced_pod_log(
-                    pod.metadata.name,
-                    configuration.namespace,
-                    follow=True,
-                    _preload_content=False,
-                    container="prefect-job",
-                )
-                try:
-                    for log in logs.stream():
-                        print(log.decode().rstrip())
-
-                        # Check if we have passed the deadline and should stop streaming
-                        # logs
-                        remaining_time = (
-                            deadline - time.monotonic() if deadline else None
-                        )
-                        if deadline and remaining_time <= 0:
-                            break
-
-                except Exception:
-                    logger.warning(
-                        (
-                            "Error occurred while streaming logs - "
-                            "Job will continue to run but logs will "
-                            "no longer be streamed to stdout."
-                        ),
-                        exc_info=True,
-                    )
-
-        with self._get_batch_client(client) as batch_client:
-            # Check if the job is completed before beginning a watch
-            job = batch_client.read_namespaced_job(
-                name=job_name, namespace=configuration.namespace
+            core_client = CoreV1Api(client)
+            logs = await core_client.read_namespaced_pod_log(
+                pod.metadata.name,
+                configuration.namespace,
+                follow=True,
+                _preload_content=False,
+                container="prefect-job",
             )
-            completed = job.status.completion_time is not None
+            try:
+                while True:
+                    line = await logs.content.readline()
+                    if not line:
+                        break
+                    print(line.decode("utf-8"), end="")
 
-            while not completed:
-                remaining_time = (
-                    math.ceil(deadline - time.monotonic()) if deadline else None
-                )
-                if deadline and remaining_time <= 0:
-                    logger.error(
-                        f"Job {job_name!r}: Job did not complete within "
-                        f"timeout of {configuration.job_watch_timeout_seconds}s."
-                    )
-                    return -1
-
-                watch = kubernetes.watch.Watch()
-
-                # The kubernetes library will disable retries if the timeout kwarg is
-                # present regardless of the value so we do not pass it unless given
-                # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
-                watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
-
-                for event in self._job_events(
-                    watch,
-                    batch_client,
-                    job_name,
-                    configuration.namespace,
-                    watch_kwargs,
-                ):
-                    if event["type"] == "DELETED":
-                        logger.error(f"Job {job_name!r}: Job has been deleted.")
-                        completed = True
-                    elif event["object"].status.completion_time:
-                        if not event["object"].status.succeeded:
-                            # Job failed, exit while loop and return pod exit code
-                            logger.error(f"Job {job_name!r}: Job failed.")
-                        completed = True
-                    # Check if the job has reached its backoff limit
-                    # and stop watching if it has
-                    elif (
-                        event["object"].spec.backoff_limit is not None
-                        and event["object"].status.failed is not None
-                        and event["object"].status.failed
-                        > event["object"].spec.backoff_limit
-                    ):
-                        logger.error(f"Job {job_name!r}: Job reached backoff limit.")
-                        completed = True
-                    # If the job has no backoff limit, check if it has failed
-                    # and stop watching if it has
-                    elif (
-                        not event["object"].spec.backoff_limit
-                        and event["object"].status.failed
-                    ):
-                        completed = True
-
-                    if completed:
-                        watch.stop()
+                    # Check if we have passed the deadline and should stop streaming
+                    # logs
+                    remaining_time = deadline - time.monotonic() if deadline else None
+                    if deadline and remaining_time <= 0:
                         break
 
-        with self._get_core_client(client) as core_client:
-            # Get all pods for the job
-            pods = core_client.list_namespaced_pod(
-                namespace=configuration.namespace, label_selector=f"job-name={job_name}"
-            )
-            # Get the status for only the most recently used pod
-            pods.items.sort(
-                key=lambda pod: pod.metadata.creation_timestamp, reverse=True
-            )
-            most_recent_pod = pods.items[0] if pods.items else None
-            first_container_status = (
-                most_recent_pod.status.container_statuses[0]
-                if most_recent_pod
-                else None
-            )
-            if not first_container_status:
-                logger.error(f"Job {job_name!r}: No pods found for job.")
-                return -1
+            except Exception:
+                logger.warning(
+                    (
+                        "Error occurred while streaming logs - "
+                        "Job will continue to run but logs will "
+                        "no longer be streamed to stdout."
+                    ),
+                    exc_info=True,
+                )
 
-            # In some cases, such as spot instance evictions, the pod will be forcibly
-            # terminated and not report a status correctly.
-            elif (
-                first_container_status.state is None
-                or first_container_status.state.terminated is None
-                or first_container_status.state.terminated.exit_code is None
-            ):
+        batch_client = BatchV1Api(client)
+        # Check if the job is completed before beginning a watch
+        job = await batch_client.read_namespaced_job(
+            name=job_name, namespace=configuration.namespace
+        )
+        completed = job.status.completion_time is not None
+
+        while not completed:
+            remaining_time = (
+                math.ceil(deadline - time.monotonic()) if deadline else None
+            )
+            if deadline and remaining_time <= 0:
                 logger.error(
-                    f"Could not determine exit code for {job_name!r}."
-                    "Exit code will be reported as -1."
-                    f"First container status info did not report an exit code."
-                    f"First container info: {first_container_status}."
+                    f"Job {job_name!r}: Job did not complete within "
+                    f"timeout of {configuration.job_watch_timeout_seconds}s."
                 )
                 return -1
+
+            watch = kubernetes.watch.Watch()
+
+            # The kubernetes library will disable retries if the timeout kwarg is
+            # present regardless of the value so we do not pass it unless given
+            # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
+            watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
+
+            async for event in self._job_events(
+                watch,
+                batch_client,
+                job_name,
+                configuration.namespace,
+                watch_kwargs,
+            ):
+                if event["type"] == "DELETED":
+                    logger.error(f"Job {job_name!r}: Job has been deleted.")
+                    completed = True
+                elif event["object"].status.completion_time:
+                    if not event["object"].status.succeeded:
+                        # Job failed, exit while loop and return pod exit code
+                        logger.error(f"Job {job_name!r}: Job failed.")
+                    completed = True
+                # Check if the job has reached its backoff limit
+                # and stop watching if it has
+                elif (
+                    event["object"].spec.backoff_limit is not None
+                    and event["object"].status.failed is not None
+                    and event["object"].status.failed
+                    > event["object"].spec.backoff_limit
+                ):
+                    logger.error(f"Job {job_name!r}: Job reached backoff limit.")
+                    completed = True
+                # If the job has no backoff limit, check if it has failed
+                # and stop watching if it has
+                elif (
+                    not event["object"].spec.backoff_limit
+                    and event["object"].status.failed
+                ):
+                    completed = True
+
+                if completed:
+                    watch.stop()
+                    break
+
+        core_client = CoreV1Api(client)
+        # Get all pods for the job
+        pods = await core_client.list_namespaced_pod(
+            namespace=configuration.namespace, label_selector=f"job-name={job_name}"
+        )
+        # Get the status for only the most recently used pod
+        pods.items.sort(key=lambda pod: pod.metadata.creation_timestamp, reverse=True)
+        most_recent_pod = pods.items[0] if pods.items else None
+        first_container_status = (
+            most_recent_pod.status.container_statuses[0] if most_recent_pod else None
+        )
+        if not first_container_status:
+            logger.error(f"Job {job_name!r}: No pods found for job.")
+            return -1
+
+        # In some cases, such as spot instance evictions, the pod will be forcibly
+        # terminated and not report a status correctly.
+        elif (
+            first_container_status.state is None
+            or first_container_status.state.terminated is None
+            or first_container_status.state.terminated.exit_code is None
+        ):
+            logger.error(
+                f"Could not determine exit code for {job_name!r}."
+                "Exit code will be reported as -1."
+                f"First container status info did not report an exit code."
+                f"First container info: {first_container_status}."
+            )
+            return -1
 
         return first_container_status.state.terminated.exit_code
 
-    def _get_job(
+    async def _get_job(
         self,
         logger: logging.Logger,
         job_id: str,
@@ -1109,17 +1090,18 @@ class KubernetesWorker(BaseWorker):
         client: "ApiClient",
     ) -> Optional["V1Job"]:
         """Get a Kubernetes job by id."""
-        with self._get_batch_client(client) as batch_client:
-            try:
-                job = batch_client.read_namespaced_job(
-                    name=job_id, namespace=configuration.namespace
-                )
-            except kubernetes.client.exceptions.ApiException:
-                logger.error(f"Job {job_id!r} was removed.", exc_info=True)
-                return None
-            return job
 
-    def _get_job_pod(
+        batch_client = BatchV1Api(client)
+        try:
+            job = await batch_client.read_namespaced_job(
+                name=job_id, namespace=configuration.namespace
+            )
+        except kubernetes.client.exceptions.ApiException:
+            logger.error(f"Job {job_id!r} was removed.", exc_info=True)
+            return None
+        return job
+
+    async def _get_job_pod(
         self,
         logger: logging.Logger,
         job_name: str,
@@ -1127,32 +1109,33 @@ class KubernetesWorker(BaseWorker):
         client: "ApiClient",
     ) -> Optional["V1Pod"]:
         """Get the first running pod for a job."""
-        from kubernetes.client.models import V1Pod
+        from kubernetes_asyncio.client.models import V1Pod
 
         watch = kubernetes.watch.Watch()
         logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
         last_pod_name: Optional[str] = None
-        with self._get_core_client(client) as core_client:
-            for event in watch.stream(
-                func=core_client.list_namespaced_pod,
-                namespace=configuration.namespace,
-                label_selector=f"job-name={job_name}",
-                timeout_seconds=configuration.pod_watch_timeout_seconds,
-            ):
-                pod: V1Pod = event["object"]
-                last_pod_name = pod.metadata.name
+        core_client = CoreV1Api(client)
+        async for event in watch.stream(
+            func=core_client.list_namespaced_pod,
+            namespace=configuration.namespace,
+            label_selector=f"job-name={job_name}",
+            timeout_seconds=configuration.pod_watch_timeout_seconds,
+        ):
+            pod: V1Pod = event["object"]
+            last_pod_name = pod.metadata.name
 
-                phase = pod.status.phase
-                if phase != last_phase:
-                    logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
+            phase = pod.status.phase
+            if phase != last_phase:
+                logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
 
-                if phase != "Pending":
-                    watch.stop()
-                    return pod
+            if phase != "Pending":
+                watch.stop()
+                return pod
 
-                last_phase = phase
+            last_phase = phase
 
+        await watch.close()
         # If we've gotten here, we never found the Pod that was created for the flow run
         # Job, so let's inspect the situation and log what we can find.  It's possible
         # that the Job ran into scheduling constraints it couldn't satisfy, like
@@ -1171,7 +1154,7 @@ class KubernetesWorker(BaseWorker):
     ) -> None:
         """Look for reasons why a Job may not have been able to schedule a Pod, or why
         a Pod may not have been able to start and log them to the provided logger."""
-        from kubernetes.client.models import CoreV1Event, CoreV1EventList
+        from kubernetes_asyncio.client.models import CoreV1Event, CoreV1EventList
 
         def best_event_time(event: CoreV1Event) -> datetime:
             """Choose the best timestamp from a Kubernetes event"""
@@ -1197,7 +1180,8 @@ class KubernetesWorker(BaseWorker):
                     event.message,
                 )
 
-        with self._get_core_client(client) as core_client:
+            core_client = CoreV1Api(client)
+
             events: CoreV1EventList = core_client.list_namespaced_event(
                 configuration.namespace
             )
