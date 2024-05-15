@@ -14,7 +14,7 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
-from prefect.starlette import status
+from starlette import status
 
 PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 

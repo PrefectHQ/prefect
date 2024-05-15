@@ -17,9 +17,9 @@ from prefect.client.schemas.filters import LogFilter, TaskRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
-from prefect.starlette import status
 from rich.pretty import Pretty
 from rich.table import Table
+from starlette import status
 
 task_run_app = PrefectTyper(
     name="task-run", help="Commands for interacting with task runs."

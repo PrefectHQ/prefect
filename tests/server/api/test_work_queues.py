@@ -16,8 +16,8 @@ else:
 import pytest
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
-from prefect.starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 
 @pytest.fixture(autouse=True)

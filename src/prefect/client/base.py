@@ -35,9 +35,9 @@ from prefect.settings import (
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
 )
-from prefect.starlette import status
-from prefect.starlette.testclient import TestClient
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
+from starlette import status
+from starlette.testclient import TestClient
 from typing_extensions import Self
 
 # Datastores for lifespan management, keys should be a tuple of thread and app

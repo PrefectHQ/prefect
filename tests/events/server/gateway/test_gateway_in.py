@@ -8,7 +8,7 @@ from prefect.fastapi.testclient import TestClient
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import Event
 from prefect.server.events.storage import database
-from prefect.starlette.testclient import WebSocketTestSession
+from starlette.testclient import WebSocketTestSession
 
 
 @pytest.fixture(autouse=True)

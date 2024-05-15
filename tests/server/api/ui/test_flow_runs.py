@@ -11,7 +11,7 @@ import pytest
 from prefect.server import models
 from prefect.server.api.ui.flow_runs import SimpleFlowRun
 from prefect.server.schemas import actions, states
-from prefect.starlette import status
+from starlette import status
 
 
 @pytest.fixture

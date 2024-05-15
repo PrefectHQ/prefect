@@ -16,8 +16,8 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
-from prefect.starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 RESERVED_POOL_NAMES = [
     "Prefect",

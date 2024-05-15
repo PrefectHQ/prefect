@@ -21,10 +21,10 @@ from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
 from prefect.runner import Runner
-from prefect.starlette import status
 from prefect.states import State
 from rich.pretty import Pretty
 from rich.table import Table
+from starlette import status
 
 flow_run_app = PrefectTyper(
     name="flow-run", help="Commands for interacting with flow runs."

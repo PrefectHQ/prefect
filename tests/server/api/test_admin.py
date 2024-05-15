@@ -1,6 +1,6 @@
 import prefect
 from prefect.server import models
-from prefect.starlette import status
+from starlette import status
 
 
 async def test_version(client):

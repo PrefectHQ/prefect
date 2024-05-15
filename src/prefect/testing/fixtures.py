@@ -21,9 +21,9 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
-from prefect.starlette.status import WS_1008_POLICY_VIOLATION
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.processutils import open_process
+from starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 

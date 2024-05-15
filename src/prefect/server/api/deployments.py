@@ -24,7 +24,6 @@ from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
-from prefect.starlette.background import BackgroundTasks
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -35,6 +34,7 @@ from prefect.utilities.schema_tools.validation import (
     ValidationError,
     validate,
 )
+from starlette.background import BackgroundTasks
 
 router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 

@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from prefect.server import schemas
 from prefect.server.schemas.actions import ConcurrencyLimitCreate
-from prefect.starlette import status
+from starlette import status
 
 
 class TestConcurrencyLimits:

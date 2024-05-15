@@ -3,11 +3,11 @@ from typing import Optional
 from prefect.fastapi import (
     WebSocket,
 )
-from prefect.starlette.status import (
+from starlette.status import (
     WS_1002_PROTOCOL_ERROR,
     WS_1008_POLICY_VIOLATION,
 )
-from prefect.starlette.websockets import WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 
 NORMAL_DISCONNECT_EXCEPTIONS = (IOError, ConnectionClosed, WebSocketDisconnect)

@@ -15,7 +15,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
-from prefect.starlette import status
+from starlette import status
 
 
 def assert_status_events(deployment_name: str, events: List[str]):

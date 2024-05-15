@@ -41,9 +41,9 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     temporary_settings,
 )
-from prefect.starlette import status
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import parse_image_tag
+from starlette import status
 
 
 @flow(version="test")

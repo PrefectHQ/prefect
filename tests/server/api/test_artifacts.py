@@ -11,7 +11,7 @@ else:
 import pytest
 from prefect.server import models, schemas
 from prefect.server.schemas import actions
-from prefect.starlette import status
+from starlette import status
 
 
 @pytest.fixture

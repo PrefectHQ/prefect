@@ -47,8 +47,8 @@ from prefect.settings import (
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_UI_SERVE_BASE,
 )
-from prefect.starlette.exceptions import HTTPException
 from prefect.utilities.hashing import hash_objects
+from starlette.exceptions import HTTPException
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"

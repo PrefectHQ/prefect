@@ -16,10 +16,10 @@ from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.cli.root import app
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
-from prefect.starlette import status
 from prefect.utilities.collections import AutoEnum
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+from starlette import status
 
 profile_app = PrefectTyper(
     name="profile", help="Commands for interacting with your Prefect profiles."

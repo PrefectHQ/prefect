@@ -4,9 +4,9 @@ from prefect import settings
 from prefect.fastapi import status
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.starlette.middleware.base import BaseHTTPMiddleware
-from prefect.starlette.requests import Request
-from prefect.starlette.responses import JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 NextMiddlewareFunction = Callable[[Request], Awaitable[Response]]
 

@@ -11,7 +11,7 @@ else:
 
 import pytest
 from prefect.server import models, schemas
-from prefect.starlette import status
+from starlette import status
 
 
 class TestCreateFlow:

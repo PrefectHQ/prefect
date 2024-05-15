@@ -14,9 +14,9 @@ from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
 )
-from prefect.starlette.testclient import TestClient, WebSocketTestSession
 from prefect.states import Scheduled
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.testclient import TestClient, WebSocketTestSession
 
 
 @pytest.fixture

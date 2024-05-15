@@ -25,9 +25,9 @@ from prefect.server.events.storage import (
 )
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
-from prefect.starlette.requests import Request
-from prefect.starlette.status import WS_1002_PROTOCOL_ERROR
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
+from starlette.status import WS_1002_PROTOCOL_ERROR
 
 logger = get_logger(__name__)
 

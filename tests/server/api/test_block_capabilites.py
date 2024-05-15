@@ -1,7 +1,7 @@
 import pytest
 from prefect.blocks.core import Block
 from prefect.server import models
-from prefect.starlette import status
+from starlette import status
 
 
 @pytest.fixture

@@ -131,8 +131,8 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
-from prefect.starlette import status
 from prefect.utilities.collections import AutoEnum
+from starlette import status
 from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:

@@ -6,7 +6,7 @@ import pytest
 from prefect.server import models, schemas
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
-from prefect.starlette import status
+from starlette import status
 
 
 class TestCreateTaskRun:

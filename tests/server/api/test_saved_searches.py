@@ -4,7 +4,7 @@ import pendulum
 import pytest
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import SavedSearchCreate
-from prefect.starlette import status
+from starlette import status
 
 
 class TestCreateSavedSearch:

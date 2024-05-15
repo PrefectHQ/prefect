@@ -18,8 +18,8 @@ from prefect.settings import (
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
     temporary_settings,
 )
-from prefect.starlette import status
 from prefect.testing.utilities import AsyncMock
+from starlette import status
 
 now = datetime.now(timezone.utc)
 

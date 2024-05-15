@@ -5,7 +5,7 @@ from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_SERVER_CSRF_PROTECTION_ENABLED
-from prefect.starlette.exceptions import HTTPException
+from starlette.exceptions import HTTPException
 
 logger = get_logger("server.api")
 

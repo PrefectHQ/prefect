@@ -31,7 +31,7 @@ from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
-from prefect.starlette.websockets import WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnect
 
 logger = get_logger("server.api")
 

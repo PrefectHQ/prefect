@@ -23,8 +23,8 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.starlette import status
 from prefect.testing.cli import invoke_and_assert
+from starlette import status
 from typer import Exit
 
 

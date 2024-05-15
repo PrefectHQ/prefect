@@ -12,7 +12,7 @@ from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
 from prefect.server.schemas.responses import DeploymentResponse
-from prefect.starlette import status
+from starlette import status
 from typing_extensions import Self
 
 logger = get_logger(__name__)

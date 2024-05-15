@@ -21,7 +21,7 @@ from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.schemas.states import StateType
-from prefect.starlette import status
+from starlette import status
 
 
 class TestCreateFlowRun:
