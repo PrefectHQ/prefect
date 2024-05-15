@@ -2,7 +2,6 @@ import anyio
 from packaging.version import Version
 
 import prefect
-from prefect.deployments import Deployment
 from prefect.utilities.callables import parameter_schema
 
 
