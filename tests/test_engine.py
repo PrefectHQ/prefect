@@ -5,7 +5,7 @@ import threading
 import time
 import warnings
 from contextlib import contextmanager
-from typing import List
+from typing import TYPE_CHECKING, List
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -23,7 +23,7 @@ else:
 import prefect.flows
 from prefect import engine, flow, task
 from prefect._internal.compatibility.experimental import ExperimentalFeature
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
@@ -91,6 +91,9 @@ from prefect.utilities.engine import (
     link_state_to_result,
     propose_state,
 )
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @pytest.fixture
@@ -347,7 +350,7 @@ class TestBlockingPause:
         assert schema is not None
 
     async def test_paused_flows_can_receive_automatic_input(
-        self, prefect_client: PrefectClient
+        self, prefect_client: "PrefectClient"
     ):
         flow_run_id = None
 
@@ -2076,7 +2079,7 @@ class TestOrchestrateTaskRun:
     async def test_proposes_unknown_result_if_state_is_completed_and_result_data_is_missing(
         self,
         mock_anyio_sleep,
-        prefect_client: PrefectClient,
+        prefect_client: "PrefectClient",
         flow_run,
         result_factory,
         local_filesystem,
@@ -2386,7 +2389,7 @@ class TestFlowRunCrashes:
         try:
             yield
         except BaseException:
-            # In python 3.8+ cancellation raises a `BaseException` that will not
+            # In Python 3.8+ cancellation raises a `BaseException` that will not
             # be captured by `orchestrate_flow_run` and needs to be trapped here to
             # prevent the test from failing before we can assert things are 'Crashed'
             pass

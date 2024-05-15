@@ -7,7 +7,11 @@ The `prefect-ray` integration makes it easy speed up your flow runs by integrati
 
 ### Prerequisites
 
+<<<<<<< HEAD
 - [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
+=======
+Requires an installation of Python 3.9 or newer.
+>>>>>>> main
 
 ### Install prefect-ray
 
@@ -82,7 +86,7 @@ from prefect_ray.task_runners import RayTaskRunner
 
 @flow(task_runner=RayTaskRunner())
 def my_flow():
-    ... 
+    ...
 ```
 
 This flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`.
@@ -93,15 +97,15 @@ from prefect_ray.task_runners import RayTaskRunner
 
 @flow(task_runner=RayTaskRunner(address="ray://192.0.2.255:8786"))
 def my_flow():
-    ... 
+    ...
 ```
 
 `RayTaskRunner` accepts the following optional parameters:
 
-| Parameter | Description |
-| --- | --- |
-| address | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
-| init_kwargs | Additional kwargs to use when calling `ray.init`. |
+| Parameter   | Description                                                                                                                         |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| address     | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
+| init_kwargs | Additional kwargs to use when calling `ray.init`.                                                                                   |
 
 Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
@@ -198,9 +202,3 @@ def my_flow():
     with remote_options(num_cpus=4, num_gpus=2):
         process.submit(42)
 ```
-
-## Resources
-
-Refer to the prefect-ray API documentation linked in the sidebar to explore all the capabilities of the prefect-ray library.
-
-For assistance using Dask, consult the [Ray documentation](https://docs.ray.io/en/latest/index.html).

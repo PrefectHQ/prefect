@@ -147,16 +147,16 @@ class TestCreateWorkPool:
         )
         assert response.status_code == status.HTTP_409_CONFLICT
 
-    @pytest.mark.parametrize("name", ["hi/there", "hi%there"])
+    @pytest.mark.parametrize("name", ["", "hi/there", "hi%there"])
     async def test_create_work_pool_with_invalid_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    @pytest.mark.parametrize("name", ["", "''", " ", "' ' "])
-    async def test_create_work_pool_with_empty_name(self, client, name):
+    @pytest.mark.parametrize("name", ["''", " ", "' ' "])
+    async def test_create_work_pool_with_emptyish_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "name cannot be empty" in response.json()["detail"]
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert "name cannot be an empty string" in response.content.decode()
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):

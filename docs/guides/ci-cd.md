@@ -8,34 +8,34 @@ search:
   boost: 2
 ---
 
-# CI/CD With Prefect
+# CI/CD with Prefect
 
-Many organizations deploy Prefect workflows via their CI/CD process.
+Many organizations deploy Prefect workflows through their CI/CD process.
 Each organization has their own unique CI/CD setup, but a common pattern is to use CI/CD to manage Prefect [deployments](/concepts/deployments).
 Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code updates, scheduling changes, and container builds.
 This guide uses [GitHub Actions](https://docs.github.com/en/actions) to implement a CI/CD process, but these concepts are generally applicable across many CI/CD tools.
 
-Note that Prefect's primary ways for creating deployments, a `.deploy` flow method or a `prefect.yaml` configuration file, are both designed with building and pushing images to a Docker registry in mind.
+Note that Prefect's primary ways for creating deployments, a `.deploy` flow method or a `prefect.yaml` configuration file, are both designed for building and pushing images to a Docker registry.
 
-## Getting started with GitHub Actions and Prefect
+## Get started with GitHub Actions and Prefect
 
-In this example, you'll write a GitHub Actions workflow that will run each time you push to your repository's `main` branch. This workflow will build and push a Docker image containing your flow code to Docker Hub, then deploy the flow to Prefect Cloud.
+In this example, you'll write a GitHub Actions workflow that runs each time you push to your repository's `main` branch. This workflow builds and pushes a Docker image containing your flow code to Docker Hub, then deploys the flow to Prefect Cloud.
 
 ### Repository secrets
 
 Your CI/CD process must be able to authenticate with Prefect in order to deploy flows.
 
-Deploying flows securely and non-interactively in your CI/CD process can be accomplished by saving your `PREFECT_API_URL` and `PREFECT_API_KEY` [as secrets in your repository's settings](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions) so they can be accessed in your CI/CD runner's environment without exposing them in any scripts or configuration files.
+Deploy flows securely and non-interactively in your CI/CD process by saving your `PREFECT_API_URL` and `PREFECT_API_KEY` [as secrets in your repository's settings](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions). This allows them to be accessed in your CI/CD runner's environment without exposing them in any scripts or configuration files.
 
 In this scenario, deploying flows involves building and pushing Docker images, so add `DOCKER_USERNAME` and `DOCKER_PASSWORD` as secrets to your repository as well.
 
-You can create secrets for GitHub Actions in your repository under **Settings -> Secrets and variables -> Actions -> New repository secret**:
+Create secrets for GitHub Actions in your repository under **Settings -> Secrets and variables -> Actions -> New repository secret**:
 
 ![Creating a GitHub Actions secret](/img/guides/github-secrets.png)
 
-### Writing a GitHub workflow
+### Write a GitHub workflow
 
-To deploy your flow via GitHub Actions, you'll need a workflow YAML file. GitHub will look for workflow YAML files in the `.github/workflows/` directory in the root of your repository. In their simplest form, GitHub workflow files are made up of triggers and jobs.
+To deploy your flow through GitHub Actions, you need a workflow YAML file. GitHub looks for workflow YAML files in the `.github/workflows/` directory in the root of your repository. In their simplest form, GitHub workflow files are made up of triggers and jobs.
 
 The `on:` trigger is set to run the workflow each time a push occurs on the `main` branch of the repository.
 
@@ -208,13 +208,13 @@ For reference, the examples below can be found on their respective branches of [
               prefect deploy -n my-deployment
     ```
 
-### Running a GitHub workflow
+### Run a GitHub workflow
 
-After pushing commits to your repository, GitHub will automatically trigger a run of your workflow. The status of running and completed workflows can be monitored from the **Actions** tab of your repository.
+After pushing commits to your repository, GitHub automatically triggers a run of your workflow. Monitor the status of running and completed workflows from the **Actions** tab of your repository.
 
 ![A GitHub Action triggered via push](/img/guides/github-actions-trigger.png)
 
-You can view the logs from each workflow step as they run. The `Prefect Deploy` step will include output about your image build and push, and the creation/update of your deployment.
+View the logs from each workflow step as they run. The `Prefect Deploy` step includes output about your image build and push, and the creation/update of your deployment.
 
 <div class="terminal">
 ```bash
@@ -242,9 +242,9 @@ In more complex scenarios, CI/CD processes often need to accommodate several add
 - Handling independent deployment of distinct groupings of work, as in a monorepo
 - Efficiently using build time to avoid repeated work
 
-This [example repository](https://github.com/prefecthq/cicd-example-workspaces) demonstrates how each of these considerations can be addressed using a combination of Prefect's and GitHub's capabilities.
+This [example repository](https://github.com/prefecthq/cicd-example-workspaces) demonstrates addressing each of these considerations with a combination of Prefect's and GitHub's capabilities.
 
-### Deploying to multiple workspaces
+### Deploy to multiple workspaces
 
 Which deployment processes should run are automatically selected when changes are pushed depending on two conditions:
 
@@ -258,7 +258,7 @@ on:
       - "project_1/**"
 ```
 
-1. **`branches:`** - which branch has changed. This will ultimately select which Prefect workspace a deployment is created or updated in. In this example, changes on the `stg` branch will deploy flows to a staging workspace, and changes on the `main` branch will deploy flows to a production workspace.
+1. **`branches:`** - which branch has changed. This ultimately selects which Prefect workspace a deployment is created or updated in. In this example, changes on the `stg` branch will deploy flows to a staging workspace, and changes on the `main` branch will deploy flows to a production workspace.
 2. **`paths:`** - which project folders' files have changed. Since each project folder contains its own flows, dependencies, and `prefect.yaml`, it represents a complete set of logic and configuration that can be deployed independently. Each project in this repository gets its own GitHub Actions workflow YAML file.
 
 The `prefect.yaml` file in each project folder depends on environment variables that are dictated by the selected job in each CI/CD workflow, enabling external code storage for Prefect deployments that is clearly separated across projects and environments.
@@ -329,7 +329,7 @@ CACHED
 
 Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth) and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy). These actions can simplify deploying with CI/CD when using `prefect.yaml`, especially in cases where a repository contains flows that are used in multiple deployments across multiple Prefect Cloud workspaces.
 
-Here's an example of integrating these actions into the workflow we created above:
+Here's an example of integrating these actions into the workflow above:
 
 ```yaml
 name: Deploy Prefect flow
@@ -372,7 +372,7 @@ jobs:
           requirements-file-paths: requirements.txt
 ```
 
-## Authenticating to other Docker image registries
+## Authenticate to other Docker image registries
 
 The `docker/login-action` GitHub Action supports pushing images to a wide variety of image registries.
 

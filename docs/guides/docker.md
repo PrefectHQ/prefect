@@ -141,9 +141,9 @@ We can check that our build worked by running a container from our new image.
 
 === "Cloud"
 
-    Our container will need an API URL and and API key to communicate with Prefect Cloud. 
-    
-    - You can get an API key from the [API Keys](https://docs.prefect.io/2.12.0/cloud/users/api-keys/) section of the user settings in the Prefect UI. 
+    Our container will need an API URL and and API key to communicate with Prefect Cloud.
+
+    - You can get an API key from the [API Keys](https://docs.prefect.io/2.12.0/cloud/users/api-keys/) section of the user settings in the Prefect UI.
 
     - You can get your API URL by running `prefect config view` and copying the `PREFECT_API_URL` value.
 
@@ -157,10 +157,10 @@ We can check that our build worked by running a container from our new image.
 
 === "Self-hosted"
 
-    Our container will need an API URL and network access to communicate with the Prefect API. 
-    
+    Our container will need an API URL and network access to communicate with the Prefect API.
+
     For this guide, we'll assume the Prefect API is running on the same machine that we'll run our container on and the Prefect API was started with `prefect server start`. If you're running a different setup, check out the [Hosting a Prefect server guide](/guides/host/) for information on how to connect to your Prefect API instance.
-    
+
     To ensure that our flow container can communicate with the Prefect API, we'll set our `PREFECT_API_URL` to `http://host.docker.internal:4200/api`. If you're running Linux, you'll need to set your `PREFECT_API_URL` to `http://localhost:4200/api` and use the `--network="host"` option instead.
 
     ```bash
@@ -293,58 +293,58 @@ Additionally, we have "convenience" tags which are updated with each release to 
 
 For example, when release `2.11.5` is published:
 
-1. Images with the release packaged are built for each supported Python version (3.8, 3.9, 3.10, 3.11) with both standard Python and Conda.
-2. These images are tagged with the full description, e.g. `prefect:2.1.1-python3.10` and `prefect:2.1.1-python3.10-conda`.
-3. For users that want more specific pins, these images are also tagged with the SHA of the git commit of the release, e.g. `sha-88a7ff17a3435ec33c95c0323b8f05d7b9f3f6d2-python3.10`
-4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release, e.g. `prefect.2.1-python3.10`.
-5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release, e.g. `prefect.2-python3.10`
-6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version, which in this case would be equivalent to `prefect:2.1.1-python3.10`.
+1. Images with the release packaged are built for each supported Python version (3.9, 3.10, 3.11, 3.12) with both standard Python and Conda.
+2. These images are tagged with the full description, e.g. `prefect:2.1.1-python3.11` and `prefect:2.1.1-python3.11-conda`.
+3. For users that want more specific pins, these images are also tagged with the SHA of the git commit of the release, e.g. `sha-88a7ff17a3435ec33c95c0323b8f05d7b9f3f6d2-python3.11`
+4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release, e.g. `prefect.2.1-python3.11`.
+5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release, e.g. `prefect.2-python3.11`
+6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `3-latest` to the image for our highest supported Python version, which in this case would be equivalent to `prefect:2.1.1-python3.11`.
 
 !!! tip "Choose image versions carefully"
     It's a good practice to use Docker images with specific Prefect versions in production.
 
-    Use care when employing images that automatically update to new versions (such as `prefecthq/prefect:2-python3.11` or `prefecthq/prefect:2-latest`).
+    Use care when employing images that automatically update to new versions (such as `prefecthq/prefect:2-python3.11` or `prefecthq/prefect:3-latest`).
 
 ### Standard Python
 
 Standard Python images are based on the official Python `slim` images, e.g. `python:3.10-slim`.
 
-| Tag                   |       Prefect Version       | Python Version  |
-| --------------------- | :-------------------------: | -------------:  |
-| 2-latest              | most recent v2 PyPi version |            3.10 |
-| 2-python3.11          | most recent v2 PyPi version |            3.11 |
-| 2-python3.10          | most recent v2 PyPi version |            3.10 |
-| 2-python3.9           | most recent v2 PyPi version |            3.9  |
-| 2-python3.8           | most recent v2 PyPi version |            3.8  |
-| 2.X-python3.11        |             2.X             |            3.11 |
-| 2.X-python3.10        |             2.X             |            3.10 |
-| 2.X-python3.9         |             2.X             |            3.9  |
-| 2.X-python3.8         |             2.X             |            3.8  |
-| sha-&lt;hash&gt;-python3.11 |            &lt;hash&gt;           |            3.11 |
-| sha-&lt;hash&gt;-python3.10 |            &lt;hash&gt;           |            3.10 |
-| sha-&lt;hash&gt;-python3.9  |            &lt;hash&gt;           |            3.9  |
-| sha-&lt;hash&gt;-python3.8  |            &lt;hash&gt;           |            3.8  |
+| Tag                         |       Prefect Version       | Python Version |
+| --------------------------- | :-------------------------: | -------------: |
+| 3-latest                    | most recent v2 PyPi version |           3.10 |
+| 3-python3.12                | most recent v2 PyPi version |           3.12 |
+| 3-python3.11                | most recent v2 PyPi version |           3.11 |
+| 3-python3.10                | most recent v2 PyPi version |           3.10 |
+| 3-python3.9                 | most recent v2 PyPi version |            3.9 |
+| 3.X-python3.12              |             2.X             |           3.12 |
+| 3.X-python3.11              |             2.X             |           3.11 |
+| 3.X-python3.10              |             2.X             |           3.10 |
+| 3.X-python3.9               |             2.X             |            3.9 |
+| sha-&lt;hash&gt;-python3.12 |        &lt;hash&gt;         |           3.12 |
+| sha-&lt;hash&gt;-python3.11 |        &lt;hash&gt;         |           3.11 |
+| sha-&lt;hash&gt;-python3.10 |        &lt;hash&gt;         |           3.10 |
+| sha-&lt;hash&gt;-python3.9  |        &lt;hash&gt;         |            3.9 |
 
 ### Conda-flavored Python
 
 Conda flavored images are based on `continuumio/miniconda3`.
 Prefect is installed into a conda environment named `prefect`.
 
-| Tag                         |       Prefect Version       | Python Version  |
-| --------------------------- | :-------------------------: | -------------:  |
-| 2-latest-conda              | most recent v2 PyPi version |            3.10 |
-| 2-python3.11-conda          | most recent v2 PyPi version |            3.11 |
-| 2-python3.10-conda          | most recent v2 PyPi version |            3.10 |
-| 2-python3.9-conda           | most recent v2 PyPi version |            3.9  |
-| 2-python3.8-conda           | most recent v2 PyPi version |            3.8  |
-| 2.X-python3.11-conda        |             2.X             |            3.11 |
-| 2.X-python3.10-conda        |             2.X             |            3.10 |
-| 2.X-python3.9-conda         |             2.X             |            3.9  |
-| 2.X-python3.8-conda         |             2.X             |            3.8  |
-| sha-&lt;hash&gt;-python3.11-conda |            &lt;hash&gt;           |            3.11 |
-| sha-&lt;hash&gt;-python3.10-conda |            &lt;hash&gt;           |            3.10 |
-| sha-&lt;hash&gt;-python3.9-conda  |            &lt;hash&gt;           |            3.9  |
-| sha-&lt;hash&gt;-python3.8-conda  |            &lt;hash&gt;           |            3.8  |
+| Tag                               |       Prefect Version       | Python Version |
+| --------------------------------- | :-------------------------: | -------------: |
+| 3-latest-conda                    | most recent v3 PyPi version |           3.10 |
+| 3-python3.12-conda                | most recent v3 PyPi version |           3.12 |
+| 3-python3.11-conda                | most recent v3 PyPi version |           3.11 |
+| 3-python3.10-conda                | most recent v3 PyPi version |           3.10 |
+| 3-python3.9-conda                 | most recent v3 PyPi version |            3.9 |
+| 3.X-python3.12-conda              |             3.X             |           3.12 |
+| 3.X-python3.11-conda              |             3.X             |           3.11 |
+| 3.X-python3.10-conda              |             3.X             |           3.10 |
+| 3.X-python3.9-conda               |             3.X             |            3.9 |
+| sha-&lt;hash&gt;-python3.12-conda |        &lt;hash&gt;         |           3.12 |
+| sha-&lt;hash&gt;-python3.11-conda |        &lt;hash&gt;         |           3.11 |
+| sha-&lt;hash&gt;-python3.10-conda |        &lt;hash&gt;         |           3.10 |
+| sha-&lt;hash&gt;-python3.9-conda  |        &lt;hash&gt;         |            3.9 |
 
 ## Building your own image
 
@@ -352,17 +352,17 @@ If your flow relies on dependencies not found in the default `prefecthq/prefect`
 base it off of one of the provided `prefecthq/prefect` images, or build your own image.
 See the [Work pool deployment guide](/guides/prefect-deploy/) for discussion of how Prefect can help you build custom images with dependencies specified in a `requirements.txt` file.
 
-By default, Prefect [work pools](/concepts/work-pools) that use containers refer to the `2-latest` image.
+By default, Prefect [work pools](/concepts/work-pools) that use containers refer to the `3-latest` image.
 You can specify another image at work pool creation.
 The work pool image choice can be overridden in individual deployments.
 
 ### Extending the `prefecthq/prefect` image manually
 
 Here we provide an example `Dockerfile` for building an image based on
-`prefecthq/prefect:2-latest`, but with `scikit-learn` installed.
+`prefecthq/prefect:3-latest`, but with `scikit-learn` installed.
 
 ```dockerfile
-FROM prefecthq/prefect:2-latest
+FROM prefecthq/prefect:3-latest
 
 RUN pip install scikit-learn
 ```

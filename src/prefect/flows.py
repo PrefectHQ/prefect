@@ -8,6 +8,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 import datetime
 import inspect
 import os
+import re
 import tempfile
 import warnings
 from functools import partial, update_wrapper
@@ -34,34 +35,16 @@ from typing import (
 )
 from uuid import UUID
 
+import pydantic.v1 as pydantic
+from prefect._vendor.fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError as V2ValidationError
+from pydantic.v1 import BaseModel as V1BaseModel
+from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic import ValidationError as V2ValidationError
-    from pydantic.v1 import BaseModel as V1BaseModel
-    from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
-
-    from ._internal.pydantic.v2_schema import is_v2_type
-    from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
-    from ._internal.pydantic.v2_validated_func import (
-        V2ValidatedFunction as ValidatedFunction,
-    )
-
-else:
-    import pydantic
-    from pydantic.decorator import ValidatedFunction
-
-    V2ValidationError = None
-
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect._internal.schemas.validators import raise_on_name_with_banned_characters
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
@@ -70,6 +53,7 @@ from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
+    InvalidNameError,
     MissingFlowError,
     ObjectNotFound,
     ParameterTypeError,
@@ -94,6 +78,7 @@ from prefect.settings import (
 )
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 from prefect.utilities.callables import (
@@ -115,6 +100,12 @@ from prefect.utilities.visualization import (
     get_task_viz_tracker,
     track_viz_task,
     visualize_task_dependencies,
+)
+
+from ._internal.pydantic.v2_schema import is_v2_type
+from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
+from ._internal.pydantic.v2_validated_func import (
+    V2ValidatedFunction as ValidatedFunction,
 )
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -273,7 +264,7 @@ class Flow(Generic[P, R]):
 
         # Validate name if given
         if name:
-            raise_on_name_with_banned_characters(name)
+            _raise_on_name_with_banned_characters(name)
 
         self.name = name or fn.__name__.replace("_", "-")
 
@@ -503,30 +494,24 @@ class Flow(Generic[P, R]):
         """
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
-        if HAS_PYDANTIC_V2:
-            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
-                isinstance(o, V1BaseModel) for o in kwargs.values()
+        has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
+            isinstance(o, V1BaseModel) for o in kwargs.values()
+        )
+        has_v2_types = any(is_v2_type(o) for o in args) or any(
+            is_v2_type(o) for o in kwargs.values()
+        )
+
+        if has_v1_models and has_v2_types:
+            raise ParameterTypeError(
+                "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
             )
-            has_v2_types = any(is_v2_type(o) for o in args) or any(
-                is_v2_type(o) for o in kwargs.values()
+
+        if has_v1_models:
+            validated_fn = V1ValidatedFunction(
+                self.fn, config={"arbitrary_types_allowed": True}
             )
-
-            if has_v1_models and has_v2_types:
-                raise ParameterTypeError(
-                    "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
-                )
-
-            if has_v1_models:
-                validated_fn = V1ValidatedFunction(
-                    self.fn, config={"arbitrary_types_allowed": True}
-                )
-            else:
-                validated_fn = V2ValidatedFunction(
-                    self.fn, config={"arbitrary_types_allowed": True}
-                )
-
         else:
-            validated_fn = ValidatedFunction(
+            validated_fn = V2ValidatedFunction(
                 self.fn, config={"arbitrary_types_allowed": True}
             )
 
@@ -667,7 +652,8 @@ class Flow(Generic[P, R]):
         from prefect.deployments.runner import RunnerDeployment
 
         if not name.endswith(".py"):
-            raise_on_name_with_banned_characters(name)
+            _raise_on_name_with_banned_characters(name)
+
         if self._storage and self._entrypoint:
             return await RunnerDeployment.from_storage(
                 storage=self._storage,
@@ -1549,6 +1535,23 @@ def flow(
                 on_running=on_running,
             ),
         )
+
+
+def _raise_on_name_with_banned_characters(name: str) -> str:
+    """
+    Raise an InvalidNameError if the given name contains any invalid
+    characters.
+    """
+    if name is None:
+        return name
+
+    if not re.match(WITHOUT_BANNED_CHARACTERS, name):
+        raise InvalidNameError(
+            f"Name {name!r} contains an invalid character. "
+            f"Must not contain any of: {BANNED_CHARACTERS}."
+        )
+
+    return name
 
 
 # Add from_source so it is available on the flow function we all know and love
