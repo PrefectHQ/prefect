@@ -33,6 +33,7 @@ from prefect.results import ResultFactory
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
     Paused,
+    Pending,
     Retrying,
     Running,
     StateDetails,
@@ -217,10 +218,20 @@ class TaskRunEngine(Generic[P, R]):
         )
 
     def begin_run(self, wait_for: Optional[Iterable[PrefectFuture]] = None):
-        state_details = self._compute_state_details()
-        self._resolve_parameters()
-        self._wait_for_dependencies()
-        new_state = Running(state_details=state_details)
+        try:
+            self._resolve_parameters()
+            self._wait_for_dependencies()
+        except UpstreamTaskError as upstream_exc:
+            new_state = Pending(
+                name="NotReady",
+                message=str(upstream_exc),
+                # if orchestrating a run already in a pending state, force orchestration to
+                # update the state name
+                force=self.state.is_pending(),
+            )
+        else:
+            state_details = self._compute_state_details()
+            new_state = Running(state_details=state_details)
         state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
