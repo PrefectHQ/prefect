@@ -8,21 +8,16 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
+from pydantic.v1 import AnyHttpUrl, root_validator, validator
+from typing_extensions import Literal
+
 from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.validators import (
     assign_default_base_image,
     base_image_xor_dockerfile,
     set_default_python_environment,
     validate_registry_url,
 )
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import AnyHttpUrl, root_validator, validator
-else:
-    from pydantic import AnyHttpUrl, root_validator, validator
-from typing_extensions import Literal
-
 from prefect.deprecated.packaging.base import PackageManifest, Packager
 from prefect.deprecated.packaging.serializers import SourceSerializer
 from prefect.flows import Flow, load_flow_from_script

@@ -3,15 +3,16 @@ Core set of steps for specifying a Prefect project pull step.
 """
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
-from prefect.blocks.core import Block
 from prefect.logging.loggers import get_logger
 from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import sync_compatible
 
 deployment_logger = get_logger("deployment")
+
+if TYPE_CHECKING:
+    from prefect.blocks.core import Block
 
 
 def set_working_directory(directory: str) -> dict:
@@ -35,7 +36,7 @@ async def git_clone(
     branch: Optional[str] = None,
     include_submodules: bool = False,
     access_token: Optional[str] = None,
-    credentials: Optional[Block] = None,
+    credentials: Optional["Block"] = None,
 ) -> dict:
     """
     Clones a git repository into the current working directory.
@@ -177,6 +178,8 @@ async def pull_with_block(block_document_name: str, block_type_slug: str):
         block_document_name: The name of the block document to use
         block_type_slug: The slug of the type of block to use
     """
+    from prefect.blocks.core import Block
+
     full_slug = f"{block_type_slug}/{block_document_name}"
     try:
         block = await Block.load(full_slug)
@@ -199,20 +202,3 @@ async def pull_with_block(block_document_name: str, block_type_slug: str):
         "Pulled code using block '%s' into '%s'", full_slug, directory
     )
     return {"directory": directory}
-
-
-@deprecated_callable(start_date="Jun 2023", help="Use 'git clone' instead.")
-@sync_compatible
-async def git_clone_project(
-    repository: str,
-    branch: Optional[str] = None,
-    include_submodules: bool = False,
-    access_token: Optional[str] = None,
-) -> dict:
-    """Deprecated. Use `git_clone` instead."""
-    return await git_clone(
-        repository=repository,
-        branch=branch,
-        include_submodules=include_submodules,
-        access_token=access_token,
-    )

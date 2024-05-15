@@ -8,19 +8,14 @@ from uuid import uuid4
 
 import fsspec
 from anyio import run_process
+from pydantic.v1 import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
 
 
 @runtime_checkable

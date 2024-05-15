@@ -20,7 +20,7 @@ Learn how to host your own Prefect server instance.
 !!! note
     If you would like to host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
 
-After installing Prefect, you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), and an [API server](/api-ref/) instance backed by a database and a UI.
+After installing Prefect, you now have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), and an [API server](/api-ref/) instance backed by a database and a UI.
 
 ### Steps
 

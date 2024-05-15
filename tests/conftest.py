@@ -54,7 +54,6 @@ from prefect.settings import (
     PREFECT_CLI_WRAP_LINES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
@@ -335,7 +334,6 @@ def pytest_sessionstart(session):
             PREFECT_UNIT_TEST_MODE: True,
             # Events: disable the event persister, which may lock the DB during
             # tests while writing events
-            PREFECT_EXPERIMENTAL_EVENTS: True,
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
         },
         source=__file__,
@@ -560,12 +558,6 @@ def disable_enhanced_cancellation():
             PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION: 1,
         }
     ):
-        yield
-
-
-@pytest.fixture
-def events_disabled():
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
         yield
 
 
