@@ -15,6 +15,13 @@ from prefect.server.events.schemas.automations import (
     EventTrigger,
     Posture,
 )
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
+
+
+@pytest.fixture(autouse=True)
+def enable_triggers():
+    with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
+        yield
 
 
 @pytest.fixture
