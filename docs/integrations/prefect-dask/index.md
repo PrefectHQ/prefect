@@ -1,6 +1,6 @@
 # prefect-dask
 
-Dask helps you run your flow in parallel and distribute runs over multiple machines.
+[Dask](https://www.dask.org/) helps you run your flow in parallel and distribute runs over multiple machines.
 The `prefect-dask` integration makes it easy speed up your flow runs by integrating Dask into your code.
 
 ## Getting started
@@ -202,4 +202,4 @@ Run the code and check how long it takes each task to complete.
 For additional examples, check out the [Usage Guide](/usage_guide/).
 Refer to the prefect-dask API documentation linked in the sidebar to explore all the capabilities of the prefect-dask library.
 
-For assistance using Dask, consult the [Dask documentation](https://docs.dask.org/en/stable/)
+For assistance using Dask, consult the [Dask documentation](https://docs.dask.org/en/stable/).
