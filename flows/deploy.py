@@ -16,8 +16,7 @@ if Version(prefect.__version__) < Version(SUPPORTED_VERSION):
 
 
 async def main():
-    if Version(prefect.__version__) >= Version("2.10.0"):
-        # tk: let's just see where this fails in compatibility and set version then
+    if Version(prefect.__version__) >= Version("2.19.0"):
         try:
             TEST_SERVER_VERSION = os.environ.get(
                 "TEST_SERVER_VERSION", prefect.__version__
