@@ -125,13 +125,11 @@ prefect worker start -p <work pool name>
 
 To deploy your flows to the new work pool, you can use `flow.deploy` for a Pythonic deployment experience or `prefect deploy` for a YAML-based deployment experience.
 
-If you currently use `Deployment.build_from_flow`, we recommend using `flow.deploy`.
-
 If you currently use `prefect deployment build` and `prefect deployment apply`, we recommend using `prefect deploy`.
 
 ### `flow.deploy`
 
-If you have a Python script that uses `Deployment.build_from_flow`, you can replace it with `flow.deploy`.
+If you have a Python script that uses `Deployment.build_from_flow`, you should replace it with `flow.deploy`.
 
 Most arguments to `Deployment.build_from_flow` can be translated directly to `flow.deploy`, but here are some changes that you may need to make:
 

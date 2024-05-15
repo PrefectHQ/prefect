@@ -26,11 +26,4 @@ search:
 | __[Task Runners](/concepts/task-runners)__         | Configure how tasks are run - concurrently, in parallel, or in a distributed environment. |
 | __[Automations](/concepts/automations)__           | Configure actions that Prefect executes automatically based on trigger conditions.         |
 
-|  Block and Agent-Based Deployments                 | Description   |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| __[Block-based Deployments](/concepts/deployments-block-based)__    | Create deployments that rely on blocks.   |
-| __[Infrastructure](/concepts/infrastructure)__           | Blocks that specify infrastructure for flow runs created by a deployment.   |
-| __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
-| __[Agents](/concepts/agents)__                           | Like untyped workers. |
-
 Many features specific to [Prefect Cloud](/cloud/) are in their own navigation subheading.

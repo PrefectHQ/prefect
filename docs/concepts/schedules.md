@@ -153,9 +153,7 @@ There are several ways to create a schedule for a deployment:
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
   - With the `deployments` -> `schedules` section of the `prefect.yaml` file
-- If using [block-based deployments](/concepts/deployments/#block-based-deployments) - Deprecated 
   - `Through the schedules` section of the deployment YAML file
-  - By passing `schedules` into the `Deployment` class or `Deployment.build_from_flow`
 
 ### Creating schedules in the UI
 
@@ -217,21 +215,6 @@ from datetime import timedelta, datetime
 from prefect.client.schemas.schedules import IntervalSchedule
 
 my_flow.serve(name="flowing", schedule=IntervalSchedule(interval=timedelta(minutes=10), anchor_date=datetime(2023, 1, 1, 0, 0), timezone="America/Chicago"))
-```
-
-Block and agent-based deployments with Python files are not a recommended way to create deployments.
-However, if you are using that deployment creation method you can create a schedule by passing a `schedule` argument to the `Deployment.build_from_flow` method.
-
-Here's how you create the equivalent schedule in a Python deployment file.
-
-```python
-from prefect.server.schemas.schedules import CronSchedule
-
-cron_demo = Deployment.build_from_flow(
-    pipeline,
-    "etl",
-    schedule=(CronSchedule(cron="0 0 * * *", timezone="America/Chicago"))
-)
 ```
 
 ### Creating schedules with the interactive `prefect deploy` command
