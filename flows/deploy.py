@@ -14,12 +14,6 @@ SUPPORTED_VERSION = "2.6.0"
 if Version(prefect.__version__) < Version(SUPPORTED_VERSION):
     raise NotImplementedError()
 
-# .deploy() to create a deployment
-
-# run_deployment to create a flow run
-
-# prefect flow-run execute to run the deployment
-
 
 async def main():
     # if Version(prefect.__version__) >= Version("2.19.0"):
