@@ -372,21 +372,6 @@ def warn_on_database_password_value_without_usage(values):
     return values
 
 
-def check_for_deprecated_cloud_url(settings, value):
-    deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
-    if deprecated_value is not None:
-        warnings.warn(
-            (
-                "`PREFECT_CLOUD_URL` is set and will be used instead of"
-                " `PREFECT_CLOUD_API_URL` for backwards compatibility."
-                " `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL`"
-                " instead."
-            ),
-            DeprecationWarning,
-        )
-    return deprecated_value or value
-
-
 def warn_on_misconfigured_api_url(values):
     """
     Validator for settings warning if the API URL is misconfigured.
@@ -685,21 +670,10 @@ which might be suitable for environments where CSRF protection is disabled.
 Defaults to `True`, ensuring CSRF protection is enabled by default.
 """
 
-PREFECT_CLOUD_API_URL = Setting(
-    str,
-    default="https://api.prefect.cloud/api",
-    value_callback=check_for_deprecated_cloud_url,
-)
+PREFECT_CLOUD_API_URL = Setting(str, default="https://api.prefect.cloud/api")
 """API URL for Prefect Cloud. Used for authentication."""
 
 
-PREFECT_CLOUD_URL = Setting(
-    str,
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Dec 2022",
-    deprecated_help="Use `PREFECT_CLOUD_API_URL` instead.",
-)
 """
 DEPRECATED: Use `PREFECT_CLOUD_API_URL` instead.
 """

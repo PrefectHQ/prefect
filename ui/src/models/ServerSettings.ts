@@ -8,7 +8,6 @@ export type ServerSettings = {
   PREFECT_TEST_SETTING: string,
   PREFECT_API_URL: string,
   PREFECT_API_KEY: string,
-  PREFECT_CLOUD_URL: string,
   PREFECT_API_REQUEST_TIMEOUT: number,
   PREFECT_PROFILES_PATH: string,
   PREFECT_LOGGING_LEVEL: LogLevel,

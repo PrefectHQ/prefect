@@ -540,17 +540,6 @@ class FlowRunCreate(ActionBaseModel):
         ),
     )
 
-    # DEPRECATED
-
-    deployment_id: Optional[UUID] = Field(
-        None,
-        description=(
-            "DEPRECATED: The id of the deployment associated with this flow run, if"
-            " available."
-        ),
-        deprecated=True,
-    )
-
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_extra_compatible
 
@@ -871,14 +860,6 @@ class WorkQueueCreate(ActionBaseModel):
         ),
     )
 
-    # DEPRECATED
-
-    filter: Optional[schemas.core.QueueFilter] = Field(
-        None,
-        description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
-
 
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work queue."""
@@ -891,14 +872,6 @@ class WorkQueueUpdate(ActionBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(None)
     priority: Optional[PositiveInteger] = Field(None)
     last_polled: Optional[DateTimeTZ] = Field(None)
-
-    # DEPRECATED
-
-    filter: Optional[schemas.core.QueueFilter] = Field(
-        None,
-        description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
 
 
 class FlowRunNotificationPolicyCreate(ActionBaseModel):

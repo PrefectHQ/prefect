@@ -365,22 +365,6 @@ class State(ObjectBaseModel, Generic[R]):
 class FlowRunPolicy(PrefectBaseModel):
     """Defines of how a flow run should be orchestrated."""
 
-    max_retries: int = Field(
-        default=0,
-        description=(
-            "The maximum number of retries. Field is not used. Please use `retries`"
-            " instead."
-        ),
-        deprecated=True,
-    )
-    retry_delay_seconds: float = Field(
-        default=0,
-        description=(
-            "The delay between retries. Field is not used. Please use `retry_delay`"
-            " instead."
-        ),
-        deprecated=True,
-    )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
@@ -559,22 +543,6 @@ class FlowRun(ObjectBaseModel):
 class TaskRunPolicy(PrefectBaseModel):
     """Defines of how a task run should retry."""
 
-    max_retries: int = Field(
-        default=0,
-        description=(
-            "The maximum number of retries. Field is not used. Please use `retries`"
-            " instead."
-        ),
-        deprecated=True,
-    )
-    retry_delay_seconds: float = Field(
-        default=0,
-        description=(
-            "The delay between retries. Field is not used. Please use `retry_delay`"
-            " instead."
-        ),
-        deprecated=True,
-    )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Union[None, int, List[int]] = Field(
         default=None,
@@ -1196,11 +1164,7 @@ class WorkQueue(ObjectBaseModel):
     work_pool_id: Optional[UUID] = Field(
         description="The work pool with which the queue is associated."
     )
-    filter: Optional[QueueFilter] = Field(
-        default=None,
-        description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
+
     last_polled: Optional[DateTimeTZ] = Field(
         default=None, description="The last time an agent polled this queue for work."
     )

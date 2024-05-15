@@ -601,14 +601,6 @@ class WorkQueueCreate(ActionBaseModel):
         ),
     )
 
-    # DEPRECATED
-
-    filter: Optional[objects.QueueFilter] = Field(
-        None,
-        description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
-
 
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work queue."""
@@ -621,14 +613,6 @@ class WorkQueueUpdate(ActionBaseModel):
     concurrency_limit: Optional[int] = Field(None)
     priority: Optional[int] = Field(None)
     last_polled: Optional[DateTimeTZ] = Field(None)
-
-    # DEPRECATED
-
-    filter: Optional[objects.QueueFilter] = Field(
-        None,
-        description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
 
 
 class FlowRunNotificationPolicyCreate(ActionBaseModel):

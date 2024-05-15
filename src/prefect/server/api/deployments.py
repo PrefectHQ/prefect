@@ -21,7 +21,7 @@ from prefect.server.api.validation import (
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
+from prefect.server.exceptions import MissingVariableError
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
@@ -701,33 +701,6 @@ async def create_flow_run_from_deployment(
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
         return schemas.responses.FlowRunResponse.from_orm(model)
-
-
-# DEPRECATED
-@router.get("/{id}/work_queue_check", deprecated=True)
-async def work_queue_check_for_deployment(
-    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkQueue]:
-    """
-    Get list of work-queues that are able to pick up the specified deployment.
-
-    This endpoint is intended to be used by the UI to provide users warnings
-    about deployments that are unable to be executed because there are no work
-    queues that will pick up their runs, based on existing filter criteria. It
-    may be deprecated in the future because there is not a strict relationship
-    between work queues and deployments.
-    """
-    try:
-        async with db.session_context() as session:
-            work_queues = await models.deployments.check_work_queues_for_deployment(
-                session=session, deployment_id=deployment_id
-            )
-    except ObjectNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
-        )
-    return work_queues
 
 
 @router.get("/{id}/schedules")
