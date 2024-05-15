@@ -72,7 +72,7 @@
     FlowRunsFilterGroup,
     useWorkspaceApi,
     SelectedCount,
-    useFlowRuns,
+    usePaginatedFlowRuns,
     useWorkspaceFlowRunDashboardFilterFromRoute,
     FlowRunSortValuesSortParam,
     FlowRunsFilter,
@@ -121,7 +121,7 @@
   })
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const { flowRuns, total: flowRunCount, subscriptions: flowRunsSubscriptions, next: loadMoreFlowRuns } = useFlowRuns(flowRunsFilter, {
+  const { flowRuns, total: flowRunCount, subscriptions: flowRunsSubscriptions, next: loadMoreFlowRuns } = usePaginatedFlowRuns(flowRunsFilter, {
     mode: 'infinite',
     interval,
   })
