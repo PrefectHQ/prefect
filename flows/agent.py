@@ -39,6 +39,12 @@ async def read_flow_run(flow_run_id):
 
 
 def main():
+    # Check if agent CLI is available
+    try:
+        subprocess.run(["prefect", "agent", "--help"], check=True)
+    except subprocess.CalledProcessError:
+        raise NotImplementedError("Agent CLI not available. Skipping test.")
+
     # Create deployment
     if Version(prefect.__version__) < Version("2.1.0"):
         deployment = Deployment(
