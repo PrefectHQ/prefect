@@ -12,7 +12,7 @@ search:
 
 # Big Data with Prefect
 
-Learn how to work with large amounts of data in Prefect. This guide explores methods to reduce the processing time or memory utilization of Prefect workflows, without editing your Python code.
+This guide explores methods to reduce the processing time or memory utilization of Prefect workflows that process large amounts of data, without editing your Python code.
 
 ## Optimize your Python code with Prefect for big data
 
