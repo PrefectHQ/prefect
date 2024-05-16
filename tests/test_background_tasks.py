@@ -192,7 +192,7 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
 
     # The server-side task run through API-like serialization for comparison
-    enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
+    enqueued = TaskRun.model_validate(enqueued.dict(json_compatible=True))
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side

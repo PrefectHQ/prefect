@@ -11,25 +11,19 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.server import models
-from prefect.server.schemas.actions import (
-    DeploymentUpdate,
-    WorkPoolCreate,
-)
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
 
 import prefect
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
+from prefect.server import models
+from prefect.server.schemas.actions import (
+    DeploymentUpdate,
+    WorkPoolCreate,
+)
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (

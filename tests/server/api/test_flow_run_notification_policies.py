@@ -1,13 +1,7 @@
 from typing import List
 from uuid import uuid4
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 from prefect.server import models, schemas
@@ -59,7 +53,7 @@ class TestCreateFlowRunNotificationPolicy:
             ),
         )
         assert response.status_code == 201
-        policy = FlowRunNotificationPolicy.parse_obj(response.json())
+        policy = FlowRunNotificationPolicy.model_validate(response.json())
         assert policy.state_names == ["Completed"]
 
     async def test_create_policy_with_message(self, client, notifier_block):
@@ -74,7 +68,7 @@ class TestCreateFlowRunNotificationPolicy:
                 ).dict(json_compatible=True),
             ),
         )
-        policy = FlowRunNotificationPolicy.parse_obj(response.json())
+        policy = FlowRunNotificationPolicy.model_validate(response.json())
         assert policy.message_template == "Hello there {flow_run_name}"
 
 
@@ -84,7 +78,7 @@ class TestReadFlowRunNotificationPolicy:
             f"/flow_run_notification_policies/{completed_policy.id}"
         )
         assert response.status_code == 200
-        policy = FlowRunNotificationPolicy.parse_obj(response.json())
+        policy = FlowRunNotificationPolicy.model_validate(response.json())
 
         assert policy.id == completed_policy.id
 

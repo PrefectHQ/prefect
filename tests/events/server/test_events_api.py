@@ -5,11 +5,11 @@ from unittest import mock
 from uuid import UUID
 
 import pendulum
+import pydantic
 import pytest
 from httpx import AsyncClient
 from pendulum.datetime import DateTime
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import (
     EventFilter,
@@ -23,11 +23,6 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
 
 
 @pytest.fixture
@@ -135,7 +130,7 @@ async def test_querying_for_events_returns_first_page(
         page_size=INTERACTIVE_PAGE_SIZE,
     )
 
-    first_page = EventPage.parse_obj(response.json())
+    first_page = EventPage.model_validate(response.json())
 
     assert first_page.events == events_page_one
     assert first_page.total == 123
@@ -166,7 +161,7 @@ async def test_querying_for_events_returns_first_page_with_no_more(
         page_size=INTERACTIVE_PAGE_SIZE,
     )
 
-    first_page = EventPage.parse_obj(response.json())
+    first_page = EventPage.model_validate(response.json())
 
     assert first_page.events == events_page_one
     assert first_page.total == len(events_page_one)
@@ -211,7 +206,7 @@ async def test_querying_for_subsequent_page_returns_it(
         page_token=MOCK_PAGE_TOKEN,
     )
 
-    second_page = EventPage.parse_obj(response.json())
+    second_page = EventPage.model_validate(response.json())
 
     assert second_page.events == events_page_two
     assert second_page.total == 123
@@ -238,7 +233,7 @@ async def test_querying_for_last_page_returns_no_token(
         page_token=MOCK_PAGE_TOKEN,
     )
 
-    third_page = EventPage.parse_obj(response.json())
+    third_page = EventPage.model_validate(response.json())
 
     assert third_page.events == events_page_three
     assert third_page.total == 123

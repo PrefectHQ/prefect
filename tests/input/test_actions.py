@@ -1,12 +1,6 @@
 import pydantic
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
+from pydantic import ValidationError
 
 from prefect.context import FlowRunContext
 from prefect.input import (

@@ -60,7 +60,7 @@ async def stream_events_in(websocket: WebSocket) -> None:
     try:
         async with messaging.create_event_publisher() as publisher:
             async for event_json in websocket.iter_text():
-                event = Event.parse_raw(event_json)
+                event = Event.model_validate_json(event_json)
                 await publisher.publish_event(event.receive())
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
         pass  # it's fine if a client disconnects either normally or abnormally
@@ -93,7 +93,7 @@ async def stream_workspace_events_out(
         wants_backfill = message.get("backfill", True)
 
         try:
-            filter = EventFilter.parse_obj(message["filter"])
+            filter = EventFilter.model_validate(message["filter"])
         except Exception as e:
             return await websocket.close(
                 WS_1002_PROTOCOL_ERROR, reason=f"Invalid filter: {e}"

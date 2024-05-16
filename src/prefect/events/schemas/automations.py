@@ -3,9 +3,6 @@ import textwrap
 from datetime import timedelta
 from enum import Enum
 from typing import (
-    Annotated,
-    Any,
-    Dict,
     List,
     Literal,
     Optional,
@@ -16,7 +13,6 @@ from typing import (
 from uuid import UUID
 
 from pydantic import (
-    AfterValidator,
     Field,
     PrivateAttr,
     field_validator,
@@ -103,11 +99,11 @@ class ResourceTrigger(Trigger, abc.ABC):
     type: str
 
     match: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this trigger will match.",
     )
     match_related: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this trigger will match.",
     )
 
@@ -165,10 +161,7 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: Annotated[
-        timedelta,
-        AfterValidator(lambda v: v >= timedelta(0)),
-    ] = Field(
+    within: timedelta = Field(
         timedelta(0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
@@ -178,24 +171,23 @@ class EventTrigger(ResourceTrigger):
     )
 
     @field_validator("within")
-    def enforce_minimum_within(cls, value: timedelta, field):
-        return validate_trigger_within(value, field)
+    def enforce_minimum_within(cls, value: timedelta):
+        return validate_trigger_within(value)
 
-    @model_validator(mode="before")
-    @classmethod
-    def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
-        posture: Optional[Posture] = values.get("posture")
-        within: Optional[timedelta] = values.get("within")
+    @model_validator(mode="after")
+    def enforce_minimum_within_for_proactive_triggers(self):
+        posture: Optional[Posture] = self.posture
+        within: Optional[timedelta] = self.within
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
-                values["within"] = timedelta(seconds=10.0)
+                self.within = timedelta(seconds=10.0)
             elif within < timedelta(seconds=10.0):
                 raise ValueError(
                     "The minimum within for Proactive triggers is 10 seconds"
                 )
 
-        return values
+        return self
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
@@ -317,7 +309,14 @@ class CompositeTrigger(Trigger, abc.ABC):
 
     type: Literal["compound", "sequence"]
     triggers: List["TriggerTypes"]
-    within: Optional[timedelta]
+    within: Optional[timedelta] = Field(
+        None,
+        description=(
+            "The time period over which the events must occur.  For Reactive triggers, "
+            "this may be as low as 0 seconds, but must be at least 10 seconds for "
+            "Proactive triggers"
+        ),
+    )
 
 
 class CompoundTrigger(CompositeTrigger):
@@ -327,19 +326,18 @@ class CompoundTrigger(CompositeTrigger):
     type: Literal["compound"] = "compound"
     require: Union[int, Literal["any", "all"]]
 
-    @model_validator(mode="before")
-    def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        require = values.get("require")
-
+    @model_validator(mode="after")
+    def validate_require(self):
+        require = self.require
         if isinstance(require, int):
             if require < 1:
                 raise ValueError("required must be at least 1")
-            if require > len(values["triggers"]):
+            if require > len(self.triggers):
                 raise ValueError(
                     "required must be less than or equal to the number of triggers"
                 )
 
-        return values
+        return self
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""

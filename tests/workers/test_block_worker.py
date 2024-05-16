@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
+from pydantic import Field
 
 from prefect import flow
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.infrastructure.base import Infrastructure
@@ -16,11 +16,6 @@ from prefect.workers.block import (
     BlockWorker,
     BlockWorkerJobConfiguration,
 )
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
 
 
 class MockInfrastructure(Infrastructure):

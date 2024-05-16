@@ -83,7 +83,7 @@ async def test_instrumenting_a_flow_run_state_change(
     assert event.event == "prefect.flow-run.Running"
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
-    assert event.resource.dict() == Resource.parse_obj(
+    assert event.resource.dict() == Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
@@ -94,7 +94,7 @@ async def test_instrumenting_a_flow_run_state_change(
         }
     )
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow.{flow.id}",
                 "prefect.resource.role": "flow",
@@ -155,7 +155,7 @@ async def test_capturing_flow_run_provenance_as_related_resource(
         assert not creators
     else:
         assert creators == [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"{resource_prefix}.{created_by.id}",
                     "prefect.resource.role": "creator",
@@ -343,7 +343,7 @@ async def test_instrumenting_a_flow_run_with_no_flow(
     assert event.event == "prefect.flow-run.Running"
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
-    assert event.resource == Resource.parse_obj(
+    assert event.resource == Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
@@ -413,21 +413,21 @@ async def test_instrumenting_a_deployed_flow_run_state_change(
     (event,) = AssertingEventsClient.last.events
 
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow.{flow.id}",
                 "prefect.resource.role": "flow",
                 "prefect.resource.name": "my-flow",
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{deployment.id}",
                 "prefect.resource.role": "deployment",
                 "prefect.resource.name": deployment.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.test",
                 "prefect.resource.role": "tag",
@@ -477,7 +477,7 @@ async def test_instrumenting_a_flow_with_tags(
     assert len(event.related) == 6  # two of these are the flow and deployment
 
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.common-one",
                 "prefect.resource.role": "tag",
@@ -486,7 +486,7 @@ async def test_instrumenting_a_flow_with_tags(
         in event.related
     )
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.deployment-one",
                 "prefect.resource.role": "tag",
@@ -495,7 +495,7 @@ async def test_instrumenting_a_flow_with_tags(
         in event.related
     )
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.flow-run-one",
                 "prefect.resource.role": "tag",
@@ -504,7 +504,7 @@ async def test_instrumenting_a_flow_with_tags(
         in event.related
     )
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.flow-one",
                 "prefect.resource.role": "tag",
@@ -567,7 +567,7 @@ async def test_instrumenting_a_flow_run_from_a_work_queue(
     assert len(event.related) == 3  # the other one is the flow
 
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
                 "prefect.resource.role": "work-queue",
@@ -578,7 +578,7 @@ async def test_instrumenting_a_flow_run_from_a_work_queue(
     )
 
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                 "prefect.resource.role": "work-pool",
@@ -788,7 +788,7 @@ async def test_cancelling_to_cancelled_transitions(
     )
     assert response.status_code == 200
 
-    updated_flow_run = FlowRunResponse.parse_obj(response.json())
+    updated_flow_run = FlowRunResponse.model_validate(response.json())
     assert updated_flow_run.state
 
     assert AssertingEventsClient.last
@@ -797,7 +797,7 @@ async def test_cancelling_to_cancelled_transitions(
     assert event.event == "prefect.flow-run.Cancelled"
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
-    assert event.resource == Resource.parse_obj(
+    assert event.resource == Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,

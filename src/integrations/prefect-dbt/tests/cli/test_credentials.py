@@ -14,8 +14,8 @@ def test_dbt_cli_profile_init(configs_type):
     target_configs = dict(type="snowflake", schema="schema")
     global_configs = dict(use_colors=False)
     if configs_type == "model":
-        target_configs = TargetConfigs.parse_obj(target_configs)
-        global_configs = GlobalConfigs.parse_obj(global_configs)
+        target_configs = TargetConfigs.model_validate(target_configs)
+        global_configs = GlobalConfigs.model_validate(global_configs)
 
     dbt_cli_profile = DbtCliProfile(
         name="test_name",

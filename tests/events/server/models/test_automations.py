@@ -179,7 +179,7 @@ async def test_creating_automation(automations_session: AsyncSession):
         name="a fresh automation for ya",
         trigger=EventTrigger(
             expect={"things.happened"},
-            match=ResourceSpecification.parse_obj(
+            match=ResourceSpecification.model_validate(
                 {"prefect.resource.id": "some-resource"}
             ),
             posture=Posture.Reactive,
@@ -226,7 +226,7 @@ async def existing_automation(
         name="a automation that is already here, thank you",
         trigger=EventTrigger(
             expect=("things.happened",),
-            match=ResourceSpecification.parse_obj(
+            match=ResourceSpecification.model_validate(
                 {"prefect.resource.id": "some-resource"}
             ),
             posture=Posture.Reactive,
@@ -281,7 +281,7 @@ async def test_updating_automation_that_exists(
 
     # these should remain the same
     assert reloaded_automation.name == "a automation that is already here, thank you"
-    assert reloaded_automation.trigger.match == ResourceSpecification.parse_obj(
+    assert reloaded_automation.trigger.match == ResourceSpecification.model_validate(
         {"prefect.resource.id": "some-resource"}
     )
     assert reloaded_automation.trigger.posture == Posture.Reactive
@@ -316,7 +316,7 @@ async def test_partially_updating_automation_that_exists(
 
     # these should remain the same
     assert reloaded_automation.name == "a automation that is already here, thank you"
-    assert reloaded_automation.trigger.match == ResourceSpecification.parse_obj(
+    assert reloaded_automation.trigger.match == ResourceSpecification.model_validate(
         {"prefect.resource.id": "some-resource"}
     )
     assert reloaded_automation.trigger.posture == Posture.Reactive
@@ -331,7 +331,7 @@ async def test_updating_automation_that_does_not_exist(
         name="well this is terribly awkward",
         trigger=EventTrigger(
             expect=("things.happened",),
-            match=ResourceSpecification.parse_obj(
+            match=ResourceSpecification.model_validate(
                 {"prefect.resource.id": "some-resource"}
             ),
             posture=Posture.Reactive,
@@ -363,7 +363,7 @@ async def test_updating_automation_with_create_schema_is_not_allowed(
         name="well this is terribly awkward",
         trigger=EventTrigger(
             expect=("things.happened",),
-            match=ResourceSpecification.parse_obj(
+            match=ResourceSpecification.model_validate(
                 {"prefect.resource.id": "some-resource"}
             ),
             posture=Posture.Reactive,
@@ -539,7 +539,9 @@ async def test_deleting_automations_owned_by_resource(
 def uninteresting_trigger() -> EventTrigger:
     return EventTrigger(
         expect={"things.happened"},
-        match=ResourceSpecification.parse_obj({"prefect.resource.id": "some-resource"}),
+        match=ResourceSpecification.model_validate(
+            {"prefect.resource.id": "some-resource"}
+        ),
         posture=Posture.Reactive,
         threshold=42,
         within=timedelta(seconds=42),
@@ -882,7 +884,7 @@ async def test_disabling_automation_that_exists(
 
     # these should remain the same
     assert reloaded_automation.name == "a automation that is already here, thank you"
-    assert reloaded_automation.trigger.match == ResourceSpecification.parse_obj(
+    assert reloaded_automation.trigger.match == ResourceSpecification.model_validate(
         {"prefect.resource.id": "some-resource"}
     )
     assert reloaded_automation.trigger.posture == Posture.Reactive

@@ -222,7 +222,7 @@ async def test_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow-run.{super_long_exposure.id}",
                 "prefect.resource.role": "target",

@@ -6,14 +6,7 @@ from typing import Generator, Type
 from uuid import uuid4
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 from prefect.server.utilities.schemas import (

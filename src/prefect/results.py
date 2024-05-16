@@ -469,7 +469,7 @@ class ResultFactory(BaseModel):
         assert (
             self.storage_block_id is not None
         ), "Unexpected storage block ID. Was it persisted?"
-        blob = PersistedResultBlob.parse_raw(
+        blob = PersistedResultBlob.model_validate_json(
             await self.storage_block.read_path(f"parameters/{identifier}")
         )
         return self.serializer.loads(blob.data)
@@ -637,7 +637,7 @@ class PersistedResult(BaseResult):
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)
-        blob = PersistedResultBlob.parse_raw(content)
+        blob = PersistedResultBlob.model_validate_json(content)
         return blob
 
     @staticmethod

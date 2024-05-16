@@ -8,13 +8,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, SecretBytes, SecretStr, ValidationError
-else:
-    from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -2254,17 +2248,17 @@ class TestTypeDispatch:
         assert "block_type_slug" not in document.data
 
     def test_base_parse_works_for_base_instance(self):
-        block = BaseBlock.parse_obj(BaseBlock().dict())
+        block = BaseBlock.model_validate(BaseBlock().dict())
         assert type(block) == BaseBlock
 
-        block = BaseBlock.parse_obj(BaseBlock().dict())
+        block = BaseBlock.model_validate(BaseBlock().dict())
         assert type(block) == BaseBlock
 
     def test_base_parse_creates_child_instance_from_dict(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().dict())
         assert type(block) == AChildBlock
 
-        block = BaseBlock.parse_obj(BChildBlock().dict())
+        block = BaseBlock.model_validate(BChildBlock().dict())
         assert type(block) == BChildBlock
 
     def test_base_parse_creates_child_instance_from_json(self):
@@ -2275,17 +2269,17 @@ class TestTypeDispatch:
         assert type(block) == BChildBlock
 
     def test_base_parse_retains_default_attributes(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().dict())
         assert block.base == 0
         assert block.a == 1
 
     def test_base_parse_retains_set_child_attributes(self):
-        block = BaseBlock.parse_obj(BChildBlock(b=3).dict())
+        block = BaseBlock.model_validate(BChildBlock(b=3).dict())
         assert block.base == 0
         assert block.b == 3
 
     def test_base_parse_retains_set_base_attributes(self):
-        block = BaseBlock.parse_obj(BChildBlock(base=1).dict())
+        block = BaseBlock.model_validate(BChildBlock(base=1).dict())
         assert block.base == 1
         assert block.b == 2
 
@@ -2304,20 +2298,20 @@ class TestTypeDispatch:
         assert type(model.block) == BChildBlock
 
     def test_created_block_has_pydantic_attributes(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().dict())
         assert block.__fields_set__
 
     def test_created_block_can_be_copied(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().dict())
         block_copy = block.copy()
         assert block == block_copy
 
     async def test_created_block_can_be_saved(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().dict())
         assert await block.save("test")
 
     async def test_created_block_can_be_saved_then_loaded(self):
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().dict())
         await block.save("test")
         new_block = await block.load("test")
         assert block == new_block
@@ -2326,11 +2320,11 @@ class TestTypeDispatch:
     def test_created_block_fields_set(self):
         expected = {"base", "block_type_slug", "a"}
 
-        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().dict())
         assert block.__fields_set__ == expected
         assert block.a == 1
 
-        block = BaseBlock.parse_obj(AChildBlock(a=2).dict())
+        block = BaseBlock.model_validate(AChildBlock(a=2).dict())
         assert block.__fields_set__ == expected
         assert block.a == 2
 

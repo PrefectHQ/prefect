@@ -1,16 +1,9 @@
 import asyncio
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.interface import PrefectDBInterface

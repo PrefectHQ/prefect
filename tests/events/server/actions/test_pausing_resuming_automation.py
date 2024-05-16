@@ -3,22 +3,11 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
+import pydantic
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    temporary_settings,
-)
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import ValidationError
-else:
-    import pydantic
-    from pydantic import ValidationError
 
 from prefect.server.events import actions
 from prefect.server.events.models import automations
@@ -33,6 +22,10 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import RelatedResource
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    temporary_settings,
+)
 
 
 @pytest.fixture

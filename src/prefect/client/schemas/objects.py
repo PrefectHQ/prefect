@@ -1589,6 +1589,6 @@ class CsrfToken(ObjectBaseModel):
     client: str = Field(
         default=..., description="The client id associated with the CSRF token"
     )
-    expiration: DateTime = Field(
+    expiration: datetime.datetime = Field(
         default=..., description="The expiration time of the CSRF token"
     )

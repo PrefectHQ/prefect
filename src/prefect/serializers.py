@@ -22,7 +22,6 @@ from pydantic import (
     TypeAdapter,
     ValidationError,
     field_validator,
-    model_validator,
 )
 from typing_extensions import Literal, Self
 
@@ -32,7 +31,6 @@ from prefect._internal.schemas.validators import (
     validate_dump_kwargs,
     validate_load_kwargs,
     validate_picklelib,
-    validate_picklelib_version,
 )
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
@@ -107,7 +105,8 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
 
     @classmethod
     def __dispatch_key__(cls) -> str:
-        return cls.__name__
+        type_str = cls.model_fields["type"].default
+        return type_str if isinstance(type_str, str) else None
 
 
 class PickleSerializer(Serializer):
@@ -129,9 +128,9 @@ class PickleSerializer(Serializer):
     def check_picklelib(cls, value):
         return validate_picklelib(value)
 
-    @model_validator(mode="before")
-    def check_picklelib_version(cls, values):
-        return validate_picklelib_version(values)
+    # @model_validator(mode="before")
+    # def check_picklelib_version(cls, values):
+    #     return validate_picklelib_version(values)
 
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)

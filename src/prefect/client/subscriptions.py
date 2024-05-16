@@ -48,7 +48,7 @@ class Subscription(Generic[S]):
 
                 await self._websocket.send(orjson.dumps({"type": "ack"}).decode())
 
-                return self.model.parse_raw(message)
+                return self.model.model_validate_json(message)
             except (
                 ConnectionRefusedError,
                 websockets.exceptions.ConnectionClosedError,

@@ -3,19 +3,13 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 import yaml
 from kubernetes.client import ApiClient
 from kubernetes.config.kube_config import list_kube_config_contexts
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 
 sample_base64_string = base64.b64encode(b"hello marvin from the other side")

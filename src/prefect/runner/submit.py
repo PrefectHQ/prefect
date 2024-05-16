@@ -90,7 +90,7 @@ async def _submit_flow_to_runner(
         )
         response.raise_for_status()
 
-        return FlowRun.parse_obj(response.json())
+        return FlowRun.model_validate(response.json())
 
 
 @overload

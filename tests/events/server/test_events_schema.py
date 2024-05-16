@@ -4,14 +4,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
-
+from pydantic import ValidationError
 
 from prefect.server.events.schemas.events import (
     Event,

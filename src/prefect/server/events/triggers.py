@@ -1076,7 +1076,7 @@ async def consumer(
         if await event_has_been_seen(event_id):
             return
 
-        event = ReceivedEvent.parse_raw(message.data)
+        event = ReceivedEvent.model_validate_json(message.data)
 
         try:
             await reactive_evaluation(event)

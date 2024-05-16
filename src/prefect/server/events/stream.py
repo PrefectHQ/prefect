@@ -66,7 +66,7 @@ async def distributor() -> AsyncGenerator[messaging.MessageHandler, None]:
             return
 
         if subscribers:
-            event = ReceivedEvent.parse_raw(message.data)
+            event = ReceivedEvent.model_validate_json(message.data)
             for queue in subscribers:
                 filter = filters[queue]
                 if filter.excludes(event):

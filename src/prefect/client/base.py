@@ -390,7 +390,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
 
                 raise
 
-            token: CsrfToken = CsrfToken.parse_obj(token_response.json())
+            token: CsrfToken = CsrfToken.model_validate(token_response.json())
             self.csrf_token = token.token
             self.csrf_token_expiration = token.expiration
 
@@ -604,7 +604,7 @@ class PrefectHttpxSyncClient(httpx.Client):
 
                 raise
 
-            token: CsrfToken = CsrfToken.parse_obj(token_response.json())
+            token: CsrfToken = CsrfToken.model_validate(token_response.json())
             self.csrf_token = token.token
             self.csrf_token_expiration = token.expiration
 

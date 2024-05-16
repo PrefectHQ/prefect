@@ -68,7 +68,7 @@ def drain(
 
     while len(messages) < expecting:
         message = socket.receive_json()
-        messages.append(TaskRun.parse_obj(message))
+        messages.append(TaskRun.model_validate(message))
 
         if quit and len(messages) == expecting:
             socket.send_json({"type": "quit"})

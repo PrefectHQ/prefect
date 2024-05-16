@@ -5,13 +5,7 @@ from typing import Set
 from uuid import uuid4
 
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
+from pydantic import ValidationError
 
 from prefect.server.events.actions import RunDeployment
 from prefect.server.events.schemas.automations import (

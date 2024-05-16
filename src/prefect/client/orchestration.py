@@ -454,7 +454,7 @@ class PrefectClient:
             a [Flow model][prefect.client.schemas.objects.Flow] representation of the flow
         """
         response = await self._client.get(f"/flows/{flow_id}")
-        return Flow.parse_obj(response.json())
+        return Flow.model_validate(response.json())
 
     async def read_flows(
         self,
@@ -528,7 +528,7 @@ class PrefectClient:
             a fully hydrated Flow model
         """
         response = await self._client.get(f"/flows/name/{flow_name}")
-        return Flow.parse_obj(response.json())
+        return Flow.model_validate(response.json())
 
     async def create_flow_run_from_deployment(
         self,
@@ -598,7 +598,7 @@ class PrefectClient:
             f"/deployments/{deployment_id}/create_flow_run",
             json=flow_run_create.dict(json_compatible=True, exclude_unset=True),
         )
-        return FlowRun.parse_obj(response.json())
+        return FlowRun.model_validate(response.json())
 
     async def create_flow_run(
         self,
@@ -656,7 +656,7 @@ class PrefectClient:
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = await self._client.post("/flow_runs/", json=flow_run_create_json)
-        flow_run = FlowRun.parse_obj(response.json())
+        flow_run = FlowRun.model_validate(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
         # Python objects
@@ -806,7 +806,7 @@ class PrefectClient:
         if not concurrency_limit_id:
             raise httpx.RequestError(f"Malformed response: {response}")
 
-        concurrency_limit = ConcurrencyLimit.parse_obj(response.json())
+        concurrency_limit = ConcurrencyLimit.model_validate(response.json())
         return concurrency_limit
 
     async def read_concurrency_limits(
@@ -958,7 +958,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return WorkQueue.parse_obj(response.json())
+        return WorkQueue.model_validate(response.json())
 
     async def read_work_queue_by_name(
         self,
@@ -993,7 +993,7 @@ class PrefectClient:
             else:
                 raise
 
-        return WorkQueue.parse_obj(response.json())
+        return WorkQueue.model_validate(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs):
         """
@@ -1085,7 +1085,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return WorkQueue.parse_obj(response.json())
+        return WorkQueue.model_validate(response.json())
 
     async def read_work_queue_status(
         self,
@@ -1111,7 +1111,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return WorkQueueStatusDetail.parse_obj(response.json())
+        return WorkQueueStatusDetail.model_validate(response.json())
 
     async def match_work_queues(
         self,
@@ -1209,7 +1209,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        return BlockSchema.parse_obj(response.json())
+        return BlockSchema.model_validate(response.json())
 
     async def create_block_document(
         self,
@@ -1227,7 +1227,7 @@ class PrefectClient:
                 this is set to `False`.
         """
         if isinstance(block_document, BlockDocument):
-            block_document = BlockDocumentCreate.parse_obj(
+            block_document = BlockDocumentCreate.model_validate(
                 block_document.model_dump(
                     mode="json",
                     include_secrets=include_secrets,
@@ -1251,7 +1251,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        return BlockDocument.parse_obj(response.json())
+        return BlockDocument.model_validate(response.json())
 
     async def update_block_document(
         self,
@@ -1300,7 +1300,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return BlockType.parse_obj(response.json())
+        return BlockType.model_validate(response.json())
 
     async def read_block_schema_by_checksum(
         self, checksum: str, version: Optional[str] = None
@@ -1318,7 +1318,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return BlockSchema.parse_obj(response.json())
+        return BlockSchema.model_validate(response.json())
 
     async def update_block_type(self, block_type_id: UUID, block_type: BlockTypeUpdate):
         """
@@ -1410,7 +1410,9 @@ class PrefectClient:
             )
         except httpx.HTTPStatusError:
             raise
-        return BlockSchema.parse_obj(response.json()[0]) if response.json() else None
+        return (
+            BlockSchema.model_validate(response.json()[0]) if response.json() else None
+        )
 
     async def read_block_document(
         self,
@@ -1448,7 +1450,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return BlockDocument.parse_obj(response.json())
+        return BlockDocument.model_validate(response.json())
 
     async def read_block_document_by_name(
         self,
@@ -1486,7 +1488,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return BlockDocument.parse_obj(response.json())
+        return BlockDocument.model_validate(response.json())
 
     async def read_block_documents(
         self,
@@ -1744,7 +1746,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return DeploymentResponse.parse_obj(response.json())
+        return DeploymentResponse.model_validate(response.json())
 
     async def read_deployment_by_name(
         self,
@@ -1771,7 +1773,7 @@ class PrefectClient:
             else:
                 raise
 
-        return DeploymentResponse.parse_obj(response.json())
+        return DeploymentResponse.model_validate(response.json())
 
     async def read_deployments(
         self,
@@ -1984,7 +1986,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return FlowRun.parse_obj(response.json())
+        return FlowRun.model_validate(response.json())
 
     async def resume_flow_run(
         self, flow_run_id: UUID, run_input: Optional[Dict] = None
@@ -2006,7 +2008,7 @@ class PrefectClient:
         except httpx.HTTPStatusError:
             raise
 
-        return OrchestrationResult.parse_obj(response.json())
+        return OrchestrationResult.model_validate(response.json())
 
     async def read_flow_runs(
         self,
@@ -2099,7 +2101,7 @@ class PrefectClient:
             else:
                 raise
 
-        return OrchestrationResult.parse_obj(response.json())
+        return OrchestrationResult.model_validate(response.json())
 
     async def read_flow_run_states(
         self, flow_run_id: UUID
@@ -2191,7 +2193,7 @@ class PrefectClient:
         content = task_run_data.json(exclude={"id"} if id is None else None)
 
         response = await self._client.post("/task_runs/", content=content)
-        return TaskRun.parse_obj(response.json())
+        return TaskRun.model_validate(response.json())
 
     async def read_task_run(self, task_run_id: UUID) -> TaskRun:
         """
@@ -2204,7 +2206,7 @@ class PrefectClient:
             a Task Run model representation of the task run
         """
         response = await self._client.get(f"/task_runs/{task_run_id}")
-        return TaskRun.parse_obj(response.json())
+        return TaskRun.model_validate(response.json())
 
     async def read_task_runs(
         self,
@@ -2296,7 +2298,7 @@ class PrefectClient:
             f"/task_runs/{task_run_id}/set_state",
             json=dict(state=state_create.model_dump(mode="json"), force=force),
         )
-        return OrchestrationResult.parse_obj(response.json())
+        return OrchestrationResult.model_validate(response.json())
 
     async def read_task_run_states(
         self, task_run_id: UUID
@@ -2993,7 +2995,7 @@ class PrefectClient:
     ) -> GlobalConcurrencyLimitResponse:
         try:
             response = await self._client.get(f"/v2/concurrency_limits/{name}")
-            return GlobalConcurrencyLimitResponse.parse_obj(response.json())
+            return GlobalConcurrencyLimitResponse.model_validate(response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -3133,7 +3135,7 @@ class PrefectClient:
         if response.status_code == 404:
             return None
         response.raise_for_status()
-        return Automation.parse_obj(response.json())
+        return Automation.model_validate(response.json())
 
     async def read_automations_by_name(self, name: str) -> List[Automation]:
         """
@@ -3565,7 +3567,7 @@ class SyncPrefectClient:
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = self._client.post("/flow_runs/", json=flow_run_create_json)
-        flow_run = FlowRun.parse_obj(response.json())
+        flow_run = FlowRun.model_validate(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
         # Python objects
@@ -3590,7 +3592,7 @@ class SyncPrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return FlowRun.parse_obj(response.json())
+        return FlowRun.model_validate(response.json())
 
     def read_flow_runs(
         self,
@@ -3683,7 +3685,7 @@ class SyncPrefectClient:
             else:
                 raise
 
-        return OrchestrationResult.parse_obj(response.json())
+        return OrchestrationResult.model_validate(response.json())
 
     def create_task_run(
         self,
@@ -3838,7 +3840,7 @@ class SyncPrefectClient:
             f"/task_runs/{task_run_id}/set_state",
             json=dict(state=state_create.model_dump(mode="json"), force=force),
         )
-        return OrchestrationResult.parse_obj(response.json())
+        return OrchestrationResult.model_validate(response.json())
 
     def read_task_run_states(self, task_run_id: UUID) -> List[prefect.states.State]:
         """

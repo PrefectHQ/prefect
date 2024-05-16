@@ -215,11 +215,11 @@ async def test_user_may_decline_a_backfill(
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event1
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event1
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event2
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event2
 
 
 async def test_user_may_explicitly_request_a_backfill(
@@ -255,16 +255,16 @@ async def test_user_may_explicitly_request_a_backfill(
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == old_event1
+        assert ReceivedEvent.model_validate(event_message["event"]) == old_event1
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == old_event2
+        assert ReceivedEvent.model_validate(event_message["event"]) == old_event2
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event1
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event1
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event2
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event2

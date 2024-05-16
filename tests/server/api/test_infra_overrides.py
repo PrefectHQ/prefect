@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from prefect.infrastructure import KubernetesClusterConfig
+from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.server import models, schemas
 from prefect.server.models import deployments
 
@@ -20,8 +20,8 @@ async def create_work_pool(
 ) -> schemas.core.WorkPool:
     work_pool = await models.workers.create_work_pool(
         session=session,
-        work_pool=schemas.actions.WorkPoolCreate.construct(
-            _fields_set=schemas.actions.WorkPoolCreate.__fields_set__,
+        work_pool=schemas.actions.WorkPoolCreate.model_construct(
+            _fields_set=schemas.actions.WorkPoolCreate.model_fields_set,
             name="wp-1",
             type=type,
             description="None",

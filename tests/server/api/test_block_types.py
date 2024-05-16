@@ -3,14 +3,7 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 from starlette import status
 
@@ -60,7 +53,7 @@ class TestCreateBlockType:
             ).dict(),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = BlockType.parse_obj(response.json())
+        result = BlockType.model_validate(response.json())
 
         assert result.name == "x"
         assert result.slug == "x"
@@ -70,7 +63,7 @@ class TestCreateBlockType:
         assert result.code_example == CODE_EXAMPLE
 
         response = await client.get(f"/block_types/{result.id}")
-        api_block_type = BlockType.parse_obj(response.json())
+        api_block_type = BlockType.model_validate(response.json())
         assert api_block_type.name == "x"
         assert api_block_type.slug == "x"
         assert api_block_type.logo_url == "http://example.com/logo.png"
@@ -158,14 +151,14 @@ class TestReadBlockType:
     async def test_read_block_type_by_id(self, client, block_type_x):
         response = await client.get(f"/block_types/{block_type_x.id}")
         assert response.status_code == status.HTTP_200_OK
-        result = BlockType.parse_obj(response.json())
+        result = BlockType.model_validate(response.json())
         assert result.name == block_type_x.name
         assert result.id == block_type_x.id
 
     async def test_read_block_type_by_slug(self, client, block_type_x):
         response = await client.get(f"/block_types/slug/{block_type_x.slug}")
         assert response.status_code == status.HTTP_200_OK
-        result = BlockType.parse_obj(response.json())
+        result = BlockType.model_validate(response.json())
         assert result.name == block_type_x.name
         assert result.id == block_type_x.id
 
@@ -343,7 +336,7 @@ class TestUpdateBlockType:
 
         response = await client.get(f"/block_types/{block_type_x.id}")
         assert response.status_code == status.HTTP_200_OK
-        updated_block = BlockType.parse_obj(response.json())
+        updated_block = BlockType.model_validate(response.json())
 
         assert updated_block.name == block_type_x.name
         assert updated_block.logo_url == "http://foo.com/bar.png"
@@ -457,7 +450,7 @@ class TestReadBlockDocumentByNameForBlockType:
         )
         assert response.status_code == status.HTTP_200_OK
 
-        read_block_document = BlockDocument.parse_obj(response.json())
+        read_block_document = BlockDocument.model_validate(response.json())
         assert read_block_document.id == block_document.id
         assert read_block_document.name == block_document.name
 

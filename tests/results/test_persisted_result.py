@@ -102,7 +102,7 @@ async def test_result_reference_file_blob_is_json(storage_block):
     blob_dict = json.loads(contents)
 
     # Should conform to the PersistedResultBlob spec
-    blob = PersistedResultBlob.parse_obj(blob_dict)
+    blob = PersistedResultBlob.model_validate(blob_dict)
 
     assert blob.serializer
     assert blob.data

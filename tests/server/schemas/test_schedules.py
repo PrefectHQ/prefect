@@ -9,13 +9,7 @@ import pytest
 from dateutil import rrule
 from packaging import version
 from pendulum import datetime, now
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
+from pydantic import ValidationError
 
 from prefect._internal.schemas.validators import MAX_RRULE_LENGTH
 from prefect.server.schemas.schedules import (
@@ -101,7 +95,7 @@ class TestCreateIntervalSchedule:
             "anchor_date"
         ].endswith("-05:00")
 
-        parsed = IntervalSchedule.parse_obj(clock_dict)
+        parsed = IntervalSchedule.model_validate(clock_dict)
         assert parsed.anchor_date.tz.name in ("-04:00", "-05:00")
         assert parsed.timezone == "UTC"
 
@@ -113,7 +107,9 @@ class TestCreateIntervalSchedule:
             timezone="America/New_York",
         )
         clock_dict = clock.dict(json_compatible=True)
-        assert IntervalSchedule.parse_obj(clock_dict).timezone == "America/New_York"
+        assert (
+            IntervalSchedule.model_validate(clock_dict).timezone == "America/New_York"
+        )
 
 
 class TestIntervalSchedule:

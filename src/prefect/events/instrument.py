@@ -129,7 +129,7 @@ def instrument_method_calls_on_class_instances(cls: Type) -> Type:
 
     for method_name, method in instrumentable_methods(
         cls,
-        exclude_methods=getattr(cls, "_events_excluded_methods", []).default,  # type: ignore
+        exclude_methods=getattr(cls, "_events_excluded_methods", []),  # type: ignore
     ):
         setattr(cls, method_name, instrument_instance_method_call(method))
     return cls

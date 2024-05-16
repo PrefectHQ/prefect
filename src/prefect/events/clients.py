@@ -497,7 +497,7 @@ class PrefectEventSubscriber:
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
-                    event: Event = Event.parse_obj(message["event"])
+                    event: Event = Event.model_validate(message["event"])
 
                     if event.id in self._seen_events:
                         continue

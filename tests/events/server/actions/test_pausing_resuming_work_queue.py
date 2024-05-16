@@ -3,18 +3,11 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
+import pydantic
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import ValidationError
-else:
-    import pydantic
-    from pydantic import ValidationError
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -445,7 +438,7 @@ async def test_pausing_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",
@@ -474,7 +467,7 @@ async def test_resuming_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",

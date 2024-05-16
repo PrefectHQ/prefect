@@ -3,13 +3,7 @@ import os
 import textwrap
 from pathlib import Path
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 import prefect.context

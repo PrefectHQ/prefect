@@ -238,7 +238,6 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
 
 
 @register_base_type
-@instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
     """
     A base class for implementing a block that wraps an external service.
@@ -642,7 +641,7 @@ class Block(BaseModel, ABC):
 
         block_cls = instrument_method_calls_on_class_instances(block_cls)
 
-        block = block_cls.parse_obj(block_document.data)
+        block = block_cls.model_validate(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
         block.__class__._block_type_id = block_document.block_type_id

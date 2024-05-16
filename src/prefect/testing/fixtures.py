@@ -269,7 +269,7 @@ async def events_server(
             except ConnectionClosed:
                 return
 
-            event = Event.parse_raw(message)
+            event = Event.model_validate_json(message)
             recorder.events.append(event)
 
             if puppeteer.hard_disconnect_after == event.id:
@@ -294,7 +294,7 @@ async def events_server(
         # 2. filter
         filter_message = json.loads(await socket.recv())
         assert filter_message["type"] == "filter"
-        recorder.filter = EventFilter.parse_obj(filter_message["filter"])
+        recorder.filter = EventFilter.model_validate(filter_message["filter"])
 
         # 3. send events
         for event in puppeteer.outgoing_events:

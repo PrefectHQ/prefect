@@ -1,6 +1,5 @@
 import yaml
 
-from prefect.infrastructure.kubernetes import KubernetesJob
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -163,19 +162,3 @@ def test_printing_the_agent_manifest_with_namespace():
     for manifest in manifests:
         if manifest["kind"] not in ["ClusterRole", "ClusterRoleBinding"]:
             assert manifest["metadata"]["namespace"] == "test_namespace"
-
-
-def test_printing_the_job_base_manifest():
-    """`prefect kubernetes manifest flow-run-job` should print a valid YAML file
-    representing the minimum starting point for a Kubernetes Job"""
-    result = invoke_and_assert(
-        ["kubernetes", "manifest", "flow-run-job"],
-        expected_output_contains="kind: Job",
-    )
-
-    # check for the presence of helpful comments
-    assert "# the first container is required" in result.stdout
-
-    parsed = yaml.load(result.stdout, yaml.SafeLoader)
-
-    assert parsed == KubernetesJob.base_job_manifest()

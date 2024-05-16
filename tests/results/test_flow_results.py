@@ -34,7 +34,7 @@ class MyIntSerializer(Serializer):
     Custom serializer for test coverage of user-defined serializers
     """
 
-    type = "int-custom"
+    type: str = "int-custom"
 
     def dumps(self, obj: int):
         return obj.to_bytes(8, byteorder="little")

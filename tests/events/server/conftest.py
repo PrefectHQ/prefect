@@ -10,13 +10,6 @@ import sqlalchemy as sa
 from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import ResourceSpecification, actions, messaging
 from prefect.server.events.schemas.automations import (
@@ -378,10 +371,10 @@ async def some_workspace_automations(
     uninteresting_kwargs: Dict[str, Any] = dict(
         trigger=EventTrigger(
             expect=("things.happened",),
-            match=ResourceSpecification.parse_obj(
+            match=ResourceSpecification.model_validate(
                 {"prefect.resource.id": "some-resource"}
             ),
-            match_related=ResourceSpecification.parse_obj({}),
+            match_related=ResourceSpecification.model_validate({}),
             posture=Posture.Reactive,
             threshold=1,
             within=timedelta(seconds=10),

@@ -2,18 +2,11 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, List
 from uuid import UUID, uuid4
 
+import pydantic
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import ValidationError
-else:
-    import pydantic
-    from pydantic import ValidationError
 
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import actions
@@ -283,7 +276,7 @@ async def test_pausing_publishes_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                 "prefect.resource.name": work_pool.name,
@@ -501,7 +494,7 @@ async def test_resuming_publishes_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{paused_work_pool.id}",
                 "prefect.resource.name": paused_work_pool.name,

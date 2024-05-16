@@ -742,8 +742,12 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
 class TaskRunFilterState(PrefectOperatorFilterBaseModel):
     """Filter by `TaskRun.type` and `TaskRun.name`."""
 
-    type: Optional[TaskRunFilterStateType]
-    name: Optional[TaskRunFilterStateName]
+    type: Optional[TaskRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `TaskRun.state_type`"
+    )
+    name: Optional[TaskRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `TaskRun.state_name`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []

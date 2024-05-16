@@ -45,7 +45,7 @@ RESPONSE_CSRF = Response(
     status.HTTP_200_OK,
     json=CsrfToken(
         client="test_client", token="test_token", expiration=now + timedelta(days=1)
-    ).dict(json_compatible=True, exclude_unset=True),
+    ).model_dump(mode="json", exclude_unset=True),
     request=Request("a test request", "fake.url/fake/route"),
 )
 

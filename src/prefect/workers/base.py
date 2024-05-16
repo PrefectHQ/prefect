@@ -1150,7 +1150,7 @@ class BaseWorker(abc.ABC):
         if include_self:
             worker_resource = self._event_resource()
             worker_resource["prefect.resource.role"] = "worker"
-            related.append(RelatedResource.parse_obj(worker_resource))
+            related.append(RelatedResource.model_validate(worker_resource))
 
         return related
 

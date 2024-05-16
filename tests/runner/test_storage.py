@@ -4,7 +4,9 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+import pytest
+from pydantic import SecretStr
+
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.deployments.steps.core import run_step
@@ -17,12 +19,6 @@ from prefect.runner.storage import (
     create_storage_from_url,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
-import pytest
 
 
 class TestCreateStorageFromUrl:

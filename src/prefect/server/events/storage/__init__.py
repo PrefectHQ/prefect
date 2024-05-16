@@ -46,7 +46,7 @@ def from_page_token(page_token: str) -> Tuple["EventFilter", int, int, int]:
         raise InvalidTokenError("Unable to parse page token")
 
     return (
-        EventFilter.parse_obj(parameters["filter"]),
+        EventFilter.model_validate(parameters["filter"]),
         parameters["count"],
         parameters["page_size"],
         parameters["offset"],

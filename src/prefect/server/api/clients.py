@@ -59,7 +59,7 @@ class OrchestrationClient(BaseClient):
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 return None
             raise
-        return DeploymentResponse.parse_obj(response.json())
+        return DeploymentResponse.model_validate(response.json())
 
     async def read_flow_raw(self, flow_id: UUID) -> Response:
         return await self._http_client.get(f"/flows/{flow_id}")

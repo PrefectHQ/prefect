@@ -234,11 +234,11 @@ class ResourceTrigger(Trigger, abc.ABC):
     type: str
 
     match: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this trigger will match.",
     )
     match_related: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this trigger will match.",
     )
 

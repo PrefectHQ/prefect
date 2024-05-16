@@ -1,14 +1,8 @@
 import datetime
 from uuid import uuid4
 
+import pydantic  # type: ignore
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic  # type: ignore
 
 from prefect.events import (
     AutomationCore,

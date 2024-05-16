@@ -1,5 +1,4 @@
 import uuid
-from functools import partial
 from unittest.mock import MagicMock
 
 import pendulum
@@ -12,7 +11,6 @@ from prefect.blocks.core import BlockNotSavedError
 from prefect.infrastructure import (
     DockerContainer,
     Infrastructure,
-    KubernetesJob,
     Process,
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
@@ -80,12 +78,6 @@ class MockInfrastructure(Infrastructure):
 @pytest.mark.parametrize(
     "infrastructure_type",
     [
-        pytest.param(
-            # This allows testing of against Kubernetes running in Docker Desktop
-            partial(KubernetesJob, _api_dns_name="host.docker.internal"),
-            marks=pytest.mark.service("kubernetes"),
-            id="kubernetes-job",
-        ),
         pytest.param(
             DockerContainer,
             marks=pytest.mark.service("docker"),

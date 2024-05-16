@@ -4,18 +4,11 @@ from uuid import UUID, uuid4
 
 import orjson
 import pendulum
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 import sqlalchemy as sa
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from prefect.input import RunInput, keyset_from_paused_state
@@ -1397,7 +1390,7 @@ class TestSetFlowRunState:
         )
         assert response.status_code == 201
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
 
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
@@ -1424,7 +1417,7 @@ class TestSetFlowRunState:
         )
         assert response.status_code == 201
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         response = await client.post(
@@ -1433,7 +1426,7 @@ class TestSetFlowRunState:
         )
         assert response.status_code == 200
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ABORT
 
     async def test_set_flow_run_state_ignores_client_provided_timestamp(
@@ -1450,7 +1443,7 @@ class TestSetFlowRunState:
             ),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        state = schemas.states.State.parse_obj(response.json()["state"])
+        state = schemas.states.State.model_validate(response.json()["state"])
         assert state.timestamp < pendulum.now(
             "UTC"
         ), "The timestamp should be overwritten"
@@ -1498,7 +1491,7 @@ class TestSetFlowRunState:
         )
         assert response.status_code == 201
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         flow_run_id = flow_run.id
@@ -1521,7 +1514,7 @@ class TestSetFlowRunState:
             ),
         )
         assert response.status_code == 201
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         response = await client.post(
@@ -1529,7 +1522,7 @@ class TestSetFlowRunState:
             json=dict(state=schemas.states.Pending().dict(json_compatible=True)),
         )
         assert response.status_code == 201
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         response = await client.post(
@@ -1537,7 +1530,7 @@ class TestSetFlowRunState:
             json=dict(state=schemas.states.Running().dict(json_compatible=True)),
         )
         assert response.status_code == 200
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.WAIT
         assert (
             0
@@ -1567,7 +1560,7 @@ class TestSetFlowRunState:
         )
         assert response.status_code == 200
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ABORT
         assert (
             api_response.details.reason
@@ -1612,7 +1605,7 @@ class TestSetFlowRunState:
         )
         assert response.status_code == 200
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.REJECT
         assert (
             api_response.details.reason
@@ -1873,7 +1866,10 @@ class TestFlowRunInput:
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert schemas.core.FlowRunInput.parse_obj(response.json()[0]) == flow_run_input
+        assert (
+            schemas.core.FlowRunInput.model_validate(response.json()[0])
+            == flow_run_input
+        )
 
     async def test_filter_flow_run_input_limits_response(
         self, client: AsyncClient, session: AsyncSession, flow_run

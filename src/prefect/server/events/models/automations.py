@@ -150,7 +150,7 @@ async def update_automation(
         # validation, which could change due to one of these updates.  Here we attempt
         # to apply and parse the final effect of the partial update to the existing
         # automation to see if anything fails validation.
-        Automation.parse_obj(
+        Automation.model_validate(
             {
                 **automation.model_dump(mode="json"),
                 **automation_update.model_dump(mode="json"),

@@ -566,7 +566,7 @@ async def set_flow_run_state(
             session=session,
             flow_run_id=flow_run_id,
             # convert to a full State object
-            state=schemas.states.State.parse_obj(state),
+            state=schemas.states.State.model_validate(state),
             force=force,
             flow_policy=flow_policy,
             orchestration_parameters=orchestration_parameters,

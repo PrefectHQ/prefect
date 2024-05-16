@@ -253,7 +253,7 @@ def test_trigger_serialization(deployment_trigger: DeploymentTriggerTypes):
     serialized.pop("parameters", None)
     serialized.pop("job_variables", None)
 
-    trigger = deployment_trigger.trigger_type.parse_obj(serialized)
+    trigger = deployment_trigger.trigger_type.model_validate(serialized)
 
     assert trigger.dict() == serialized
 

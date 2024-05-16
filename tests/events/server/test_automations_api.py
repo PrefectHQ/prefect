@@ -7,20 +7,13 @@ from uuid import UUID, uuid4
 
 import httpx
 import pendulum
+import pydantic
 import pytest
 import sqlalchemy as sa
+from fastapi.applications import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
-from fastapi.applications import FastAPI
 
 from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas

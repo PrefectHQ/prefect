@@ -26,7 +26,7 @@ def test_triggers_have_identifiers(arachnophobia: Automation):
     assert arachnophobia.trigger.id
     assert arachnophobia.trigger.id != arachnophobia.id
 
-    new_copy = EventTrigger.parse_obj(arachnophobia.trigger.dict(exclude={"id"}))
+    new_copy = EventTrigger.model_validate(arachnophobia.trigger.dict(exclude={"id"}))
     assert new_copy.id != arachnophobia.trigger.id
 
 

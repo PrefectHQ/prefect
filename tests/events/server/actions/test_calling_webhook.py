@@ -12,13 +12,6 @@ from httpx import Response
 from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 from prefect.blocks.core import Block
 from prefect.blocks.webhook import Webhook
 from prefect.server.database.orm_models import (
@@ -369,14 +362,14 @@ async def test_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.block-document.{webhook_block_id}",
                 "prefect.resource.role": "block",
                 "prefect.resource.name": "webhook-test",
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.block-type.webhook",
                 "prefect.resource.role": "block-type",

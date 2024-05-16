@@ -12,16 +12,9 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional, Set, Type
 
 import orjson
+import pydantic
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import Field
-else:
-    import pydantic  # type: ignore
-    from pydantic import Field  # type: ignore
+from pydantic import Field, field_validator
 
 from prefect.events.schemas.automations import (
     EventTrigger,
@@ -39,11 +32,11 @@ class V1Trigger(PrefectBaseModel):
     """A copy of the original events.automations.Trigger class for reference."""
 
     match: ResourceSpecification = Field(  # pragma: no branch
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this Automation will match.",
     )
     match_related: ResourceSpecification = Field(  # pragma: no branch
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this Automation will match.",
     )
 
@@ -96,9 +89,6 @@ class V1Trigger(PrefectBaseModel):
         ),
     )
     within: timedelta = Field(
-        timedelta(0),
-        minimum=0.0,
-        exclusiveMinimum=False,
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -113,6 +103,13 @@ class V1Trigger(PrefectBaseModel):
             "This field is only applicable to Metric automations."
         ),
     )
+
+    @field_validator("within")
+    def _validate_within(cls, value: timedelta):
+        if cls.posture == Posture.Proactive:
+            assert (
+                value.total_seconds() >= 10.0
+            ), "Proactive triggers must have a `within` of at least 10 seconds"
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc):
@@ -138,7 +135,7 @@ def test_deserializing_as_v1_trigger(
 ):
     """A baseline test that just confirms that all of the example JSON triggers are
     actually parseable as v1 Triggers."""
-    v1_trigger = V1Trigger.parse_obj(json)
+    v1_trigger = V1Trigger.model_validate(json)
     assert isinstance(v1_trigger, V1Trigger)
 
 
@@ -177,8 +174,8 @@ def test_deserializing_as_v2_trigger(
 ):
     """A test that confirms that the example JSON triggers can be deserialized directly
     into their corresponding v2 classes."""
-    v1_trigger = V1Trigger.parse_obj(json)
-    v2_trigger = trigger_type.parse_obj(json)
+    v1_trigger = V1Trigger.model_validate(json)
+    v2_trigger = trigger_type.model_validate(json)
 
     assert isinstance(v2_trigger, trigger_type)
 
@@ -190,7 +187,7 @@ def test_deserializing_polymorphic(
 ):
     """A test that confirms that the example JSON triggers can be deserialized into
     their corresponding v2 classes using polymorphism."""
-    v1_trigger = V1Trigger.parse_obj(json)
+    v1_trigger = V1Trigger.model_validate(json)
     v2_trigger: ResourceTrigger = pydantic.parse_obj_as(TriggerTypes, json)  # type: ignore[arg-type]
 
     assert isinstance(v2_trigger, trigger_type)
@@ -207,9 +204,9 @@ def test_deserializing_into_polymorphic_attribute(
 ):
     """A test that confirms that the example JSON triggers can be deserialized into
     their corresponding v2 classes when referenced in an attribute."""
-    v1_trigger = V1Trigger.parse_obj(json)
+    v1_trigger = V1Trigger.model_validate(json)
 
-    v2_container = Referencer.parse_obj({"trigger": json})
+    v2_container = Referencer.model_validate({"trigger": json})
     v2_trigger = v2_container.trigger
 
     assert isinstance(v2_trigger, trigger_type)
@@ -230,7 +227,7 @@ def test_deserializing_into_polymorphic_collection_attribute():
     ]
     v1_triggers = pydantic.parse_obj_as(List[V1Trigger], json)
 
-    v2_container = Container.parse_obj({"triggers": json})
+    v2_container = Container.model_validate({"triggers": json})
     v2_triggers = v2_container.triggers
 
     for v1_trigger, v2_trigger in zip(v1_triggers, v2_triggers):

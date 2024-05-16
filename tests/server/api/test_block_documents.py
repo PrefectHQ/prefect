@@ -2,16 +2,9 @@ import string
 from typing import List
 from uuid import uuid4
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import SecretBytes, SecretStr
-else:
-    import pydantic
-    from pydantic import SecretBytes, SecretStr
-
+import pydantic
 import pytest
+from pydantic import SecretBytes, SecretStr
 from starlette import status
 
 from prefect.blocks.core import Block
@@ -127,7 +120,7 @@ class TestCreateBlockDocument:
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = BlockDocument.parse_obj(response.json())
+        result = BlockDocument.model_validate(response.json())
 
         assert result.name == "x"
         assert result.data == dict(y=1)
@@ -136,7 +129,7 @@ class TestCreateBlockDocument:
         assert result.is_anonymous is False
 
         response = await client.get(f"/block_documents/{result.id}")
-        api_block = BlockDocument.parse_obj(response.json())
+        api_block = BlockDocument.model_validate(response.json())
         assert api_block.name == "x"
         assert api_block.data == dict(y=1)
         assert api_block.is_anonymous is False
@@ -156,7 +149,7 @@ class TestCreateBlockDocument:
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = BlockDocument.parse_obj(response.json())
+        result = BlockDocument.model_validate(response.json())
 
         assert result.name.startswith("anonymous-")
         assert result.data == dict(y=1)
@@ -165,7 +158,7 @@ class TestCreateBlockDocument:
         assert result.is_anonymous is True
 
         response = await client.get(f"/block_documents/{result.id}")
-        api_block = BlockDocument.parse_obj(response.json())
+        api_block = BlockDocument.model_validate(response.json())
         assert api_block.name.startswith("anonymous-")
         assert api_block.data == dict(y=1)
         assert api_block.is_anonymous is True
@@ -765,7 +758,7 @@ class TestDeleteBlockDocument:
                 block_type_id=block_schemas[0].block_type_id,
             ).dict(json_compatible=True),
         )
-        result = BlockDocument.parse_obj(response.json())
+        result = BlockDocument.model_validate(response.json())
 
         response = await client.get(f"/block_documents/{result.id}")
         assert response.status_code == status.HTTP_200_OK
@@ -1297,7 +1290,7 @@ class TestSecretBlockDocuments:
                 block_schema_id=secret_block_schema.id,
             ).dict(json_compatible=True),
         )
-        block = schemas.core.BlockDocument.parse_obj(response.json())
+        block = schemas.core.BlockDocument.model_validate(response.json())
 
         assert block.data["w"] == {"secret": obfuscate_string(W)}
         assert block.data["x"] == obfuscate_string(X)
@@ -1314,7 +1307,7 @@ class TestSecretBlockDocuments:
             f"/block_documents/{secret_block_document.id}",
             params=dict(),
         )
-        block = schemas.core.BlockDocument.parse_obj(response.json())
+        block = schemas.core.BlockDocument.model_validate(response.json())
 
         assert block.data["w"] == {"secret": obfuscate_string(W)}
         assert block.data["x"] == obfuscate_string(X)
@@ -1328,7 +1321,7 @@ class TestSecretBlockDocuments:
             f"/block_documents/{secret_block_document.id}",
             params=dict(include_secrets=True),
         )
-        block = schemas.core.BlockDocument.parse_obj(response.json())
+        block = schemas.core.BlockDocument.model_validate(response.json())
         assert block.data["w"] == {"secret": W}
         assert block.data["x"] == X
         assert block.data["y"] == Y
@@ -1451,7 +1444,7 @@ class TestSecretBlockDocuments:
         await block.save("nested-test")
         await session.commit()
         response = await client.get(f"/block_documents/{block._block_document_id}")
-        block = schemas.core.BlockDocument.parse_obj(response.json())
+        block = schemas.core.BlockDocument.model_validate(response.json())
         assert block.data["a"] == 3
         assert block.data["b"] == obfuscate_string("b")
         assert block.data["child"]["x"] == obfuscate_string(X)
@@ -1476,7 +1469,7 @@ class TestSecretBlockDocuments:
             f"/block_documents/{block._block_document_id}",
             params=dict(include_secrets=True),
         )
-        block = schemas.core.BlockDocument.parse_obj(response.json())
+        block = schemas.core.BlockDocument.model_validate(response.json())
         assert block.data["a"] == 3
         assert block.data["b"] == "b"
         assert block.data["child"]["x"] == X

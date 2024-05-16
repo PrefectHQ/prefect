@@ -93,14 +93,14 @@ def example_event_3(start_of_test: pendulum.DateTime) -> Event:
             "wonder-type": "amazement",
         },
         related=[
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": "something-valuable",
                     "prefect.resource.role": "shiny",
                     "name": "gold",
                 }
             ),
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": "something-glittery",
                     "prefect.resource.role": "sparkle",

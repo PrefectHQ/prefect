@@ -357,7 +357,7 @@ class JinjaTemplateAction(ExternalDataAction):
         triggered_action: "TriggeredAction",
         resource: Optional["Resource"] = None,
     ) -> PrefectBaseModel:
-        object = model.parse_obj(data)
+        object = model.model_validate(data)
 
         if isinstance(object, FlowRunResponse) or isinstance(object, TaskRun):
             # The flow/task run was fetched from the API, but between when its
@@ -595,7 +595,7 @@ class DeploymentCommandAction(DeploymentAction, ExternalDataAction):
         deployment_id = await self.deployment_id_to_use(triggered_action)
 
         self._resulting_related_resources.append(
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.deployment.{deployment_id}",
                     "prefect.resource.role": "target",
@@ -678,10 +678,10 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         response = await orchestration.create_flow_run(deployment_id, flow_run_create)
 
         if response.status_code < 300:
-            flow_run = FlowRunResponse.parse_obj(response.json())
+            flow_run = FlowRunResponse.model_validate(response.json())
 
             self._resulting_related_resources.append(
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                         "prefect.resource.role": "flow-run",
@@ -917,7 +917,7 @@ class FlowRunStateChangeAction(ExternalDataAction):
         flow_run_id = await self.flow_run_to_change(triggered_action)
 
         self._resulting_related_resources.append(
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
                     "prefect.resource.role": "target",
@@ -942,7 +942,7 @@ class FlowRunStateChangeAction(ExternalDataAction):
             if response.status_code >= 300:
                 raise ActionFailed(self.reason_from_response(response))
 
-            result = OrchestrationResult.parse_obj(response.json())
+            result = OrchestrationResult.model_validate(response.json())
             if not isinstance(result.details, StateAcceptDetails):
                 raise ActionFailed(f"Failed to set state: {result.details.reason}")
 
@@ -1060,7 +1060,7 @@ class CallWebhook(JinjaTemplateAction):
                 raise ActionFailed(self.reason_from_response(response))
 
             try:
-                block_document = BlockDocument.parse_obj(response.json())
+                block_document = BlockDocument.model_validate(response.json())
                 block = Block._from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The webhook block was invalid: {e!r}")
@@ -1069,14 +1069,14 @@ class CallWebhook(JinjaTemplateAction):
                 raise ActionFailed("The referenced block was not a webhook block")
 
             self._resulting_related_resources += [
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
                         "prefect.resource.role": "block",
                         "prefect.resource.name": block_document.name,
                     }
                 ),
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
                         "prefect.resource.role": "block-type",
@@ -1133,7 +1133,7 @@ class SendNotification(JinjaTemplateAction):
                 raise ActionFailed(self.reason_from_response(response))
 
             try:
-                block_document = BlockDocument.parse_obj(response.json())
+                block_document = BlockDocument.model_validate(response.json())
                 block = Block._from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The notification block was invalid: {e!r}")
@@ -1142,14 +1142,14 @@ class SendNotification(JinjaTemplateAction):
                 raise ActionFailed("The referenced block was not a notification block")
 
             self._resulting_related_resources += [
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
                         "prefect.resource.role": "block",
                         "prefect.resource.name": block_document.name,
                     }
                 ),
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
                         "prefect.resource.role": "block-type",
@@ -1361,7 +1361,7 @@ class WorkQueueCommandAction(WorkQueueAction, ExternalDataAction):
         work_queue_id = await self.work_queue_id_to_use(triggered_action)
 
         self._resulting_related_resources += [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.work-queue.{work_queue_id}",
                     "prefect.resource.role": "target",
@@ -1480,7 +1480,7 @@ class AutomationCommandAction(AutomationAction, ExternalDataAction):
         automation_id = await self.automation_id_to_use(triggered_action)
 
         self._resulting_related_resources += [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.automation.{automation_id}",
                     "prefect.resource.role": "target",
@@ -1588,7 +1588,7 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
         if not message.data:
             return
 
-        triggered_action = TriggeredAction.parse_raw(message.data)
+        triggered_action = TriggeredAction.model_validate_json(message.data)
         action = triggered_action.action
 
         if await action_has_already_happened(triggered_action.id):

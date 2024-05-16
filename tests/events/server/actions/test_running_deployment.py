@@ -3,14 +3,8 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
 
 from prefect.server import schemas
 from prefect.server.events import actions
@@ -33,7 +27,7 @@ async def test_action_can_omit_parameters():
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2857, where
     `parameters` are omitted by the UI"""
 
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",
@@ -41,7 +35,7 @@ async def test_action_can_omit_parameters():
     )
     assert action.parameters is None
 
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",
@@ -50,7 +44,7 @@ async def test_action_can_omit_parameters():
     )
     assert action.parameters is None
 
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",
@@ -369,7 +363,7 @@ async def test_running_an_inferred_deployment(
     # add a related resource for finding the associated deployment
     assert snap_that_naughty_woodchuck.triggering_event
     snap_that_naughty_woodchuck.triggering_event.related.append(
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.role": "deployment",
                 "prefect.resource.id": f"prefect.deployment.{take_a_picture.id}",
@@ -446,13 +440,13 @@ async def test_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{take_a_picture.id}",
                 "prefect.resource.role": "target",
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow-run.{new_flow_run.id}",
                 "prefect.resource.role": "flow-run",
@@ -488,7 +482,7 @@ async def test_running_a_deployment_action_succeeds_paramaters_too_large(
 
 
 async def test_deployment_action_accepts_job_variables():
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",
@@ -496,7 +490,7 @@ async def test_deployment_action_accepts_job_variables():
     )
     assert action.job_variables is None
 
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",
@@ -505,7 +499,7 @@ async def test_deployment_action_accepts_job_variables():
     )
     assert action.job_variables is None
 
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",
@@ -515,7 +509,7 @@ async def test_deployment_action_accepts_job_variables():
     assert action.job_variables == {}
 
     job_vars = {"foo": "bar"}
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",
@@ -525,7 +519,7 @@ async def test_deployment_action_accepts_job_variables():
     assert action.job_variables == job_vars
 
     job_vars = {"nested": {"vars": "ok"}}
-    action = actions.RunDeployment.parse_obj(
+    action = actions.RunDeployment.model_validate(
         {
             "type": "run-deployment",
             "source": "inferred",

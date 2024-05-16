@@ -34,7 +34,7 @@ def _reduce_model(model: pydantic.BaseModel):
 def _unreduce_model(model_name, json):
     """Helper for restoring model after serialization"""
     model = from_qualified_name(model_name)
-    return model.parse_raw(json)
+    return model.model_validate_json(json)
 
 
 @overload

@@ -4,13 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 from prefect.utilities.annotations import BaseAnnotation, quote
@@ -125,27 +119,22 @@ class SimplePydantic(pydantic.BaseModel):
 
 
 class ExtraPydantic(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(extra="allow")
     x: int
-
-    class Config:
-        extra = pydantic.Extra.allow
 
 
 class PrivatePydantic(pydantic.BaseModel):
     """Pydantic model with private attrs"""
 
+    model_config = pydantic.ConfigDict(extra="forbid")
+
     x: int
     _y: int
     _z: Any = pydantic.PrivateAttr()
 
-    class Config:
-        underscore_attrs_are_private = True
-        extra = pydantic.Extra.forbid  # Forbid extras to raise in tests
-
 
 class ImmutablePrivatePydantic(PrivatePydantic):
-    class Config:
-        allow_mutation = False
+    model_config = pydantic.ConfigDict(frozen=True)
 
 
 class PydanticWithDefaults(pydantic.BaseModel):
@@ -253,7 +242,7 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
             (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
-            (ExtraPydantic(x=1, y=2, z=4).copy(exclude={"z"}), {2}),
+            (ExtraPydantic(x=1, y=2, z=4).model_copy(), {2, 4}),
             (ExampleAnnotation(4), {4}),
         ],
     )

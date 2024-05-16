@@ -160,12 +160,12 @@ async def _register_collection_blocks(session: sa.orm.Session):
             block_schemas = block_type.pop("block_schemas", [])
             block_type_id = await register_block_type(
                 session=session,
-                block_type=schemas.core.BlockType.parse_obj(block_type),
+                block_type=schemas.core.BlockType.model_validate(block_type),
             )
             for block_schema in block_schemas:
                 await register_block_schema(
                     session=session,
-                    block_schema=schemas.core.BlockSchema.parse_obj(
+                    block_schema=schemas.core.BlockSchema.model_validate(
                         {**block_schema, "block_type_id": block_type_id}
                     ),
                 )

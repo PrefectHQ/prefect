@@ -48,7 +48,7 @@ class TestConcurrencyLimits:
         cl_id = create_response.json()["id"]
 
         read_response = await client.get(f"/concurrency_limits/{cl_id}")
-        concurrency_limit = schemas.core.ConcurrencyLimit.parse_obj(
+        concurrency_limit = schemas.core.ConcurrencyLimit.model_validate(
             read_response.json()
         )
         assert concurrency_limit.tag == "dummytag"
@@ -68,7 +68,7 @@ class TestConcurrencyLimits:
         cl_id = create_response.json()["id"]
 
         read_response = await client.get(f"/concurrency_limits/tag/{tag}")
-        concurrency_limit = schemas.core.ConcurrencyLimit.parse_obj(
+        concurrency_limit = schemas.core.ConcurrencyLimit.model_validate(
             read_response.json()
         )
         assert str(concurrency_limit.id) == cl_id

@@ -408,7 +408,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         task_run_id = task_run.id
@@ -444,7 +444,7 @@ class TestSetTaskRunState:
         )
         assert orchestration_response.status_code == status.HTTP_201_CREATED
 
-        api_response = OrchestrationResult.parse_obj(orchestration_response.json())
+        api_response = OrchestrationResult.model_validate(orchestration_response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         task_run_id = task_run.id
@@ -477,7 +477,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         response = await client.post(
@@ -486,7 +486,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == 201
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
     async def test_set_task_run_ignores_client_provided_timestamp(
@@ -503,7 +503,7 @@ class TestSetTaskRunState:
             ),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        state = schemas.states.State.parse_obj(response.json()["state"])
+        state = schemas.states.State.model_validate(response.json()["state"])
         assert state.timestamp < pendulum.now(
             "UTC"
         ), "The timestamp should be overwritten"
@@ -531,7 +531,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.REJECT
         assert api_response.state.name == "AwaitingRetry"
         assert api_response.state.type == states.StateType.SCHEDULED
@@ -561,7 +561,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-        api_response = OrchestrationResult.parse_obj(response.json())
+        api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
         assert api_response.state.type == states.StateType.FAILED
 
@@ -601,7 +601,7 @@ class TestSetTaskRunState:
             json=dict(state=dict(type=incoming_state_type)),
         )
 
-        api_response_1 = OrchestrationResult.parse_obj(response_1.json())
+        api_response_1 = OrchestrationResult.model_validate(response_1.json())
 
         assert api_response_1.status == responses.SetStateStatus.ACCEPT
 
@@ -610,7 +610,7 @@ class TestSetTaskRunState:
             json=dict(state=dict(type="PENDING")),
         )
 
-        api_response_2 = OrchestrationResult.parse_obj(response_2.json())
+        api_response_2 = OrchestrationResult.model_validate(response_2.json())
 
         assert api_response_2.status == responses.SetStateStatus.ABORT
 

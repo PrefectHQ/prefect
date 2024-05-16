@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 from anyio import run_process
+from pydantic import Field
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
@@ -17,12 +17,6 @@ from prefect.settings import (
     load_current_profile,
 )
 from prefect.testing.utilities import AsyncMock
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 
 default_cloud_run_v2_push_base_job_template = {
     "job_configuration": {
