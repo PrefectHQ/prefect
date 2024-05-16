@@ -97,7 +97,7 @@
     { label: 'Artifacts', hidden: isPending.value },
     { label: 'Details' },
     { label: 'Parameters' },
-    { label: 'Job Variables', hidden: !can.access.flowRunInfraOverrides },
+    { label: 'Job Variables' },
   ])
   const tab = useRouteQueryParam('tab', 'Logs')
   const { tabs } = useTabs(computedTabs, tab)
