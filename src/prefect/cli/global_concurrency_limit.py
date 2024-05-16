@@ -283,7 +283,7 @@ async def update_global_concurrency_limit(
     if slot_decay_per_second is not None:
         gcl.slot_decay_per_second = slot_decay_per_second
 
-    if not gcl.dict(exclude_unset=True, shallow=True):
+    if not gcl.model_dump(exclude_unset=True):
         exit_with_error("No update arguments provided.")
 
     try:

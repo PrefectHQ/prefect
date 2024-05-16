@@ -12,13 +12,7 @@ from uuid import uuid4
 import anyio
 import pendulum
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
+from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task

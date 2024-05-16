@@ -210,7 +210,7 @@ async def update_work_pool(
     """
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = work_pool.dict(shallow=True, exclude_unset=True)
+    update_data = work_pool.model_dump(exclude_unset=True)
 
     current_work_pool = await read_work_pool(session=session, work_pool_id=work_pool_id)
     if not current_work_pool:
@@ -584,7 +584,7 @@ async def update_work_queue(
     """
     from prefect.server.models.work_queues import is_last_polled_recent
 
-    update_values = work_queue.dict(shallow=True, exclude_unset=True)
+    update_values = work_queue.model_dump(exclude_unset=True)
 
     if "is_paused" in update_values:
         if (wq := await session.get(db.WorkQueue, work_queue_id)) is None:

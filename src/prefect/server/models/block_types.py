@@ -34,8 +34,8 @@ async def create_block_type(
     Returns:
         block_type: an ORM block type model
     """
-    insert_values = block_type.dict(
-        shallow=True, exclude_unset=False, exclude={"created", "updated", "id"}
+    insert_values = block_type.model_dump(
+        exclude_unset=False, exclude={"created", "updated", "id"}
     )
     if insert_values.get("description") is not None:
         insert_values["description"] = html.escape(
@@ -167,7 +167,7 @@ async def update_block_type(
     update_statement = (
         sa.update(db.BlockType)
         .where(db.BlockType.id == block_type_id)
-        .values(**block_type.dict(shallow=True, exclude_unset=True, exclude={"id"}))
+        .values(**block_type.model_dump(exclude_unset=True, exclude={"id"}))
     )
     result = await session.execute(update_statement)
     return result.rowcount > 0

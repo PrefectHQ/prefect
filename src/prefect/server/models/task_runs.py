@@ -60,9 +60,7 @@ async def create_task_run(
             db.insert(db.TaskRun)
             .values(
                 created=now,
-                **task_run.dict(
-                    shallow=True, exclude={"state", "created"}, exclude_unset=True
-                ),
+                **task_run.model_dump(exclude={"state", "created"}, exclude_unset=True),
             )
             .on_conflict_do_nothing(
                 index_elements=db.task_run_unique_upsert_columns,
@@ -105,9 +103,7 @@ async def create_task_run(
         if model is None:
             model = db.TaskRun(
                 created=now,
-                **task_run.dict(
-                    shallow=True, exclude={"state", "created"}, exclude_unset=True
-                ),
+                **task_run.model_dump(exclude={"state", "created"}, exclude_unset=True),
                 state=None,
             )
             session.add(model)
@@ -147,7 +143,7 @@ async def update_task_run(
         .where(db.TaskRun.id == task_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
-        .values(**task_run.dict(shallow=True, exclude_unset=True))
+        .values(**task_run.model_dump(exclude_unset=True))
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0

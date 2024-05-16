@@ -7,32 +7,25 @@ from uuid import uuid4
 
 import httpx
 import pendulum
+import pydantic
 import pytest
 import respx
 import yaml
 from httpx import Response
-
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
-from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
-from prefect.deployments.deployments import load_flow_from_flow_run
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1.error_wrappers import ValidationError
-else:
-    import pydantic
-    from pydantic.error_wrappers import ValidationError
+from pydantic import ValidationError
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect import flow, task
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
+from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.schedules import CronSchedule, RRuleSchedule
 from prefect.context import FlowRunContext
 from prefect.deployments import Deployment, run_deployment
+from prefect.deployments.deployments import load_flow_from_flow_run
 from prefect.events import DeploymentTriggerTypes
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.exceptions import BlockMissingCapabilities

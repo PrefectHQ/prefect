@@ -894,13 +894,13 @@ class Block(BaseModel, ABC):
                 "subclass and not on a Block interface class directly."
             )
 
-        for field in cls.__fields__.values():
-            if Block.is_block_class(field.type_):
-                await field.type_.register_type_and_schema(client=client)
-            if get_origin(field.type_) is Union:
-                for type_ in get_args(field.type_):
-                    if Block.is_block_class(type_):
-                        await type_.register_type_and_schema(client=client)
+        for field in cls.model_fields.values():
+            if Block.is_block_class(field.annotation):
+                await field.annotation.register_type_and_schema(client=client)
+            if get_origin(field.annotation) is Union:
+                for annotation in get_args(field.annotation):
+                    if Block.is_block_class(annotation):
+                        await annotation.register_type_and_schema(client=client)
 
         try:
             block_type = await client.read_block_type_by_slug(

@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import BaseModel, ValidationError, field_validator
 
-from prefect.pydantic import HAS_PYDANTIC_V2
 from prefect.serializers import (
     CompressedSerializer,
     JSONSerializer,
@@ -17,12 +17,6 @@ from prefect.serializers import (
 )
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.dispatch import get_registry_for_type
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, ValidationError, validator
-
-else:
-    from pydantic import BaseModel, ValidationError, validator
 
 # Freeze a UUID for deterministic tests
 TEST_UUID = uuid.UUID("a53e3495-d681-4a53-84b8-9d9542f7237c")
@@ -130,7 +124,7 @@ class TestBaseSerializer:
         class Foo(BaseModel):
             serializer: Serializer
 
-            @validator("serializer", pre=True)
+            @field_validator("serializer")
             def cast_type_to_dict(cls, value):
                 if isinstance(value, str):
                     return {"type": value}

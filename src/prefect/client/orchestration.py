@@ -1180,8 +1180,8 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 "/block_types/",
-                json=block_type.dict(
-                    json_compatible=True, exclude_unset=True, exclude={"id"}
+                json=block_type.model_dump(
+                    mode="json", exclude_unset=True, exclude={"id"}
                 ),
             )
         except httpx.HTTPStatusError as e:
@@ -1189,7 +1189,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        return BlockType.parse_obj(response.json())
+        return BlockType.model_validate(response.json())
 
     async def create_block_schema(self, block_schema: BlockSchemaCreate) -> BlockSchema:
         """
@@ -1198,8 +1198,8 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 "/block_schemas/",
-                json=block_schema.dict(
-                    json_compatible=True,
+                json=block_schema.model_dump(
+                    mode="json",
                     exclude_unset=True,
                     exclude={"id", "block_type", "checksum"},
                 ),
@@ -1228,8 +1228,8 @@ class PrefectClient:
         """
         if isinstance(block_document, BlockDocument):
             block_document = BlockDocumentCreate.parse_obj(
-                block_document.dict(
-                    json_compatible=True,
+                block_document.model_dump(
+                    mode="json",
                     include_secrets=include_secrets,
                     exclude_unset=True,
                     exclude={"id", "block_schema", "block_type"},
@@ -1239,8 +1239,8 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 "/block_documents/",
-                json=block_document.dict(
-                    json_compatible=True,
+                json=block_document.model_dump(
+                    mode="json",
                     include_secrets=include_secrets,
                     exclude_unset=True,
                     exclude={"id", "block_schema", "block_type"},
@@ -1264,8 +1264,8 @@ class PrefectClient:
         try:
             await self._client.patch(
                 f"/block_documents/{block_document_id}",
-                json=block_document.dict(
-                    json_compatible=True,
+                json=block_document.model_dump(
+                    mode="json",
                     exclude_unset=True,
                     include={"data", "merge_existing_data", "block_schema_id"},
                     include_secrets=True,
@@ -1327,8 +1327,8 @@ class PrefectClient:
         try:
             await self._client.patch(
                 f"/block_types/{block_type_id}",
-                json=block_type.dict(
-                    json_compatible=True,
+                json=block_type.model_dump(
+                    mode="json",
                     exclude_unset=True,
                     include=BlockTypeUpdate.updatable_fields(),
                     include_secrets=True,
@@ -3748,10 +3748,10 @@ class SyncPrefectClient:
             task_inputs=task_inputs or {},
         )
 
-        content = task_run_data.json(exclude={"id"} if id is None else None)
+        content = task_run_data.model_dump_json(exclude={"id"} if id is None else None)
 
         response = self._client.post("/task_runs/", content=content)
-        return TaskRun.parse_obj(response.json())
+        return TaskRun.model_validate(response.json())
 
     def read_task_run(self, task_run_id: UUID) -> TaskRun:
         """
@@ -3764,7 +3764,7 @@ class SyncPrefectClient:
             a Task Run model representation of the task run
         """
         response = self._client.get(f"/task_runs/{task_run_id}")
-        return TaskRun.parse_obj(response.json())
+        return TaskRun.model_validate(response.json())
 
     def read_task_runs(
         self,

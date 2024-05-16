@@ -71,28 +71,26 @@ TERMINAL_STATES = {
 
 
 class StateDetails(PrefectBaseModel):
-    flow_run_id: UUID = None
-    task_run_id: UUID = None
+    flow_run_id: Optional[UUID] = None
+    task_run_id: Optional[UUID] = None
     # for task runs that represent subflows, the subflow's run ID
-    child_flow_run_id: UUID = None
-    scheduled_time: DateTime = None
-    cache_key: str = None
-    cache_expiration: DateTime = None
+    child_flow_run_id: Optional[UUID] = None
+    scheduled_time: Optional[DateTime] = None
+    cache_key: Optional[str] = None
+    cache_expiration: Optional[DateTime] = None
     untrackable_result: bool = False
-    pause_timeout: DateTime = None
+    pause_timeout: Optional[DateTime] = None
     pause_reschedule: bool = False
-    pause_key: str = None
+    pause_key: Optional[str] = None
     run_input_keyset: Optional[Dict[str, str]] = None
-    refresh_cache: bool = None
-    retriable: bool = None
+    refresh_cache: Optional[bool] = None
+    retriable: Optional[bool] = None
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
 
 
 class StateBaseModel(IDBaseModel):
-    def orm_dict(
-        self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
-    ) -> dict:
+    def orm_dict(self, *args, **kwargs) -> dict:
         """
         This method is used as a convenience method for constructing fixtues by first
         building a `State` schema object and converting it into an ORM-compatible
@@ -101,9 +99,7 @@ class StateBaseModel(IDBaseModel):
         If state data is required, an artifact must be created separately.
         """
 
-        schema_dict = self.dict(
-            *args, shallow=shallow, json_compatible=json_compatible, **kwargs
-        )
+        schema_dict = self.model_dump(*args, **kwargs)
         # remove the data field in order to construct a state ORM model
         schema_dict.pop("data", None)
         return schema_dict

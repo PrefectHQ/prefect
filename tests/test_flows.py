@@ -16,21 +16,14 @@ from typing import List
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.blocks.core import Block
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 import regex as re
 
 import prefect
 import prefect.exceptions
 from prefect import flow, get_run_logger, runtime, tags, task
+from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.schedules import (
     CronSchedule,

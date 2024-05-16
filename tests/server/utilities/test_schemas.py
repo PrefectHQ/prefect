@@ -3,7 +3,7 @@ import importlib
 import os
 from contextlib import contextmanager
 from typing import Generator, Type
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pendulum
 
@@ -101,60 +101,18 @@ class TestNestedDict:
 
     def test_full_dict(self, nested):
         assert nested.dict() == {"x": 1, "y": {"z": 2}}
-        assert isinstance(nested.dict()["y"], dict)
+        assert isinstance(nested.model_dump()["y"], dict)
 
     def test_simple_dict(self, nested):
         assert dict(nested) == {"x": 1, "y": nested.y}
         assert isinstance(dict(nested)["y"], pydantic.BaseModel)
 
-    def test_shallow_true(self, nested):
-        assert dict(nested) == nested.dict(shallow=True)
-        assert isinstance(nested.dict(shallow=True)["y"], pydantic.BaseModel)
-
     def test_kwargs_respected(self, nested):
-        deep = nested.dict(include={"y"})
-        shallow = nested.dict(include={"y"}, shallow=True)
+        deep = nested.model_dump(include={"y"})
+        shallow = nested.model_dump(include={"y"})
         assert isinstance(deep["y"], dict)
         assert isinstance(shallow["y"], pydantic.BaseModel)
         assert deep == shallow == {"y": {"z": 2}}
-
-
-class TestJsonCompatibleDict:
-    class Model(PrefectBaseModel):
-        x: UUID
-        y: datetime.datetime
-
-    @pytest.fixture()
-    def nested(self):
-        class Child(pydantic.BaseModel):
-            z: UUID
-
-        class Parent(PrefectBaseModel):
-            x: UUID
-            y: Child
-
-        return Parent(x=uuid4(), y=Child(z=uuid4()))
-
-    def test_json_compatible_and_nested_errors(self):
-        model = self.Model(x=uuid4(), y=pendulum.now("UTC"))
-        with pytest.raises(ValueError, match="(only be applied to the entire object)"):
-            model.dict(json_compatible=True, shallow=True)
-
-    def test_json_compatible(self):
-        model = self.Model(x=uuid4(), y=pendulum.now("UTC"))
-        d1 = model.dict()
-        d2 = model.dict(json_compatible=True)
-
-        assert isinstance(d1["x"], UUID) and d1["x"] == model.x
-        assert isinstance(d2["x"], str) and d2["x"] == str(model.x)
-
-        assert isinstance(d1["y"], datetime.datetime) and d1["y"] == model.y
-        assert isinstance(d2["y"], str) and d2["y"] == model.y.isoformat()
-
-    def test_json_applies_to_nested(self, nested):
-        d1 = nested.dict(json_compatible=True)
-        assert isinstance(d1["x"], str) and d1["x"] == str(nested.x)
-        assert isinstance(d1["y"]["z"], str) and d1["y"]["z"] == str(nested.y.z)
 
 
 class CopyOnValidationChild(ORMBaseModel):

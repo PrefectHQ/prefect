@@ -792,11 +792,11 @@ class BlockDocument(ORMBaseModel):
 
     @classmethod
     async def from_orm_model(
-        cls,
+        cls: type[Self],
         session,
         orm_block_document: "prefect.server.database.orm_models.ORMBlockDocument",
         include_secrets: bool = False,
-    ):
+    ) -> Self:
         data = await orm_block_document.decrypt_data(session=session)
         # if secrets are not included, obfuscate them based on the schema's
         # `secret_fields`. Note this walks any nested blocks as well. If the
@@ -823,7 +823,6 @@ class BlockDocument(ORMBaseModel):
                         if secret_key[0:wildcard_index] == data_key[0:wildcard_index]:
                             flat_data[data_key] = obfuscate(flat_data[data_key])
             data = flatdict_to_dict(flat_data)
-
         return cls(
             id=orm_block_document.id,
             created=orm_block_document.created,

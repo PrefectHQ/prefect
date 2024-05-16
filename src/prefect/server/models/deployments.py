@@ -83,9 +83,7 @@ async def create_deployment(
     deployment.updated = pendulum.now("UTC")
 
     schedules = deployment.schedules
-    insert_values = deployment.dict(
-        shallow=True, exclude_unset=True, exclude={"schedules"}
-    )
+    insert_values = deployment.model_dump(exclude_unset=True, exclude={"schedules"})
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
@@ -93,8 +91,7 @@ async def create_deployment(
     if job_variables:
         insert_values["infra_overrides"] = job_variables
 
-    conflict_update_fields = deployment.dict(
-        shallow=True,
+    conflict_update_fields = deployment.model_dump(
         exclude_unset=True,
         exclude={"id", "created", "created_by", "schedules", "job_variables"},
     )
@@ -189,8 +186,7 @@ async def update_deployment(
 
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = deployment.dict(
-        shallow=True,
+    update_data = deployment.model_dump(
         exclude_unset=True,
         exclude={"work_pool_name"},
     )

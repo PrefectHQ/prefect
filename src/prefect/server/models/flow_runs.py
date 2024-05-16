@@ -59,8 +59,7 @@ async def create_flow_run(
     now = pendulum.now("UTC")
 
     flow_run_dict = dict(
-        **flow_run.dict(
-            shallow=True,
+        **flow_run.model_dump(
             exclude={
                 "created",
                 "state",
@@ -143,7 +142,7 @@ async def update_flow_run(
         .where(db.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
-        .values(**flow_run.dict(shallow=True, exclude_unset=True))
+        .values(**flow_run.model_dump(exclude_unset=True))
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0

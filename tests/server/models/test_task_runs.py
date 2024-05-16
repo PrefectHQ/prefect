@@ -719,7 +719,7 @@ class TestPreventOrphanedConcurrencySlots:
                 task_key="my-key-1",
                 dynamic_key="0",
                 tags=["red"],
-                state=Pending().dict(shallow=True),
+                state=Pending().model_dump(),
             ),
         )
         await session.commit()
@@ -734,7 +734,7 @@ class TestPreventOrphanedConcurrencySlots:
                 task_key="my-key-2",
                 dynamic_key="1",
                 tags=["red"],
-                state=Pending().dict(shallow=True),
+                state=Pending().model_dump(),
             ),
         )
         await session.commit()

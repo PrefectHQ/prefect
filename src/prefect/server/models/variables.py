@@ -126,7 +126,7 @@ async def update_variable(
     query = (
         sa.update(db.Variable)
         .where(db.Variable.id == variable_id)
-        .values(**variable.dict(shallow=True, exclude_unset=True))
+        .values(**variable.model_dump(exclude_unset=True))
     )
 
     result = await session.execute(query)
@@ -146,7 +146,7 @@ async def update_variable_by_name(
     query = (
         sa.update(db.Variable)
         .where(db.Variable.name == name)
-        .values(**variable.dict(shallow=True, exclude_unset=True))
+        .values(**variable.model_dump(exclude_unset=True))
     )
 
     result = await session.execute(query)

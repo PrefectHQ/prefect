@@ -117,7 +117,7 @@ async def update_agent(
         .where(db.Agent.id == agent_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
-        .values(**agent.dict(shallow=True, exclude_unset=True))
+        .values(**agent.model_dump(exclude_unset=True))
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0
@@ -157,9 +157,7 @@ async def record_agent_poll(
         )
         .on_conflict_do_update(
             index_elements=[db.Agent.id],
-            set_=agent_data.dict(
-                shallow=True, include={"work_queue_id", "last_activity_time"}
-            ),
+            set_=agent_data.model_dump(include={"work_queue_id", "last_activity_time"}),
         )
     )
     await session.execute(insert_stmt)

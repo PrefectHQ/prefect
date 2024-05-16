@@ -1,15 +1,14 @@
 """
 Command line interface for working with Prefect on Kubernetes
 """
+
 from string import Template
 
 import typer
-import yaml
 
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli.root import app
-from prefect.infrastructure import KubernetesJob
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -113,44 +112,3 @@ def manifest_agent(
         }
     )
     print(manifest)
-
-
-@manifest_app.command("flow-run-job")
-async def manifest_flow_run_job():
-    """
-    Prints the default KubernetesJob Job manifest.
-
-    Use this file to fully customize your `KubernetesJob` deployments.
-
-    \b
-    Example:
-        \b
-        $ prefect kubernetes manifest flow-run-job
-
-    \b
-    Output, a YAML file:
-        \b
-        apiVersion: batch/v1
-        kind: Job
-        ...
-    """
-
-    KubernetesJob.base_job_manifest()
-
-    output = yaml.dump(KubernetesJob.base_job_manifest())
-
-    # add some commentary where appropriate
-    output = output.replace(
-        "metadata:\n  labels:",
-        "metadata:\n  # labels are required, even if empty\n  labels:",
-    )
-    output = output.replace(
-        "containers:\n",
-        "containers:  # the first container is required\n",
-    )
-    output = output.replace(
-        "env: []\n",
-        "env: []  # env is required, even if empty\n",
-    )
-
-    print(output)

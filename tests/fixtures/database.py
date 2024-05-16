@@ -409,14 +409,14 @@ async def storage_document_id(prefect_client, tmpdir):
 
 @pytest.fixture
 async def infrastructure_document_id(prefect_client):
-    return await Process(env={"MY_TEST_VARIABLE": 1})._save(
+    return await Process(env={"MY_TEST_VARIABLE": "1"})._save(
         is_anonymous=True, client=prefect_client
     )
 
 
 @pytest.fixture
 async def infrastructure_document_id_2(prefect_client):
-    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
+    return await DockerContainer(env={"MY_TEST_VARIABLE": "1"})._save(
         is_anonymous=True, client=prefect_client
     )
 

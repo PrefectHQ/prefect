@@ -11,14 +11,7 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 import respx
 from fastapi import Depends, FastAPI, status
@@ -232,13 +225,13 @@ class TestInjectClient:
         assert not client._closed, "Client should not be closed after function returns"
 
     async def test_use_existing_client_from_flow_run_ctx(self, prefect_client):
-        with prefect.context.FlowRunContext.construct(client=prefect_client):
+        with prefect.context.FlowRunContext.model_construct(client=prefect_client):
             client = await TestInjectClient.injected_func()
         assert client is prefect_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
 
     async def test_use_existing_client_from_task_run_ctx(self, prefect_client):
-        with prefect.context.FlowRunContext.construct(client=prefect_client):
+        with prefect.context.FlowRunContext.model_construct(client=prefect_client):
             client = await TestInjectClient.injected_func()
         assert client is prefect_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
@@ -246,7 +239,7 @@ class TestInjectClient:
     async def test_use_existing_client_from_flow_run_ctx_with_null_kwarg(
         self, prefect_client
     ):
-        with prefect.context.FlowRunContext.construct(client=prefect_client):
+        with prefect.context.FlowRunContext.model_construct(client=prefect_client):
             client = await TestInjectClient.injected_func(client=None)
         assert client is prefect_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
