@@ -154,7 +154,7 @@ _ECSClient = Any
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Deployment, Flow
+    from prefect.server.schemas.core import Flow
 
 
 class ECSTaskResult(InfrastructureResult):
@@ -602,7 +602,7 @@ class ECSTask(Infrastructure):
     def prepare_for_flow_run(
         self: Self,
         flow_run: "FlowRun",
-        deployment: Optional["Deployment"] = None,
+        deployment=None,
         flow: Optional["Flow"] = None,
     ) -> Self:
         """
