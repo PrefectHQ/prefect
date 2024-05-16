@@ -9,112 +9,114 @@
         <FlowRunsPageEmptyState />
       </template>
       <template v-else>
-        <FlowRunsFilterGroup v-model:nameSearch="flowRunNameLike" :filter="dashboardFilter" @update:filter="setDashboardFilter" />
+        <p-content>
+          <FlowRunsFilterGroup v-model:nameSearch="flowRunNameLike" :filter="dashboardFilter" @update:filter="setDashboardFilter" />
 
-        <p-divider />
+          <p-divider />
 
-        <p-tabs-root v-model:model-value="tab" :default-value="tabs[0]">
-          <p-tabs-list>
-            <p-tabs-trigger value="flow-runs">
-              Flow runs
-            </p-tabs-trigger>
-            <p-tabs-trigger value="task-runs">
-              Task runs
-            </p-tabs-trigger>
-          </p-tabs-list>
-          <p-tabs-content value="flow-runs">
-            <template v-if="media.md">
-              <FlowRunsScatterPlot
-                :history="flowRunHistory"
-                :start-date="flowRunsFilter.flowRuns?.expectedStartTimeAfter"
-                :end-date="flowRunsFilter.flowRuns?.expectedStartTimeBefore"
-                class="workspace-runs__scatter-plot"
-              />
-            </template>
-
-            <p-content>
-              <p-list-header class="min-h-10" sticky>
-                <p-select-all-checkbox v-if="flowRunsAreSelectable" v-model="selectedFlowRuns" :selectable="flowRuns.map(flowRun => flowRun.id)" item-name="flow run" />
-                <ResultsCount v-if="selectedFlowRuns.length == 0" :count="flowRunCount" label="Flow run" />
-                <SelectedCount v-else :count="selectedFlowRuns.length" />
-                <FlowRunsDeleteButton v-if="can.delete.flow_run" :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
-
-                <template #controls>
-                  <div class="workspace-runs__subflows-toggle">
-                    <p-toggle v-model="hideSubflows" append="Hide subflows" />
-                  </div>
-                  <template v-if="media.md">
-                    <SearchInput v-model="flowRunNameLike" size="small" placeholder="Search by flow run name" class="min-w-64" label="Search by flow run name" />
-                  </template>
-                </template>
-
-                <template #sort>
-                  <FlowRunsSort v-model="flowRunsSort" small />
-                </template>
-              </p-list-header>
-
-              <FlowRunList v-if="flowRuns.length" v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
-
-              <template v-else-if="flowRunsSubscriptions.loading">
-                <p-loading-icon class="m-auto" />
+          <p-tabs-root v-model:model-value="tab" :default-value="tabs[0]">
+            <p-tabs-list>
+              <p-tabs-trigger value="flow-runs">
+                Flow runs
+              </p-tabs-trigger>
+              <p-tabs-trigger value="task-runs">
+                Task runs
+              </p-tabs-trigger>
+            </p-tabs-list>
+            <p-tabs-content value="flow-runs">
+              <template v-if="media.md">
+                <FlowRunsScatterPlot
+                  :history="flowRunHistory"
+                  :start-date="flowRunsFilter.flowRuns?.expectedStartTimeAfter"
+                  :end-date="flowRunsFilter.flowRuns?.expectedStartTimeBefore"
+                  class="workspace-runs__scatter-plot"
+                />
               </template>
 
-              <template v-else>
-                <p-empty-results>
-                  <template #message>
-                    No flow runs
-                  </template>
-                  <template v-if="isCustomFilter" #actions>
-                    <p-button size="sm" @click="clear">
-                      Clear Filters
-                    </p-button>
-                  </template>
-                </p-empty-results>
-              </template>
-            </p-content>
-          </p-tabs-content>
-          <p-tabs-content value="task-runs">
-            <p-content>
-              <p-list-header class="min-h-10" sticky>
-                <p-select-all-checkbox v-if="taskRunsAreSelectable" v-model="selectedTaskRuns" :selectable="taskRuns.map(taskRun => taskRun.id)" item-name="task run" />
-                <ResultsCount v-if="selectedTaskRuns.length == 0" :count="taskRunCount" label="Task run" />
-                <SelectedCount v-else :count="selectedTaskRuns.length" />
-                <TaskRunsDeleteButton v-if="can.delete.task_run" :selected="selectedTaskRuns" @delete="deleteTaskRuns" />
+              <p-content>
+                <p-list-header class="min-h-10" sticky>
+                  <p-select-all-checkbox v-if="flowRunsAreSelectable" v-model="selectedFlowRuns" :selectable="flowRuns.map(flowRun => flowRun.id)" item-name="flow run" />
+                  <ResultsCount v-if="selectedFlowRuns.length == 0" :count="flowRunCount" label="Flow run" />
+                  <SelectedCount v-else :count="selectedFlowRuns.length" />
+                  <FlowRunsDeleteButton v-if="can.delete.flow_run" :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
 
-                <template #controls>
-                  <p-button-group v-model="taskRunAutonomyButtonGroupValue" small :options="taskRunAutonomyButtonGroupOptions" />
-
-                  <template v-if="media.md">
-                    <SearchInput v-model="taskRunNameLike" size="small" placeholder="Search by task run name" class="min-w-64" label="Search by task run name" />
+                  <template #controls>
+                    <div class="workspace-runs__subflows-toggle">
+                      <p-toggle v-model="hideSubflows" append="Hide subflows" />
+                    </div>
+                    <template v-if="media.md">
+                      <SearchInput v-model="flowRunNameLike" size="small" placeholder="Search by flow run name" class="min-w-64" label="Search by flow run name" />
+                    </template>
                   </template>
+
+                  <template #sort>
+                    <FlowRunsSort v-model="flowRunsSort" small />
+                  </template>
+                </p-list-header>
+
+                <FlowRunList v-if="flowRuns.length" v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
+
+                <template v-else-if="flowRunsSubscriptions.loading">
+                  <p-loading-icon class="m-auto" />
                 </template>
 
-                <template #sort>
-                  <TaskRunsSort v-model="taskRunsSort" small />
+                <template v-else>
+                  <p-empty-results>
+                    <template #message>
+                      No flow runs
+                    </template>
+                    <template v-if="isCustomFilter" #actions>
+                      <p-button size="sm" @click="clear">
+                        Clear Filters
+                      </p-button>
+                    </template>
+                  </p-empty-results>
                 </template>
-              </p-list-header>
+              </p-content>
+            </p-tabs-content>
+            <p-tabs-content value="task-runs">
+              <p-content>
+                <p-list-header class="min-h-10" sticky>
+                  <p-select-all-checkbox v-if="taskRunsAreSelectable" v-model="selectedTaskRuns" :selectable="taskRuns.map(taskRun => taskRun.id)" item-name="task run" />
+                  <ResultsCount v-if="selectedTaskRuns.length == 0" :count="taskRunCount" label="Task run" />
+                  <SelectedCount v-else :count="selectedTaskRuns.length" />
+                  <TaskRunsDeleteButton v-if="can.delete.task_run" :selected="selectedTaskRuns" @delete="deleteTaskRuns" />
 
-              <TaskRunList v-if="taskRuns.length" v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" @bottom="loadMoreTaskRuns" />
+                  <template #controls>
+                    <p-button-group v-model="taskRunAutonomyButtonGroupValue" small :options="taskRunAutonomyButtonGroupOptions" />
 
-              <template v-else-if="taskRunsSubscriptions.loading">
-                <p-loading-icon class="m-auto" />
-              </template>
-
-              <template v-else>
-                <p-empty-results>
-                  <template #message>
-                    No task runs
+                    <template v-if="media.md">
+                      <SearchInput v-model="taskRunNameLike" size="small" placeholder="Search by task run name" class="min-w-64" label="Search by task run name" />
+                    </template>
                   </template>
-                  <template v-if="isCustomFilter" #actions>
-                    <p-button size="sm" @click="clear">
-                      Clear Filters
-                    </p-button>
+
+                  <template #sort>
+                    <TaskRunsSort v-model="taskRunsSort" small />
                   </template>
-                </p-empty-results>
-              </template>
-            </p-content>
-          </p-tabs-content>
-        </p-tabs-root>
+                </p-list-header>
+
+                <TaskRunList v-if="taskRuns.length" v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" @bottom="loadMoreTaskRuns" />
+
+                <template v-else-if="taskRunsSubscriptions.loading">
+                  <p-loading-icon class="m-auto" />
+                </template>
+
+                <template v-else>
+                  <p-empty-results>
+                    <template #message>
+                      No task runs
+                    </template>
+                    <template v-if="isCustomFilter" #actions>
+                      <p-button size="sm" @click="clear">
+                        Clear Filters
+                      </p-button>
+                    </template>
+                  </p-empty-results>
+                </template>
+              </p-content>
+            </p-tabs-content>
+          </p-tabs-root>
+        </p-content>
       </template>
     </template>
   </p-layout-default>
