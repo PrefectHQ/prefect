@@ -13,6 +13,7 @@ from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from typing import List
+from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
@@ -47,7 +48,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -3882,3 +3883,35 @@ class TestFlowDeploy:
         )
 
         assert not capsys.readouterr().out
+
+
+class TestLoadFlowFromFlowRun:
+    async def test_load_flow_from_module_entrypoint(
+        self, prefect_client: "PrefectClient", monkeypatch
+    ):
+        @flow
+        def pretend_flow():
+            pass
+
+        load_flow_from_entrypoint = mock.MagicMock(return_value=pretend_flow)
+        monkeypatch.setattr(
+            "prefect.flows.load_flow_from_entrypoint",
+            load_flow_from_entrypoint,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(pretend_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my.module.pretend_flow",
+            flow_id=flow_id,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run, client=prefect_client)
+
+        assert result == pretend_flow
+        load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")

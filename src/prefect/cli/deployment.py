@@ -7,7 +7,6 @@ import sys
 import textwrap
 import warnings
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -31,14 +30,10 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import load_deployments_from_yaml
 from prefect.exceptions import (
     ObjectAlreadyExists,
     ObjectNotFound,
     PrefectHTTPStatusError,
-    ScriptError,
-    exception_traceback,
 )
 from prefect.flow_runs import wait_for_flow_run
 from prefect.settings import PREFECT_UI_URL
@@ -1068,39 +1063,6 @@ async def run(
             f"Flow run finished in state {finished_flow_run_state.name!r}.",
             code=1,
         )
-
-
-def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
-    """
-    Load deployments from the path the user gave on the command line, giving helpful
-    error messages if they cannot be loaded.
-    """
-    if path.suffix == ".py":
-        from_msg = "python script"
-        loader = registry_from_script
-
-    elif path.suffix in (".yaml", ".yml"):
-        from_msg = "yaml file"
-        loader = load_deployments_from_yaml
-
-    else:
-        exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
-
-    if not quietly:
-        app.console.print(
-            f"Loading deployments from {from_msg} at [green]{str(path)!r}[/]..."
-        )
-    try:
-        specs = loader(path)
-    except ScriptError as exc:
-        app.console.print(exc)
-        app.console.print(exception_traceback(exc.user_exc))
-        exit_with_error(f"Failed to load deployments from {str(path)!r}")
-
-    if not specs:
-        exit_with_error("No deployments found!", style="yellow")
-
-    return specs
 
 
 @deployment_app.command()
