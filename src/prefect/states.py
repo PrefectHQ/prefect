@@ -43,7 +43,6 @@ def get_state_result(
     ):
         # Fetch defaults to `True` for sync users or async users who have opted in
         fetch = True
-
     if not fetch:
         if fetch is None and in_async_main_thread():
             warnings.warn(

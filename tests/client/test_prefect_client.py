@@ -1137,7 +1137,7 @@ async def test_delete_task_run(prefect_client):
     )
 
     await prefect_client.delete_task_run(task_run.id)
-    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="Not Found"):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
         await prefect_client.read_task_run(task_run.id)
 
 
