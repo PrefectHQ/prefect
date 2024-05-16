@@ -32,6 +32,7 @@ from prefect.exceptions import (
 from prefect.logging.loggers import disable_logger, get_logger
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.collections import isiterable
+from prefect.utilities.importtools import safe_load_namespace
 
 logger = get_logger(__name__)
 
