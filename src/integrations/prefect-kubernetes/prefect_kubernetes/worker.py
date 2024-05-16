@@ -771,6 +771,7 @@ class KubernetesWorker(BaseWorker):
                 configuration=configuration, client=client
             )
         try:
+            print(configuration.job_manifest)
             batch_client = BatchV1Api(client)
             job = await batch_client.create_namespaced_job(
                 configuration.namespace,
@@ -1144,7 +1145,7 @@ class KubernetesWorker(BaseWorker):
         logger.error(f"Job {job_name!r}: Pod never started.")
         self._log_recent_events(logger, job_name, last_pod_name, configuration, client)
 
-    def _log_recent_events(
+    async def _log_recent_events(
         self,
         logger: logging.Logger,
         job_name: str,
@@ -1160,7 +1161,7 @@ class KubernetesWorker(BaseWorker):
             """Choose the best timestamp from a Kubernetes event"""
             return event.event_time or event.last_timestamp
 
-        def log_event(event: CoreV1Event):
+        async def log_event(event: CoreV1Event):
             """Log an event in one of a few formats to the provided logger"""
             if event.count and event.count > 1:
                 logger.info(
@@ -1182,7 +1183,7 @@ class KubernetesWorker(BaseWorker):
 
             core_client = CoreV1Api(client)
 
-            events: CoreV1EventList = core_client.list_namespaced_event(
+            events: CoreV1EventList = await core_client.list_namespaced_event(
                 configuration.namespace
             )
             event: CoreV1Event

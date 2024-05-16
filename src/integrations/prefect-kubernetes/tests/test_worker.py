@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 
 import anyio
 import anyio.abc
-import kubernetes
+import kubernetes_asyncio as kubernetes
 import pendulum
 import pytest
 from kubernetes_asyncio.client.exceptions import ApiException
@@ -46,6 +46,7 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import ValidationError
 
+from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api
 from prefect_kubernetes import KubernetesWorker
 from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
 from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
@@ -87,6 +88,12 @@ def mock_cluster_config(monkeypatch):
 
 
 @pytest.fixture
+async def mock_api_client():
+    async with ApiClient() as client:
+        yield client
+
+
+@pytest.fixture
 def mock_anyio_sleep_monotonic(monkeypatch):
     def mock_monotonic():
         return mock_sleep.current_time
@@ -108,37 +115,17 @@ def mock_job():
 
 
 @pytest.fixture
-def mock_core_client(monkeypatch, mock_cluster_config):
-    mock = AsyncMock(spec=kubernetes.client.CoreV1Api)
+def mock_core_client(monkeypatch, mock_cluster_config, mock_api_client):
+    mock = AsyncMock(spec=CoreV1Api, client=mock_api_client)
     mock.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
-
-    # @contextmanager
-    # def get_core_client(*args, **kwargs):
-    #     yield mock
-
-    # monkeypatch.setattr(
-    #     "prefect_kubernetes.worker.KubernetesWorker.ApiClient",
-    #     get_core_client,
-    # )
     return mock
 
 
 @pytest.fixture
-def mock_batch_client(monkeypatch, mock_cluster_config, mock_job):
-    pytest.importorskip("kubernetes")
-
-    mock = AsyncMock(spec=kubernetes.client.BatchV1Api)
+def mock_batch_client(monkeypatch, mock_cluster_config, mock_job, mock_api_client):
+    mock = AsyncMock(spec=BatchV1Api, client=mock_api_client)
     mock.read_namespaced_job.return_value = mock_job
     mock.create_namespaced_job.return_value = mock_job
-
-    # @contextmanager
-    # def get_batch_client(*args, **kwargs):
-    #     yield mock
-
-    # monkeypatch.setattr(
-    #     "prefect_kubernetes.worker.KubernetesWorker._get_batch_client",
-    #     get_batch_client,
-    # )
     return mock
 
 
