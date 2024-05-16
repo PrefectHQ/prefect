@@ -1,7 +1,5 @@
 import asyncio
 import datetime
-import socket
-import threading
 import warnings
 from contextlib import AsyncExitStack
 from typing import (
@@ -10,7 +8,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    NoReturn,
     Optional,
     Set,
     Tuple,
@@ -23,34 +20,20 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-import uvicorn
-from typing_extensions import ParamSpec
-
-from prefect._internal.compatibility.deprecated import (
-    handle_deprecated_infra_overrides_parameter,
-)
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.client.schemas import sorting
-from prefect.events import filters
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
-)
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic.v1 as pydantic
 from asgi_lifespan import LifespanManager
 from prefect._vendor.starlette import status
+from typing_extensions import ParamSpec
 
 import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
+from prefect._internal.compatibility.deprecated import (
+    handle_deprecated_infra_overrides_parameter,
+)
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
     ArtifactCreate,
     BlockDocumentCreate,
@@ -136,7 +119,7 @@ from prefect.client.schemas.sorting import (
     LogSort,
     TaskRunSort,
 )
-from prefect.deprecated.data_documents import DataDocument
+from prefect.events import filters
 from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -161,6 +144,7 @@ from prefect.client.base import (
     ASGIApp,
     PrefectHttpxAsyncClient,
     PrefectHttpxSyncClient,
+    PrefectHttpxSyncEphemeralClient,
     app_lifespan_context,
 )
 
@@ -173,86 +157,10 @@ class ServerType(AutoEnum):
     SERVER = AutoEnum.auto()
     CLOUD = AutoEnum.auto()
 
-    def supports_automations(self) -> bool:
-        if self == ServerType.CLOUD:
-            return True
-
-        return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
-
-
-class EphemeralASGIServer:
-    _instances: Dict[ASGIApp, "EphemeralASGIServer"] = {}
-
-    def __new__(cls, app, port=None, *args, **kwargs):
-        """
-        Return an instance of the server associated with the specific ASGI application.
-        """
-        key = (app, port)
-        if key not in cls._instances:
-            instance = super().__new__(cls)
-            cls._instances[key] = instance
-        return cls._instances[key]
-
-    def __init__(self, app: ASGIApp, port: int = None):
-        # This ensures initialization happens only once
-        if not hasattr(self, "_initialized"):
-            if port is None:
-                port = self.find_available_port()
-            self.app = app
-            self.port = port
-            self.server_thread = None
-            self.server = None
-            self.running = False
-            self._initialized = True
-
-    def find_available_port(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("", 0))  # Bind to a free port provided by the host.
-        port = s.getsockname()[1]  # Retrieve the port number assigned.
-        s.close()
-        return port
-
-    def address(self) -> str:
-        return f"http://127.0.0.1:{self.port}"
-
-    def run_server(self):
-        config = uvicorn.Config(
-            app=self.app,
-            host="127.0.0.1",
-            port=self.port,
-            log_level="error",
-            lifespan="on",
-        )
-
-        self.server = uvicorn.Server(config)
-        self.server.run()
-
-    def start(self):
-        """
-        Start the server in a separate thread. Safe to call multiple times; only starts
-        the server once.
-        """
-        if not self.running:
-            try:
-                self.running = True
-                self.server_thread = threading.Thread(
-                    target=self.run_server, daemon=True
-                )
-                self.server_thread.start()
-            except Exception:
-                self.running = False
-                raise
-
-    def stop(self):
-        if self.running:
-            self.server.should_exit = True
-            self.server_thread.join()  # Wait for the server thread to finish
-            self.running = False
-
 
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: bool = False
-) -> "PrefectClient":
+) -> Union["PrefectClient", "SyncPrefectClient"]:
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
@@ -1654,19 +1562,19 @@ class PrefectClient:
         self,
         flow_id: UUID,
         name: str,
-        version: str = None,
-        schedule: SCHEDULE_TYPES = None,
-        schedules: List[DeploymentScheduleCreate] = None,
+        version: Optional[str] = None,
+        schedule: Optional[SCHEDULE_TYPES] = None,
+        schedules: Optional[List[DeploymentScheduleCreate]] = None,
         parameters: Optional[Dict[str, Any]] = None,
-        description: str = None,
-        work_queue_name: str = None,
-        work_pool_name: str = None,
-        tags: List[str] = None,
-        storage_document_id: UUID = None,
-        manifest_path: str = None,
-        path: str = None,
-        entrypoint: str = None,
-        infrastructure_document_id: UUID = None,
+        description: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        work_pool_name: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        storage_document_id: Optional[UUID] = None,
+        manifest_path: Optional[str] = None,
+        path: Optional[str] = None,
+        entrypoint: Optional[str] = None,
+        infrastructure_document_id: Optional[UUID] = None,
         infra_overrides: Optional[Dict[str, Any]] = None,  # for backwards compat
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
@@ -1874,14 +1782,14 @@ class PrefectClient:
     async def read_deployments(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        work_pool_filter: WorkPoolFilter = None,
-        work_queue_filter: WorkQueueFilter = None,
-        limit: int = None,
-        sort: DeploymentSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        work_pool_filter: Optional[WorkPoolFilter] = None,
+        work_queue_filter: Optional[WorkQueueFilter] = None,
+        limit: Optional[int] = None,
+        sort: Optional[DeploymentSort] = None,
         offset: int = 0,
     ) -> List[DeploymentResponse]:
         """
@@ -2030,7 +1938,7 @@ class PrefectClient:
         kwargs = {}
         if active is not None:
             kwargs["active"] = active
-        elif schedule is not None:
+        if schedule is not None:
             kwargs["schedule"] = schedule
 
         deployment_schedule_update = DeploymentScheduleUpdate(**kwargs)
@@ -2241,6 +2149,7 @@ class PrefectClient:
         task: "TaskObject[P, R]",
         flow_run_id: Optional[UUID],
         dynamic_key: str,
+        id: Optional[UUID] = None,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
@@ -2264,6 +2173,8 @@ class PrefectClient:
             task: The Task to run
             flow_run_id: The flow run id with which to associate the task run
             dynamic_key: A key unique to this particular run of a Task within the flow
+            id: An optional ID for the task run. If not provided, one will be generated
+                server-side.
             name: An optional name for the task run
             extra_tags: an optional list of extra tags to apply to the task run in
                 addition to `task.tags`
@@ -2280,6 +2191,7 @@ class PrefectClient:
             state = prefect.states.Pending()
 
         task_run_data = TaskRunCreate(
+            id=id,
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
@@ -2294,10 +2206,9 @@ class PrefectClient:
             state=state.to_state_create(),
             task_inputs=task_inputs or {},
         )
+        content = task_run_data.json(exclude={"id"} if id is None else None)
 
-        response = await self._client.post(
-            "/task_runs/", json=task_run_data.dict(json_compatible=True)
-        )
+        response = await self._client.post("/task_runs/", content=content)
         return TaskRun.parse_obj(response.json())
 
     async def read_task_run(self, task_run_id: UUID) -> TaskRun:
@@ -2599,37 +2510,6 @@ class PrefectClient:
 
         response = await self._client.post("/logs/filter", json=body)
         return pydantic.parse_obj_as(List[Log], response.json())
-
-    async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
-        """
-        Recursively decode possibly nested data documents.
-
-        "server" encoded documents will be retrieved from the server.
-
-        Args:
-            datadoc: The data document to resolve
-
-        Returns:
-            a decoded object, the innermost data
-        """
-        if not isinstance(datadoc, DataDocument):
-            raise TypeError(
-                f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
-            )
-
-        async def resolve_inner(data):
-            if isinstance(data, bytes):
-                try:
-                    data = DataDocument.parse_raw(data)
-                except pydantic.ValidationError:
-                    return data
-
-            if isinstance(data, DataDocument):
-                return await resolve_inner(data.decode())
-
-            return data
-
-        return await resolve_inner(datadoc)
 
     async def send_worker_heartbeat(
         self,
@@ -3215,25 +3095,8 @@ class PrefectClient:
         response = await self._client.delete(f"/flow_runs/{flow_run_id}/input/{key}")
         response.raise_for_status()
 
-    def _raise_for_unsupported_automations(self) -> NoReturn:
-        if not PREFECT_EXPERIMENTAL_EVENTS:
-            raise RuntimeError(
-                "The current server and client configuration does not support "
-                "events.  Enable experimental events support with the "
-                "PREFECT_EXPERIMENTAL_EVENTS setting."
-            )
-        else:
-            raise RuntimeError(
-                "The current server and client configuration does not support "
-                "automations.  Enable experimental automations with the "
-                "PREFECT_API_SERVICES_TRIGGERS_ENABLED setting."
-            )
-
     async def create_automation(self, automation: AutomationCore) -> UUID:
         """Creates an automation in Prefect Cloud."""
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         response = await self._client.post(
             "/automations/",
             json=automation.dict(json_compatible=True),
@@ -3243,8 +3106,6 @@ class PrefectClient:
 
     async def update_automation(self, automation_id: UUID, automation: AutomationCore):
         """Updates an automation in Prefect Cloud."""
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
         response = await self._client.put(
             f"/automations/{automation_id}",
             json=automation.dict(json_compatible=True, exclude_unset=True),
@@ -3252,9 +3113,6 @@ class PrefectClient:
         response.raise_for_status
 
     async def read_automations(self) -> List[Automation]:
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         response = await self._client.post("/automations/filter")
         response.raise_for_status()
         return pydantic.parse_obj_as(List[Automation], response.json())
@@ -3293,9 +3151,6 @@ class PrefectClient:
         return None
 
     async def read_automation(self, automation_id: UUID) -> Optional[Automation]:
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         response = await self._client.get(f"/automations/{automation_id}")
         if response.status_code == 404:
             return None
@@ -3312,8 +3167,6 @@ class PrefectClient:
         Returns:
             a list of Automation model representations of the automations
         """
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
         automation_filter = filters.AutomationFilter(name=dict(any_=[name]))
 
         response = await self._client.post(
@@ -3331,27 +3184,18 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[Automation], response.json())
 
     async def pause_automation(self, automation_id: UUID):
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         response = await self._client.patch(
             f"/automations/{automation_id}", json={"enabled": False}
         )
         response.raise_for_status()
 
     async def resume_automation(self, automation_id: UUID):
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         response = await self._client.patch(
             f"/automations/{automation_id}", json={"enabled": True}
         )
         response.raise_for_status()
 
     async def delete_automation(self, automation_id: UUID):
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         response = await self._client.delete(f"/automations/{automation_id}")
         if response.status_code == 404:
             return
@@ -3361,17 +3205,11 @@ class PrefectClient:
     async def read_resource_related_automations(
         self, resource_id: str
     ) -> List[Automation]:
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         response = await self._client.get(f"/automations/related-to/{resource_id}")
         response.raise_for_status()
         return pydantic.parse_obj_as(List[Automation], response.json())
 
     async def delete_resource_owned_automations(self, resource_id: str):
-        if not self.server_type.supports_automations():
-            self._raise_for_unsupported_automations()
-
         await self._client.delete(f"/automations/owned-by/{resource_id}")
 
     async def __aenter__(self):
@@ -3495,13 +3333,6 @@ class SyncPrefectClient:
         self._closed = False
         self._started = False
 
-        # Connect to an ephemeral application
-        if isinstance(api, ASGIApp):
-            self._ephemeral_app = EphemeralASGIServer(app=api)
-            self._ephemeral_app.start()
-            self.server_type = ServerType.EPHEMERAL
-            api = self._ephemeral_app.address() + "/api"
-
         # Connect to an external application
         if isinstance(api, str):
             if httpx_settings.get("app"):
@@ -3539,6 +3370,11 @@ class SyncPrefectClient:
                 else ServerType.SERVER
             )
 
+        # Connect to an in-process application
+        elif isinstance(api, ASGIApp):
+            self._ephemeral_app = api
+            self.server_type = ServerType.EPHEMERAL
+
         else:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
@@ -3564,9 +3400,15 @@ class SyncPrefectClient:
             and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
         )
 
-        self._client = PrefectHttpxSyncClient(
-            **httpx_settings, enable_csrf_support=enable_csrf_support
-        )
+        if self.server_type == ServerType.EPHEMERAL:
+            self._client = PrefectHttpxSyncEphemeralClient(
+                api, base_url="http://ephemeral-prefect/api"
+            )
+        else:
+            self._client = PrefectHttpxSyncClient(
+                **httpx_settings, enable_csrf_support=enable_csrf_support
+            )
+
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
         # If we're using an HTTP/S client (not the ephemeral client), adjust the
@@ -3596,6 +3438,39 @@ class SyncPrefectClient:
         Get the base URL for the API.
         """
         return self._client.base_url
+
+    # Context management ----------------------------------------------------------------
+
+    def __enter__(self) -> "SyncPrefectClient":
+        """
+        Start the client.
+
+        If the client is already started, this will raise an exception.
+
+        If the client is already closed, this will raise an exception. Use a new client
+        instance instead.
+        """
+        if self._closed:
+            # httpx.Client does not allow reuse so we will not either.
+            raise RuntimeError(
+                "The client cannot be started again after closing. "
+                "Retrieve a new client with `get_client()` instead."
+            )
+
+        if self._started:
+            # httpx.Client does not allow reentrancy so we will not either.
+            raise RuntimeError("The client cannot be started more than once.")
+        self._client.__enter__()
+        self._started = True
+
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        """
+        Shutdown the client.
+        """
+        self._closed = True
+        self._client.__exit__(*exc_info)
 
     # API methods ----------------------------------------------------------------------
 
@@ -3722,6 +3597,90 @@ class SyncPrefectClient:
 
         return flow_run
 
+    def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
+        """
+        Query the Prefect API for a flow run by id.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+
+        Returns:
+            a Flow Run model representation of the flow run
+        """
+        try:
+            response = self._client.get(f"/flow_runs/{flow_run_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return FlowRun.parse_obj(response.json())
+
+    def read_flow_runs(
+        self,
+        *,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        work_pool_filter: WorkPoolFilter = None,
+        work_queue_filter: WorkQueueFilter = None,
+        sort: FlowRunSort = None,
+        limit: int = None,
+        offset: int = 0,
+    ) -> List[FlowRun]:
+        """
+        Query the Prefect API for flow runs. Only flow runs matching all criteria will
+        be returned.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            work_pool_filter: filter criteria for work pools
+            work_queue_filter: filter criteria for work pool queues
+            sort: sort criteria for the flow runs
+            limit: limit for the flow run query
+            offset: offset for the flow run query
+
+        Returns:
+            a list of Flow Run model representations
+                of the flow runs
+        """
+        body = {
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "work_pools": (
+                work_pool_filter.dict(json_compatible=True)
+                if work_pool_filter
+                else None
+            ),
+            "work_pool_queues": (
+                work_queue_filter.dict(json_compatible=True)
+                if work_queue_filter
+                else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = self._client.post("/flow_runs/filter", json=body)
+        return pydantic.parse_obj_as(List[FlowRun], response.json())
+
     def set_flow_run_state(
         self,
         flow_run_id: UUID,
@@ -3761,6 +3720,7 @@ class SyncPrefectClient:
         task: "TaskObject[P, R]",
         flow_run_id: Optional[UUID],
         dynamic_key: str,
+        id: Optional[UUID] = None,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
@@ -3784,6 +3744,8 @@ class SyncPrefectClient:
             task: The Task to run
             flow_run_id: The flow run id with which to associate the task run
             dynamic_key: A key unique to this particular run of a Task within the flow
+            id: An optional ID for the task run. If not provided, one will be generated
+                server-side.
             name: An optional name for the task run
             extra_tags: an optional list of extra tags to apply to the task run in
                 addition to `task.tags`
@@ -3800,6 +3762,7 @@ class SyncPrefectClient:
             state = prefect.states.Pending()
 
         task_run_data = TaskRunCreate(
+            id=id,
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
@@ -3815,9 +3778,9 @@ class SyncPrefectClient:
             task_inputs=task_inputs or {},
         )
 
-        response = self._client.post(
-            "/task_runs/", json=task_run_data.dict(json_compatible=True)
-        )
+        content = task_run_data.json(exclude={"id"} if id is None else None)
+
+        response = self._client.post("/task_runs/", content=content)
         return TaskRun.parse_obj(response.json())
 
     def read_task_run(self, task_run_id: UUID) -> TaskRun:
@@ -3832,6 +3795,56 @@ class SyncPrefectClient:
         """
         response = self._client.get(f"/task_runs/{task_run_id}")
         return TaskRun.parse_obj(response.json())
+
+    def read_task_runs(
+        self,
+        *,
+        flow_filter: FlowFilter = None,
+        flow_run_filter: FlowRunFilter = None,
+        task_run_filter: TaskRunFilter = None,
+        deployment_filter: DeploymentFilter = None,
+        sort: TaskRunSort = None,
+        limit: int = None,
+        offset: int = 0,
+    ) -> List[TaskRun]:
+        """
+        Query the Prefect API for task runs. Only task runs matching all criteria will
+        be returned.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            sort: sort criteria for the task runs
+            limit: a limit for the task run query
+            offset: an offset for the task run query
+
+        Returns:
+            a list of Task Run model representations
+                of the task runs
+        """
+        body = {
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                if flow_run_filter
+                else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = self._client.post("/task_runs/filter", json=body)
+        return pydantic.parse_obj_as(List[TaskRun], response.json())
 
     def set_task_run_state(
         self,
@@ -3858,3 +3871,18 @@ class SyncPrefectClient:
             json=dict(state=state_create.dict(json_compatible=True), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
+
+    def read_task_run_states(self, task_run_id: UUID) -> List[prefect.states.State]:
+        """
+        Query for the states of a task run
+
+        Args:
+            task_run_id: the id of the task run
+
+        Returns:
+            a list of State model representations of the task run states
+        """
+        response = self._client.get(
+            "/task_run_states/", params=dict(task_run_id=str(task_run_id))
+        )
+        return pydantic.parse_obj_as(List[prefect.states.State], response.json())

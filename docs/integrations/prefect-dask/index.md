@@ -1,30 +1,36 @@
-# `prefect-dask`
+# prefect-dask
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-dask/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-dask?color=26272B&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-dask/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-dask?color=26272B&labelColor=090422" /></a>
-</p>
+Dask helps you run your flow in parallel and distribute runs over multiple machines.
+The `prefect-dask` integration makes it easy speed up your flow runs by integrating Dask into your code.
 
-The `prefect-dask` collection makes it easy to include distributed processing for your flows. Check out the examples below to get started!
+## Getting started
 
-## Getting Started
+### Prerequisites
 
-### Integrate with Prefect flows
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 
-Perhaps you're already working with Prefect flows. Say your flow downloads many images to train your machine learning model. Unfortunately, it takes a long time to download your flows because your code is running sequentially.
+### Install prefect-dask
 
-After installing `prefect-dask` you can parallelize your flow in three simple steps:
+<div class="terminal">
+```bash
+pip install -U prefect-dask
+```
+</div>
+
+## Integrate with Prefect flows
+
+Say your flow downloads many images to train a machine learning model.
+It can take longer than you'd like for the code to run because the code runs sequentially.
+
+Parallelize your flow code with `prefect-dask` in three steps:
 
 1. Add the import: `from prefect_dask import DaskTaskRunner`
 2. Specify the task runner in the flow decorator: `@flow(task_runner=DaskTaskRunner)`
 3. Submit tasks to the flow's task runner: `a_task.submit(*args, **kwargs)`
 
-The parallelized code  runs in about 1/3 of the time in our test!  And that's without distributing the workload over multiple machines.
-Here's the before and after!
+Below is code with and without the DaskTaskRunner:
 
-=== "Before"
+=== "Sequential"
     ```python hl_lines="1"
     # Completed in 15.2 seconds
 
@@ -67,7 +73,7 @@ Here's the before and after!
         download_nino_34_plumes_from_year(2022)
     ```
 
-=== "After"
+=== "Parallel"
 
     ```python hl_lines="1 8 26 35"
     # Completed in 5.7 seconds
@@ -112,32 +118,31 @@ Here's the before and after!
         download_nino_34_plumes_from_year(2022)
     ```
 
-The original flow completes in 15.2 seconds.
+In our tests, the sequential flow run took 15.2 seconds.
+The version with `DaskTaskRunner` reduced the runtime to **5.7** seconds!
 
-However, with just a few minor tweaks, we were able to reduce the runtime by nearly **three** folds, down to just **5.7** seconds!
+For additional time savings with Dask, you could distribute large workloads over multiple machines.
 
-### Integrate with Dask client/cluster and collections
+### Integrate with Dask client/cluster
 
-Suppose you have an existing Dask client/cluster and collection, like a `dask.dataframe.DataFrame`, and you want to add observability.
+Suppose you have an existing Dask client/cluster such as a `dask.dataframe.DataFrame`, and you want to add observability.
 
-With `prefect-dask`, there's no major overhaul necessary because Prefect was designed with incremental adoption in mind! It's as easy as:
+With `prefect-dask`, it takes just a few steps:
 
-1. Adding the imports
-2. Sprinkling a few `task` and `flow` decorators
-3. Using `get_dask_client` context manager on collections to distribute work across workers
-4. Specifying the task runner and client's address in the flow decorator
-5. Submitting the tasks to the flow's task runner
+1. Add imports
+2. Add `task` and `flow` decorators
+3. Use `get_dask_client` context manager to distribute work across Dask workers
+4. Specify the task runner and client's address in the flow decorator
+5. Submit the tasks to the flow's task runner
 
-=== "Before"
+=== "Sequential"
 
     ```python
     import dask.dataframe
     import dask.distributed
 
 
-
     client = dask.distributed.Client()
-
 
     def read_data(start: str, end: str) -> dask.dataframe.DataFrame:
         df = dask.datasets.timeseries(start, end, partition_freq="4w")
@@ -155,11 +160,11 @@ With `prefect-dask`, there's no major overhaul necessary because Prefect was des
         df_yearly_average = process_data(df)
         return df_yearly_average
 
-    dask_pipeline()
+    if __name__ == "__main__":
+        dask_pipeline()
     ```
 
-
-=== "After"
+=== "Parallel"
 
     ```python hl_lines="3 4 8 13 15 19 21 22"
     import dask.dataframe
@@ -186,74 +191,15 @@ With `prefect-dask`, there's no major overhaul necessary because Prefect was des
         df_yearly_average = process_data.submit(df)
         return df_yearly_average
 
-    dask_pipeline()
+    if __name__ == "__main__":
+        dask_pipeline()
     ```
 
-Now, you can conveniently see when each task completed, both in the terminal and the UI!
-
-```bash
-14:10:09.845 | INFO    | prefect.engine - Created flow run 'chocolate-pony' for flow 'dask-flow'
-14:10:09.847 | INFO    | prefect.task_runner.dask - Connecting to an existing Dask cluster at tcp://127.0.0.1:59255
-14:10:09.857 | INFO    | distributed.scheduler - Receive client connection: Client-8c1e0f24-9133-11ed-800e-86f2469c4e7a
-14:10:09.859 | INFO    | distributed.core - Starting established connection to tcp://127.0.0.1:59516
-14:10:09.862 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
-14:10:11.344 | INFO    | Flow run 'chocolate-pony' - Created task run 'read_data-5bc97744-0' for task 'read_data'
-14:10:11.626 | INFO    | Flow run 'chocolate-pony' - Submitted task run 'read_data-5bc97744-0' for execution.
-14:10:11.795 | INFO    | Flow run 'chocolate-pony' - Created task run 'process_data-090555ba-0' for task 'process_data'
-14:10:11.798 | INFO    | Flow run 'chocolate-pony' - Submitted task run 'process_data-090555ba-0' for execution.
-14:10:13.279 | INFO    | Task run 'read_data-5bc97744-0' - Finished in state Completed()
-14:11:43.539 | INFO    | Task run 'process_data-090555ba-0' - Finished in state Completed()
-14:11:43.883 | INFO    | Flow run 'chocolate-pony' - Finished in state Completed('All states completed.')
-```
+Run the code and check how long it takes each task to complete.
 
 ## Resources
 
-For additional examples, check out the [Usage Guide](usage_guide)!
+For additional examples, check out the [Usage Guide](/usage_guide/).
+Refer to the prefect-dask API documentation linked in the sidebar to explore all the capabilities of the prefect-dask library.
 
-### Installation
-
-Get started by installing `prefect-dask`!
-
-=== "pip"
-
-    ```bash
-    pip install -U prefect-dask
-    ```
-
-=== "conda"
-
-    ```bash
-    conda install -c conda-forge prefect-dask
-    ```
-
-Requires an installation of Python 3.7+.
-
-We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
-
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Feedback
-
-If you encounter any bugs while using `prefect-dask`, feel free to open an issue in the [prefect](https://github.com/PrefectHQ/prefect) repository.
-
-If you have any questions or issues while using `prefect-dask`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack).
-
-### Contributing
-
-If you'd like to help contribute to fix an issue or add a feature to `prefect-dask`, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
-
-Here are the steps:
-
-1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
-3. Install the repository and its dependencies:
-```
-pip install -e ".[dev]"
-```
-4. Make desired changes
-5. Add tests
-6. Install `pre-commit` to perform quality checks prior to commit:
-```
-pre-commit install
-```
-7. `git commit`, `git push`, and create a pull request
+For assistance using Dask, consult the [Dask documentation](https://docs.dask.org/en/stable/)

@@ -2,19 +2,26 @@
 
 Credentials blocks and secret blocks are popular ways to store and retrieve sensitive information for connecting to third-party services.
 
-In Prefect Cloud, these block values are stored in encrypted format.
-Organizations whose security policies make such storage infeasible can still use Prefect to connect to third-party services securely.
+In Prefect Cloud, these block values are stored in encrypted format, allowing you to use Prefect to connect to third-party services securely.
 
-In this example, we interact with a Snowflake database and store the credentials we need to connect in AWS Secrets Manager.
+This example uses Prefect Cloud and generally works with other third-party services that require credentials as well.
+
+Any sensitive information that is not stored in a block can be read from the environment.
+
+For example, to find AWS credentials for authentication, any attributes not provided to an AWS Credentials block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
+Prefect-aws creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
+
+Prefect-gcp and prefect-azure follow similar patterns.
+
+In the example below, we interact with a Snowflake database using credentials stored in AWS Secrets Manager.
 This example can be generalized to other third party services that require credentials.
-We use Prefect Cloud in this example.
 
 ## Prerequisites
 
-1. Prefect [installed](/getting-started/installation).
-1. CLI authenticated to your [Prefect Cloud](https://app.prefect.cloud) account.
-1. [Snowflake account](https://www.snowflake.com/).
-1. [AWS account](https://aws.amazon.com/).
+1. Prefect [installed](/getting-started/installation)
+1. CLI authenticated to your [Prefect Cloud](https://app.prefect.cloud) account
+1. [Snowflake account](https://www.snowflake.com/)
+1. [AWS account](https://aws.amazon.com/)
 
 ## Steps
 
@@ -27,7 +34,7 @@ We use Prefect Cloud in this example.
 
 ### Install `prefect-aws` and `prefect-snowflake` libraries
 
-The following code will install and upgrade the necessary libraries and their dependencies.
+The following code installs and upgrades the necessary libraries and their dependencies.
 
 <div class="terminal">
 ```bash
@@ -50,13 +57,12 @@ Alternatively, create a secret using the AWS CLI or a script.
 
 ### Create `AwsSecret` block to access your Snowflake password
 
-You can create blocks with Python code or via the Prefect UI.
-Block creation through the UI can help you visualize how the pieces fit together, so let's use it here.
+Create blocks with Python code or through the Prefect UI. Block creation through the UI helps you visualize how the pieces fit together.
 
 On the Blocks page, click on **+** to add a new block and select **AWS Secret** from the list of block types.
 Enter a name for your block and enter the secret name from AWS Secrets Manager.
 
-Note that if you're using a self-hosted Prefect server instance, you'll need to register the block types in the newly installed modules before creating blocks.
+Note that if you're using a self-hosted Prefect server instance, you must register the block types in the newly installed modules before creating blocks.
 
 <div class="terminal">
 ```bash
@@ -66,31 +72,31 @@ prefect block register -m prefect_aws && prefect block register -m prefect_snowf
 
 ### Create `AwsCredentials` block
 
-In the **AwsCredentials** section, click **Add +** and a form will appear to create an AWS Credentials block.
-
-Values for **Access Key ID** and **Secret Access Key** will be read from the compute environment.
-My AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in my `~/.aws/credentials` file, so I'll leave those fields blank.
-You could enter those values at block creation, but then they would be saved to the database, and that's what we're trying to avoid.
-By leaving those attributes blank, Prefect knows to look to the compute environment.
-
-We need to specify a region in our local AWS config file or in our `AWSCredentials` block.
-The `AwsCredentials` block takes precedence, so let's specify it here for portability.
-
 Under the hood, Prefect is using the AWS `boto3` client to create a session.
+
+In the **AwsCredentials** section of the form, click **Add +** and create an AWS Credentials block by entering the necessary values.
+
+Values for **Access Key ID** and **Secret Access Key** are read from the compute environment.
+Your AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in your `~/.aws/credentials` file, so leave those fields blank or they will be saved to the database.
+By leaving those attributes blank, Prefect knows to look to the compute environment.
+If the compute environment contains the necessary credentials, Prefect will use them to authenticate in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
+
+The same order is followed to resolve the AWS region.
+Let's specify the region in our `AWSCredentials` block so that our connection works regardless of the contents of our local AWS config file or whether we run our code on AWS compute located in anther region than our secret.
 
 Click **Create** to save the blocks.
 
 ### Ensure the compute environment has access to AWS credentials
 
 Ensure the compute environment contains AWS credentials with authorization to access AWS Secrets Manager.
-When we connect to Snowflake, Prefect will automatically use these credentials to authenticate and access the secret.
+When we connect to Snowflake, Prefect will automatically use these credentials to authenticate and access the AWS secret that contains the Snowflake password.
 
 ### Create and use `SnowflakeCredentials` and `SnowflakeConnector` blocks in Python code
 
 Let's use Prefect's blocks for convenient access to Snowflake.
-We won't save the blocks, to ensure the credentials are not stored in Prefect Cloud.
+Don't save the blocks to ensure the credentials are not stored in Prefect Cloud.
 
-We'll create a flow that connects to Snowflake and calls two tasks.
+Create a flow that connects to Snowflake and calls two tasks.
 The first task creates a table and inserts some data.
 The second task reads the data out.
 
@@ -162,7 +168,7 @@ Note that the flow reads the Snowflake password from the AWS Secret Manager and 
 The `SnowflakeConnector` block uses the nested `SnowflakeCredentials` block to connect to Snowflake.
 Again, neither of the Snowflake blocks are saved, so the credentials are not stored in Prefect Cloud.
 
-Check out the [`prefect-snowflake` docs](/integrations/prefect-snowflake) for more examples of working with Snowflake.
+See [`prefect-snowflake`](/integrations/prefect-snowflake) for more examples of working with Snowflake.
 
 ## Next steps
 
@@ -172,6 +178,4 @@ Make sure to specify the `prefect-aws` and `prefect-snowflake` dependencies in y
 
 Also ensure your compute has the AWS credentials for accessing the secret in AWS Secrets Manager.
 
-You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment.
-You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs.
-You can use a similar pattern with any secret manager, or extend it to work with environment variables.
+You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment. You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs. You can use a similar pattern with other secret managers, or extend it to work with environment variables.

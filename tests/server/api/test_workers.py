@@ -147,16 +147,16 @@ class TestCreateWorkPool:
         )
         assert response.status_code == status.HTTP_409_CONFLICT
 
-    @pytest.mark.parametrize("name", ["hi/there", "hi%there"])
+    @pytest.mark.parametrize("name", ["", "hi/there", "hi%there"])
     async def test_create_work_pool_with_invalid_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    @pytest.mark.parametrize("name", ["", "''", " ", "' ' "])
-    async def test_create_work_pool_with_empty_name(self, client, name):
+    @pytest.mark.parametrize("name", ["''", " ", "' ' "])
+    async def test_create_work_pool_with_emptyish_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "name cannot be empty" in response.json()["detail"]
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert "name cannot be an empty string" in response.content.decode()
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
@@ -247,6 +247,92 @@ class TestCreateWorkPool:
             "variable(s): missing_variable."
             in response.json()["exception_detail"][0]["msg"]
         )
+
+    async def test_create_work_pool_template_validation_missing_block_document(
+        self,
+        client,
+    ):
+        missing_block_doc_ref_template = {
+            "job_configuration": {
+                "block": "{{ block_string }}",
+            },
+            "variables": {
+                "properties": {
+                    "block_string": {
+                        "type": "string",
+                        "title": "Block String",
+                        "default": {"$ref": {"block_document_id": "non-existing"}},
+                    },
+                },
+                "required": ["block_string"],
+            },
+        }
+        response = await client.post(
+            "/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "Block not found" in response.json()["detail"]
+
+    async def test_create_work_pool_template_validation_rejects_block_document_reference_incorrect_type(
+        self,
+        client,
+        block_document,
+    ):
+        missing_block_doc_ref_template = {
+            "job_configuration": {
+                "block": "{{ block_string }}",
+            },
+            "variables": {
+                "properties": {
+                    "block_string": {
+                        "type": "string",
+                        "title": "Block String",
+                        "default": {
+                            "$ref": {"block_document_id": str(block_document.id)}
+                        },
+                    },
+                },
+                "required": ["block_string"],
+            },
+        }
+        response = await client.post(
+            "/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
+        )
+        assert (
+            "Failure reason: {'foo': 'bar'} is not of type 'string'"
+            in response.json()["detail"]
+        )
+        assert response.status_code == 422
+
+    async def test_create_work_pool_template_validation_accepts_valid_block_document_reference(
+        self,
+        client,
+        block_document,
+    ):
+        missing_block_doc_ref_template = {
+            "job_configuration": {
+                "block": "{{ block_object }}",
+            },
+            "variables": {
+                "properties": {
+                    "block_object": {
+                        "type": "object",
+                        "title": "Block Object",
+                        "default": {
+                            "$ref": {"block_document_id": str(block_document.id)}
+                        },
+                    },
+                },
+                "required": ["block_object"],
+            },
+        }
+        response = await client.post(
+            "/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
+        )
+        assert response.status_code == 201
 
 
 class TestDeleteWorkPool:

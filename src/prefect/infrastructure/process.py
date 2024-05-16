@@ -7,7 +7,6 @@ It has been replaced by the process worker from the `prefect.workers` module, wh
 For upgrade instructions, see https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.
 """
 
-import asyncio
 import contextlib
 import os
 import shlex
@@ -21,18 +20,10 @@ from typing import Dict, Tuple, Union
 
 import anyio
 import anyio.abc
-import sniffio
-
-from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic.v1 import Field
 from typing_extensions import Literal
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
@@ -41,20 +32,6 @@ from prefect.utilities.processutils import get_sys_executable, run_process
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
     STATUS_CONTROL_C_EXIT = 0xC000013A
-
-
-def _use_threaded_child_watcher():
-    if (
-        sys.version_info < (3, 8)
-        and sniffio.current_async_library() == "asyncio"
-        and sys.platform != "win32"
-    ):
-        from prefect.utilities.compat import ThreadedChildWatcher
-
-        # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-        # lead to errors in tests on unix as the previous default `SafeChildWatcher`
-        # is not compatible with threaded event loops.
-        asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
 
 
 def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
@@ -121,7 +98,6 @@ class Process(Infrastructure):
         if not self.command:
             raise ValueError("Process cannot be run with empty command.")
 
-        _use_threaded_child_watcher()
         display_name = f" {self.name!r}" if self.name else ""
 
         # Open a subprocess to execute the flow run

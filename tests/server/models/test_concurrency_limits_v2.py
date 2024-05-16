@@ -1,6 +1,8 @@
 import asyncio
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
+
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
@@ -24,7 +26,10 @@ from prefect.server.models.concurrency_limits_v2 import (
     read_concurrency_limit,
     update_concurrency_limit,
 )
-from prefect.server.schemas.actions import ConcurrencyLimitV2Update
+from prefect.server.schemas.actions import (
+    ConcurrencyLimitV2Create,
+    ConcurrencyLimitV2Update,
+)
 from prefect.server.schemas.core import ConcurrencyLimitV2
 
 
@@ -93,10 +98,10 @@ async def test_create_concurrency_limit(session: AsyncSession):
     assert concurrency_limit.slot_decay_per_second == 0.5
 
 
-async def test_concurrency_limit_with_invalid_name_raises(session: AsyncSession):
+async def test_create_concurrency_limit_with_invalid_name_raises(session: AsyncSession):
     with pytest.raises(
         pydantic.error_wrappers.ValidationError,
-        match="contains an invalid character",
+        match="String should match pattern",
     ):
         await create_concurrency_limit(
             session=session,
@@ -105,6 +110,55 @@ async def test_concurrency_limit_with_invalid_name_raises(session: AsyncSession)
                 limit=10,
                 slot_decay_per_second=0.5,
             ),
+        )
+
+
+async def test_create_concurrency_limit_with_invalid_limit_raises(
+    session: AsyncSession,
+):
+    with pytest.raises(
+        pydantic.error_wrappers.ValidationError,
+        match=" Input should be greater than or equal to 0",
+    ):
+        await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2Create(
+                name="test_limit",
+                limit=-2,
+                slot_decay_per_second=0.5,
+            ),
+        )
+
+
+async def test_create_concurrency_limit_with_invalid_slot_decay_raises(
+    session: AsyncSession,
+):
+    with pytest.raises(
+        pydantic.error_wrappers.ValidationError,
+        match=" Input should be greater than or equal to 0",
+    ):
+        await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2Create(
+                name="test_limit",
+                limit=10,
+                slot_decay_per_second=-1,
+            ),
+        )
+
+
+async def test_create_concurrency_limit_with_duplicate_name_raises(
+    session: AsyncSession,
+):
+    await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(name="test_limit", limit=10),
+    )
+
+    with pytest.raises(IntegrityError):
+        await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(name="test_limit", limit=10),
         )
 
 
@@ -227,12 +281,12 @@ async def test_delete_concurrency_limit_by_id(
     )
 
 
-async def test_update_concurrecny_limit_with_invalid_name_raises(
+async def test_update_concurrency_limit_with_invalid_name_raises(
     concurrency_limit: ConcurrencyLimitV2, session: AsyncSession
 ):
     with pytest.raises(
         pydantic.error_wrappers.ValidationError,
-        match="contains an invalid character",
+        match="String should match pattern",
     ):
         await update_concurrency_limit(
             session=session,

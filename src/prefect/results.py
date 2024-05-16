@@ -16,10 +16,10 @@ from typing import (
 )
 from uuid import UUID
 
+import pydantic.v1 as pydantic
 from typing_extensions import ParamSpec, Self
 
 import prefect
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingResult
@@ -40,13 +40,6 @@ from prefect.settings import (
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-
-else:
-    import pydantic
-
 
 if TYPE_CHECKING:
     from prefect import Flow, Task

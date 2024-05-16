@@ -5,14 +5,8 @@ from pathlib import PurePath
 from types import GeneratorType
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-    from pydantic.v1.json import ENCODERS_BY_TYPE
-else:
-    from pydantic import BaseModel
-    from pydantic.json import ENCODERS_BY_TYPE
+from pydantic.v1 import BaseModel
+from pydantic.v1.json import ENCODERS_BY_TYPE
 
 SetIntStr = Set[Union[int, str]]
 DictIntStrAny = Dict[Union[int, str], Any]

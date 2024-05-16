@@ -1,50 +1,61 @@
-# `prefect-aws`
+# prefect-aws
 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-aws/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-aws?color=26272B&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-aws/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-aws?color=26272B&labelColor=090422" /></a>
-</p>
-
-## Welcome
-
-`prefect-aws` makes it easy to leverage the capabilities of AWS in your workflows.
+The prefect-aws library makes it easy to leverage the capabilities of AWS in your workflows.
+For example, you can retrieve secrets using AWS Secrets Manager, read and write objects with AWS S3, and deploy your flows on AWS ECS.
 
 ## Getting started
 
-### Installation
+### Prerequisites
 
-Prefect requires Python 3.8 or newer.
+- [Prefect installed](/getting-started/installation/).
+- An [AWS account](https://aws.amazon.com/account/) and the necessary permissions to access desired services.
 
-We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
+### Install prefect-aws
 
-Install `prefect-aws`
-
+<div class = "terminal">
 ```bash
-pip install prefect-aws
+pip install -U prefect-aws
 ```
+</div>
 
-### Registering blocks
+### Register newly installed block types
 
-Register [blocks](https://docs.prefect.io/ui/blocks/) in this module to make them available for use.
+Register the block types in the prefect-aws module to make them available for use.
 
+<div class = "terminal">
 ```bash
 prefect block register -m prefect_aws
 ```
+</div>
 
-A list of available blocks in `prefect-aws` and their setup instructions can be found [here](https://PrefectHQ.github.io/prefect-aws/#blocks-catalog).
+## Examples
 
-### Saving credentials to a block
+### Run flows on AWS ECS
 
-You will need an AWS account and credentials to use `prefect-aws`.
+Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
 
-1. Refer to the [AWS Configuration documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) on how to retrieve your access key ID and secret access key
-2. Copy the access key ID and secret access key
-3. Create an `AWSCredenitals` block in the Prefect UI or use a Python script like the one below and replace the placeholders with your credential information and desired block name:
+See the [ECS guide](/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
+
+If you're using Prefect Cloud, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) provide all the benefits of ECS with a quick setup and no worker needed.
+
+In the examples below, you create blocks with Python code.
+Alternatively, each block can be created through the Prefect UI.
+
+### Save credentials to an AWS Credentials block
+
+Use of most AWS services requires an authenticated session.
+Prefect makes it simple to provide credentials via a AWS Credentials block.
+
+Steps:
+
+1. Refer to the [AWS Configuration documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to retrieve your access key ID and secret access key.
+1. Copy the access key ID and secret access key.
+1. Create an `AWSCredenitals` block in the Prefect UI or use a Python script like the one below.
 
 ```python
 from prefect_aws import AwsCredentials
+
+
 AwsCredentials(
     aws_access_key_id="PLACEHOLDER",
     aws_secret_access_key="PLACEHOLDER",
@@ -53,25 +64,33 @@ AwsCredentials(
 ).save("BLOCK-NAME-PLACEHOLDER")
 ```
 
-Congrats! You can now load the saved block to use your credentials in your Python code:
+Prefect is using the Boto3 library under the hood.
+To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
+Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
+
+See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in [this guide](https://docs.prefect.io/latest/guides/secrets/).
+
+Here's how to load the saved credentials:
 
 ```python
 from prefect_aws import AwsCredentials
+
+
 AwsCredentials.load("BLOCK-NAME-PLACEHOLDER")
 ```
 
-### Using Prefect with AWS S3
+The AWS Credentials block is often nested within other blocks, such as `S3Bucket` or `AwsSecret`, and provides authentication for those services.
 
-`prefect_aws` allows you to read and write objects with AWS S3 within your Prefect flows.
+### Read and write files to AWS S3
 
-The provided code snippet shows how you can use `prefect_aws` to upload a file to a AWS S3 bucket and download the same file under a different file name.
-
-Note, the following code assumes that the bucket already exists.
+Upload a file to an AWS S3 bucket and download the same file under a different file name.
+The following code assumes that the bucket already exists:
 
 ```python
 from pathlib import Path
 from prefect import flow
 from prefect_aws import AwsCredentials, S3Bucket
+
 
 @flow
 def s3_flow():
@@ -91,18 +110,19 @@ def s3_flow():
     )
     return downloaded_file_path.read_text()
 
-s3_flow()
+
+if __name__ == "__main__":
+    s3_flow()
 ```
 
-### Using Prefect with AWS Secrets Manager
+### Access secrets with AWS Secrets Manager
 
-`prefect_aws` allows you to read and write secrets with AWS Secrets Manager within your Prefect flows.
-
-The provided code snippet shows how you can use `prefect_aws` to write a secret to the Secret Manager, read the secret data, delete the secret, and finally return the secret data.
+Write a secret to AWS Secrets Manager, read the secret data, delete the secret, and return the secret data.
 
 ```python
 from prefect import flow
 from prefect_aws import AwsCredentials, AwsSecret
+
 
 @flow
 def secrets_manager_flow():
@@ -113,23 +133,13 @@ def secrets_manager_flow():
     aws_secret.delete_secret()
     return secret_data
 
-secrets_manager_flow()
+
+if __name__ == "__main__":
+    secrets_manager_flow()
 ```
-
-### Using Prefect with AWS ECS
-
-`prefect_aws` allows you to use [AWS ECS](https://aws.amazon.com/ecs/) as infrastructure for your deployments. Using ECS for scheduled flow runs enables the dynamic provisioning of infrastructure for containers and unlocks greater scalability. This setup gives you all of the observation and orchestration benefits of Prefect, while also providing you the scalability of ECS.
-
-See the [ECS guide](/ecs_guide/) for a full walkthrough.
 
 ## Resources
 
-Refer to the API documentation on the sidebar to explore all the capabilities of Prefect AWS!
+For assistance using AWS, consult the [AWS documentation](https://docs.aws.amazon.com/) and, in particular, the [Boto3 documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html).
 
-For more tips on how to use blocks and tasks in Prefect integration libraries, check out the [docs](https://docs.prefect.io/integrations/usage/)!
-
-For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-If you encounter any bugs while using `prefect-aws`, feel free to open an issue in the [`prefect`](https://github.com/PrefectHQ/prefect) repository.
-
-If you have any questions or issues while using `prefect-aws`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
+Refer to the prefect-aws API documentation linked in the sidebar to explore all the capabilities of the prefect-aws library.

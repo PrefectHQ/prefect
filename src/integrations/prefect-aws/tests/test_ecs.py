@@ -56,7 +56,7 @@ setup_logging()
 BASE_TASK_DEFINITION_YAML = """
 containerDefinitions:
 - cpu: 1024
-  image: prefecthq/prefect:2.1.0-python3.8
+  image: prefecthq/prefect:2.1.0-python3.9
   memory: 2048
   name: prefect
 family: prefect
@@ -1529,7 +1529,7 @@ async def test_task_definition_arn_with_overrides_requiring_copy_shows_diff(
 
     expected_diff = textwrap.dedent(
         """
-        -                            'image': 'prefecthq/prefect:2.1.0-python3.8',
+        -                            'image': 'prefecthq/prefect:2.1.0-python3.9',
         +                            'image': 'foobar',
         """
     )
@@ -2144,11 +2144,9 @@ def base_job_template_with_defaults(default_base_job_template, aws_credentials):
     base_job_template_with_defaults["variables"]["properties"]["network_configuration"][
         "default"
     ] = {
-        "awsvpcConfiguration": {
-            "subnets": ["subnet-***"],
-            "assignPublicIp": "DISABLED",
-            "securityGroups": ["sg-***"],
-        }
+        "subnets": ["subnet-***"],
+        "assignPublicIp": "DISABLED",
+        "securityGroups": ["sg-***"],
     }
     return base_job_template_with_defaults
 

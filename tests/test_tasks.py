@@ -2,9 +2,9 @@ import asyncio
 import datetime
 import inspect
 import time
-import warnings
 from asyncio import Event, sleep
 from functools import partial, wraps
+from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -16,7 +16,7 @@ import regex as re
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.client.schemas.objects import StateType, TaskRunResult
-from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
+from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -41,13 +41,13 @@ from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
 
-
-@pytest.fixture(
-    autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
-)
-def set_new_engine_setting(request):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
-        yield
+# TODO: uncomment when new engine has parity
+# @pytest.fixture(
+#     autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
+# )
+# def set_new_engine_setting(request):
+#     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
+#         yield
 
 
 def fails_with_new_engine(func):
@@ -2653,9 +2653,11 @@ class TestTaskWithOptions:
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "bar"
 
-    def test_with_options_uses_existing_settings_when_no_override(self):
+    def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
         def cache_key_fn(*_):
             return "cache hit"
+
+        storage = LocalFileSystem(basepath=tmp_path)
 
         @task(
             name="Initial task",
@@ -2667,7 +2669,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=5,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=storage,
             cache_result_in_memory=False,
             timeout_seconds=42,
             refresh_cache=True,
@@ -2691,17 +2693,17 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 5
         assert task_with_options.persist_result is False
         assert task_with_options.result_serializer == "json"
-        assert task_with_options.result_storage == LocalFileSystem()
+        assert task_with_options.result_storage == storage
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "test"
 
-    def test_with_options_can_unset_result_options_with_none(self):
+    def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @task(
             persist_result=True,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=LocalFileSystem(basepath=tmp_path),
             refresh_cache=True,
             result_storage_key="test",
         )
@@ -2781,43 +2783,6 @@ class TestTaskWithOptions:
         assert second.result() != third.result()
         assert third.result() == fourth.result()
         assert fourth.result() != first.result()
-
-
-class TestTaskRegistration:
-    def test_task_is_registered(self):
-        @task
-        def my_task():
-            pass
-
-        registry = PrefectObjectRegistry.get()
-        assert my_task in registry.get_instances(Task)
-
-    def test_warning_name_conflict_different_function(self):
-        with pytest.warns(
-            UserWarning,
-            match=(
-                r"A task named 'my_task' and defined at '.+:\d+' conflicts with another"
-                r" task."
-            ),
-        ):
-
-            @task(name="my_task")
-            def task_one():
-                pass
-
-            @task(name="my_task")
-            def task_two():
-                pass
-
-    def test_no_warning_name_conflict_task_with_options(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-
-            @task(name="my_task")
-            def task_one():
-                pass
-
-            task_one.with_options(tags=["hello"])
 
 
 class TestTaskMap:

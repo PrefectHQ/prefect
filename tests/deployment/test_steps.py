@@ -16,6 +16,7 @@ from prefect.deployments.steps import run_step
 from prefect.deployments.steps.core import StepExecutionError, run_steps
 from prefect.deployments.steps.utility import run_shell_script
 from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.utilities.filesystem import tmpchdir
 
 
 @pytest.fixture
@@ -712,7 +713,7 @@ class TestPipInstallRequirements:
         )
 
     async def test_pip_install_reqs_with_directory_step_output_succeeds(
-        self, monkeypatch
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):
         open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
@@ -753,7 +754,8 @@ class TestPipInstallRequirements:
 
         open_process_mock.run.return_value = MagicMock(**step_outputs)
 
-        output = await run_steps(steps)
+        with tmpchdir(tmp_path):
+            output = await run_steps(steps)
 
         assert output == step_outputs
 

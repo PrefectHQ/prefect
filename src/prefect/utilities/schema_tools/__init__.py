@@ -1,5 +1,10 @@
 from .hydration import HydrationContext, HydrationError, hydrate
-from .validation import CircularSchemaRefError, ValidationError, validate
+from .validation import (
+    CircularSchemaRefError,
+    ValidationError,
+    validate,
+    is_valid_schema,
+)
 
 __all__ = [
     "CircularSchemaRefError",
