@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
   "prefect>=2.16.6",
-  "dbt_core>=1.1.1",
+  "dbt-core>=1.7.0",
   "prefect_shell>=0.1.4",
   "sgqlc>=16.0.0",
 ]
