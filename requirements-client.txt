@@ -22,6 +22,7 @@ pendulum >= 3.0.0, <4; python_version >= '3.12'
 # the version constraints for pydantic are merged with those from fastapi 0.103.2
 pydantic >= 2.4, < 3.0.0
 pydantic_core >= 2.12.0, < 3.0.0
+pydantic_extra_types >= 2.4, < 3.0.0
 python_dateutil >= 2.8.2, < 3.0.0
 python-slugify >= 5.0, < 9.0
 pyyaml >= 5.4.1, < 7.0.0

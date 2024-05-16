@@ -4,6 +4,8 @@ from pydantic_core import core_schema, CoreSchema, SchemaValidator
 from typing_extensions import Self
 from datetime import timedelta
 
+from pydantic_extra_types.pendulum_dt import DateTime
+
 
 class NonNegativeInteger(int):
     """An integer that must be greater than or equal to 0."""
@@ -61,6 +63,10 @@ class NonNegativeFloat(float):
     @classmethod
     def validate(cls, v: Any) -> Self:
         return SchemaValidator(schema=cls.schema).validate_python(v)
+
+
+class DateTimeTZ(DateTime):
+    pass
 
 
 class NonNegativeDuration(timedelta):
