@@ -110,7 +110,6 @@
 }
 
 .flow-run-graphs--fullscreen .flow-run-graphs__panel { @apply
-  bg-floating
   top-4
   right-4
   bottom-auto

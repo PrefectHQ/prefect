@@ -50,8 +50,6 @@
 .context-sidebar__logo-link { @apply
   outline-none
   rounded-md
-  focus:ring-spacing-focus-ring
-  focus:ring-focus-ring
 }
 
 .context-sidebar__logo-link:focus:not(:focus-visible) { @apply
