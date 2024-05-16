@@ -219,7 +219,7 @@ class Pydantic(TypeDecorator):
             return None
         # parse the value to ensure it complies with the schema
         # (this will raise validation errors if not)
-        value = pydantic.parse_obj_as(self._pydantic_type, value)
+        value = pydantic.TypeAdapter(self._pydantic_type).validate_python(value)
         # sqlalchemy requires the bind parameter's value to be a python-native
         # collection of JSON-compatible objects. we achieve that by dumping the
         # value to a json string using the pydantic JSON encoder and re-parsing
@@ -229,7 +229,7 @@ class Pydantic(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value is not None:
             # load the json object into a fully hydrated typed object
-            return pydantic.parse_obj_as(self._pydantic_type, value)
+            return pydantic.TypeAdapter(self._pydantic_type).validate_json(value)
 
 
 class now(FunctionElement):

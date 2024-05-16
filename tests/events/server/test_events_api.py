@@ -5,7 +5,6 @@ from unittest import mock
 from uuid import UUID
 
 import pendulum
-import pydantic
 import pytest
 from httpx import AsyncClient
 from pendulum.datetime import DateTime
@@ -23,6 +22,7 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -323,7 +323,7 @@ async def test_counting_events_by_day(
     )
 
     assert response.status_code == 200, response.content
-    assert pydantic.parse_obj_as(List[EventCount], response.json()) == [
+    assert parse_obj_as(List[EventCount], response.json()) == [
         EventCount(
             value="hello",
             label="world",
@@ -367,7 +367,7 @@ async def test_counting_events_by_time(
     )
 
     assert response.status_code == 200, response.content
-    assert pydantic.parse_obj_as(List[EventCount], response.json()) == [
+    assert parse_obj_as(List[EventCount], response.json()) == [
         EventCount(
             value="hello",
             label="world",
@@ -429,7 +429,7 @@ async def test_counting_events_by_event_with_a_filter(
     )
 
     assert response.status_code == 200, response.content
-    assert pydantic.parse_obj_as(List[EventCount], response.json()) == [
+    assert parse_obj_as(List[EventCount], response.json()) == [
         EventCount(
             value="hello",
             label="world",

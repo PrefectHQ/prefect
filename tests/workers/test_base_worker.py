@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, call
 
 import anyio
 import pendulum
-import pydantic
 import pytest
 from packaging import version
 from pydantic import Field
@@ -34,6 +33,7 @@ from prefect.settings import (
 )
 from prefect.states import Cancelled, Cancelling, Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
 
 
@@ -494,7 +494,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(schemas.objects.WorkPool, response.json())
+    result = parse_obj_as(schemas.objects.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
@@ -533,7 +533,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(schemas.objects.WorkPool, response.json())
+    result = parse_obj_as(schemas.objects.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 

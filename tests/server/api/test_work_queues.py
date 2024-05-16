@@ -4,7 +4,6 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -13,6 +12,7 @@ from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture(autouse=True)
@@ -750,10 +750,10 @@ class TestGetRunsInWorkQueue:
         response2 = await client.post(f"/work_queues/{work_queue_2.id}/get_runs")
         assert response2.status_code == status.HTTP_200_OK
 
-        runs_wq1 = pydantic.parse_obj_as(
+        runs_wq1 = parse_obj_as(
             List[schemas.responses.FlowRunResponse], response1.json()
         )
-        runs_wq2 = pydantic.parse_obj_as(
+        runs_wq2 = parse_obj_as(
             List[schemas.responses.FlowRunResponse], response2.json()
         )
 
@@ -774,7 +774,7 @@ class TestGetRunsInWorkQueue:
         response1 = await client.post(
             f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=limit)
         )
-        runs_wq1 = pydantic.parse_obj_as(
+        runs_wq1 = parse_obj_as(
             List[schemas.responses.FlowRunResponse], response1.json()
         )
         assert len(runs_wq1) == limit
@@ -786,7 +786,7 @@ class TestGetRunsInWorkQueue:
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(scheduled_before=pendulum.now("UTC").isoformat()),
         )
-        runs_wq1 = pydantic.parse_obj_as(
+        runs_wq1 = parse_obj_as(
             List[schemas.responses.FlowRunResponse], response1.json()
         )
         assert len(runs_wq1) == 1
@@ -1073,7 +1073,7 @@ class TestReadWorkQueueStatus:
 
         assert response.status_code == status.HTTP_200_OK
 
-        parsed_response = pydantic.parse_obj_as(
+        parsed_response = parse_obj_as(
             schemas.core.WorkQueueStatusDetail, response.json()
         )
         assert parsed_response.healthy is True
@@ -1089,7 +1089,7 @@ class TestReadWorkQueueStatus:
 
         assert response.status_code == status.HTTP_200_OK
 
-        parsed_response = pydantic.parse_obj_as(
+        parsed_response = parse_obj_as(
             schemas.core.WorkQueueStatusDetail, response.json()
         )
         assert parsed_response.healthy is False
@@ -1105,7 +1105,7 @@ class TestReadWorkQueueStatus:
 
         assert response.status_code == status.HTTP_200_OK
 
-        parsed_response = pydantic.parse_obj_as(
+        parsed_response = parse_obj_as(
             schemas.core.WorkQueueStatusDetail, response.json()
         )
         assert parsed_response.healthy is False
@@ -1124,7 +1124,7 @@ class TestReadWorkQueueStatus:
 
         assert healthy_response.status_code == status.HTTP_200_OK
 
-        parsed_healthy_response = pydantic.parse_obj_as(
+        parsed_healthy_response = parse_obj_as(
             schemas.core.WorkQueueStatusDetail, healthy_response.json()
         )
         assert parsed_healthy_response.healthy is True
@@ -1135,7 +1135,7 @@ class TestReadWorkQueueStatus:
 
         assert unhealthy_response.status_code == status.HTTP_200_OK
 
-        parsed_unhealthy_response = pydantic.parse_obj_as(
+        parsed_unhealthy_response = parse_obj_as(
             schemas.core.WorkQueueStatusDetail, unhealthy_response.json()
         )
         assert parsed_unhealthy_response.healthy is False

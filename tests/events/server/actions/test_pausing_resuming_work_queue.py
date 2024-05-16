@@ -3,7 +3,6 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
 from pendulum.datetime import DateTime
 from pydantic import ValidationError
@@ -23,6 +22,7 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import work_queues
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 from prefect.server.schemas.core import WorkQueue
+from prefect.utilities.pydantic import parse_obj_as
 
 
 def test_source_determines_if_work_queue_id_is_required_or_allowed():
@@ -400,7 +400,7 @@ async def test_inferring_work_queue_requires_recognizable_resource_id(
     resume_the_associated_queue: TriggeredAction,
 ):
     assert resume_the_associated_queue.triggering_event
-    resume_the_associated_queue.triggering_event.related = pydantic.parse_obj_as(
+    resume_the_associated_queue.triggering_event.related = parse_obj_as(
         List[RelatedResource],
         [
             {

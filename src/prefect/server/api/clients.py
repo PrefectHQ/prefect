@@ -119,7 +119,7 @@ class OrchestrationClient(BaseClient):
         response = await self.read_work_pool_raw(work_pool_id)
         response.raise_for_status()
 
-        pools = pydantic.parse_obj_as(List[WorkPool], response.json())
+        pools = pydantic.TypeAdapter(List[WorkPool]).validate_python(response.json())
         return pools[0] if pools else None
 
     async def read_work_queue_raw(self, work_queue_id: UUID) -> Response:
@@ -214,7 +214,7 @@ class WorkPoolsOrchestrationClient(BaseClient):
         try:
             response = await self._http_client.get(f"/work_pools/{work_pool_name}")
             response.raise_for_status()
-            return pydantic.parse_obj_as(WorkPool, response.json())
+            return WorkPool.model_validate(response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise ObjectNotFound(http_exc=e) from e

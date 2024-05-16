@@ -80,8 +80,8 @@ class CloudClient:
             await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Workspace]:
-        workspaces = pydantic.parse_obj_as(
-            List[Workspace], await self.get("/me/workspaces")
+        workspaces = pydantic.TypeAdapter(List[Workspace]).validate_python(
+            await self.get("/me/workspaces")
         )
         return workspaces
 

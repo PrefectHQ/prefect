@@ -1,7 +1,6 @@
 import uuid
 from typing import List
 
-import pydantic
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +15,7 @@ from prefect.server.schemas.filters import (
     VariableFilterTags,
     VariableFilterValue,
 )
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -168,7 +168,7 @@ class TestReadVariable:
             f"/variables/{variable.id}",
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(core.Variable, res.json())
+        res = parse_obj_as(core.Variable, res.json())
         assert res.id == variable.id
         assert res.name == variable.name
         assert res.tags == variable.tags
@@ -193,7 +193,7 @@ class TestReadVariableByName:
             f"/variables/name/{variable.name}",
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(core.Variable, res.json())
+        res = parse_obj_as(core.Variable, res.json())
         assert res.id == variable.id
         assert res.name == variable.name
         assert res.tags == variable.tags
@@ -228,7 +228,7 @@ class TestReadVariables:
             "/variables/filter",
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == len(variables)
         assert {v.id for v in res} == {v.id for v in variables}
 
@@ -247,7 +247,7 @@ class TestReadVariables:
             ),
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == 1
         assert {v.id for v in res} == {v.id for v in variables if v.name == "variable1"}
 
@@ -261,7 +261,7 @@ class TestReadVariables:
             ),
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == 2
         assert {v.id for v in res} == {v.id for v in variables if "variable1" in v.name}
 
@@ -280,7 +280,7 @@ class TestReadVariables:
             ),
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == 1
         assert {v.id for v in res} == {v.id for v in variables if v.value == "value1"}
 
@@ -294,7 +294,7 @@ class TestReadVariables:
             ),
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == 2
         assert {v.id for v in res} == {v.id for v in variables if "value1" in v.value}
 
@@ -314,7 +314,7 @@ class TestReadVariables:
             ),
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == 1
         assert {v.id for v in res} == {variable.id}
 
@@ -333,7 +333,7 @@ class TestReadVariables:
             ),
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == 2
         assert {v.id for v in res} == {v.id for v in variables if "tag1" in v.tags}
 
@@ -348,7 +348,7 @@ class TestReadVariables:
             json={"sort": sorting.VariableSort.NAME_ASC},
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == len(variables)
         assert [v.name for v in res] == sorted([v.name for v in variables])
 
@@ -363,7 +363,7 @@ class TestReadVariables:
             json={"sort": sorting.VariableSort.NAME_DESC},
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(List[core.Variable], res.json())
+        res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == len(variables)
         assert [v.name for v in res] == sorted(
             [v.name for v in variables], reverse=True
@@ -503,7 +503,7 @@ class TestUpdateVariable:
             f"/variables/{variable.id}",
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(core.Variable, res.json())
+        res = parse_obj_as(core.Variable, res.json())
         assert res.id == variable.id
         assert res.name == update.name
         assert res.value == update.value
@@ -602,7 +602,7 @@ class TestUpdateVariableByName:
             f"/variables/{variable.id}",
         )
         assert res.status_code == 200
-        res = pydantic.parse_obj_as(core.Variable, res.json())
+        res = parse_obj_as(core.Variable, res.json())
         assert res.id == variable.id
         assert res.name == update.name
         assert res.value == update.value

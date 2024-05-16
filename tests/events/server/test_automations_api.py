@@ -41,6 +41,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
 )
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture(autouse=True)
@@ -679,7 +680,7 @@ async def test_read_automations(
     response = await client.post(f"{automations_url}/filter")
     assert response.status_code == 200, response.content
 
-    automations = pydantic.parse_obj_as(List[Automation], response.json())
+    automations = parse_obj_as(List[Automation], response.json())
 
     expected = sorted(some_workspace_automations, key=lambda a: a.name)
 
@@ -697,7 +698,7 @@ async def test_read_automations_page(
     )
     assert response.status_code == 200, response.content
 
-    automations = pydantic.parse_obj_as(List[Automation], response.json())
+    automations = parse_obj_as(List[Automation], response.json())
 
     # updated is technically Optional, so assert it here to satisfy the type system
     def by_updated(automation: Automation) -> DateTime:
@@ -725,7 +726,7 @@ async def test_read_automations_filter_by_name_match(
 
     assert response.status_code == 200, response.content
 
-    automations = pydantic.parse_obj_as(List[Automation], response.json())
+    automations = parse_obj_as(List[Automation], response.json())
 
     expected = sorted(some_workspace_automations, key=lambda a: a.name)
     expected = [a for a in expected if a.name in ["automation 1", "automation 2"]]
@@ -878,7 +879,7 @@ async def test_read_automations_related_to_resource(
     )
     assert response.status_code == 200, response.content
 
-    returned = pydantic.parse_obj_as(List[Automation], response.json())
+    returned = parse_obj_as(List[Automation], response.json())
     assert returned == [owned, related]
 
 
@@ -943,7 +944,7 @@ async def test_delete_automations_owned_by_resource(
     )
     assert response.status_code == 200, response.content
 
-    returned = pydantic.parse_obj_as(List[Automation], response.json())
+    returned = parse_obj_as(List[Automation], response.json())
     assert {a.id for a in returned} == {related.id, new_owned.id}
 
     for automation in [old_owned, new_owned, related, non_related]:

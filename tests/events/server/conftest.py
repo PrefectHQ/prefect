@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
 import sqlalchemy as sa
 from pendulum.datetime import DateTime
@@ -22,6 +21,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -407,7 +407,7 @@ async def some_workspace_automations(
 
     automations_session.add_all(automations)
     await automations_session.commit()
-    return pydantic.parse_obj_as(List[Automation], automations)
+    return parse_obj_as(List[Automation], automations)
 
 
 @pytest.fixture

@@ -78,7 +78,9 @@ async def count_events(
         countable.get_database_query(filter, time_unit, time_interval)
     )
 
-    counts = pydantic.parse_obj_as(List[EventCount], results.mappings().all())
+    counts = pydantic.TypeAdapter(List[EventCount]).validate_python(
+        results.mappings().all()
+    )
 
     if countable in (Countable.day, Countable.time):
         counts = process_time_based_counts(filter, time_unit, time_interval, counts)

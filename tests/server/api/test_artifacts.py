@@ -7,6 +7,7 @@ from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas import actions
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -771,7 +772,7 @@ class TestUpdateArtifact:
         assert response.status_code == 204
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        updated_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        updated_artifact = parse_obj_as(schemas.core.Artifact, response.json())
         assert updated_artifact.data == {"new": "data"}
         assert updated_artifact.key == artifact_key
         assert str(updated_artifact.flow_run_id) == artifact_flow_run_id
@@ -791,7 +792,7 @@ class TestUpdateArtifact:
         assert response.status_code == 204
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        updated_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        updated_artifact = parse_obj_as(schemas.core.Artifact, response.json())
         assert updated_artifact.data == artifact["data"]
         assert updated_artifact.key == artifact["key"]
         assert str(updated_artifact.flow_run_id) == artifact["flow_run_id"]

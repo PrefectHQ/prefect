@@ -1,7 +1,6 @@
 from typing import List
 from uuid import uuid4
 
-import pydantic
 import pytest
 from starlette import status
 
@@ -9,6 +8,7 @@ from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.utilities.pydantic import parse_obj_as
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
@@ -217,9 +217,7 @@ class TestDeleteBlockSchema:
 class TestReadBlockSchema:
     async def test_read_all_block_schemas(self, session, client, block_schemas):
         result = await client.post("/block_schemas/filter")
-        api_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
+        api_schemas = parse_obj_as(List[schemas.core.BlockSchema], result.json())
         assert {s.id for s in api_schemas} == {
             block_schemas[0].id,
             block_schemas[2].id,
@@ -235,9 +233,7 @@ class TestReadBlockSchema:
                 block_schemas=dict(block_type_id=dict(any_=[str(block_type_x.id)]))
             ),
         )
-        api_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
+        api_schemas = parse_obj_as(List[schemas.core.BlockSchema], result.json())
         assert [s.id for s in api_schemas] == [block_schemas[i].id for i in (2, 0)]
 
     async def test_read_all_block_schemas_filter_block_type_id_y(
@@ -249,9 +245,7 @@ class TestReadBlockSchema:
                 block_schemas=dict(block_type_id=dict(any_=[str(block_type_y.id)]))
             ),
         )
-        api_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
+        api_schemas = parse_obj_as(List[schemas.core.BlockSchema], result.json())
         assert [s.id for s in api_schemas] == [block_schemas[1].id]
 
     async def test_read_all_block_schemas_filter_block_type_id_x_and_y(
@@ -267,9 +261,7 @@ class TestReadBlockSchema:
                 )
             ),
         )
-        api_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
+        api_schemas = parse_obj_as(List[schemas.core.BlockSchema], result.json())
         assert [s.id for s in api_schemas] == [block_schemas[i].id for i in (2, 1, 0)]
 
     async def test_read_block_schema_by_id(self, session, client, block_schemas):
@@ -277,9 +269,7 @@ class TestReadBlockSchema:
         response = await client.get(f"/block_schemas/{schema_id}")
         assert response.status_code == status.HTTP_200_OK
 
-        block_schema_response = pydantic.parse_obj_as(
-            schemas.core.BlockSchema, response.json()
-        )
+        block_schema_response = parse_obj_as(schemas.core.BlockSchema, response.json())
 
         assert block_schema_response.id == schema_id
 
@@ -288,9 +278,7 @@ class TestReadBlockSchema:
         response = await client.get(f"/block_schemas/checksum/{schema_checksum}")
         assert response.status_code == status.HTTP_200_OK
 
-        block_schema_response = pydantic.parse_obj_as(
-            schemas.core.BlockSchema, response.json()
-        )
+        block_schema_response = parse_obj_as(schemas.core.BlockSchema, response.json())
 
         assert block_schema_response.id == block_schemas[0].id
         assert block_schema_response.checksum == schema_checksum
@@ -306,9 +294,7 @@ class TestReadBlockSchema:
         )
 
         assert result.status_code == status.HTTP_200_OK
-        block_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
+        block_schemas = parse_obj_as(List[schemas.core.BlockSchema], result.json())
         assert len(block_schemas) == 1
         assert block_schemas[0].id == block_schemas_with_capabilities[0].id
 
@@ -318,9 +304,7 @@ class TestReadBlockSchema:
         )
 
         assert result.status_code == status.HTTP_200_OK
-        block_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
+        block_schemas = parse_obj_as(List[schemas.core.BlockSchema], result.json())
         assert len(block_schemas) == 2
         assert [block_schema.id for block_schema in block_schemas] == [
             block_schemas_with_capabilities[1].id,
@@ -333,9 +317,7 @@ class TestReadBlockSchema:
         )
 
         assert result.status_code == status.HTTP_200_OK
-        block_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
+        block_schemas = parse_obj_as(List[schemas.core.BlockSchema], result.json())
         assert len(block_schemas) == 1
         assert block_schemas[0].id == block_schemas_with_capabilities[0].id
 
@@ -367,7 +349,7 @@ class TestReadBlockSchema:
         )
         assert response_1.status_code == status.HTTP_200_OK
 
-        block_schema_response_1 = pydantic.parse_obj_as(
+        block_schema_response_1 = parse_obj_as(
             schemas.core.BlockSchema, response_1.json()
         )
 
@@ -379,7 +361,7 @@ class TestReadBlockSchema:
         )
         assert response_2.status_code == status.HTTP_200_OK
 
-        block_schema_response_2 = pydantic.parse_obj_as(
+        block_schema_response_2 = parse_obj_as(
             schemas.core.BlockSchema, response_2.json()
         )
 
@@ -391,7 +373,7 @@ class TestReadBlockSchema:
         )
         assert response_3.status_code == status.HTTP_200_OK
 
-        block_schema_response_3 = pydantic.parse_obj_as(
+        block_schema_response_3 = parse_obj_as(
             schemas.core.BlockSchema, response_3.json()
         )
 

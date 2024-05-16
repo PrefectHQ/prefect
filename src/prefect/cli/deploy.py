@@ -1600,7 +1600,9 @@ def _initialize_deployment_triggers(
     triggers = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
-        triggers.append(pydantic.parse_obj_as(DeploymentTriggerTypes, spec))
+        triggers.append(
+            pydantic.TypeAdapter(DeploymentTriggerTypes).validate_python(spec)
+        )
 
     return triggers
 

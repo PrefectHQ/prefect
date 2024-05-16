@@ -1,11 +1,11 @@
 from typing import List
 from uuid import uuid4
 
-import pydantic
 import pytest
 
 from prefect.server import models, schemas
 from prefect.server.schemas.core import FlowRunNotificationPolicy
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -104,7 +104,7 @@ class TestReadFlowRunNotificationPolicies:
     async def test_read_policies(self, client, policies):
         response = await client.post("/flow_run_notification_policies/filter")
         assert response.status_code == 200
-        result = pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
+        result = parse_obj_as(List[FlowRunNotificationPolicy], response.json())
 
         assert len(result) == 2
         assert {r.id for r in result} == {p.id for p in policies}
@@ -117,7 +117,7 @@ class TestReadFlowRunNotificationPolicies:
             ),
         )
         assert response.status_code == 200
-        result = pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
+        result = parse_obj_as(List[FlowRunNotificationPolicy], response.json())
 
         assert len(result) == 1
         assert result[0].id == completed_policy.id
@@ -130,7 +130,7 @@ class TestReadFlowRunNotificationPolicies:
             ),
         )
         assert response.status_code == 200
-        result = pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
+        result = parse_obj_as(List[FlowRunNotificationPolicy], response.json())
 
         assert len(result) == 1
         assert result[0].id == failed_policy.id

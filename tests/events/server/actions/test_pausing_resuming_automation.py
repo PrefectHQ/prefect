@@ -3,7 +3,6 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
 from pendulum.datetime import DateTime
 from pydantic import ValidationError
@@ -26,6 +25,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
 )
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -313,7 +313,7 @@ def the_sprinklers_stopped(
         resource={
             "prefect.resource.id": "sprinklers.front-lawn",
         },
-        related=pydantic.parse_obj_as(
+        related=parse_obj_as(
             List[RelatedResource],
             [
                 {
@@ -447,7 +447,7 @@ async def test_inferring_automation_requires_recognizable_resource_id(
     turn_on_the_self_managing_automation: TriggeredAction,
 ):
     assert turn_on_the_self_managing_automation.triggering_event
-    turn_on_the_self_managing_automation.triggering_event.related = pydantic.parse_obj_as(
+    turn_on_the_self_managing_automation.triggering_event.related = parse_obj_as(
         List[RelatedResource],
         [
             {

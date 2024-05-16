@@ -12,7 +12,6 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional, Set, Type
 
 import orjson
-import pydantic
 import pytest
 from pydantic import Field, field_validator
 
@@ -26,6 +25,7 @@ from prefect.events.schemas.automations import (
     TriggerTypes,
 )
 from prefect.server.utilities.schemas import PrefectBaseModel
+from prefect.utilities.pydantic import parse_obj_as
 
 
 class V1Trigger(PrefectBaseModel):
@@ -188,7 +188,7 @@ def test_deserializing_polymorphic(
     """A test that confirms that the example JSON triggers can be deserialized into
     their corresponding v2 classes using polymorphism."""
     v1_trigger = V1Trigger.model_validate(json)
-    v2_trigger: ResourceTrigger = pydantic.parse_obj_as(TriggerTypes, json)  # type: ignore[arg-type]
+    v2_trigger: ResourceTrigger = parse_obj_as(TriggerTypes, json)  # type: ignore[arg-type]
 
     assert isinstance(v2_trigger, trigger_type)
 
@@ -225,7 +225,7 @@ def test_deserializing_into_polymorphic_collection_attribute():
         orjson.loads(trigger)
         for trigger in V1_TRIGGERS["event-triggers"] + V1_TRIGGERS["metric-triggers"]
     ]
-    v1_triggers = pydantic.parse_obj_as(List[V1Trigger], json)
+    v1_triggers = parse_obj_as(List[V1Trigger], json)
 
     v2_container = Container.model_validate({"triggers": json})
     v2_triggers = v2_container.triggers

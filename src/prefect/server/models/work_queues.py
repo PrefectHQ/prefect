@@ -17,7 +17,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from pydantic import parse_obj_as
+from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -374,7 +374,9 @@ async def _legacy_get_runs_in_work_queue(
     # ensure the filter object is fully hydrated
     # SQLAlchemy caching logic can result in a dict type instead
     # of the full pydantic model
-    work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
+    work_queue_filter = TypeAdapter(schemas.filters.WorkQueueFilter).validate_python(
+        work_queue.filter
+    )
     flow_run_filter = dict(
         tags=dict(all_=work_queue_filter.tags),
         deployment_id=dict(any_=work_queue_filter.deployment_ids, is_null_=False),

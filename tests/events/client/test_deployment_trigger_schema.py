@@ -21,12 +21,11 @@ from prefect.events.schemas.deployment_triggers import (
     DeploymentSequenceTrigger,
     DeploymentTriggerTypes,
 )
+from prefect.utilities.pydantic import parse_obj_as
 
 
 def test_deployment_trigger_defaults_to_empty_reactive_trigger():
-    trigger = pydantic.parse_obj_as(
-        DeploymentTriggerTypes, {"name": "A deployment automation"}
-    )
+    trigger = parse_obj_as(DeploymentTriggerTypes, {"name": "A deployment automation"})
     assert isinstance(trigger, DeploymentEventTrigger)
     trigger.set_deployment_id(uuid4())
 
@@ -42,7 +41,7 @@ def test_deployment_trigger_defaults_to_empty_reactive_trigger():
 
 
 def test_deployment_trigger_defaults_name_but_can_have_it_overridden():
-    trigger = pydantic.parse_obj_as(DeploymentTriggerTypes, {})
+    trigger = parse_obj_as(DeploymentTriggerTypes, {})
     assert isinstance(trigger, DeploymentEventTrigger)
 
     deployment_id = uuid4()
@@ -59,9 +58,7 @@ def test_deployment_trigger_defaults_name_but_can_have_it_overridden():
 
 
 def test_deployment_trigger_defaults_to_reactive_event_trigger():
-    trigger = pydantic.parse_obj_as(
-        DeploymentTriggerTypes, {"name": "A deployment automation"}
-    )
+    trigger = parse_obj_as(DeploymentTriggerTypes, {"name": "A deployment automation"})
     assert isinstance(trigger, DeploymentEventTrigger)
     trigger.set_deployment_id(uuid4())
 
@@ -89,7 +86,7 @@ def test_deployment_trigger_defaults_to_reactive_event_trigger():
 
 
 def test_deployment_trigger_proactive_trigger_with_defaults():
-    trigger = pydantic.parse_obj_as(
+    trigger = parse_obj_as(
         DeploymentTriggerTypes,
         {"name": "A deployment automation", "posture": "Proactive"},
     )
@@ -121,7 +118,7 @@ def test_deployment_trigger_proactive_trigger_with_defaults():
 
 def test_deployment_reactive_trigger_disallows_negative_withins():
     with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
-        pydantic.parse_obj_as(
+        parse_obj_as(
             DeploymentTriggerTypes,
             {
                 "name": "A deployment automation",
@@ -133,7 +130,7 @@ def test_deployment_reactive_trigger_disallows_negative_withins():
 
 def test_deployment_proactive_trigger_disallows_negative_withins():
     with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
-        pydantic.parse_obj_as(
+        parse_obj_as(
             DeploymentTriggerTypes,
             {
                 "name": "A deployment automation",
@@ -145,7 +142,7 @@ def test_deployment_proactive_trigger_disallows_negative_withins():
 
 def test_deployment_trigger_proactive_trigger_disallows_short_withins():
     with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
-        pydantic.parse_obj_as(
+        parse_obj_as(
             DeploymentTriggerTypes,
             {
                 "name": "A deployment automation",
@@ -156,7 +153,7 @@ def test_deployment_trigger_proactive_trigger_disallows_short_withins():
 
 
 def test_deployment_trigger_metric_trigger():
-    trigger = pydantic.parse_obj_as(
+    trigger = parse_obj_as(
         DeploymentTriggerTypes,
         {
             "name": "A deployment automation",
@@ -189,7 +186,7 @@ def test_deployment_trigger_metric_trigger():
 
 
 def test_compound_deployment_trigger_as_automation():
-    trigger = pydantic.parse_obj_as(
+    trigger = parse_obj_as(
         DeploymentTriggerTypes,
         {
             "name": "A deployment automation",
@@ -242,7 +239,7 @@ def test_compound_deployment_trigger_as_automation():
 
 
 def test_deeply_nested_compound_deployment_trigger_as_automation():
-    trigger = pydantic.parse_obj_as(
+    trigger = parse_obj_as(
         DeploymentTriggerTypes,
         {
             "name": "A deployment automation",
@@ -329,7 +326,7 @@ def test_deeply_nested_compound_deployment_trigger_as_automation():
 
 
 def test_sequence_deployment_trigger_as_automation():
-    trigger = pydantic.parse_obj_as(
+    trigger = parse_obj_as(
         DeploymentTriggerTypes,
         {
             "name": "A deployment automation",

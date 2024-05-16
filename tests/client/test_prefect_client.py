@@ -81,6 +81,7 @@ from prefect.settings import (
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.utilities.pydantic import parse_obj_as
 
 
 class TestGetClient:
@@ -1972,7 +1973,7 @@ class TestVariables:
             ).dict(json_compatible=True),
         )
         assert res.status_code == 201
-        return pydantic.parse_obj_as(Variable, res.json())
+        return parse_obj_as(Variable, res.json())
 
     @pytest.fixture
     async def variables(
@@ -1991,7 +1992,7 @@ class TestVariables:
             )
             assert res.status_code == 201
             results.append(res.json())
-        return pydantic.parse_obj_as(List[Variable], results)
+        return parse_obj_as(List[Variable], results)
 
     async def test_read_variable_by_name(self, prefect_client, variable):
         res = await prefect_client.read_variable_by_name(variable.name)

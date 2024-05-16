@@ -35,6 +35,7 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows, work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -401,7 +402,7 @@ async def test_migrating_to_templates():
     assert action.payload == '{\n  "message": "hello world"\n}'
 
     # The form it will be when read from the database
-    action = pydantic.parse_obj_as(
+    action = parse_obj_as(
         actions.ActionTypes,
         {
             "type": "call-webhook",

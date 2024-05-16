@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 
 import orjson
 import pendulum
-import pydantic
 import pytest
 import sqlalchemy as sa
 from httpx import AsyncClient
@@ -17,6 +16,7 @@ from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.schemas.states import StateType
+from prefect.utilities.pydantic import parse_obj_as
 
 
 class TestCreateFlowRun:
@@ -239,7 +239,7 @@ class TestUpdateFlowRun:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
-        updated_flow_run = pydantic.parse_obj_as(
+        updated_flow_run = parse_obj_as(
             schemas.responses.FlowRunResponse, response.json()
         )
         assert updated_flow_run.flow_version == "The next one"
@@ -367,7 +367,7 @@ class TestUpdateFlowRun:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
-        updated_flow_run = pydantic.parse_obj_as(
+        updated_flow_run = parse_obj_as(
             schemas.responses.FlowRunResponse, response.json()
         )
         assert updated_flow_run.job_variables == job_vars
@@ -388,7 +388,7 @@ class TestUpdateFlowRun:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
-        updated_flow_run = pydantic.parse_obj_as(
+        updated_flow_run = parse_obj_as(
             schemas.responses.FlowRunResponse, response.json()
         )
         assert updated_flow_run.flow_version == "1.0"
@@ -546,9 +546,7 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
         # return type should be correct
-        assert pydantic.parse_obj_as(
-            List[schemas.responses.FlowRunResponse], response.json()
-        )
+        assert parse_obj_as(List[schemas.responses.FlowRunResponse], response.json())
 
     async def test_read_flow_runs_work_pool_fields(
         self,
@@ -561,9 +559,7 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
         response = sorted(
-            pydantic.parse_obj_as(
-                List[schemas.responses.FlowRunResponse], response.json()
-            ),
+            parse_obj_as(List[schemas.responses.FlowRunResponse], response.json()),
             key=lambda fr: fr.name,
         )
         assert response[2].work_pool_name == work_pool.name

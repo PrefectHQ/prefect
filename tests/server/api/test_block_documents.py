@@ -2,7 +2,6 @@ import string
 from typing import List
 from uuid import uuid4
 
-import pydantic
 import pytest
 from pydantic import SecretBytes, SecretStr
 from starlette import status
@@ -13,6 +12,7 @@ from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.server.schemas.core import BlockDocument
 from prefect.utilities.names import obfuscate_string
+from prefect.utilities.pydantic import parse_obj_as
 
 
 def long_string(s: str):
@@ -426,7 +426,7 @@ class TestReadBlockDocuments:
     async def test_read_block_documents(self, client, block_documents):
         response = await client.post("/block_documents/filter")
         assert response.status_code == status.HTTP_200_OK
-        read_block_documents = pydantic.parse_obj_as(
+        read_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         # sorted by block document name
@@ -468,7 +468,7 @@ class TestReadBlockDocuments:
             json=dict(block_documents=dict(is_anonymous=dict(eq_=is_anonymous))),
         )
         assert response.status_code == status.HTTP_200_OK
-        read_block_documents = pydantic.parse_obj_as(
+        read_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         # sorted by block document name
@@ -491,7 +491,7 @@ class TestReadBlockDocuments:
             json=dict(block_documents=dict(is_anonymous=is_anonymous_filter)),
         )
         assert response.status_code == status.HTTP_200_OK
-        read_block_documents = pydantic.parse_obj_as(
+        read_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         # sorted by block document name
@@ -500,7 +500,7 @@ class TestReadBlockDocuments:
     async def test_read_block_documents_limit_offset(self, client, block_documents):
         # sorted by block document name
         response = await client.post("/block_documents/filter", json=dict(limit=2))
-        read_block_documents = pydantic.parse_obj_as(
+        read_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_block_documents] == [
@@ -511,7 +511,7 @@ class TestReadBlockDocuments:
         response = await client.post(
             "/block_documents/filter", json=dict(limit=2, offset=2)
         )
-        read_block_documents = pydantic.parse_obj_as(
+        read_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_block_documents] == [
@@ -529,7 +529,7 @@ class TestReadBlockDocuments:
             ),
         )
         assert response.status_code == 200
-        fly_and_swim_block_documents = pydantic.parse_obj_as(
+        fly_and_swim_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
 
@@ -541,7 +541,7 @@ class TestReadBlockDocuments:
             json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
         )
         assert response.status_code == 200
-        fly_block_documents = pydantic.parse_obj_as(
+        fly_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         assert len(fly_block_documents) == 3
@@ -556,7 +556,7 @@ class TestReadBlockDocuments:
             json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
         )
         assert response.status_code == 200
-        swim_block_documents = pydantic.parse_obj_as(
+        swim_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         assert len(swim_block_documents) == 1
@@ -568,7 +568,7 @@ class TestReadBlockDocuments:
             json=dict(block_types=dict(slug=dict(any_=["a", "b"]))),
         )
         assert response.status_code == 200
-        docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
+        docs = parse_obj_as(List[schemas.core.BlockDocument], response.json())
         assert len(docs) == 3
         assert len([d for d in docs if d.block_type.slug == "a"]) == 1
         assert len([d for d in docs if d.block_type.slug == "b"]) == 2
@@ -584,7 +584,7 @@ class TestReadBlockDocuments:
             json=dict(block_documents=dict(name=dict(like_="nested"))),
         )
         assert response.status_code == 200
-        docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
+        docs = parse_obj_as(List[schemas.core.BlockDocument], response.json())
         assert [b.id for b in docs] == [
             block_documents[6].id,
             block_documents[7].id,
@@ -599,7 +599,7 @@ class TestReadBlockDocuments:
             ),
         )
         assert response.status_code == 200
-        docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
+        docs = parse_obj_as(List[schemas.core.BlockDocument], response.json())
         assert [b.id for b in docs] == [block_documents[2].id, block_documents[4].id]
 
     async def test_read_block_documents_sorts_by_block_type_name_name(
@@ -628,7 +628,7 @@ class TestReadBlockDocuments:
             },
         )
         assert response.status_code == status.HTTP_200_OK
-        read_block_documents = pydantic.parse_obj_as(
+        read_block_documents = parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         # sorted by block type name, block document name
@@ -1334,9 +1334,7 @@ class TestSecretBlockDocuments:
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
             params=dict(),
         )
-        blocks = pydantic.parse_obj_as(
-            List[schemas.core.BlockDocument], response.json()
-        )
+        blocks = parse_obj_as(List[schemas.core.BlockDocument], response.json())
 
         assert len(blocks) == 1
         assert blocks[0].data["w"] == {"secret": obfuscate_string(W)}
@@ -1351,9 +1349,7 @@ class TestSecretBlockDocuments:
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
             params=dict(include_secrets=True),
         )
-        blocks = pydantic.parse_obj_as(
-            List[schemas.core.BlockDocument], response.json()
-        )
+        blocks = parse_obj_as(List[schemas.core.BlockDocument], response.json())
 
         assert len(blocks) == 1
         assert blocks[0].data["w"] == {"secret": W}
@@ -1368,7 +1364,7 @@ class TestSecretBlockDocuments:
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
             params=dict(),
         )
-        block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
+        block = parse_obj_as(schemas.core.BlockDocument, response.json())
 
         assert block.data["w"] == {"secret": obfuscate_string(W)}
         assert block.data["x"] == obfuscate_string(X)
@@ -1382,7 +1378,7 @@ class TestSecretBlockDocuments:
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
             params=dict(include_secrets=True),
         )
-        block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
+        block = parse_obj_as(schemas.core.BlockDocument, response.json())
 
         assert block.data["w"] == {"secret": W}
         assert block.data["x"] == X
@@ -1396,9 +1392,7 @@ class TestSecretBlockDocuments:
             "/block_documents/filter",
             json=dict(),
         )
-        blocks = pydantic.parse_obj_as(
-            List[schemas.core.BlockDocument], response.json()
-        )
+        blocks = parse_obj_as(List[schemas.core.BlockDocument], response.json())
 
         assert len(blocks) == 1
         assert blocks[0].data["w"] == {"secret": obfuscate_string(W)}
@@ -1413,9 +1407,7 @@ class TestSecretBlockDocuments:
             "/block_documents/filter",
             json=dict(include_secrets=True),
         )
-        blocks = pydantic.parse_obj_as(
-            List[schemas.core.BlockDocument], response.json()
-        )
+        blocks = parse_obj_as(List[schemas.core.BlockDocument], response.json())
 
         assert len(blocks) == 1
         assert blocks[0].data["w"] == {"secret": W}

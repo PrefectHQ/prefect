@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import List
 
 import pendulum
-import pydantic
 import pytest
 import sqlalchemy as sa
 from fastapi import Response, status
@@ -11,6 +10,7 @@ from packaging import version
 from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.states import StateType
+from prefect.utilities.pydantic import parse_obj_as
 
 dt = pendulum.datetime(2021, 7, 1)
 
@@ -26,7 +26,7 @@ def assert_datetime_dictionaries_equal(a, b):
 
 def parse_response(response: Response, include=None):
     assert response.status_code == status.HTTP_200_OK
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+    parsed = parse_obj_as(List[responses.HistoryResponse], response.json())
 
     # for each interval...
     for p in parsed:
@@ -790,7 +790,7 @@ async def test_last_bin_contains_end_date(client, route):
     )
 
     assert response.status_code == status.HTTP_200_OK
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+    parsed = parse_obj_as(List[responses.HistoryResponse], response.json())
     assert len(parsed) == 2
     assert parsed[0].interval_start == dt
     assert parsed[0].interval_end == dt.add(days=1)

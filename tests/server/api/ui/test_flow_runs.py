@@ -1,12 +1,12 @@
 from typing import List
 
-import pydantic
 import pytest
 from starlette import status
 
 from prefect.server import models
 from prefect.server.api.ui.flow_runs import SimpleFlowRun
 from prefect.server.schemas import actions, states
+from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ class TestReadFlowRunHistory:
     async def test_read_flow_runs(self, flow_runs, client):
         response = await client.post("/ui/flow_runs/history", json=dict(sort="ID_DESC"))
         flow_runs = sorted(flow_runs, key=lambda x: x.id, reverse=True)
-        data = pydantic.parse_obj_as(List[SimpleFlowRun], response.json())
+        data = parse_obj_as(List[SimpleFlowRun], response.json())
         for i in range(3):
             assert data[i].id == flow_runs[i].id
             assert data[i].state_type == flow_runs[i].state_type

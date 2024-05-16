@@ -3,7 +3,6 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
 from pendulum.datetime import DateTime
 from pydantic import ValidationError
@@ -24,6 +23,7 @@ from prefect.server.models import deployments, flows
 from prefect.server.schemas.actions import DeploymentScheduleCreate
 from prefect.server.schemas.core import Deployment, Flow
 from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.utilities.pydantic import parse_obj_as
 
 
 def test_source_determines_if_deployment_id_is_required_or_allowed():
@@ -417,7 +417,7 @@ async def test_inferring_deployment_requires_recognizable_resource_id(
     resume_their_deployment: TriggeredAction,
 ):
     assert resume_their_deployment.triggering_event
-    resume_their_deployment.triggering_event.related = pydantic.parse_obj_as(
+    resume_their_deployment.triggering_event.related = parse_obj_as(
         List[RelatedResource],
         [
             {

@@ -1,18 +1,30 @@
 from functools import partial
-from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, cast, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Optional,
+    Type,
+    TypeVar,
+    cast,
+    get_origin,
+    overload,
+)
 
 import pydantic
 from jsonpatch import JsonPatch as JsonPatchBase
-from pydantic import GetJsonSchemaHandler
+from pydantic import GetJsonSchemaHandler, TypeAdapter
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema, to_jsonable_python
-from typing_extensions import Self
+from typing_extensions import Literal, Self
 
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
 D = TypeVar("D", bound=Any)
 M = TypeVar("M", bound=pydantic.BaseModel)
+T = TypeVar("T", bound=Any)
 
 
 def _reduce_model(model: pydantic.BaseModel):
@@ -287,3 +299,63 @@ def custom_pydantic_encoder(
             return obj.model_dump(mode="json")
         else:
             return to_jsonable_python(obj)
+
+
+def parse_obj_as(
+    type_: type[T],
+    data: Any,
+    mode: Literal["python", "json", "strings"] = "python",
+) -> T:
+    """Parse a given data structure as a Pydantic model via `TypeAdapter`.
+
+    Read more about `TypeAdapter` [here](https://docs.pydantic.dev/latest/concepts/type_adapter/).
+
+    Args:
+        type_: The type to parse the data as.
+        data: The data to be parsed.
+        mode: The mode to use for parsing, either `python`, `json`, or `strings`.
+            Defaults to `python`, where `data` should be a Python object (e.g. `dict`).
+
+    Returns:
+        The parsed `data` as the given `type_`.
+
+
+    Example:
+        Basic Usage of `parse_as`
+        ```python
+        from prefect.utilities.pydantic import parse_as
+        from pydantic import BaseModel
+
+        class ExampleModel(BaseModel):
+            name: str
+
+        # parsing python objects
+        parsed = parse_as(ExampleModel, {"name": "Marvin"})
+        assert isinstance(parsed, ExampleModel)
+        assert parsed.name == "Marvin"
+
+        # parsing json strings
+        parsed = parse_as(
+            list[ExampleModel],
+            '[{"name": "Marvin"}, {"name": "Arthur"}]',
+            mode="json"
+        )
+        assert all(isinstance(item, ExampleModel) for item in parsed)
+        assert parsed[0].name == "Marvin"
+        assert parsed[1].name == "Arthur"
+
+        # parsing raw strings
+        parsed = parse_as(int, '123', mode="strings")
+        assert isinstance(parsed, int)
+        assert parsed == 123
+        ```
+
+    """
+    adapter = TypeAdapter(type_)
+
+    if get_origin(type_) is list and isinstance(data, dict):
+        data = next(iter(data.values()))
+
+    parser: Callable[[Any], T] = getattr(adapter, f"validate_{mode}")
+
+    return parser(data)

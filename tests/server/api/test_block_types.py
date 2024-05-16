@@ -3,7 +3,6 @@ from typing import List
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
 from starlette import status
 
@@ -13,6 +12,7 @@ from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.server.schemas.core import BlockDocument, BlockType
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.pydantic import parse_obj_as
 from prefect.utilities.slugify import slugify
 
 CODE_EXAMPLE = dedent(
@@ -228,7 +228,7 @@ class TestReadBlockTypes:
     ):
         response = await client.post("/block_types/filter")
         assert response.status_code == status.HTTP_200_OK
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert [block_type.id for block_type in read_block_types] == [
             block_type_x.id,
             block_type_y.id,
@@ -240,7 +240,7 @@ class TestReadBlockTypes:
     ):
         response = await client.post("/block_types/filter", json=dict(limit=2))
         assert response.status_code == status.HTTP_200_OK
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert [block_type.id for block_type in read_block_types] == [
             block_type_x.id,
             block_type_y.id,
@@ -248,7 +248,7 @@ class TestReadBlockTypes:
 
         response = await client.post("/block_types/filter", json=dict(offset=2))
         assert response.status_code == status.HTTP_200_OK
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert [block_type.id for block_type in read_block_types] == [
             block_type_z.id,
         ]
@@ -261,7 +261,7 @@ class TestReadBlockTypes:
         )
 
         assert response.status_code == 200
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert len(read_block_types) == 1
         assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
 
@@ -270,7 +270,7 @@ class TestReadBlockTypes:
         )
 
         assert response.status_code == 200
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert len(read_block_types) == 2
         assert [b.id for b in read_block_types] == [
             block_types_with_associated_capabilities[2].id,
@@ -281,7 +281,7 @@ class TestReadBlockTypes:
             "/block_types/filter", json=dict(block_types=dict(name=dict(like_="z")))
         )
         assert response.status_code == 200
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
 
     async def test_read_block_types_filter_by_associated_capability(
         self, client, block_types_with_associated_capabilities
@@ -294,7 +294,7 @@ class TestReadBlockTypes:
         )
 
         assert response.status_code == 200
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert len(read_block_types) == 1
         assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
 
@@ -304,7 +304,7 @@ class TestReadBlockTypes:
         )
 
         assert response.status_code == 200
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert len(read_block_types) == 2
         assert [b.id for b in read_block_types] == [
             block_types_with_associated_capabilities[1].id,
@@ -316,7 +316,7 @@ class TestReadBlockTypes:
             json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
         )
         assert response.status_code == 200
-        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        read_block_types = parse_obj_as(List[BlockType], response.json())
         assert len(read_block_types) == 1
         assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
 
@@ -429,9 +429,7 @@ class TestReadBlockDocumentsForBlockType:
         )
         assert response.status_code == status.HTTP_200_OK
 
-        read_block_documents = pydantic.parse_obj_as(
-            List[BlockDocument], response.json()
-        )
+        read_block_documents = parse_obj_as(List[BlockDocument], response.json())
         assert [block_doc.id for block_doc in read_block_documents] == [
             block_document.id
         ]
@@ -474,19 +472,19 @@ class TestReadBlockDocumentByNameForBlockType:
 class TestSystemBlockTypes:
     async def test_install_system_block_types(self, client):
         response = await client.post("/block_types/filter")
-        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        block_types = parse_obj_as(List[BlockType], response.json())
         assert len(block_types) == 0
 
         r = await client.post("/block_types/install_system_block_types")
         assert r.status_code == status.HTTP_200_OK
 
         response = await client.post("/block_types/filter")
-        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        block_types = parse_obj_as(List[BlockType], response.json())
         assert len(block_types) > 0
 
     async def test_install_system_block_types_multiple_times(self, client):
         response = await client.post("/block_types/filter")
-        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        block_types = parse_obj_as(List[BlockType], response.json())
         assert len(block_types) == 0
 
         await client.post("/block_types/install_system_block_types")

@@ -7,7 +7,6 @@ from uuid import uuid4
 
 import httpx
 import pendulum
-import pydantic
 import pytest
 import respx
 import yaml
@@ -39,6 +38,7 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     temporary_settings,
 )
+from prefect.utilities.pydantic import parse_obj_as
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
@@ -144,8 +144,8 @@ class TestDeploymentBasicInterface:
             name="TEST",
             flow_name="fn",
             triggers=[
-                pydantic.parse_obj_as(DeploymentTriggerTypes, {}),
-                pydantic.parse_obj_as(DeploymentTriggerTypes, {"name": "run-it"}),
+                parse_obj_as(DeploymentTriggerTypes, {}),
+                parse_obj_as(DeploymentTriggerTypes, {"name": "run-it"}),
             ],
         )
 
@@ -157,10 +157,8 @@ class TestDeploymentBasicInterface:
             name="TEST",
             flow_name="fn",
             triggers=[
-                pydantic.parse_obj_as(DeploymentTriggerTypes, {}),
-                pydantic.parse_obj_as(
-                    DeploymentTriggerTypes, {"job_variables": {"foo": "bar"}}
-                ),
+                parse_obj_as(DeploymentTriggerTypes, {}),
+                parse_obj_as(DeploymentTriggerTypes, {"job_variables": {"foo": "bar"}}),
             ],
         )
 
@@ -910,9 +908,7 @@ class TestDeploymentApply:
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
 
-        trigger = pydantic.parse_obj_as(
-            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
-        )
+        trigger = parse_obj_as(DeploymentTriggerTypes, {"job_variables": {"foo": 123}})
 
         deployment = Deployment(
             name="TEST",
@@ -959,9 +955,7 @@ class TestDeploymentApply:
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
 
-        trigger = pydantic.parse_obj_as(
-            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
-        )
+        trigger = parse_obj_as(DeploymentTriggerTypes, {"job_variables": {"foo": 123}})
 
         deployment = Deployment(
             name="TEST",
@@ -1008,9 +1002,7 @@ class TestDeploymentApply:
         infrastructure = Process()
         await infrastructure._save(is_anonymous=True)
 
-        trigger = pydantic.parse_obj_as(
-            DeploymentTriggerTypes, {"job_variables": {"foo": 123}}
-        )
+        trigger = parse_obj_as(DeploymentTriggerTypes, {"job_variables": {"foo": 123}})
         assert isinstance(trigger, DeploymentEventTrigger)
 
         deployment = Deployment(

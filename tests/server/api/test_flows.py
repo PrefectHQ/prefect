@@ -2,11 +2,11 @@ import urllib.parse
 from uuid import UUID, uuid4
 
 import pendulum
-import pydantic
 import pytest
 from starlette import status
 
 from prefect.server import models, schemas
+from prefect.utilities.pydantic import parse_obj_as
 
 
 class TestCreateFlow:
@@ -81,7 +81,7 @@ class TestUpdateFlow:
         assert response.status_code == 204
 
         response = await client.get(f"flows/{flow.id}")
-        updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
+        updated_flow = parse_obj_as(schemas.core.Flow, response.json())
         assert updated_flow.tags == ["TB12"]
         assert updated_flow.updated > now
 
@@ -99,7 +99,7 @@ class TestUpdateFlow:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flows/{flow.id}")
-        updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
+        updated_flow = parse_obj_as(schemas.core.Flow, response.json())
         assert updated_flow.tags == ["db", "blue"]
 
     async def test_update_flow_raises_error_if_flow_does_not_exist(self, client):

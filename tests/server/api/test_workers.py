@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import List
 
 import pendulum
-import pydantic
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -13,6 +12,7 @@ from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.utilities.pydantic import parse_obj_as
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -83,7 +83,7 @@ class TestCreateWorkPool:
             "/work_pools/", json=dict(name="Pool 1", type="test")
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.name == "Pool 1"
         assert result.is_paused is False
         assert result.concurrency_limit is None
@@ -102,7 +102,7 @@ class TestCreateWorkPool:
             json=dict(name="Pool 1", type="test", is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.name == "Pool 1"
         assert result.is_paused is True
         assert result.concurrency_limit == 5
@@ -130,7 +130,7 @@ class TestCreateWorkPool:
             json=dict(name="Pool 1", type="test", base_job_template=base_job_template),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.base_job_template == base_job_template
 
     async def test_create_duplicate_work_pool(self, client, work_pool):
@@ -157,7 +157,7 @@ class TestCreateWorkPool:
             "/work_pools/", json=dict(name="Pool 1", type=type)
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.type == type
 
     @pytest.mark.parametrize("name", RESERVED_POOL_NAMES)
@@ -671,7 +671,7 @@ class TestReadWorkPool:
     async def test_read_work_pool(self, client, work_pool):
         response = await client.get(f"/work_pools/{work_pool.name}")
         assert response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.name == work_pool.name
         assert result.id == work_pool.id
         assert result.status == schemas.statuses.WorkPoolStatus.NOT_READY.value
@@ -700,19 +700,19 @@ class TestReadWorkPools:
     async def test_read_work_pools(self, client, session):
         response = await client.post("/work_pools/filter")
         assert response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(List[WorkPool], response.json())
+        result = parse_obj_as(List[WorkPool], response.json())
         assert [r.name for r in result] == ["A", "B", "C"]
 
     async def test_read_work_pools_with_limit(self, client, session):
         response = await client.post("/work_pools/filter", json=dict(limit=2))
         assert response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(List[WorkPool], response.json())
+        result = parse_obj_as(List[WorkPool], response.json())
         assert [r.name for r in result] == ["A", "B"]
 
     async def test_read_work_pools_with_offset(self, client, session):
         response = await client.post("/work_pools/filter", json=dict(offset=1))
         assert response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(List[WorkPool], response.json())
+        result = parse_obj_as(List[WorkPool], response.json())
         assert [r.name for r in result] == ["B", "C"]
 
     async def test_read_work_pool_with_work_pool_that_fails_validation(
@@ -751,7 +751,7 @@ class TestCreateWorkQueue:
             json=dict(name="test-queue", description="test queue"),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = pydantic.parse_obj_as(WorkQueue, response.json())
+        result = parse_obj_as(WorkQueue, response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
         assert result.work_pool_name == work_pool.name
@@ -828,7 +828,7 @@ class TestReadWorkQueue:
             f"/work_pools/{work_pool.name}/queues/test-queue"
         )
         assert read_response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(WorkQueue, read_response.json())
+        result = parse_obj_as(WorkQueue, read_response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
         assert result.work_pool_name == work_pool.name
@@ -867,7 +867,7 @@ class TestUpdateWorkQueue:
             json=dict(name="test-queue", description="test queue"),
         )
         assert create_response.status_code == status.HTTP_201_CREATED
-        create_result = pydantic.parse_obj_as(WorkQueue, create_response.json())
+        create_result = parse_obj_as(WorkQueue, create_response.json())
         assert not create_result.is_paused
 
         # Update work pool queue
@@ -886,7 +886,7 @@ class TestUpdateWorkQueue:
             f"/work_pools/{work_pool.name}/queues/updated-test-queue"
         )
         assert read_response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(WorkQueue, read_response.json())
+        result = parse_obj_as(WorkQueue, read_response.json())
         assert result.name == "updated-test-queue"
         assert result.description == "updated test queue"
         assert result.is_paused
@@ -1240,7 +1240,7 @@ class TestWorkPoolStatus:
         response = await client.get(f"/work_pools/{work_pool.name}")
         assert response.status_code == status.HTTP_200_OK
 
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.status == schemas.statuses.WorkPoolStatus.READY
 
     async def test_work_pool_status_with_offline_worker(
@@ -1259,14 +1259,14 @@ class TestWorkPoolStatus:
         await session.commit()
 
         response = await client.get(f"/work_pools/{work_pool.name}")
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
 
         assert result.status == schemas.statuses.WorkPoolStatus.NOT_READY
 
     async def test_work_pool_status_with_no_workers(self, client, work_pool):
         """Work pools with no workers should have a status of NOT_READY."""
         response = await client.get(f"/work_pools/{work_pool.name}")
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
 
         assert result.status == schemas.statuses.WorkPoolStatus.NOT_READY
 
@@ -1284,7 +1284,7 @@ class TestWorkPoolStatus:
         response = await client.get(f"/work_pools/{work_pool.name}")
         assert response.status_code == status.HTTP_200_OK
 
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.is_paused
         assert result.status == schemas.statuses.WorkPoolStatus.PAUSED
 
@@ -1295,7 +1295,7 @@ class TestWorkPoolStatus:
         response = await client.get(f"/work_pools/{prefect_agent_work_pool.name}")
         assert response.status_code == status.HTTP_200_OK
 
-        result = pydantic.parse_obj_as(WorkPool, response.json())
+        result = parse_obj_as(WorkPool, response.json())
         assert result.status is None
 
 
@@ -1674,7 +1674,7 @@ class TestGetScheduledRuns:
         )
         assert response.status_code == status.HTTP_200_OK
 
-        data = pydantic.parse_obj_as(
+        data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 15
@@ -1688,7 +1688,7 @@ class TestGetScheduledRuns:
             json=dict(limit=7),
         )
 
-        data = pydantic.parse_obj_as(
+        data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 7
@@ -1699,7 +1699,7 @@ class TestGetScheduledRuns:
             json=dict(work_queue_names=[work_queues["wq_aa"].name]),
         )
 
-        data = pydantic.parse_obj_as(
+        data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 5
@@ -1715,7 +1715,7 @@ class TestGetScheduledRuns:
             ),
         )
 
-        data = pydantic.parse_obj_as(
+        data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 10
@@ -1734,7 +1734,7 @@ class TestGetScheduledRuns:
             json=dict(scheduled_before=str(pendulum.now("UTC"))),
         )
 
-        data = pydantic.parse_obj_as(
+        data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 6
@@ -1745,7 +1745,7 @@ class TestGetScheduledRuns:
             json=dict(scheduled_after=str(pendulum.now("UTC"))),
         )
 
-        data = pydantic.parse_obj_as(
+        data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 9
@@ -1759,7 +1759,7 @@ class TestGetScheduledRuns:
             ),
         )
 
-        data = pydantic.parse_obj_as(
+        data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 0
@@ -1779,15 +1779,13 @@ class TestGetScheduledRuns:
         )
         assert work_queue_response.status_code == status.HTTP_200_OK
 
-        work_queue = pydantic.parse_obj_as(WorkQueue, work_queue_response.json())
+        work_queue = parse_obj_as(WorkQueue, work_queue_response.json())
         work_queues_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
         )
         assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = pydantic.parse_obj_as(
-            List[WorkQueue], work_queues_response.json()
-        )
+        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
         for work_queue in work_queues:
             if work_queue.name == "AA":
@@ -1816,9 +1814,7 @@ class TestGetScheduledRuns:
         )
         assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = pydantic.parse_obj_as(
-            List[WorkQueue], work_queues_response.json()
-        )
+        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
         for work_queue in work_queues:
             if work_queue.name == "AA" or work_queue.name == "AB":
@@ -1841,9 +1837,7 @@ class TestGetScheduledRuns:
         )
         assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = pydantic.parse_obj_as(
-            List[WorkQueue], work_queues_response.json()
-        )
+        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
         for work_queue in work_queues:
             assert work_queue.last_polled is not None
