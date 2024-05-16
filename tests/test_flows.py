@@ -13,6 +13,7 @@ from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from typing import List
+from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
@@ -47,7 +48,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -338,7 +339,9 @@ class TestFlowWithOptions:
         assert flow_with_options.on_cancellation == [cancellation_hook]
         assert flow_with_options.on_crashed == [crash_hook]
 
-    def test_with_options_uses_existing_settings_when_no_override(self):
+    def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
+        storage = LocalFileSystem(basepath=tmp_path)
+
         @flow(
             name="Initial flow",
             description="Flow before with options",
@@ -349,7 +352,7 @@ class TestFlowWithOptions:
             retry_delay_seconds=20,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=storage,
             cache_result_in_memory=False,
             log_prints=False,
         )
@@ -368,7 +371,7 @@ class TestFlowWithOptions:
         assert flow_with_options.retry_delay_seconds == 20
         assert flow_with_options.persist_result is False
         assert flow_with_options.result_serializer == "json"
-        assert flow_with_options.result_storage == LocalFileSystem()
+        assert flow_with_options.result_storage == storage
         assert flow_with_options.cache_result_in_memory is False
         assert flow_with_options.log_prints is False
 
@@ -407,11 +410,11 @@ class TestFlowWithOptions:
         flow_with_options = initial_flow.with_options()
         assert flow_with_options.flow_run_name is generate_flow_run_name
 
-    def test_with_options_can_unset_result_options_with_none(self):
+    def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @flow(
             persist_result=True,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=LocalFileSystem(basepath=tmp_path),
         )
         def initial_flow():
             pass
@@ -3880,3 +3883,35 @@ class TestFlowDeploy:
         )
 
         assert not capsys.readouterr().out
+
+
+class TestLoadFlowFromFlowRun:
+    async def test_load_flow_from_module_entrypoint(
+        self, prefect_client: "PrefectClient", monkeypatch
+    ):
+        @flow
+        def pretend_flow():
+            pass
+
+        load_flow_from_entrypoint = mock.MagicMock(return_value=pretend_flow)
+        monkeypatch.setattr(
+            "prefect.flows.load_flow_from_entrypoint",
+            load_flow_from_entrypoint,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(pretend_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my.module.pretend_flow",
+            flow_id=flow_id,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run, client=prefect_client)
+
+        assert result == pretend_flow
+        load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")

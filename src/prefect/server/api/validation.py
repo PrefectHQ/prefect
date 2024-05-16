@@ -37,21 +37,16 @@ Note some important details:
 
 from typing import Any, Dict, Optional, Tuple, Union
 
+import pydantic.v1 as pydantic
 from prefect._vendor.fastapi import HTTPException, status
 from sqlalchemy.exc import DBAPIError, NoInspectionAvailable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.events.actions import RunDeployment
 from prefect.server.schemas.core import Deployment, WorkPool
 from prefect.utilities.schema_tools import ValidationError, is_valid_schema, validate
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
 
 logger = get_logger("server.api.validation")
 

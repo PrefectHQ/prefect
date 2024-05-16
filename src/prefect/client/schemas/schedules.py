@@ -8,8 +8,8 @@ from typing import Optional, Union
 import dateutil
 import dateutil.rrule
 import pendulum
+from pydantic.v1 import Field, validator
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.validators import (
@@ -20,11 +20,6 @@ from prefect._internal.schemas.validators import (
     validate_rrule_timezone,
 )
 from prefect.types import PositiveDuration
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer

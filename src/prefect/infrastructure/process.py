@@ -20,17 +20,10 @@ from typing import Dict, Tuple, Union
 
 import anyio
 import anyio.abc
-
-from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic.v1 import Field
 from typing_extensions import Literal
 
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
