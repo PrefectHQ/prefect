@@ -21,7 +21,7 @@ from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
 )
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
-from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
+from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     get_or_create_state_name,
@@ -37,7 +37,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
-from prefect.types import Name, NonNegativeInteger, PositiveInteger
+from prefect.types import DateTimeTZ, Name, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
 

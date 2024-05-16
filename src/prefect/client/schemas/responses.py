@@ -8,8 +8,9 @@ from typing_extensions import Literal
 import prefect.client.schemas.objects as objects
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
-from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
+from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.types import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
