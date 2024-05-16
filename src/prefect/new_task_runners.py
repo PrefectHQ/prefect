@@ -111,6 +111,8 @@ class ThreadPoolTaskRunner(TaskRunner):
         context = copy_context()
 
         if task.isasync:
+            # TODO: Explore possibly using a long-lived thread with an event loop
+            # for better performance
             future = self._executor.submit(
                 context.run,
                 asyncio.run,

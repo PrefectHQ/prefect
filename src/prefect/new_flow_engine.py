@@ -273,6 +273,8 @@ class FlowRunEngine(Generic[P, R]):
             task_group = anyio._backends._asyncio.TaskGroup()
 
         with ExitStack() as stack:
+            # TODO: Explore closing task runner before completing the flow to
+            # wait for futures to complete
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
             stack.enter_context(
                 FlowRunContext(
