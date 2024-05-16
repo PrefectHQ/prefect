@@ -53,7 +53,7 @@
                 </template>
               </p-list-header>
 
-              <FlowRunList v-if="!noFlowRuns" v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
+              <FlowRunList v-if="flowRuns.length" v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
 
               <template v-else-if="flowRunsSubscriptions.loading">
                 <p-loading-icon class="m-auto" />
@@ -92,7 +92,7 @@
                 </template>
               </p-list-header>
 
-              <TaskRunList v-if="!noTaskRuns" v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" @bottom="loadMoreTaskRuns" />
+              <TaskRunList v-if="taskRuns.length" v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" @bottom="loadMoreTaskRuns" />
 
               <template v-else-if="taskRunsSubscriptions.loading">
                 <p-loading-icon class="m-auto" />
@@ -214,14 +214,10 @@
     interval,
   })
 
-  const noFlowRuns = computed(() => flowRunsSubscriptions.executed && flowRuns.value.length === 0 && flowRunCount.value === 0)
-
   const { taskRuns, total: taskRunCount, subscriptions: taskRunsSubscriptions, next: loadMoreTaskRuns } = usePaginatedTaskRuns(taskRunsFilter, {
     mode: 'infinite',
     interval,
   })
-
-  const noTaskRuns = computed(() => taskRunsSubscriptions.executed && taskRuns.value.length === 0 && taskRunCount.value === 0)
 
   const flowRunsAreSelectable = computed(() => can.delete.flow_run)
   const selectedFlowRuns = ref([])
