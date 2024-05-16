@@ -82,6 +82,8 @@
                 <TaskRunsDeleteButton v-if="can.delete.task_run" :selected="selectedTaskRuns" @delete="deleteTaskRuns" />
 
                 <template #controls>
+                  <p-button-group v-model="taskRunAutonomyButtonGroupValue" small :options="taskRunAutonomyButtonGroupOptions" />
+
                   <template v-if="media.md">
                     <SearchInput v-model="taskRunNameLike" size="small" placeholder="Search by task run name" class="min-w-64" label="Search by task run name" />
                   </template>
@@ -119,7 +121,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { Getter, media } from '@prefecthq/prefect-design'
+  import { ButtonGroupOption, Getter, media } from '@prefecthq/prefect-design'
   import {
     PageHeadingRuns,
     FlowRunsSort,
@@ -140,9 +142,10 @@
     FlowRunSortValuesSortParam,
     TaskRunsFilter,
     TaskRunSortValuesSortParam,
-    TaskRunsSort
+    TaskRunsSort,
+    isNull
   } from '@prefecthq/prefect-ui-library'
-  import { BooleanRouteParam, useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
+  import { BooleanRouteParam, NullableStringRouteParam, useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import merge from 'lodash.merge'
   import { computed, ref, toRef } from 'vue'
   import { useRouter } from 'vue-router'
@@ -157,6 +160,13 @@
 
   const tab = useRouteQueryParam('tab', 'flow-runs')
   const tabs = ['flow-runs', 'task-runs']
+
+  const taskRunAutonomyButtonGroupValue = useRouteQueryParam('task-run-autonomy', NullableStringRouteParam, null)
+  const taskRunAutonomyButtonGroupOptions: ButtonGroupOption[] = [
+    { label: 'All', value: null },
+    { label: 'Autonomous', value: 'autonomous' },
+    { label: 'Children', value: 'children' },
+  ]
 
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
   const taskRunsCountAllSubscription = useSubscription(api.taskRuns.getTaskRunsCount, [{}])
@@ -190,10 +200,12 @@
 
   const taskRunsFilter = toRef<Getter<TaskRunsFilter>>(() => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'TaskRunsFilter')
+    const flowRunIdNull = isNull(taskRunAutonomyButtonGroupValue.value) ? undefined : taskRunAutonomyButtonGroupValue.value === 'autonomous'
 
     return merge({}, filter, {
       taskRuns: {
         nameLike: taskRunNameLikeDebounced.value,
+        flowRunIdNull,
       },
       sort: taskRunsSort.value,
     })
