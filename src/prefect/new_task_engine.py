@@ -25,12 +25,12 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import State
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import Abort, Pause
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import get_logger, task_run_logger
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
     Paused,
