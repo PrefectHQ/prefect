@@ -30,9 +30,8 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
-from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, Pause
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import flow_run_logger, get_logger
 from prefect.results import ResultFactory
