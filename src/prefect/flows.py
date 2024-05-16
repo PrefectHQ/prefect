@@ -1232,51 +1232,6 @@ class Flow(Generic[P, R]):
             return_type=return_type,
         )
 
-    @overload
-    def _run(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
-        ...
-
-    @overload
-    def _run(
-        self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
-        ...
-
-    @overload
-    def _run(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
-        ...
-
-    def _run(
-        self,
-        *args: "P.args",
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        **kwargs: "P.kwargs",
-    ):
-        """
-        Run the flow and return its final state.
-
-        Examples:
-
-            Run a flow and get the returned result
-
-            >>> state = my_flow._run("marvin")
-            >>> state.result()
-           "goodbye marvin"
-        """
-        from prefect.engine import enter_flow_run_engine_from_flow_call
-
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.fn, args, kwargs)
-
-        return enter_flow_run_engine_from_flow_call(
-            self,
-            parameters,
-            wait_for=wait_for,
-            return_type="state",
-        )
-
     @sync_compatible
     async def visualize(self, *args, **kwargs):
         """
