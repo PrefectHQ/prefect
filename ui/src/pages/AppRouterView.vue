@@ -91,7 +91,6 @@
 }
 
 .app-router-view__sidebar { @apply
-  bg-floating
   top-[54px]
   lg:bg-transparent
   lg:top-0
