@@ -10,3 +10,8 @@ from prefect.deployments.runner import (
     DeploymentImage,
     EntrypointType,
 )
+
+
+from prefect.deployments.flow_runs import (
+    run_deployment,
+)
