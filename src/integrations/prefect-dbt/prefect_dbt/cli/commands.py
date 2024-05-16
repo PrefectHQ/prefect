@@ -12,6 +12,7 @@ from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
+from prefect.states import Failed
 from prefect.utilities.filesystem import relative_path_to_current_platform
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -174,7 +175,7 @@ async def trigger_dbt_cli_command(
     result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
     if result.exception is not None:
-        logger.error(f"dbt build task failed with exception: {result.exception}")
+        logger.error(f"dbt task failed with exception: {result.exception}")
         raise result.exception
 
     # Creating the dbt Summary Markdown if enabled
@@ -198,6 +199,10 @@ async def trigger_dbt_cli_command(
                      return any RunExecutionResults. \
                      See https://docs.getdbt.com/reference/programmatic-invocations \
                      for more details on dbtRunnerResult."
+        )
+    if isinstance(result.result, RunExecutionResult) and not result.success:
+        return Failed(
+            message=f"dbt task result unsuccessful with exception: {result.exception}"
         )
     return result
 

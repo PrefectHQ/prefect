@@ -506,7 +506,10 @@ def test_run_dbt_model_creates_unsuccessful_artifact(
             create_summary_artifact=True,
         )
 
-    test_flow()
+    with pytest.raises(
+        Exception, match="dbt task result unsuccessful with exception: None"
+    ):
+        test_flow()
     assert (a := Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt run Task Summary")
