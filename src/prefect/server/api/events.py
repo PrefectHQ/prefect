@@ -5,9 +5,9 @@ from fastapi import Response, WebSocket, status
 from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Depends, Path
 from fastapi.params import Body, Query
-from prefect._vendor.starlette.requests import Request
-from prefect._vendor.starlette.status import WS_1002_PROTOCOL_ERROR
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
+from starlette.status import WS_1002_PROTOCOL_ERROR
 
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import is_ephemeral_request

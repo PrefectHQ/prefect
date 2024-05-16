@@ -3,7 +3,7 @@ import urllib.parse
 import anyio
 import httpx
 import pytest
-from prefect._vendor.fastapi import (
+from fastapi import (
     Depends,
     FastAPI,
     HTTPException,
@@ -11,7 +11,7 @@ from prefect._vendor.fastapi import (
     Request,
     status,
 )
-from prefect._vendor.fastapi.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from prefect.server.utilities.server import PrefectRouter, response_scoped_dependency
 

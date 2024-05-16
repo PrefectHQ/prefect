@@ -22,7 +22,7 @@ import httpx
 import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
-from prefect._vendor.starlette import status
+from starlette import status
 from typing_extensions import ParamSpec
 
 import prefect

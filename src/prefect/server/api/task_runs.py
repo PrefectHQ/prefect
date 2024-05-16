@@ -17,8 +17,8 @@ from fastapi import (
     WebSocket,
     status,
 )
-from prefect._vendor.starlette.websockets import WebSocketDisconnect
 from pydantic_extra_types.pendulum_dt import DateTime
+from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

@@ -6,8 +6,8 @@ import asyncpg
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi import APIRouter, status, testclient
 from httpx import ASGITransport, AsyncClient
-from prefect._vendor.fastapi import APIRouter, status, testclient
 
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.server.api.server import (

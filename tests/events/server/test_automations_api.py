@@ -20,7 +20,7 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
 
-from prefect._vendor.fastapi.applications import FastAPI
+from fastapi.applications import FastAPI
 
 from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas

@@ -17,7 +17,7 @@ from prefect.utilities.collections import batched_iterable
 MAXIMUM_QUERY_PARAMETERS = 32_767
 
 # ...and logs have a certain number of fields...
-NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.model_json_schema()["properties"])
+NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.model_fields)
 
 # ...so we can only INSERT batches of a certain size at a time
 LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS

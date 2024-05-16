@@ -12,8 +12,8 @@ else:
     import pydantic
 
 import pytest
-from prefect._vendor.starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 import prefect
 from prefect.client.schemas.actions import WorkPoolCreate

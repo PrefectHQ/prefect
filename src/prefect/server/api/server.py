@@ -25,7 +25,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from prefect._vendor.starlette.exceptions import HTTPException
+from starlette.exceptions import HTTPException
 
 import prefect
 import prefect.server.api as api

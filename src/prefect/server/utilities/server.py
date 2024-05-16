@@ -9,7 +9,7 @@ from typing import Any, Callable, Coroutine, Sequence, Set, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute, BaseRoute
-from prefect._vendor.starlette.routing import Route as StarletteRoute
+from starlette.routing import Route as StarletteRoute
 
 
 def method_paths_from_routes(routes: Sequence[BaseRoute]) -> Set[str]:

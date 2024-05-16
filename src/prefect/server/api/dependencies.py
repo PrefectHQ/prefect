@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import Body, Depends, Header, HTTPException, status
 from packaging.version import Version
-from prefect._vendor.starlette.requests import Request
+from starlette.requests import Request
 
 from prefect.server import schemas
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT

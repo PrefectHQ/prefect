@@ -25,8 +25,8 @@ import anyio
 import httpx
 from asgi_lifespan import LifespanManager
 from httpx import HTTPStatusError, Request, Response
-from prefect._vendor.starlette import status
-from prefect._vendor.starlette.testclient import TestClient
+from starlette import status
+from starlette.testclient import TestClient
 from typing_extensions import Self
 
 import prefect

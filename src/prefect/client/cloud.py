@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 import anyio
 import httpx
 import pydantic
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect.context
 import prefect.settings

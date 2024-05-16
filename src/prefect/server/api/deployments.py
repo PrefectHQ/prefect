@@ -9,8 +9,8 @@ from uuid import UUID
 import jsonschema.exceptions
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
-from prefect._vendor.starlette.background import BackgroundTasks
 from pydantic_extra_types.pendulum_dt import DateTime
+from starlette.background import BackgroundTasks
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

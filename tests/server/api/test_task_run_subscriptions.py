@@ -6,9 +6,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from prefect._vendor.fastapi import FastAPI
-from prefect._vendor.starlette.testclient import TestClient, WebSocketTestSession
+from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.testclient import TestClient, WebSocketTestSession
 
 from prefect.client.schemas import TaskRun
 from prefect.server import models

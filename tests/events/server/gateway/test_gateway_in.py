@@ -3,9 +3,9 @@ from unittest import mock
 
 import pendulum
 import pytest
+from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from prefect._vendor.fastapi.testclient import TestClient
-from prefect._vendor.starlette.testclient import WebSocketTestSession
+from starlette.testclient import WebSocketTestSession
 
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import Event

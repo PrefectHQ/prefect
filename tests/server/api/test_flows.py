@@ -11,7 +11,7 @@ else:
     import pydantic
 
 import pytest
-from prefect._vendor.starlette import status
+from starlette import status
 
 from prefect.server import models, schemas
 

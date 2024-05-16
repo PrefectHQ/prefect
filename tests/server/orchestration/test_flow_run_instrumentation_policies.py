@@ -7,8 +7,8 @@ from uuid import uuid4
 import httpx
 import pendulum
 import pytest
+from fastapi.applications import FastAPI
 from httpx import ASGITransport, AsyncClient
-from prefect._vendor.fastapi.applications import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models

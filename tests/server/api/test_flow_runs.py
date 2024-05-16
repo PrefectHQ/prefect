@@ -16,7 +16,7 @@ else:
 
 import pytest
 import sqlalchemy as sa
-from prefect._vendor.starlette import status
+from starlette import status
 
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas

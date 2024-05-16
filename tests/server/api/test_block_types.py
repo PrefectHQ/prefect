@@ -12,7 +12,7 @@ else:
     import pydantic
 
 import pytest
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect
 from prefect.blocks.core import Block

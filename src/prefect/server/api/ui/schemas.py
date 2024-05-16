@@ -22,11 +22,11 @@ logger = get_logger("server.api.ui.schemas")
 
 @router.post("/validate")
 async def validate_obj(
-    schema: Dict[str, Any] = Body(..., embed=True),
+    json_schema: Dict[str, Any] = Body(..., embed=True, alias="schema"),
     values: Dict[str, Any] = Body(..., embed=True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
-    schema = preprocess_schema(schema)
+    schema = preprocess_schema(json_schema)
 
     try:
         is_valid_schema(schema, preprocess=False)

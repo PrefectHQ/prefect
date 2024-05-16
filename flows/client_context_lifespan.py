@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
 import anyio
-from prefect._vendor.fastapi import FastAPI
+from fastapi import FastAPI
 
 import prefect.context
 import prefect.exceptions

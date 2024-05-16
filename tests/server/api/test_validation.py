@@ -2,7 +2,7 @@ from typing import Type, Union
 from uuid import UUID
 
 import pytest
-from prefect._vendor.fastapi import HTTPException
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas

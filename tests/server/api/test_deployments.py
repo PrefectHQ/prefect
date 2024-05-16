@@ -5,7 +5,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 import sqlalchemy as sa
-from prefect._vendor.starlette import status
+from starlette import status
 
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas

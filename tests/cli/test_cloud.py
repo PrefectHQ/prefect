@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import readchar
-from prefect._vendor.starlette import status
+from starlette import status
 from typer import Exit
 
 from prefect.cli.cloud import LoginFailed, LoginSuccess

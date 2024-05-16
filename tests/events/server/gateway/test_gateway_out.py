@@ -3,13 +3,13 @@ from typing import Any, AsyncGenerator, AsyncIterable, List, Tuple
 
 import pendulum
 import pytest
-from prefect._vendor.starlette.status import (
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.status import (
     WS_1002_PROTOCOL_ERROR,
     WS_1008_POLICY_VIOLATION,
 )
-from prefect._vendor.starlette.testclient import TestClient
-from prefect._vendor.starlette.websockets import WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from prefect.server.events.filters import (
     EventFilter,

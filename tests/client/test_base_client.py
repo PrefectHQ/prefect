@@ -6,7 +6,7 @@ from unittest import mock
 import httpx
 import pytest
 from httpx import AsyncClient, Request, Response
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect
 import prefect.client

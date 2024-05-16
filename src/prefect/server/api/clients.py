@@ -5,7 +5,7 @@ from uuid import UUID
 import httpx
 import pydantic
 from httpx import Response
-from prefect._vendor.starlette import status
+from starlette import status
 from typing_extensions import Self
 
 from prefect.client.base import PrefectHttpxAsyncClient

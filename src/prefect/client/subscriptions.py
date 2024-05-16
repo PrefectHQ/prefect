@@ -4,7 +4,7 @@ from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 import orjson
 import websockets
 import websockets.exceptions
-from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
+from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel

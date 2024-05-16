@@ -13,7 +13,7 @@ else:
 
 import pytest
 import sqlalchemy as sa
-from prefect._vendor.fastapi import Response, status
+from fastapi import Response, status
 
 from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states

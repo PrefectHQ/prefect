@@ -12,7 +12,7 @@ else:
     from pydantic import SecretBytes, SecretStr
 
 import pytest
-from prefect._vendor.starlette import status
+from starlette import status
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
