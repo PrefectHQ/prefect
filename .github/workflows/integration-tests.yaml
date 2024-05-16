@@ -10,6 +10,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
+      - flows/
   push:
     branches:
       - main
@@ -27,6 +28,7 @@ jobs:
   compatibility-tests:
     if: false # turning off for 3.0 iteration
     name: "Check compatibility with Prefect ${{ matrix.prefect-version }}"
+    if: false # disable while we iterate on 3.0
     timeout-minutes: 10
     runs-on: ubuntu-latest
     strategy:
