@@ -1,7 +1,7 @@
 import abc
+import concurrent.futures
 import inspect
 import uuid
-from concurrent.futures import TimeoutError
 from functools import partial
 from typing import Any, Generic, Optional, Set, Union, cast
 
@@ -98,7 +98,7 @@ class PrefectConcurrentFuture(PrefectFuture):
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
-        except TimeoutError:
+        except concurrent.futures.TimeoutError:
             return
         if isinstance(result, State):
             self._final_state = result
@@ -109,7 +109,13 @@ class PrefectConcurrentFuture(PrefectFuture):
         raise_on_failure: bool = True,
     ) -> Any:
         if not self._final_state:
-            future_result = self._wrapped_future.result(timeout=timeout)
+            try:
+                future_result = self._wrapped_future.result(timeout=timeout)
+            except concurrent.futures.TimeoutError as exc:
+                raise TimeoutError(
+                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                ) from exc
+
             if isinstance(future_result, State):
                 self._final_state = future_result
             else:
