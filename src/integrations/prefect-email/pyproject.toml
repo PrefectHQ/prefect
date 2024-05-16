@@ -7,11 +7,9 @@ name = "prefect-email"
 description = "Prefect integrations for interacting with email."
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
@@ -25,9 +23,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = [
-  "prefect>=2.14.10",
-]
+dependencies = ["prefect>=2.14.10, < 3.0.0"]
 dynamic = ["version"]
 
 [project.optional-dependencies]

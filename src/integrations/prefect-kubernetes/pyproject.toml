@@ -23,7 +23,11 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=2.13.5", "kubernetes>=24.2.0", "tenacity>=8.2.3"]
+dependencies = [
+  "prefect>=2.13.5, < 3.0.0",
+  "kubernetes>=24.2.0",
+  "tenacity>=8.2.3",
+]
 dynamic = ["version"]
 
 [project.optional-dependencies]

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prefect-dask"
 dependencies = [
   "anyio >= 3.7.1, < 4.0.0",
-  "prefect>=2.13.5",
+  "prefect>=2.13.5, < 3.0.0",
   "distributed==2022.2.0; python_version < '3.8'",
   "distributed>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*; python_version >= '3.8'", # don't allow versions from 2023.3.2 to 2023.5 (inclusive) due to issue with get_client starting in 2023.3.2 (fixed in 2023.6.0) - https://github.com/dask/distributed/issues/7763
 ]

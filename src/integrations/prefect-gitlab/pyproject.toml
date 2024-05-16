@@ -7,11 +7,9 @@ name = "prefect-gitlab"
 description = "A Prefect collection for working with GitLab repositories."
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
@@ -26,9 +24,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "prefect>=2.13.5",
-    "python-gitlab>=3.12.0",
-    "tenacity>=8.2.3",
+  "prefect>=2.13.5, < 3.0.0",
+  "python-gitlab>=3.12.0",
+  "tenacity>=8.2.3",
 ]
 dynamic = ["version"]
 
