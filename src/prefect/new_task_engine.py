@@ -25,15 +25,16 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
+from prefect.client.schemas.objects import State
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.exceptions import Abort, Pause
-from prefect.futures import PrefectFuture, resolve_futures_to_states
+from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.logging.loggers import get_logger, task_run_logger
+from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
-from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
     Paused,
+    Pending,
     Retrying,
     Running,
     StateDetails,
@@ -41,11 +42,13 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import A, Async, run_sync
+from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     propose_state_sync,
+    resolve_to_final_result,
 )
 from prefect.utilities.math import clamped_poisson_interval
 from prefect.utilities.timeout import timeout, timeout_async
@@ -61,6 +64,7 @@ class TaskRunEngine(Generic[P, R]):
     parameters: Optional[Dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
+    wait_for: Optional[Iterable[PrefectFuture]] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
 
@@ -136,7 +140,9 @@ class TaskRunEngine(Generic[P, R]):
 
                 def _hook_fn():
                     with hook_context():
-                        hook(task, task_run, state)
+                        result = hook(task, task_run, state)
+                        if inspect.isawaitable(result):
+                            run_sync(result)
 
             yield _hook_fn
 
@@ -175,10 +181,64 @@ class TaskRunEngine(Generic[P, R]):
             cache_expiration=cache_expiration,
         )
 
-    def begin_run(self):
-        state_details = self._compute_state_details()
-        new_state = Running(state_details=state_details)
-        state = self.set_state(new_state)
+    def _resolve_parameters(self):
+        if not self.parameters:
+            return {}
+
+        resolved_parameters = {}
+        for parameter, value in self.parameters.items():
+            try:
+                resolved_parameters[parameter] = visit_collection(
+                    value,
+                    visit_fn=resolve_to_final_result,
+                    return_data=True,
+                    max_depth=-1,
+                    remove_annotations=True,
+                    context={},
+                )
+            except UpstreamTaskError:
+                raise
+            except Exception as exc:
+                raise PrefectException(
+                    f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                    " parameter type is not supported, consider using the `quote`"
+                    " annotation to skip resolution of inputs."
+                ) from exc
+
+        self.parameters = resolved_parameters
+
+    def _wait_for_dependencies(self):
+        if not self.wait_for:
+            return
+
+        visit_collection(
+            self.wait_for,
+            visit_fn=resolve_to_final_result,
+            return_data=False,
+            max_depth=-1,
+            remove_annotations=True,
+            context={},
+        )
+
+    def begin_run(self, wait_for: Optional[Iterable[PrefectFuture]] = None):
+        try:
+            self._resolve_parameters()
+            self._wait_for_dependencies()
+        except UpstreamTaskError as upstream_exc:
+            state = self.set_state(
+                Pending(
+                    name="NotReady",
+                    message=str(upstream_exc),
+                ),
+                # if orchestrating a run already in a pending state, force orchestration to
+                # update the state name
+                force=self.state.is_pending(),
+            )
+            return
+        else:
+            state_details = self._compute_state_details()
+            new_state = Running(state_details=state_details)
+            state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
         backoff_count = 0
@@ -229,7 +289,7 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Result factory is not set")
         terminal_state = run_sync(
             return_value_to_state(
-                run_sync(resolve_futures_to_states(result)),
+                resolve_futures_to_states(result),
                 result_factory=result_factory,
             )
         )
@@ -298,7 +358,8 @@ class TaskRunEngine(Generic[P, R]):
 
     @contextmanager
     def start(
-        self, task_run_id: Optional[UUID] = None
+        self,
+        task_run_id: Optional[UUID] = None,
     ) -> Generator["TaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -315,6 +376,7 @@ class TaskRunEngine(Generic[P, R]):
                             parameters=self.parameters,
                             flow_run_context=FlowRunContext.get(),
                             parent_task_run_context=TaskRunContext.get(),
+                            wait_for=self.wait_for,
                         )
                     )
 
@@ -344,13 +406,11 @@ def run_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
-        task=task,
-        parameters=parameters,
-        task_run=task_run,
+        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
     )
 
     # This is a context manager that keeps track of the run of the task run.
@@ -387,7 +447,7 @@ async def run_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     """
@@ -395,7 +455,9 @@ async def run_task_async(
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
-    engine = TaskRunEngine[P, R](task=task, parameters=parameters, task_run=task_run)
+    engine = TaskRunEngine[P, R](
+        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
+    )
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id) as run:
@@ -430,7 +492,7 @@ def run_task(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     kwargs = dict(

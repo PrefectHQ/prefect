@@ -54,7 +54,9 @@ class TestFlowRunEngine:
         assert engine.parameters == {}
 
     async def test_empty_init(self):
-        with pytest.raises(ValueError, match="must be provided"):
+        with pytest.raises(
+            TypeError, match="missing 1 required positional argument: 'flow'"
+        ):
             FlowRunEngine()
 
     async def test_client_attr_raises_informative_error(self):

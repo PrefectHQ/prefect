@@ -2221,8 +2221,14 @@ class PrefectClient:
         Returns:
             a Task Run model representation of the task run
         """
-        response = await self._client.get(f"/task_runs/{task_run_id}")
-        return TaskRun.parse_obj(response.json())
+        try:
+            response = await self._client.get(f"/task_runs/{task_run_id}")
+            return TaskRun.parse_obj(response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_task_runs(
         self,
@@ -3793,8 +3799,14 @@ class SyncPrefectClient:
         Returns:
             a Task Run model representation of the task run
         """
-        response = self._client.get(f"/task_runs/{task_run_id}")
-        return TaskRun.parse_obj(response.json())
+        try:
+            response = self._client.get(f"/task_runs/{task_run_id}")
+            return TaskRun.parse_obj(response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     def read_task_runs(
         self,

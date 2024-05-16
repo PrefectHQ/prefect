@@ -68,6 +68,7 @@ from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
+from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -200,7 +201,7 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner, None] = None,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -289,7 +290,12 @@ class Flow(Generic[P, R]):
                 )
         self.flow_run_name = flow_run_name
 
-        task_runner = task_runner or ConcurrentTaskRunner()
+        default_task_runner = (
+            ThreadPoolTaskRunner()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
+            else ConcurrentTaskRunner()
+        )
+        task_runner = task_runner or default_task_runner
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
@@ -1295,7 +1301,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
-    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
+    task_runner: Optional[BaseTaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -1327,7 +1333,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = None,
     retry_delay_seconds: Union[int, float] = None,
-    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
+    task_runner: Optional[BaseTaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
