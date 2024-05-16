@@ -1,5 +1,33 @@
 # Prefect Release Notes
 
+# Release 2.19.1
+
+### Enhancements to `prefect-dbt` for running `dbt-core` commands
+
+<!-- Highlight goes here -->
+
+These changes are available in `prefect-dbt` version 0.5.0!
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12964
+- https://github.com/PrefectHQ/prefect/pull/13387
+- https://github.com/PrefectHQ/prefect/pull/13406
+
+### Experimental
+#### Events and Automations
+
+- Add ability to create and manage automations in the Prefect UI  - https://github.com/PrefectHQ/prefect/pull/13342
+
+### Documentation
+
+- Update documentation formatting for `prefect-ray` - https://github.com/PrefectHQ/prefect/pull/13385
+
+### Integrations
+
+- Update all integrations libraries to pin `prefect<3.0.0` - https://github.com/PrefectHQ/prefect/pull/13408
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.0...2.19.1
+
 ## Release 2.19.0
 
 ### Support for major infrastructure and distributed task integrations
