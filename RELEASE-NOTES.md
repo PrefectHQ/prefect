@@ -10,7 +10,7 @@ Introducing prefect-dbt Summary Artifacts! With summary artifacts, you get a vie
 
 These changes are available in `prefect-dbt` version 0.5.0!
 
-
+<img width="1184" alt="prefect-dbt-summary-artifact-example" src="https://github.com/PrefectHQ/prefect/assets/104510333/3868b961-5aff-4115-b409-f86d3992704d">
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12964
