@@ -5021,6 +5021,11 @@ class TestDeployWithoutEntrypoint:
 
 
 class TestCheckForMatchingDeployment:
+    @pytest.fixture(autouse=True)
+    def in_temporary_directory(self, tmp_path: Path):
+        with tmpchdir(tmp_path):
+            yield
+
     async def test_matching_deployment_in_prefect_file_returns_true(self):
         deployment = {
             "name": "existing_deployment",
