@@ -15,6 +15,10 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13387
 - https://github.com/PrefectHQ/prefect/pull/13406
 
+### Enhancements
+
+- Enable flow run infra overrides section in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/2417
+
 ### Experimental
 #### Events and Automations
 
