@@ -4,7 +4,6 @@ from prefect._internal.compatibility.deprecated import (
 
 from . import _version
 from .bigquery import BigQueryWarehouse  # noqa
-from .cloud_run import CloudRunJob  # noqa
 from .cloud_storage import GcsBucket  # noqa
 from .credentials import GcpCredentials  # noqa
 from .secret_manager import GcpSecret  # noqa
@@ -13,7 +12,7 @@ from .workers.cloud_run import CloudRunWorker  # noqa
 from .workers.cloud_run_v2 import CloudRunWorkerV2  # noqa
 
 register_renamed_module(
-    "prefect_gcp.projects", "prefect_gcp.deployments", start_date="Jun 2023"
+    "prefect_gcp.projzects", "prefect_gcp.deployments", start_date="Jun 2023"
 )
 register_renamed_module(
     "prefect_gcp.worker", "prefect_gcp.workers", start_date="Sep 2023"
