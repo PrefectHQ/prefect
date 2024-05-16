@@ -1,5 +1,61 @@
 # Prefect Release Notes
 
+# Release 2.19.1
+
+### Enhancements to `prefect-dbt` for running `dbt-core` commands
+
+Introducing `prefect-dbt` summary artifacts! With summary artifacts, you get a view of all of the runs that succeeded, failed, or were skipped as well as where the failed models live in your dbt project and why they failed. This exposes information about each dbt node in a succinct format that teams can use for development, debugging, insights, and so much more. 
+
+These changes are available in `prefect-dbt` version 0.5.0!
+
+<img width="1184" alt="prefect-dbt-summary-artifact-example" src="https://github.com/PrefectHQ/prefect/assets/104510333/3868b961-5aff-4115-b409-f86d3992704d">
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/12964
+- https://github.com/PrefectHQ/prefect/pull/13387
+- https://github.com/PrefectHQ/prefect/pull/13406
+
+### Enhancements
+
+- Enable flow run infra overrides section in the Prefect UI - https://github.com/PrefectHQ/prefect-ui-library/pull/2417
+
+### Experimental
+#### Events and Automations
+
+- Add ability to create and manage automations in the Prefect UI  - https://github.com/PrefectHQ/prefect/pull/13342
+
+### Documentation
+
+- Update documentation formatting for `prefect-ray` - https://github.com/PrefectHQ/prefect/pull/13385
+
+### Integrations
+
+- Update all integrations libraries to pin `prefect<3.0.0` - https://github.com/PrefectHQ/prefect/pull/13408
+
+#### Integration library releases
+
+This release was accompanied by the following integration library releases:
+
+- `prefect-aws` - 0.4.17
+- `prefect-azure` - 0.3.10
+- `prefect-bitbucket` - 0.2.5
+- `prefect-dask` - 0.2.9
+- `prefect-databricks` - 0.2.7
+- `prefect-dbt` - 0.5.0
+- `prefect-docker` - 0.5.2
+- `prefect-email` - 0.3.5
+- `prefect-gcp` - 0.5.12
+- `prefect-github` - 0.2.5
+- `prefect-gitlab` - 0.2.5
+- `prefect-kubernetes` - 0.3.10
+- `prefect-ray` - 0.3.6
+- `prefect-shell` - 0.2.5
+- `prefect-slack` - 0.2.6
+- `prefect-snowflake` - 0.27.6
+- `prefect-sqlalchemy` - 0.4.3
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.0...2.19.1
+
 ## Release 2.19.0
 
 ### Support for major infrastructure and distributed task integrations
