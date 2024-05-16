@@ -783,7 +783,11 @@ def emit_task_run_state_change_event(
     )
 
 
-def resolve_input(expr, context):
+def resolve_to_final_result(expr, context):
+    """
+    Resolve any `PrefectFuture`, or `State` types nested in parameters into
+    data. Designed to be use with `visit_collection`.
+    """
     state = None
 
     # Expressions inside quotes should not be modified

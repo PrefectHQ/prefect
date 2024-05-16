@@ -47,7 +47,7 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     propose_state_sync,
-    resolve_input,
+    resolve_to_final_result,
 )
 from prefect.utilities.math import clamped_poisson_interval
 from prefect.utilities.timeout import timeout, timeout_async
@@ -189,7 +189,7 @@ class TaskRunEngine(Generic[P, R]):
             try:
                 resolved_parameters[parameter] = visit_collection(
                     value,
-                    visit_fn=resolve_input,
+                    visit_fn=resolve_to_final_result,
                     return_data=True,
                     max_depth=-1,
                     remove_annotations=True,
@@ -212,7 +212,7 @@ class TaskRunEngine(Generic[P, R]):
 
         visit_collection(
             self.wait_for,
-            visit_fn=resolve_input,
+            visit_fn=resolve_to_final_result,
             return_data=False,
             max_depth=-1,
             remove_annotations=True,

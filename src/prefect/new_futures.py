@@ -1,7 +1,6 @@
 import abc
 import inspect
 import uuid
-from concurrent.futures import Future
 from functools import partial
 from typing import Any, Generic, Optional, Set, Union, cast
 
@@ -15,25 +14,34 @@ from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 
-R = TypeVar("R")
+F = TypeVar("F")
 
 
-class PrefectFuture(abc.ABC, Generic[R]):
-    def __init__(self, task_run_id: uuid.UUID, wrapped_future: Future):
+class PrefectFuture(abc.ABC, Generic[F]):
+    """
+    Abstract base class for Prefect futures. A Prefect future is a handle to the
+    asynchronous execution of a task run. It provides methods to wait for the task
+    to complete and to retrieve the result of the task run.
+    """
+
+    def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
         self._task_run_id = task_run_id
         self._wrapped_future = wrapped_future
         self._final_state = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
+        """The ID of the task run associated with this future"""
         return self._task_run_id
 
     @property
-    def wrapped_future(self) -> Future:
+    def wrapped_future(self) -> F:
+        """The underlying future object wrapped by this Prefect future"""
         return self._wrapped_future
 
     @property
-    def state(self) -> State[R]:
+    def state(self) -> State:
+        """The current state of the task run associated with this future"""
         if self._final_state:
             return self._final_state
         client = get_client(sync_client=True)
@@ -43,11 +51,20 @@ class PrefectFuture(abc.ABC, Generic[R]):
             # We'll be optimistic and assume this task will eventually start
             # TODO: Consider using task run events to wait for the task to start
             return Pending()
-        return cast(State[R], task_run.state or Pending())
+        return task_run.state or Pending()
 
     @abc.abstractmethod
     def wait(self, timeout: Optional[float] = None) -> None:
         ...
+        """
+        Wait for the task run to complete. 
+        
+        If the task run has already completed, this method will return immediately.
+
+        Args:
+            - timeout: The maximum number of seconds to wait for the task run to complete.
+              If the task run has not completed after the timeout has elapsed, this method will return.
+        """
 
     @abc.abstractmethod
     def result(
@@ -56,9 +73,27 @@ class PrefectFuture(abc.ABC, Generic[R]):
         raise_on_failure: bool = True,
     ) -> Any:
         ...
+        """
+        Get the result of the task run associated with this future.
+
+        If the task run has not completed, this method will wait for the task run to complete.
+
+        Args:
+            - timeout: The maximum number of seconds to wait for the task run to complete.
+            If the task run has not completed after the timeout has elapsed, this method will return.
+            - raise_on_failure: If `True`, an exception will be raised if the task run fails.
+
+        Returns:
+            The result of the task run.
+        """
 
 
 class PrefectConcurrentFuture(PrefectFuture):
+    """
+    A Prefect future that wraps a concurrent.futures.Future. This future is used
+    when the task run is submitted to a ThreadPoolExecutor.
+    """
+
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
@@ -89,20 +124,9 @@ class PrefectConcurrentFuture(PrefectFuture):
         return _result
 
 
-def _collect_futures(futures, expr, context):
-    # Expressions inside quotes should not be traversed
-    if isinstance(context.get("annotation"), quote):
-        raise StopVisiting()
-
-    if isinstance(expr, PrefectFuture):
-        futures.add(expr)
-
-    return expr
-
-
 def resolve_futures_to_states(
-    expr: Union[PrefectFuture[R], Any],
-) -> Union[State[R], Any]:
+    expr: Union[PrefectFuture, Any],
+) -> Union[State, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
     new collection with the same structure with futures resolved to their final states.
@@ -111,6 +135,16 @@ def resolve_futures_to_states(
     Unsupported object types will be returned without modification.
     """
     futures: Set[PrefectFuture] = set()
+
+    def _collect_futures(futures, expr, context):
+        # Expressions inside quotes should not be traversed
+        if isinstance(context.get("annotation"), quote):
+            raise StopVisiting()
+
+        if isinstance(expr, PrefectFuture):
+            futures.add(expr)
+
+        return expr
 
     visit_collection(
         expr,

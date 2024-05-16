@@ -18,16 +18,29 @@ T = TypeVar("T")
 
 
 class TaskRunner(abc.ABC):
+    """
+    Abstract base class for task runners.
+
+    A task runner is responsible for submitting tasks to the task run engine running
+    in an execution environment. Submitted tasks are non-blocking and return a future
+    object that can be used to wait for the task to complete and retrieve the result.
+
+    Task runners are context managers and should be used in a `with` block to ensure
+    proper cleanup of resources.
+    """
+
     def __init__(self):
         self.logger = get_logger(f"task_runner.{self.name}")
         self._started = False
 
     @property
     def name(self):
+        """The name of this task runner"""
         return type(self).__name__.lower().replace("taskrunner", "")
 
     @abc.abstractmethod
     def duplicate(self) -> Self:
+        """Return a new instance of this task runner with the same configuration."""
         ...
 
     @abc.abstractmethod
@@ -37,6 +50,18 @@ class TaskRunner(abc.ABC):
         parameters: Dict[str, Any],
         wait_for: Iterable[PrefectFuture],
     ) -> PrefectFuture:
+        """
+        Submit a task to the task run engine.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
+        """
         ...
 
     def __enter__(self):
@@ -66,6 +91,18 @@ class ThreadPoolTaskRunner(TaskRunner):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
     ) -> PrefectConcurrentFuture:
+        """
+        Submit a task to the task run engine running in a separate thread.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
+        """
         if not self._started or self._executor is None:
             raise RuntimeError("Task runner is not started")
         from prefect.new_task_engine import run_task_async, run_task_sync
