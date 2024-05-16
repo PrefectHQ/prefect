@@ -1,6 +1,7 @@
 import abc
 import inspect
 import uuid
+from concurrent.futures import TimeoutError
 from functools import partial
 from typing import Any, Generic, Optional, Set, Union, cast
 
