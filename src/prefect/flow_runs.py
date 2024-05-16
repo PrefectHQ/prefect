@@ -10,7 +10,6 @@ from prefect.logging import get_logger
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.client.schemas.objects import FlowRun
 
 
 @inject_client
