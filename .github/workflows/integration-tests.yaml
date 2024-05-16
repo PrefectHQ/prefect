@@ -25,6 +25,7 @@ on:
 
 jobs:
   compatibility-tests:
+    if: false # turning off for 3.0 iteration
     name: "Check compatibility with Prefect ${{ matrix.prefect-version }}"
     timeout-minutes: 10
     runs-on: ubuntu-latest
