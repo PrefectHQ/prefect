@@ -38,7 +38,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic.v1 as pydantic
-from prefect._vendor.fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError as V2ValidationError
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
