@@ -6,7 +6,11 @@
 
 <!-- Highlight goes here -->
 
+Introducing prefect-dbt Summary Artifacts! With summary artifacts, you get a view of all of the runs that succeeded, failed, or were skipped as well as where the failed models live in your dbt project and why they failed. This exposes information about each dbt node in a succinct format that teams can use for development, debugging, insights, and so much more. 
+
 These changes are available in `prefect-dbt` version 0.5.0!
+
+
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/12964
