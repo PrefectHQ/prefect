@@ -12,6 +12,7 @@ from typing import (
     FrozenSet,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -43,12 +44,7 @@ from prefect.client.schemas import (
     BlockTypeUpdate,
 )
 from prefect.client.utilities import inject_client
-from prefect.events.instrument import (
-    ResourceTuple,
-    emit_instance_method_called_event,
-    instrument_instance_method_call,
-    instrument_method_calls_on_class_instances,
-)
+from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys
@@ -62,6 +58,8 @@ if TYPE_CHECKING:
 
 R = TypeVar("R")
 P = ParamSpec("P")
+
+ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -639,8 +637,6 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        block_cls = instrument_method_calls_on_class_instances(block_cls)
-
         block = block_cls.model_validate(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
@@ -651,13 +647,11 @@ class Block(BaseModel, ABC):
             block_document.block_document_references
         )
 
-        # Due to the way blocks are loaded we can't directly instrument the
-        # `load` method and have the data be about the block document. Instead
-        # this will emit a proxy event for the load method so that block
-        # document data can be included instead of the event being about an
-        # 'anonymous' block.
-
-        emit_instance_method_called_event(block, "load", successful=True)
+        resources: Optional[ResourceTuple] = block._event_method_called_resources()
+        if resources:
+            kind = block._event_kind()
+            resource, related = resources
+            emit_event(event=f"{kind}.loaded", resource=resource, related=related)
 
         return block
 
@@ -1001,7 +995,6 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
-    @instrument_instance_method_call
     async def save(
         self,
         name: Optional[str] = None,
