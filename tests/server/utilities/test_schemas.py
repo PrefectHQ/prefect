@@ -1,4 +1,3 @@
-import datetime
 import importlib
 import os
 from contextlib import contextmanager
@@ -10,7 +9,6 @@ import pydantic
 import pytest
 
 from prefect.server.utilities.schemas import (
-    DateTime,
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
@@ -180,31 +178,3 @@ class TestEqualityExcludedFields:
         # if the PBM is the RH operand, the equality check fails
         # because the Pydantic logic of using every field is applied
         assert Y(val=1) != X(val=1)
-
-
-class TestDatetimeTZ:
-    class Model(pydantic.BaseModel):
-        dt: datetime.datetime
-        dtp: pendulum.DateTime
-        dttz: DateTime
-
-    async def test_tz_adds_timezone(self):
-        model = self.Model(
-            dt=datetime.datetime(2022, 1, 1),
-            dtp=datetime.datetime(2022, 1, 1),
-            dttz=datetime.datetime(2022, 1, 1),
-        )
-
-        assert model.dt.tzinfo is None
-        assert model.dtp.tzinfo.name == "UTC"
-        assert model.dttz.tzinfo.name == "UTC"
-
-    async def test_tz_is_pydantic_object(self):
-        model = self.Model(
-            dt=datetime.datetime(2022, 1, 1),
-            dtp=datetime.datetime(2022, 1, 1),
-            dttz=datetime.datetime(2022, 1, 1),
-        )
-        assert not isinstance(model.dt, pendulum.DateTime)
-        assert isinstance(model.dtp, pendulum.DateTime)
-        assert isinstance(model.dttz, pendulum.DateTime)

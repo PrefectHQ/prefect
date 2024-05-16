@@ -24,7 +24,7 @@ router = PrefectRouter(
 @router.post("/")
 async def create_artifact(
     artifact: actions.ArtifactCreate,
-    response: Response = None,
+    response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
     artifact = core.Artifact(**artifact.model_dump())

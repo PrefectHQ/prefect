@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTime
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
 

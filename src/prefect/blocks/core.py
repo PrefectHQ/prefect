@@ -8,6 +8,7 @@ from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Dict,
     FrozenSet,
     List,
@@ -285,22 +286,23 @@ class Block(BaseModel, ABC):
     # Attribute to customize the name of the block type created
     # when the block is registered with the API. If not set, block
     # type name will default to the class name.
-    _block_type_name: Optional[str] = PrivateAttr(None)
-    _block_type_slug: Optional[str] = PrivateAttr(None)
+    _block_type_name: ClassVar[Optional[str]] = None
+    _block_type_slug: ClassVar[Optional[str]] = None
 
     # Attributes used to set properties on a block type when registered
     # with the API.
-    _logo_url: Optional[HttpUrl] = PrivateAttr(None)
-    _documentation_url: Optional[HttpUrl] = PrivateAttr(None)
-    _description: Optional[str] = PrivateAttr(None)
-    _code_example: Optional[str] = PrivateAttr(None)
+    _logo_url: ClassVar[Optional[HttpUrl]] = None
+    _documentation_url: ClassVar[Optional[HttpUrl]] = None
+    _description: ClassVar[Optional[str]] = None
+    _code_example: ClassVar[Optional[str]] = None
+    _block_type_id: ClassVar[Optional[UUID]] = None
+    _block_schema_id: ClassVar[Optional[UUID]] = None
+    _block_schema_capabilities: ClassVar[Optional[List[str]]] = None
+    _block_schema_version: ClassVar[Optional[str]] = None
 
     # -- private instance variables
     # these are set when blocks are loaded from the API
-    _block_type_id: Optional[UUID] = PrivateAttr(None)
-    _block_schema_id: Optional[UUID] = PrivateAttr(None)
-    _block_schema_capabilities: Optional[List[str]] = PrivateAttr(None)
-    _block_schema_version: Optional[str] = PrivateAttr(None)
+
     _block_document_id: Optional[UUID] = PrivateAttr(None)
     _block_document_name: Optional[str] = PrivateAttr(None)
     _is_anonymous: Optional[bool] = PrivateAttr(None)
@@ -317,11 +319,11 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def get_block_type_name(cls):
-        return cls._block_type_name.default or cls.__name__
+        return cls._block_type_name or cls.__name__
 
     @classmethod
     def get_block_type_slug(cls):
-        return slugify(cls._block_type_slug.default or cls.get_block_type_name())
+        return slugify(cls._block_type_slug or cls.get_block_type_name())
 
     @classmethod
     def get_block_capabilities(cls) -> FrozenSet[str]:
@@ -329,14 +331,13 @@ class Block(BaseModel, ABC):
         Returns the block capabilities for this Block. Recursively collects all block
         capabilities of all parent classes into a single frozenset.
         """
-        capabilities = set()
-        for base in (cls,) + cls.__mro__:
-            block_schema_capabilities = getattr(base, "_block_schema_capabilities", [])
-            if hasattr(block_schema_capabilities, "default"):
-                block_schema_capabilities = block_schema_capabilities.default or []
-            for c in block_schema_capabilities:
-                capabilities.add(c)
-        return frozenset(capabilities)
+        return frozenset(
+            {
+                c
+                for base in (cls,) + cls.__mro__
+                for c in getattr(base, "_block_schema_capabilities", []) or []
+            }
+        )
 
     @classmethod
     def _get_current_package_version(cls):
@@ -356,7 +357,7 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def get_block_schema_version(cls) -> str:
-        return cls._block_schema_version.default or cls._get_current_package_version()
+        return cls._block_schema_version or cls._get_current_package_version()
 
     @classmethod
     def _to_block_schema_reference_dict(cls):
@@ -381,7 +382,9 @@ class Block(BaseModel, ABC):
             str: The calculated checksum prefixed with the hashing algorithm used.
         """
         block_schema_fields = (
-            cls.schema() if block_schema_fields is None else block_schema_fields
+            cls.model_json_schema()
+            if block_schema_fields is None
+            else block_schema_fields
         )
         fields_for_checksum = remove_nested_keys(["secret_fields"], block_schema_fields)
         if fields_for_checksum.get("definitions"):
@@ -488,12 +491,10 @@ class Block(BaseModel, ABC):
         """
         fields = cls.model_json_schema()
         return BlockSchema(
-            id=cls._block_schema_id.default
-            if cls._block_schema_id.default is not None
-            else uuid4(),
+            id=cls._block_schema_id if cls._block_schema_id is not None else uuid4(),
             checksum=cls._calculate_schema_checksum(),
             fields=fields,
-            block_type_id=block_type_id or cls._block_type_id.default,
+            block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
             capabilities=list(cls.get_block_capabilities()),
             version=cls.get_block_schema_version(),
@@ -519,7 +520,7 @@ class Block(BaseModel, ABC):
         Returns the description for the current block. Attempts to parse
         description from class docstring if an override is not defined.
         """
-        description = cls._description.default
+        description = cls._description
         # If no description override has been provided, find the first text section
         # and use that as the description
         if description is None and cls.__doc__ is not None:
@@ -543,9 +544,7 @@ class Block(BaseModel, ABC):
         code example from the class docstring if an override is not provided.
         """
         code_example = (
-            dedent(cls._code_example.default)
-            if cls._code_example.default is not None
-            else None
+            dedent(text=cls._code_example) if cls._code_example is not None else None
         )
         # If no code example override has been provided, attempt to find a examples
         # section or an admonition with the annotation "example" and use that as the
@@ -602,11 +601,11 @@ class Block(BaseModel, ABC):
             BlockType: The corresponding block type.
         """
         return BlockType(
-            id=cls._block_type_id.default or uuid4(),
+            id=cls._block_type_id or uuid4(),
             slug=cls.get_block_type_slug(),
             name=cls.get_block_type_name(),
-            logo_url=cls._logo_url.default,
-            documentation_url=cls._documentation_url.default,
+            logo_url=cls._logo_url,
+            documentation_url=cls._documentation_url,
             description=cls.get_description(),
             code_example=cls.get_code_example(),
         )
@@ -649,7 +648,6 @@ class Block(BaseModel, ABC):
         block._define_metadata_on_nested_blocks(
             block_document.block_document_references
         )
-
         resources: Optional[ResourceTuple] = block._event_method_called_resources()
         if resources:
             kind = block._event_kind()
@@ -902,7 +900,9 @@ class Block(BaseModel, ABC):
             block_type = await client.read_block_type_by_slug(
                 slug=cls.get_block_type_slug()
             )
+
             cls._block_type_id = block_type.id
+
             local_block_type = cls._to_block_type()
             if _should_update_block_type(
                 local_block_type=local_block_type, server_block_type=block_type

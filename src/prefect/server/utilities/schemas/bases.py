@@ -5,8 +5,7 @@ from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field
-
-from prefect.server.utilities.schemas.fields import DateTime
+from pydantic_extra_types.pendulum_dt import DateTime
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)

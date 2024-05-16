@@ -33,7 +33,13 @@ import orjson
 import pendulum
 from cachetools import TTLCache
 from httpx import Response
-from pydantic import Field, PrivateAttr, field_validator, model_validator
+from pydantic import (
+    Field,
+    PrivateAttr,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import TypeAlias
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
@@ -1121,8 +1127,8 @@ class SendNotification(JinjaTemplateAction):
     body: str = Field(description="The text of the notification to send")
 
     @field_validator("subject", "body")
-    def is_valid_template(cls, value: str, field) -> str:
-        return cls.validate_template(value, field.name)
+    def is_valid_template(cls, value: str, info: ValidationInfo) -> str:
+        return cls.validate_template(value, info.field_name)
 
     async def _get_notification_block(
         self, triggered_action: "TriggeredAction"

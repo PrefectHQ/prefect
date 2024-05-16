@@ -348,7 +348,7 @@ class CacheRetrieval(BaseOrchestrationRule):
             query = select(db.TaskRunState).where(db.TaskRunState.id == cached_state_id)
             cached_state = (await context.session.execute(query)).scalar()
             if cached_state:
-                new_state = cached_state.as_state().copy(reset_fields=True)
+                new_state = cached_state.as_state().fresh_copy()
                 new_state.name = "Cached"
                 await self.reject_transition(
                     state=new_state, reason="Retrieved state from cache"

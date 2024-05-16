@@ -5,20 +5,17 @@ State schemas.
 import datetime
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type, TypeVar, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import Self
 
-from prefect._internal.schemas.validators import (
-    get_or_create_state_name,
-    set_default_scheduled_time,
-)
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
     PrefectBaseModel,
 )
-from prefect.server.utilities.schemas.fields import DateTime
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -143,7 +140,7 @@ class State(StateBaseModel):
         field.
         """
 
-        field_keys = cls.schema()["properties"].keys()
+        field_keys = cls.model_json_schema()["properties"].keys()
         state_data = {
             field: getattr(orm_state, field, None)
             for field in field_keys
@@ -152,13 +149,25 @@ class State(StateBaseModel):
         state_data["data"] = with_data
         return cls(**state_data)
 
-    @field_validator("name")
-    def default_name_from_type(cls, v, values):
-        return get_or_create_state_name(v, values)
+    @model_validator(mode="after")
+    def default_name_from_type(self):
+        """If a name is not provided, use the type"""
+        # if `type` is not in `values` it means the `type` didn't pass its own
+        # validation check and an error will be raised after this function is called
+        name = self.name
+        if name is None and self.type:
+            self.name = " ".join([v.capitalize() for v in self.type.value.split("_")])
+        return self
 
-    @model_validator(mode="before")
-    def default_scheduled_start_time(cls, values):
-        return set_default_scheduled_time(cls, values)
+    @model_validator(mode="after")
+    def default_scheduled_start_time(self):
+        from prefect.server.schemas.states import StateType
+
+        if self.type == StateType.SCHEDULED:
+            if not self.state_details.scheduled_time:
+                self.state_details.scheduled_time = pendulum.now("utc")
+
+        return self
 
     def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED
@@ -194,7 +203,6 @@ class State(StateBaseModel):
         self,
         *,
         update: Optional[Dict[str, Any]] = None,
-        reset_fields: bool = False,
         **kwargs,
     ):
         """
@@ -202,8 +210,22 @@ class State(StateBaseModel):
         database again. The 'timestamp' is reset using the default factory.
         """
         update = update or {}
-        update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
-        return super().copy(reset_fields=reset_fields, update=update, **kwargs)
+        update.setdefault("timestamp", self.model_fields["timestamp"].get_default())
+        return super().model_copy(update=update, **kwargs)
+
+    def fresh_copy(self, **kwargs) -> Self:
+        """
+        Return a fresh copy of the state with a new ID.
+        """
+        return self.copy(
+            update={
+                "id": uuid4(),
+                "created": pendulum.now("utc"),
+                "updated": pendulum.now("utc"),
+                "timestamp": pendulum.now("utc"),
+            },
+            **kwargs,
+        )
 
     def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
         # Backwards compatible `result` handling on the server-side schema
@@ -369,10 +391,10 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
 
 def Paused(
     cls: Type[State] = State,
-    timeout_seconds: int = None,
-    pause_expiration_time: datetime.datetime = None,
-    reschedule: bool = False,
-    pause_key: str = None,
+    timeout_seconds: Optional[int] = None,
+    pause_expiration_time: Optional[datetime.datetime] = None,
+    reschedule: Optional[bool] = False,
+    pause_key: Optional[str] = None,
     **kwargs,
 ) -> State:
     """Convenience function for creating `Paused` states.

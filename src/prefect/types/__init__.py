@@ -1,72 +1,18 @@
-from typing import Any, Callable, ClassVar, Generator
+from typing import Annotated, Any, Callable, ClassVar, Generator
 
 from pydantic_core import core_schema, CoreSchema, SchemaValidator
+from pydantic import Field
 from typing_extensions import Self
 from datetime import timedelta
 
 
-class NonNegativeInteger(int):
-    """An integer that must be greater than or equal to 0."""
-
-    schema: ClassVar[CoreSchema] = core_schema.int_schema(ge=0)
-
-    @classmethod
-    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
-    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+NonNegativeInteger = Annotated[int, Field(ge=0)]
 
 
-class PositiveInteger(int):
-    """An integer that must be greater than 0."""
-
-    schema: ClassVar[CoreSchema] = core_schema.int_schema(gt=0)
-
-    @classmethod
-    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
-    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+PositiveInteger = Annotated[int, Field(gt=0)]
 
 
-class NonNegativeFloat(float):
-    schema: ClassVar[CoreSchema] = core_schema.float_schema(ge=0)
-
-    @classmethod
-    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
-    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 
 
 class NonNegativeDuration(timedelta):
@@ -75,20 +21,10 @@ class NonNegativeDuration(timedelta):
     schema: ClassVar = core_schema.timedelta_schema(ge=timedelta(seconds=0))
 
     @classmethod
-    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
-    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: Callable[..., Any]
     ) -> CoreSchema:
         return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
 class PositiveDuration(timedelta):
@@ -97,20 +33,10 @@ class PositiveDuration(timedelta):
     schema: ClassVar = core_schema.timedelta_schema(gt=timedelta(seconds=0))
 
     @classmethod
-    # TODO[pydantic]: We couldn't refactor `__get_validators__`, please create the `__get_pydantic_core_schema__` manually.
-    # Check https://docs.pydantic.dev/latest/migration/#defining-custom-types for more information.
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: Callable[..., Any]
     ) -> CoreSchema:
         return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
 
 
 __all__ = [

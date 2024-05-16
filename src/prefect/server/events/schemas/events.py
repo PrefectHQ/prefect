@@ -23,10 +23,11 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
-from prefect.server.utilities.schemas import DateTime, PrefectBaseModel
+from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,

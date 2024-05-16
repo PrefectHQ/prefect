@@ -7,17 +7,17 @@ from copy import deepcopy
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-from pydantic import ConfigDict, Field, HttpUrl, field_validator, model_validator
+import pendulum
+from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
-    set_default_scheduled_time,
     set_deployment_schedules,
     validate_cache_key_length,
     validate_max_metadata_length,
@@ -30,7 +30,6 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTime
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import listrepr
@@ -383,16 +382,25 @@ class StateCreate(ActionBaseModel):
         description="The details of the state to create",
     )
 
-    timestamp: Optional[DateTime] = Field(default=None, repr=False)
-    id: Optional[UUID] = Field(default=None, repr=False)
+    @model_validator(mode="after")
+    def default_name_from_type(self):
+        """If a name is not provided, use the type"""
+        # if `type` is not in `values` it means the `type` didn't pass its own
+        # validation check and an error will be raised after this function is called
+        name = self.name
+        if name is None and self.type:
+            self.name = " ".join([v.capitalize() for v in self.type.value.split("_")])
+        return self
 
-    @field_validator("name", mode="before")
-    def default_name_from_type(cls, v, values):
-        return get_or_create_state_name(v, values)
+    @model_validator(mode="after")
+    def default_scheduled_start_time(self):
+        from prefect.server.schemas.states import StateType
 
-    @model_validator(mode="before")
-    def default_scheduled_start_time(cls, values):
-        return set_default_scheduled_time(cls, values)
+        if self.type == StateType.SCHEDULED:
+            if not self.state_details.scheduled_time:
+                self.state_details.scheduled_time = pendulum.now("utc")
+
+        return self
 
 
 class TaskRunCreate(ActionBaseModel):
@@ -653,10 +661,10 @@ class BlockTypeCreate(ActionBaseModel):
 
     name: str = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
-    logo_url: Optional[HttpUrl] = Field(
+    logo_url: Optional[str] = Field(  # TODO: HttpUrl
         default=None, description="Web URL for the block type's logo"
     )
-    documentation_url: Optional[HttpUrl] = Field(
+    documentation_url: Optional[str] = Field(  # TODO: HttpUrl
         default=None, description="Web URL for the block type's documentation"
     )
     description: Optional[str] = Field(
@@ -679,8 +687,8 @@ class BlockTypeCreate(ActionBaseModel):
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[schemas.core.HttpUrl] = Field(None)
-    documentation_url: Optional[schemas.core.HttpUrl] = Field(None)
+    logo_url: Optional[str] = Field(None)  # TODO: HttpUrl
+    documentation_url: Optional[str] = Field(None)  # TODO: HttpUrl
     description: Optional[str] = Field(None)
     code_example: Optional[str] = Field(None)
 

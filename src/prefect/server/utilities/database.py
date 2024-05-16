@@ -9,7 +9,7 @@ import datetime
 import json
 import re
 import uuid
-from typing import List, Union
+from typing import List, Optional, Union
 
 import pendulum
 import pydantic
@@ -214,17 +214,18 @@ class Pydantic(TypeDecorator):
         if sa_column_type is not None:
             self.impl = sa_column_type
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value, dialect) -> Optional[str]:
         if value is None:
             return None
         # parse the value to ensure it complies with the schema
         # (this will raise validation errors if not)
-        value = pydantic.TypeAdapter(self._pydantic_type).validate_python(value)
+        adapter = pydantic.TypeAdapter(self._pydantic_type)
+        value = adapter.validate_python(value)
         # sqlalchemy requires the bind parameter's value to be a python-native
         # collection of JSON-compatible objects. we achieve that by dumping the
         # value to a json string using the pydantic JSON encoder and re-parsing
         # it into a python-native form.
-        return json.loads(json.dumps(value, default=pydantic.json.pydantic_encoder))
+        return adapter.dump_json(value).decode("utf-8")
 
     def process_result_value(self, value, dialect):
         if value is not None:

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.server.schemas as schemas
@@ -17,7 +18,6 @@ from prefect.server.schemas.core import (
     WorkQueueStatusDetail,
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTime
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
