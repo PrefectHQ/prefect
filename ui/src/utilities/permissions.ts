@@ -7,7 +7,6 @@ const featureFlags = [
   'access:artifacts',
   'access:deploymentStatus',
   'access:workQueueStatus',
-  'access:flowRunInfraOverrides',
 ] as const
 
 export type FeatureFlag = typeof featureFlags[number] | WorkspaceFeatureFlag
