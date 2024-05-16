@@ -217,20 +217,22 @@ class Pydantic(TypeDecorator):
     def process_bind_param(self, value, dialect) -> Optional[str]:
         if value is None:
             return None
+
         # parse the value to ensure it complies with the schema
         # (this will raise validation errors if not)
         adapter = pydantic.TypeAdapter(self._pydantic_type)
         value = adapter.validate_python(value)
+
         # sqlalchemy requires the bind parameter's value to be a python-native
         # collection of JSON-compatible objects. we achieve that by dumping the
         # value to a json string using the pydantic JSON encoder and re-parsing
         # it into a python-native form.
-        return adapter.dump_json(value).decode("utf-8")
+        return adapter.dump_python(value, mode="json")
 
     def process_result_value(self, value, dialect):
         if value is not None:
             # load the json object into a fully hydrated typed object
-            return pydantic.TypeAdapter(self._pydantic_type).validate_json(value)
+            return pydantic.TypeAdapter(self._pydantic_type).validate_python(value)
 
 
 class now(FunctionElement):
