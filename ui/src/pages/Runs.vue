@@ -206,6 +206,7 @@
 
     return merge({}, filter, {
       taskRuns: {
+        idNull: false,
         nameLike: taskRunNameLikeDebounced.value,
         flowRunIdNull,
       },
