@@ -17,7 +17,8 @@ This guide provides examples of real-world use cases.
 
 ### Send a notification when a flow run fails
 
-State change hooks enable you to customize messages sent when tasks transition between states, such as sending notifications containing sensitive information when tasks enter a `Failed` state. Let's run a client-side hook upon a flow run entering a `Failed` state.
+State change hooks enable you to customize messages sent when tasks transition between states, such as sending notifications containing sensitive information when tasks enter a `Failed` state.
+Here's an example of running a client-side hook upon a flow run entering a `Failed` state:
 
 ```python
 from prefect import flow
@@ -48,15 +49,15 @@ if __name__ == "__main__":
     failing_flow()
 ```
 
-Note that because we've configured retries in this example, the `on_failure` hook will not run until all `retries` have completed, when the flow run enters a `Failed` state.
+Note that retries are configured in this example. This means the `on_failure` hook will not run until all `retries` have completed when the flow run enters a `Failed` state.
 
 ### Delete a Cloud Run job when a flow run crashes
 
-State change hooks can aid in managing infrastructure cleanup in scenarios where tasks spin up individual infrastructure resources independently of Prefect.
-When a flow run crashes, tasks may exit abruptly, resulting in the potential omission of cleanup logic within the tasks.
-State change hooks can be used to ensure infrastructure is properly cleaned up even when a flow run enters a `Crashed` state!
+State change hooks help manage infrastructure cleanup in scenarios where tasks spin up individual infrastructure resources independently of Prefect.
+When a flow run crashes, tasks may exit abruptly and result in the potential omission of cleanup logic within the tasks.
+Use state change hooks to ensure infrastructure is properly cleaned up, even when a flow run enters a `Crashed` state.
 
-Let's create a hook that deletes a Cloud Run job if the flow run crashes.
+Here's how to create a hook that deletes a Cloud Run job if the flow run crashes:
 
 ```python
 import os
