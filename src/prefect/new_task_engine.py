@@ -139,7 +139,9 @@ class TaskRunEngine(Generic[P, R]):
 
                 def _hook_fn():
                     with hook_context():
-                        hook(task, task_run, state)
+                        result = hook(task, task_run, state)
+                        if inspect.isawaitable(result):
+                            run_sync(result)
 
             yield _hook_fn
 
