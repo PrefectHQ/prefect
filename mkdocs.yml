@@ -453,7 +453,6 @@ nav:
                               - "task_run": api-ref/prefect/runtime/task_run.md
                       - "prefect.serializers": api-ref/prefect/serializers.md
                       - "prefect.settings": api-ref/prefect/settings.md
-                      - "prefect.software": api-ref/prefect/software.md
                       - "prefect.states": api-ref/prefect/states.md
                       - "prefect.task_runners": api-ref/prefect/task-runners.md
                       - "prefect.tasks": api-ref/prefect/tasks.md
