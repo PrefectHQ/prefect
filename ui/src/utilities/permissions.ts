@@ -7,7 +7,6 @@ const featureFlags = [
   'access:artifacts',
   'access:deploymentStatus',
   'access:workQueueStatus',
-  'access:flowRunInfraOverrides',
   'access:automations',
 ] as const
 
