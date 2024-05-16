@@ -25,7 +25,9 @@ async def create_concurrency_limit(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
     # hydrate the input model into a full model
-    concurrency_limit_model = schemas.core.ConcurrencyLimit(**concurrency_limit.dict())
+    concurrency_limit_model = schemas.core.ConcurrencyLimit(
+        **concurrency_limit.model_dump()
+    )
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits.create_concurrency_limit(

@@ -119,7 +119,7 @@ async def test_querying_for_events_returns_first_page(
 ):
     response = await client.post(
         "http://test/api/events/filter",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -150,7 +150,7 @@ async def test_querying_for_events_returns_first_page_with_no_more(
 
     response = await client.post(
         "http://test/api/events/filter",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -274,7 +274,7 @@ async def test_events_api_returns_times_with_timezone_offsets(
 ):
     response = await client.post(
         "http://test/api/events/filter",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -319,7 +319,7 @@ async def test_counting_events_by_day(
 ):
     response = await client.post(
         "http://test/api/events/count-by/day",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -360,7 +360,7 @@ async def test_counting_events_by_time(
     response = await client.post(
         "http://test/api/events/count-by/time",
         json={
-            "filter": filter.dict(json_compatible=True),
+            "filter": filter.model_dump(mode="json"),
             "time_unit": "hour",
             "time_interval": 2,
         },
@@ -403,7 +403,7 @@ async def test_counting_events_by_time_minimum_time_interval(
     response = await client.post(
         "http://test/api/events/count-by/time",
         json={
-            "filter": filter.dict(json_compatible=True),
+            "filter": filter.model_dump(mode="json"),
             "time_unit": "hour",
             "time_interval": 0.009,
         },
@@ -425,7 +425,7 @@ async def test_counting_events_by_event_with_a_filter(
 
     response = await client.post(
         "http://test/api/events/count-by/event",
-        json={"filter": filter.dict(json_compatible=True)},
+        json={"filter": filter.model_dump(mode="json")},
     )
 
     assert response.status_code == 200, response.content
@@ -465,7 +465,7 @@ async def test_counting_events_too_many_buckets(
     response = await client.post(
         "http://test/api/events/count-by/time",
         json={
-            "filter": filter.dict(json_compatible=True),
+            "filter": filter.model_dump(mode="json"),
             "time_unit": "second",
             "time_interval": 0.01,
         },

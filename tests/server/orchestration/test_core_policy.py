@@ -1226,7 +1226,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1271,7 +1273,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1444,7 +1448,7 @@ class TestTaskConcurrencyLimits:
         cl_create = actions.ConcurrencyLimitCreate(
             tag=tag,
             concurrency_limit=limit,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         cl_model = schemas.core.ConcurrencyLimit(**cl_create)
 
@@ -3147,7 +3151,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:
@@ -3178,7 +3184,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:

@@ -695,7 +695,9 @@ async def _run_single_deploy(
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
         enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
-        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
+        parameter_openapi_schema=deploy_config.get(
+            "parameter_openapi_schema"
+        ).model_dump(),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),

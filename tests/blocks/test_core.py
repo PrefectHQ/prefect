@@ -988,14 +988,14 @@ class TestAPICompatibility:
         assert block_instance._block_document_id == outer_block_document.id
         assert block_instance._block_type_id == outer_block_document.block_type_id
         assert block_instance._block_schema_id == outer_block_document.block_schema_id
-        assert block_instance.c.dict() == {
+        assert block_instance.c.model_dump() == {
             "y": 2,
             "_block_document_id": middle_block_document_1.id,
             "_block_document_name": "middle-block-document-1",
             "_is_anonymous": False,
             "block_type_slug": "c",
         }
-        assert block_instance.d.dict() == {
+        assert block_instance.d.model_dump() == {
             "b": {
                 "x": 1,
                 "_block_document_id": inner_block_document.id,
@@ -2234,13 +2234,15 @@ class BChildBlock(BaseBlock):
 
 class TestTypeDispatch:
     def test_block_type_slug_is_included_in_dict(self):
-        assert "block_type_slug" in AChildBlock().dict()
+        assert "block_type_slug" in AChildBlock().model_dump()
 
     def test_block_type_slug_respects_exclude(self):
-        assert "block_type_slug" not in AChildBlock().dict(exclude={"block_type_slug"})
+        assert "block_type_slug" not in AChildBlock().model_dump(
+            exclude={"block_type_slug"}
+        )
 
     def test_block_type_slug_respects_include(self):
-        assert "block_type_slug" not in AChildBlock().dict(include={"a"})
+        assert "block_type_slug" not in AChildBlock().model_dump(include={"a"})
 
     async def test_block_type_slug_excluded_from_document(self, prefect_client):
         await AChildBlock.register_type_and_schema(client=prefect_client)
@@ -2248,17 +2250,17 @@ class TestTypeDispatch:
         assert "block_type_slug" not in document.data
 
     def test_base_parse_works_for_base_instance(self):
-        block = BaseBlock.model_validate(BaseBlock().dict())
+        block = BaseBlock.model_validate(BaseBlock().model_dump())
         assert type(block) == BaseBlock
 
-        block = BaseBlock.model_validate(BaseBlock().dict())
+        block = BaseBlock.model_validate(BaseBlock().model_dump())
         assert type(block) == BaseBlock
 
     def test_base_parse_creates_child_instance_from_dict(self):
-        block = BaseBlock.model_validate(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert type(block) == AChildBlock
 
-        block = BaseBlock.model_validate(BChildBlock().dict())
+        block = BaseBlock.model_validate(BChildBlock().model_dump())
         assert type(block) == BChildBlock
 
     def test_base_parse_creates_child_instance_from_json(self):
@@ -2269,17 +2271,17 @@ class TestTypeDispatch:
         assert type(block) == BChildBlock
 
     def test_base_parse_retains_default_attributes(self):
-        block = BaseBlock.model_validate(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert block.base == 0
         assert block.a == 1
 
     def test_base_parse_retains_set_child_attributes(self):
-        block = BaseBlock.model_validate(BChildBlock(b=3).dict())
+        block = BaseBlock.model_validate(BChildBlock(b=3).model_dump())
         assert block.base == 0
         assert block.b == 3
 
     def test_base_parse_retains_set_base_attributes(self):
-        block = BaseBlock.model_validate(BChildBlock(base=1).dict())
+        block = BaseBlock.model_validate(BChildBlock(base=1).model_dump())
         assert block.base == 1
         assert block.b == 2
 
@@ -2291,27 +2293,27 @@ class TestTypeDispatch:
         assert type(model.block) == BChildBlock
 
     def test_base_field_creates_child_instance_from_dict(self):
-        model = ParentModel(block=AChildBlock().dict())
+        model = ParentModel(block=AChildBlock().model_dump())
         assert type(model.block) == AChildBlock
 
-        model = ParentModel(block=BChildBlock().dict())
+        model = ParentModel(block=BChildBlock().model_dump())
         assert type(model.block) == BChildBlock
 
     def test_created_block_has_pydantic_attributes(self):
-        block = BaseBlock.model_validate(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert block.__fields_set__
 
     def test_created_block_can_be_copied(self):
-        block = BaseBlock.model_validate(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         block_copy = block.copy()
         assert block == block_copy
 
     async def test_created_block_can_be_saved(self):
-        block = BaseBlock.model_validate(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert await block.save("test")
 
     async def test_created_block_can_be_saved_then_loaded(self):
-        block = BaseBlock.model_validate(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         await block.save("test")
         new_block = await block.load("test")
         assert block == new_block
@@ -2320,11 +2322,11 @@ class TestTypeDispatch:
     def test_created_block_fields_set(self):
         expected = {"base", "block_type_slug", "a"}
 
-        block = BaseBlock.model_validate(AChildBlock().dict())
+        block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert block.__fields_set__ == expected
         assert block.a == 1
 
-        block = BaseBlock.model_validate(AChildBlock(a=2).dict())
+        block = BaseBlock.model_validate(AChildBlock(a=2).model_dump())
         assert block.__fields_set__ == expected
         assert block.a == 2
 
@@ -2336,7 +2338,7 @@ class TestTypeDispatch:
         class UnionParentModel(BaseModel):
             block: Union[AChildBlock, BChildBlock]
 
-        model = UnionParentModel(block=AChildBlock(a=3).dict())
+        model = UnionParentModel(block=AChildBlock(a=3).model_dump())
         assert type(model.block) == AChildBlock
 
         # Assignment with a copy works still
@@ -2344,7 +2346,7 @@ class TestTypeDispatch:
         assert type(model.block) == AChildBlock
         assert model.block
 
-        model = UnionParentModel(block=BChildBlock(b=4).dict())
+        model = UnionParentModel(block=BChildBlock(b=4).model_dump())
         assert type(model.block) == BChildBlock
 
     def test_base_field_creates_child_instance_with_assignment_validation(self):
@@ -2354,7 +2356,7 @@ class TestTypeDispatch:
             class Config:
                 validate_assignment = True
 
-        model = AssignmentParentModel(block=AChildBlock(a=3).dict())
+        model = AssignmentParentModel(block=AChildBlock(a=3).model_dump())
         assert type(model.block) == AChildBlock
         assert model.block.a == 3
 
@@ -2362,7 +2364,7 @@ class TestTypeDispatch:
         assert type(model.block) == AChildBlock
         assert model.block.a == 3
 
-        model.block = BChildBlock(b=4).dict()
+        model.block = BChildBlock(b=4).model_dump()
         assert type(model.block) == BChildBlock
         assert model.block.b == 4
 
@@ -2450,7 +2452,7 @@ class TestBlockSchemaMigration:
 
         bar_new = Bar.load("test", validate=False)
 
-        assert bar.dict() == bar_new.dict()
+        assert bar.model_dump() == bar_new.model_dump()
 
     async def test_save_new_schema_with_overwrite(self, prefect_client):
         class Baz(Block):

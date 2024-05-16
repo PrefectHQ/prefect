@@ -88,7 +88,7 @@ async def create_concurrency_limit(
         schemas.actions.ConcurrencyLimitV2Create, schemas.core.ConcurrencyLimitV2
     ],
 ):
-    model = db.ConcurrencyLimitV2(**concurrency_limit.dict())
+    model = db.ConcurrencyLimitV2(**concurrency_limit.model_dump())
 
     session.add(model)
     await session.flush()
@@ -160,7 +160,7 @@ async def update_concurrency_limit(
     result = await session.execute(
         sa.update(db.ConcurrencyLimitV2)
         .where(where)
-        .values(**concurrency_limit.dict(exclude_unset=True))
+        .values(**concurrency_limit.model_dump(exclude_unset=True))
     )
 
     return result.rowcount > 0
@@ -207,7 +207,7 @@ async def bulk_read_or_create_concurrency_limits(
             db.ConcurrencyLimitV2(
                 **schemas.core.ConcurrencyLimitV2(
                     name=name, limit=1, active=False
-                ).dict()
+                ).model_dump()
             )
             for name in missing_names
         ]

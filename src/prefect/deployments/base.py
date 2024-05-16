@@ -260,7 +260,7 @@ def _format_deployment_for_saving_to_prefect_file(
         if isinstance(deployment["schedule"], IntervalSchedule):
             deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
         else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-            deployment["schedule"] = deployment["schedule"].dict()
+            deployment["schedule"] = deployment["schedule"].model_dump()
 
         if "is_schedule_active" in deployment:
             deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
@@ -275,7 +275,7 @@ def _format_deployment_for_saving_to_prefect_file(
                     deployment_schedule.schedule
                 )
             else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-                schedule_config = deployment_schedule.schedule.dict()
+                schedule_config = deployment_schedule.schedule.model_dump()
 
             schedule_config["active"] = deployment_schedule.active
             schedule_config["max_active_runs"] = deployment_schedule.max_active_runs

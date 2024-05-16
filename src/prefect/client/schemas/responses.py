@@ -297,7 +297,7 @@ class FlowRunResponse(ObjectBaseModel):
         """
         if isinstance(other, objects.FlowRun):
             exclude_fields = {"estimated_run_time", "estimated_start_time_delta"}
-            return self.dict(exclude=exclude_fields) == other.dict(
+            return self.model_dump(exclude=exclude_fields) == other.model_dump(
                 exclude=exclude_fields
             )
         return super().__eq__(other)

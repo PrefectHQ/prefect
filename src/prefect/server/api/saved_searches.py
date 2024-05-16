@@ -31,7 +31,7 @@ async def create_saved_search(
     """
 
     # hydrate the input model into a full model
-    saved_search = schemas.core.SavedSearch(**saved_search.dict())
+    saved_search = schemas.core.SavedSearch(**saved_search.model_dump())
 
     now = pendulum.now("UTC")
 

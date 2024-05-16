@@ -190,7 +190,7 @@ async def test_creating_automation(automations_session: AsyncSession):
     )
     # This is what the models require
     automation = Automation(
-        **automation_request.dict(),
+        **automation_request.model_dump(),
     )
     saved_automation = await automations.create_automation(
         session=automations_session,
@@ -244,10 +244,10 @@ async def test_updating_automation_that_exists(
     automations_session: AsyncSession, existing_automation: Automation
 ):
     # take it to a core schema first to remove unexpected fields
-    as_core = AutomationCore(**existing_automation.dict())
+    as_core = AutomationCore(**existing_automation.model_dump())
     assert as_core.enabled
 
-    update = AutomationUpdate(**as_core.dict())
+    update = AutomationUpdate(**as_core.model_dump())
     update.enabled = False
     assert isinstance(update.trigger, EventTrigger)
     update.trigger.expect = {"things.definitely.did.not.happen", "or.maybe.not"}
@@ -291,7 +291,7 @@ async def test_partially_updating_automation_that_exists(
     automations_session: AsyncSession, existing_automation: Automation
 ):
     # take it to a core schema first to remove unexpected fields
-    as_core = AutomationCore(**existing_automation.dict())
+    as_core = AutomationCore(**existing_automation.model_dump())
     assert as_core.enabled
 
     partial_update = AutomationPartialUpdate(enabled=False)
@@ -567,7 +567,7 @@ async def test_creating_automation_creates_relations_to_resources(
     )
     # This is what the models require
     automation = Automation(
-        **automation_request.dict(),
+        **automation_request.model_dump(),
     )
 
     new_automation = await automations.create_automation(
@@ -608,7 +608,7 @@ async def test_creating_automation_skips_relating_inferred_deployments(
     )
     # This is what the models require
     automation = Automation(
-        **automation_request.dict(),
+        **automation_request.model_dump(),
     )
 
     new_automation = await automations.create_automation(
@@ -650,7 +650,7 @@ async def existing_related_automation(
     automation = await automations.create_automation(
         session=automations_session,
         automation=Automation(
-            **automation_request.dict(),
+            **automation_request.model_dump(),
         ),
     )
 
@@ -862,7 +862,7 @@ async def test_disabling_automation_that_exists(
     automations_session: AsyncSession, existing_automation: Automation
 ):
     # take it to a core schema first to remove unexpected fields
-    as_core = AutomationCore(**existing_automation.dict())
+    as_core = AutomationCore(**existing_automation.model_dump())
     assert as_core.enabled
 
     result = await automations.disable_automation(

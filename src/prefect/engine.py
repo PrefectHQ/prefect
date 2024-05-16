@@ -814,7 +814,7 @@ async def orchestrate_flow_run(
         try:
             with FlowRunContext(
                 **{
-                    **partial_flow_run_context.dict(),
+                    **partial_flow_run_context.model_dump(),
                     **{
                         "flow_run": flow_run,
                         "flow": flow,
@@ -1937,7 +1937,7 @@ async def orchestrate_task_run(
     # The cache key uses a TaskRunContext that does not include a `timeout_context``
 
     task_run_context = TaskRunContext(
-        **partial_task_run_context.dict(), parameters=resolved_parameters
+        **partial_task_run_context.model_dump(), parameters=resolved_parameters
     )
 
     cache_key = (

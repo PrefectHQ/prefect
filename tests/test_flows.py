@@ -522,7 +522,7 @@ class TestFlowCall:
         def foo(x: int, y: List[int], zt: CustomType):
             return x + sum(y) + zt.z
 
-        result = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
+        result = foo(x="1", y=["2", "3"], zt=CustomType(z=4).model_dump())
         assert result == 10
 
     def test_call_with_variadic_args(self):

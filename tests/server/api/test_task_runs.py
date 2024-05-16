@@ -85,7 +85,7 @@ class TestCreateTaskRun:
             dynamic_key="0",
         )
         response = await client.post(
-            "/task_runs/", json=task_run_data.dict(json_compatible=True)
+            "/task_runs/", json=task_run_data.model_dump(mode="json")
         )
         task_run = await models.task_runs.read_task_run(
             session=session, task_run_id=response.json()["id"]
@@ -106,7 +106,7 @@ class TestCreateTaskRun:
                     timestamp=pendulum.now("UTC").add(months=1),
                 ),
                 dynamic_key="0",
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -236,7 +236,7 @@ class TestReadTaskRuns:
         task_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
                 id=schemas.filters.TaskRunFilterId(any_=[task_run.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/task_runs/filter", json=task_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -247,7 +247,7 @@ class TestReadTaskRuns:
         bad_task_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
                 id=schemas.filters.TaskRunFilterId(any_=[uuid4()])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/task_runs/filter", json=bad_task_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -257,7 +257,7 @@ class TestReadTaskRuns:
         task_run_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
                 id=schemas.filters.FlowRunFilterId(any_=[task_run.flow_run_id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/task_runs/filter", json=task_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -268,7 +268,7 @@ class TestReadTaskRuns:
         bad_task_run_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
                 id=schemas.filters.FlowRunFilterId(any_=[uuid4()])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/task_runs/filter", json=bad_task_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -278,7 +278,7 @@ class TestReadTaskRuns:
         task_run_filter = dict(
             flows=schemas.filters.FlowFilter(
                 id=schemas.filters.FlowFilterId(any_=[flow.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/task_runs/filter", json=task_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -289,7 +289,7 @@ class TestReadTaskRuns:
         bad_task_run_filter = dict(
             flows=schemas.filters.FlowFilter(
                 id=schemas.filters.FlowFilterId(any_=[uuid4()])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/task_runs/filter", json=bad_task_run_filter)
         assert response.status_code == status.HTTP_200_OK

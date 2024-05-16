@@ -76,7 +76,7 @@ async def create_automation(
             detail=f"Error creating automation: {' '.join(errors)}",
         )
 
-    automation_dict = automation.dict()
+    automation_dict = automation.model_dump()
     owner_resource = automation_dict.pop("owner_resource", None)
 
     async with db.session_context(begin_transaction=True) as session:

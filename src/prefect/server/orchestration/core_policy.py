@@ -276,7 +276,7 @@ class AddUnknownResult(BaseOrchestrationRule):
             and initial_state.data.get("type") == "reference"
         ):
             unknown_result = await UnknownResult.create()
-            self.context.proposed_state.data = unknown_result.dict()
+            self.context.proposed_state.data = unknown_result.model_dump()
 
 
 class CacheInsertion(BaseOrchestrationRule):
@@ -409,7 +409,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         # Pauses as a concept only exist after API version 0.8.4
         api_version = context.parameters.get("api-version", None)
         if api_version is None or api_version >= Version("0.8.4"):
-            updated_policy = context.run.empirical_policy.dict()
+            updated_policy = context.run.empirical_policy.model_dump()
             updated_policy["resuming"] = False
             updated_policy["pause_keys"] = set()
             context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
@@ -647,7 +647,7 @@ class HandlePausingFlows(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        updated_policy = context.run.empirical_policy.dict()
+        updated_policy = context.run.empirical_policy.model_dump()
         updated_policy["pause_keys"].add(self.key)
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
@@ -711,7 +711,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        updated_policy = context.run.empirical_policy.dict()
+        updated_policy = context.run.empirical_policy.model_dump()
         updated_policy["resuming"] = True
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
@@ -823,7 +823,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        self.original_flow_policy = context.run.empirical_policy.dict()
+        self.original_flow_policy = context.run.empirical_policy.model_dump()
 
         # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
         if proposed_state.type in {
@@ -858,7 +858,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
             # Reset pause metadata when leaving a terminal state
             api_version = context.parameters.get("api-version", None)
             if api_version is None or api_version >= Version("0.8.4"):
-                updated_policy = context.run.empirical_policy.dict()
+                updated_policy = context.run.empirical_policy.model_dump()
                 updated_policy["resuming"] = False
                 updated_policy["pause_keys"] = set()
                 context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)

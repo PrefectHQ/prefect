@@ -11,7 +11,7 @@ class TestConcurrencyLimits:
         data = ConcurrencyLimitCreate(
             tag="dummytag",
             concurrency_limit=42,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         response = await client.post("/concurrency_limits/", json=data)
         assert response.status_code == status.HTTP_200_OK
@@ -21,7 +21,7 @@ class TestConcurrencyLimits:
         insert_data = ConcurrencyLimitCreate(
             tag="upsert tag",
             concurrency_limit=42,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         insert_response = await client.post("/concurrency_limits/", json=insert_data)
         assert insert_response.status_code == status.HTTP_200_OK
@@ -31,7 +31,7 @@ class TestConcurrencyLimits:
         upsert_data = ConcurrencyLimitCreate(
             tag="upsert tag",
             concurrency_limit=4242,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         upsert_response = await client.post("/concurrency_limits/", json=upsert_data)
         assert upsert_response.status_code == status.HTTP_200_OK
@@ -42,7 +42,7 @@ class TestConcurrencyLimits:
         data = ConcurrencyLimitCreate(
             tag="dummytag",
             concurrency_limit=42,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         create_response = await client.post("/concurrency_limits/", json=data)
         cl_id = create_response.json()["id"]
@@ -62,7 +62,7 @@ class TestConcurrencyLimits:
         data = ConcurrencyLimitCreate(
             tag=tag,
             concurrency_limit=4242,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         create_response = await client.post("/concurrency_limits/", json=data)
         cl_id = create_response.json()["id"]
@@ -80,7 +80,7 @@ class TestConcurrencyLimits:
         data = ConcurrencyLimitCreate(
             tag=tag,
             concurrency_limit=4242,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         create_response = await client.post("/concurrency_limits/", json=data)
         cl_id = create_response.json()["id"]

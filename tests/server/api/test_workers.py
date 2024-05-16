@@ -376,8 +376,8 @@ class TestUpdateWorkPool:
 
         response = await client.patch(
             f"/work_pools/{work_pool.name}",
-            json=schemas.actions.WorkPoolUpdate(is_paused=True).dict(
-                json_compatible=True, exclude_unset=True
+            json=schemas.actions.WorkPoolUpdate(is_paused=True).model_dump(
+                mode="json", exclude_unset=True
             ),
         )
 
@@ -391,8 +391,8 @@ class TestUpdateWorkPool:
         # Unpause the work pool
         response = await client.patch(
             f"/work_pools/{work_pool.name}",
-            json=schemas.actions.WorkPoolUpdate(is_paused=False).dict(
-                json_compatible=True, exclude_unset=True
+            json=schemas.actions.WorkPoolUpdate(is_paused=False).model_dump(
+                mode="json", exclude_unset=True
             ),
         )
         assert response.status_code == 204
@@ -426,8 +426,8 @@ class TestUpdateWorkPool:
         # Pause the work pool
         pause_response = await client.patch(
             f"/work_pools/{work_pool.name}",
-            json=schemas.actions.WorkPoolUpdate(is_paused=True).dict(
-                json_compatible=True, exclude_unset=True
+            json=schemas.actions.WorkPoolUpdate(is_paused=True).model_dump(
+                mode="json", exclude_unset=True
             ),
         )
         assert pause_response.status_code == 204
@@ -443,8 +443,8 @@ class TestUpdateWorkPool:
         # Unpause the work pool
         unpause_response = await client.patch(
             f"/work_pools/{work_pool.name}",
-            json=schemas.actions.WorkPoolUpdate(is_paused=False).dict(
-                json_compatible=True, exclude_unset=True
+            json=schemas.actions.WorkPoolUpdate(is_paused=False).model_dump(
+                mode="json", exclude_unset=True
             ),
         )
         assert unpause_response.status_code == 204
@@ -903,7 +903,7 @@ class TestUpdateWorkQueue:
 
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=True, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
         response = await client.patch(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=new_data,
@@ -931,7 +931,7 @@ class TestUpdateWorkQueue:
 
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=True, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
         response = await client.patch(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=new_data,
@@ -965,7 +965,7 @@ class TestUpdateWorkQueue:
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=True,
             concurrency_limit=3,  # type: ignore
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
         work_queue_response = await client.patch(
             f"/work_queues/{paused_work_queue.id}",
             json=new_data,
@@ -993,7 +993,7 @@ class TestUpdateWorkQueue:
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=False,
             concurrency_limit=3,  # type: ignore
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
         work_queue_response = await client.patch(
             f"/work_queues/{ready_work_queue.id}",
             json=new_data,
@@ -1018,8 +1018,8 @@ class TestUpdateWorkQueue:
         work_pool,
     ):
         # first, pause the work pool queue with no last_polled
-        pause_data = schemas.actions.WorkQueueUpdate(is_paused=True).dict(  # type: ignore
-            json_compatible=True, exclude_unset=True
+        pause_data = schemas.actions.WorkQueueUpdate(is_paused=True).model_dump(  # type: ignore
+            mode="json", exclude_unset=True
         )
 
         response = await client.patch(
@@ -1054,7 +1054,7 @@ class TestUpdateWorkQueue:
         # now unpause the work pool queue with no last_polled
         unpause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
             is_paused=False, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
         response = await client.patch(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=unpause_data,
@@ -1093,7 +1093,7 @@ class TestUpdateWorkQueue:
         # first, pause the work pool queue with a expired last_polled
         pause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
             last_polled=pendulum.now("UTC") - timedelta(minutes=2), is_paused=True
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
@@ -1127,7 +1127,7 @@ class TestUpdateWorkQueue:
         # now unpause the work pool queue with expired last_polled
         unpause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
             is_paused=False, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
         response = await client.patch(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=unpause_data,
@@ -1165,7 +1165,7 @@ class TestUpdateWorkQueue:
         # first, pause the work pool queue with a recent last_polled
         pause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
             last_polled=pendulum.now("UTC"), is_paused=True
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
@@ -1199,7 +1199,7 @@ class TestUpdateWorkQueue:
         # now unpause a recently polled work pool queue
         unpause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
             is_paused=False, concurrency_limit=3
-        ).dict(json_compatible=True, exclude_unset=True)
+        ).model_dump(mode="json", exclude_unset=True)
         response = await client.patch(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=unpause_data,
@@ -1357,8 +1357,8 @@ class TestWorkerProcess:
         # Pause the work pool
         await client.patch(
             f"/work_pools/{work_pool.name}",
-            json=schemas.actions.WorkPoolUpdate(is_paused=True).dict(
-                json_compatible=True, exclude_unset=True
+            json=schemas.actions.WorkPoolUpdate(is_paused=True).model_dump(
+                mode="json", exclude_unset=True
             ),
         )
 

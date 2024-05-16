@@ -114,8 +114,8 @@ class TestCreateBlockSchema:
     async def test_create_block_schema(self, session, client, block_type_x):
         response = await client.post(
             "/block_schemas/",
-            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
-                json_compatible=True
+            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).model_dump(
+                mode="json"
             ),
         )
         assert response.status_code == 201
@@ -131,16 +131,16 @@ class TestCreateBlockSchema:
     async def test_create_block_schema_is_idempotent(self, client, block_type_x):
         response_1 = await client.post(
             "/block_schemas/",
-            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
-                json_compatible=True
+            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).model_dump(
+                mode="json"
             ),
         )
         assert response_1.status_code == status.HTTP_201_CREATED
 
         response_2 = await client.post(
             "/block_schemas/",
-            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
-                json_compatible=True
+            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).model_dump(
+                mode="json"
             ),
         )
         assert response_2.status_code == status.HTTP_200_OK
@@ -151,9 +151,9 @@ class TestCreateBlockSchema:
     ):
         response = await client.post(
             "/block_schemas/",
-            json=BlockSchemaCreate(fields={}, block_type_id=system_block_type.id).dict(
-                json_compatible=True
-            ),
+            json=BlockSchemaCreate(
+                fields={}, block_type_id=system_block_type.id
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -164,7 +164,7 @@ class TestCreateBlockSchema:
             "/block_schemas/",
             json=BlockSchemaCreate(
                 fields={}, block_type_id=block_type_x.id, version="1.0.0"
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["checksum"] == EMPTY_OBJECT_CHECKSUM

@@ -71,7 +71,7 @@ class TestReadDashboardTaskRunCounts:
     ):
         task_run_filter = filters.TaskRunFilter()
         response = await client.post(
-            url, json={"task_runs": task_run_filter.dict(json_compatible=True)}
+            url, json={"task_runs": task_run_filter.model_dump(mode="json")}
         )
         assert response.status_code == 422
         assert b"task_runs.start_time.after_ is required" in response.content
@@ -83,7 +83,7 @@ class TestReadDashboardTaskRunCounts:
         client: AsyncClient,
     ):
         response = await client.post(
-            url, json={"task_runs": task_run_filter.dict(json_compatible=True)}
+            url, json={"task_runs": task_run_filter.model_dump(mode="json")}
         )
         assert response.status_code == 200
 
@@ -100,7 +100,7 @@ class TestReadDashboardTaskRunCounts:
         create_task_runs,
     ):
         response = await client.post(
-            url, json={"task_runs": task_run_filter.dict(json_compatible=True)}
+            url, json={"task_runs": task_run_filter.model_dump(mode="json")}
         )
         assert response.status_code == 200
 
@@ -297,7 +297,7 @@ class TestReadTaskRunCountsByState:
                             any_=[states.StateType.COMPLETED]
                         )
                     )
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             },
         )
 

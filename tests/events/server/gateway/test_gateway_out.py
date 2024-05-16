@@ -102,7 +102,7 @@ def test_streaming_requires_authentication(
             # will disconnect the websocket.
             message = {
                 "type": "filter",
-                "filter": default_liberal_filter.dict(json_compatible=True),
+                "filter": default_liberal_filter.model_dump(mode="json"),
             }
             websocket.send_json(message)
             websocket.receive_json()
@@ -138,7 +138,7 @@ async def test_streaming_requires_a_filter(
 
             filter_message = {
                 "type": "what?",
-                "filter": default_liberal_filter.dict(json_compatible=True),
+                "filter": default_liberal_filter.model_dump(mode="json"),
             }
             websocket.send_json(filter_message)
 
@@ -208,7 +208,7 @@ async def test_user_may_decline_a_backfill(
 
         filter_message = {
             "type": "filter",
-            "filter": default_liberal_filter.dict(json_compatible=True),
+            "filter": default_liberal_filter.model_dump(mode="json"),
             "backfill": False,
         }
         websocket.send_json(filter_message)
@@ -248,7 +248,7 @@ async def test_user_may_explicitly_request_a_backfill(
 
         filter_message = {
             "type": "filter",
-            "filter": default_liberal_filter.dict(json_compatible=True),
+            "filter": default_liberal_filter.model_dump(mode="json"),
             "backfill": True,
         }
         websocket.send_json(filter_message)

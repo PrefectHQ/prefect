@@ -76,7 +76,7 @@ class TestUpdateFlow:
 
         response = await client.patch(
             f"/flows/{str(flow.id)}",
-            json=schemas.actions.FlowUpdate(tags=["TB12"]).dict(),
+            json=schemas.actions.FlowUpdate(tags=["TB12"]).model_dump(),
         )
         assert response.status_code == 204
 
@@ -209,7 +209,7 @@ class TestReadFlows:
         flow_filter = dict(
             flows=schemas.filters.FlowFilter(
                 name=schemas.filters.FlowFilterName(any_=["my-flow-1"])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flows/filter", json=flow_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -233,7 +233,7 @@ class TestReadFlows:
         flow_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
                 id=schemas.filters.FlowRunFilterId(any_=[flow_run_1.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
 
         response = await client.post("/flows/filter", json=flow_filter)
@@ -266,7 +266,7 @@ class TestReadFlows:
         flow_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
                 id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flows/filter", json=flow_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -309,7 +309,7 @@ class TestReadFlows:
         work_pool_filter = dict(
             work_pools=schemas.filters.WorkPoolFilter(
                 id=schemas.filters.WorkPoolFilterId(any_=[work_pool.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flows/filter", json=work_pool_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -339,7 +339,7 @@ class TestReadFlows:
         deployment_filter_isnull = dict(
             flows=schemas.filters.FlowFilter(
                 deployment=schemas.filters.FlowFilterDeployment(is_null_=True)
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flows/filter", json=deployment_filter_isnull)
         assert response.status_code == status.HTTP_200_OK
@@ -349,7 +349,7 @@ class TestReadFlows:
         deployment_filter_not_isnull = dict(
             flows=schemas.filters.FlowFilter(
                 deployment=schemas.filters.FlowFilterDeployment(is_null_=False)
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flows/filter", json=deployment_filter_not_isnull)
         assert response.status_code == status.HTTP_200_OK

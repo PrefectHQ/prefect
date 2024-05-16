@@ -446,7 +446,7 @@ class TestInfrastructureIntegration:
         """
         Mocks all subtype implementations of `Infrastructure.run`.
 
-        Yields a mock that is called with `self.dict()` when `run`
+        Yields a mock that is called with `self.model_dump()` when `run`
         is awaited. The mock provides a few utilities for testing
         error handling.
 
@@ -466,7 +466,7 @@ class TestInfrastructureIntegration:
 
         async def mock_run(self, task_status=None):
             # Record the call immediately
-            result = mock(self.dict())
+            result = mock(self.model_dump())
             result.status_code = mock.result_status_code
             result.identifier = mock.result_identifier
 
@@ -525,7 +525,7 @@ class TestInfrastructureIntegration:
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
-            ).dict()
+            ).model_dump()
         )
 
     async def test_agent_submit_run_sets_pending_state(
@@ -750,7 +750,7 @@ class TestInfrastructureIntegration:
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
-            ).dict()
+            ).model_dump()
         )
         agent.logger.exception.assert_called_once_with(
             f"Failed to submit flow run '{flow_run.id}' to infrastructure."
@@ -797,7 +797,7 @@ class TestInfrastructureIntegration:
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
-            ).dict()
+            ).model_dump()
         )
         agent.logger.exception.assert_called_once_with(
             f"An error occurred while monitoring flow run '{flow_run.id}'. "
@@ -863,7 +863,7 @@ class TestInfrastructureIntegration:
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
-            ).dict()
+            ).model_dump()
         )
         assert (
             f"Reported flow run '{flow_run.id}' as crashed: "
@@ -916,7 +916,7 @@ class TestInfrastructureIntegration:
         mock_infrastructure_run.assert_called_once_with(
             infrastructure.prepare_for_flow_run(
                 flow_run, deployment=deployment, flow=flow
-            ).dict()
+            ).model_dump()
         )
 
         assert f"Reported flow run '{flow_run.id}' as crashed" not in caplog.text

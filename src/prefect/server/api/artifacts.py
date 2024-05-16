@@ -27,7 +27,7 @@ async def create_artifact(
     response: Response = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
-    artifact = core.Artifact(**artifact.dict())
+    artifact = core.Artifact(**artifact.model_dump())
 
     now = pendulum.now("UTC")
 

@@ -62,7 +62,7 @@ async def create_work_pool(
 
     """
 
-    pool = db.WorkPool(**work_pool.dict())
+    pool = db.WorkPool(**work_pool.model_dump())
 
     if pool.type != "prefect-agent":
         if pool.is_paused:
@@ -363,7 +363,7 @@ async def create_work_queue(
         db.WorkQueue: the newly-created WorkQueue
 
     """
-    data = work_queue.dict(exclude={"work_pool_id"})
+    data = work_queue.model_dump(exclude={"work_pool_id"})
     if work_queue.priority is None:
         # Set the priority to be the first priority value that isn't already taken
         priorities_query = sa.select(db.WorkQueue.priority).where(

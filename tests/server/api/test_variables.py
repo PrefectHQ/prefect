@@ -60,7 +60,7 @@ class TestCreateVariable:
         )
         res = await client.post(
             "/variables/",
-            json=variable.dict(json_compatible=True),
+            json=variable.model_dump(mode="json"),
         )
         assert res
         assert res.status_code == 201
@@ -102,7 +102,7 @@ class TestCreateVariable:
         same_name_variable = VariableCreate(name=variable.name, value="other-value")
         res = await client.post(
             "/variables/",
-            json=same_name_variable.dict(json_compatible=True),
+            json=same_name_variable.model_dump(mode="json"),
         )
         assert res
         assert res.status_code == 409
@@ -243,7 +243,7 @@ class TestReadVariables:
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(any_=["variable1"])
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -257,7 +257,7 @@ class TestReadVariables:
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(like_="variable1%")
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -276,7 +276,7 @@ class TestReadVariables:
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(any_=["value1"])
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -290,7 +290,7 @@ class TestReadVariables:
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(like_="value1%")
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -308,9 +308,9 @@ class TestReadVariables:
         res = await client.post(
             "/variables/filter",
             json=dict(
-                variables=VariableFilter(id=VariableFilterId(any_=[variable.id])).dict(
-                    json_compatible=True
-                )
+                variables=VariableFilter(
+                    id=VariableFilterId(any_=[variable.id])
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -327,9 +327,9 @@ class TestReadVariables:
         res = await client.post(
             "/variables/filter",
             json=dict(
-                variables=VariableFilter(tags=VariableFilterTags(all_=["tag1"])).dict(
-                    json_compatible=True
-                )
+                variables=VariableFilter(
+                    tags=VariableFilterTags(all_=["tag1"])
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -403,7 +403,7 @@ class TestCountVariables:
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(any_=["variable1"])
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -415,7 +415,7 @@ class TestCountVariables:
             json=dict(
                 variables=VariableFilter(
                     name=VariableFilterName(like_="variable1%")
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -432,7 +432,7 @@ class TestCountVariables:
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(any_=["value1"])
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -444,7 +444,7 @@ class TestCountVariables:
             json=dict(
                 variables=VariableFilter(
                     value=VariableFilterValue(like_="value1%")
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -460,9 +460,9 @@ class TestCountVariables:
         res = await client.post(
             "/variables/count",
             json=dict(
-                variables=VariableFilter(id=VariableFilterId(any_=[variable.id])).dict(
-                    json_compatible=True
-                )
+                variables=VariableFilter(
+                    id=VariableFilterId(any_=[variable.id])
+                ).model_dump(mode="json")
             ),
         )
         assert res.json() == 1
@@ -476,9 +476,9 @@ class TestCountVariables:
         res = await client.post(
             "/variables/count",
             json=dict(
-                variables=VariableFilter(tags=VariableFilterTags(all_=["tag1"])).dict(
-                    json_compatible=True
-                )
+                variables=VariableFilter(
+                    tags=VariableFilterTags(all_=["tag1"])
+                ).model_dump(mode="json")
             ),
         )
         assert res.status_code == 200
@@ -496,7 +496,7 @@ class TestUpdateVariable:
         )
         res = await client.patch(
             f"/variables/{variable.id}",
-            json=update.dict(json_compatible=True),
+            json=update.model_dump(mode="json"),
         )
         assert res.status_code == 204
         res = await client.get(
@@ -518,7 +518,7 @@ class TestUpdateVariable:
         )
         res = await client.patch(
             f"/variables/{uuid.uuid4()}",
-            json=update.dict(json_compatible=True),
+            json=update.model_dump(mode="json"),
         )
         assert res.status_code == 404
 
@@ -530,7 +530,7 @@ class TestUpdateVariable:
         same_name_update = VariableUpdate(name=variable.name)
         res = await client.patch(
             f"/variables/{variable.id}",
-            json=same_name_update.dict(json_compatible=True),
+            json=same_name_update.model_dump(mode="json"),
         )
         assert res
         assert res.status_code == 409
@@ -595,7 +595,7 @@ class TestUpdateVariableByName:
         )
         res = await client.patch(
             f"/variables/name/{variable.name}",
-            json=update.dict(json_compatible=True),
+            json=update.model_dump(mode="json"),
         )
         assert res.status_code == 204
         res = await client.get(
@@ -617,7 +617,7 @@ class TestUpdateVariableByName:
         )
         res = await client.patch(
             "/variables/name/doesnotexist",
-            json=update.dict(json_compatible=True),
+            json=update.model_dump(mode="json"),
         )
         assert res.status_code == 404
 
@@ -629,7 +629,7 @@ class TestUpdateVariableByName:
         same_name_update = VariableUpdate(name=variable.name)
         res = await client.patch(
             f"/variables/name/{variable.name}",
-            json=same_name_update.dict(json_compatible=True),
+            json=same_name_update.model_dump(mode="json"),
         )
         assert res.status_code == 409
 

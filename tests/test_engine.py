@@ -2573,9 +2573,9 @@ class TestTaskRunCrashes:
             task_run_state.state_details.task_run_id
         )
         compare_fields = {"name", "type", "message"}
-        assert task_run_state.dict(include=compare_fields) == task_run.state.dict(
+        assert task_run_state.model_dump(
             include=compare_fields
-        )
+        ) == task_run.state.model_dump(include=compare_fields)
 
 
 class TestDeploymentFlowRun:

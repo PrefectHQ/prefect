@@ -154,7 +154,7 @@ class GitRepository:
         url_components = urlparse(self._url)
 
         credentials = (
-            self._credentials.dict()
+            self._credentials.model_dump()
             if isinstance(self._credentials, Block)
             else deepcopy(self._credentials)
         )
@@ -387,7 +387,7 @@ class RemoteStorage:
                 if hasattr(obj, "value"):
                     return obj.value
                 else:
-                    return obj.dict()
+                    return obj.model_dump()
             return obj
 
         settings_with_block_values = visit_collection(

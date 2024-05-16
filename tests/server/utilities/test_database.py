@@ -115,7 +115,7 @@ class TestPydantic:
 
     async def test_write_dict_to_Pydantic(self, session):
         p_model = PydanticModel(x=100)
-        s_model = SQLPydanticModel(data=p_model.dict())
+        s_model = SQLPydanticModel(data=p_model.model_dump())
         session.add(s_model)
         await session.flush()
 

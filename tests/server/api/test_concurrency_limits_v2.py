@@ -81,7 +81,7 @@ async def test_create_concurrency_limit(client: AsyncClient):
     data = ConcurrencyLimitV2Create(
         name="limiter",
         limit=42,
-    ).dict(json_compatible=True)
+    ).model_dump(mode="json")
 
     response = await client.post("/v2/concurrency_limits/", json=data)
     assert response.status_code == 201
@@ -142,8 +142,8 @@ async def test_update_concurrency_limit_by_id(
 ):
     response = await client.patch(
         f"/v2/concurrency_limits/{concurrency_limit.id}",
-        json=ConcurrencyLimitV2Update(name="new-name").dict(
-            json_compatible=True, exclude_unset=True
+        json=ConcurrencyLimitV2Update(name="new-name").model_dump(
+            mode="json", exclude_unset=True
         ),
     )
     assert response.status_code == 204
@@ -162,8 +162,8 @@ async def test_update_concurrency_limit_by_name(
 ):
     response = await client.patch(
         f"/v2/concurrency_limits/{concurrency_limit.name}",
-        json=ConcurrencyLimitV2Update(name="new-name").dict(
-            json_compatible=True, exclude_unset=True
+        json=ConcurrencyLimitV2Update(name="new-name").model_dump(
+            mode="json", exclude_unset=True
         ),
     )
     assert response.status_code == 204
@@ -180,8 +180,8 @@ async def test_update_concurrency_non_existent_limit(
 ):
     response = await client.patch(
         f"/v2/concurrency_limits/{uuid.uuid4()}",
-        json=ConcurrencyLimitV2Update(name="new-name").dict(
-            json_compatible=True, exclude_unset=True
+        json=ConcurrencyLimitV2Update(name="new-name").model_dump(
+            mode="json", exclude_unset=True
         ),
     )
     assert response.status_code == 404

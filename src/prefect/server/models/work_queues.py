@@ -60,7 +60,7 @@ async def create_work_queue(
         db.WorkQueue: the newly-created or updated WorkQueue
 
     """
-    data = work_queue.dict()
+    data = work_queue.model_dump()
 
     if data.get("work_pool_id") is None:
         # If no work pool is provided, get or create the default agent work pool

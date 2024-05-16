@@ -291,7 +291,7 @@ class TestAPILogHandler:
             name=logger.name,
             level=logging.INFO,
             message="test-task",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
@@ -307,7 +307,7 @@ class TestAPILogHandler:
             name=logger.name,
             level=logging.INFO,
             message="test-flow",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
@@ -332,7 +332,7 @@ class TestAPILogHandler:
             name=logger.name,
             level=logging.INFO,
             message="test-task",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
@@ -358,7 +358,7 @@ class TestAPILogHandler:
             name=logger.name,
             level=logging.WARNING,
             message="test-task",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
@@ -659,14 +659,14 @@ class TestAPILogWorker:
             level=10,
             timestamp=pendulum.now("utc"),
             message="hello",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
     async def test_send_logs_single_record(self, log_dict, prefect_client, worker):
         worker.send(log_dict)
         await worker.drain()
         logs = await prefect_client.read_logs()
         assert len(logs) == 1
-        assert logs[0].dict(include=log_dict.keys(), json_compatible=True) == log_dict
+        assert logs[0].model_dump(include=log_dict.keys(), mode="json") == log_dict
 
     async def test_send_logs_many_records(self, log_dict, prefect_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
@@ -683,8 +683,8 @@ class TestAPILogWorker:
         assert len(logs) == count
         for log in logs:
             assert (
-                log.dict(
-                    include=log_dict.keys(), exclude={"message"}, json_compatible=True
+                log.model_dump(
+                    include=log_dict.keys(), exclude={"message"}, mode="json"
                 )
                 == log_dict
             )

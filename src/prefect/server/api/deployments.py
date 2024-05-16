@@ -69,9 +69,9 @@ async def create_deployment(
     When upserting, any scheduled runs from the existing deployment will be deleted.
     """
 
-    data = deployment.dict(exclude_unset=True)
-    data["created_by"] = created_by.dict() if created_by else None
-    data["updated_by"] = updated_by.dict() if created_by else None
+    data = deployment.model_dump(exclude_unset=True)
+    data["created_by"] = created_by.model_dump() if created_by else None
+    data["updated_by"] = updated_by.model_dump() if created_by else None
 
     async with db.session_context(begin_transaction=True) as session:
         if (
@@ -95,7 +95,7 @@ async def create_deployment(
             )
 
         # hydrate the input model into a full model
-        deployment_dict = deployment.dict(exclude={"work_pool_name"})
+        deployment_dict = deployment.model_dump(exclude={"work_pool_name"})
         if deployment.work_pool_name and deployment.work_queue_name:
             # If a specific pool name/queue name combination was provided, get the
             # ID for that work pool queue.
@@ -199,7 +199,7 @@ async def update_deployment(
         # This is support for legacy clients that don't know about the
         # `schedules` field.
 
-        update_data = deployment.dict(exclude_unset=True)
+        update_data = deployment.model_dump(exclude_unset=True)
 
         if "schedule" in update_data or "is_schedule_active" in update_data:
             if len(existing_deployment.schedules) > 1:
@@ -669,7 +669,7 @@ async def create_flow_run_from_deployment(
 
         # hydrate the input model into a full flow run / state model
         flow_run = schemas.core.FlowRun(
-            **flow_run.dict(
+            **flow_run.model_dump(
                 exclude={
                     "parameters",
                     "tags",

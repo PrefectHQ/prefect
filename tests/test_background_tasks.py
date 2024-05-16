@@ -192,7 +192,7 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
 
     # The server-side task run through API-like serialization for comparison
-    enqueued = TaskRun.model_validate(enqueued.dict(json_compatible=True))
+    enqueued = TaskRun.model_validate(enqueued.model_dump(mode="json"))
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
@@ -211,7 +211,7 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     assert enqueued.estimated_start_time_delta is not None
     task_run.estimated_start_time_delta = enqueued.estimated_start_time_delta
 
-    assert enqueued.dict() == task_run.dict()
+    assert enqueued.model_dump() == task_run.model_dump()
 
 
 @pytest.fixture

@@ -254,7 +254,9 @@ class Process(Infrastructure):
         assert (
             base_job_template is not None
         ), "Failed to generate default base job template for Process worker."
-        for key, value in self.dict(exclude_unset=True, exclude_defaults=True).items():
+        for key, value in self.model_dump(
+            exclude_unset=True, exclude_defaults=True
+        ).items():
             if key == "command":
                 base_job_template["variables"]["properties"]["command"][
                     "default"

@@ -326,7 +326,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
         res = invoke_and_assert(["config", "view", "--hide-sources"])
 
         # Collect just settings that are set
-        expected = ctx.settings.dict(exclude_unset=True)
+        expected = ctx.settings.model_dump(exclude_unset=True)
 
     lines = res.stdout.splitlines()
     assert lines[0] == "PREFECT_PROFILE='foo'"
@@ -361,7 +361,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
 
 def test_view_includes_unset_settings_with_show_defaults():
     expected_settings = (
-        prefect.settings.get_current_settings().with_obfuscated_secrets().dict()
+        prefect.settings.get_current_settings().with_obfuscated_secrets().model_dump()
     )
 
     res = invoke_and_assert(["config", "view", "--show-defaults", "--hide-sources"])

@@ -36,7 +36,7 @@ async def create_agent(
 
     """
 
-    model = db.Agent(**agent.dict())
+    model = db.Agent(**agent.model_dump())
     session.add(model)
     await session.flush()
 
@@ -151,7 +151,7 @@ async def record_agent_poll(
     insert_stmt = (
         db.insert(db.Agent)
         .values(
-            **agent_data.dict(
+            **agent_data.model_dump(
                 include={"id", "name", "work_queue_id", "last_activity_time"}
             )
         )

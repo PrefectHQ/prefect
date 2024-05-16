@@ -76,7 +76,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
         # This is one of the Deployment*Trigger classes, so translate it over to a
         # plain Trigger
         if hasattr(self, "trigger_type"):
-            trigger = self.trigger_type(**self.dict())
+            trigger = self.trigger_type(**self.model_dump())
 
         return AutomationCore(
             name=(

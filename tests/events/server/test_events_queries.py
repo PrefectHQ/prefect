@@ -1391,7 +1391,7 @@ async def test_event_dates_always_have_timezones(
         assert event.occurred.tzinfo is not None
         assert event.received.tzinfo is not None
 
-        event_dict = event.dict(json_compatible=True)
+        event_dict = event.model_dump(mode="json")
 
         occurred = event_dict["occurred"]
         assert isinstance(occurred, str)

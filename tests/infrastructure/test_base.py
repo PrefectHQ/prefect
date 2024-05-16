@@ -64,7 +64,7 @@ class MockInfrastructure(Infrastructure):
     async def run(self, task_status=None):
         if task_status:
             task_status.started()
-        self._run(self.dict(exclude={"block_type_slug"}))
+        self._run(self.model_dump(exclude={"block_type_slug"}))
 
     def preview(self):
         return self.json()

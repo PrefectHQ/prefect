@@ -160,8 +160,10 @@ def _should_update_block_type(
     """
     fields = BlockTypeUpdate.updatable_fields()
 
-    local_block_fields = local_block_type.dict(include=fields, exclude_unset=True)
-    server_block_fields = server_block_type.dict(include=fields, exclude_unset=True)
+    local_block_fields = local_block_type.model_dump(include=fields, exclude_unset=True)
+    server_block_fields = server_block_type.model_dump(
+        include=fields, exclude_unset=True
+    )
 
     if local_block_fields.get("description") is not None:
         local_block_fields["description"] = html.unescape(
@@ -255,7 +257,7 @@ class Block(BaseModel, ABC):
 
     model_config = ConfigDict(
         extra="allow",
-        json_encoders={SecretDict: lambda v: v.dict()},
+        json_encoders={SecretDict: lambda v: v.model_dump()},
         json_schema_extra=schema_extra,
     )
 
@@ -443,7 +445,7 @@ class Block(BaseModel, ABC):
         data_keys = self.schema(by_alias=False)["properties"].keys()
 
         # `block_document_data`` must return the aliased version for it to show in the UI
-        block_document_data = self.dict(by_alias=True, include=data_keys)
+        block_document_data = self.model_dump(by_alias=True, include=data_keys)
 
         # Iterate through and find blocks that already have saved block documents to
         # create references to those saved block documents.

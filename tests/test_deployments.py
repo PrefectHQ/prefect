@@ -120,7 +120,7 @@ class TestDeploymentBasicInterface:
             def preview(self):
                 return "woof!"
 
-        d = Deployment(name="foo", infrastructure=CustomInfra().dict())
+        d = Deployment(name="foo", infrastructure=CustomInfra().model_dump())
         assert isinstance(d.infrastructure, CustomInfra)
 
     async def test_default_work_queue_name(self):
@@ -945,7 +945,7 @@ class TestDeploymentApply:
                 assert create_route.called
                 assert json.loads(
                     create_route.calls[0].request.content
-                ) == trigger.as_automation().dict(json_compatible=True)
+                ) == trigger.as_automation().model_dump(mode="json")
 
     async def test_deployment_apply_syncs_triggers_to_prefect_api(
         self,
@@ -992,7 +992,7 @@ class TestDeploymentApply:
                 assert create_route.called
                 assert json.loads(
                     create_route.calls[0].request.content
-                ) == trigger.as_automation().dict(json_compatible=True)
+                ) == trigger.as_automation().model_dump(mode="json")
 
     async def test_trigger_job_vars(
         self,

@@ -42,7 +42,7 @@ async def create_flow_run_notification_policy(
         db.FlowRunNotificationPolicy: the newly-created FlowRunNotificationPolicy
 
     """
-    model = db.FlowRunNotificationPolicy(**flow_run_notification_policy.dict())
+    model = db.FlowRunNotificationPolicy(**flow_run_notification_policy.model_dump())
     session.add(model)
     await session.flush()
 

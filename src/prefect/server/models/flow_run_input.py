@@ -15,7 +15,7 @@ async def create_flow_run_input(
     db: PrefectDBInterface,
     flow_run_input: schemas.core.FlowRunInput,
 ) -> schemas.core.FlowRunInput:
-    model = db.FlowRunInput(**flow_run_input.dict())
+    model = db.FlowRunInput(**flow_run_input.model_dump())
     session.add(model)
     await session.flush()
 

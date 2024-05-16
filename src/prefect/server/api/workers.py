@@ -268,7 +268,7 @@ async def update_work_pool(
     """
 
     # Reserved pools can only updated pause / concurrency
-    update_values = work_pool.dict(exclude_unset=True)
+    update_values = work_pool.model_dump(exclude_unset=True)
     if work_pool_name.lower().startswith("prefect") and (
         set(update_values).difference({"is_paused", "concurrency_limit"})
     ):

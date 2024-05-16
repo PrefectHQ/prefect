@@ -490,7 +490,7 @@ class PrefectClient:
         body = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                flow_run_filter.model_dump(mode="json", exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
@@ -596,7 +596,7 @@ class PrefectClient:
 
         response = await self._client.post(
             f"/deployments/{deployment_id}/create_flow_run",
-            json=flow_run_create.dict(json_compatible=True, exclude_unset=True),
+            json=flow_run_create.model_dump(mode="json", exclude_unset=True),
         )
         return FlowRun.model_validate(response.json())
 
@@ -714,7 +714,7 @@ class PrefectClient:
 
         return await self._client.patch(
             f"/flow_runs/{flow_run_id}",
-            json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
+            json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
     async def delete_flow_run(
@@ -1014,7 +1014,7 @@ class PrefectClient:
         if not kwargs:
             raise ValueError("No fields provided to update.")
 
-        data = WorkQueueUpdate(**kwargs).dict(json_compatible=True, exclude_unset=True)
+        data = WorkQueueUpdate(**kwargs).model_dump(mode="json", exclude_unset=True)
         try:
             await self._client.patch(f"/work_queues/{id}", json=data)
         except httpx.HTTPStatusError as e:
@@ -1656,7 +1656,7 @@ class PrefectClient:
         if deployment_create.enforce_parameter_schema is None:
             exclude.add("enforce_parameter_schema")
 
-        json = deployment_create.dict(json_compatible=True, exclude=exclude)
+        json = deployment_create.model_dump(mode="json", exclude=exclude)
         response = await self._client.post(
             "/deployments/",
             json=json,
@@ -1714,7 +1714,7 @@ class PrefectClient:
 
         await self._client.patch(
             f"/deployments/{deployment.id}",
-            json=deployment_update.dict(json_compatible=True, exclude=exclude),
+            json=deployment_update.model_dump(mode="json", exclude=exclude),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:
@@ -1815,7 +1815,7 @@ class PrefectClient:
         body = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                flow_run_filter.model_dump(mode="json", exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
@@ -1944,7 +1944,7 @@ class PrefectClient:
             kwargs["schedule"] = schedule
 
         deployment_schedule_update = DeploymentScheduleUpdate(**kwargs)
-        json = deployment_schedule_update.dict(json_compatible=True, exclude_unset=True)
+        json = deployment_schedule_update.model_dump(mode="json", exclude_unset=True)
 
         try:
             await self._client.patch(
@@ -2057,7 +2057,7 @@ class PrefectClient:
         body = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                flow_run_filter.model_dump(mode="json", exclude_unset=True)
                 if flow_run_filter
                 else None
             ),
@@ -2139,7 +2139,7 @@ class PrefectClient:
         task_run_data = TaskRunUpdate(name=name)
         return await self._client.patch(
             f"/task_runs/{task_run_id}",
-            json=task_run_data.dict(json_compatible=True, exclude_unset=True),
+            json=task_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
     async def create_task_run(
@@ -2448,7 +2448,7 @@ class PrefectClient:
         try:
             await self._client.patch(
                 f"/flow_run_notification_policies/{id}",
-                json=policy.dict(json_compatible=True, exclude_unset=True),
+                json=policy.model_dump(mode="json", exclude_unset=True),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -2553,7 +2553,7 @@ class PrefectClient:
             f"/work_pools/{work_pool_name}/workers/filter",
             json={
                 "worker_filter": (
-                    worker_filter.dict(json_compatible=True, exclude_unset=True)
+                    worker_filter.model_dump(mode="json", exclude_unset=True)
                     if worker_filter
                     else None
                 ),
@@ -2628,7 +2628,7 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 "/work_pools/",
-                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+                json=work_pool.model_dump(mode="json", exclude_unset=True),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
@@ -2653,7 +2653,7 @@ class PrefectClient:
         try:
             await self._client.patch(
                 f"/work_pools/{work_pool_name}",
-                json=work_pool.dict(json_compatible=True, exclude_unset=True),
+                json=work_pool.model_dump(mode="json", exclude_unset=True),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -2700,7 +2700,7 @@ class PrefectClient:
         """
         json = {
             "work_queues": (
-                work_queue_filter.dict(json_compatible=True, exclude_unset=True)
+                work_queue_filter.model_dump(mode="json", exclude_unset=True)
                 if work_queue_filter
                 else None
             ),
@@ -2795,7 +2795,7 @@ class PrefectClient:
 
         response = await self._client.post(
             "/artifacts/",
-            json=artifact.dict(json_compatible=True, exclude_unset=True),
+            json=artifact.model_dump(mode="json", exclude_unset=True),
         )
 
         return Artifact.model_validate(response.json())
@@ -2908,7 +2908,7 @@ class PrefectClient:
         """
         response = await self._client.post(
             "/variables/",
-            json=variable.dict(json_compatible=True, exclude_unset=True),
+            json=variable.model_dump(mode="json", exclude_unset=True),
         )
         return Variable(**response.json())
 
@@ -2923,7 +2923,7 @@ class PrefectClient:
         """
         await self._client.patch(
             f"/variables/name/{variable.name}",
-            json=variable.dict(json_compatible=True, exclude_unset=True),
+            json=variable.model_dump(mode="json", exclude_unset=True),
         )
 
     async def read_variable_by_name(self, name: str) -> Optional[Variable]:
@@ -2983,7 +2983,7 @@ class PrefectClient:
     ) -> UUID:
         response = await self._client.post(
             "/v2/concurrency_limits/",
-            json=concurrency_limit.dict(json_compatible=True, exclude_unset=True),
+            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
         )
         return UUID(response.json()["id"])
 
@@ -2993,7 +2993,7 @@ class PrefectClient:
         try:
             response = await self._client.patch(
                 f"/v2/concurrency_limits/{name}",
-                json=concurrency_limit.dict(json_compatible=True, exclude_unset=True),
+                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
             )
             return response
         except httpx.HTTPStatusError as e:
@@ -3112,7 +3112,7 @@ class PrefectClient:
         """Updates an automation in Prefect Cloud."""
         response = await self._client.put(
             f"/automations/{automation_id}",
-            json=automation.dict(json_compatible=True, exclude_unset=True),
+            json=automation.model_dump(mode="json", exclude_unset=True),
         )
         response.raise_for_status
 
@@ -3653,7 +3653,7 @@ class SyncPrefectClient:
         body = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
-                flow_run_filter.dict(json_compatible=True, exclude_unset=True)
+                flow_run_filter.model_dump(mode="json", exclude_unset=True)
                 if flow_run_filter
                 else None
             ),

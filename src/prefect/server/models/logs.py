@@ -42,7 +42,7 @@ async def create_logs(
     Returns:
         None
     """
-    await session.execute(db.insert(db.Log).values([log.dict() for log in logs]))
+    await session.execute(db.insert(db.Log).values([log.model_dump() for log in logs]))
 
 
 @inject_db

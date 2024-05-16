@@ -17,7 +17,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "properties": {},
             "title": "Parameters",
             "type": "object",
@@ -40,7 +40,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -76,7 +76,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
@@ -88,7 +88,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "position": 0}},
@@ -99,7 +99,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -112,7 +112,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -158,7 +158,7 @@ class TestFunctionToSchema:
             },
             "required": ["x"],
         }
-        assert schema.dict() == expected_schema
+        assert schema.model_dump() == expected_schema
 
     def test_function_with_enum_argument(self):
         class Color(Enum):
@@ -191,7 +191,7 @@ class TestFunctionToSchema:
             },
         }
 
-        assert schema.dict() == expected_schema
+        assert schema.model_dump() == expected_schema
 
     def test_function_with_generic_arguments(self):
         def f(
@@ -238,7 +238,7 @@ class TestFunctionToSchema:
             "required": ["a", "b", "c", "d", "e"],
         }
 
-        assert schema.dict() == expected_schema
+        assert schema.model_dump() == expected_schema
 
     def test_function_with_user_defined_type(self):
         class Foo:
@@ -248,7 +248,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
@@ -264,7 +264,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "definitions": {
                 "Foo": {
                     "properties": {
@@ -301,7 +301,7 @@ class TestFunctionToSchema:
             ...
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -379,7 +379,7 @@ class TestFunctionToSchema:
         enum_schema.pop("description")
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -436,7 +436,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -458,7 +458,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -490,7 +490,7 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
-            assert schema.dict() == {
+            assert schema.model_dump() == {
                 "properties": {},
                 "title": "Parameters",
                 "type": "object",
@@ -537,7 +537,7 @@ class TestMethodToSchema:
                 },
             }
 
-            assert schema.dict() == expected_schema
+            assert schema.model_dump() == expected_schema
 
     def test_methods_with_complex_arguments(self):
         class Foo:
@@ -579,7 +579,7 @@ class TestMethodToSchema:
                 },
                 "required": ["x"],
             }
-            assert schema.dict() == expected_schema
+            assert schema.model_dump() == expected_schema
 
 
 class TestParseFlowDescriptionToSchema:
@@ -592,7 +592,7 @@ class TestParseFlowDescriptionToSchema:
             """
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -606,7 +606,7 @@ class TestParseFlowDescriptionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
@@ -618,7 +618,7 @@ class TestParseFlowDescriptionToSchema:
             """Function f."""
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
@@ -641,7 +641,7 @@ class TestParseFlowDescriptionToSchema:
             """
 
         schema = callables.parameter_schema(f)
-        assert schema.dict() == {
+        assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
             "properties": {

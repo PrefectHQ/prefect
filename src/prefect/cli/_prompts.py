@@ -419,7 +419,7 @@ async def prompt_select_work_pool(
 ) -> str:
     work_pools = await client.read_work_pools()
     work_pool_options = [
-        work_pool.dict()
+        work_pool.model_dump()
         for work_pool in work_pools
         if work_pool.type != "prefect-agent"
     ]

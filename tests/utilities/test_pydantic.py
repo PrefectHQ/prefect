@@ -191,7 +191,7 @@ class TestTypeDispatchField:
         class Foo(Base):
             __dispatch_key__ = "foo"
 
-        assert Foo().dict().get("type") == "foo"
+        assert Foo().model_dump().get("type") == "foo"
 
     def test_subtype_json_contains_dispatch_key(self):
         @add_type_dispatch

@@ -117,7 +117,7 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = BlockDocument.model_validate(response.json())
@@ -146,7 +146,7 @@ class TestCreateBlockDocument:
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
                 is_anonymous=True,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = BlockDocument.model_validate(response.json())
@@ -175,7 +175,7 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -186,7 +186,7 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_409_CONFLICT
 
@@ -200,7 +200,7 @@ class TestCreateBlockDocument:
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
                 is_anonymous=True,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -211,7 +211,7 @@ class TestCreateBlockDocument:
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
                 is_anonymous=True,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response2.status_code == status.HTTP_201_CREATED
         assert response2.json()["name"] != response.json()["name"]
@@ -226,7 +226,7 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -237,7 +237,7 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -251,7 +251,7 @@ class TestCreateBlockDocument:
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
                 is_anonymous=True,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -262,7 +262,7 @@ class TestCreateBlockDocument:
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
                 is_anonymous=True,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -756,7 +756,7 @@ class TestDeleteBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         result = BlockDocument.model_validate(response.json())
 
@@ -798,7 +798,7 @@ class TestUpdateBlockDocument:
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=2),
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -829,7 +829,7 @@ class TestUpdateBlockDocument:
             json=BlockDocumentUpdate(
                 data=new_data,
                 merge_existing_data=False,
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -858,7 +858,7 @@ class TestUpdateBlockDocument:
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(y=99),
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -887,7 +887,7 @@ class TestUpdateBlockDocument:
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=2),
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -950,7 +950,7 @@ class TestUpdateBlockDocument:
             f"/block_documents/{inner_block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=4),
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -1044,7 +1044,7 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {"block_document_id": new_inner_block_document.id}},
                     "z": "zzzzz",
                 },
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -1107,7 +1107,7 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {"block_document_id": uuid4()}},
                     "z": "zzzzz",
                 },
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_409_CONFLICT
@@ -1147,7 +1147,7 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {}},
                     "z": "zzzzz",
                 },
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -1162,7 +1162,7 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {}},
                     "z": "zzzzz",
                 },
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -1223,7 +1223,7 @@ class TestUpdateBlockDocument:
                     "z": "zzzzz",
                 },
                 merge_existing_data=False,
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -1288,7 +1288,7 @@ class TestSecretBlockDocuments:
                 data=dict(w={"secret": W}, x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         block = schemas.core.BlockDocument.model_validate(response.json())
 

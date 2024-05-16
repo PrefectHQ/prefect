@@ -289,12 +289,12 @@ async def inspect(name: str):
         if deployment.infrastructure_document_id:
             deployment_json["infrastructure"] = Block._from_block_document(
                 await client.read_block_document(deployment.infrastructure_document_id)
-            ).dict(
+            ).model_dump(
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
         deployment_json["automations"] = [
-            a.dict()
+            a.model_dump()
             for a in await client.read_resource_related_automations(
                 f"prefect.deployment.{deployment.id}"
             )

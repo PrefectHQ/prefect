@@ -50,7 +50,7 @@ class TestCreateBlockType:
                 documentation_url="http://example.com/docs.html",
                 description="A block, verily",
                 code_example=CODE_EXAMPLE,
-            ).dict(),
+            ).model_dump(),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = BlockType.model_validate(response.json())
@@ -79,7 +79,7 @@ class TestCreateBlockType:
                 slug="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/docs.html",
-            ).dict(),
+            ).model_dump(),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -90,7 +90,7 @@ class TestCreateBlockType:
                 slug="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/docs.html",
-            ).dict(),
+            ).model_dump(),
         )
         assert response.status_code == status.HTTP_409_CONFLICT
 
@@ -330,7 +330,7 @@ class TestUpdateBlockType:
                 documentation_url="http://foo.com/bar.html",
                 description="A block, verily",
                 code_example=CODE_EXAMPLE,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -350,7 +350,7 @@ class TestUpdateBlockType:
             json=BlockTypeUpdate(
                 logo_url="http://foo.com/bar.png",
                 documentation_url="http://foo.com/bar.html",
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -359,7 +359,7 @@ class TestUpdateBlockType:
             f"/block_types/{system_block_type.id}",
             json=BlockTypeUpdate(
                 description="Hi there!",
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -380,7 +380,7 @@ class TestUpdateBlockType:
 
         response = await client.patch(
             f"/block_types/{block_type_x.id}",
-            json=update.dict(json_compatible=True),
+            json=update.model_dump(mode="json"),
         )
 
         # doesn't update with same parameters
@@ -394,7 +394,7 @@ class TestUpdateBlockType:
                 documentation_url="http://foo2.com/bar.html",
                 description="A block2, verily",
                 code_example=CODE_EXAMPLE.replace("python", "bison"),
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
 
         # does update with same parameters
@@ -513,8 +513,8 @@ class TestSystemBlockTypes:
                 name="my-test-date-time",
                 block_type_id=datetime_block_type.json()["id"],
                 block_schema_id=datetime_block_schema.json()[0]["id"],
-            ).dict(
-                json_compatible=True,
+            ).model_dump(
+                mode="json",
                 exclude_unset=True,
                 exclude={"id", "block_schema", "block_type"},
             ),

@@ -344,7 +344,7 @@ class TestVisitCollection:
             input_model, visit_fn=visit_even_numbers, return_data=True
         )
         assert (
-            output_model.dict(exclude_unset=True) == input
+            output_model.model_dump(exclude_unset=True) == input
         ), "Unset fields values should be remembered and preserved"
 
     @pytest.mark.parametrize("immutable", [True, False])

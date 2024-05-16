@@ -443,7 +443,7 @@ class PrefectAgent:
         # this piece of logic applies any overrides that may have been set on the
         # deployment; overrides are defined as dot.delimited paths on possibly nested
         # attributes of the infrastructure block
-        doc_dict = infra_document.dict()
+        doc_dict = infra_document.model_dump()
         infra_dict = doc_dict.get("data", {})
         for override, value in (deployment.job_variables or {}).items():
             nested_fields = override.split(".")

@@ -1054,7 +1054,9 @@ async def test_update_flow_run(prefect_client):
     # No mutation for unset fields
     await prefect_client.update_flow_run(flow_run.id)
     unchanged_flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert unchanged_flow_run.dict(exclude=exclude) == flow_run.dict(exclude=exclude)
+    assert unchanged_flow_run.model_dump(exclude=exclude) == flow_run.model_dump(
+        exclude=exclude
+    )
 
     # Fields updated when set
     await prefect_client.update_flow_run(
@@ -1970,7 +1972,7 @@ class TestVariables:
             "/variables/",
             json=VariableCreate(
                 name="my_variable", value="my-value", tags=["123", "456"]
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert res.status_code == 201
         return parse_obj_as(Variable, res.json())
@@ -1988,7 +1990,7 @@ class TestVariables:
         results = []
         for variable in variables:
             res = await client.post(
-                "/variables/", json=variable.dict(json_compatible=True)
+                "/variables/", json=variable.model_dump(mode="json")
             )
             assert res.status_code == 201
             results.append(res.json())
@@ -2040,7 +2042,7 @@ class TestAutomations:
 
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             create_route = router.post("/automations/").mock(
                 return_value=httpx.Response(200, json=created_automation)
@@ -2049,14 +2051,14 @@ class TestAutomations:
             automation_id = await cloud_client.create_automation(automation)
 
             assert create_route.called
-            assert json.loads(create_route.calls[0].request.content) == automation.dict(
-                json_compatible=True
-            )
+            assert json.loads(
+                create_route.calls[0].request.content
+            ) == automation.model_dump(mode="json")
             assert automation_id == UUID(created_automation["id"])
 
     async def test_read_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
@@ -2074,7 +2076,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
@@ -2092,7 +2094,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             read_route = router.post("/automations/filter").mock(
                 return_value=httpx.Response(200, json=[created_automation])
@@ -2125,10 +2127,10 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore, automation2: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
-            created_automation2 = automation2.dict(json_compatible=True)
+            created_automation2 = automation2.model_dump(mode="json")
             created_automation2["id"] = str(uuid4())
 
             read_route = router.post("/automations/filter").mock(
@@ -2155,7 +2157,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             created_automation["name"] = "nonexistent"
             read_route = router.post("/automations/filter").mock(

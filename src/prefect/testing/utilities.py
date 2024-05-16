@@ -157,7 +157,7 @@ def assert_blocks_equal(
             if attr.startswith("_"):
                 exclude.add(attr)
 
-    assert found.dict(exclude=exclude, **kwargs) == expected.dict(
+    assert found.model_dump(exclude=exclude, **kwargs) == expected.model_dump(
         exclude=exclude, **kwargs
     )
 

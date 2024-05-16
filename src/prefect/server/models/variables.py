@@ -29,7 +29,7 @@ async def create_variable(
     Returns:
         db.Variable
     """
-    model = db.Variable(**variable.dict())
+    model = db.Variable(**variable.model_dump())
     session.add(model)
     await session.flush()
 

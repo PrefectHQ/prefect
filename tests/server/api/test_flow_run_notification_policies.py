@@ -49,7 +49,7 @@ class TestCreateFlowRunNotificationPolicy:
                     state_names=["Completed"],
                     tags=[],
                     block_document_id=notifier_block._block_document_id,
-                ).dict(json_compatible=True),
+                ).model_dump(mode="json"),
             ),
         )
         assert response.status_code == 201
@@ -65,7 +65,7 @@ class TestCreateFlowRunNotificationPolicy:
                     tags=[],
                     block_document_id=notifier_block._block_document_id,
                     message_template="Hello there {flow_run_name}",
-                ).dict(json_compatible=True),
+                ).model_dump(mode="json"),
             ),
         )
         policy = FlowRunNotificationPolicy.model_validate(response.json())
@@ -142,7 +142,7 @@ class TestUpdateFlowRunNotificationPolicy:
             f"/flow_run_notification_policies/{completed_policy.id}",
             json=schemas.actions.FlowRunNotificationPolicyUpdate(
                 state_names=["My State"]
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
         assert response.status_code == 204
 
@@ -157,9 +157,9 @@ class TestUpdateFlowRunNotificationPolicy:
     async def test_update_policy_active(self, session, client, completed_policy):
         response = await client.patch(
             f"/flow_run_notification_policies/{completed_policy.id}",
-            json=schemas.actions.FlowRunNotificationPolicyUpdate(is_active=False).dict(
-                json_compatible=True, exclude_unset=True
-            ),
+            json=schemas.actions.FlowRunNotificationPolicyUpdate(
+                is_active=False
+            ).model_dump(mode="json", exclude_unset=True),
         )
         assert response.status_code == 204
 
@@ -178,7 +178,7 @@ class TestUpdateFlowRunNotificationPolicy:
             f"/flow_run_notification_policies/{completed_policy.id}",
             json=schemas.actions.FlowRunNotificationPolicyUpdate(
                 message_template="Hi there {flow_run_name}"
-            ).dict(json_compatible=True, exclude_unset=True),
+            ).model_dump(mode="json", exclude_unset=True),
         )
         assert response.status_code == 204
 
@@ -192,9 +192,9 @@ class TestUpdateFlowRunNotificationPolicy:
     async def test_update_missing_policy(self, client, completed_policy):
         response = await client.patch(
             f"/flow_run_notification_policies/{uuid4()}",
-            json=schemas.actions.FlowRunNotificationPolicyUpdate(is_active=False).dict(
-                json_compatible=True, exclude_unset=True
-            ),
+            json=schemas.actions.FlowRunNotificationPolicyUpdate(
+                is_active=False
+            ).model_dump(mode="json", exclude_unset=True),
         )
         assert response.status_code == 404
 

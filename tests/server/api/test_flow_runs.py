@@ -27,7 +27,7 @@ class TestCreateFlowRun:
                 flow_id=flow.id,
                 name="orange you glad i didn't say yellow salamander",
                 state=states.Pending(),
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["flow_id"] == str(flow.id)
@@ -50,7 +50,7 @@ class TestCreateFlowRun:
             json=actions.FlowRunCreate(
                 flow_id=flow.id,
                 name="",
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["job_variables"] == {}
@@ -68,7 +68,7 @@ class TestCreateFlowRun:
             json=actions.FlowRunCreate(
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.json()["infrastructure_document_id"] == str(
             infrastructure_document_id
@@ -82,7 +82,7 @@ class TestCreateFlowRun:
             json=actions.FlowRunCreate(
                 flow_id=flow.id,
                 state=states.Completed(timestamp=pendulum.now("UTC").add(months=1)),
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -101,15 +101,15 @@ class TestCreateFlowRun:
     async def test_create_multiple_flow_runs(self, flow, client, session, db):
         response1 = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(flow_id=flow.id, state=states.Pending()).dict(
-                json_compatible=True
-            ),
+            json=actions.FlowRunCreate(
+                flow_id=flow.id, state=states.Pending()
+            ).model_dump(mode="json"),
         )
         response2 = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(flow_id=flow.id, state=states.Pending()).dict(
-                json_compatible=True
-            ),
+            json=actions.FlowRunCreate(
+                flow_id=flow.id, state=states.Pending()
+            ).model_dump(mode="json"),
         )
         assert response1.status_code == status.HTTP_201_CREATED
         assert response2.status_code == status.HTTP_201_CREATED
@@ -128,7 +128,7 @@ class TestCreateFlowRun:
     ):
         data = actions.FlowRunCreate(
             flow_id=flow.id, state=states.Pending(), idempotency_key="test-key"
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         response1 = await client.post("/flow_runs/", json=data)
         assert response1.status_code == 201
 
@@ -153,14 +153,12 @@ class TestCreateFlowRun:
         data2 = actions.FlowRunCreate(
             flow_id=flow2.id, state=states.Pending(), idempotency_key="test-key"
         )
-        response1 = await client.post(
-            "/flow_runs/", json=data.dict(json_compatible=True)
-        )
+        response1 = await client.post("/flow_runs/", json=data.model_dump(mode="json"))
         assert response1.status_code == status.HTTP_201_CREATED
 
         response2 = await client.post(
             "/flow_runs/",
-            json=data2.dict(json_compatible=True),
+            json=data2.model_dump(mode="json"),
         )
         assert response2.status_code == status.HTTP_201_CREATED
         assert response1.json()["id"] != response2.json()["id"]
@@ -172,7 +170,7 @@ class TestCreateFlowRun:
             flow_id=flow.id, parent_task_run_id=task_run.id, state=states.Pending()
         )
         response = await client.post(
-            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+            "/flow_runs/", json=flow_run_data.model_dump(mode="json")
         )
 
         flow_run = await models.flow_runs.read_flow_run(
@@ -186,7 +184,7 @@ class TestCreateFlowRun:
             state=states.Running(),
         )
         response = await client.post(
-            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+            "/flow_runs/", json=flow_run_data.model_dump(mode="json")
         )
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]
@@ -214,7 +212,7 @@ class TestCreateFlowRun:
             "/flow_runs/",
             json=actions.FlowRunCreate(
                 flow_id=flow.id, deployment_id=deployment.id
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
 
         assert response.json()["deployment_id"] == str(deployment.id)
@@ -234,7 +232,7 @@ class TestUpdateFlowRun:
             json=actions.FlowRunUpdate(
                 flow_version="The next one",
                 name="not yellow salamander",
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -258,8 +256,8 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
-                json_compatible=True
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
+                mode="json"
             ),
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -293,8 +291,8 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
-                json_compatible=True
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
+                mode="json"
             ),
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -321,8 +319,8 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
-                json_compatible=True
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
+                mode="json"
             ),
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -360,8 +358,8 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).dict(
-                json_compatible=True
+            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
+                mode="json"
             ),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -569,7 +567,7 @@ class TestReadFlowRuns:
         flow_run_filter = dict(
             flows=schemas.filters.FlowFilter(
                 id=schemas.filters.FlowFilterId(any_=[flow.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flow_runs/filter", json=flow_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -581,7 +579,7 @@ class TestReadFlowRuns:
         flow_run_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
                 id=schemas.filters.FlowRunFilterId(any_=[flow_runs[0].id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flow_runs/filter", json=flow_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -603,7 +601,7 @@ class TestReadFlowRuns:
                 idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
                     any_=[idempotency_key_of_flow_run_we_want_to_retrieve]
                 )
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post(
             "/flow_runs/filter", json=flow_run_idempotency_key_filter
@@ -636,7 +634,7 @@ class TestReadFlowRuns:
                 idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
                     not_any_=[idempotency_key_of_flow_run_to_exclude]
                 )
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post(
             "/flow_runs/filter", json=flow_run_idempotency_key_exclude_filter
@@ -673,7 +671,7 @@ class TestReadFlowRuns:
         flow_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
                 id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flow_runs/filter", json=flow_run_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -686,7 +684,7 @@ class TestReadFlowRuns:
         work_pool_filter = dict(
             work_pools=schemas.filters.WorkPoolFilter(
                 name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flow_runs/filter", json=work_pool_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -702,7 +700,7 @@ class TestReadFlowRuns:
         work_pool_filter = dict(
             work_pool_queues=schemas.filters.WorkQueueFilter(
                 id=schemas.filters.WorkQueueFilterId(any_=[work_queue_1.id])
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         )
         response = await client.post("/flow_runs/filter", json=work_pool_filter)
         assert response.status_code == status.HTTP_200_OK
@@ -930,7 +928,7 @@ class TestReadFlowRuns:
                 parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
                     any_=[parent_flow_run.id]
                 )
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         }
 
         response = await client.post(
@@ -958,7 +956,7 @@ class TestReadFlowRuns:
                 parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
                     any_=[uuid4()]
                 )
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         }
 
         response = await client.post(
@@ -1506,7 +1504,7 @@ class TestSetFlowRunState:
             json=dict(
                 state=schemas.states.Scheduled(
                     scheduled_time=pendulum.now("UTC").add(days=1)
-                ).dict(json_compatible=True)
+                ).model_dump(mode="json")
             ),
         )
         assert response.status_code == 201
@@ -1515,7 +1513,7 @@ class TestSetFlowRunState:
 
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(state=schemas.states.Pending().dict(json_compatible=True)),
+            json=dict(state=schemas.states.Pending().model_dump(mode="json")),
         )
         assert response.status_code == 201
         api_response = OrchestrationResult.model_validate(response.json())
@@ -1523,7 +1521,7 @@ class TestSetFlowRunState:
 
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(state=schemas.states.Running().dict(json_compatible=True)),
+            json=dict(state=schemas.states.Running().model_dump(mode="json")),
         )
         assert response.status_code == 200
         api_response = OrchestrationResult.model_validate(response.json())
@@ -1766,7 +1764,7 @@ class TestFlowRunLateness:
             id=schemas.filters.FlowRunFilterId(any_=flow_run_ids)
         )
         response = await client.post(
-            url, json={"flow_runs": flow_run_filter.dict(json_compatible=True)}
+            url, json={"flow_runs": flow_run_filter.model_dump(mode="json")}
         )
         assert response.status_code == 200
 

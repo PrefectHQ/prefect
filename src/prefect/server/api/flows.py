@@ -29,7 +29,7 @@ async def create_flow(
     same name already exists, the existing flow is returned.
     """
     # hydrate the input model into a full flow model
-    flow = schemas.core.Flow(**flow.dict())
+    flow = schemas.core.Flow(**flow.model_dump())
 
     now = pendulum.now("UTC")
 

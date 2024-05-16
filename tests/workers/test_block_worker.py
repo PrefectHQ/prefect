@@ -31,7 +31,7 @@ class MockInfrastructure(Infrastructure):
     async def run(self, task_status=None):
         if task_status:
             task_status.started()
-        self._run(**self.dict(exclude={"block_type_slug"}))
+        self._run(**self.model_dump(exclude={"block_type_slug"}))
 
     async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
         self._kill(infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds)
@@ -171,7 +171,7 @@ async def test_base_job_configuration_from_template_and_overrides():
         },
         values={},
     )
-    assert config.dict() == {"block": block.dict()}
+    assert config.model_dump() == {"block": block.model_dump()}
 
 
 async def test_block_worker_run(

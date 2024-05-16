@@ -647,7 +647,7 @@ async def _generate_scheduled_flow_runs(
                     "state": schemas.states.Scheduled(
                         scheduled_time=date,
                         message="Flow run scheduled",
-                    ).dict(),
+                    ).model_dump(),
                     "state_type": schemas.states.StateType.SCHEDULED,
                     "state_name": "Scheduled",
                     "next_scheduled_start_time": date,
@@ -803,7 +803,7 @@ async def create_deployment_schedules(
 
     schedules_with_deployment_id = []
     for schedule in schedules:
-        data = schedule.dict()
+        data = schedule.model_dump()
         data["deployment_id"] = deployment_id
         schedules_with_deployment_id.append(data)
 
@@ -875,7 +875,7 @@ async def update_deployment_schedule(
                 db.DeploymentSchedule.deployment_id == deployment_id,
             )
         )
-        .values(**schedule.dict(exclude_none=True))
+        .values(**schedule.model_dump(exclude_none=True))
     )
 
     return result.rowcount > 0

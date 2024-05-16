@@ -54,7 +54,7 @@ async def _create_test_deployment_from_orm(
     updated_deployment = api_deployment.copy(update=kwargs)
 
     deployment_id = await prefect_client.create_deployment(
-        **updated_deployment.dict(
+        **updated_deployment.model_dump(
             exclude=api_deployment._reset_fields().union(
                 {
                     "schedules",
@@ -378,9 +378,9 @@ async def test_agent_cancel_run_preserves_other_state_properties(
         await agent.check_for_cancelled_flow_runs()
 
     post_flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert post_flow_run.state.dict(
+    assert post_flow_run.state.model_dump(
         exclude=expected_changed_fields
-    ) == flow_run.state.dict(exclude=expected_changed_fields)
+    ) == flow_run.state.model_dump(exclude=expected_changed_fields)
 
 
 @pytest.mark.parametrize(

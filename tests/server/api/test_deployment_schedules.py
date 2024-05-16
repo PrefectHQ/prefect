@@ -110,12 +110,12 @@ class TestCreateDeploymentSchedules:
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=timedelta(days=1)
                     ),
-                ).dict(json_compatible=True),
+                ).model_dump(mode="json"),
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=timedelta(days=2)
                     ),
-                ).dict(json_compatible=True),
+                ).model_dump(mode="json"),
             ],
         )
 
@@ -143,12 +143,12 @@ class TestCreateDeploymentSchedules:
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=timedelta(days=1)
                     ),
-                ).dict(json_compatible=True),
+                ).model_dump(mode="json"),
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=timedelta(days=2)
                     ),
-                ).dict(json_compatible=True),
+                ).model_dump(mode="json"),
             ],
         )
 
@@ -218,7 +218,7 @@ class TestUpdateDeploymentSchedule:
         )
         response = await client.patch(
             url,
-            json=schemas.actions.DeploymentScheduleUpdate(active=False).dict(
+            json=schemas.actions.DeploymentScheduleUpdate(active=False).model_dump(
                 exclude_unset=True
             ),
         )
@@ -248,7 +248,7 @@ class TestUpdateDeploymentSchedule:
         url = schedules_url(uuid4(), schedule_id=schedule_to_update.id)
         response = await client.patch(
             url,
-            json=schemas.actions.DeploymentScheduleUpdate(active=False).dict(
+            json=schemas.actions.DeploymentScheduleUpdate(active=False).model_dump(
                 exclude_unset=True
             ),
         )
@@ -265,7 +265,7 @@ class TestUpdateDeploymentSchedule:
         url = schedules_url(deployment.id, schedule_id=uuid4())
         response = await client.patch(
             url,
-            json=schemas.actions.DeploymentScheduleUpdate(active=False).dict(
+            json=schemas.actions.DeploymentScheduleUpdate(active=False).model_dump(
                 exclude_unset=True
             ),
         )
@@ -290,7 +290,7 @@ class TestUpdateDeploymentSchedule:
         )
         response = await client.patch(
             url,
-            json=schemas.actions.DeploymentScheduleUpdate(active=False).dict(
+            json=schemas.actions.DeploymentScheduleUpdate(active=False).model_dump(
                 exclude_unset=True
             ),
         )

@@ -224,7 +224,7 @@ class ParameterSchema(pydantic.BaseModel):
         the OpenAPI spec.
         """
         kwargs.setdefault("exclude_none", True)
-        return super().dict(*args, **kwargs)
+        return super().model_dump(*args, **kwargs)
 
 
 def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:

@@ -1847,7 +1847,7 @@ class Settings(SettingsFieldsMixin):
         return self.__class__(
             **{
                 **{setting.name: value for setting, value in set_defaults.items()},
-                **self.dict(exclude_unset=True, exclude=restore_defaults_names),
+                **self.model_dump(exclude_unset=True, exclude=restore_defaults_names),
                 **{setting.name: value for setting, value in updates.items()},
             }
         )
@@ -1903,7 +1903,7 @@ class Settings(SettingsFieldsMixin):
             set_keys = {
                 # Collect all of the "set" keys and cast to `Setting` objects
                 SETTING_VARIABLES[key]
-                for key in self.dict(exclude_unset=True)
+                for key in self.model_dump(exclude_unset=True)
             }
             include.intersection_update(set_keys)
 

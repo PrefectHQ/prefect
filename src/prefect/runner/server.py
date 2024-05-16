@@ -157,7 +157,7 @@ async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
             script = deployment.entrypoint.split(":")[0]
             subflows = load_flows_from_script(script)
             for flow in subflows:
-                schemas[flow.name] = flow.parameters.dict()
+                schemas[flow.name] = flow.parameters.model_dump()
 
     return schemas
 
@@ -179,7 +179,7 @@ def _flow_schema_changed(flow: Flow, schemas: Dict[str, Dict]) -> bool:
     flow_name_with_dashes = flow.name.replace("_", "-")
 
     schema = schemas.get(flow.name, None) or schemas.get(flow_name_with_dashes, None)
-    if schema is not None and flow.parameters.dict() != schema:
+    if schema is not None and flow.parameters.model_dump() != schema:
         return True
     return False
 

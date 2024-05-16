@@ -196,10 +196,10 @@ def view(
     settings_output = []
 
     # The combination of environment variables and profile settings that are in use
-    profile_overrides = current_profile_settings.dict(exclude_unset=True)
+    profile_overrides = current_profile_settings.model_dump(exclude_unset=True)
 
     # Used to see which settings in current_profile_settings came from env vars
-    env_overrides = env_settings.dict(exclude_unset=True)
+    env_overrides = env_settings.model_dump(exclude_unset=True)
 
     for key, value in profile_overrides.items():
         source = "env" if env_overrides.get(key) is not None else "profile"
@@ -207,7 +207,7 @@ def view(
         settings_output.append(f"{key}='{value}'{source_blurb}")
 
     if show_defaults:
-        for key, value in default_settings.dict().items():
+        for key, value in default_settings.model_dump().items():
             if key not in profile_overrides:
                 source_blurb = " (from defaults)" if show_sources else ""
                 settings_output.append(f"{key}='{value}'{source_blurb}")

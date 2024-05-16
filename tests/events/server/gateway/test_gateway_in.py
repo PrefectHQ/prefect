@@ -73,8 +73,8 @@ def test_post_events(
     response = test_client.post(
         "/api/events",
         json=[
-            event1.dict(json_compatible=True),
-            event2.dict(json_compatible=True),
+            event1.model_dump(mode="json"),
+            event2.model_dump(mode="json"),
         ],
     )
     assert response.status_code == 204
@@ -96,8 +96,8 @@ async def test_post_events_ephemeral(
         # need to use the same base_url as the events client
         "http://ephemeral-prefect/api/events",
         json=[
-            event1.dict(json_compatible=True),
-            event2.dict(json_compatible=True),
+            event1.model_dump(mode="json"),
+            event2.model_dump(mode="json"),
         ],
     )
     assert response.status_code == 204

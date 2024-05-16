@@ -34,7 +34,7 @@ def parse_response(response: Response, include=None):
         p.states = sorted(p.states, key=lambda s: s.state_name)
         # grab only requested fields in the states aggregation, to make comparison simple
         if include:
-            p.states = [dict(**s.dict(include=set(include))) for s in p.states]
+            p.states = [dict(**s.model_dump(include=set(include))) for s in p.states]
 
     return parsed
 
@@ -286,7 +286,7 @@ async def test_daily_bins_flow_runs(client):
     )
 
     assert_datetime_dictionaries_equal(
-        [p.dict() for p in parsed],
+        [p.model_dump() for p in parsed],
         [
             dict(
                 interval_start=dt.subtract(days=5),
@@ -386,7 +386,7 @@ async def test_weekly_bins_flow_runs(client):
     )
 
     assert_datetime_dictionaries_equal(
-        [p.dict() for p in parsed],
+        [p.model_dump() for p in parsed],
         [
             dict(
                 interval_start=dt.subtract(days=16),
@@ -462,7 +462,7 @@ async def test_weekly_bins_with_filters_flow_runs(client):
     )
 
     assert_datetime_dictionaries_equal(
-        [p.dict() for p in parsed],
+        [p.model_dump() for p in parsed],
         [
             dict(
                 interval_start=dt.subtract(days=16),
@@ -519,7 +519,7 @@ async def test_weekly_bins_with_filters_work_pools(client, work_pool):
 
     # Only completed runs are associated with the work pool
     assert_datetime_dictionaries_equal(
-        [p.dict() for p in parsed],
+        [p.model_dump() for p in parsed],
         [
             dict(
                 interval_start=dt.subtract(days=5),
@@ -596,7 +596,7 @@ async def test_weekly_bins_with_filters_work_queues(client, work_queue):
 
     # Only completed runs are associated with the work queue
     assert_datetime_dictionaries_equal(
-        [p.dict() for p in parsed],
+        [p.model_dump() for p in parsed],
         [
             dict(
                 interval_start=dt.subtract(days=5),
@@ -671,7 +671,7 @@ async def test_5_minute_bins_task_runs(client):
     )
 
     assert_datetime_dictionaries_equal(
-        [p.dict() for p in parsed],
+        [p.model_dump() for p in parsed],
         [
             dict(
                 interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
@@ -735,7 +735,7 @@ async def test_5_minute_bins_task_runs_with_filter(client):
     )
 
     assert_datetime_dictionaries_equal(
-        [p.dict() for p in parsed],
+        [p.model_dump() for p in parsed],
         [
             dict(
                 interval_start=pendulum.datetime(2021, 6, 30, 23, 55),

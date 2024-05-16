@@ -117,7 +117,7 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 async def create_automation(
     db: PrefectDBInterface, session: AsyncSession, automation: Automation
 ) -> Automation:
-    new_automation = db.Automation(**automation.dict())
+    new_automation = db.Automation(**automation.model_dump())
     session.add(new_automation)
     await session.flush()
     automation = Automation.from_orm(new_automation)

@@ -287,7 +287,7 @@ async def update_global_concurrency_limit(
         exit_with_error("No update arguments provided.")
 
     try:
-        GlobalConcurrencyLimitUpdate(**gcl.dict())
+        GlobalConcurrencyLimitUpdate(**gcl.model_dump())
     except ValidationError as exc:
         exit_with_error(f"Invalid arguments provided: {exc}")
     except Exception as exc:

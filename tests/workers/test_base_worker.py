@@ -599,7 +599,7 @@ async def test_base_job_configuration_from_template_and_overrides(
     config = await BaseJobConfiguration.from_template_and_values(
         base_job_template=template, values=overrides
     )
-    assert config.dict() == expected
+    assert config.model_dump() == expected
 
 
 @pytest.mark.parametrize(
@@ -790,7 +790,7 @@ async def test_job_configuration_from_template_and_overrides(
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values=overrides
     )
-    assert config.dict() == expected
+    assert config.model_dump() == expected
 
 
 async def test_job_configuration_from_template_and_overrides_with_nested_variables():
@@ -825,7 +825,7 @@ async def test_job_configuration_from_template_and_overrides_with_nested_variabl
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={"var1": "woof!"}
     )
-    assert config.dict() == {
+    assert config.model_dump() == {
         "command": None,
         "env": {},
         "labels": {},
@@ -849,7 +849,7 @@ async def test_job_configuration_from_template_and_overrides_with_hard_coded_pri
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={}
     )
-    assert config.dict() == {
+    assert config.model_dump() == {
         "command": None,
         "env": {},
         "labels": {},
@@ -913,13 +913,13 @@ async def test_job_configuration_from_template_overrides_with_block():
         },
     )
 
-    assert config.dict() == {
+    assert config.model_dump() == {
         "command": None,
         "env": {},
         "labels": {},
         "name": None,
         "var1": "woof!",
-        # block_type_slug is added by Block.dict()
+        # block_type_slug is added by Block.model_dump()
         "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
     }
 
@@ -931,13 +931,13 @@ async def test_job_configuration_from_template_overrides_with_block():
         },
     )
 
-    assert config.dict() == {
+    assert config.model_dump() == {
         "command": None,
         "env": {},
         "labels": {},
         "name": None,
         "var1": "woof!",
-        # block_type_slug is added by Block.dict()
+        # block_type_slug is added by Block.model_dump()
         "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
     }
 
@@ -973,7 +973,7 @@ async def test_job_configuration_from_template_overrides_with_remote_variables()
         },
     )
 
-    assert config.dict() == {
+    assert config.model_dump() == {
         "command": None,
         "env": {"MY_ENV_VAR": "test_value_2"},
         "labels": {},
@@ -1001,7 +1001,7 @@ async def test_job_configuration_from_template_overrides_with_remote_variables_h
         values={},
     )
 
-    assert config.dict() == {
+    assert config.model_dump() == {
         "command": None,
         "env": {"MY_ENV_VAR": "test_value_2"},
         "labels": {},
@@ -1035,7 +1035,7 @@ async def test_job_configuration_from_template_and_overrides_with_variables_in_a
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={"var1": "woof!"}
     )
-    assert config.dict() == {
+    assert config.model_dump() == {
         "command": None,
         "env": {},
         "labels": {},
@@ -1690,9 +1690,9 @@ class TestCancellation:
             await worker.check_for_cancelled_flow_runs()
 
         post_flow_run = await prefect_client.read_flow_run(flow_run.id)
-        assert post_flow_run.state.dict(
+        assert post_flow_run.state.model_dump(
             exclude=expected_changed_fields
-        ) == flow_run.state.dict(exclude=expected_changed_fields)
+        ) == flow_run.state.model_dump(exclude=expected_changed_fields)
 
     @pytest.mark.parametrize(
         "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]

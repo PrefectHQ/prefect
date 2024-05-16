@@ -93,7 +93,7 @@ class TestNestedDict:
         return Parent(x=1, y=Child(z=2))
 
     def test_full_dict(self, nested):
-        assert nested.dict() == {"x": 1, "y": {"z": 2}}
+        assert nested.model_dump() == {"x": 1, "y": {"z": 2}}
         assert isinstance(nested.model_dump()["y"], dict)
 
     def test_simple_dict(self, nested):

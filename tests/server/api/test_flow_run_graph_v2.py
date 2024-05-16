@@ -1260,7 +1260,7 @@ async def test_api_full(
         flow_run_id=flow_run_id,
         since=datetime.min,
     )
-    assert response.json() == graph.dict(json_compatible=True)
+    assert response.json() == graph.model_dump(mode="json")
 
 
 async def test_api_incremental(
@@ -1283,7 +1283,7 @@ async def test_api_incremental(
         flow_run_id=flow_run_id,
         since=pendulum.datetime(2023, 6, 4, 1, 2, 3),
     )
-    assert response.json() == graph.dict(json_compatible=True)
+    assert response.json() == graph.model_dump(mode="json")
 
 
 async def test_reading_graph_for_flow_run_with_linked_tasks_too_many_nodes(

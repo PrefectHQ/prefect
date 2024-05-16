@@ -412,9 +412,9 @@ def test_flow_state_result_is_respected(persist_result, return_state):
     # the API version of the state and will not match the state created for
     # this test. Data must be excluded as it will have been updated to a
     # result.
-    assert state.dict(
+    assert state.model_dump(
         exclude={"id", "timestamp", "state_details", "data"}
-    ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
+    ) == return_state.model_dump(exclude={"id", "timestamp", "state_details", "data"})
 
     if return_state.data:
         assert state.result(raise_on_failure=False) == return_state.data
@@ -444,9 +444,9 @@ def test_flow_server_state_schema_result_is_respected(persist_result, return_sta
     # the API version of the state and will not match the state created for
     # this test. Data must be excluded as it will have been updated to a
     # result.
-    assert state.dict(
+    assert state.model_dump(
         exclude={"id", "timestamp", "state_details", "data"}
-    ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
+    ) == return_state.model_dump(exclude={"id", "timestamp", "state_details", "data"})
 
     if return_state.data:
         with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):

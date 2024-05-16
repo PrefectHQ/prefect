@@ -137,7 +137,7 @@ class TestFlowRunPolicy:
         empty_new_policy = schemas.core.FlowRunPolicy()
 
         # should not raise an error
-        self.OldFlowRunPolicy(**empty_new_policy.dict())
+        self.OldFlowRunPolicy(**empty_new_policy.model_dump())
 
     async def test_flow_run_policy_populates_new_properties_from_deprecated(self):
         """
@@ -149,7 +149,7 @@ class TestFlowRunPolicy:
         """
         old_policy = self.OldFlowRunPolicy(max_retries=1, retry_delay_seconds=2)
 
-        new_policy = schemas.core.FlowRunPolicy(**old_policy.dict())
+        new_policy = schemas.core.FlowRunPolicy(**old_policy.model_dump())
 
         assert new_policy.retries == 1
         assert new_policy.retry_delay == 2
@@ -174,7 +174,7 @@ class TestTaskRunPolicy:
         """
         empty_new_policy = schemas.core.TaskRunPolicy()
         # should not raise an error
-        self.OldTaskRunPolicy(**empty_new_policy.dict())
+        self.OldTaskRunPolicy(**empty_new_policy.model_dump())
 
     async def test_flow_run_policy_populates_new_properties_from_deprecated(self):
         """
@@ -186,7 +186,7 @@ class TestTaskRunPolicy:
         """
         old_policy = self.OldTaskRunPolicy(max_retries=1, retry_delay_seconds=2)
 
-        new_policy = schemas.core.TaskRunPolicy(**old_policy.dict())
+        new_policy = schemas.core.TaskRunPolicy(**old_policy.model_dump())
 
         assert new_policy.retries == 1
         assert new_policy.retry_delay == 2

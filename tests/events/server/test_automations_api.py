@@ -196,7 +196,7 @@ async def test_returns_404_when_automations_are_disabled(
     with temporary_settings(settings):
         response = await client.post(
             f"{automations_url}/",
-            json=automation_to_create.dict(json_compatible=True),
+            json=automation_to_create.model_dump(mode="json"),
         )
 
     assert response.status_code == 404, response.content
@@ -268,7 +268,7 @@ async def test_create_automation_allows_specifying_just_owner_resource(
 
     response = await client.post(
         f"{automations_url}/",
-        json=automation_to_create.dict(json_compatible=True),
+        json=automation_to_create.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
@@ -304,7 +304,7 @@ async def test_create_automation_allows_specifying_owner_resource_and_actions(
 
     response = await client.post(
         f"{automations_url}/",
-        json=automation_to_create.dict(json_compatible=True),
+        json=automation_to_create.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
@@ -353,7 +353,7 @@ async def test_create_automation_overrides_client_provided_trigger_ids(
 
     response = await client.post(
         f"{automations_url}/",
-        json=automation_to_create.dict(json_compatible=True),
+        json=automation_to_create.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
@@ -373,7 +373,7 @@ async def existing_automation(
     existing = await create_automation(
         automations_session,
         Automation(
-            **automation_to_create.dict(),
+            **automation_to_create.model_dump(),
         ),
     )
     await automations_session.commit()
@@ -403,7 +403,7 @@ async def existing_disabled_invalid_automation(
     existing = await create_automation(
         automations_session,
         Automation(
-            **automation_to_create.dict(),
+            **automation_to_create.model_dump(),
         ),
     )
     await automations_session.commit()
@@ -424,10 +424,10 @@ async def existing_disabled_invalid_automation(
 
 @pytest.fixture
 def automation_update(existing_automation: Automation) -> AutomationUpdate:
-    as_core = AutomationCore(**existing_automation.dict())
+    as_core = AutomationCore(**existing_automation.model_dump())
     assert as_core.enabled
 
-    update = AutomationUpdate(**as_core.dict())
+    update = AutomationUpdate(**as_core.model_dump())
     update.enabled = False
 
     assert isinstance(update.trigger, EventTrigger)
@@ -446,7 +446,7 @@ async def test_update_automation(
 ) -> None:
     response = await client.put(
         f"{automations_url}/{existing_automation.id}",
-        json=automation_update.dict(json_compatible=True),
+        json=automation_update.model_dump(mode="json"),
     )
     assert response.status_code == 204, response.content
 
@@ -474,7 +474,7 @@ async def test_update_automation_404s_on_unknown_id(
 ) -> None:
     response = await client.put(
         f"{automations_url}/{uuid4()}",
-        json=automation_update.dict(json_compatible=True),
+        json=automation_update.model_dump(mode="json"),
     )
     assert response.status_code == 404, response.content
     assert "Automation not found" in response.content.decode()
@@ -486,7 +486,7 @@ async def test_update_automation_cannot_change_id(
     existing_automation: Automation,
     automation_update: AutomationUpdate,
 ) -> None:
-    update = automation_update.dict(json_compatible=True)
+    update = automation_update.model_dump(mode="json")
 
     # try to set an alternative id manually in the payload
     update["id"] = str(uuid4())
@@ -515,7 +515,7 @@ async def test_update_automation_overrides_client_provided_trigger_ids(
 
     response = await client.put(
         f"{automations_url}/{existing_automation.id}",
-        json=automation_update.dict(json_compatible=True),
+        json=automation_update.model_dump(mode="json"),
     )
     assert response.status_code == 204, response.content
 
@@ -534,7 +534,7 @@ async def test_update_automation_overrides_client_provided_trigger_ids(
 
 @pytest.fixture
 def automation_patch(existing_automation: Automation) -> AutomationPartialUpdate:
-    as_core = AutomationCore(**existing_automation.dict())
+    as_core = AutomationCore(**existing_automation.model_dump())
     assert as_core.enabled
     return AutomationPartialUpdate(enabled=False)
 
@@ -547,7 +547,7 @@ async def test_patch_automation(
 ) -> None:
     response = await client.patch(
         f"{automations_url}/{existing_automation.id}",
-        json=automation_patch.dict(json_compatible=True),
+        json=automation_patch.model_dump(mode="json"),
     )
     assert response.status_code == 204, response.content
 
@@ -567,7 +567,7 @@ async def test_patch_automation_404s_on_unknown_id(
 ) -> None:
     response = await client.patch(
         f"{automations_url}/{uuid4()}",
-        json=automation_patch.dict(json_compatible=True),
+        json=automation_patch.model_dump(mode="json"),
     )
     assert response.status_code == 404, response.content
     assert "Automation not found" in response.content.decode()
@@ -579,7 +579,7 @@ async def test_patch_automation_cannot_change_id(
     existing_automation: Automation,
     automation_patch: AutomationPartialUpdate,
 ) -> None:
-    update = automation_patch.dict(json_compatible=True)
+    update = automation_patch.model_dump(mode="json")
 
     # try to set an alternative id manually in the payload
     update["id"] = str(uuid4())
@@ -603,7 +603,7 @@ async def test_patch_automation_cannot_enable_invalid_automation(
     info and examples."""
     response = await client.patch(
         f"{automations_url}/{existing_disabled_invalid_automation.id}",
-        json=AutomationPartialUpdate(enabled=True).dict(json_compatible=True),
+        json=AutomationPartialUpdate(enabled=True).model_dump(mode="json"),
     )
     assert response.status_code == 422, response.content
 
@@ -719,7 +719,7 @@ async def test_read_automations_filter_by_name_match(
     automation_filter = dict(
         automations=filters.AutomationFilter(
             name=filters.AutomationFilterName(any_=["automation 1", "automation 2"])
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
     )
 
     response = await client.post(f"{automations_url}/filter", json=automation_filter)
@@ -743,7 +743,7 @@ async def test_read_automations_filter_by_name_mismatch(
     automation_filter = dict(
         automations=filters.AutomationFilter(
             name=filters.AutomationFilterName(any_=["nonexistentautomation"])
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
     )
 
     response = await client.post(f"{automations_url}/filter", json=automation_filter)
@@ -969,7 +969,7 @@ async def test_create_run_deployment_automation_with_job_variables_and_no_schema
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_no_schema.dict(json_compatible=True),
+        json=run_deployment_with_no_schema.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
@@ -1001,7 +1001,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_match_sc
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_schema.dict(json_compatible=True),
+        json=run_deployment_with_schema.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
@@ -1033,7 +1033,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_dont_mat
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_bad_vars.dict(json_compatible=True),
+        json=run_deployment_with_bad_vars.model_dump(mode="json"),
     )
     assert response.status_code == 422, response.content
     assert "Validation failed for field 'this'" in response.text
@@ -1068,7 +1068,7 @@ async def test_multiple_run_deployment_actions_with_job_variables_that_dont_matc
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_bad_vars.dict(json_compatible=True),
+        json=run_deployment_with_bad_vars.model_dump(mode="json"),
     )
     assert response.status_code == 422, response.content
     assert (
@@ -1099,20 +1099,20 @@ async def test_updating_run_deployment_automation_with_bad_job_variables(
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_str_schema.dict(json_compatible=True),
+        json=run_deployment_with_str_schema.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
     automation_id = response.json()["id"]
     as_core = AutomationCore(**response.json())
-    update = AutomationUpdate(**as_core.dict())
+    update = AutomationUpdate(**as_core.model_dump())
     assert isinstance(update.actions[0], actions.RunDeployment)
 
     update.actions[0].job_variables = {"this": 100}
 
     response = await client.put(
         f"{automations_url}/{automation_id}",
-        json=update.dict(json_compatible=True),
+        json=update.model_dump(mode="json"),
     )
     assert response.status_code == 422
     assert (
@@ -1153,7 +1153,7 @@ async def test_create_run_deployment_automation_with_none_variable_value(
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_str_schema.dict(json_compatible=True),
+        json=run_deployment_with_str_schema.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
@@ -1197,13 +1197,13 @@ async def test_updating_run_deployment_automation_with_none_variable_value(
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_str_schema.dict(json_compatible=True),
+        json=run_deployment_with_str_schema.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
     automation_id = response.json()["id"]
     as_core = AutomationCore(**response.json())
-    update = AutomationUpdate(**as_core.dict())
+    update = AutomationUpdate(**as_core.model_dump())
     assert isinstance(update.actions[0], actions.RunDeployment)
     assert update.actions[0].job_variables == {"profile_name": "andrew"}
 
@@ -1211,7 +1211,7 @@ async def test_updating_run_deployment_automation_with_none_variable_value(
 
     response = await client.put(
         f"{automations_url}/{automation_id}",
-        json=update.dict(json_compatible=True),
+        json=update.model_dump(mode="json"),
     )
     assert response.status_code == 204
 
@@ -1244,19 +1244,19 @@ async def test_updating_run_deployment_automation_with_valid_job_variables(
 
     response = await client.post(
         f"{automations_url}/",
-        json=run_deployment_with_str_schema.dict(json_compatible=True),
+        json=run_deployment_with_str_schema.model_dump(mode="json"),
     )
     assert response.status_code == 201, response.content
 
     automation_id = response.json()["id"]
     as_core = AutomationCore(**response.json())
-    update = AutomationUpdate(**as_core.dict())
+    update = AutomationUpdate(**as_core.model_dump())
     assert isinstance(update.actions[0], actions.RunDeployment)
     update.actions[0].job_variables = {"this": "something else!!"}
 
     response = await client.put(
         f"{automations_url}/{automation_id}",
-        json=update.dict(json_compatible=True),
+        json=update.model_dump(mode="json"),
     )
     assert response.status_code == 204
 
@@ -1283,7 +1283,7 @@ async def test_infrastructure_error_inside_create(
     ):
         response = await client.post(
             f"{automations_url}/",
-            json=run_deployment_with_str_schema.dict(json_compatible=True),
+            json=run_deployment_with_str_schema.model_dump(mode="json"),
         )
         assert response.status_code == 422, response.content
         assert "Error creating automation: Something is wrong" in response.text

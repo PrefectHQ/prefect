@@ -148,7 +148,7 @@ def assert_triggers_match(v1_trigger: V1Trigger, v2_trigger: ResourceTrigger):
 
     if isinstance(v2_trigger, EventTrigger):
         assert v2_trigger.type == "event"
-        assert v2_trigger.dict()["type"] == "event"
+        assert v2_trigger.model_dump()["type"] == "event"
 
         assert v1_trigger.posture in {Posture.Reactive, Posture.Proactive}
         assert v2_trigger.posture == v1_trigger.posture
@@ -161,7 +161,7 @@ def assert_triggers_match(v1_trigger: V1Trigger, v2_trigger: ResourceTrigger):
 
     elif isinstance(v2_trigger, MetricTrigger):  # pragma: no branch
         assert v2_trigger.type == "metric"
-        assert v2_trigger.dict()["type"] == "metric"
+        assert v2_trigger.model_dump()["type"] == "metric"
 
         assert v1_trigger.posture == Posture.Metric
         assert v2_trigger.posture == Posture.Metric

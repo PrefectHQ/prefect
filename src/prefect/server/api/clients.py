@@ -173,7 +173,7 @@ class OrchestrationClient(BaseClient):
             response = await self._http_client.post(
                 "/variables/filter",
                 json={
-                    "variables": filter.dict(),
+                    "variables": filter.model_dump(),
                     "limit": self.VARIABLE_PAGE_SIZE,
                     "offset": offset,
                 },

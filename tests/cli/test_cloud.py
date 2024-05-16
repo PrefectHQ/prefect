@@ -182,7 +182,7 @@ def test_login_with_prefect_api_key_env_var_equal_to_valid_key_succeeds(respx_mo
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -204,8 +204,8 @@ def test_login_with_key_and_missing_workspace(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -239,8 +239,8 @@ def test_login_with_key_and_workspace(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -276,8 +276,8 @@ def test_login_with_key_and_workspace_overrides_current_workspace(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -327,8 +327,8 @@ def test_login_with_key_and_select_first_workspace(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -357,8 +357,8 @@ def test_login_with_key_and_select_second_workspace(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -386,7 +386,7 @@ def test_login_with_interactive_key_single_workspace(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -420,8 +420,8 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -463,7 +463,7 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -508,7 +508,7 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -553,7 +553,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -599,8 +599,8 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(resp
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -659,7 +659,7 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -723,8 +723,8 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -782,7 +782,7 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -840,7 +840,7 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_m
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 
@@ -964,8 +964,8 @@ def test_set_workspace_updates_profile(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -1012,8 +1012,8 @@ def test_set_workspace_with_account_selection(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -1033,7 +1033,7 @@ def test_set_workspace_with_account_selection(respx_mock):
     ).mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[bar_workspace.dict(json_compatible=True)],
+            json=[bar_workspace.model_dump(mode="json")],
         )
     )
 
@@ -1079,8 +1079,8 @@ def test_set_workspace_with_less_than_10_workspaces(respx_mock):
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
-                bar_workspace.dict(json_compatible=True),
+                foo_workspace.model_dump(mode="json"),
+                bar_workspace.model_dump(mode="json"),
             ],
         )
     )
@@ -1617,7 +1617,7 @@ def test_open_current_workspace_in_browser_success(mock_webbrowser, respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
+            json=[foo_workspace.model_dump(mode="json")],
         )
     )
 

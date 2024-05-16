@@ -65,7 +65,7 @@ class Automation(AutomationCore):
         created_automation = auto_to_create.create()
         """
         client, _ = get_or_create_client()
-        automation = AutomationCore(**self.dict(exclude={"id"}))
+        automation = AutomationCore(**self.model_dump(exclude={"id"}))
         self.id = await client.create_automation(automation=automation)
         return self
 
@@ -79,7 +79,7 @@ class Automation(AutomationCore):
         """
 
         client, _ = get_or_create_client()
-        automation = AutomationCore(**self.dict(exclude={"id", "owner_resource"}))
+        automation = AutomationCore(**self.model_dump(exclude={"id", "owner_resource"}))
         await client.update_automation(automation_id=self.id, automation=automation)
 
     @classmethod
@@ -106,11 +106,11 @@ class Automation(AutomationCore):
             except PrefectHTTPStatusError as exc:
                 if exc.response.status_code == 404:
                     raise ValueError(f"Automation with ID {id!r} not found")
-            return Automation(**automation.dict())
+            return Automation(**automation.model_dump())
         else:
             automation = await client.read_automations_by_name(name=name)
             if len(automation) > 0:
-                return Automation(**automation[0].dict()) if automation else None
+                return Automation(**automation[0].model_dump()) if automation else None
             else:
                 raise ValueError(f"Automation with name {name!r} not found")
 

@@ -86,7 +86,7 @@ class TestCreateIntervalSchedule:
     def test_parse_utc_offset_timezone(self):
         offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
-        clock_dict = clock.dict(json_compatible=True)
+        clock_dict = clock.model_dump(mode="json")
 
         # remove the timezone
         clock_dict.pop("timezone")
@@ -106,7 +106,7 @@ class TestCreateIntervalSchedule:
             anchor_date=offset_dt,
             timezone="America/New_York",
         )
-        clock_dict = clock.dict(json_compatible=True)
+        clock_dict = clock.model_dump(mode="json")
         assert (
             IntervalSchedule.model_validate(clock_dict).timezone == "America/New_York"
         )
@@ -959,7 +959,7 @@ class TestRRuleSchedule:
     )
     async def test_rrule(self, rrule_obj, rrule_str, expected_dts):
         s = RRuleSchedule.from_rrule(rrule_obj)
-        assert s.dict()["rrule"] == rrule_str
+        assert s.model_dump()["rrule"] == rrule_str
         dates = await s.get_dates(n=3, start=dt)
         assert dates == expected_dts
 
@@ -974,7 +974,7 @@ class TestRRuleSchedule:
             )
         )
         assert (
-            s.dict()["rrule"]
+            s.model_dump()["rrule"]
             == "DTSTART:20200101T000000\nRRULE:FREQ=DAILY;COUNT=8;BYDAY=MO,TU,WE,TH,FR"
         )
         dates = await s.get_dates(n=100, start=dt)

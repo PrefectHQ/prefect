@@ -431,7 +431,7 @@ class Deployment(BaseModel):
     # TODO[pydantic]: The following keys were removed: `json_encoders`.
     # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-config for more information.
     model_config = ConfigDict(
-        json_encoders={SecretDict: lambda v: v.dict()},
+        json_encoders={SecretDict: lambda v: v.model_dump()},
         validate_assignment=True,
         extra="forbid",
     )
@@ -721,7 +721,7 @@ class Deployment(BaseModel):
                 if "schedules" not in self.__fields_set__:
                     self.schedules = [
                         MinimalDeploymentSchedule(
-                            **schedule.dict(include={"schedule", "active"})
+                            **schedule.model_dump(include={"schedule", "active"})
                         )
                         for schedule in deployment.schedules
                     ]
@@ -770,7 +770,7 @@ class Deployment(BaseModel):
             ignore_none: if True, all `None` values are ignored when performing the
                 update
         """
-        unknown_keys = set(kwargs.keys()) - set(self.dict().keys())
+        unknown_keys = set(kwargs.keys()) - set(self.model_dump().keys())
         if unknown_keys:
             raise ValueError(
                 f"Received unexpected attributes: {', '.join(unknown_keys)}"
@@ -882,7 +882,7 @@ class Deployment(BaseModel):
                 ]
             elif self.schedules:
                 schedules = [
-                    DeploymentScheduleCreate(**schedule.dict())
+                    DeploymentScheduleCreate(**schedule.model_dump())
                     for schedule in self.schedules
                 ]
             else:
@@ -907,7 +907,7 @@ class Deployment(BaseModel):
                 job_variables=self.job_variables,
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
-                parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+                parameter_openapi_schema=self.parameter_openapi_schema.model_dump(),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
