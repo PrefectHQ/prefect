@@ -8,7 +8,7 @@ else:
     pass
 
 import pytest
-from prefect_gcp.cloud_run import Execution, Job
+from prefect_gcp.utilities import Execution, Job
 
 executions_return_value = {
     "metadata": {"name": "test-name", "namespace": "test-namespace"},
