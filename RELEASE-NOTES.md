@@ -30,6 +30,28 @@ See the following pull requests for implementation details:
 
 - Update all integrations libraries to pin `prefect<3.0.0` - https://github.com/PrefectHQ/prefect/pull/13408
 
+#### Integration library releases
+
+This release was accompanied by the following integration library releases:
+
+- `prefect-aws` - 0.4.17
+- `prefect-azure` - 0.3.10
+- `prefect-bitbucket` - 0.2.5
+- `prefect-dask` - 0.2.9
+- `prefect-databricks` - 0.2.7
+- `prefect-dbt` - 0.5.0
+- `prefect-docker` - 0.5.2
+- `prefect-email` - 0.3.5
+- `prefect-gcp` - 0.5.12
+- `prefect-github` - 0.2.5
+- `prefect-gitlab` - 0.2.5
+- `prefect-kubernetes` - 0.3.10
+- `prefect-ray` - 0.3.6
+- `prefect-shell` - 0.2.5
+- `prefect-slack` - 0.2.6
+- `prefect-snowflake` - 0.27.6
+- `prefect-sqlalchemy` - 0.4.3
+
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.0...2.19.1
 
 ## Release 2.19.0
