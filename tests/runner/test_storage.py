@@ -25,6 +25,11 @@ else:
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def tmp_cwd(monkeypatch, tmp_path):
+    monkeypatch.chdir(str(tmp_path))
+
+
 class TestCreateStorageFromUrl:
     @pytest.mark.parametrize(
         "url, expected_type",
