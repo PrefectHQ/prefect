@@ -6,7 +6,6 @@ import anyio
 from packaging.version import Version
 
 import prefect
-from prefect.deployments import run_deployment
 
 # The version oldest version this test runs with
 SUPPORTED_VERSION = "2.6.0"
@@ -23,6 +22,8 @@ async def read_flow_run(flow_run_id):
 
 def main():
     if Version(prefect.__version__) >= Version("2.19.0"):
+        from prefect.deployments import run_deployment
+
         try:
             TEST_SERVER_VERSION = os.environ.get(
                 "TEST_SERVER_VERSION", prefect.__version__
