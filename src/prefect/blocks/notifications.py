@@ -7,7 +7,6 @@ from typing_extensions import Literal
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.fields import SecretDict
-from prefect.events.instrument import instrument_instance_method_call
 from prefect.logging import LogEavesdropper
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.templating import apply_values, find_placeholders
@@ -56,7 +55,6 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         self._start_apprise_client(self.url)
 
     @sync_compatible
-    @instrument_instance_method_call
     async def notify(
         self,
         body: str,
@@ -711,7 +709,6 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     @sync_compatible
-    @instrument_instance_method_call
     async def notify(self, body: str, subject: Optional[str] = None):
         import httpx
 
