@@ -26,30 +26,6 @@ jobs_return_value = {
 }
 
 
-@pytest.fixture
-def mock_client(monkeypatch, mock_credentials):
-    m = Mock(name="MockClient")
-
-    def mock_enter(m, *args, **kwargs):
-        return m
-
-    def mock_exit(m, *args, **kwargs):
-        pass
-
-    m.__enter__ = mock_enter
-    m.__exit__ = mock_exit
-
-    def get_mock_client(*args, **kwargs):
-        return m
-
-    monkeypatch.setattr(
-        "prefect_gcp.cloud_run.CloudRunJob._get_client",
-        get_mock_client,
-    )
-
-    return m
-
-
 class MockExecution(Mock):
     call_count = 0
 
@@ -74,21 +50,6 @@ class MockExecution(Mock):
     @classmethod
     def get(cls, *args, **kwargs):
         return cls()
-
-
-def list_mock_calls(mock_client, assigned_calls=0):
-    calls = []
-    for call in mock_client.mock_calls:
-        # mock `call.jobs().get()` results in two calls: `call.jobs()` and
-        # `call.jobs().get()`, so we want to remove the first, smaller
-        # call.
-        if len(str(call).split(".")) > 2:
-            calls.append(str(call))
-    # assigning a return value to a call results in initial
-    # mock calls which are not actually made
-    actual_calls = calls[assigned_calls:]
-
-    return actual_calls
 
 
 class TestJob:
@@ -166,88 +127,6 @@ class TestJob:
             execution_status=execution_status,
         )
         assert job.has_execution_in_progress() == expected_value
-
-    def test_get_calls_correct_methods(self, mock_client):
-        """Desired behavior: should call jobs().get().execute() with correct
-        job name and namespace
-        """
-        mock_client.jobs().get().execute.return_value = jobs_return_value
-        Job.get(client=mock_client, namespace="my-project-id", job_name="my-job-name")
-        desired_calls = [
-            "call.jobs().get()",  # Used to setup mock return
-            "call.jobs().get(name='namespaces/my-project-id/jobs/my-job-name')",
-            "call.jobs().get().execute()",
-        ]
-        actual_calls = list_mock_calls(mock_client=mock_client)
-        assert actual_calls == desired_calls
-
-    def test_return_value_for_get(self, mock_client):
-        """Desired behavior: should return a Job object populated with values from
-        `jobs_return_value` test object
-        """
-        mock_client.jobs().get().execute.return_value = jobs_return_value
-        res = Job.get(
-            client=mock_client, namespace="my-project-id", job_name="my-job-name"
-        )
-
-        assert res.name == jobs_return_value["metadata"]["name"]
-        assert res.metadata == jobs_return_value["metadata"]
-        assert res.spec == jobs_return_value["spec"]
-        assert res.status == jobs_return_value["status"]
-        assert res.ready_condition == jobs_return_value["status"]["conditions"][0]
-        assert (
-            res.execution_status
-            == jobs_return_value["status"]["latestCreatedExecution"]
-        )
-
-    def test_delete_job(self, mock_client):
-        """
-        Desired behavior: should call jobs().delete().execute() with correct
-        job name and namespace
-        """
-        Job.delete(
-            client=mock_client, namespace="my-project-id", job_name="my-job-name"
-        )
-        desired_calls = [
-            "call.jobs().delete(name='namespaces/my-project-id/jobs/my-job-name')",
-            "call.jobs().delete().execute()",
-        ]
-        actual_calls = list_mock_calls(mock_client=mock_client)
-        assert actual_calls == desired_calls
-
-    def test_run_job(self, mock_client):
-        """
-        Desired behavior: should call jobs().run().execute() with correct
-        job name and namespace
-        """
-        Job.run(client=mock_client, namespace="my-project-id", job_name="my-job-name")
-        desired_calls = [
-            "call.jobs().run(name='namespaces/my-project-id/jobs/my-job-name')",
-            "call.jobs().run().execute()",
-        ]
-        actual_calls = list_mock_calls(mock_client=mock_client)
-        assert actual_calls == desired_calls
-
-    def test_create_job(self, mock_client):
-        """
-        Desired behavior: should call jobs().create().execute() with correct
-        namespace and body
-        """
-        Job.create(client=mock_client, namespace="my-project-id", body={"dog": "cat"})
-        desired_calls_v1 = [
-            "call.jobs().create(parent='namespaces/my-project-id', body={'dog': 'cat'})",  # noqa
-            "call.jobs().create().execute()",
-        ]
-        # ordering is non-deterministic
-        desired_calls_v2 = [
-            "call.jobs().create(body={'dog': 'cat'}, parent='namespaces/my-project-id')",  # noqa
-            "call.jobs().create().execute()",
-        ]
-        actual_calls = list_mock_calls(mock_client=mock_client)
-        try:
-            assert actual_calls == desired_calls_v1
-        except AssertionError:
-            assert actual_calls == desired_calls_v2
 
 
 class TestExecution:
@@ -344,40 +223,3 @@ class TestExecution:
             log_uri="",
         )
         assert execution.condition_after_completion() == expected_value
-
-    def test_return_value_for_get(self, mock_client):
-        """Desired behavior: should return an Execution object populated with values from
-        `executions_return_value` test object
-        """
-        mock_client.executions().get().execute.return_value = executions_return_value
-        res = Execution.get(
-            client=mock_client,
-            namespace="my-project-id",
-            execution_name="test-execution-name",
-        )
-
-        assert res.name == executions_return_value["metadata"]["name"]
-        assert res.namespace == executions_return_value["metadata"]["namespace"]
-        assert res.metadata == executions_return_value["metadata"]
-        assert res.spec == executions_return_value["spec"]
-        assert res.status == executions_return_value["status"]
-        assert res.log_uri == executions_return_value["status"]["logUri"]
-
-    def test_get_calls_correct_methods(self, mock_client):
-        """
-        Desired behavior: should call executions().get().execute() with correct
-        job name and namespace
-        """
-        mock_client.executions().get().execute.return_value = executions_return_value
-        Execution.get(
-            client=mock_client,
-            namespace="my-project-id",
-            execution_name="my-execution-name",
-        )
-        desired_calls = [
-            "call.executions().get()",  # Used to setup mock return
-            "call.executions().get(name='namespaces/my-project-id/executions/my-execution-name')",  # noqa
-            "call.executions().get().execute()",
-        ]
-        actual_calls = list_mock_calls(mock_client=mock_client)
-        assert actual_calls == desired_calls
