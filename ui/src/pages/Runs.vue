@@ -230,16 +230,7 @@
   const selectedTaskRuns = ref([])
 
   function clear(): void {
-    router.push(routes.runs({ query: { tab: tab.value } }))
-  }
-
-  function refresh(): void {
-    flowRunsCountAllSubscription.refresh()
-    taskRunsCountAllSubscription.refresh()
-
-    flowRunHistorySubscription.refresh()
-    flowRunsSubscriptions.refresh()
-    taskRunsSubscriptions.refresh()
+    router.push(routes.runs({ tab: tab.value }))
   }
 
   usePageTitle('Runs')
