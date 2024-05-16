@@ -51,7 +51,9 @@ class PrefectFuture(abc.ABC, Generic[R]):
 
     @abc.abstractmethod
     def result(
-        self, raise_on_failure: bool = True, timeout: Optional[float] = None
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
     ) -> Any:
         ...
 
@@ -66,7 +68,9 @@ class PrefectConcurrentFuture(PrefectFuture):
             self._final_state = result
 
     def result(
-        self, raise_on_failure: bool = True, timeout: Optional[float] = None
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
     ) -> Any:
         if not self._final_state:
             future_result = self._wrapped_future.result(timeout=timeout)
