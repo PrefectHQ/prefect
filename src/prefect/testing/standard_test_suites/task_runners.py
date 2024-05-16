@@ -106,7 +106,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
             return a, b, c, d
 
-        state = test_flow._run()
+        state = test_flow(return_state=True)
 
         assert state.is_failed()
         a, b, c, d = state.result(raise_on_failure=False)
@@ -406,7 +406,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
             return a, b, c
 
-        state = await test_flow._run()
+        state = await test_flow(return_state=True)
 
         assert state.is_failed()
         ax, bx, cx = await state.result(raise_on_failure=False)
@@ -440,7 +440,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
             return a, b, c
 
-        state = test_flow._run()
+        state = test_flow(return_state=True)
 
         assert state.is_failed()
         ax, bx, cx = state.result(raise_on_failure=False)
