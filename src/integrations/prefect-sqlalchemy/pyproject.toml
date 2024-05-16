@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect-sqlalchemy"
-dependencies = ["sqlalchemy>=1.4.31,<3", "prefect>=2.13.5"]
+dependencies = ["sqlalchemy>=1.4.31,<3", "prefect>=2.13.5, < 3.0.0"]
 dynamic = ["version"]
 description = "Prefect integrations for working with databases"
 readme = "README.md"
