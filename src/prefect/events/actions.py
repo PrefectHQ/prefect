@@ -43,16 +43,16 @@ class DeploymentAction(Action):
         None, description="The identifier of the deployment"
     )
 
-    @model_validator(mode="before")
-    def selected_deployment_requires_id(cls, values):
-        wants_selected_deployment = values.get("source") == "selected"
-        has_deployment_id = bool(values.get("deployment_id"))
+    @model_validator(mode="after")
+    def selected_deployment_requires_id(self):
+        wants_selected_deployment = self.source == "selected"
+        has_deployment_id = bool(self.deployment_id)
         if wants_selected_deployment != has_deployment_id:
             raise ValueError(
                 "deployment_id is "
                 + ("not allowed" if has_deployment_id else "required")
             )
-        return values
+        return self
 
 
 class RunDeployment(DeploymentAction):

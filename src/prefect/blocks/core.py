@@ -27,6 +27,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     HttpUrl,
+    PrivateAttr,
     SecretBytes,
     SecretStr,
     ValidationError,
@@ -284,25 +285,25 @@ class Block(BaseModel, ABC):
     # Attribute to customize the name of the block type created
     # when the block is registered with the API. If not set, block
     # type name will default to the class name.
-    _block_type_name: Optional[str] = None
-    _block_type_slug: Optional[str] = None
+    _block_type_name: Optional[str] = PrivateAttr(None)
+    _block_type_slug: Optional[str] = PrivateAttr(None)
 
     # Attributes used to set properties on a block type when registered
     # with the API.
-    _logo_url: Optional[HttpUrl] = None
-    _documentation_url: Optional[HttpUrl] = None
-    _description: Optional[str] = None
-    _code_example: Optional[str] = None
+    _logo_url: Optional[HttpUrl] = PrivateAttr(None)
+    _documentation_url: Optional[HttpUrl] = PrivateAttr(None)
+    _description: Optional[str] = PrivateAttr(None)
+    _code_example: Optional[str] = PrivateAttr(None)
 
     # -- private instance variables
     # these are set when blocks are loaded from the API
-    _block_type_id: Optional[UUID] = None
-    _block_schema_id: Optional[UUID] = None
-    _block_schema_capabilities: Optional[List[str]] = None
-    _block_schema_version: Optional[str] = None
-    _block_document_id: Optional[UUID] = None
-    _block_document_name: Optional[str] = None
-    _is_anonymous: Optional[bool] = None
+    _block_type_id: Optional[UUID] = PrivateAttr(None)
+    _block_schema_id: Optional[UUID] = PrivateAttr(None)
+    _block_schema_capabilities: Optional[List[str]] = PrivateAttr(None)
+    _block_schema_version: Optional[str] = PrivateAttr(None)
+    _block_document_id: Optional[UUID] = PrivateAttr(None)
+    _block_document_name: Optional[str] = PrivateAttr(None)
+    _is_anonymous: Optional[bool] = PrivateAttr(None)
 
     # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
     # decorated directly.
@@ -732,7 +733,7 @@ class Block(BaseModel, ABC):
     async def _get_block_document(
         cls,
         name: str,
-        client: "PrefectClient" = None,
+        client: Optional["PrefectClient"] = None,
     ):
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
@@ -759,7 +760,7 @@ class Block(BaseModel, ABC):
         cls,
         name: str,
         validate: bool = True,
-        client: "PrefectClient" = None,
+        client: Optional["PrefectClient"] = None,
     ):
         """
         Retrieves data from the block document with the given name for the block type
@@ -854,7 +855,7 @@ class Block(BaseModel, ABC):
                     f' `{cls.__name__}.save("{block_document_name}", overwrite=True)`,'
                     " and load this block again before attempting to use it."
                 )
-                return cls.construct(**block_document.data, **missing_block_data)
+                return cls.model_construct(**block_document.data, **missing_block_data)
             raise RuntimeError(
                 f"Unable to load {block_document_name!r} of block type"
                 f" {cls.get_block_type_slug()!r} due to failed validation. To load without"
@@ -931,7 +932,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         is_anonymous: bool = False,
         overwrite: bool = False,
-        client: "PrefectClient" = None,
+        client: Optional["PrefectClient"] = None,
     ):
         """
         Saves the values of a block as a block document with an option to save as an
@@ -1001,7 +1002,7 @@ class Block(BaseModel, ABC):
         self,
         name: Optional[str] = None,
         overwrite: bool = False,
-        client: "PrefectClient" = None,
+        client: Optional["PrefectClient"] = None,
     ):
         """
         Saves the values of a block as a block document.
@@ -1023,7 +1024,7 @@ class Block(BaseModel, ABC):
     async def delete(
         cls,
         name: str,
-        client: "PrefectClient" = None,
+        client: Optional["PrefectClient"] = None,
     ):
         block_document, block_document_name = await cls._get_block_document(name)
 
