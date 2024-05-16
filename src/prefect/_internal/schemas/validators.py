@@ -22,8 +22,8 @@ import yaml
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.exceptions import InvalidRepositoryURLError
+from prefect.types import DateTimeTZ
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform

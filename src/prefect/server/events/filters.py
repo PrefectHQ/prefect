@@ -9,13 +9,13 @@ from pydantic.v1 import Field, PrivateAttr
 from sqlalchemy.sql import Select
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas.filters import (
     PrefectFilterBaseModel,
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.database import json_extract
+from prefect.types import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification

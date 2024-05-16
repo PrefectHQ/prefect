@@ -16,8 +16,8 @@ from packaging.version import Version
 from pydantic.v1 import BaseModel, Field, SecretField
 from pydantic.v1.json import custom_pydantic_encoder
 
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
+from prefect.types import DateTimeTZ
 
 T = TypeVar("T")
 

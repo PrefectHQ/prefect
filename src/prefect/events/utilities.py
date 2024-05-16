@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pendulum
 
-from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.types import DateTimeTZ
 
 from .clients import (
     AssertingEventsClient,

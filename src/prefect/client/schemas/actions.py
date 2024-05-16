@@ -8,7 +8,6 @@ from pydantic.v1 import Field, root_validator, validator
 import prefect.client.schemas.objects as objects
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.bases import ActionBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
@@ -23,6 +22,7 @@ from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
+    DateTimeTZ,
     Name,
     NonEmptyishName,
     NonNegativeFloat,

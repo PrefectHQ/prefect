@@ -8,8 +8,8 @@ from uuid import UUID
 from pydantic.v1 import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.schemas.objects import StateType
+from prefect.types import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 

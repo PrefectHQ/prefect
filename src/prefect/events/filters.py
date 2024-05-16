@@ -5,7 +5,7 @@ import pendulum
 from pydantic.v1 import Field, PrivateAttr
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
+from prefect.types import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification

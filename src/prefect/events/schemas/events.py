@@ -18,12 +18,12 @@ import pendulum
 from pydantic.v1 import Field, root_validator, validator
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
+from prefect.types import DateTimeTZ
 
 from .labelling import Labelled
 

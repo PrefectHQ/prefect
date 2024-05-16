@@ -2,8 +2,8 @@ from typing import Any
 
 from pydantic.v1 import Field, SecretStr
 
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.blocks.core import Block
+from prefect.types import DateTimeTZ
 
 
 class JSON(Block):

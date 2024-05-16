@@ -11,7 +11,6 @@ import pendulum
 from pydantic.v1 import Field, validator
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect._internal.schemas.validators import (
     default_anchor_date,
     default_timezone,
@@ -19,7 +18,7 @@ from prefect._internal.schemas.validators import (
     validate_rrule_string,
     validate_rrule_timezone,
 )
-from prefect.types import PositiveDuration
+from prefect.types import DateTimeTZ, PositiveDuration
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer

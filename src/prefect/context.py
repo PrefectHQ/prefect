@@ -36,7 +36,6 @@ from pydantic.v1 import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
@@ -46,6 +45,7 @@ from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
+from prefect.types import DateTimeTZ
 from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
