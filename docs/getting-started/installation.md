@@ -15,7 +15,7 @@ search:
 
 # Installation
 
-Prefect requires Python 3.8 or newer.
+Prefect requires Python 3.9 or newer.
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
@@ -127,7 +127,7 @@ If the certificate is not part of your system bundle, you can set the
 Prefect supports communicating via proxies through environment variables.
 Whether you are using Prefect Cloud or hosting your own Prefect server instance, set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately.
 
-Alternatively, the Prefect library will connect to the API via any proxies you have listed in the `HTTP_PROXY` or `ALL_PROXY` environment variables.  
+Alternatively, the Prefect library will connect to the API via any proxies you have listed in the `HTTP_PROXY` or `ALL_PROXY` environment variables.
 You may also use the `NO_PROXY` environment variable to specify which hosts should not be sent through the proxy.
 
 For more information about these environment variables, see the [cURL documentation](https://everything.curl.dev/usingcurl/proxies/env).

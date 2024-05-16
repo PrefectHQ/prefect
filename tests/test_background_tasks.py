@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import os
 from pathlib import Path
-from typing import AsyncGenerator, Iterable, Tuple
+from typing import TYPE_CHECKING, AsyncGenerator, Iterable, Tuple
 from unittest import mock
 
 import pytest
@@ -10,7 +10,7 @@ import pytest
 import prefect.results
 from prefect import Task, task, unmapped
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import StateType
 from prefect.filesystems import LocalFileSystem
@@ -27,6 +27,9 @@ from prefect.settings import (
 from prefect.task_server import TaskServer
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.hashing import hash_objects
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @sync_compatible
@@ -212,13 +215,13 @@ async def test_scheduled_tasks_are_enqueued_server_side(
 
 
 @pytest.fixture
-async def prefect_client() -> AsyncGenerator[PrefectClient, None]:
+async def prefect_client() -> AsyncGenerator["PrefectClient", None]:
     async with get_client() as client:
         yield client
 
 
 async def test_scheduled_tasks_are_restored_at_server_startup(
-    foo_task_with_result_storage: Task, prefect_client: PrefectClient
+    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
 ):
     # run one iteration of the timeouts service
     service = TaskSchedulingTimeouts()
@@ -258,7 +261,7 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
 
 
 async def test_stuck_pending_tasks_are_reenqueued(
-    foo_task_with_result_storage: Task, prefect_client: PrefectClient
+    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
 ):
     task_run: TaskRun = foo_task_with_result_storage.submit(42)
     assert task_run.state.is_scheduled()

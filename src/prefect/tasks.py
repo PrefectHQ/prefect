@@ -27,14 +27,19 @@ from typing import (
     cast,
     overload,
 )
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import TaskRunInput
-from prefect.context import FlowRunContext, PrefectObjectRegistry, TagsContext
+from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.context import (
+    FlowRunContext,
+    PrefectObjectRegistry,
+    TagsContext,
+    TaskRunContext,
+)
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.results import ResultSerializer, ResultStorage
@@ -45,7 +50,6 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
 from prefect.states import Pending, State
-from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
 from prefect.utilities.callables import (
@@ -61,7 +65,9 @@ from prefect.utilities.visualization import (
 )
 
 if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.context import TaskRunContext
+    from prefect.task_runners import BaseTaskRunner
 
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -512,51 +518,95 @@ class Task(Generic[P, R]):
 
     async def create_run(
         self,
-        flow_run_context: FlowRunContext,
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]],
+        client: Union["PrefectClient", "SyncPrefectClient"],
+        id: Optional[UUID] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        flow_run_context: Optional[FlowRunContext] = None,
+        parent_task_run_context: Optional[TaskRunContext] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> TaskRun:
-        # TODO: Investigate if we can replace create_task_run on the task run engine
-        # with this method. Would require updating to work without the flow run context.
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
+            _resolve_custom_task_run_name,
             collect_task_run_inputs,
         )
 
-        dynamic_key = _dynamic_key_for_task_run(flow_run_context, self)
+        if flow_run_context is None:
+            flow_run_context = FlowRunContext.get()
+        if parent_task_run_context is None:
+            parent_task_run_context = TaskRunContext.get()
+        if parameters is None:
+            parameters = {}
+
+        try:
+            task_run_name = _resolve_custom_task_run_name(self, parameters)
+        except TypeError:
+            task_run_name = None
+
+        if flow_run_context:
+            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
+        else:
+            dynamic_key = uuid4().hex
+
+        # collect task inputs
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
+
+        # check if this task has a parent task run based on running in another
+        # task run's existing context. A task run is only considered a parent if
+        # it is in the same flow run (because otherwise presumably the child is
+        # in a subflow, so the subflow serves as the parent) or if there is no
+        # flow run
+        if parent_task_run_context:
+            # there is no flow run
+            if not flow_run_context:
+                task_inputs["__parents__"] = [
+                    TaskRunResult(id=parent_task_run_context.task_run.id)
+                ]
+            # there is a flow run and the task run is in the same flow run
+            elif (
+                flow_run_context
+                and parent_task_run_context.task_run.flow_run_id
+                == flow_run_context.flow_run.id
+            ):
+                task_inputs["__parents__"] = [
+                    TaskRunResult(id=parent_task_run_context.task_run.id)
+                ]
+
         if wait_for:
             task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
         # Join extra task inputs
-        extra_task_inputs = extra_task_inputs or {}
-        for k, extras in extra_task_inputs.items():
+        for k, extras in (extra_task_inputs or {}).items():
             task_inputs[k] = task_inputs[k].union(extras)
 
-        flow_run_logger = get_run_logger(flow_run_context)
-
-        task_run = flow_run_context.client.create_task_run(
+        # create the task run
+        task_run = client.create_task_run(
             task=self,
-            name=f"{self.name} - {dynamic_key}",
-            flow_run_id=flow_run_context.flow_run.id,
-            dynamic_key=dynamic_key,
+            name=task_run_name,
+            flow_run_id=(
+                getattr(flow_run_context.flow_run, "id", None)
+                if flow_run_context and flow_run_context.flow_run
+                else None
+            ),
+            dynamic_key=str(dynamic_key),
+            id=id,
             state=Pending(),
-            extra_tags=TagsContext.get().current_tags,
             task_inputs=task_inputs,
+            extra_tags=TagsContext.get().current_tags,
         )
         # the new engine uses sync clients but old engines use async clients
         if inspect.isawaitable(task_run):
             task_run = await task_run
 
-        if flow_run_context.flow_run:
-            flow_run_logger.info(
+        if flow_run_context and flow_run_context.flow_run:
+            get_run_logger(flow_run_context).debug(
                 f"Created task run {task_run.name!r} for task {self.name!r}"
             )
         else:
-            logger.info(f"Created task run {task_run.name!r} for task {self.name!r}")
+            logger.debug(f"Created task run {task_run.name!r} for task {self.name!r}")
 
         return task_run
 
@@ -644,56 +694,6 @@ class Task(Generic[P, R]):
             wait_for=wait_for,
             task_runner=SequentialTaskRunner(),
             return_type=return_type,
-            mapped=False,
-        )
-
-    @overload
-    def _run(
-        self: "Task[P, NoReturn]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFuture[None, Sync]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
-        ...
-
-    @overload
-    def _run(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> Awaitable[State[T]]:
-        ...
-
-    @overload
-    def _run(
-        self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> State[T]:
-        ...
-
-    def _run(
-        self,
-        *args: P.args,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        **kwargs: P.kwargs,
-    ) -> Union[State, Awaitable[State]]:
-        """
-        Run the task and return the final state.
-        """
-        from prefect.engine import enter_task_run_engine
-        from prefect.task_runners import SequentialTaskRunner
-
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.fn, args, kwargs)
-
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type="state",
-            task_runner=SequentialTaskRunner(),
             mapped=False,
         )
 
@@ -906,6 +906,7 @@ class Task(Generic[P, R]):
         task_runner = flow_run_context.task_runner
 
         task_run = await self.create_run(
+            client=flow_run_context.client,
             flow_run_context=flow_run_context,
             parameters=parameters,
             wait_for=wait_for,
@@ -1135,7 +1136,7 @@ class Task(Generic[P, R]):
             mapped=True,
         )
 
-    def serve(self, task_runner: Optional[BaseTaskRunner] = None) -> "Task":
+    def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.

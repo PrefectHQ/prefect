@@ -51,9 +51,6 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
-import sniffio
-from rich.console import Console, Group
-from rich.table import Table
 
 from prefect._internal.concurrency.api import (
     create_call,
@@ -74,18 +71,16 @@ from prefect.client.schemas.objects import (
     StateType,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.deployments.deployments import load_flow_from_flow_run
 from prefect.deployments.runner import (
     EntrypointType,
     RunnerDeployment,
 )
 from prefect.deployments.schedules import FlexibleScheduleList
-from prefect.engine import propose_state
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     Abort,
 )
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.server import start_webserver
 from prefect.runner.storage import RunnerStorage
@@ -94,7 +89,6 @@ from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_RUNNER_SERVER_ENABLE,
-    PREFECT_UI_URL,
     get_current_settings,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
@@ -103,10 +97,11 @@ from prefect.utilities.asyncutils import (
     is_async_fn,
     sync_compatible,
 )
+from prefect.utilities.engine import propose_state
 from prefect.utilities.processutils import _register_signal, run_process
 from prefect.utilities.services import critical_service_loop
 
-__all__ = ["Runner", "serve"]
+__all__ = ["Runner"]
 
 
 class Runner:
@@ -550,7 +545,6 @@ class Runner:
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        _use_threaded_child_watcher()
         flow_run_logger.info("Opening process...")
 
         env = get_current_settings().to_environment_variables(exclude_unset=True)
@@ -1188,106 +1182,6 @@ class Runner:
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
     STATUS_CONTROL_C_EXIT = 0xC000013A
-
-
-def _use_threaded_child_watcher():
-    if (
-        sys.version_info < (3, 8)
-        and sniffio.current_async_library() == "asyncio"
-        and sys.platform != "win32"
-    ):
-        from prefect.utilities.compat import ThreadedChildWatcher
-
-        # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-        # lead to errors in tests on unix as the previous default `SafeChildWatcher`
-        # is not compatible with threaded event loops.
-        asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
-
-
-@sync_compatible
-async def serve(
-    *args: RunnerDeployment,
-    pause_on_shutdown: bool = True,
-    print_starting_message: bool = True,
-    limit: Optional[int] = None,
-    **kwargs,
-):
-    """
-    Serve the provided list of deployments.
-
-    Args:
-        *args: A list of deployments to serve.
-        pause_on_shutdown: A boolean for whether or not to automatically pause
-            deployment schedules on shutdown.
-        print_starting_message: Whether or not to print message to the console
-            on startup.
-        limit: The maximum number of runs that can be executed concurrently.
-        **kwargs: Additional keyword arguments to pass to the runner.
-
-    Examples:
-        Prepare two deployments and serve them:
-
-        ```python
-        import datetime
-
-        from prefect import flow, serve
-
-        @flow
-        def my_flow(name):
-            print(f"hello {name}")
-
-        @flow
-        def my_other_flow(name):
-            print(f"goodbye {name}")
-
-        if __name__ == "__main__":
-            # Run once a day
-            hello_deploy = my_flow.to_deployment(
-                "hello", tags=["dev"], interval=datetime.timedelta(days=1)
-            )
-
-            # Run every Sunday at 4:00 AM
-            bye_deploy = my_other_flow.to_deployment(
-                "goodbye", tags=["dev"], cron="0 4 * * sun"
-            )
-
-            serve(hello_deploy, bye_deploy)
-        ```
-    """
-    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
-    for deployment in args:
-        await runner.add_deployment(deployment)
-
-    if print_starting_message:
-        help_message_top = (
-            "[green]Your deployments are being served and polling for"
-            " scheduled runs!\n[/]"
-        )
-
-        table = Table(title="Deployments", show_header=False)
-
-        table.add_column(style="blue", no_wrap=True)
-
-        for deployment in args:
-            table.add_row(f"{deployment.flow_name}/{deployment.name}")
-
-        help_message_bottom = (
-            "\nTo trigger any of these deployments, use the"
-            " following command:\n[blue]\n\t$ prefect deployment run"
-            " [DEPLOYMENT_NAME]\n[/]"
-        )
-        if PREFECT_UI_URL:
-            help_message_bottom += (
-                "\nYou can also trigger your deployments via the Prefect UI:"
-                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
-            )
-
-        console = Console()
-        console.print(
-            Group(help_message_top, table, help_message_bottom), soft_wrap=True
-        )
-
-    await runner.start()
 
 
 async def _run_hooks(

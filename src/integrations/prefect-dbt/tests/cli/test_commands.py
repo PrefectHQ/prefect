@@ -60,6 +60,41 @@ async def mock_dbt_runner_model_success():
 
 
 @pytest.fixture
+async def mock_dbt_runner_model_error():
+    return dbtRunnerResult(
+        success=False,
+        exception=None,
+        result=RunExecutionResult(
+            results=[
+                RunResult(
+                    status="error",
+                    timing=None,
+                    thread_id="'Thread-1 (worker)'",
+                    message="Runtime Error",
+                    failures=None,
+                    node=ModelNode(
+                        database="test-123",
+                        schema="prefect_dbt_example",
+                        name="my_first_dbt_model",
+                        resource_type="model",
+                        package_name="prefect_dbt_bigquery",
+                        path="example/my_first_dbt_model.sql",
+                        original_file_path="models/example/my_first_dbt_model.sql",
+                        unique_id="model.prefect_dbt_bigquery.my_first_dbt_model",
+                        fqn=["prefect_dbt_bigquery", "example", "my_first_dbt_model"],
+                        alias="my_first_dbt_model",
+                        checksum=FileHash(name="sha256", checksum="123456789"),
+                    ),
+                    execution_time=0.0,
+                    adapter_response=None,
+                )
+            ],
+            elapsed_time=0.0,
+        ),
+    )
+
+
+@pytest.fixture
 async def mock_dbt_runner_ls_success():
     return dbtRunnerResult(
         success=True, exception=None, result=["example.example.test_model"]
@@ -231,14 +266,14 @@ def test_trigger_dbt_cli_command_project_dir(profiles_dir, dbt_cli_profile_bare)
 
 
 @pytest.mark.usefixtures("dbt_runner_ls_result")
-def test_trigger_dbt_cli_command_shell_kwargs(profiles_dir, dbt_cli_profile_bare):
+def test_trigger_dbt_cli_command_extra_command_args(profiles_dir, dbt_cli_profile_bare):
     @flow
     def test_flow():
         return trigger_dbt_cli_command(
             "dbt ls",
-            return_all=True,
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
+            extra_command_args=["--return_all", "True"],
         )
 
     result = test_flow()
@@ -364,8 +399,8 @@ def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare):
         return run_dbt_build(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
-            artifact_key="foo",
-            create_artifact=True,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
         )
 
     test_flow()
@@ -373,6 +408,7 @@ def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     assert a.type == "markdown"
     assert a.data.startswith("# dbt build Task Summary")
     assert "my_first_dbt_model" in a.data
+    assert "Successful Nodes" in a.data
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
@@ -382,8 +418,8 @@ def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
         return run_dbt_test(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
-            artifact_key="foo",
-            create_artifact=True,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
         )
 
     test_flow()
@@ -391,6 +427,7 @@ def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     assert a.type == "markdown"
     assert a.data.startswith("# dbt test Task Summary")
     assert "my_first_dbt_model" in a.data
+    assert "Successful Nodes" in a.data
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
@@ -400,8 +437,8 @@ def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_bare):
         return run_dbt_snapshot(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
-            artifact_key="foo",
-            create_artifact=True,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
         )
 
     test_flow()
@@ -409,6 +446,7 @@ def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     assert a.type == "markdown"
     assert a.data.startswith("# dbt snapshot Task Summary")
     assert "my_first_dbt_model" in a.data
+    assert "Successful Nodes" in a.data
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
@@ -418,8 +456,8 @@ def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare):
         return run_dbt_seed(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
-            artifact_key="foo",
-            create_artifact=True,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
         )
 
     test_flow()
@@ -427,6 +465,7 @@ def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     assert a.type == "markdown"
     assert a.data.startswith("# dbt seed Task Summary")
     assert "my_first_dbt_model" in a.data
+    assert "Successful Nodes" in a.data
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
@@ -436,8 +475,8 @@ def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
         return run_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
-            artifact_key="foo",
-            create_artifact=True,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
         )
 
     test_flow()
@@ -445,6 +484,37 @@ def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     assert a.type == "markdown"
     assert a.data.startswith("# dbt run Task Summary")
     assert "my_first_dbt_model" in a.data
+    assert "Successful Nodes" in a.data
+
+
+@pytest.fixture
+def dbt_runner_model_error(monkeypatch, mock_dbt_runner_model_error):
+    _mock_dbt_runner_invoke_error = MagicMock(return_value=mock_dbt_runner_model_error)
+    monkeypatch.setattr("dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_invoke_error)
+
+
+@pytest.mark.usefixtures("dbt_runner_model_error")
+def test_run_dbt_model_creates_unsuccessful_artifact(
+    profiles_dir, dbt_cli_profile_bare
+):
+    @flow
+    def test_flow():
+        return run_dbt_model(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
+        )
+
+    with pytest.raises(
+        Exception, match="dbt task result success: False with exception: None"
+    ):
+        test_flow()
+    assert (a := Artifact.get(key="foo"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt run Task Summary")
+    assert "my_first_dbt_model" in a.data
+    assert "Unsuccessful Nodes" in a.data
 
 
 @pytest.mark.usefixtures("dbt_runner_failed_result")
@@ -454,8 +524,8 @@ def test_run_dbt_model_throws_error(profiles_dir, dbt_cli_profile_bare):
         return run_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
-            artifact_key="foo",
-            create_artifact=True,
+            summary_artifact_key="foo",
+            create_summary_artifact=True,
         )
 
     with pytest.raises(DbtUsageException, match="No such command 'weeeeeee'."):

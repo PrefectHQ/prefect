@@ -4,6 +4,10 @@ import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/r
 import { BASE_URL } from '@/utilities/meta'
 
 const workspaceRoutes = createWorkspaceRouteRecords({
+  automation: () => import('@/pages/Automation.vue'),
+  automations: () => import('@/pages/Automations.vue'),
+  automationCreate: () => import('@/pages/AutomationCreate.vue'),
+  automationEdit: () => import('@/pages/AutomationEdit.vue'),
   artifact: () => import('@/pages/Artifact.vue'),
   artifactKey: () => import('@/pages/ArtifactKey.vue'),
   artifacts: () => import('@/pages/Artifacts.vue'),

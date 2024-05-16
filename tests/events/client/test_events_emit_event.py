@@ -5,12 +5,11 @@ from uuid import UUID
 import pendulum
 
 from prefect.events import emit_event
-from prefect.events.clients import AssertingEventsClient, NullEventsClient
+from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 
@@ -115,20 +114,6 @@ def test_does_not_set_follows_not_tight_timing(
 
     asserting_events_worker.drain()
     assert read_event.follows is None
-
-
-def test_noop_with_null_events_client():
-    with temporary_settings(updates={PREFECT_EXPERIMENTAL_EVENTS: False}):
-        worker = EventsWorker.instance()
-        assert worker.client_type == NullEventsClient
-
-        assert (
-            emit_event(
-                event="vogon.poetry.read",
-                resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
-            )
-            is None
-        )
 
 
 def test_noop_with_non_cloud_client(mock_should_emit_events: mock.Mock):

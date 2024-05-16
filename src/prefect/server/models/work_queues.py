@@ -17,18 +17,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.server.events.clients import PrefectServerEventsClient
-from prefect.server.models.events import work_queue_status_event
-from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.settings import PREFECT_EXPERIMENTAL_EVENTS
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import parse_obj_as
-else:
-    from pydantic import parse_obj_as
-
+from pydantic.v1 import parse_obj_as
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,12 +25,15 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.models.events import work_queue_status_event
 from prefect.server.models.workers import (
     DEFAULT_AGENT_WORK_POOL_NAME,
     bulk_update_work_queue_priorities,
 )
 from prefect.server.schemas.states import StateType
+from prefect.server.schemas.statuses import WorkQueueStatus
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMFlowRun, ORMWorkQueue
@@ -544,9 +536,6 @@ async def mark_work_queues_ready(
             ready_work_queue_ids=ready_work_queue_ids,
         )
 
-    if not PREFECT_EXPERIMENTAL_EVENTS:
-        return
-
     # Emit events for any work queues that have transitioned to ready during this poll
     # Uses a separate transaction to avoid keeping locks open longer from the updates
     # in the previous transaction
@@ -586,9 +575,6 @@ async def mark_work_queues_not_ready(
             .where(db.WorkQueue.id.in_(work_queue_ids))
             .values(status=WorkQueueStatus.NOT_READY)
         )
-
-    if not PREFECT_EXPERIMENTAL_EVENTS:
-        return
 
     # Emit events for any work queues that have transitioned to ready during this poll
     # Uses a separate transaction to avoid keeping locks open longer from the updates

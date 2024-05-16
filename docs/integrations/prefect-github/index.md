@@ -1,45 +1,90 @@
 # prefect-github
- 
-<p align="center">
-    <a href="https://pypi.python.org/pypi/prefect-github/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-github?color=26272B&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-github/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-github?color=26272B&labelColor=090422" /></a>
-</p>
 
-## Welcome!
+Prefect-github makes it easy to interact with GitHub repositories and credentials.
 
-Prefect integrations interacting with GitHub.
+## Getting started
 
-The tasks within this collection were created by a code generator using the GitHub GraphQL schema.
+### Prerequisites
 
-## Getting Started
+- [Prefect installed](/getting-started/installation/).
+- A [GitHub account](https://github.com/).
 
-### Python setup
+### Install prefect-github
 
-Requires an installation of Python 3.8 or newer.
-
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
-
-These tasks are designed to work with Prefect 2. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Installation
-
-Install `prefect-github` with `pip`:
-
+<div class = "terminal">
 ```bash
 pip install prefect-github
 ```
+</div>
 
-Then, register to [view the block](https://docs.prefect.io/ui/blocks/) on Prefect Cloud:
+### Register newly installed block types
 
+Register the block types in the prefect-github module to make them available for use.
+
+<div class = "terminal">
 ```bash
 prefect block register -m prefect_github
 ```
+</div>
 
-Note, to use the `load` method on Blocks, you must already have a block document [saved through code](https://orion-docs.prefect.io/concepts/blocks/#saving-blocks) or saved through the UI.
+## Examples
 
-### Write and run a flow
+In the examples below, you create blocks with Python code.
+Alternatively, blocks can be created through the Prefect UI.
+
+To create a deployment and run a deployment where the flow code is stored in a private GitHub repository, you can use the `GitHubCredentials` block.
+
+A deployment can use flow code stored in a GitHub repository without using this library in either of the following cases:
+
+- The repository is public
+- The deployment uses a [Secret block](https://docs.prefect.io/latest/concepts/blocks/) to store the token
+
+Code to create a GitHub Credentials block:
+
+```python
+from prefect_github import GitHubCredentials
+
+github_credentials_block = GitHubCredentials(token="my_token")
+github_credentials_block.save(name="my-github-credentials-block")
+```
+
+### Access flow code stored in a private GitHub repository in a deployment
+
+Use the credentials block you created above to pass the GitHub access token during deployment creation. The code below assumes there's flow code stored in a private GitHub repository.
+
+```python
+from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect_github import GitHubCredentials
+
+
+if __name__ == "__main__":
+    flow.from_source(
+        source=GitRepository(
+        url="https://github.com/org/private-repo.git",
+        credentials=GitHubCredentials.load("my-github-credentials-block")
+    ),
+    entrypoint="my_file.py:my_flow",
+    ).deploy(
+        name="private-github-deploy",
+        work_pool_name="my_pool",
+        build=False
+    )
+```
+
+Alternatively, if you use a `prefect.yaml` file to create the deployment, reference the GitHub Credentials block in the `pull` step:
+
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        credentials: "{{ prefect.blocks.github-credentials.my-github-credentials-block }}"
+```
+
+### Interact with a GitHub repository
+
+You can use prefect-github to create and retrieve issues and PRs from a repository.
+Here's an example of adding a star to a GitHub repository:
 
 ```python
 from prefect import flow
@@ -64,28 +109,12 @@ def github_add_star_flow():
     return starrable
 
 
-github_add_star_flow()
+if __name__ == "__main__":
+    github_add_star_flow()
 ```
 
 ## Resources
 
-If you encounter any bugs while using `prefect-github`, feel free to open an issue in the [prefect-github](https://github.com/PrefectHQ/prefect-github) repository.
+For assistance using GitHub, consult the [GitHub documentation](https://docs.github.com).
 
-If you have any questions or issues while using `prefect-github`, you can find help in the [Prefect Slack community](https://prefect.io/slack).
-
-Feel free to ⭐️ or watch [`prefect-github`](https://github.com/PrefectHQ/prefect-github) for updates too!
-
-## Development
-
-If you'd like to install a version of `prefect-github` for development, clone the repository and perform an editable install with `pip`:
-
-```bash
-git clone https://github.com/PrefectHQ/prefect-github.git
-
-cd prefect-github/
-
-pip install -e ".[dev]"
-
-# Install linting pre-commit hooks
-pre-commit install
-```
+Refer to the prefect-github API documentation linked in the sidebar to explore all the capabilities of the prefect-github library.

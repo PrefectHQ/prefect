@@ -46,7 +46,6 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.models import deployments
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 
@@ -54,7 +53,9 @@ from prefect.settings import (
 @pytest.fixture(autouse=True)
 def enable_automations():
     with temporary_settings(
-        {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
+        {
+            PREFECT_API_SERVICES_TRIGGERS_ENABLED: True,
+        }
     ):
         yield
 
@@ -187,9 +188,6 @@ async def create_objects_for_automation(
 @pytest.mark.parametrize(
     "settings",
     [
-        {
-            PREFECT_EXPERIMENTAL_EVENTS: False,
-        },
         {
             PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
         },

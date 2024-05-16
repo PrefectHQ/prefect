@@ -48,13 +48,13 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_API_URL,
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_EXPERIMENTAL_EVENTS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
@@ -217,18 +217,10 @@ def event_loop(request):
 
     When running on Windows we need to use a non-default loop for subprocess support.
     """
-    if sys.platform == "win32" and sys.version_info >= (3, 8):
+    if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
     policy = asyncio.get_event_loop_policy()
-
-    if sys.version_info < (3, 8) and sys.platform != "win32":
-        from prefect.utilities.compat import ThreadedChildWatcher
-
-        # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-        # lead to errors in tests as the previous default `SafeChildWatcher`  is not
-        # compatible with threaded event loops.
-        policy.set_child_watcher(ThreadedChildWatcher())
 
     loop = policy.new_event_loop()
 
@@ -341,10 +333,10 @@ def pytest_sessionstart(session):
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
             # Code is being executed in a unit test context
             PREFECT_UNIT_TEST_MODE: True,
-            # Events: disable the event persister, which may lock the DB during
-            # tests while writing events
-            PREFECT_EXPERIMENTAL_EVENTS: True,
+            # Events: disable the event persister and triggers service, which may
+            # lock the DB during tests while writing events
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
+            PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
         },
         source=__file__,
     )
@@ -572,12 +564,6 @@ def disable_enhanced_cancellation():
 
 
 @pytest.fixture
-def events_disabled():
-    with temporary_settings({PREFECT_EXPERIMENTAL_EVENTS: False}):
-        yield
-
-
-@pytest.fixture
 def start_of_test() -> pendulum.DateTime:
     return pendulum.now("UTC")
 
@@ -602,3 +588,22 @@ def reset_sys_modules():
             del sys.modules[module]
 
     importlib.invalidate_caches()
+
+
+@pytest.fixture(autouse=True, scope="module")
+def leaves_no_extraneous_files():
+    """This fixture will fail a test if it seems to have left new files or directories
+    in the root of the local working tree.  For performance, it only checks for changes
+    at the test module level, but that should generally be enough to narrow down what
+    is happening.  If you're having trouble isolating the problematic test, you can
+    switch it to scope="function" temporarily.  It may also help to run the test suite
+    with one process (-n0) so that unrelated tests won't fail."""
+    before = set(Path(".").iterdir())
+    yield
+    after = set(Path(".").iterdir())
+    new_files = after - before
+    if new_files:
+        raise AssertionError(
+            "One of the tests in this module left new files in the "
+            f"working directory: {new_files}"
+        )
