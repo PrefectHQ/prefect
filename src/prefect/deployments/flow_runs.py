@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
 
 
-logger = get_logger("deployments")
+logger = get_logger(__name__)
 
 
 @sync_compatible
