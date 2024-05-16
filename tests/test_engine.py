@@ -2544,7 +2544,7 @@ class TestTaskRunCrashes:
 
         @flow
         async def my_flow():
-            await my_task._run()
+            await my_task(return_state=True)
 
         # Note exception should not be re-raised
         state = await begin_flow_run(
@@ -2743,7 +2743,7 @@ class TestDynamicKeyHandling:
             subflow()
             my_task()
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
 
         task_runs = await prefect_client.read_task_runs()
         parent_task_runs = [
