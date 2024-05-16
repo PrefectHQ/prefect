@@ -1,12 +1,14 @@
 """Module for defining Kubernetes credential handling and client generation."""
 
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, Generator, Optional, Type, Union
+from typing import Dict, Optional, Type, Union, AsyncGenerator
 
 import yaml
-from kubernetes import config
-from kubernetes.client import (
+
+from kubernetes_asyncio import config
+
+from kubernetes_asyncio.client import (
     ApiClient,
     AppsV1Api,
     BatchV1Api,
@@ -14,7 +16,9 @@ from kubernetes.client import (
     CoreV1Api,
     CustomObjectsApi,
 )
-from kubernetes.config.config_exception import ConfigException
+
+from kubernetes_asyncio.config.config_exception import ConfigException
+
 from pydantic.version import VERSION as PYDANTIC_VERSION
 from typing_extensions import Literal, Self
 
@@ -109,21 +113,22 @@ class KubernetesClusterConfig(Block):
 
         return cls(config=config_dict, context_name=context_name)
 
-    def get_api_client(self) -> "ApiClient":
+    async def get_api_client(self) -> "ApiClient":
         """
         Returns a Kubernetes API client for this cluster config.
         """
-        return config.kube_config.new_client_from_config_dict(
+        
+        return await config.kube_config.new_client_from_config_dict(
             config_dict=self.config, context=self.context_name
         )
 
-    def configure_client(self) -> None:
+    async def configure_client(self) -> None:
         """
         Activates this cluster configuration by loading the configuration into the
         Kubernetes Python client. After calling this, Kubernetes API clients can use
         this config's context.
         """
-        config.kube_config.load_kube_config_from_dict(
+        await config.kube_config.load_kube_config_from_dict(
             config_dict=self.config, context=self.context_name
         )
 
@@ -150,12 +155,12 @@ class KubernetesCredentials(Block):
 
     cluster_config: Optional[KubernetesClusterConfig] = None
 
-    @contextmanager
-    def get_client(
+    @asynccontextmanager
+    async def get_client(
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
         configuration: Optional[Configuration] = None,
-    ) -> Generator[KubernetesClient, None, None]:
+    ) -> AsyncGenerator[KubernetesClient, None]:
         """Convenience method for retrieving a Kubernetes API client for deployment resources.
 
         Args:
@@ -175,11 +180,9 @@ class KubernetesCredentials(Block):
         """
         client_config = configuration or Configuration()
 
-        with ApiClient(configuration=client_config) as generic_client:
-            try:
+        async with ApiClient(configuration=client_config):
                 yield self.get_resource_specific_client(client_type)
-            finally:
-                generic_client.rest_client.pool_manager.clear()
+  
 
     def get_resource_specific_client(
         self,
@@ -215,6 +218,7 @@ class KubernetesCredentials(Block):
             self.cluster_config.configure_client()
         else:
             try:
+                print("Loading in-cluster config")
                 config.load_incluster_config()
             except ConfigException:
                 config.load_kube_config()

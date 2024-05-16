@@ -1,19 +1,25 @@
+
+import os
 import base64
 import re
 from pathlib import Path
 from typing import Dict
-
+import tempfile
 import pytest
 import yaml
-from kubernetes.client import (
+
+from OpenSSL import crypto
+from prefect_kubernetes.credentials import KubernetesClusterConfig
+
+from kubernetes_asyncio.client import (
     ApiClient,
     AppsV1Api,
     BatchV1Api,
     CoreV1Api,
     CustomObjectsApi,
 )
-from kubernetes.config.kube_config import list_kube_config_contexts
-from prefect_kubernetes.credentials import KubernetesClusterConfig
+from kubernetes_asyncio.config.kube_config import list_kube_config_contexts
+
 from pydantic.version import VERSION as PYDANTIC_VERSION
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -21,13 +27,61 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     import pydantic
 
-sample_base64_string = base64.b64encode(b"hello marvin from the other side")
+
+def create_temp_self_signed_cert():
+    """ Create a self signed SSL certificate in temporary files for host
+        'localhost'
+
+    Returns a tuple containing the certificate file name and the key
+    file name.
+
+    It is the caller's responsibility to delete the files after use
+    """
+    # create a key pair
+    key = crypto.PKey()
+    key.generate_key(crypto.TYPE_RSA, 2048)
+
+    # create a self-signed cert
+    cert = crypto.X509()
+    cert.get_subject().C = "US"
+    cert.get_subject().ST = "Chicago"
+    cert.get_subject().L = "Chicago"
+    cert.get_subject().O = "myapp"
+    cert.get_subject().OU = "myapp"
+    cert.get_subject().CN = 'localhost'
+    cert.set_serial_number(1000)
+    cert.gmtime_adj_notBefore(0)
+    cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
+    cert.set_issuer(cert.get_subject())
+    cert.set_pubkey(key)
+    cert.sign(key, 'sha1')
+
+    # Save certificate in temporary file
+    (cert_file_fd, cert_file_name) = tempfile.mkstemp(suffix='.crt', prefix='cert')
+    cert_file = os.fdopen(cert_file_fd, 'wb')
+    cert_file.write(
+        crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
+    )
+    cert_file.close()
+
+    # Save key in temporary file
+    (key_file_fd, key_file_name) = tempfile.mkstemp(suffix='.key', prefix='cert')
+    key_file = os.fdopen(key_file_fd, 'wb')
+    key_file.write(
+        crypto.dump_privatekey(crypto.FILETYPE_PEM, key)
+    )
+    key_file.close()
+
+    # Return file names
+    return (cert_file_name, key_file_name)
+
+_cert_file, _cert_key = create_temp_self_signed_cert()
 
 CONFIG_CONTENT = f"""
     apiVersion: v1
     clusters:
     - cluster:
-        certificate-authority-data: {sample_base64_string}
+        certificate-authority: {_cert_file}
         server: https://kubernetes.docker.internal:6443
       name: docker-desktop
     contexts:
@@ -41,8 +95,8 @@ CONFIG_CONTENT = f"""
     users:
     - name: docker-desktop
       user:
-          client-certificate-data: {sample_base64_string}
-          client-key-data: {sample_base64_string}
+          client-certificate: {_cert_file}
+          client-key: {_cert_key}
 """
 
 
@@ -64,16 +118,16 @@ def config_file(tmp_path) -> Path:
         ("custom_objects", CustomObjectsApi),
     ],
 )
-def test_client_return_type(kubernetes_credentials, resource_type, client_type):
-    with kubernetes_credentials.get_client(resource_type) as client:
+async def test_client_return_type(kubernetes_credentials, resource_type, client_type):
+    async with kubernetes_credentials.get_client(resource_type) as client:
         assert isinstance(client, client_type)
 
 
-def test_client_bad_resource_type(kubernetes_credentials):
+async def test_client_bad_resource_type(kubernetes_credentials):
     with pytest.raises(
         ValueError, match="Invalid client type provided 'shoo-ba-daba-doo'"
     ):
-        with kubernetes_credentials.get_client("shoo-ba-daba-doo"):
+        async with kubernetes_credentials.get_client("shoo-ba-daba-doo"):
             pass
 
 
@@ -134,7 +188,8 @@ async def test_instantiation_from_file_with_unknown_context_name(config_file):
 
 async def test_get_api_client(config_file):
     cluster_config = KubernetesClusterConfig.from_file(path=config_file)
-    api_client = cluster_config.get_api_client()
+    
+    api_client = await cluster_config.get_api_client()
     assert isinstance(api_client, ApiClient)
 
 

@@ -13,7 +13,7 @@ from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
-BASEDIR = Path("tests")
+BASEDIR = Path.cwd() / "src" / "integrations" / "prefect-kubernetes" / "tests"
 GOOD_CONFIG_FILE_PATH = BASEDIR / "kube_config.yaml"
 
 
