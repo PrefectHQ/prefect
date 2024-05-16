@@ -3,14 +3,12 @@ import asyncio
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional
 
 from typing_extensions import ParamSpec, Self, TypeVar
 
-from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.logging.loggers import get_logger
 from prefect.new_futures import PrefectConcurrentFuture, PrefectFuture
-from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
     from prefect.tasks import Task
@@ -112,20 +110,3 @@ class ThreadPoolTaskRunner(TaskRunner):
             self._executor.shutdown()
             self._executor = None
         super().__exit__(exc_type, exc_value, traceback)
-
-
-def _collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
-    dependencies = set()
-
-    def add_futures_to_dependencies(obj):
-        if isinstance(obj, PrefectFuture):
-            dependencies.add(TaskRunResult(id=obj.task_run_id))
-
-    visit_collection(
-        expr,
-        visit_fn=add_futures_to_dependencies,
-        return_data=False,
-        max_depth=max_depth,
-    )
-
-    return dependencies

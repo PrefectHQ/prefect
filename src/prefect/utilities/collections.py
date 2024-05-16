@@ -220,7 +220,7 @@ class StopVisiting(BaseException):
 
 def visit_collection(
     expr,
-    visit_fn: Callable[[Any, Optional[dict]], Any],
+    visit_fn: Union[Callable[[Any, dict], Any], Callable[[Any], Any]],
     return_data: bool = False,
     max_depth: int = -1,
     context: Optional[dict] = None,
