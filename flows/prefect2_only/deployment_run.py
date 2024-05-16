@@ -6,7 +6,6 @@ import anyio
 from packaging.version import Version
 
 import prefect
-from prefect.deployments import Deployment
 
 # The version oldest version this test runs with
 SUPPORTED_VERSION = "2.6.0"
@@ -45,25 +44,28 @@ async def read_flow_run(flow_run_id):
 
 
 def main():
-    # Create deployment
-    deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
-    deployment_id = deployment.apply()
+    if Version(prefect.__version__) <= Version("2.19.0"):
+        from prefect.deployments import Deployment
 
-    # Create a flow run
-    flow_run = anyio.run(create_flow_run, deployment_id)
+        # Create deployment
+        deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
+        deployment_id = deployment.apply()
 
-    env = os.environ.copy()
-    env["PREFECT__FLOW_RUN_ID"] = str(flow_run.id)
-    subprocess.check_call(
-        [sys.executable, "-m", "prefect.engine"],
-        env=env,
-        timeout=30,
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-    )
+        # Create a flow run
+        flow_run = anyio.run(create_flow_run, deployment_id)
 
-    flow_run = anyio.run(read_flow_run, flow_run.id)
-    assert flow_run.state.is_completed(), flow_run.state
+        env = os.environ.copy()
+        env["PREFECT__FLOW_RUN_ID"] = str(flow_run.id)
+        subprocess.check_call(
+            [sys.executable, "-m", "prefect.engine"],
+            env=env,
+            timeout=30,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+
+        flow_run = anyio.run(read_flow_run, flow_run.id)
+        assert flow_run.state.is_completed(), flow_run.state
 
 
 if __name__ == "__main__":
