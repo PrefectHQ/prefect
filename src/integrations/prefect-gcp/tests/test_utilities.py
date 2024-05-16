@@ -26,6 +26,30 @@ jobs_return_value = {
 }
 
 
+@pytest.fixture
+def mock_client(monkeypatch, mock_credentials):
+    m = Mock(name="MockClient")
+
+    def mock_enter(m, *args, **kwargs):
+        return m
+
+    def mock_exit(m, *args, **kwargs):
+        pass
+
+    m.__enter__ = mock_enter
+    m.__exit__ = mock_exit
+
+    def get_mock_client(*args, **kwargs):
+        return m
+
+    monkeypatch.setattr(
+        "prefect_gcp.cloud_run.CloudRunJob._get_client",
+        get_mock_client,
+    )
+
+    return m
+
+
 class MockExecution(Mock):
     call_count = 0
 
