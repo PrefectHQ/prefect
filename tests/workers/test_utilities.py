@@ -25,17 +25,16 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 }
 
 
-@pytest.fixture
-async def mock_collection_registry_not_available():
-    with respx.mock as respx_mock:
-        respx_mock.get(
-            "https://raw.githubusercontent.com/PrefectHQ/"
-            "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
-        ).mock(return_value=httpx.Response(503))
-        yield
-
-
 class TestGetAvailableWorkPoolTypes:
+    @pytest.fixture
+    async def mock_collection_registry_not_available(self):
+        with respx.mock as respx_mock:
+            respx_mock.get(
+                "https://raw.githubusercontent.com/PrefectHQ/"
+                "prefect-collection-registry/main/views/aggregate-worker-metadata.json"
+            ).mock(return_value=httpx.Response(503))
+            yield
+
     @pytest.mark.usefixtures("mock_collection_registry")
     async def test_get_available_work_pool_types(self, monkeypatch):
         def available():
