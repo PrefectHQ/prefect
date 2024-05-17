@@ -31,7 +31,19 @@ class EventPersister:
     name: str = "EventLogger"
 
     consumer_task: Optional[asyncio.Task] = None
-    started_event: Optional[asyncio.Event] = asyncio.Event()
+
+    def __init__(self):
+        self._started_event: Optional[asyncio.Event] = None
+
+    @property
+    def started_event(self) -> asyncio.Event:
+        if self._started_event is None:
+            self._started_event = asyncio.Event()
+        return self._started_event
+
+    @started_event.setter
+    def started_event(self, value: asyncio.Event) -> None:
+        self._started_event = value
 
     async def start(self):
         assert self.consumer_task is None, "Event persister already started"
