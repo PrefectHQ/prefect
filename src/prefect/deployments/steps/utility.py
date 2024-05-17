@@ -263,16 +263,15 @@ async def pip_install_requirements(
     }
 
 
-async def poetry_install_pyproject(
+async def poetry_install(
     directory: Optional[str] = None,
-    pyproject_file: str = "pyproject.toml",
     stream_output: bool = True,
 ):
     """
     Installs dependencies from a pyproject.toml file.
+    Note: pyporject.toml file must be in the directory specified or in the current working directory.
 
     Args:
-        pyproject_file: The pyproject.toml to use for installation.
         directory: The directory the pyproject.toml file is in. Defaults to
             the current working directory.
         stream_output: Whether to stream the output from pip install should be
@@ -291,9 +290,8 @@ async def poetry_install_pyproject(
             - prefect.deployments.steps.git_clone:
                 id: clone-step
                 repository: https://github.com/org/repo.git
-            - prefect.deployments.steps.poetry_install_pyproject:
+            - prefect.deployments.steps.poetry_install:
                 directory: {{ clone-step.directory }}
-                pyproject_file: pyproject.toml
                 stream_output: False
         ```
     """
@@ -301,7 +299,7 @@ async def poetry_install_pyproject(
     stderr_sink = io.StringIO()
 
     async with open_process(
-        ["poetry", "install", pyproject_file],
+        ["poetry", "install"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=directory,
@@ -316,7 +314,7 @@ async def poetry_install_pyproject(
 
         if process.returncode != 0:
             raise RuntimeError(
-                f"pip_install_requirements failed with error code {process.returncode}:"
+                f"poetry_install failed with error code {process.returncode}:"
                 f" {stderr_sink.getvalue()}"
             )
 
