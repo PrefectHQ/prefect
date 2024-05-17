@@ -46,7 +46,7 @@ The `deploy` job is comprised of four `steps`:
 - **`Setup Python`** installs your selected version of Python.
 - **`Prefect Deploy`** installs the dependencies used in your flow, then deploys your flow. `env:` makes the `PREFECT_API_KEY` and `PREFECT_API_URL` secrets from your repository available as environment variables during this step's execution.
 
-For reference, the examples below live in their respective branches of [this repository](https://github.com/kevingrismore/cicd-example).
+For reference, the examples below live in their respective branches of [this repository](https://github.com/prefecthq/cicd-example).
 
 === ".deploy"
 
@@ -242,7 +242,7 @@ In more complex scenarios, CI/CD processes often need to accommodate several add
 - Handling independent deployment of distinct groupings of work, as in a monorepo
 - Efficiently using build time to avoid repeated work
 
-This [example repository](https://github.com/kevingrismore/cicd-example-workspaces) addresses each of these considerations with a combination of Prefect's and GitHub's capabilities.
+This [example repository](https://github.com/prefecthq/cicd-example-workspaces) addresses each of these considerations with a combination of Prefect's and GitHub's capabilities.
 
 ### Deploy to multiple workspaces
 
