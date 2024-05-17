@@ -269,7 +269,7 @@ async def pip_install_pyproject(
 ):
     """
     Installs dependencies from a pyproject.toml file.
-    Note: pyporject.toml file must be in the directory specified or in the current working directory.
+    Note: pyproject.toml file must be in the directory specified or in the current working directory.
 
     Args:
         directory: The directory the pyproject.toml file is in. Defaults to

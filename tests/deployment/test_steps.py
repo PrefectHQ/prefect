@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -914,8 +915,7 @@ class TestPipInstallPyproject:
         )
 
         open_process_mock.assert_called_once_with(
-            ["pip", "install", "."],
-            cwd=None,
+            [sys.executable, "-m", "pip", "install", os.getcwd()],
             stderr=ANY,
             stdout=ANY,
         )
@@ -967,8 +967,7 @@ class TestPipInstallPyproject:
         assert output == step_outputs
 
         open_process_mock.assert_called_once_with(
-            ["pip", "install", "."],
-            cwd="hello-projects",
+            [sys.executable, "-m", "pip", "install", str(tmp_path) + "/hello-projects"],
             stderr=ANY,
             stdout=ANY,
         )
