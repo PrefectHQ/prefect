@@ -417,10 +417,6 @@ async def provision_infrastructure(
         $ prefect work-pool provision-infra "my-pool"
 
     """
-    from prefect.infrastructure.provisioners import (
-        get_infrastructure_provisioner_for_work_pool_type,
-    )
-
     async with get_client() as client:
         try:
             work_pool = await client.read_work_pool(work_pool_name=name)
@@ -435,6 +431,10 @@ async def provision_infrastructure(
             exit_with_error(f"Failed to read work pool {name!r}: {exc}")
 
         try:
+            from prefect.infrastructure.provisioners import (
+                get_infrastructure_provisioner_for_work_pool_type,
+            )
+
             provisioner = get_infrastructure_provisioner_for_work_pool_type(
                 work_pool.type
             )
