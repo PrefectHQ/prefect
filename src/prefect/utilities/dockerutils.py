@@ -27,6 +27,10 @@ import prefect
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
 
+CONTAINER_LABELS = {
+    "io.prefect.version": prefect.__version__,
+}
+
 
 def python_version_minor() -> str:
     return f"{sys.version_info.major}.{sys.version_info.minor}"

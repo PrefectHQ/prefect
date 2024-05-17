@@ -1,28 +1,21 @@
 import uuid
-from functools import partial
 from unittest.mock import MagicMock
 
 import pendulum
 import pytest
-from packaging.version import Version
 
 import prefect
 from prefect import engine
 from prefect.blocks.core import BlockNotSavedError
 from prefect.infrastructure import (
-    DockerContainer,
     Infrastructure,
-    KubernetesJob,
-    Process,
 )
-from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
 from prefect.server.schemas.core import Deployment
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     temporary_settings,
 )
-from prefect.utilities.dockerutils import get_prefect_image_name
 
 
 @pytest.fixture
@@ -73,43 +66,6 @@ class MockInfrastructure(Infrastructure):
 
     class Config:
         arbitrary_types_allowed = True
-
-
-@pytest.mark.skip(reason="Unclear failure.")
-@pytest.mark.usefixtures("use_hosted_api_server")
-@pytest.mark.parametrize(
-    "infrastructure_type",
-    [
-        pytest.param(
-            # This allows testing of against Kubernetes running in Docker Desktop
-            partial(KubernetesJob, _api_dns_name="host.docker.internal"),
-            marks=pytest.mark.service("kubernetes"),
-            id="kubernetes-job",
-        ),
-        pytest.param(
-            DockerContainer,
-            marks=pytest.mark.service("docker"),
-            id="docker-container",
-        ),
-        pytest.param(Process, id="process"),
-    ],
-)
-async def test_flow_run_by_infrastructure_type(
-    flow,
-    deployment,
-    infrastructure_type,
-    prefect_client,
-    patch_manifest_load,
-):
-    await patch_manifest_load(flow)
-    flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
-    infrastructure = infrastructure_type().prepare_for_flow_run(flow_run)
-    result = await infrastructure.run()
-
-    flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert flow_run.state.is_completed(), flow_run.state.message
-
-    assert result.status_code == 0
 
 
 async def test_submission_adds_flow_run_metadata(
@@ -263,41 +219,6 @@ async def test_submission_does_not_override_existing_name(
     infrastructure = MockInfrastructure(name="test").prepare_for_flow_run(flow_run)
     await infrastructure.run()
     MockInfrastructure._run.call_args[0][0]["name"] == "test"
-
-
-@pytest.mark.skip("Flaky test that needs investigation")
-@pytest.mark.service("docker")
-@pytest.mark.usefixtures("use_hosted_api_server")
-@pytest.mark.skipif(
-    (Version(MIN_COMPAT_PREFECT_VERSION) > Version(prefect.__version__.split("+")[0])),
-    reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
-)
-async def test_execution_is_compatible_with_old_prefect_container_version(
-    flow_run,
-    prefect_client,
-    deployment,
-):
-    """
-    This test confirms that submission can properly start a flow run in a container
-    running an old version of Prefect. This tests for regression in the path of
-    "starting a flow run" as well as basic API communication.
-
-    When making a breaking change to the API, it's likely that no compatible image
-    will exist. If so, bump MIN_COMPAT_PREFECT_VERSION past the current prefect
-    version and this test will be skipped until a compatible image can be found.
-    """
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        deployment_id=deployment.id
-    )
-
-    infrastructure = DockerContainer(
-        image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION)
-    ).prepare_for_flow_run(flow_run)
-
-    result = await infrastructure.run()
-    assert result.status_code == 0
-    flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert flow_run.state.is_completed()
 
 
 async def test_enabling_enhanced_cancellation_changes_default_command(
