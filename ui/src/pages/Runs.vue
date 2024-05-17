@@ -14,7 +14,7 @@
 
           <p-divider />
 
-          <p-tabs-root v-model:model-value="tab" :default-value="tabs[0]">
+          <p-tabs-root v-model="tab" :default-value="tabs[0]">
             <p-tabs-list>
               <p-tabs-trigger value="flow-runs">
                 Flow runs
@@ -24,24 +24,26 @@
               </p-tabs-trigger>
             </p-tabs-list>
             <p-tabs-content value="flow-runs">
-              <template v-if="media.md">
-                <FlowRunsScatterPlot
-                  :history="flowRunHistory"
-                  :start-date="flowRunsFilter.flowRuns?.expectedStartTimeAfter"
-                  :end-date="flowRunsFilter.flowRuns?.expectedStartTimeBefore"
-                  class="workspace-runs__scatter-plot"
-                />
-              </template>
-
               <p-content>
+                <template v-if="media.md">
+                  <p-card>
+                    <FlowRunsScatterPlot
+                      :history="flowRunHistory"
+                      :start-date="flowRunsFilterRef.flowRuns?.expectedStartTimeAfter"
+                      :end-date="flowRunsFilterRef.flowRuns?.expectedStartTimeBefore"
+                      class="runs__scatter-plot"
+                    />
+                  </p-card>
+                </template>
+
                 <p-list-header class="min-h-10" sticky>
                   <p-select-all-checkbox v-if="flowRunsAreSelectable" v-model="selectedFlowRuns" :selectable="flowRuns.map(flowRun => flowRun.id)" item-name="flow run" />
-                  <ResultsCount v-if="selectedFlowRuns.length == 0" :count="flowRunCount" label="Flow run" />
+                  <ResultsCount v-if="selectedFlowRuns.length == 0" :count="flowRunCount" label="run" />
                   <SelectedCount v-else :count="selectedFlowRuns.length" />
                   <FlowRunsDeleteButton v-if="can.delete.flow_run" :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
 
                   <template #controls>
-                    <div class="workspace-runs__subflows-toggle">
+                    <div class="runs__subflows-toggle">
                       <p-toggle v-model="hideSubflows" append="Hide subflows" />
                     </div>
                     <template v-if="media.md">
@@ -54,10 +56,18 @@
                   </template>
                 </p-list-header>
 
-                <FlowRunList v-if="flowRuns.length" v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
+                <template v-if="flowRunCount > 0">
+                  <FlowRunList v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs="flowRuns" @bottom="loadMoreFlowRuns" />
+                </template>
 
-                <template v-else-if="flowRunsSubscriptions.loading">
+                <template v-else-if="!flowRunsSubscriptions.executed && flowRunsSubscriptions.loading">
                   <p-loading-icon class="m-auto" />
+                </template>
+
+                <template v-else-if="!flowRunsSubscriptions.executed">
+                  <p-message type="error">
+                    An error occurred while loading task runs. Please try again.
+                  </p-message>
                 </template>
 
                 <template v-else>
@@ -78,13 +88,11 @@
               <p-content>
                 <p-list-header class="min-h-10" sticky>
                   <p-select-all-checkbox v-if="taskRunsAreSelectable" v-model="selectedTaskRuns" :selectable="taskRuns.map(taskRun => taskRun.id)" item-name="task run" />
-                  <ResultsCount v-if="selectedTaskRuns.length == 0" :count="taskRunCount" label="Task run" />
+                  <ResultsCount v-if="selectedTaskRuns.length == 0" :count="taskRunCount" label="run" />
                   <SelectedCount v-else :count="selectedTaskRuns.length" />
                   <TaskRunsDeleteButton v-if="can.delete.task_run" :selected="selectedTaskRuns" @delete="deleteTaskRuns" />
 
                   <template #controls>
-                    <p-button-group v-model="taskRunAutonomyButtonGroupValue" small :options="taskRunAutonomyButtonGroupOptions" />
-
                     <template v-if="media.md">
                       <SearchInput v-model="taskRunNameLike" size="small" placeholder="Search by task run name" class="min-w-64" label="Search by task run name" />
                     </template>
@@ -95,10 +103,18 @@
                   </template>
                 </p-list-header>
 
-                <TaskRunList v-if="taskRuns.length" v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" @bottom="loadMoreTaskRuns" />
+                <template v-if="taskRunCount > 0">
+                  <TaskRunList v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" @bottom="loadMoreTaskRuns" />
+                </template>
 
-                <template v-else-if="taskRunsSubscriptions.loading">
+                <template v-else-if="!taskRunsSubscriptions.executed && taskRunsSubscriptions.loading">
                   <p-loading-icon class="m-auto" />
+                </template>
+
+                <template v-else-if="!taskRunsSubscriptions.executed">
+                  <p-message type="error">
+                    An error occurred while loading task runs. Please try again.
+                  </p-message>
                 </template>
 
                 <template v-else>
@@ -123,7 +139,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { ButtonGroupOption, Getter, media } from '@prefecthq/prefect-design'
+  import { Getter, media } from '@prefecthq/prefect-design'
   import {
     PageHeadingRuns,
     FlowRunsSort,
@@ -144,8 +160,7 @@
     FlowRunSortValuesSortParam,
     TaskRunsFilter,
     TaskRunSortValuesSortParam,
-    TaskRunsSort,
-    isNull
+    TaskRunsSort
   } from '@prefecthq/prefect-ui-library'
   import { BooleanRouteParam, NullableStringRouteParam, useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import merge from 'lodash.merge'
@@ -163,13 +178,6 @@
   const tab = useRouteQueryParam('tab', 'flow-runs')
   const tabs = ['flow-runs', 'task-runs']
 
-  const taskRunAutonomyButtonGroupValue = useRouteQueryParam('task-run-autonomy', NullableStringRouteParam, null)
-  const taskRunAutonomyButtonGroupOptions: ButtonGroupOption[] = [
-    { label: 'All', value: null },
-    { label: 'Autonomous', value: 'autonomous' },
-    { label: 'Children', value: 'children' },
-  ]
-
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
   const taskRunsCountAllSubscription = useSubscription(api.taskRuns.getTaskRunsCount, [{}])
 
@@ -178,37 +186,36 @@
 
   const { filter: dashboardFilter, setFilter: setDashboardFilter, isCustom: isCustomDashboardFilter } = useWorkspaceFlowRunDashboardFilterFromRoute()
 
-  const flowRunNameLike = useRouteQueryParam('flow-run-search', '')
+  const flowRunNameLike = useRouteQueryParam('flow-run-search', NullableStringRouteParam, null)
   const flowRunNameLikeDebounced = useDebouncedRef(flowRunNameLike, 1200)
 
-  const taskRunNameLike = useRouteQueryParam('task-run-search', '')
+  const taskRunNameLike = useRouteQueryParam('task-run-search', NullableStringRouteParam, null)
   const taskRunNameLikeDebounced = useDebouncedRef(taskRunNameLike, 1200)
 
   const hideSubflows = useRouteQueryParam('hide-subflows', BooleanRouteParam, false)
   const flowRunsSort = useRouteQueryParam('flow-runs-sort', FlowRunSortValuesSortParam, 'START_TIME_DESC')
   const taskRunsSort = useRouteQueryParam('task-runs-sort', TaskRunSortValuesSortParam, 'EXPECTED_START_TIME_DESC')
 
-  const flowRunsFilter = toRef<Getter<FlowRunsFilter>>(() => {
+  const flowRunsFilter: Getter<FlowRunsFilter> = () => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
 
     return merge({}, filter, {
       flowRuns: {
-        nameLike: flowRunNameLikeDebounced.value,
+        nameLike: flowRunNameLikeDebounced.value ?? undefined,
         parentTaskRunIdNull: hideSubflows.value ? true : undefined,
       },
       sort: flowRunsSort.value,
     })
-  })
+  }
+
+  const flowRunsFilterRef = toRef(flowRunsFilter)
 
   const taskRunsFilter = toRef<Getter<TaskRunsFilter>>(() => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'TaskRunsFilter')
-    const flowRunIdNull = isNull(taskRunAutonomyButtonGroupValue.value) ? undefined : taskRunAutonomyButtonGroupValue.value === 'autonomous'
 
     return merge({}, filter, {
       taskRuns: {
-        idNull: false,
         nameLike: taskRunNameLikeDebounced.value,
-        flowRunIdNull,
       },
       sort: taskRunsSort.value,
     })
@@ -218,7 +225,7 @@
 
   const interval = 30000
 
-  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [flowRunsFilter], {
+  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [flowRunsFilterRef], {
     interval,
   })
 
