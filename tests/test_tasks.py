@@ -317,7 +317,7 @@ class TestTaskCall:
 
         assert test_flow() == (1, 2, dict(x=3, y=4, z=5))
 
-    def test_task_failure_raises_in_flow(self):
+    async def test_task_failure_raises_in_flow(self):
         @task
         def foo():
             raise ValueError("Test")
@@ -330,7 +330,7 @@ class TestTaskCall:
         state = bar(return_state=True)
         assert state.is_failed()
         with pytest.raises(ValueError, match="Test"):
-            state.result()
+            await state.result()
 
     def test_task_with_name_supports_callable_objects(self):
         class A:
@@ -384,7 +384,7 @@ class TestTaskCall:
 
 
 class TestTaskRun:
-    def test_sync_task_run_inside_sync_flow(self):
+    async def test_sync_task_run_inside_sync_flow(self):
         @task
         def foo(x):
             return x
@@ -395,7 +395,7 @@ class TestTaskRun:
 
         task_state = bar()
         assert isinstance(task_state, State)
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
     async def test_async_task_run_inside_async_flow(self):
         @task
@@ -2836,7 +2836,7 @@ class TestTaskMap:
     def add_together(x, y):
         return x + y
 
-    def test_simple_map(self):
+    async def test_simple_map(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map([1, 2, 3])
@@ -2847,9 +2847,9 @@ class TestTaskMap:
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    def test_simple_map_return_state_true(self):
+    async def test_simple_map_return_state_true(self):
         @flow
         def my_flow():
             states = TestTaskMap.add_one.map([1, 2, 3], return_state=True)
@@ -2857,9 +2857,9 @@ class TestTaskMap:
             return states
 
         states = my_flow()
-        assert [state.result() for state in states] == [2, 3, 4]
+        assert [await state.result() for state in states] == [2, 3, 4]
 
-    def test_map_can_take_tuple_as_input(self):
+    async def test_map_can_take_tuple_as_input(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map((1, 2, 3))
@@ -2870,9 +2870,9 @@ class TestTaskMap:
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    def test_map_can_take_generator_as_input(self):
+    async def test_map_can_take_generator_as_input(self):
         def generate_numbers():
             i = 1
             while i <= 3:
@@ -2889,9 +2889,9 @@ class TestTaskMap:
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    def test_map_can_take_state_as_input(self):
+    async def test_map_can_take_state_as_input(self):
         @task
         def some_numbers():
             return [1, 2, 3]
@@ -2902,9 +2902,9 @@ class TestTaskMap:
             return TestTaskMap.add_one.map(numbers_state)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    def test_can_take_quoted_iterable_as_input(self):
+    async def test_can_take_quoted_iterable_as_input(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
@@ -2915,9 +2915,9 @@ class TestTaskMap:
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    def test_does_not_treat_quote_as_iterable(self):
+    async def test_does_not_treat_quote_as_iterable(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
@@ -2928,9 +2928,9 @@ class TestTaskMap:
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    def test_map_can_take_future_as_input(self):
+    async def test_map_can_take_future_as_input(self):
         @task
         def some_numbers():
             return [1, 2, 3]
@@ -2941,7 +2941,7 @@ class TestTaskMap:
             return TestTaskMap.add_one.map(numbers_future)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
     @task
     def echo(x):
@@ -3132,7 +3132,7 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    def test_map_can_take_flow_state_as_input(self):
+    async def test_map_can_take_flow_state_as_input(self):
         @flow
         def child_flow():
             return [1, 2, 3]
@@ -3143,9 +3143,9 @@ class TestTaskMap:
             return TestTaskMap.add_one.map(numbers_state)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    def test_multiple_inputs(self):
+    async def test_multiple_inputs(self):
         @flow
         def my_flow():
             numbers = [1, 2, 3]
@@ -3153,7 +3153,7 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(numbers, others)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [5, 7, 9]
+        assert [await state.result() for state in task_states] == [5, 7, 9]
 
     def test_missing_iterable_argument(self):
         @flow
@@ -3201,7 +3201,7 @@ class TestTaskMap:
         assert [await state.result() for state in task_states] == [3, 3, 3]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    def test_unmapped_int(self, explicit):
+    async def test_unmapped_int(self, explicit):
         @flow
         def my_flow():
             numbers = [1, 2, 3]
@@ -3209,10 +3209,10 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(numbers, other)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [6, 7, 8]
+        assert [await state.result() for state in task_states] == [6, 7, 8]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    def test_unmapped_str(self, explicit):
+    async def test_unmapped_str(self, explicit):
         @flow
         def my_flow():
             letters = ["a", "b", "c"]
@@ -3220,9 +3220,13 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(letters, other)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == ["atest", "btest", "ctest"]
+        assert [await state.result() for state in task_states] == [
+            "atest",
+            "btest",
+            "ctest",
+        ]
 
-    def test_unmapped_iterable(self):
+    async def test_unmapped_iterable(self):
         @flow
         def my_flow():
             numbers = [[], [], []]
@@ -3230,13 +3234,13 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(numbers, unmapped(others))
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [
+        assert [await state.result() for state in task_states] == [
             [4, 5, 6, 7],
             [4, 5, 6, 7],
             [4, 5, 6, 7],
         ]
 
-    def test_with_keyword_with_default(self):
+    async def test_with_keyword_with_default(self):
         @task
         def add_some(x, y=5):
             return x + y
@@ -3247,9 +3251,9 @@ class TestTaskMap:
             return add_some.map(numbers)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [6, 7, 8]
+        assert [await state.result() for state in task_states] == [6, 7, 8]
 
-    def test_with_keyword_with_iterable_default(self):
+    async def test_with_keyword_with_iterable_default(self):
         @task
         def add_some(x, y=[1, 4]):
             return x + sum(y)
@@ -3260,9 +3264,9 @@ class TestTaskMap:
             return add_some.map(numbers)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [6, 7, 8]
+        assert [await state.result() for state in task_states] == [6, 7, 8]
 
-    def test_with_variadic_keywords_and_iterable(self):
+    async def test_with_variadic_keywords_and_iterable(self):
         @task
         def add_some(x, **kwargs):
             return x + kwargs["y"]
@@ -3273,9 +3277,9 @@ class TestTaskMap:
             return add_some.map(numbers, y=[4, 5, 6])
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [5, 7, 9]
+        assert [await state.result() for state in task_states] == [5, 7, 9]
 
-    def test_with_variadic_keywords_and_noniterable(self):
+    async def test_with_variadic_keywords_and_noniterable(self):
         @task
         def add_some(x, **kwargs):
             return x + kwargs["y"]
@@ -3286,7 +3290,7 @@ class TestTaskMap:
             return add_some.map(numbers, y=1)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
     @fails_with_new_engine
     def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
