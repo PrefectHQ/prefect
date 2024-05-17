@@ -38,7 +38,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic.v1 as pydantic
-from prefect._vendor.fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError as V2ValidationError
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
@@ -68,6 +67,7 @@ from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
+from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -101,17 +101,6 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
-from prefect.utilities.visualization import (
-    FlowVisualizationError,
-    GraphvizExecutableNotFoundError,
-    GraphvizImportError,
-    TaskVizTracker,
-    VisualizationUnsupportedError,
-    build_task_dependencies,
-    get_task_viz_tracker,
-    track_viz_task,
-    visualize_task_dependencies,
-)
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -200,7 +189,7 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner, None] = None,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -289,7 +278,12 @@ class Flow(Generic[P, R]):
                 )
         self.flow_run_name = flow_run_name
 
-        task_runner = task_runner or ConcurrentTaskRunner()
+        default_task_runner = (
+            ThreadPoolTaskRunner()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
+            else ConcurrentTaskRunner()
+        )
+        task_runner = task_runner or default_task_runner
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
@@ -555,6 +549,8 @@ class Flow(Generic[P, R]):
         converting everything directly to a string. This maintains basic types like
         integers during API roundtrips.
         """
+        from prefect._vendor.fastapi.encoders import jsonable_encoder
+
         serialized_parameters = {}
         for key, value in parameters.items():
             try:
@@ -1198,6 +1194,10 @@ class Flow(Generic[P, R]):
             >>>     my_flow("foo")
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
+        from prefect.utilities.visualization import (
+            get_task_viz_tracker,
+            track_viz_task,
+        )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -1232,51 +1232,6 @@ class Flow(Generic[P, R]):
             return_type=return_type,
         )
 
-    @overload
-    def _run(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
-        ...
-
-    @overload
-    def _run(
-        self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
-        ...
-
-    @overload
-    def _run(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
-        ...
-
-    def _run(
-        self,
-        *args: "P.args",
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        **kwargs: "P.kwargs",
-    ):
-        """
-        Run the flow and return its final state.
-
-        Examples:
-
-            Run a flow and get the returned result
-
-            >>> state = my_flow._run("marvin")
-            >>> state.result()
-           "goodbye marvin"
-        """
-        from prefect.engine import enter_flow_run_engine_from_flow_call
-
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.fn, args, kwargs)
-
-        return enter_flow_run_engine_from_flow_call(
-            self,
-            parameters,
-            wait_for=wait_for,
-            return_type="state",
-        )
-
     @sync_compatible
     async def visualize(self, *args, **kwargs):
         """
@@ -1288,6 +1243,16 @@ class Flow(Generic[P, R]):
             - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
             - FlowVisualizationError: If the flow can't be visualized for any other reason.
         """
+        from prefect.utilities.visualization import (
+            FlowVisualizationError,
+            GraphvizExecutableNotFoundError,
+            GraphvizImportError,
+            TaskVizTracker,
+            VisualizationUnsupportedError,
+            build_task_dependencies,
+            visualize_task_dependencies,
+        )
+
         if not PREFECT_UNIT_TEST_MODE:
             warnings.warn(
                 "`flow.visualize()` will execute code inside of your flow that is not"
@@ -1340,7 +1305,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
-    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
+    task_runner: Optional[BaseTaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -1372,7 +1337,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = None,
     retry_delay_seconds: Union[int, float] = None,
-    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
+    task_runner: Optional[BaseTaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,

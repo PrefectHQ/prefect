@@ -844,7 +844,7 @@ Resource:
 Related Resources:
 {% for related in event.related %}
     Role: {{ related.role }}
-    {% for label, value in event.resource %}
+    {% for label, value in related %}
     {{ label }}: {{ value }}
     {% endfor %}
 {% endfor %}
