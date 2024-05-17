@@ -17,9 +17,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 import anyio
 import yaml
 
+from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.asyncutils import LazySemaphore
 from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
+from prefect.utilities.templating import apply_values
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import MinimalDeploymentSchedule
@@ -127,7 +129,6 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     Raises:
         ValueError: if provided recipe name does not exist.
     """
-    from prefect.utilities.templating import apply_values
 
     # load the recipe
     recipe_path = Path(__file__).parent / "recipes" / recipe / "prefect.yaml"
@@ -382,8 +383,6 @@ OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0
 
 
 async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
-    from prefect.logging import get_logger
-
     decorator_name = "flow"
     decorator_module = "prefect"
     decorated_functions = []
