@@ -82,7 +82,6 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.runner.server import start_webserver
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
@@ -365,6 +364,8 @@ class Runner:
                 runner.start()
             ```
         """
+        from prefect.runner.server import start_webserver
+
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
