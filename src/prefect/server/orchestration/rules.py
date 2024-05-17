@@ -269,7 +269,7 @@ class FlowOrchestrationContext(OrchestrationContext):
                 else None
             )
         else:
-            state_payload = self.proposed_state.model_dump()
+            state_payload = self.proposed_state.model_dump_for_orm()
             state_data = state_payload.pop("data", None)
 
             if state_data is not None and not (
@@ -423,7 +423,7 @@ class TaskOrchestrationContext(OrchestrationContext):
                 else None
             )
         else:
-            state_payload = self.proposed_state.model_dump()
+            state_payload = self.proposed_state.model_dump_for_orm()
             state_data = state_payload.pop("data", None)
 
             if state_data is not None and not (

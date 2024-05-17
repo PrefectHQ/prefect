@@ -127,7 +127,7 @@ async def update_flow_run_notification_policy(
     """
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = flow_run_notification_policy.model_dump(exclude_unset=True)
+    update_data = flow_run_notification_policy.model_dump_for_orm(exclude_unset=True)
 
     update_stmt = (
         sa.update(db.FlowRunNotificationPolicy)
