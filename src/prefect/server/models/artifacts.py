@@ -20,7 +20,7 @@ async def _insert_into_artifact_collection(
     """
     Inserts a new artifact into the artifact_collection table or updates it.
     """
-    insert_values = artifact.model_dump(
+    insert_values = artifact.model_dump_for_orm(
         exclude_unset=True, exclude={"id", "updated", "created"}
     )
     upsert_new_latest_id = (
@@ -81,7 +81,7 @@ async def _insert_into_artifact(
     insert_stmt = db.insert(db.Artifact).values(
         created=now,
         updated=now,
-        **artifact.model_dump(exclude={"created", "updated"}),
+        **artifact.model_dump_for_orm(exclude={"created", "updated"}),
     )
     await session.execute(insert_stmt)
 
@@ -431,7 +431,7 @@ async def update_artifact(
     Returns:
         bool: True if the update was successful, False otherwise
     """
-    update_artifact_data = artifact.model_dump(exclude_unset=True)
+    update_artifact_data = artifact.model_dump_for_orm(exclude_unset=True)
 
     update_artifact_stmt = (
         sa.update(db.Artifact)
@@ -441,7 +441,7 @@ async def update_artifact(
 
     await session.execute(update_artifact_stmt)
 
-    update_artifact_collection_data = artifact.model_dump(exclude_unset=True)
+    update_artifact_collection_data = artifact.model_dump_for_orm(exclude_unset=True)
     update_artifact_collection_stmt = (
         sa.update(db.ArtifactCollection)
         .where(db.ArtifactCollection.latest_id == artifact_id)

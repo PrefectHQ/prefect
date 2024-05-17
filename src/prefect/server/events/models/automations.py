@@ -160,7 +160,7 @@ async def update_automation(
     result = await session.execute(
         sa.update(db.Automation)
         .where(db.Automation.id == automation_id)
-        .values(**automation_update.model_dump(exclude_unset=True))
+        .values(**automation_update.model_dump_for_orm(exclude_unset=True))
     )
 
     if isinstance(automation_update, AutomationUpdate):

@@ -4,23 +4,27 @@ Intended for internal use by the Prefect REST API.
 """
 
 import html
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.settings import PREFECT_TEST_MODE
 
 if TYPE_CHECKING:
+    from prefect.client.schemas import BlockType as ClientBlockType
+    from prefect.client.schemas.actions import BlockTypeUpdate as ClientBlockTypeUpdate
     from prefect.server.database.orm_models import ORMBlockType
 
 
 @inject_db
 async def create_block_type(
-    session: sa.orm.Session,
-    block_type: schemas.core.BlockType,
+    session: AsyncSession,
+    block_type: Union[schemas.core.BlockType, "ClientBlockType"],
     db: PrefectDBInterface,
     override: bool = False,
 ) -> "ORMBlockType":
@@ -34,7 +38,17 @@ async def create_block_type(
     Returns:
         block_type: an ORM block type model
     """
-    insert_values = block_type.model_dump(
+    # We take a shortcut in many unit tests to pass client models directly to
+    # this function.  We will support this (only in unit tests) by converting them
+    # to the appropriate server model.
+    if not isinstance(block_type, schemas.core.BlockType):
+        if not PREFECT_TEST_MODE.value():
+            raise ValueError("block_type must be a server model")
+        block_type = schemas.core.BlockType.model_validate(
+            block_type.model_dump(mode="json")
+        )
+
+    insert_values = block_type.model_dump_for_orm(
         exclude_unset=False, exclude={"created", "updated", "id"}
     )
     if insert_values.get("description") is not None:
@@ -69,7 +83,7 @@ async def create_block_type(
 
 @inject_db
 async def read_block_type(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_type_id: UUID,
     db: PrefectDBInterface,
 ):
@@ -88,7 +102,7 @@ async def read_block_type(
 
 @inject_db
 async def read_block_type_by_slug(
-    session: sa.orm.Session, block_type_slug: str, db: PrefectDBInterface
+    session: AsyncSession, block_type_slug: str, db: PrefectDBInterface
 ):
     """
     Reads a block type by slug.
@@ -109,7 +123,7 @@ async def read_block_type_by_slug(
 
 @inject_db
 async def read_block_types(
-    session: sa.orm.Session,
+    session: AsyncSession,
     db: PrefectDBInterface,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
@@ -148,9 +162,9 @@ async def read_block_types(
 
 @inject_db
 async def update_block_type(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_type_id: str,
-    block_type: schemas.actions.BlockTypeUpdate,
+    block_type: Union[schemas.actions.BlockTypeUpdate, "ClientBlockTypeUpdate"],
     db: PrefectDBInterface,
 ) -> bool:
     """
@@ -164,10 +178,24 @@ async def update_block_type(
     Returns:
         bool: True if the block type was updated
     """
+
+    # We take a shortcut in many unit tests to pass client models directly to
+    # this function.  We will support this (only in unit tests) by converting them
+    # to the appropriate server model.
+    if not isinstance(block_type, schemas.actions.BlockTypeUpdate):
+        if not PREFECT_TEST_MODE.value():
+            raise ValueError("block_type must be a server model")
+        block_type = schemas.actions.BlockTypeUpdate.model_validate(
+            block_type.model_dump(
+                mode="json",
+                exclude={"id", "created", "updated", "name", "slug", "is_protected"},
+            )
+        )
+
     update_statement = (
         sa.update(db.BlockType)
         .where(db.BlockType.id == block_type_id)
-        .values(**block_type.model_dump(exclude_unset=True, exclude={"id"}))
+        .values(**block_type.model_dump_for_orm(exclude_unset=True, exclude={"id"}))
     )
     result = await session.execute(update_statement)
     return result.rowcount > 0
@@ -175,7 +203,7 @@ async def update_block_type(
 
 @inject_db
 async def delete_block_type(
-    session: sa.orm.Session, block_type_id: str, db: PrefectDBInterface
+    session: AsyncSession, block_type_id: str, db: PrefectDBInterface
 ):
     """
     Delete a block type by id.

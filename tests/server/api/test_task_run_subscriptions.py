@@ -13,6 +13,7 @@ from starlette.testclient import TestClient, WebSocketTestSession
 from prefect.client.schemas import TaskRun
 from prefect.server import models
 from prefect.server.api import task_runs
+from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
@@ -253,11 +254,11 @@ async def preexisting_runs(
     stored_runA = TaskRun.from_orm(
         await models.task_runs.create_task_run(
             session,
-            TaskRun(
+            ServerTaskRun(
                 flow_run_id=None,
                 task_key="mytasks.taskA",
                 dynamic_key="mytasks.taskA-1",
-                state=Scheduled(),
+                state=Scheduled().model_dump(exclude={"created", "updated"}),
             ),
         )
     )
@@ -265,11 +266,11 @@ async def preexisting_runs(
     stored_runB = TaskRun.from_orm(
         await models.task_runs.create_task_run(
             session,
-            TaskRun(
+            ServerTaskRun(
                 flow_run_id=None,
                 task_key="mytasks.taskA",
                 dynamic_key="mytasks.taskA-2",
-                state=Scheduled(),
+                state=Scheduled().model_dump(exclude={"created", "updated"}),
             ),
         )
     )

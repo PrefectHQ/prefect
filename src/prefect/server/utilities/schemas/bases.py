@@ -1,11 +1,14 @@
 import datetime
 import os
-from typing import Any, Optional, Set, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_extra_types.pendulum_dt import DateTime
+
+if TYPE_CHECKING:
+    from pydantic.main import IncEx
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)
@@ -84,6 +87,59 @@ class PrefectBaseModel(BaseModel):
                 value = pendulum.instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
+
+    def model_dump_for_orm(
+        self,
+        *,
+        include: "IncEx" = None,
+        exclude: "IncEx" = None,
+        by_alias: bool = False,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Prefect extension to `BaseModel.model_dump`.  Generate a Python dictionary
+        representation of the model suitable for passing to SQLAlchemy model
+        constructors, `INSERT` statements, etc.  The critical difference here is that
+        this method will return any nested BaseModel objects as `BaseModel` instances,
+        rather than serialized Python dictionaries.
+
+        Accepts the standard Pydantic `model_dump` arguments, except for `mode` (which
+        is always "python"), `round_trip`, and `warnings`.
+
+        Usage docs: https://docs.pydantic.dev/2.6/concepts/serialization/#modelmodel_dump
+
+        Args:
+            include: A list of fields to include in the output.
+            exclude: A list of fields to exclude from the output.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default
+                value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+
+        Returns:
+            A dictionary representation of the model, suitable for passing
+            to SQLAlchemy model constructors, INSERT statements, etc.
+        """
+        # TODO: this could be optimized by excluding any fields that we know we are
+        # going to replace because they are `BaseModel` instances.  This would involve
+        # understanding which fields would be included or excluded by model_dump so we
+        # could instruct Pydantic to exclude them up front.
+        deep = super().model_dump(
+            mode="python",
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+        )
+        for k, v in self:
+            if k in deep and isinstance(v, BaseModel):
+                deep[k] = v
+        return deep
 
 
 class IDBaseModel(PrefectBaseModel):
