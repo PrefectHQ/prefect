@@ -29,11 +29,13 @@ from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
+from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, task_run_logger
 from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
+    Failed,
     Paused,
     Pending,
     Retrying,
@@ -92,9 +94,23 @@ class TaskRunEngine(Generic[P, R]):
         ] = self.task.retry_condition_fn
         if not self.task_run:
             raise ValueError("Task run is not set")
-        return not retry_condition or retry_condition(
-            self.task, self.task_run, self.state
-        )
+        try:
+            self.logger.debug(
+                f"Running `retry_condition_fn` check {retry_condition!r} for task"
+                f" {self.task.name!r}"
+            )
+            return not retry_condition or retry_condition(
+                self.task, self.task_run, self.state
+            )
+        except Exception:
+            self.logger.error(
+                (
+                    "An error was encountered while running `retry_condition_fn` check"
+                    f" '{retry_condition!r}' for task {self.task.name!r}"
+                ),
+                exc_info=True,
+            )
+            return False
 
     def get_hooks(self, state: State, as_async: bool = False) -> Iterable[Callable]:
         task = self.task
@@ -326,6 +342,16 @@ class TaskRunEngine(Generic[P, R]):
             )
             self.set_state(state)
 
+    def handle_timeout(self, exc: TimeoutError) -> None:
+        message = f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
+        self.logger.error(message)
+        state = Failed(
+            data=exc,
+            message=message,
+            name="TimedOut",
+        )
+        self.set_state(state)
+
     def handle_crash(self, exc: BaseException) -> None:
         state = run_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
@@ -391,6 +417,19 @@ class TaskRunEngine(Generic[P, R]):
                 self.handle_crash(exc)
                 raise
             finally:
+                # If debugging, use the more complete `repr` than the usual `str` description
+                display_state = (
+                    repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+                )
+                self.logger.log(
+                    level=logging.INFO if self.state.is_completed() else logging.ERROR,
+                    msg=f"Finished in state {display_state}",
+                )
+
+                maybe_awaitable = APILogHandler.flush()
+                if inspect.isawaitable(maybe_awaitable):
+                    run_sync(maybe_awaitable)
+
                 self._is_started = False
                 self._client = None
 
@@ -429,7 +468,8 @@ def run_task_sync(
 
                     # If the task run is successful, finalize it.
                     run.handle_success(result)
-
+                except TimeoutError as exc:
+                    run.handle_timeout(exc)
                 except Exception as exc:
                     run.handle_exception(exc)
 
@@ -476,6 +516,8 @@ async def run_task_async(
 
                     # If the task run is successful, finalize it.
                     run.handle_success(result)
+                except TimeoutError as exc:
+                    run.handle_timeout(exc)
                 except Exception as exc:
                     run.handle_exception(exc)
 
