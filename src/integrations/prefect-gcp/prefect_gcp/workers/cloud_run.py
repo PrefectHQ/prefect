@@ -182,9 +182,8 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import Field, validator
 
-from prefect_gcp.cloud_run import Execution, Job
 from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.utilities import slugify_name
+from prefect_gcp.utilities import Execution, Job, slugify_name
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
