@@ -4,12 +4,14 @@ Utilities for creating and working with Prefect REST API schemas.
 
 import datetime
 import os
-from typing import Any, Optional, Set, TypeVar
+from typing import Any, Dict, Optional, Set, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_extra_types.pendulum_dt import DateTime
+
+from prefect.utilities.pydantic import default_secret_encoder
 
 T = TypeVar("T")
 
@@ -70,6 +72,23 @@ class PrefectBaseModel(BaseModel):
                 value = pendulum.instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
+
+    def model_dump_with_secrets(
+        self, *args, include_secrets: bool = True, **kwargs
+    ) -> Dict:
+        """Recursively dump the model to a dictionary, calling `.get_secret_value()` on
+        any fields that have that method defined. All normal `model_dump` arguments are
+        supported.
+
+        `include_secrets` is left for when the caller of this method wants to override
+        the default behavior of including secrets in the output (as currently enabled in the client).
+        """
+        return {
+            field_name: default_secret_encoder(
+                field_value, unmask_secrets=include_secrets
+            )
+            for field_name, field_value in self.model_dump(*args, **kwargs).items()
+        }
 
 
 class IDBaseModel(PrefectBaseModel):

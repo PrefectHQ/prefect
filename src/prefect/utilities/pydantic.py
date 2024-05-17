@@ -4,7 +4,9 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Mapping,
     Optional,
+    Sequence,
     Type,
     TypeVar,
     cast,
@@ -359,3 +361,27 @@ def parse_obj_as(
     parser: Callable[[Any], T] = getattr(adapter, f"validate_{mode}")
 
     return parser(data)
+
+
+def default_secret_encoder(value: object, unmask_secrets: bool = False):
+    """
+    Default encoder for unmasking secrets in Pydantic models.
+    """
+
+    if unmask_secrets and hasattr(value, "get_secret_value"):
+        return cast(pydantic.Secret[object], value).get_secret_value()
+    elif isinstance(value, pydantic.BaseModel):
+        return value.model_dump()
+    elif isinstance(value, Mapping):  # dicts may contain secrets
+        return {
+            key: default_secret_encoder(val, unmask_secrets=unmask_secrets)
+            for key, val in value.items()
+        }
+    elif isinstance(value, Sequence) and not isinstance(value, str):  # seqs may also
+        return [
+            default_secret_encoder(val, unmask_secrets=unmask_secrets) for val in value
+        ]
+    elif isinstance(value, (str, bytes, None.__class__)):
+        return value
+    else:
+        return str(value)

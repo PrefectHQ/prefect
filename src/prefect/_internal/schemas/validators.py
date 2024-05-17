@@ -379,7 +379,7 @@ def default_anchor_date(v: DateTime) -> DateTime:
     return pendulum.instance(v)
 
 
-def get_valid_timezones(v: str) -> Tuple[str, ...]:
+def get_valid_timezones(v: Optional[str]) -> Tuple[str, ...]:
     # pendulum.tz.timezones is a callable in 3.0 and above
     # https://github.com/PrefectHQ/prefect/issues/11619
     if callable(pendulum.tz.timezones):
@@ -418,7 +418,8 @@ def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
     return v
 
 
-def default_timezone(v: str, values: Optional[dict] = {}) -> str:
+def default_timezone(v: Optional[str], values: Optional[dict] = None) -> str:
+    values = values or {}
     timezones = get_valid_timezones(v)
 
     if v is not None:

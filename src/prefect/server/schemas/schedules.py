@@ -3,14 +3,14 @@ Schedule schemas
 """
 
 import datetime
-from typing import Any, Generator, List, Optional, Tuple, Union
+from typing import Annotated, Any, Generator, List, Optional, Tuple, Union
 
 import dateutil
 import dateutil.rrule
 import pendulum
 import pytz
 from croniter import croniter
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.validators import (
@@ -74,16 +74,15 @@ class IntervalSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     interval: PositiveDuration
-    anchor_date: Optional[DateTime] = None
+    anchor_date: Optional[
+        Annotated[DateTime, AfterValidator(default_anchor_date)]
+    ] = Field(default=None, examples=["2020-01-01T00:00:00Z"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
-    @field_validator("anchor_date")
-    def validate_anchor_date(cls, v):
-        return default_anchor_date(v)
-
-    @field_validator("timezone")
-    def validate_timezone(cls, v, values):
-        return default_timezone(v, values)
+    @model_validator(mode="after")
+    def validate_timezone(self):
+        self.timezone = default_timezone(self.timezone, self.model_dump())
+        return self
 
     async def get_dates(
         self,
@@ -220,10 +219,10 @@ class CronSchedule(PrefectBaseModel):
         ),
     )
 
-    @field_validator("timezone")
-    @classmethod
-    def validate_timezone(cls, v, *, values, **kwargs):
-        return default_timezone(v, values)
+    @model_validator(mode="after")
+    def validate_timezone(self):
+        self.timezone = default_timezone(self.timezone, self.model_dump())
+        return self
 
     @field_validator("cron")
     @classmethod
@@ -232,9 +231,9 @@ class CronSchedule(PrefectBaseModel):
 
     async def get_dates(
         self,
-        n: int = None,
-        start: datetime.datetime = None,
-        end: datetime.datetime = None,
+        n: Optional[int] = None,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
     ) -> List[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
