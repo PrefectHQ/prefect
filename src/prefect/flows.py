@@ -38,7 +38,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic.v1 as pydantic
-from prefect._vendor.fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError as V2ValidationError
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
@@ -102,17 +101,6 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
-from prefect.utilities.visualization import (
-    FlowVisualizationError,
-    GraphvizExecutableNotFoundError,
-    GraphvizImportError,
-    TaskVizTracker,
-    VisualizationUnsupportedError,
-    build_task_dependencies,
-    get_task_viz_tracker,
-    track_viz_task,
-    visualize_task_dependencies,
-)
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -561,6 +549,8 @@ class Flow(Generic[P, R]):
         converting everything directly to a string. This maintains basic types like
         integers during API roundtrips.
         """
+        from prefect._vendor.fastapi.encoders import jsonable_encoder
+
         serialized_parameters = {}
         for key, value in parameters.items():
             try:
@@ -1204,6 +1194,10 @@ class Flow(Generic[P, R]):
             >>>     my_flow("foo")
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
+        from prefect.utilities.visualization import (
+            get_task_viz_tracker,
+            track_viz_task,
+        )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -1249,6 +1243,16 @@ class Flow(Generic[P, R]):
             - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
             - FlowVisualizationError: If the flow can't be visualized for any other reason.
         """
+        from prefect.utilities.visualization import (
+            FlowVisualizationError,
+            GraphvizExecutableNotFoundError,
+            GraphvizImportError,
+            TaskVizTracker,
+            VisualizationUnsupportedError,
+            build_task_dependencies,
+            visualize_task_dependencies,
+        )
+
         if not PREFECT_UNIT_TEST_MODE:
             warnings.warn(
                 "`flow.visualize()` will execute code inside of your flow that is not"
