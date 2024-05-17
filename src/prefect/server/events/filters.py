@@ -66,9 +66,9 @@ class AutomationFilter(PrefectOperatorFilterBaseModel):
         filters = []
 
         if self.name is not None:
-            filters.append(self.name.as_sql_filter(db))
+            filters.append(self.name.as_sql_filter())
         if self.created is not None:
-            filters.append(self.created.as_sql_filter(db))
+            filters.append(self.created.as_sql_filter())
 
         return filters
 
