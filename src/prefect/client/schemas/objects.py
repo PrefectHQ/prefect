@@ -10,7 +10,7 @@ from typing import (
     Union,
     overload,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import orjson
 import pendulum
@@ -22,13 +22,12 @@ from pydantic import (
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Literal
+from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    get_or_create_state_name,
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_with_banned_characters,
@@ -253,24 +252,24 @@ class State(ObjectBaseModel, Generic[R]):
             state_details=self.state_details,
         )
 
-    @field_validator("name", mode="before")
-    def default_name_from_type(cls, v, values):
-        return get_or_create_state_name(v, values)
+    @model_validator(mode="after")
+    def default_name_from_type(self) -> Self:
+        """If a name is not provided, use the type"""
+        # if `type` is not in `values` it means the `type` didn't pass its own
+        # validation check and an error will be raised after this function is called
+        name = self.name
+        if name is None and self.type:
+            self.name = " ".join([v.capitalize() for v in self.type.value.split("_")])
+        return self
 
-    @model_validator(mode="before")
-    def default_scheduled_start_time(cls, values):
-        """
-        TODO: This should throw an error instead of setting a default but is out of
-              scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
-              into work refactoring state initialization
-        """
-        if values.get("type") == StateType.SCHEDULED:
-            state_details = values.setdefault(
-                "state_details", cls.__fields__["state_details"].get_default()
-            )
-            if not state_details.scheduled_time:
-                state_details.scheduled_time = pendulum.now("utc")
-        return values
+    @model_validator(mode="after")
+    def default_scheduled_start_time(self) -> Self:
+        from prefect.server.schemas.states import StateType
+
+        if self.type == StateType.SCHEDULED:
+            if not self.state_details.scheduled_time:
+                self.state_details.scheduled_time = pendulum.now("utc")
+        return self
 
     def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED
@@ -311,7 +310,6 @@ class State(ObjectBaseModel, Generic[R]):
         self,
         *,
         update: Optional[Dict[str, Any]] = None,
-        reset_fields: bool = False,
         **kwargs,
     ):
         """
@@ -319,8 +317,22 @@ class State(ObjectBaseModel, Generic[R]):
         database again. The 'timestamp' is reset using the default factory.
         """
         update = update or {}
-        update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
-        return super().copy(reset_fields=reset_fields, update=update, **kwargs)
+        update.setdefault("timestamp", self.model_fields["timestamp"].get_default())
+        return super().model_copy(update=update, **kwargs)
+
+    def fresh_copy(self, **kwargs) -> Self:
+        """
+        Return a fresh copy of the state with a new ID.
+        """
+        return self.copy(
+            update={
+                "id": uuid4(),
+                "created": pendulum.now("utc"),
+                "updated": pendulum.now("utc"),
+                "timestamp": pendulum.now("utc"),
+            },
+            **kwargs,
+        )
 
     def __repr__(self) -> str:
         """
