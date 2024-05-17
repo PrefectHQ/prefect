@@ -19,6 +19,9 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.infrastructure.provisioners import (
+    get_infrastructure_provisioner_for_work_pool_type,
+)
 from prefect.settings import update_current_profile
 from prefect.workers.utilities import (
     get_available_work_pool_types,
@@ -172,10 +175,6 @@ async def create(
             template_contents = json.load(base_job_template)
 
         if provision_infrastructure:
-            from prefect.infrastructure.provisioners import (
-                get_infrastructure_provisioner_for_work_pool_type,
-            )
-
             try:
                 provisioner = get_infrastructure_provisioner_for_work_pool_type(type)
                 provisioner.console = app.console
