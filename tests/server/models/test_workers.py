@@ -5,7 +5,6 @@ import pydantic
 import pytest
 import sqlalchemy as sa
 
-import prefect
 from prefect.server import models, schemas
 
 
@@ -719,7 +718,7 @@ class TestGetScheduledRuns:
                 session=session,
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
-                    state=prefect.states.Running(),
+                    state=schemas.states.Running(),
                     work_queue_id=wq.id,
                 ),
             )
@@ -729,7 +728,7 @@ class TestGetScheduledRuns:
                 session=session,
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
-                    state=prefect.states.Pending(),
+                    state=schemas.states.Pending(),
                     work_queue_id=wq.id,
                 ),
             )
@@ -742,7 +741,7 @@ class TestGetScheduledRuns:
                     session=session,
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
-                        state=prefect.states.Scheduled(
+                        state=schemas.states.Scheduled(
                             scheduled_time=pendulum.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,

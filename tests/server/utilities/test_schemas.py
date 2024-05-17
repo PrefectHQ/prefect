@@ -1,7 +1,7 @@
 import importlib
 import os
 from contextlib import contextmanager
-from typing import Generator, Type
+from typing import Any, Generator, Type
 from uuid import uuid4
 
 import pendulum
@@ -13,6 +13,25 @@ from prefect.server.utilities.schemas import (
     ORMBaseModel,
     PrefectBaseModel,
 )
+
+
+class NestedFunModel(pydantic.BaseModel):
+    loser: str = pydantic.Field("drake")
+    nested_secret_str: pydantic.SecretStr
+    nested_secret_bytes: pydantic.SecretBytes
+    nested_secret_int: pydantic.Secret[int]
+    all_my_enemies_secrets: list[pydantic.SecretStr]
+
+
+class FunSecretModel(PrefectBaseModel):
+    winner: str = pydantic.Field("kendrick")
+    secret_str: pydantic.SecretStr
+    secret_str_manual: pydantic.Secret[str]
+    secret_bytes: pydantic.SecretBytes
+    secret_bytes_manual: pydantic.Secret[bytes]
+    secret_int: pydantic.Secret[int]
+    nested_model: NestedFunModel
+    normal_dictionary: dict[str, str | dict[str, Any]]
 
 
 @contextmanager
@@ -52,7 +71,7 @@ class TestExtraForbidden:
             x: int
 
         with pytest.raises(
-            pydantic.ValidationError, match="extra fields not permitted"
+            pydantic.ValidationError, match="Extra inputs are not permitted"
         ):
             Model(x=1, y=2)
 
@@ -73,7 +92,7 @@ class TestExtraForbidden:
                 x: int
 
         with pytest.raises(
-            pydantic.ValidationError, match="extra fields not permitted"
+            pydantic.ValidationError, match="Extra inputs are not permitted"
         ):
             Model(x=1, y=2)
 
@@ -98,12 +117,11 @@ class TestNestedDict:
         assert dict(nested) == {"x": 1, "y": nested.y}
         assert isinstance(dict(nested)["y"], pydantic.BaseModel)
 
-    def test_kwargs_respected(self, nested):
+    def test_custom_dump_methods_respected(self, nested: PrefectBaseModel):
         deep = nested.model_dump(include={"y"})
-        shallow = nested.model_dump(include={"y"})
+        shallow = nested.model_dump_for_orm(include={"y"})
         assert isinstance(deep["y"], dict)
         assert isinstance(shallow["y"], pydantic.BaseModel)
-        assert deep == shallow == {"y": {"z": 2}}
 
 
 class CopyOnValidationChild(ORMBaseModel):
@@ -178,3 +196,83 @@ class TestEqualityExcludedFields:
         # if the PBM is the RH operand, the equality check fails
         # because the Pydantic logic of using every field is applied
         assert Y(val=1) != X(val=1)
+
+
+class TestDumpSecrets:
+    @pytest.fixture
+    def test_secret_data(self):
+        return dict(
+            secret_str="oooOo very secret",
+            secret_str_manual="even more secret",
+            secret_bytes=b"dudes be byting my style",
+            secret_bytes_manual=b"sneak dissing",
+            secret_int=31415,
+            nested_model=dict(
+                nested_secret_str="call me a bird the way im nesting",
+                nested_secret_bytes=b"nesting like a bird",
+                nested_secret_int=54321,
+                all_my_enemies_secrets=[
+                    "culture vulture",
+                    "not really a secret",
+                    "but still",
+                    "you know",
+                ],
+            ),
+            normal_dictionary=dict(
+                keys="do not",
+                matter="at all",
+                because={
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            ),
+        )
+
+    def test_model_dump_with_secrets_left_obscured(self, test_secret_data):
+        model = FunSecretModel.model_validate(test_secret_data)
+        assert model.model_dump_with_secrets(unmask_secrets=False) == {
+            "winner": "kendrick",
+            "secret_str": "**********",
+            "secret_str_manual": "**********",
+            "secret_bytes": "**********",
+            "secret_bytes_manual": "**********",
+            "secret_int": "**********",
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "**********",
+                "nested_secret_bytes": "**********",
+                "nested_secret_int": "**********",
+                "all_my_enemies_secrets": [
+                    "**********",
+                    "**********",
+                    "**********",
+                    "**********",
+                ],
+            },
+            "normal_dictionary": test_secret_data["normal_dictionary"],
+        }
+
+    def test_model_dump_with_secrets_revealed(self, test_secret_data):
+        model = FunSecretModel.model_validate(test_secret_data)
+        assert model.model_dump_with_secrets() == {
+            "winner": "kendrick",
+            "secret_str": "oooOo very secret",
+            "secret_str_manual": "even more secret",
+            "secret_bytes": b"dudes be byting my style",
+            "secret_bytes_manual": b"sneak dissing",
+            "secret_int": 31415,
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "call me a bird the way im nesting",
+                "nested_secret_bytes": b"nesting like a bird",
+                "nested_secret_int": 54321,
+                "all_my_enemies_secrets": [
+                    "culture vulture",
+                    "not really a secret",
+                    "but still",
+                    "you know",
+                ],
+            },
+            "normal_dictionary": test_secret_data["normal_dictionary"],
+        }

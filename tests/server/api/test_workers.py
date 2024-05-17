@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 import prefect
+import prefect.server
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
@@ -1600,7 +1601,7 @@ class TestGetScheduledRuns:
                 session=session,
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
-                    state=prefect.states.Running(),
+                    state=prefect.server.schemas.states.Running(),
                     work_queue_id=wq.id,
                 ),
             )
@@ -1610,7 +1611,7 @@ class TestGetScheduledRuns:
                 session=session,
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
-                    state=prefect.states.Pending(),
+                    state=prefect.server.schemas.states.Pending(),
                     work_queue_id=wq.id,
                 ),
             )
@@ -1623,7 +1624,7 @@ class TestGetScheduledRuns:
                     session=session,
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
-                        state=prefect.states.Scheduled(
+                        state=prefect.server.schemas.states.Scheduled(
                             scheduled_time=pendulum.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,

@@ -1231,7 +1231,6 @@ class PrefectClient:
         if isinstance(block_document, BlockDocument):
             block_document = BlockDocumentCreate.model_validate(
                 block_document.model_dump_with_secrets(
-                    mode="json",
                     exclude_unset=True,
                     exclude={"id", "block_schema", "block_type"},
                 ),
@@ -1241,8 +1240,7 @@ class PrefectClient:
             response = await self._client.post(
                 "/block_documents/",
                 json=block_document.model_dump_with_secrets(
-                    mode="json",
-                    include_secrets=include_secrets,
+                    unmask_secrets=include_secrets,
                     exclude_unset=True,
                     exclude={"id", "block_schema", "block_type"},
                 ),

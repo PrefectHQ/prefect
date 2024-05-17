@@ -47,7 +47,9 @@ class PrefectBaseModel(BaseModel):
 
     model_config: ConfigDict = ConfigDict(
         extra=(
-            "ignore" if os.getenv("PREFECT_TEST_MODE", "0").lower() != "1" else "forbid"
+            "ignore"
+            if os.getenv("PREFECT_TEST_MODE", "0").lower() not in ["true", "1"]
+            else "forbid"
         )
     )
 
@@ -129,7 +131,7 @@ class PrefectBaseModel(BaseModel):
         # going to replace because they are `BaseModel` instances.  This would involve
         # understanding which fields would be included or excluded by model_dump so we
         # could instruct Pydantic to exclude them up front.
-        deep = super().model_dump(
+        deep = self.model_dump(
             mode="python",
             include=include,
             exclude=exclude,
@@ -144,20 +146,61 @@ class PrefectBaseModel(BaseModel):
         return deep
 
     def model_dump_with_secrets(
-        self, *args, include_secrets: bool = True, **kwargs
-    ) -> Dict:
-        """Recursively dump the model to a dictionary, calling `.get_secret_value()` on
-        any fields that have that method defined. All normal `model_dump` arguments are
-        supported.
-
-        `include_secrets` is left for when the caller of this method wants to override
-        the default behavior of including secrets in the output (as currently enabled in the client).
+        self,
+        *,
+        unmask_secrets: bool = True,
+        include: "IncEx" = None,
+        exclude: "IncEx" = None,
+        by_alias: bool = False,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+    ) -> Dict[str, Any]:
         """
-        return {
-            field_name: default_secret_encoder(
-                field_value, unmask_secrets=include_secrets
+        Prefect extension to `BaseModel.model_dump`.  Generate a Python dictionary
+        representation of the model, calling `.get_secret_value()` on any fields that
+        have that method defined.
+
+        `unmask_secrets` is left as an escape for when the caller of this method wants to override
+        the default behavior of including secrets in the output (as currently enabled in the client).
+
+        Accepts the standard Pydantic `model_dump` arguments, except for `mode` (which
+        is always "json"), `round_trip`, and `warnings` (the latter two are not supported).
+
+        Usage docs: https://docs.pydantic.dev/2.6/concepts/serialization/#modelmodel_dump
+
+        Args:
+            unmask_secrets: Whether to include secrets in the output.
+            include: A list of fields to include in the output.
+            exclude: A list of fields to exclude from the output.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default
+                value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+        """
+        if not unmask_secrets:
+            return self.model_dump(
+                mode="json",
+                include=include,
+                exclude=exclude,
+                by_alias=by_alias,
+                exclude_unset=exclude_unset,
+                exclude_defaults=exclude_defaults,
+                exclude_none=exclude_none,
             )
-            for field_name, field_value in self.model_dump(*args, **kwargs).items()
+
+        return {
+            field_name: default_secret_encoder(field_value)
+            for field_name, field_value in self.model_dump(
+                mode="python",
+                include=include,
+                exclude=exclude,
+                by_alias=by_alias,
+                exclude_unset=exclude_unset,
+                exclude_defaults=exclude_defaults,
+                exclude_none=exclude_none,
+            ).items()
         }
 
 

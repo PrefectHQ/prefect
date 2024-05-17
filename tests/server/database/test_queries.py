@@ -302,7 +302,9 @@ class TestGetRunsFromWorkQueueQuery:
                 session=session,
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
-                    state=prefect.states.Running(),
+                    state=prefect.states.Running().model_dump(
+                        exclude={"created", "updated"}
+                    ),
                     work_queue_id=wq.id,
                 ),
             )
