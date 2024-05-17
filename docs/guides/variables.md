@@ -13,14 +13,14 @@ Variables enable you to store and reuse non-sensitive bits of data, such as conf
 
 Variables are intended for values with infrequent writes and frequent reads, but you can create or modify variables at any time. Variable values may be cached for quicker retrieval.
 
-Variable values are commonly loaded at flow runtime. But you can load them in other contexts, such as when passing configuration information to Prefect in a `prefect.yaml` file's deployment steps.
+Variable values are most commonly loaded during flow runtime. But you can load them in other contexts at any time to pass configuration information to Prefect configuration files, such as deployment steps.
 
-!!! warning "Variables are not encrypted"
+!!! warning "Variables are not Encrypted"
     We do not recommend using variables to store sensitive information. Instead, use [Secret blocks](https://docs.prefect.io/concepts/blocks/#prefect-built-in-blocks) to store and access sensitive information.
 
 ## Manage variables
 
-Create, read, edit, and delete variables through the Prefect UI, API, or CLI. Names must adhere to these traditional variable naming conventions:
+Create, read, edit, and delete variables through the Prefect UI, API, and CLI. Names must adhere to these traditional variable naming conventions:
 
 - Have no more than 255 characters
 - Only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.

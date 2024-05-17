@@ -94,12 +94,14 @@ Next, send a notification based off a completed state outcome. Configure a notif
 4. Next, find the trigger type. In this case, use a flow completion. 
 ![Trigger type](/img/guides/automation-triggers.png)
 
-5. Finally, specify one or more actions to be taken when the trigger condition is satisfied. In this case, create a notification to showcase the completion.
+5. Finally, create the actions for when the trigger is hit. In this case, create a notification to showcase the completion. 
 ![Notification block in automation](/img/guides/notify-auto-block.png)
 
 6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
 ![Final notification](/img/guides/final-automation.png)
 
+!!! Tip "No deployment created"
+    Keep in mind, you do not need to create a deployment to trigger your automation, where a state outcome of a local flow run helped trigger this notification block. You are not required to create a deployment to trigger a notification.
 Now that you've seen how to create an email notification from a flow run completion, see how to kick off a deployment run in response to an event.
 ## Event-based deployment automation 
 Create an automation to kick off a deployment instead of a notification. Explore how to programmatically create this automation by taking advantage of Prefect's REST API.  
@@ -220,17 +222,17 @@ def create_event_driven_automation():
     return response.json()
 ```
  
-After running this function, you will see the new automation with a "custom" in the UI.
+After running this function, you will see the changes that came from the post request within the UI. Keep in mind the context will be "custom" on UI. 
 
-Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names` with the custom parameters provided above. 
+Run the underlying flow and see the deployment kick off after 30 seconds. This results in a new flow run of `build_names`. You can see this new deployment get initiated with the custom parameters outlined above. 
 
-With a few simple changes, you can programmatically create an automation that triggers flow runs with custom parameters. 
+In a few quick changes, you can programmatically create an automation that deploys workflows with custom parameters. 
 
-## Use an .yaml file
+## Use an underlying .yaml file
 
-You can take this a step further by specifying the automation in a .yaml file, and then registering that specification with the API.
+You can take this a step further by using your own .yaml version of the automation, and registering that file with the UI. This simplifies the requirements of the automation by declaring it in its own .yaml file, and then registering that .yaml with the API. 
 
-First start with creating the .yaml file to house the automation specification:
+First start with creating the .yaml file to house the automation requirements:
 
 ```yaml title="automation.yaml"
 name: Cancel long running flows
@@ -252,7 +254,7 @@ actions:
   - type: "cancel-flow-run"
 ```
 
-Make a helper function that applies this YAML file with the REST API. 
+Make a helper function that applies this YAML file with the REST API function. 
 ```python
 import yaml
 
@@ -325,7 +327,7 @@ In the next section, you will explore event triggers that automate the kickoff o
 
 ## Use triggers
 
-You can go a step further by creating an automation that triggers a deployment when a flow run takes longer than expected. 
+You can take this a step further by creating a deployment that triggers when a flow run takes longer than expected. 
 You can take advantage of Prefect's [Marvin](https://www.askmarvin.ai/) library that uses an LLM to classify the data. 
 Marvin is great at embedding data science and data analysis applications within your pre-existing data engineering workflows. In this case, you can use [Marvin's AI functions](https://www.askmarvin.ai/docs/text/functions/) to help make the dataset more information rich. 
 
@@ -333,7 +335,7 @@ Install Marvin with `pip install marvin` and [set your OpenAI API key](https://w
 
 You can add a trigger to run a deployment in response to a specific event. 
 
-This example takes in a Pandas DataFrame and uses an AI function to analyze it. 
+Here's an example with Marvin's AI functions. It will take in a Pandas DataFrame and use the AI function to analyze it. 
 
 Here is an example of pulling in that data and classifying using Marvin AI. The dummy data is based on classifications you have already created.
 
