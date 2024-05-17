@@ -5,7 +5,6 @@ from .credentials import (  # noqa
     AzureContainerInstanceCredentials,
 )
 from .workers.container_instance import AzureContainerWorker  # noqa
-from .container_instance import AzureContainerInstanceJob  # noqa
 from .blob_storage import AzureBlobStorageContainer  # noqa
 
 __all__ = [
@@ -13,7 +12,6 @@ __all__ = [
     "AzureCosmosDbCredentials",
     "AzureMlCredentials",
     "AzureContainerInstanceCredentials",
-    "AzureContainerInstanceJob",
     "AzureContainerWorker",
     "AzureBlobStorageContainer",
 ]
