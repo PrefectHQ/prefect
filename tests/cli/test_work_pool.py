@@ -57,7 +57,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} -t prefect-agent",
+            f"work-pool create {pool_name} -t process",
         )
         assert res.exit_code == 0
         assert f"Created work pool {pool_name!r}" in res.output
@@ -114,7 +114,7 @@ class TestCreate:
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            "work-pool create '' -t prefect-agent",
+            "work-pool create '' -t process",
             expected_code=1,
             expected_output_contains=["name cannot be empty"],
         )
@@ -126,13 +126,13 @@ class TestCreate:
         pool_name = "my-pool"
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} -t prefect-agent",
+            f"work-pool create {pool_name} -t process",
             expected_code=0,
             expected_output_contains=[f"Created work pool {pool_name!r}"],
         )
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} -t prefect-agent",
+            f"work-pool create {pool_name} -t process",
             expected_code=1,
             expected_output_contains=[
                 f"Work pool named {pool_name!r} already exists. Please try creating"
@@ -145,7 +145,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} -t prefect-agent",
+            f"work-pool create {pool_name} -t process",
         )
         assert res.exit_code == 0
         client_res = await prefect_client.read_work_pool(pool_name)
@@ -156,7 +156,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} -t prefect-agent",
+            f"work-pool create {pool_name} -t process",
         )
         assert res.exit_code == 0
         client_res = await prefect_client.read_work_pool(pool_name)
@@ -167,7 +167,7 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} --paused -t prefect-agent",
+            f"work-pool create {pool_name} --paused -t process",
         )
         assert res.exit_code == 0
         client_res = await prefect_client.read_work_pool(pool_name)
@@ -239,7 +239,7 @@ class TestCreate:
         )
         client_res = await prefect_client.read_work_pool(work_pool_name)
         assert client_res.name == work_pool_name
-        assert client_res.type == "prefect-agent"
+        assert client_res.type == "fake"
         assert isinstance(client_res, WorkPool)
 
     @pytest.mark.usefixtures("interactive_console", "mock_collection_registry")
@@ -254,7 +254,7 @@ class TestCreate:
         )
         client_res = await prefect_client.read_work_pool(work_pool_name)
         assert client_res.name == work_pool_name
-        assert client_res.type == "fake"
+        assert client_res.type == "cloud-run:push"
         assert isinstance(client_res, WorkPool)
 
     @pytest.mark.usefixtures("mock_collection_registry")
