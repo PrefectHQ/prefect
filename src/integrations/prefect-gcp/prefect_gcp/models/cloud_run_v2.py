@@ -5,8 +5,6 @@ from typing import Dict, List, Literal, Optional
 from googleapiclient.discovery import Resource
 from pydantic import VERSION as PYDANTIC_VERSION
 
-from prefect.infrastructure.base import InfrastructureResult
-
 if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import BaseModel
 else:
@@ -388,7 +386,3 @@ class ExecutionV2(BaseModel):
             satisfiesPzs=response.get("satisfiesPzs", False),
             etag=response["etag"],
         )
-
-
-class CloudRunJobV2Result(InfrastructureResult):
-    """Result from a Cloud Run Job."""
