@@ -944,19 +944,6 @@ def return_v_or_none(v: Optional[str]) -> Optional[str]:
     return v
 
 
-### INFRASTRUCTURE BLOCK SCHEMA VALIDATORS ###
-
-
-def validate_block_is_infrastructure(v: "Block") -> "Block":
-    from prefect.infrastructure.base import Infrastructure
-
-    print("v: ", v)
-    if not isinstance(v, Infrastructure):
-        raise TypeError("Provided block is not a valid infrastructure block.")
-
-    return v
-
-
 ### BLOCK SCHEMA VALIDATORS ###
 
 
