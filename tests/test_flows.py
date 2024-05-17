@@ -554,7 +554,7 @@ class TestFlowCall:
         def foo(x: int):
             pass
 
-        state = foo._run(x="foo")
+        state = foo(x="foo", return_state=True)
 
         with pytest.raises(ParameterTypeError):
             state.result()
@@ -573,7 +573,7 @@ class TestFlowCall:
             if error:
                 raise error
 
-        state = foo._run()
+        state = foo(return_state=True)
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
@@ -588,7 +588,7 @@ class TestFlowCall:
                 data="hello!",
             )
 
-        state = foo._run()
+        state = foo(return_state=True)
 
         # Assert the final state is correct
         assert state.is_failed()
@@ -602,9 +602,9 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            return fail._run()
+            return fail(return_state=True)
 
-        flow_state = foo._run()
+        flow_state = foo(return_state=True)
 
         assert flow_state.is_failed()
 
@@ -622,11 +622,11 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            fail._run()
-            fail._run()
+            fail(return_state=True)
+            fail(return_state=True)
             return None
 
-        flow_state = foo._run()
+        flow_state = foo(return_state=True)
 
         assert flow_state.is_failed()
 
@@ -650,7 +650,7 @@ class TestFlowCall:
             succeed()
             return None
 
-        flow_state = foo._run()
+        flow_state = foo(return_state=True)
 
         # The task run states are returned as the data of the flow state
         task_run_states = flow_state.result()
@@ -669,11 +669,11 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            succeed._run()
-            fail._run()
+            succeed(return_state=True)
+            fail(return_state=True)
             return None
 
-        states = foo._run().result(raise_on_failure=False)
+        states = foo(return_state=True).result(raise_on_failure=False)
         assert len(states) == 2
         assert all(isinstance(state, State) for state in states)
         assert states[0].result() == "foo"
@@ -687,18 +687,18 @@ class TestFlowCall:
 
         @flow
         def fail_flow():
-            fail_task._run()
+            fail_task(return_state=True)
 
         @flow
         def wrapper_flow():
-            fail_flow._run()
+            fail_flow(return_state=True)
 
         @flow(version="test")
         def foo():
-            wrapper_flow._run()
+            wrapper_flow(return_state=True)
             return None
 
-        states = foo._run().result(raise_on_failure=False)
+        states = foo(return_state=True).result(raise_on_failure=False)
         assert len(states) == 1
         state = states[0]
         assert isinstance(state, State)
@@ -720,9 +720,13 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            return fail1._run(), fail2._run(), succeed._run()
+            return (
+                fail1(return_state=True),
+                fail2(return_state=True),
+                succeed(return_state=True),
+            )
 
-        flow_state = foo._run()
+        flow_state = foo(return_state=True)
         assert flow_state.is_failed()
         assert flow_state.message == "2/3 states failed."
 
@@ -1048,9 +1052,9 @@ class TestSubflowCalls:
 
         @flow()
         def parent():
-            return child._run(1, 2)
+            return child(1, 2, return_state=True)
 
-        parent_state = parent._run()
+        parent_state = parent(return_state=True)
         parent_flow_run_id = parent_state.state_details.flow_run_id
         child_state = await parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
@@ -1125,7 +1129,7 @@ class TestFlowRunTags:
             pass
 
         with tags("a", "b"):
-            state = my_flow._run()
+            state = my_flow(return_state=True)
 
         flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
         assert set(flow_run.tags) == {"a", "b"}
@@ -1134,14 +1138,14 @@ class TestFlowRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                return my_subflow._run()
+                return my_subflow(return_state=True)
 
         @flow
         def my_subflow():
             pass
 
         with tags("a", "b"):
-            subflow_state = await my_flow._run().result()
+            subflow_state = await my_flow(return_state=True).result()
 
         flow_run = await prefect_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -1155,7 +1159,7 @@ class TestFlowTimeouts:
         def my_flow():
             time.sleep(SLEEP_TIME)
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.is_failed()
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
@@ -1167,7 +1171,7 @@ class TestFlowTimeouts:
         async def my_flow():
             await anyio.sleep(SLEEP_TIME)
 
-        state = await my_flow._run()
+        state = await my_flow(return_state=True)
         assert state.is_failed()
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
@@ -1179,7 +1183,7 @@ class TestFlowTimeouts:
         def my_flow():
             time.sleep(0.1)
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.is_completed()
 
     def test_user_timeout_is_not_hidden(self):
@@ -1229,7 +1233,7 @@ class TestFlowTimeouts:
             nonlocal completed
             completed = True
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -1251,7 +1255,7 @@ class TestFlowTimeouts:
             nonlocal completed
             completed = True
 
-        state = await my_flow._run()
+        state = await my_flow(return_state=True)
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -1273,10 +1277,10 @@ class TestFlowTimeouts:
 
         @flow
         async def my_flow():
-            subflow_state = await my_subflow._run()
+            subflow_state = await my_subflow(return_state=True)
             return None, subflow_state
 
-        state = await my_flow._run()
+        state = await my_flow(return_state=True)
 
         (_, subflow_state) = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
@@ -1302,10 +1306,10 @@ class TestFlowTimeouts:
 
         @flow
         def my_flow():
-            subflow_state = my_subflow._run()
+            subflow_state = my_subflow(return_state=True)
             return None, subflow_state
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
 
         (_, subflow_state) = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
@@ -1334,7 +1338,7 @@ class TestFlowTimeouts:
             upstream_sleepers = await sleep_task.map([0.5, 1.0])
             await downstream_flow(wait_for=upstream_sleepers)
 
-        state = await my_flow._run()
+        state = await my_flow(return_state=True)
 
         assert state.is_completed()
 
@@ -1509,7 +1513,7 @@ class TestSubflowTaskInputs:
         @flow
         def parent_flow():
             task_future = child_task.submit(1)
-            flow_state = child_flow._run(x=task_future)
+            flow_state = child_flow(x=task_future, return_state=True)
             task_state = task_future.wait()
             return task_state, flow_state
 
@@ -1533,8 +1537,8 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task._run(257)
-            flow_state = child_flow._run(x=task_state)
+            task_state = child_task(257, return_state=True)
+            flow_state = child_flow(x=task_state, return_state=True)
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
@@ -1557,9 +1561,9 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task._run(257)
+            task_state = child_task(257, return_state=True)
             task_result = task_state.result()
-            flow_state = child_flow._run(x=task_result)
+            flow_state = child_flow(x=task_result, return_state=True)
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
@@ -1634,7 +1638,7 @@ class TestSubflowTaskInputs:
 
         @flow
         def foo():
-            return bar._run(x=2, y=1)
+            return bar(x=2, y=1, return_state=True)
 
         child_flow_state = foo()
         flow_tracking_task_run = await prefect_client.read_task_run(
@@ -1728,7 +1732,7 @@ class TestFlowRunLogs:
             logger = get_run_logger()
             logger.info("Hello world!")
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         flow_run_id = state.state_details.flow_run_id
 
         logs = await prefect_client.read_logs()
@@ -1748,9 +1752,9 @@ class TestSubflowRunLogs:
         def my_flow():
             logger = get_run_logger()
             logger.info("Hello world!")
-            return my_subflow._run()
+            return my_subflow(return_state=True)
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = (await state.result()).state_details.flow_run_id
 
@@ -1957,7 +1961,7 @@ class TestFlowRetries:
             flow_run_count += 1
             return child_flow()
 
-        state = parent_flow._run()
+        state = parent_flow(return_state=True)
         assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
@@ -2022,7 +2026,7 @@ class TestFlowRetries:
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = child_flow._run()
+            state = child_flow(return_state=True)
 
             # It is important that the flow run fails after the child flow run is created
             if flow_run_count == 1:
@@ -2030,7 +2034,7 @@ class TestFlowRetries:
 
             return state
 
-        parent_state = parent_flow._run()
+        parent_state = parent_flow(return_state=True)
         child_state = await parent_state.result()
         assert await child_state.result() == "hello"
         assert flow_run_count == 2
@@ -2587,7 +2591,7 @@ class TestFlowHooksOnCompletion:
         def my_flow():
             pass
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
@@ -2604,7 +2608,7 @@ class TestFlowHooksOnCompletion:
         def my_flow():
             raise Exception("oops")
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
         my_mock.assert_not_called()
 
@@ -2624,7 +2628,7 @@ class TestFlowHooksOnCompletion:
         def my_flow():
             pass
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
@@ -2646,7 +2650,7 @@ class TestFlowHooksOnCompletion:
         def my_flow():
             pass
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call(), call()]
 
@@ -2720,7 +2724,7 @@ class TestFlowHooksOnFailure:
         def my_flow():
             raise Exception("oops")
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1"), call("failed2")]
 
@@ -2737,7 +2741,7 @@ class TestFlowHooksOnFailure:
         def my_flow():
             pass
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         my_mock.assert_not_called()
 
@@ -2757,7 +2761,7 @@ class TestFlowHooksOnFailure:
         def my_flow():
             raise Exception("oops")
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1"), call("failed2")]
 
@@ -2779,7 +2783,7 @@ class TestFlowHooksOnFailure:
         def my_flow():
             raise Exception("oops")
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
 
@@ -2853,7 +2857,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             return State(type=StateType.CANCELLING)
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled_hook1"), call("cancelled_hook2")]
 
     def test_on_cancellation_hooks_are_ignored_if_terminal_state_completed(self):
@@ -2869,7 +2873,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             return State(type=StateType.COMPLETED)
 
-        my_flow._run()
+        my_flow(return_state=True)
         my_mock.assert_not_called()
 
     def test_on_cancellation_hooks_are_ignored_if_terminal_state_failed(self):
@@ -2885,7 +2889,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             return State(type=StateType.FAILED)
 
-        my_flow._run()
+        my_flow(return_state=True)
         my_mock.assert_not_called()
 
     def test_other_cancellation_hooks_run_if_one_hook_fails(self):
@@ -2904,7 +2908,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             return State(type=StateType.CANCELLING)
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled1"), call("cancelled3")]
 
     def test_on_cancelled_hook_on_subflow_succeeds(self):
@@ -2924,7 +2928,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             subflow()
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled"), call("failed")]
 
     @pytest.mark.parametrize(
@@ -2945,7 +2949,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             return State(type=StateType.CANCELLING)
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
     async def test_on_cancellation_hook_called_on_sigterm_from_flow_with_cancelling_state(
@@ -2971,7 +2975,7 @@ class TestFlowHooksOnCancellation:
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
-            await my_flow._run()
+            await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled")]
 
     async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
@@ -2988,7 +2992,7 @@ class TestFlowHooksOnCancellation:
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
-            await my_flow._run()
+            await my_flow(return_state=True)
         my_mock.assert_not_called()
 
     def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
@@ -3005,7 +3009,7 @@ class TestFlowHooksOnCancellation:
         def my_flow():
             return State(type=StateType.CANCELLING)
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.CANCELLING
         my_mock.assert_not_called()
 
@@ -3079,7 +3083,7 @@ class TestFlowHooksOnCrashed:
         def my_flow():
             return State(type=StateType.CRASHED)
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed_hook1"), call("crashed_hook2")]
 
     def test_on_crashed_hooks_are_ignored_if_terminal_state_completed(self):
@@ -3095,7 +3099,7 @@ class TestFlowHooksOnCrashed:
         def my_passing_flow():
             pass
 
-        state = my_passing_flow._run()
+        state = my_passing_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         my_mock.assert_not_called()
 
@@ -3112,7 +3116,7 @@ class TestFlowHooksOnCrashed:
         def my_failing_flow():
             raise Exception("Failing flow")
 
-        state = my_failing_flow._run()
+        state = my_failing_flow(return_state=True)
         assert state.type == StateType.FAILED
         my_mock.assert_not_called()
 
@@ -3132,7 +3136,7 @@ class TestFlowHooksOnCrashed:
         def my_flow():
             return State(type=StateType.CRASHED)
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed1"), call("crashed3")]
 
     @pytest.mark.parametrize(
@@ -3153,7 +3157,7 @@ class TestFlowHooksOnCrashed:
         def my_flow():
             return State(type=StateType.CRASHED)
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
     def test_on_crashed_hook_on_subflow_succeeds(self):
@@ -3173,7 +3177,7 @@ class TestFlowHooksOnCrashed:
         def my_flow():
             subflow()
 
-        my_flow._run()
+        my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
@@ -3190,7 +3194,7 @@ class TestFlowHooksOnCrashed:
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
-            await my_flow._run()
+            await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
@@ -3216,7 +3220,7 @@ class TestFlowHooksOnCrashed:
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
-            await my_flow._run()
+            await my_flow(return_state=True)
         my_mock.assert_not_called()
 
     def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
@@ -3233,7 +3237,7 @@ class TestFlowHooksOnCrashed:
         def my_flow():
             return State(type=StateType.CRASHED)
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.CRASHED
         my_mock.assert_not_called()
 
@@ -3307,7 +3311,7 @@ class TestFlowHooksOnRunning:
         def my_flow():
             pass
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
@@ -3324,7 +3328,7 @@ class TestFlowHooksOnRunning:
         def my_flow():
             raise Exception("oops")
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
@@ -3344,7 +3348,7 @@ class TestFlowHooksOnRunning:
         def my_flow():
             pass
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
@@ -3366,7 +3370,7 @@ class TestFlowHooksOnRunning:
         def my_flow():
             pass
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call(), call()]
 

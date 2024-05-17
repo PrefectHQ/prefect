@@ -54,7 +54,9 @@ class TestFlowRunEngine:
         assert engine.parameters == {}
 
     async def test_empty_init(self):
-        with pytest.raises(ValueError, match="must be provided"):
+        with pytest.raises(
+            TypeError, match="missing 1 required positional argument: 'flow'"
+        ):
             FlowRunEngine()
 
     async def test_client_attr_raises_informative_error(self):
@@ -538,7 +540,7 @@ class TestFlowRetries:
             flow_run_count += 1
             return await child_flow()
 
-        state = await parent_flow._run()
+        state = await parent_flow(return_state=True)
         assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
@@ -603,7 +605,7 @@ class TestFlowRetries:
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = child_flow._run()
+            state = child_flow(return_state=True)
 
             # It is important that the flow run fails after the child flow run is created
             if flow_run_count == 1:
@@ -611,7 +613,7 @@ class TestFlowRetries:
 
             return state
 
-        parent_state = parent_flow._run()
+        parent_state = parent_flow(return_state=True)
         child_state = await parent_state.result()
         assert await child_state.result() == "hello"
         assert flow_run_count == 2
