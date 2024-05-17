@@ -197,7 +197,9 @@ class TestRunDeployment:
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
             ).mock(side_effect=side_effects)
 
-            await run_deployment(f"foo/{deployment.name}", timeout=None, poll_interval=0)
+            await run_deployment(
+                f"foo/{deployment.name}", timeout=None, poll_interval=0
+            )
             assert len(flow_polls.calls) == 100
 
     async def test_schedules_immediately_by_default(

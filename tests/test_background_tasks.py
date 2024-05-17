@@ -25,7 +25,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.task_server import TaskServer
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
@@ -103,7 +102,9 @@ async def test_task_submission_with_parameters_uses_default_storage(foo_task):
 
     result_factory = await result_factory_from_task(foo_task)
 
-    await result_factory.read_parameters(task_run.state.state_details.task_parameters_id)
+    await result_factory.read_parameters(
+        task_run.state.state_details.task_parameters_id
+    )
 
 
 async def test_task_submission_with_parameters_reuses_default_storage_block(
@@ -141,7 +142,9 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
         ) == {"x": 24}
 
 
-async def test_task_submission_creates_a_scheduled_task_run(foo_task_with_result_storage):
+async def test_task_submission_creates_a_scheduled_task_run(
+    foo_task_with_result_storage,
+):
     task_run = foo_task_with_result_storage.submit(42)
     assert task_run.state.is_scheduled()
 
