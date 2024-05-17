@@ -350,12 +350,8 @@ class TaskRunEngine(Generic[P, R]):
             client=client,
         ):
             # set the logger to the task run logger
-            current_logger = self.logger
-            try:
-                self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
-                yield
-            finally:
-                self.logger = current_logger
+            self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+            yield
 
     @contextmanager
     def start(

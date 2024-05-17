@@ -149,7 +149,7 @@ class FlowRunEngine(Generic[P, R]):
         result_factory: Optional[ResultFactory] = None,
     ) -> State:
         context = FlowRunContext.get()
-        state = run_sync(
+        terminal_state = run_sync(
             exception_to_failed_state(
                 exc,
                 message=msg or "Flow run encountered an exception:",
@@ -157,8 +157,14 @@ class FlowRunEngine(Generic[P, R]):
                 or getattr(context, "result_factory", None),
             )
         )
-        state = self.set_state(state)
+        state = self.set_state(terminal_state)
         if self.state.is_scheduled():
+            self.logger.info(
+                (
+                    f"Received non-final state {state.name!r} when proposing final"
+                    f" state {terminal_state.name!r} and will attempt to run again..."
+                ),
+            )
             state = self.set_state(Running())
         return state
 
@@ -342,9 +348,11 @@ class FlowRunEngine(Generic[P, R]):
                         self.parameters or {}
                     )
                 except Exception as exc:
+                    message = "Validation of flow parameters failed with error:"
+                    self.logger.error("%s %s", message, exc)
                     self.handle_exception(
                         exc,
-                        msg="Validation of flow parameters failed with error",
+                        msg=message,
                         result_factory=run_sync(ResultFactory.from_flow(self.flow)),
                     )
                     self.short_circuit = True
