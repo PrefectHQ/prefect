@@ -15,9 +15,7 @@ from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
 
 
 class TestCreateDeployment:
-    async def test_create_deployment_succeeds(
-        self, session, flow, infrastructure_document_id
-    ):
+    async def test_create_deployment_succeeds(self, session, flow):
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
@@ -26,7 +24,6 @@ class TestCreateDeployment:
                 flow_id=flow.id,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
@@ -34,7 +31,6 @@ class TestCreateDeployment:
         assert deployment.manifest_path == "file.json"
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
-        assert deployment.infrastructure_document_id == infrastructure_document_id
 
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
         self, session, flow, work_queue
@@ -95,8 +91,6 @@ class TestCreateDeployment:
         self,
         session,
         flow,
-        infrastructure_document_id,
-        infrastructure_document_id_2,
     ):
         openapi_schema = {
             "title": "Parameters",
@@ -110,7 +104,6 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=openapi_schema,
             ),
         )
@@ -121,7 +114,6 @@ class TestCreateDeployment:
         assert deployment.parameters == {}
         assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == []
-        assert deployment.infrastructure_document_id == infrastructure_document_id
 
         await anyio.sleep(1)  # Sleep so update time is easy to differentiate
 
@@ -144,7 +136,6 @@ class TestCreateDeployment:
                 parameters={"foo": "bar"},
                 parameter_openapi_schema=openapi_schema,
                 tags=["foo", "bar"],
-                infrastructure_document_id=infrastructure_document_id_2,
             ),
         )
 
@@ -156,11 +147,8 @@ class TestCreateDeployment:
         assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == ["foo", "bar"]
         assert deployment.updated > original_update_time
-        assert deployment.infrastructure_document_id == infrastructure_document_id_2
 
-    async def test_create_deployment_with_schedule(
-        self, session, flow, flow_function, infrastructure_document_id
-    ):
+    async def test_create_deployment_with_schedule(self, session, flow, flow_function):
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
@@ -171,14 +159,12 @@ class TestCreateDeployment:
                 flow_id=flow.id,
                 manifest_path="file.json",
                 schedule=schedule,
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.manifest_path == "file.json"
         assert deployment.schedule == schedule
-        assert deployment.infrastructure_document_id == infrastructure_document_id
 
     async def test_create_deployment_with_created_by(self, session, flow):
         created_by = schemas.core.CreatedBy(
@@ -260,9 +246,7 @@ class TestCreateDeployment:
 
 
 class TestReadDeployment:
-    async def test_read_deployment(
-        self, session, flow, flow_function, infrastructure_document_id
-    ):
+    async def test_read_deployment(self, session, flow, flow_function):
         # create a deployment to read
         deployment = await models.deployments.create_deployment(
             session=session,
@@ -270,7 +254,6 @@ class TestReadDeployment:
                 name="My Deployment",
                 manifest_path="file.json",
                 flow_id=flow.id,
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
@@ -287,9 +270,7 @@ class TestReadDeployment:
         )
         assert result is None
 
-    async def test_read_deployment_by_name(
-        self, session, flow, flow_function, infrastructure_document_id
-    ):
+    async def test_read_deployment_by_name(self, session, flow, flow_function):
         # create a deployment to read
         deployment = await models.deployments.create_deployment(
             session=session,
@@ -297,7 +278,6 @@ class TestReadDeployment:
                 name="My Deployment",
                 manifest_path="file.json",
                 flow_id=flow.id,
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
@@ -311,7 +291,7 @@ class TestReadDeployment:
         assert deployment.name == read_deployment.name
 
     async def test_read_deployment_by_name_does_not_return_deployments_from_other_flows(
-        self, session, flow_function, infrastructure_document_id
+        self, session, flow_function
     ):
         flow_1, flow_2 = [
             await models.flows.create_flow(
@@ -326,7 +306,6 @@ class TestReadDeployment:
                 name="My Deployment",
                 manifest_path="file.json",
                 flow_id=flow_1.id,
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await models.deployments.create_deployment(
@@ -335,7 +314,6 @@ class TestReadDeployment:
                 name="My Deployment",
                 manifest_path="file.json",
                 flow_id=flow_2.id,
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
 
@@ -379,7 +357,6 @@ class TestReadDeployments:
         deployment_id_1,
         deployment_id_2,
         deployment_id_3,
-        infrastructure_document_id,
     ):
         await models.deployments.create_deployment(
             session=session,
@@ -390,7 +367,6 @@ class TestReadDeployments:
                 flow_id=flow.id,
                 paused=False,
                 is_schedule_active=True,
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await models.deployments.create_deployment(
@@ -403,7 +379,6 @@ class TestReadDeployments:
                 tags=["tb12"],
                 paused=False,
                 is_schedule_active=True,
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await models.deployments.create_deployment(
@@ -680,35 +655,6 @@ class TestScheduledRuns:
             session, deployment_id=deployment.id, max_runs=3
         )
         assert scheduled_runs == []
-
-    async def test_schedule_runs_respects_infrastructure(
-        self, flow, flow_function, session, infrastructure_document_id
-    ):
-        deployment = await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="My Deployment",
-                manifest_path="file.json",
-                schedules=[
-                    schemas.core.DeploymentSchedule(
-                        schedule=schemas.schedules.IntervalSchedule(
-                            interval=datetime.timedelta(days=1)
-                        ),
-                        active=True,
-                    ),
-                ],
-                flow_id=flow.id,
-                infrastructure_document_id=infrastructure_document_id,
-            ),
-        )
-        scheduled_runs = await models.deployments.schedule_runs(
-            session, deployment_id=deployment.id, max_runs=1
-        )
-        assert len(scheduled_runs) == 1
-        scheduled_run = await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=scheduled_runs[0]
-        )
-        assert scheduled_run.infrastructure_document_id == infrastructure_document_id
 
     @pytest.mark.parametrize("tags", [[], ["foo"]])
     async def test_schedule_runs_applies_tags(self, tags, flow, flow_function, session):

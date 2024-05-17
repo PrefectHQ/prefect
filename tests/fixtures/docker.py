@@ -8,9 +8,9 @@ from typer.testing import CliRunner
 
 import prefect
 from prefect.cli.dev import dev_app
-from prefect.infrastructure.container import CONTAINER_LABELS
 from prefect.logging import get_logger
 from prefect.utilities.dockerutils import (
+    CONTAINER_LABELS,
     IMAGE_LABELS,
     docker_client,
     get_prefect_image_name,

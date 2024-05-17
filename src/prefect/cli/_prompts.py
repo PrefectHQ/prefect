@@ -32,7 +32,6 @@ from prefect.deployments.base import (
 )
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.infrastructure.container import DockerRegistry
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
     PREFECT_UI_URL,
@@ -551,49 +550,46 @@ async def prompt_push_custom_docker_image(
             push_step[
                 "credentials"
             ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
-        else:
-            credentials_block = DockerRegistry
-            push_step[
-                "credentials"
-            ] = "{{ prefect.docker-registry.docker_registry_creds_name }}"
-        docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
-        create_new_block = False
-        try:
-            await credentials_block.load(docker_registry_creds_name)
-            if not confirm(
-                (
-                    "Would you like to use the existing Docker registry credentials"
-                    f" block {docker_registry_creds_name}?"
-                ),
-                console=console,
-                default=True,
-            ):
-                create_new_block = True
-        except ValueError:
-            create_new_block = True
-
-        if create_new_block:
-            docker_credentials["username"] = prompt(
-                "Docker registry username", console=console
-            )
+            docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
+            create_new_block = False
             try:
-                docker_credentials["password"] = prompt(
-                    "Docker registry password",
+                await credentials_block.load(docker_registry_creds_name)
+                if not confirm(
+                    (
+                        "Would you like to use the existing Docker registry credentials"
+                        f" block {docker_registry_creds_name}?"
+                    ),
                     console=console,
-                    password=True,
-                )
-            except GetPassWarning:
-                docker_credentials["password"] = prompt(
-                    "Docker registry password",
-                    console=console,
-                )
+                    default=True,
+                ):
+                    create_new_block = True
+            except ValueError:
+                create_new_block = True
 
-            new_creds_block = credentials_block(
-                username=docker_credentials["username"],
-                password=docker_credentials["password"],
-                registry_url=docker_credentials["registry_url"],
-            )
-            await new_creds_block.save(name=docker_registry_creds_name, overwrite=True)
+            if create_new_block:
+                docker_credentials["username"] = prompt(
+                    "Docker registry username", console=console
+                )
+                try:
+                    docker_credentials["password"] = prompt(
+                        "Docker registry password",
+                        console=console,
+                        password=True,
+                    )
+                except GetPassWarning:
+                    docker_credentials["password"] = prompt(
+                        "Docker registry password",
+                        console=console,
+                    )
+
+                new_creds_block = credentials_block(
+                    username=docker_credentials["username"],
+                    password=docker_credentials["password"],
+                    registry_url=docker_credentials["registry_url"],
+                )
+                await new_creds_block.save(
+                    name=docker_registry_creds_name, overwrite=True
+                )
 
     return {
         "prefect_docker.deployments.steps.push_docker_image": push_step

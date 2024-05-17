@@ -23,7 +23,6 @@ async def _install_protected_system_blocks(session):
         prefect.blocks.system.DateTime,
         prefect.blocks.system.Secret,
         prefect.filesystems.LocalFileSystem,
-        prefect.infrastructure.Process,
     ]:
         async with session.begin():
             block_type = block._to_block_type()
