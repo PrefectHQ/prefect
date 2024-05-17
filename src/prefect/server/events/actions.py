@@ -33,23 +33,13 @@ import orjson
 import pendulum
 from cachetools import TTLCache
 from httpx import Response
+from pydantic.v1 import Field, PrivateAttr, root_validator, validator
+from pydantic.v1.fields import ModelField
 from typing_extensions import TypeAlias
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
 from prefect.blocks.webhook import Webhook
-from prefect.server.utilities.http import should_redact_header
-from prefect.server.utilities.messaging import Message, MessageHandler
-from prefect.utilities.text import truncated_to
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-    from pydantic.v1.fields import ModelField
-else:
-    from pydantic import Field, PrivateAttr, root_validator, validator
-    from pydantic.fields import ModelField
-
-from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import get_logger
 from prefect.server.events.clients import (
     PrefectServerEventsAPIClient,
@@ -73,6 +63,8 @@ from prefect.server.schemas.responses import (
     WorkQueueWithStatus,
 )
 from prefect.server.schemas.states import Scheduled, State, StateType, Suspended
+from prefect.server.utilities.http import should_redact_header
+from prefect.server.utilities.messaging import Message, MessageHandler
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.user_templates import (
     TemplateSecurityError,
@@ -90,6 +82,7 @@ from prefect.utilities.schema_tools.hydration import (
     WorkspaceVariable,
     hydrate,
 )
+from prefect.utilities.text import truncated_to
 
 if TYPE_CHECKING:  # pragma: no cover
     from prefect.server.api.clients import OrchestrationClient

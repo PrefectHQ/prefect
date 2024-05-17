@@ -8,13 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
+from pydantic.v1 import Field, root_validator, validator
 
 from prefect._internal.schemas.validators import (
     get_or_create_state_name,
@@ -255,12 +249,7 @@ class State(StateBaseModel):
 
         `MyCompletedState(message="my message", type=COMPLETED, result=...)`
         """
-        from prefect.deprecated.data_documents import DataDocument
-
-        if isinstance(self.data, DataDocument):
-            result = self.data.decode()
-        else:
-            result = self.data
+        result = self.data
 
         display = dict(
             message=repr(self.message),

@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import time
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -30,11 +30,10 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
-from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, Pause
-from prefect.flows import Flow, load_flow_from_entrypoint
-from prefect.futures import PrefectFuture, resolve_futures_to_states
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.logging.loggers import flow_run_logger, get_logger
+from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
 from prefect.states import (
     Pending,
@@ -44,7 +43,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import A, Async, run_sync
+from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
     _resolve_custom_flow_run_name,
@@ -72,7 +71,7 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
 
 @dataclass
 class FlowRunEngine(Generic[P, R]):
-    flow: Optional[Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]] = None
+    flow: Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]
     parameters: Optional[Dict[str, Any]] = None
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
@@ -134,7 +133,7 @@ class FlowRunEngine(Generic[P, R]):
             raise ValueError("Result factory is not set")
         terminal_state = run_sync(
             return_value_to_state(
-                run_sync(resolve_futures_to_states(result)),
+                resolve_futures_to_states(result),
                 result_factory=result_factory,
             )
         )
@@ -273,16 +272,22 @@ class FlowRunEngine(Generic[P, R]):
         except AsyncLibraryNotFoundError:
             task_group = anyio._backends._asyncio.TaskGroup()
 
-        with FlowRunContext(
-            flow=self.flow,
-            log_prints=self.flow.log_prints or False,
-            flow_run=self.flow_run,
-            parameters=self.parameters,
-            client=client,
-            background_tasks=task_group,
-            result_factory=run_sync(ResultFactory.from_flow(self.flow)),
-            task_runner=self.flow.task_runner.duplicate(),
-        ):
+        with ExitStack() as stack:
+            # TODO: Explore closing task runner before completing the flow to
+            # wait for futures to complete
+            task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+            stack.enter_context(
+                FlowRunContext(
+                    flow=self.flow,
+                    log_prints=self.flow.log_prints or False,
+                    flow_run=self.flow_run,
+                    parameters=self.parameters,
+                    client=client,
+                    background_tasks=task_group,
+                    result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                    task_runner=task_runner,
+                )
+            )
             # set the logger to the flow run logger
             current_logger = self.logger
             try:
@@ -357,11 +362,11 @@ class FlowRunEngine(Generic[P, R]):
 
 
 async def run_flow_async(
-    flow: Optional[Flow[P, Coroutine[Any, Any, R]]] = None,
+    flow: Flow[P, Coroutine[Any, Any, R]],
     flow_run: Optional[FlowRun] = None,
     flow_run_id: Optional[UUID] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, None]:
     """
@@ -400,7 +405,7 @@ def run_flow_sync(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = FlowRunEngine[P, R](flow, parameters, flow_run)
@@ -433,7 +438,7 @@ def run_flow(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[A, Async]]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     kwargs = dict(
