@@ -32,7 +32,7 @@ def task_scheduling_enabled() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def reset_task_queues(task_scheduling_enabled: None) -> Generator[None, None, None]:
+def reset_task_queues(task_scheduling_enabled) -> Generator[None, None, None]:
     task_runs.TaskQueue.reset()
 
     yield
@@ -80,7 +80,7 @@ def drain(
 
 
 @pytest.fixture
-async def taskA_run1(reset_task_queues: None) -> TaskRun:
+async def taskA_run1(reset_task_queues) -> TaskRun:
     queued = TaskRun(
         id=uuid4(),
         flow_run_id=None,
@@ -101,7 +101,7 @@ def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun):
 
 
 @pytest.fixture
-async def taskA_run2(reset_task_queues: None) -> TaskRun:
+async def taskA_run2(reset_task_queues) -> TaskRun:
     queued = TaskRun(
         id=uuid4(),
         flow_run_id=None,
@@ -126,7 +126,7 @@ def test_acknowledging_between_each_run(
 
 
 @pytest.fixture
-async def mixed_bag_of_tasks(reset_task_queues: None) -> None:
+async def mixed_bag_of_tasks(reset_task_queues) -> None:
     await task_runs.TaskQueue.enqueue(
         TaskRun(
             id=uuid4(),
@@ -167,7 +167,7 @@ async def mixed_bag_of_tasks(reset_task_queues: None) -> None:
 
 def test_server_only_delivers_tasks_for_subscribed_keys(
     app: FastAPI,
-    mixed_bag_of_tasks: None,
+    mixed_bag_of_tasks,
 ):
     with authenticated_socket(app) as socket:
         socket.send_json(
@@ -183,7 +183,7 @@ def test_server_only_delivers_tasks_for_subscribed_keys(
 
 
 @pytest.fixture
-async def ten_task_A_runs(reset_task_queues: None) -> List[TaskRun]:
+async def ten_task_A_runs(reset_task_queues) -> List[TaskRun]:
     queued: List[TaskRun] = []
     for _ in range(10):
         run = TaskRun(
@@ -248,9 +248,7 @@ def test_server_redelivers_unacknowledged_runs(app: FastAPI, taskA_run1: TaskRun
 
 
 @pytest.fixture
-async def preexisting_runs(
-    session: AsyncSession, reset_task_queues: None
-) -> List[TaskRun]:
+async def preexisting_runs(session: AsyncSession, reset_task_queues) -> List[TaskRun]:
     stored_runA = ServerTaskRun.model_validate(
         await models.task_runs.create_task_run(
             session,
