@@ -10,13 +10,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
 from prefect.client.schemas.actions import BlockDocumentCreate
-from prefect.client.schemas.objects import BlockDocument
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import BlockDocument
 
 
 modal = lazy_import("modal")
@@ -95,7 +95,7 @@ class ModalPushProvisioner:
         modal_token_id: str,
         modal_token_secret: str,
         client: "PrefectClient",
-    ) -> BlockDocument:
+    ) -> "BlockDocument":
         """
         Creates a ModalCredentials block containing the provided token ID and secret.
 
