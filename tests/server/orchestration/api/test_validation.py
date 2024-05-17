@@ -470,7 +470,9 @@ class TestDeploymentFlowRunJobVariablesValidation:
             await validate_job_variables_for_deployment_flow_run(
                 session=session,
                 deployment=deployment,
-                flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+                flow_run=DeploymentFlowRunCreate(
+                    state=schemas.states.Scheduled().to_state_create()
+                ),
             )
 
     async def test_ignores_block_document_reference_incorrect_type_in_default_value(
@@ -492,7 +494,9 @@ class TestDeploymentFlowRunJobVariablesValidation:
         await validate_job_variables_for_deployment_flow_run(
             session=session,
             deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            flow_run=DeploymentFlowRunCreate(
+                state=schemas.states.Scheduled().to_state_create()
+            ),
         )
 
     async def test_valid_block_document_reference(
@@ -514,7 +518,9 @@ class TestDeploymentFlowRunJobVariablesValidation:
         await validate_job_variables_for_deployment_flow_run(
             session=session,
             deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            flow_run=DeploymentFlowRunCreate(
+                state=schemas.states.Scheduled().to_state_create()
+            ),
         )
 
     async def test_allows_missing_required_variable_with_default(
@@ -536,7 +542,9 @@ class TestDeploymentFlowRunJobVariablesValidation:
         await validate_job_variables_for_deployment_flow_run(
             session=session,
             deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            flow_run=DeploymentFlowRunCreate(
+                state=schemas.states.Scheduled().to_state_create()
+            ),
         )
 
     async def test_allows_missing_optional_variable_with_default(
@@ -558,7 +566,9 @@ class TestDeploymentFlowRunJobVariablesValidation:
         await validate_job_variables_for_deployment_flow_run(
             session=session,
             deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            flow_run=DeploymentFlowRunCreate(
+                state=schemas.states.Scheduled().to_state_create()
+            ),
         )
 
     async def test_allows_none_for_optional_variable_with_default(
@@ -587,7 +597,9 @@ class TestDeploymentFlowRunJobVariablesValidation:
         await validate_job_variables_for_deployment_flow_run(
             session=session,
             deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            flow_run=DeploymentFlowRunCreate(
+                state=schemas.states.Scheduled().to_state_create()
+            ),
         )
 
     async def test_allows_missing_optional_variable_with_no_default(
@@ -609,5 +621,7 @@ class TestDeploymentFlowRunJobVariablesValidation:
         await validate_job_variables_for_deployment_flow_run(
             session=session,
             deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            flow_run=DeploymentFlowRunCreate(
+                state=schemas.states.Scheduled().to_state_create()
+            ),
         )

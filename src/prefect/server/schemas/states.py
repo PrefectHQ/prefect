@@ -293,7 +293,9 @@ class State(StateBaseModel):
 
 
 def Scheduled(
-    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
+    scheduled_time: Optional[datetime.datetime] = None,
+    cls: Type[State] = State,
+    **kwargs,
 ) -> State:
     """Convenience function for creating `Scheduled` states.
 

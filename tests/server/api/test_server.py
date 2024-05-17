@@ -34,9 +34,10 @@ async def test_validation_error_handler_422(client):
     assert response.json()["exception_message"] == "Invalid request received."
     assert response.json()["exception_detail"] == [
         {
+            "input": "this should be a list not a string",
             "loc": ["body", "tags"],
-            "msg": "value is not a valid list",
-            "type": "type_error.list",
+            "msg": "Input should be a valid list",
+            "type": "list_type",
         }
     ]
     assert response.json()["request_body"] == bad_flow_data

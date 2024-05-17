@@ -307,12 +307,13 @@ def set_deployment_schedules(values: dict) -> dict:
     from prefect.server.schemas.actions import DeploymentScheduleCreate
 
     if not values.get("schedules") and values.get("schedule"):
-        values["schedules"] = [
-            DeploymentScheduleCreate(
-                schedule=values["schedule"],
-                active=values["is_schedule_active"],
-            )
-        ]
+        kwargs = {
+            key: values[key]
+            for key in ["schedule", "is_schedule_active"]
+            if key in values
+        }
+
+        values["schedules"] = [DeploymentScheduleCreate(**kwargs)]
 
     return values
 

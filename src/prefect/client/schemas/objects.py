@@ -602,9 +602,19 @@ class TaskRunPolicy(PrefectBaseModel):
         default=None, description="Determines the amount a retry should jitter"
     )
 
-    @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
-        return set_run_policy_deprecated_fields(values)
+    @model_validator(mode="after")
+    def populate_deprecated_fields(self):
+        """
+        If deprecated fields are provided, populate the corresponding new fields
+        to preserve orchestration behavior.
+        """
+        if not self.retries and self.max_retries != 0:
+            self.retries = self.max_retries
+
+        if not self.retry_delay and self.retry_delay_seconds != 0:
+            self.retry_delay = self.retry_delay_seconds
+
+        return self
 
     @field_validator("retry_delay")
     @classmethod

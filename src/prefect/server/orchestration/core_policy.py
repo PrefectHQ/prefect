@@ -13,7 +13,6 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
-from prefect.client.schemas.objects import TaskRun
 from prefect.results import UnknownResult
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
@@ -498,7 +497,7 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
             # Only for autonomous tasks
             return
 
-        task_run: TaskRun = TaskRun.from_orm(context.run)
+        task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
         queue = TaskQueue.for_key(task_run.task_key)
 
         if validated_state.name == "AwaitingRetry":

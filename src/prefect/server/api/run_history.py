@@ -4,7 +4,7 @@ Utilities for querying flow and task run history.
 
 import datetime
 import json
-from typing import List
+from typing import List, Optional
 
 import pydantic
 import sqlalchemy as sa
@@ -28,12 +28,12 @@ async def run_history(
     history_start: DateTime,
     history_end: DateTime,
     history_interval: datetime.timedelta,
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state

@@ -426,11 +426,15 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1),
-                    anchor_date=pendulum.datetime(2020, 1, 1),
-                ),
-                is_schedule_active=False,
+                schedules=[
+                    schemas.actions.DeploymentScheduleCreate(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1),
+                            anchor_date=pendulum.datetime(2020, 1, 1),
+                        ),
+                        active=False,
+                    )
+                ],
             ).model_dump(mode="json"),
         )
 
@@ -533,7 +537,6 @@ class TestCreateDeployment:
                     interval=datetime.timedelta(seconds=1),
                     anchor_date=pendulum.datetime(2020, 1, 1),
                 ),
-                is_schedule_active=True,
             ).model_dump(mode="json"),
         )
 

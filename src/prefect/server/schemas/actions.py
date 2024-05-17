@@ -158,15 +158,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
-    @model_validator(mode="before")
-    def populate_schedules(cls, values):
-        return set_deployment_schedules(values)
-
-    @model_validator(mode="before")
-    @classmethod
-    def remove_old_fields(cls, values):
-        return remove_old_deployment_fields(values)
-
     name: str = Field(
         default=...,
         description="The name of the deployment.",
@@ -250,6 +241,15 @@ class DeploymentCreate(ActionBaseModel):
                 preprocess=True,
                 ignore_required=True,
             )
+
+    @model_validator(mode="before")
+    def populate_schedules(cls, values):
+        return set_deployment_schedules(values)
+
+    @model_validator(mode="before")
+    @classmethod
+    def remove_old_fields(cls, values):
+        return remove_old_deployment_fields(values)
 
     @model_validator(mode="before")
     def _validate_parameters_conform_to_schema(cls, values):

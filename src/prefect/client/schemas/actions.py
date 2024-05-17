@@ -415,6 +415,47 @@ class ConcurrencyLimitCreate(ActionBaseModel):
     concurrency_limit: int = Field(default=..., description="The concurrency limit.")
 
 
+class ConcurrencyLimitV2Create(ActionBaseModel):
+    """Data used by the Prefect REST API to create a v2 concurrency limit."""
+
+    active: bool = Field(
+        default=True, description="Whether the concurrency limit is active."
+    )
+    name: str = Field(default=..., description="The name of the concurrency limit.")
+    limit: NonNegativeInteger = Field(default=..., description="The concurrency limit.")
+    active_slots: NonNegativeInteger = Field(
+        default=0, description="The number of active slots."
+    )
+    denied_slots: NonNegativeInteger = Field(
+        default=0, description="The number of denied slots."
+    )
+    slot_decay_per_second: NonNegativeFloat = Field(
+        default=0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )
+
+    @field_validator("name", check_fields=False)
+    @classmethod
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
+
+
+class ConcurrencyLimitV2Update(ActionBaseModel):
+    """Data used by the Prefect REST API to update a v2 concurrency limit."""
+
+    active: Optional[bool] = Field(None)
+    name: Optional[str] = Field(None)
+    limit: Optional[NonNegativeInteger] = Field(None)
+    active_slots: Optional[NonNegativeInteger] = Field(None)
+    denied_slots: Optional[NonNegativeInteger] = Field(None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+
+    @field_validator("name", check_fields=False)
+    @classmethod
+    def validate_name_characters(cls, v):
+        return raise_on_name_with_banned_characters(v)
+
+
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 

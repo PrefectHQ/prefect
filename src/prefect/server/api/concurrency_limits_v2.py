@@ -25,7 +25,7 @@ async def create_concurrency_limit_v2(
             session=session, concurrency_limit=concurrency_limit
         )
 
-    return schemas.core.ConcurrencyLimitV2.from_orm(model)
+    return schemas.core.ConcurrencyLimitV2.model_validate(model)
 
 
 @router.get("/{id_or_name}")
@@ -35,6 +35,11 @@ async def read_concurrency_limit_v2(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.GlobalConcurrencyLimitResponse:
+    if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
+        try:
+            id_or_name = UUID(id_or_name)
+        except ValueError:
+            pass
     async with db.session_context() as session:
         if isinstance(id_or_name, UUID):
             model = await models.concurrency_limits_v2.read_concurrency_limit(
@@ -50,7 +55,7 @@ async def read_concurrency_limit_v2(
             status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency Limit not found"
         )
 
-    return schemas.responses.GlobalConcurrencyLimitResponse.from_orm(model)
+    return schemas.responses.GlobalConcurrencyLimitResponse.model_validate(model)
 
 
 @router.post("/filter")
@@ -69,7 +74,7 @@ async def read_all_concurrency_limits_v2(
         )
 
     return [
-        schemas.responses.GlobalConcurrencyLimitResponse.from_orm(limit)
+        schemas.responses.GlobalConcurrencyLimitResponse.model_validate(limit)
         for limit in concurrency_limits
     ]
 
@@ -82,6 +87,11 @@ async def update_concurrency_limit_v2(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
+    if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
+        try:
+            id_or_name = UUID(id_or_name)
+        except ValueError:
+            pass
     async with db.session_context(begin_transaction=True) as session:
         if isinstance(id_or_name, UUID):
             updated = await models.concurrency_limits_v2.update_concurrency_limit(
@@ -107,6 +117,11 @@ async def delete_concurrency_limit_v2(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
+    if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
+        try:
+            id_or_name = UUID(id_or_name)
+        except ValueError:
+            pass
     async with db.session_context(begin_transaction=True) as session:
         deleted = False
         if isinstance(id_or_name, UUID):
@@ -139,7 +154,7 @@ async def bulk_increment_active_slots(
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
         limits = [
-            schemas.core.ConcurrencyLimitV2.from_orm(limit)
+            schemas.core.ConcurrencyLimitV2.model_validate(limit)
             for limit in (
                 await models.concurrency_limits_v2.bulk_read_or_create_concurrency_limits(
                     session=session, names=names

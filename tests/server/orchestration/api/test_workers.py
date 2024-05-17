@@ -1391,7 +1391,7 @@ class TestWorkerProcess:
     async def test_heartbeat_worker_requires_name(self, client, work_pool):
         response = await client.post(f"/work_pools/{work_pool.name}/workers/heartbeat")
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        assert b"field required" in response.content
+        assert b'"missing","loc":["body","name"]' in response.content
 
     async def test_heartbeat_worker_upserts_for_same_name(self, client, work_pool):
         for name in ["test-worker", "test-worker", "test-worker", "another-worker"]:

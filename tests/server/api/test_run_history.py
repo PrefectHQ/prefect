@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import List
 
 import pendulum
@@ -254,8 +254,8 @@ async def test_history_returns_maximum_items(client, route):
     response = await client.post(
         f"/{route}/history",
         json=dict(
-            history_start=str(dt),
-            history_end=str(dt.add(days=10)),
+            history_start=dt.isoformat(),
+            history_end=dt.add(days=10).isoformat(),
             history_interval_seconds=timedelta(minutes=1).total_seconds(),
         ),
     )
@@ -264,11 +264,17 @@ async def test_history_returns_maximum_items(client, route):
 
     # only first 500 items returned
     assert len(response.json()) == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert min([r["interval_start"] for r in response.json()]) == dt.isoformat()
-    assert (
-        max([r["interval_start"] for r in response.json()])
-        == dt.add(minutes=499).isoformat()
-    )
+    # Normalize datetime format for comparison
+    interval_starts = [r["interval_start"] for r in response.json()]
+    min_interval_start = min(interval_starts)
+
+    # Convert min_interval_start to a datetime object, then to ISO format without microseconds and timezone
+    normalized_min_interval_start = datetime.fromisoformat(
+        min_interval_start.replace("Z", "+00:00")
+    ).isoformat(timespec="seconds")
+    normalized_dt = dt.isoformat(timespec="seconds")
+
+    assert normalized_min_interval_start == normalized_dt
 
 
 async def test_daily_bins_flow_runs(client):

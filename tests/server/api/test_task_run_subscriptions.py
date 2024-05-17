@@ -251,7 +251,7 @@ def test_server_redelivers_unacknowledged_runs(app: FastAPI, taskA_run1: TaskRun
 async def preexisting_runs(
     session: AsyncSession, reset_task_queues: None
 ) -> List[TaskRun]:
-    stored_runA = TaskRun.from_orm(
+    stored_runA = ServerTaskRun.model_validate(
         await models.task_runs.create_task_run(
             session,
             ServerTaskRun(
@@ -263,7 +263,7 @@ async def preexisting_runs(
         )
     )
 
-    stored_runB = TaskRun.from_orm(
+    stored_runB = ServerTaskRun.model_validate(
         await models.task_runs.create_task_run(
             session,
             ServerTaskRun(
@@ -282,7 +282,7 @@ async def preexisting_runs(
 
 def test_server_restores_scheduled_task_runs_at_startup(
     app: FastAPI,
-    preexisting_runs: List[TaskRun],
+    preexisting_runs: List[ServerTaskRun],
 ):
     with authenticated_socket(app) as socket:
         socket.send_json({"type": "subscribe", "keys": ["mytasks.taskA"]})

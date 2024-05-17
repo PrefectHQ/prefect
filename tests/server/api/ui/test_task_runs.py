@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
 from prefect.server.api.ui.task_runs import TaskRunCount
-from prefect.server.schemas import actions, core, filters, states
+from prefect.server.schemas import core, filters, states
 
 
 class TestReadDashboardTaskRunCounts:
@@ -143,7 +143,7 @@ class TestReadTaskRunCountsByState:
     ):
         run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(
+            flow_run=core.FlowRun(
                 flow_id=flow.id,
                 state=states.Completed(),
             ),
@@ -151,7 +151,7 @@ class TestReadTaskRunCountsByState:
 
         run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(
+            flow_run=core.FlowRun(
                 flow_id=flow.id,
                 state=states.Failed(),
             ),
@@ -159,7 +159,7 @@ class TestReadTaskRunCountsByState:
 
         run_3 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(
+            flow_run=core.FlowRun(
                 flow_id=flow.id,
                 state=states.Pending(),
             ),
