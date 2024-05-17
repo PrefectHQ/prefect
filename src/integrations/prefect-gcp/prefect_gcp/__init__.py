@@ -4,7 +4,6 @@ from prefect._internal.compatibility.deprecated import (
 
 from . import _version
 from .bigquery import BigQueryWarehouse  # noqa
-from .cloud_run import CloudRunJob  # noqa
 from .cloud_storage import GcsBucket  # noqa
 from .credentials import GcpCredentials  # noqa
 from .secret_manager import GcpSecret  # noqa
