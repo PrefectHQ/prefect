@@ -17,6 +17,7 @@ from prefect.settings import PREFECT_TEST_MODE
 
 if TYPE_CHECKING:
     from prefect.client.schemas import BlockType as ClientBlockType
+    from prefect.client.schemas.actions import BlockTypeUpdate as ClientBlockTypeUpdate
     from prefect.server.database.orm_models import ORMBlockType
 
 
@@ -163,7 +164,7 @@ async def read_block_types(
 async def update_block_type(
     session: AsyncSession,
     block_type_id: str,
-    block_type: schemas.actions.BlockTypeUpdate,
+    block_type: Union[schemas.actions.BlockTypeUpdate, "ClientBlockTypeUpdate"],
     db: PrefectDBInterface,
 ) -> bool:
     """
@@ -177,6 +178,20 @@ async def update_block_type(
     Returns:
         bool: True if the block type was updated
     """
+
+    # We take a shortcut in many unit tests to pass client models directly to
+    # this function.  We will support this (only in unit tests) by converting them
+    # to the appropriate server model.
+    if not isinstance(block_type, schemas.actions.BlockTypeUpdate):
+        if not PREFECT_TEST_MODE.value():
+            raise ValueError("block_type must be a server model")
+        block_type = schemas.actions.BlockTypeUpdate.model_validate(
+            block_type.model_dump(
+                mode="json",
+                exclude={"id", "created", "updated", "name", "slug", "is_protected"},
+            )
+        )
+
     update_statement = (
         sa.update(db.BlockType)
         .where(db.BlockType.id == block_type_id)
