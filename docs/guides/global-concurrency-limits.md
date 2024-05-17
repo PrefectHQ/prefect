@@ -40,13 +40,7 @@ Global concurrency limits can be in either an `active` or `inactive` state.
 
 ### Slot decay
 
-You can configure global concurrency limits with slot decay to create a rate limit. 
-
-Slot decay governs the pace at which slots are released for reuse after being occupied. 
-
-These slots  represent the concurrency capacity within a specific concurrency limit. 
-
-Slot decay is the rate at which these slots refresh.
+You can configure global concurrency limits with slot decay. Use this when you want a rate limit. It will govern the pace at which slots are released or become available for reuse after being occupied. These slots  represent the concurrency capacity within a specific concurrency limit. This is the rate at which these slots "decay" or refresh.
 
 To configure slot decay, set the `slot_decay_per_second` parameter when defining or adjusting a concurrency limit.
 
@@ -54,7 +48,7 @@ For practical use, consider the following:
 
 - *Higher values*: Setting `slot_decay_per_second` to a higher value, such as 5.0, results in slots becoming available relatively quickly. In this scenario, a slot that was occupied by a task will free up after just `0.2` (`1.0 / 5.0`) seconds.
 
-- *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, such as 0.1, causes slots to become available more slowly. In this scenario, it would take `10` (`1.0 / 0.1`) seconds for a slot to become available after occupancy.
+- *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, like 0.1, causes slots to become available more slowly. In this scenario it would take `10` (`1.0 / 0.1`) seconds for a slot to become available again after occupancy.
 
 Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the rate of your workflow based on your specific requirements.
 
@@ -247,7 +241,7 @@ if __name__ == "__main__":
 
 ### Throttling task submission
 
-Throttling task submission helps avoid overloading resources, complying with external rate limits, and ensuring a steady throughput.
+Throttling task submission helps avoid overloading resources, complying with external rate limits, or ensuring a steady, controlled flow of work.
 
 In this scenario the `rate_limit` function is used to throttle the submission of tasks. The rate limit acts as a bottleneck, ensuring that tasks are submitted at a controlled rate, governed by the `slot_decay_per_second` setting on the associated concurrency limit.
 
@@ -276,7 +270,7 @@ if __name__ == "__main__":
 
 Manage the maximum number of concurrent database connections to avoid exhausting database resources.
 
-In this scenario you set up a concurrency limit named `database` and gave it a maximum concurrency limit that matches the maximum number of database connections to allow. You then used the `concurrency` context manager to control the number of database connections allowed at any one time.
+In this scenario we set up a concurrency limit named `database`. We gave it a maximum concurrency limit that matches the maximum number of database connections we want to allow. We then use the `concurrency` context manager to control the number of database connections allowed at any one time.
 
 ```python
 from prefect import flow, task, concurrency

@@ -4,17 +4,8 @@ Credentials blocks and secret blocks are popular ways to store and retrieve sens
 
 In Prefect Cloud, these block values are stored in encrypted format, allowing you to use Prefect to connect to third-party services securely.
 
+This example interacts with a Snowflake database and stores the credentials required to connect in AWS Secrets Manager.
 This example uses Prefect Cloud and generally works with other third-party services that require credentials as well.
-
-Any sensitive information that is not stored in a block can be read from the environment.
-
-For example, to find AWS credentials for authentication, any attributes not provided to an AWS Credentials block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
-Prefect-aws creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
-
-Prefect-gcp and prefect-azure follow similar patterns.
-
-In the example below, we interact with a Snowflake database using credentials stored in AWS Secrets Manager.
-This example can be generalized to other third party services that require credentials.
 
 ## Prerequisites
 
@@ -72,7 +63,15 @@ prefect block register -m prefect_aws && prefect block register -m prefect_snowf
 
 ### Create `AwsCredentials` block
 
-Under the hood, Prefect is using the AWS `boto3` client to create a session.
+In the **AwsCredentials** section, click **Add +** to create an AWS Credentials block.
+
+Values for **Access Key ID** and **Secret Access Key** are read from the compute environment.
+Your AWS **Access Key ID** and **Secret Access Key** values with permissions to read the AWS Secret are stored locally in your `~/.aws/credentials` file, so leave those fields blank or they're saved to the database.
+By leaving those attributes blank, Prefect knows to look to the compute environment.
+
+Specify a region in your `AWSCredentials` block instead of your local AWS config file. The `AwsCredentials` block takes precedence and is more portable.
+
+Under the hood, Prefect uses the AWS `boto3` client to create a session.
 
 In the **AwsCredentials** section of the form, click **Add +** and create an AWS Credentials block by entering the necessary values.
 
@@ -178,4 +177,4 @@ Make sure to specify the `prefect-aws` and `prefect-snowflake` dependencies in y
 
 Also ensure your compute has the AWS credentials for accessing the secret in AWS Secrets Manager.
 
-You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment. You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs. You can use a similar pattern with other secret managers, or extend it to work with environment variables.
+You've seen how to use Prefect blocks to store non-sensitive configuration and fetch sensitive configuration values from the environment. You can use this pattern to connect to other third-party services that require credentials, such as databases and APIs. You can use a similar pattern with any secret manager, or extend it to work with environment variables.
