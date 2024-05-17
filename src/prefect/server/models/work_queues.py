@@ -374,7 +374,7 @@ async def _legacy_get_runs_in_work_queue(
     # ensure the filter object is fully hydrated
     # SQLAlchemy caching logic can result in a dict type instead
     # of the full pydantic model
-    work_queue_filter = TypeAdapter(schemas.filters.WorkQueueFilter).validate_python(
+    work_queue_filter = TypeAdapter(schemas.core.QueueFilter).validate_python(
         work_queue.filter
     )
     flow_run_filter = dict(
