@@ -307,7 +307,7 @@ class TestCreate:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.cli.work_pool.get_infrastructure_provisioner_for_work_pool_type",
+            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
@@ -356,7 +356,7 @@ class TestCreate:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.cli.work_pool.get_infrastructure_provisioner_for_work_pool_type",
+            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
@@ -738,7 +738,7 @@ class TestProvisionInfrastructure:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.cli.work_pool.get_infrastructure_provisioner_for_work_pool_type",
+            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
