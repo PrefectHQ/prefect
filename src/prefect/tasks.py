@@ -1051,6 +1051,7 @@ class Task(Generic[P, R]):
         # since they should not be mapped over
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
+        flow_run_context = FlowRunContext.get()
 
         task_viz_tracker = get_task_viz_tracker()
         if task_viz_tracker:
@@ -1058,10 +1059,7 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
-            and not FlowRunContext.get()
-        ):
+        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
             map_call = create_call(
                 begin_task_map,
                 task=self,
@@ -1076,6 +1074,21 @@ class Task(Generic[P, R]):
                 return from_async.wait_for_call_in_loop_thread(map_call)
             else:
                 return from_sync.wait_for_call_in_loop_thread(map_call)
+
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context:
+            from prefect.new_task_runners import TaskRunner
+
+            task_runner = flow_run_context.task_runner
+            assert isinstance(task_runner, TaskRunner)
+            futures = task_runner.map(self, parameters, wait_for)
+            if return_state:
+                states = []
+                for future in futures:
+                    future.wait()
+                    states.append(future.state)
+                return states
+            else:
+                return futures
 
         return enter_task_run_engine(
             self,

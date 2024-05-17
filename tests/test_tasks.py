@@ -666,7 +666,6 @@ class TestTaskSubmit:
         assert result[1:] == [1, 2]
         assert "Fail task!" in str(result)
 
-    @fails_with_new_engine
     def test_allow_failure_chained_mapped_tasks(
         self,
     ):
@@ -694,7 +693,6 @@ class TestTaskSubmit:
         assert states[1].is_completed()
         assert exceptions_equal(states[1].result(), ValueError("Fail task"))
 
-    @fails_with_new_engine
     def test_allow_failure_mapped_with_noniterable_upstream(
         self,
     ):
@@ -2838,18 +2836,19 @@ class TestTaskMap:
     def add_together(x, y):
         return x + y
 
-    @fails_with_new_engine
     def test_simple_map(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map([1, 2, 3])
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            else:
+                assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_simple_map_return_state_true(self):
         @flow
         def my_flow():
@@ -2860,18 +2859,19 @@ class TestTaskMap:
         states = my_flow()
         assert [state.result() for state in states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_map_can_take_tuple_as_input(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map((1, 2, 3))
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            else:
+                assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_map_can_take_generator_as_input(self):
         def generate_numbers():
             i = 1
@@ -2882,13 +2882,15 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(generate_numbers())
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            else:
+                assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_map_can_take_state_as_input(self):
         @task
         def some_numbers():
@@ -2902,29 +2904,32 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_can_take_quoted_iterable_as_input(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            else:
+                assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_does_not_treat_quote_as_iterable(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                assert all(isinstance(f, NewPrefectFuture) for f in futures)
+            else:
+                assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_map_can_take_future_as_input(self):
         @task
         def some_numbers():
@@ -2953,7 +2958,6 @@ class TestTaskMap:
 
         return {x["id"]: [d.id for d in x["upstream_dependencies"]] for x in graph}
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_all_mapped_children(
         self, session
     ):
@@ -2982,7 +2986,6 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_all_mapped_children_multiple(
         self, session
     ):
@@ -3017,7 +3020,6 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_differing_parents(
         self, session
     ):
@@ -3047,7 +3049,6 @@ class TestTaskMap:
             for a, e in zip(add_task_states, echo_futures)
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_static_arg(self, session):
         @flow
         def my_flow():
@@ -3074,7 +3075,6 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_mixed_map(self, session):
         @flow
         def my_flow():
@@ -3099,7 +3099,6 @@ class TestTaskMap:
         ]
         assert dependency_ids[add_task_states[1].state_details.task_run_id] == []
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_deep_nesting(
         self, session
     ):
@@ -3133,7 +3132,6 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
     def test_map_can_take_flow_state_as_input(self):
         @flow
         def child_flow():
@@ -3147,7 +3145,6 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     def test_multiple_inputs(self):
         @flow
         def my_flow():
@@ -3176,7 +3173,6 @@ class TestTaskMap:
         with pytest.raises(MappingLengthMismatch):
             assert my_flow()
 
-    @fails_with_new_engine
     async def test_async_flow_with_async_map(self):
         @task
         async def some_numbers():
@@ -3184,12 +3180,14 @@ class TestTaskMap:
 
         @flow
         async def my_flow():
-            return await TestTaskMap.add_one.map(await some_numbers())
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                return TestTaskMap.add_one.map(await some_numbers())
+            else:
+                return await TestTaskMap.add_one.map(await some_numbers())
 
         task_states = await my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     async def test_async_flow_with_sync_map(self):
         @task
         def subtract_them(x, y):
@@ -3203,7 +3201,6 @@ class TestTaskMap:
         assert [await state.result() for state in task_states] == [3, 3, 3]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    @fails_with_new_engine
     def test_unmapped_int(self, explicit):
         @flow
         def my_flow():
@@ -3215,7 +3212,6 @@ class TestTaskMap:
         assert [state.result() for state in task_states] == [6, 7, 8]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    @fails_with_new_engine
     def test_unmapped_str(self, explicit):
         @flow
         def my_flow():
@@ -3226,7 +3222,6 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == ["atest", "btest", "ctest"]
 
-    @fails_with_new_engine
     def test_unmapped_iterable(self):
         @flow
         def my_flow():
@@ -3241,7 +3236,6 @@ class TestTaskMap:
             [4, 5, 6, 7],
         ]
 
-    @fails_with_new_engine
     def test_with_keyword_with_default(self):
         @task
         def add_some(x, y=5):
@@ -3255,7 +3249,6 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
 
-    @fails_with_new_engine
     def test_with_keyword_with_iterable_default(self):
         @task
         def add_some(x, y=[1, 4]):
@@ -3269,7 +3262,6 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
 
-    @fails_with_new_engine
     def test_with_variadic_keywords_and_iterable(self):
         @task
         def add_some(x, **kwargs):
@@ -3283,7 +3275,6 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [5, 7, 9]
 
-    @fails_with_new_engine
     def test_with_variadic_keywords_and_noniterable(self):
         @task
         def add_some(x, **kwargs):
@@ -4081,7 +4072,6 @@ class TestNestedTasks:
         result = await my_flow()
         assert result == 42
 
-    @fails_with_new_engine
     def test_nested_map(self):
         @task
         def inner_task(x):

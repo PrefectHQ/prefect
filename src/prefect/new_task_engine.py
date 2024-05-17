@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Set,
     TypeVar,
     Union,
     cast,
@@ -25,7 +26,7 @@ from typing_extensions import ParamSpec
 from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import State
+from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.logging.loggers import get_logger, task_run_logger
@@ -360,6 +361,7 @@ class TaskRunEngine(Generic[P, R]):
     def start(
         self,
         task_run_id: Optional[UUID] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator["TaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -377,6 +379,7 @@ class TaskRunEngine(Generic[P, R]):
                             flow_run_context=FlowRunContext.get(),
                             parent_task_run_context=TaskRunContext.get(),
                             wait_for=self.wait_for,
+                            extra_task_inputs=dependencies,
                         )
                     )
 
@@ -408,13 +411,14 @@ def run_task_sync(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
         task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
     )
 
     # This is a context manager that keeps track of the run of the task run.
-    with engine.start(task_run_id=task_run_id) as run:
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         run.begin_run()
 
         while run.is_running():
@@ -449,6 +453,7 @@ async def run_task_async(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
 ) -> Union[R, State, None]:
     """
     Runs a task against the API.
@@ -460,7 +465,7 @@ async def run_task_async(
     )
 
     # This is a context manager that keeps track of the run of the task run.
-    with engine.start(task_run_id=task_run_id) as run:
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         run.begin_run()
 
         while run.is_running():
@@ -494,6 +499,7 @@ def run_task(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
 ) -> Union[R, State, None]:
     kwargs = dict(
         task=task,
@@ -502,6 +508,7 @@ def run_task(
         parameters=parameters,
         wait_for=wait_for,
         return_type=return_type,
+        dependencies=dependencies,
     )
     if task.isasync:
         return run_task_async(**kwargs)
