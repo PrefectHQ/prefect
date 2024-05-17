@@ -25,14 +25,12 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.task_server import TaskServer
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-@sync_compatible
 async def result_factory_from_task(task) -> ResultFactory:
     return await ResultFactory.from_autonomous_task(task)
 
@@ -98,16 +96,18 @@ def async_foo_task_with_result_storage(async_foo_task, local_filesystem):
     return async_foo_task.with_options(result_storage=local_filesystem)
 
 
-def test_task_submission_with_parameters_uses_default_storage(foo_task):
+async def test_task_submission_with_parameters_uses_default_storage(foo_task):
     foo_task_without_result_storage = foo_task.with_options(result_storage=None)
     task_run = foo_task_without_result_storage.submit(42)
 
-    result_factory = result_factory_from_task(foo_task)
+    result_factory = await result_factory_from_task(foo_task)
 
-    result_factory.read_parameters(task_run.state.state_details.task_parameters_id)
+    await result_factory.read_parameters(
+        task_run.state.state_details.task_parameters_id
+    )
 
 
-def test_task_submission_with_parameters_reuses_default_storage_block(
+async def test_task_submission_with_parameters_reuses_default_storage_block(
     foo_task: Task, tmp_path: Path
 ):
     with temporary_settings(
@@ -118,37 +118,39 @@ def test_task_submission_with_parameters_reuses_default_storage_block(
     ):
         # The block will not exist initially
         with pytest.raises(ValueError, match="Unable to find block document"):
-            Block.load("local-file-system/my-tasks")
+            await Block.load("local-file-system/my-tasks")
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
         task_run_a = foo_task_without_result_storage.submit(42)
 
-        storage_before = Block.load("local-file-system/my-tasks")
+        storage_before = await Block.load("local-file-system/my-tasks")
         assert isinstance(storage_before, LocalFileSystem)
         assert storage_before.basepath == str(tmp_path / "some-storage")
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
         task_run_b = foo_task_without_result_storage.submit(24)
 
-        storage_after = Block.load("local-file-system/my-tasks")
+        storage_after = await Block.load("local-file-system/my-tasks")
         assert isinstance(storage_after, LocalFileSystem)
 
-        result_factory = result_factory_from_task(foo_task)
-        assert result_factory.read_parameters(
+        result_factory = await result_factory_from_task(foo_task)
+        assert await result_factory.read_parameters(
             task_run_a.state.state_details.task_parameters_id
         ) == {"x": 42}
-        assert result_factory.read_parameters(
+        assert await result_factory.read_parameters(
             task_run_b.state.state_details.task_parameters_id
         ) == {"x": 24}
 
 
-def test_task_submission_creates_a_scheduled_task_run(foo_task_with_result_storage):
+async def test_task_submission_creates_a_scheduled_task_run(
+    foo_task_with_result_storage,
+):
     task_run = foo_task_with_result_storage.submit(42)
     assert task_run.state.is_scheduled()
 
-    result_factory = result_factory_from_task(foo_task_with_result_storage)
+    result_factory = await result_factory_from_task(foo_task_with_result_storage)
 
-    parameters = result_factory.read_parameters(
+    parameters = await result_factory.read_parameters(
         task_run.state.state_details.task_parameters_id
     )
 
