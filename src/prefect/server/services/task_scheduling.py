@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.api.task_runs import TaskQueue
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
@@ -45,6 +44,8 @@ class TaskSchedulingTimeouts(LoopService):
         """
         Restores scheduled task runs from the database to the in-memory queues.
         """
+        from prefect.server.api.task_runs import TaskQueue
+
         task_runs = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=filters.TaskRunFilter(
