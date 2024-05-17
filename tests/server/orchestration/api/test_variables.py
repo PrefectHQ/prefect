@@ -89,9 +89,8 @@ class TestCreateVariable:
         assert res
         assert res.status_code == 422
         assert (
-            res.json()["exception_detail"][0]["msg"]
-            == "Variable name must only contain lowercase letters, numbers, and"
-            " underscores."
+            "Variable name must only contain lowercase letters, numbers, and underscores"
+            in res.json()["exception_detail"][0]["msg"]
         )
 
     async def test_name_unique(
@@ -128,9 +127,7 @@ class TestCreateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert (
-            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
-        )
+        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
 
     async def test_value_max_length(
         self,
@@ -153,9 +150,7 @@ class TestCreateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert (
-            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
-        )
+        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestReadVariable:
@@ -555,9 +550,7 @@ class TestUpdateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert (
-            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
-        )
+        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
 
     async def test_value_max_length(
         self,
@@ -579,9 +572,7 @@ class TestUpdateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert (
-            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
-        )
+        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestUpdateVariableByName:
@@ -653,9 +644,7 @@ class TestUpdateVariableByName:
         )
         assert res
         assert res.status_code == 422
-        assert (
-            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
-        )
+        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
 
     async def test_value_max_length(
         self,
@@ -677,9 +666,7 @@ class TestUpdateVariableByName:
         )
         assert res
         assert res.status_code == 422
-        assert (
-            "ensure this value has at most" in res.json()["exception_detail"][0]["msg"]
-        )
+        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestDeleteVariable:

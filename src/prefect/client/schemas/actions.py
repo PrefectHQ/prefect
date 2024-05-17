@@ -286,7 +286,7 @@ class FlowRunUpdate(ActionBaseModel):
 
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: Optional[Dict[str, Any]] = Field(None)
+    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )

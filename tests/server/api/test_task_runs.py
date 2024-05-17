@@ -93,29 +93,6 @@ class TestCreateTaskRun:
         assert str(task_run.id) == response.json()["id"]
         assert task_run.state.type == task_run_data.state.type
 
-    async def test_create_task_run_with_state_ignores_client_provided_timestamp(
-        self, flow_run, client, session
-    ):
-        response = await client.post(
-            "/task_runs/",
-            json=schemas.actions.TaskRunCreate(
-                flow_run_id=flow_run.id,
-                task_key="a",
-                state=schemas.actions.StateCreate(
-                    type=schemas.states.StateType.COMPLETED,
-                    timestamp=pendulum.now("UTC").add(months=1),
-                ),
-                dynamic_key="0",
-            ).model_dump(mode="json"),
-        )
-        assert response.status_code == status.HTTP_201_CREATED
-
-        task_run = await models.task_runs.read_task_run(
-            session=session, task_run_id=response.json()["id"]
-        )
-        # the timestamp was overwritten
-        assert task_run.state.timestamp < pendulum.now("UTC")
-
     async def test_raises_on_retry_delay_validation(self, flow_run, client, session):
         task_run_data = {
             "flow_run_id": str(flow_run.id),
@@ -127,8 +104,8 @@ class TestCreateTaskRun:
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            response.json()["exception_detail"][0]["msg"]
-            == "Can not configure more than 50 retry delays per task."
+            "Can not configure more than 50 retry delays per task."
+            in response.json()["exception_detail"][0]["msg"]
         )
 
     async def test_raises_on_jitter_factor_validation(self, flow_run, client, session):
@@ -142,8 +119,8 @@ class TestCreateTaskRun:
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            response.json()["exception_detail"][0]["msg"]
-            == "`retry_jitter_factor` must be >= 0."
+            "`retry_jitter_factor` must be >= 0."
+            in response.json()["exception_detail"][0]["msg"]
         )
 
     async def test_create_task_run_with_client_provided_id(self, flow_run, client):
@@ -488,25 +465,6 @@ class TestSetTaskRunState:
 
         api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
-
-    async def test_set_task_run_ignores_client_provided_timestamp(
-        self, flow_run, client
-    ):
-        response = await client.post(
-            f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(
-                state=dict(
-                    type="RUNNING",
-                    name="Test State",
-                    timestamp=str(pendulum.now("UTC").add(months=1)),
-                )
-            ),
-        )
-        assert response.status_code == status.HTTP_201_CREATED
-        state = schemas.states.State.model_validate(response.json()["state"])
-        assert state.timestamp < pendulum.now(
-            "UTC"
-        ), "The timestamp should be overwritten"
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1

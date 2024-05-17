@@ -281,16 +281,7 @@ class UpdateSubflowParentTask(BaseUniversalTransform):
         # only applies to flow runs with a parent task run id
         if context.run.parent_task_run_id is not None:
             # avoid mutation of the flow run state
-            subflow_parent_task_state = context.validated_state.fresh_copy(
-                include={
-                    "type",
-                    "timestamp",
-                    "name",
-                    "message",
-                    "state_details",
-                    "data",
-                },
-            )
+            subflow_parent_task_state = context.validated_state.fresh_copy()
 
             # set the task's "child flow run id" to be the subflow run id
             subflow_parent_task_state.state_details.child_flow_run_id = context.run.id

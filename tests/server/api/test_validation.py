@@ -514,7 +514,9 @@ class TestDeploymentFlowRunJobVariablesValidation:
         await validate_job_variables_for_deployment_flow_run(
             session=session,
             deployment=deployment,
-            flow_run=DeploymentFlowRunCreate(state=schemas.states.Scheduled()),
+            flow_run=DeploymentFlowRunCreate(
+                state=schemas.states.Scheduled().to_state_create()
+            ),
         )
 
     async def test_allows_missing_required_variable_with_default(

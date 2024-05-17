@@ -251,13 +251,15 @@ class DeploymentCreate(ActionBaseModel):
                 ignore_required=True,
             )
 
-    @field_validator("parameters")
-    def _validate_parameters_conform_to_schema(cls, value, values):
-        return validate_parameters_conform_to_schema(value, values)
-
-    @field_validator("parameter_openapi_schema")
-    def _validate_parameter_openapi_schema(cls, value, values):
-        return validate_parameter_openapi_schema(value, values)
+    @model_validator(mode="before")
+    def _validate_parameters_conform_to_schema(cls, values):
+        values["parameters"] = validate_parameters_conform_to_schema(
+            values.get("parameters", {}), values
+        )
+        values["parameter_openapi_schema"] = validate_parameter_openapi_schema(
+            values.get("parameter_openapi_schema"), values
+        )
+        return values
 
 
 class DeploymentUpdate(ActionBaseModel):

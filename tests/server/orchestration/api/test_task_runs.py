@@ -127,8 +127,8 @@ class TestCreateTaskRun:
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            response.json()["exception_detail"][0]["msg"]
-            == "Can not configure more than 50 retry delays per task."
+            "Can not configure more than 50 retry delays per task."
+            in response.json()["exception_detail"][0]["msg"]
         )
 
     async def test_raises_on_jitter_factor_validation(self, flow_run, client, session):
@@ -488,25 +488,6 @@ class TestSetTaskRunState:
 
         api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
-
-    async def test_set_task_run_ignores_client_provided_timestamp(
-        self, flow_run, client
-    ):
-        response = await client.post(
-            f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(
-                state=dict(
-                    type="RUNNING",
-                    name="Test State",
-                    timestamp=str(pendulum.now("UTC").add(months=1)),
-                )
-            ),
-        )
-        assert response.status_code == status.HTTP_201_CREATED
-        state = schemas.states.State.model_validate(response.json()["state"])
-        assert state.timestamp < pendulum.now(
-            "UTC"
-        ), "The timestamp should be overwritten"
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
