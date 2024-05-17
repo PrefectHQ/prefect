@@ -106,8 +106,20 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
         run_sync(my_async_function(1))
         ```
     """
+
     # ensure context variables are properly copied to the async frame
-    token = RUN_ASYNC_FLAG.set(True)
+    async def context_local_wrapper():
+        """
+        Wrapper that is submitted using copy_context().run to ensure
+        the RUN_ASYNC_FLAG mutations are tightly scoped to this coroutine's frame.
+        """
+        token = RUN_ASYNC_FLAG.set(True)
+        try:
+            result = await coroutine
+        finally:
+            RUN_ASYNC_FLAG.reset(token)
+        return result
+
     context = copy_context()
     try:
         loop = asyncio.get_running_loop()
@@ -116,11 +128,10 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
 
     if loop and loop.is_running():
         with ThreadPoolExecutor() as executor:
-            future = executor.submit(context.run, asyncio.run, coroutine)
+            future = executor.submit(context.run, asyncio.run, context_local_wrapper())
             result = cast(T, future.result())
     else:
-        result = context.run(asyncio.run, coroutine)
-    RUN_ASYNC_FLAG.reset(token)
+        result = context.run(asyncio.run, context_local_wrapper())
     return result
 
 
@@ -292,6 +303,10 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
                 pass
 
             async def ctx_call():
+                """
+                Wrapper that is submitted using copy_context().run to ensure
+                mutations of RUN_ASYNC_FLAG are tightly scoped to this coroutine's frame.
+                """
                 token = RUN_ASYNC_FLAG.set(True)
                 try:
                     result = await async_fn(*args, **kwargs)
@@ -302,7 +317,8 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
             if force_sync:
                 return run_sync(ctx_call())
             elif RUN_ASYNC_FLAG.get() or is_async:
-                return ctx_call()
+                context = copy_context()
+                return context.run(ctx_call)
             else:
                 return run_sync(ctx_call())
 
