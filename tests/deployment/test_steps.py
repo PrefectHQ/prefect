@@ -890,8 +890,8 @@ class TestPullWithBlock:
         )
 
 
-class TestPoetryInstall:
-    async def test_poetry_install_reqs_runs_expected_command(self, monkeypatch):
+class TestPipInstallPyproject:
+    async def test_pip_install_pyproject_reqs_runs_expected_command(self, monkeypatch):
         open_process_mock = MagicMock(return_value=MockProcess(0))
         monkeypatch.setattr(
             "prefect.deployments.steps.utility.open_process",
@@ -906,17 +906,21 @@ class TestPoetryInstall:
         )
 
         await run_step(
-            {"prefect.deployments.steps.poetry_install": {"id": "poetry-install-step"}}
+            {
+                "prefect.deployments.steps.pip_install_pyproject": {
+                    "id": "pip-install-step"
+                }
+            }
         )
 
         open_process_mock.assert_called_once_with(
-            ["poetry", "install"],
+            ["pip", "install", "."],
             cwd=None,
             stderr=ANY,
             stdout=ANY,
         )
 
-    async def test_poetry_install_reqs_with_directory_step_output_succeeds(
+    async def test_pip_install_pyproject_reqs_with_directory_step_output_succeeds(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):
         open_process_mock = MagicMock(return_value=MockProcess(0))
@@ -940,8 +944,8 @@ class TestPoetryInstall:
                 }
             },
             {
-                "prefect.deployments.steps.poetry_install": {
-                    "id": "poetry-install-step",
+                "prefect.deployments.steps.pip_install_pyproject": {
+                    "id": "pip-install-step",
                     "directory": "{{ clone-step.directory }}",
                 }
             },
@@ -950,7 +954,7 @@ class TestPoetryInstall:
         step_outputs = {
             "clone-step": {"directory": "hello-projects"},
             "directory": "hello-projects",
-            "poetry-install-step": {"stdout": "", "stderr": ""},
+            "pip-install-step": {"stdout": "", "stderr": ""},
             "stdout": "",
             "stderr": "",
         }
@@ -963,7 +967,7 @@ class TestPoetryInstall:
         assert output == step_outputs
 
         open_process_mock.assert_called_once_with(
-            ["poetry", "install"],
+            ["pip", "install", "."],
             cwd="hello-projects",
             stderr=ANY,
             stdout=ANY,

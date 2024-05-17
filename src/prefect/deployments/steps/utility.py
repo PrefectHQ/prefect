@@ -263,7 +263,7 @@ async def pip_install_requirements(
     }
 
 
-async def poetry_install(
+async def pip_install_pyproject(
     directory: Optional[str] = None,
     stream_output: bool = True,
 ):
@@ -279,7 +279,7 @@ async def poetry_install(
 
     Returns:
         A dictionary with the keys `stdout` and `stderr` containing the output
-            the `poetry install` command
+            the `pip install` command
 
     Raises:
         subprocess.CalledProcessError: if the pip install command fails for any reason
@@ -290,7 +290,7 @@ async def poetry_install(
             - prefect.deployments.steps.git_clone:
                 id: clone-step
                 repository: https://github.com/org/repo.git
-            - prefect.deployments.steps.poetry_install:
+            - prefect.deployments.steps.pip_install_pyproject:
                 directory: {{ clone-step.directory }}
                 stream_output: False
         ```
@@ -298,11 +298,15 @@ async def poetry_install(
     stdout_sink = io.StringIO()
     stderr_sink = io.StringIO()
 
+    if directory is None:
+        directory = os.getcwd()
+    else:
+        directory = os.path.abspath(directory)
+
     async with open_process(
-        ["poetry", "install"],
+        [get_sys_executable(), "-m", "pip", "install", directory],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=directory,
     ) as process:
         await _stream_capture_process_output(
             process,
@@ -314,7 +318,7 @@ async def poetry_install(
 
         if process.returncode != 0:
             raise RuntimeError(
-                f"poetry_install failed with error code {process.returncode}:"
+                f"pip_install_pyproject failed with error code {process.returncode}:"
                 f" {stderr_sink.getvalue()}"
             )
 
