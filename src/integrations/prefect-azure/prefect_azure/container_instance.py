@@ -126,3 +126,9 @@ class ACRManagedIdentity(BaseModel):
             "The user-assigned Azure managed identity for the private registry."
         ),
     )
+
+
+class AzureContainerInstanceJobResult:
+    """
+    The result of an `AzureContainerInstanceJob` run.
+    """

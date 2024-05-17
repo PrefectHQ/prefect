@@ -386,3 +386,7 @@ class ExecutionV2(BaseModel):
             satisfiesPzs=response.get("satisfiesPzs", False),
             etag=response["etag"],
         )
+
+
+class CloudRunJobV2Result:
+    """Result from a Cloud Run Job."""
