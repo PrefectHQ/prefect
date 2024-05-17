@@ -1,16 +1,11 @@
-
 import os
-import base64
 import re
+import tempfile
 from pathlib import Path
 from typing import Dict
-import tempfile
+
 import pytest
 import yaml
-
-from OpenSSL import crypto
-from prefect_kubernetes.credentials import KubernetesClusterConfig
-
 from kubernetes_asyncio.client import (
     ApiClient,
     AppsV1Api,
@@ -19,7 +14,8 @@ from kubernetes_asyncio.client import (
     CustomObjectsApi,
 )
 from kubernetes_asyncio.config.kube_config import list_kube_config_contexts
-
+from OpenSSL import crypto
+from prefect_kubernetes.credentials import KubernetesClusterConfig
 from pydantic.version import VERSION as PYDANTIC_VERSION
 
 if PYDANTIC_VERSION.startswith("2."):
@@ -29,7 +25,7 @@ else:
 
 
 def create_temp_self_signed_cert():
-    """ Create a self signed SSL certificate in temporary files for host
+    """Create a self signed SSL certificate in temporary files for host
         'localhost'
 
     Returns a tuple containing the certificate file name and the key
@@ -48,32 +44,29 @@ def create_temp_self_signed_cert():
     cert.get_subject().L = "Chicago"
     cert.get_subject().O = "myapp"
     cert.get_subject().OU = "myapp"
-    cert.get_subject().CN = 'localhost'
+    cert.get_subject().CN = "localhost"
     cert.set_serial_number(1000)
     cert.gmtime_adj_notBefore(0)
     cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
     cert.set_issuer(cert.get_subject())
     cert.set_pubkey(key)
-    cert.sign(key, 'sha1')
+    cert.sign(key, "sha1")
 
     # Save certificate in temporary file
-    (cert_file_fd, cert_file_name) = tempfile.mkstemp(suffix='.crt', prefix='cert')
-    cert_file = os.fdopen(cert_file_fd, 'wb')
-    cert_file.write(
-        crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
-    )
+    (cert_file_fd, cert_file_name) = tempfile.mkstemp(suffix=".crt", prefix="cert")
+    cert_file = os.fdopen(cert_file_fd, "wb")
+    cert_file.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
     cert_file.close()
 
     # Save key in temporary file
-    (key_file_fd, key_file_name) = tempfile.mkstemp(suffix='.key', prefix='cert')
-    key_file = os.fdopen(key_file_fd, 'wb')
-    key_file.write(
-        crypto.dump_privatekey(crypto.FILETYPE_PEM, key)
-    )
+    (key_file_fd, key_file_name) = tempfile.mkstemp(suffix=".key", prefix="cert")
+    key_file = os.fdopen(key_file_fd, "wb")
+    key_file.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
     key_file.close()
 
     # Return file names
     return (cert_file_name, key_file_name)
+
 
 _cert_file, _cert_key = create_temp_self_signed_cert()
 
@@ -188,7 +181,7 @@ async def test_instantiation_from_file_with_unknown_context_name(config_file):
 
 async def test_get_api_client(config_file):
     cluster_config = KubernetesClusterConfig.from_file(path=config_file)
-    
+
     api_client = await cluster_config.get_api_client()
     assert isinstance(api_client, ApiClient)
 

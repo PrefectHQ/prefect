@@ -2,12 +2,10 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, Optional, Type, Union, AsyncGenerator
+from typing import AsyncGenerator, Dict, Optional, Type, Union
 
 import yaml
-
 from kubernetes_asyncio import config
-
 from kubernetes_asyncio.client import (
     ApiClient,
     AppsV1Api,
@@ -16,9 +14,7 @@ from kubernetes_asyncio.client import (
     CoreV1Api,
     CustomObjectsApi,
 )
-
 from kubernetes_asyncio.config.config_exception import ConfigException
-
 from pydantic.version import VERSION as PYDANTIC_VERSION
 from typing_extensions import Literal, Self
 
@@ -117,7 +113,7 @@ class KubernetesClusterConfig(Block):
         """
         Returns a Kubernetes API client for this cluster config.
         """
-        
+
         return await config.kube_config.new_client_from_config_dict(
             config_dict=self.config, context=self.context_name
         )
@@ -181,8 +177,7 @@ class KubernetesCredentials(Block):
         client_config = configuration or Configuration()
 
         async with ApiClient(configuration=client_config):
-                yield self.get_resource_specific_client(client_type)
-  
+            yield self.get_resource_specific_client(client_type)
 
     def get_resource_specific_client(
         self,

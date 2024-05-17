@@ -121,9 +121,6 @@ from typing import (
 )
 
 import anyio.abc
-from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
-from kubernetes_asyncio.client.exceptions import ApiException
-from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -150,8 +147,25 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import Field, validator
 
+import kubernetes_asyncio as kubernetes
+from kubernetes_asyncio.client import (
+    ApiClient,
+    BatchV1Api,
+    Configuration,
+    CoreV1Api,
+    V1Job,
+    V1Pod,
+)
+from kubernetes_asyncio.client.exceptions import ApiException
+from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
+from kubernetes_asyncio.config import (
+    ConfigException,
+    load_incluster_config,
+    load_kube_config,
+)
 from typing_extensions import Literal
 
+from prefect.client.schemas import FlowRun
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
     _slugify_label_key,
@@ -161,8 +175,17 @@ from prefect_kubernetes.utilities import (
 
 if TYPE_CHECKING:
     import kubernetes_asyncio as kubernetes
+    from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
+    from kubernetes_asyncio.client.exceptions import ApiException
+    from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
+    from kubernetes_asyncio.config import (
+        ConfigException,
+        load_incluster_config,
+        load_kube_config,
+    )
 
     from prefect.client.schemas import FlowRun
+
 else:
     kubernetes = lazy_import("kubernetes_asyncio")
 
@@ -343,6 +366,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                 preparation.
             flow: The flow associated with the flow run used for preparation.
         """
+
         super().prepare_for_flow_run(flow_run, deployment, flow)
         # Update configuration env and job manifest env
         self._update_prefect_api_url_if_local_server()
@@ -574,8 +598,7 @@ class KubernetesWorker(BaseWorker):
         """
         logger = self.get_flow_run_logger(flow_run)
 
-        k8s_clients_config = await self._get_k8s_config(configuration)
-        async with ApiClient(k8s_clients_config) as client:
+        async with self._get_configured_kubernetes_client(configuration) as client:
             logger.info("Creating Kubernetes job...")
 
             job = await self._create_job(configuration, client)
@@ -585,7 +608,6 @@ class KubernetesWorker(BaseWorker):
                 task_status.started(pid)
 
             # Monitor the job until completion
-
             events_replicator = KubernetesEventsReplicator(
                 client=client,
                 job_name=job.metadata.name,
@@ -623,8 +645,7 @@ class KubernetesWorker(BaseWorker):
     async def _clean_up_created_secrets(self):
         """Deletes any secrets created during the worker's operation."""
         for key, configuration in self._created_secrets.items():
-            k8s_clients_config = await self._get_k8s_config(configuration)
-            async with ApiClient(k8s_clients_config) as client:
+            async with self._get_configured_kubernetes_client(configuration) as client:
                 v1 = client.CoreV1Api(client)
                 result = await v1.delete_namespaced_secret(
                     name=key[0],
@@ -643,8 +664,7 @@ class KubernetesWorker(BaseWorker):
         grace_seconds: int = 30,
     ):
         """Removes the given Job from the Kubernetes cluster"""
-        k8s_clients_config = await self._get_k8s_config(configuration)
-        async with ApiClient(k8s_clients_config) as client:
+        async with self._get_configured_kubernetes_client(configuration) as client:
             job_cluster_uid, job_namespace, job_name = self._parse_infrastructure_pid(
                 infrastructure_pid
             )
@@ -684,29 +704,35 @@ class KubernetesWorker(BaseWorker):
                     else:
                         raise
 
-    async def _get_k8s_config(self, configuration: KubernetesWorkerJobConfiguration):
+    @asynccontextmanager
+    async def _get_configured_kubernetes_client(
+        self, configuration: KubernetesWorkerJobConfiguration
+    ) -> AsyncGenerator["ApiClient", None]:
         """
-        Returns a Kubernetes client configuration based on the provided configuration.
+        Returns a configured Kubernetes client.
         """
-        try:
-            if configuration.cluster_config:
-                # Load configuration from a dictionary if cluster_config is provided
-                await kubernetes.config.load_kube_config_from_dict(
-                    config_dict=configuration.cluster_config.config,
-                    context=configuration.cluster_config.context_name,
-                )
-            else:
-                # Try to load in-cluster configuration first
-                try:
-                    await kubernetes.config.load_incluster_config()
-                except kubernetes.config.ConfigException:
-                    # Fallback to the local kubeconfig if in-cluster config fails
-                    await kubernetes.config.load_kube_config()
-        except Exception as e:
-            raise RuntimeError("Failed to load Kubernetes configuration") from e
+        client = None
+        if configuration.cluster_config:
+            config_dict = configuration.cluster_config.config
+            context = configuration.cluster_config.context_name
 
-        # Retrieve and return the default configuration copy
-        return kubernetes.client.Configuration.get_default_copy()
+            # Use Configuration to load configuration from a dictionary
+            config = Configuration()
+            await load_kube_config(
+                config_dict=config_dict, context=context, client_configuration=config
+            )
+            client = ApiClient(configuration=config)
+        else:
+            # Try to load in-cluster configuration
+            try:
+                await load_incluster_config()
+                client = ApiClient()
+            except ConfigException:
+                # If in-cluster config fails, load the local kubeconfig
+                await load_kube_config()
+                client = ApiClient()
+
+        yield client
 
     async def _replace_api_key_with_secret(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
@@ -771,7 +797,8 @@ class KubernetesWorker(BaseWorker):
                 configuration=configuration, client=client
             )
         try:
-            print(configuration.job_manifest)
+            with open("job_manifest.json", "w") as f:
+                json.dump(configuration.__dict__, f)
             batch_client = BatchV1Api(client)
             job = await batch_client.create_namespaced_job(
                 configuration.namespace,
@@ -854,18 +881,6 @@ class KubernetesWorker(BaseWorker):
         """
         cluster_uid, namespace, job_name = infrastructure_pid.split(":", 2)
         return cluster_uid, namespace, job_name
-
-    # @asynccontextmanager
-    # async def _get_core_client(
-    #     self, client: "ApiClient"
-    # ) -> AsyncGenerator["CoreV1Api", None]:
-    #     """
-    #     Context manager for retrieving a Kubernetes core client.
-    #     """
-    #     try:
-    #         yield kubernetes.client.CoreV1Api(api_client=client)
-    #     finally:
-    #         client.close()
 
     async def _get_cluster_uid(self, client: "ApiClient") -> str:
         """
@@ -1062,10 +1077,10 @@ class KubernetesWorker(BaseWorker):
         first_container_status = (
             most_recent_pod.status.container_statuses[0] if most_recent_pod else None
         )
+
         if not first_container_status:
             logger.error(f"Job {job_name!r}: No pods found for job.")
             return -1
-
         # In some cases, such as spot instance evictions, the pod will be forcibly
         # terminated and not report a status correctly.
         elif (

@@ -46,7 +46,7 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import ValidationError
 
-from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api
+from kubernetes_asyncio.client import BatchV1Api, CoreV1Api
 from prefect_kubernetes import KubernetesWorker
 from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
 from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
@@ -65,11 +65,9 @@ def enable_workers():
 
 @pytest.fixture
 def mock_watch(monkeypatch):
-    pytest.importorskip("kubernetes")
-
-    mock = AsyncMock()
-
-    monkeypatch.setattr("kubernetes.watch.Watch", AsyncMock(return_value=mock))
+    mock = MagicMock(kubernetes.watch.Watch)
+    mock.return_value.close = AsyncMock()
+    monkeypatch.setattr("kubernetes_asyncio.watch.Watch", mock)
     return mock
 
 
@@ -82,15 +80,9 @@ def mock_cluster_config(monkeypatch):
         [],
         {"context": {"cluster": FAKE_CLUSTER}},
     )
-    monkeypatch.setattr("kubernetes.config", mock)
-    monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
+    monkeypatch.setattr("kubernetes_asyncio.config", mock)
+    monkeypatch.setattr("kubernetes_asyncio.config.ConfigException", ConfigException)
     return mock
-
-
-@pytest.fixture
-async def mock_api_client():
-    async with ApiClient() as client:
-        yield client
 
 
 @pytest.fixture
@@ -108,24 +100,39 @@ def mock_anyio_sleep_monotonic(monkeypatch):
 
 @pytest.fixture
 def mock_job():
-    mock = AsyncMock(spec=kubernetes.client.V1Job)
+    mock = MagicMock(spec=kubernetes.client.V1Job)
     mock.metadata.name = "mock-job"
     mock.metadata.namespace = "mock-namespace"
     return mock
 
 
 @pytest.fixture
-def mock_core_client(monkeypatch, mock_cluster_config, mock_api_client):
-    mock = AsyncMock(spec=CoreV1Api, client=mock_api_client)
-    mock.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
+def get_api_client():
+    mock = MagicMock(spec=CoreV1Api)
     return mock
 
 
 @pytest.fixture
-def mock_batch_client(monkeypatch, mock_cluster_config, mock_job, mock_api_client):
-    mock = AsyncMock(spec=BatchV1Api, client=mock_api_client)
+def mock_core_client(monkeypatch, mock_cluster_config):
+    """
+    Fixture to mock kubernetes_asyncio.client.CoreV1Api
+    """
+    mock = MagicMock(spec=CoreV1Api)
+    mock.return_value = AsyncMock()
+    monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock)
+    return mock
+
+
+@pytest.fixture
+def mock_batch_client(
+    monkeypatch,
+    mock_cluster_config,
+    mock_job,
+):
+    mock = AsyncMock(BatchV1Api)
     mock.read_namespaced_job.return_value = mock_job
     mock.create_namespaced_job.return_value = mock_job
+    monkeypatch.setattr("kubernetes_asyncio.client.BatchV1Api", mock)
     return mock
 
 
@@ -1246,7 +1253,6 @@ class TestKubernetesWorker:
                 namespace=default_configuration.namespace,
                 label_selector="job-name=mock-job",
             )
-
             mock_batch_client.create_namespaced_job.assert_called_with(
                 "default",
                 expected_manifest,
