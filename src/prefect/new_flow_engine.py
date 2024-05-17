@@ -32,9 +32,11 @@ from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext
 from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
-from prefect.logging.loggers import flow_run_logger, get_logger
+from prefect.logging.handlers import APILogHandler
+from prefect.logging.loggers import flow_run_logger, get_logger, get_run_logger
 from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
 from prefect.states import (
     Pending,
     Running,
@@ -222,7 +224,6 @@ class FlowRunEngine(Generic[P, R]):
         # this is a subflow run
         if flow_run_ctx:
             # add a task to a parent flow run that represents the execution of a subflow run
-            # reuse the logic from the TaskRunEngine to ensure parents are created correctly
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
@@ -254,6 +255,16 @@ class FlowRunEngine(Generic[P, R]):
             state=Pending(),
             parent_task_run_id=getattr(parent_task_run, "id", None),
         )
+        if flow_run_ctx:
+            parent_logger = get_run_logger(flow_run_ctx)
+            parent_logger.info(
+                f"Created subflow run {flow_run.name!r} for flow {self.flow.name!r}"
+            )
+        else:
+            self.logger.info(
+                f"Created flow run {flow_run.name!r} for flow {self.flow.name!r}"
+            )
+
         return flow_run
 
     @contextmanager
@@ -289,12 +300,8 @@ class FlowRunEngine(Generic[P, R]):
                 )
             )
             # set the logger to the flow run logger
-            current_logger = self.logger
-            try:
-                self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
-                yield
-            finally:
-                self.logger = current_logger
+            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+            yield
 
     @contextmanager
     def start(self):
@@ -320,7 +327,13 @@ class FlowRunEngine(Generic[P, R]):
 
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(client)
-                self.logger.debug(f'Created flow run "{self.flow_run.id}"')
+
+                ui_url = PREFECT_UI_URL.value()
+                if ui_url:
+                    self.logger.info(
+                        f"View at {ui_url}/flow-runs/flow-run/{self.flow_run.id}",
+                        extra={"send_to_api": False},
+                    )
 
             # validate prior to context so that context receives validated params
             if self.flow.should_validate_parameters:
@@ -347,6 +360,19 @@ class FlowRunEngine(Generic[P, R]):
                 self.handle_crash(exc)
                 raise
             finally:
+                # If debugging, use the more complete `repr` than the usual `str` description
+                display_state = (
+                    repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+                )
+                self.logger.log(
+                    level=logging.INFO if self.state.is_completed() else logging.ERROR,
+                    msg=f"Finished in state {display_state}",
+                )
+
+                maybe_awaitable = APILogHandler.flush()
+                if inspect.isawaitable(maybe_awaitable):
+                    run_sync(maybe_awaitable)
+
                 self._is_started = False
                 self._client = None
 
@@ -387,6 +413,9 @@ async def run_flow_async(
                     # This is where the flow is actually run.
                     call_args, call_kwargs = parameters_to_args_kwargs(
                         flow.fn, run.parameters or {}
+                    )
+                    run.logger.debug(
+                        f"Executing flow {flow.name!r} for flow run {run.flow_run.name!r}..."
                     )
                     result = cast(R, await flow.fn(*call_args, **call_kwargs))  # type: ignore
                     # If the flow run is successful, finalize it.
