@@ -45,7 +45,7 @@ async def create_block_schema(
     """
     from prefect.blocks.core import Block, _get_non_block_reference_definitions
 
-    insert_values = block_schema.model_dump(
+    insert_values = block_schema.model_dump_for_orm(
         exclude_unset=False,
         exclude={"block_type", "id", "created", "updated"},
     )
@@ -800,7 +800,7 @@ async def create_block_schema_reference(
         return existing_reference
 
     insert_stmt = db.insert(db.BlockSchemaReference).values(
-        **block_schema_reference.model_dump(
+        **block_schema_reference.model_dump_for_orm(
             exclude_unset=True, exclude={"created", "updated"}
         )
     )

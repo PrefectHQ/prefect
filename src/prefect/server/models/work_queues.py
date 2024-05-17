@@ -231,7 +231,7 @@ async def update_work_queue(
     """
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = work_queue.model_dump(exclude_unset=True)
+    update_data = work_queue.model_dump_for_orm(exclude_unset=True)
 
     if "is_paused" in update_data:
         wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
