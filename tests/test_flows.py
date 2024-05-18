@@ -639,7 +639,7 @@ class TestFlowCall:
         task_run_state = task_run_states[0]
         assert task_run_state.is_failed()
         with pytest.raises(ValueError, match="Test"):
-            raise_state_exception(task_run_states[0])
+            await raise_state_exception(task_run_states[0])
 
     @fails_with_new_engine
     async def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
@@ -682,7 +682,7 @@ class TestFlowCall:
         assert all(isinstance(state, State) for state in states)
         assert await states[0].result() == "foo"
         with pytest.raises(ValueError, match="bar"):
-            raise_state_exception(states[1])
+            await raise_state_exception(states[1])
 
     @fails_with_new_engine
     async def test_flow_state_default_handles_nested_failures(self):
@@ -708,7 +708,7 @@ class TestFlowCall:
         state = states[0]
         assert isinstance(state, State)
         with pytest.raises(ValueError, match="foo"):
-            raise_state_exception(state)
+            await raise_state_exception(state)
 
     def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task
