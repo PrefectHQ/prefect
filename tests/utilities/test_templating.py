@@ -253,13 +253,15 @@ class TestApplyValues:
 
 
 class TestResolveBlockDocumentReferences:
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     async def block_document_id(self):
         class ArbitraryBlock(Block):
             a: int
             b: str
 
-        return await ArbitraryBlock(a=1, b="hello").save(name="arbitrary-block")
+        return await ArbitraryBlock(a=1, b="hello").save(
+            name="arbitrary-block", overwrite=True
+        )
 
     async def test_resolve_block_document_references_with_no_block_document_references(
         self,

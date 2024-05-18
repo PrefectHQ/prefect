@@ -123,7 +123,6 @@ class TestTaskRunName:
             def my_task():
                 pass
 
-    @fails_with_new_engine
     def test_invalid_runtime_run_name(self):
         class InvalidTaskRunNameArg:
             def format(*args, **kwargs):
@@ -1540,7 +1539,6 @@ class TestCacheFunctionBuiltins:
 
 
 class TestTaskTimeouts:
-    @fails_with_new_engine
     async def test_task_timeouts_actually_timeout(self, timeout_test_flow):
         flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
@@ -1552,7 +1550,6 @@ class TestTaskTimeouts:
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
         assert timed_out.is_crashed() is False
 
-    @fails_with_new_engine
     async def test_task_timeouts_do_not_crash_flow_runs(self, timeout_test_flow):
         flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
@@ -2588,7 +2585,9 @@ class TestTaskRunLogs:
 
         logs = await _wait_for_logs(prefect_client)
         assert logs, "There should be logs"
-        assert all([log.flow_run_id == flow_run_id for log in logs])
+        assert all([log.flow_run_id == flow_run_id for log in logs]), str(
+            [log for log in logs]
+        )
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert task_run_logs, f"There should be task run logs in {logs}"
         assert all([log.task_run_id == task_run_id for log in task_run_logs])
@@ -3417,7 +3416,6 @@ async def test_task_run_name_is_set_with_function(prefect_client):
     assert task_run.name == "is-this-a-bird"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_client):
     def generate_task_run_name():
         params = task_run_ctx.parameters
@@ -3444,7 +3442,6 @@ async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_
     assert task_run.name == "chris-wuz-here"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function_not_returning_string(prefect_client):
     def generate_task_run_name():
         pass

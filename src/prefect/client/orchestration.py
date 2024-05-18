@@ -3721,6 +3721,13 @@ class SyncPrefectClient:
 
         return OrchestrationResult.parse_obj(response.json())
 
+    def set_task_run_name(self, task_run_id: UUID, name: str):
+        task_run_data = TaskRunUpdate(name=name)
+        return self._client.patch(
+            f"/task_runs/{task_run_id}",
+            json=task_run_data.dict(json_compatible=True, exclude_unset=True),
+        )
+
     def create_task_run(
         self,
         task: "TaskObject[P, R]",
