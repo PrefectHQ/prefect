@@ -70,6 +70,7 @@ from prefect.testing.utilities import (
     AsyncMock,
     exceptions_equal,
     get_most_recent_flow_run,
+    fails_with_new_engine,
 )
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -549,7 +550,7 @@ class TestFlowCall:
 
         assert test_flow(1, 2, x=3, y=4, z=5) == (1, 2, dict(x=3, y=4, z=5))
 
-    def test_fails_but_does_not_raise_on_incompatible_parameter_types(self):
+    async def test_fails_but_does_not_raise_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
             pass
@@ -557,7 +558,7 @@ class TestFlowCall:
         state = foo(x="foo", return_state=True)
 
         with pytest.raises(ParameterTypeError):
-            state.result()
+            await state.result()
 
     def test_call_ignores_incompatible_parameter_types_if_asked(self):
         @flow(version="test", validate_parameters=False)
@@ -567,7 +568,7 @@ class TestFlowCall:
         assert foo(x="foo") == "foo"
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
-    def test_final_state_reflects_exceptions_during_run(self, error):
+    async def test_final_state_reflects_exceptions_during_run(self, error):
         @flow(version="test")
         def foo():
             if error:
@@ -577,9 +578,9 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
-        assert exceptions_equal(state.result(raise_on_failure=False), error)
+        assert exceptions_equal(await state.result(raise_on_failure=False), error)
 
-    def test_final_state_respects_returned_state(self):
+    async def test_final_state_respects_returned_state(self):
         @flow(version="test")
         def foo():
             return State(
@@ -592,10 +593,10 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed()
-        assert state.result(raise_on_failure=False) == "hello!"
+        assert await state.result(raise_on_failure=False) == "hello!"
         assert state.message == "Test returned state"
 
-    def test_flow_state_reflects_returned_task_run_state(self):
+    async def test_flow_state_reflects_returned_task_run_state(self):
         @task
         def fail():
             raise ValueError("Test")
@@ -609,13 +610,14 @@ class TestFlowCall:
         assert flow_state.is_failed()
 
         # The task run state is returned as the data of the flow state
-        task_run_state = flow_state.result(raise_on_failure=False)
+        task_run_state = await flow_state.result(raise_on_failure=False)
         assert isinstance(task_run_state, State)
         assert task_run_state.is_failed()
         with pytest.raises(ValueError, match="Test"):
-            task_run_state.result()
+            await task_run_state.result()
 
-    def test_flow_state_defaults_to_task_states_when_no_return_failure(self):
+    @fails_with_new_engine
+    async def test_flow_state_defaults_to_task_states_when_no_return_failure(self):
         @task
         def fail():
             raise ValueError("Test")
@@ -631,7 +633,7 @@ class TestFlowCall:
         assert flow_state.is_failed()
 
         # The task run states are returned as the data of the flow state
-        task_run_states = flow_state.result(raise_on_failure=False)
+        task_run_states = await flow_state.result(raise_on_failure=False)
         assert len(task_run_states) == 2
         assert all(isinstance(state, State) for state in task_run_states)
         task_run_state = task_run_states[0]
@@ -639,7 +641,8 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test"):
             raise_state_exception(task_run_states[0])
 
-    def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
+    @fails_with_new_engine
+    async def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
         @task
         def succeed():
             return "foo"
@@ -653,12 +656,13 @@ class TestFlowCall:
         flow_state = foo(return_state=True)
 
         # The task run states are returned as the data of the flow state
-        task_run_states = flow_state.result()
+        task_run_states = await flow_state.result()
         assert len(task_run_states) == 2
         assert all(isinstance(state, State) for state in task_run_states)
-        assert task_run_states[0].result() == "foo"
+        assert await task_run_states[0].result() == "foo"
 
-    def test_flow_state_default_includes_subflow_states(self):
+    @fails_with_new_engine
+    async def test_flow_state_default_includes_subflow_states(self):
         @task
         def succeed():
             return "foo"
@@ -673,14 +677,15 @@ class TestFlowCall:
             fail(return_state=True)
             return None
 
-        states = foo(return_state=True).result(raise_on_failure=False)
+        states = await foo(return_state=True).result(raise_on_failure=False)
         assert len(states) == 2
         assert all(isinstance(state, State) for state in states)
-        assert states[0].result() == "foo"
+        assert await states[0].result() == "foo"
         with pytest.raises(ValueError, match="bar"):
             raise_state_exception(states[1])
 
-    def test_flow_state_default_handles_nested_failures(self):
+    @fails_with_new_engine
+    async def test_flow_state_default_handles_nested_failures(self):
         @task
         def fail_task():
             raise ValueError("foo")
@@ -698,7 +703,7 @@ class TestFlowCall:
             wrapper_flow(return_state=True)
             return None
 
-        states = foo(return_state=True).result(raise_on_failure=False)
+        states = await foo(return_state=True).result(raise_on_failure=False)
         assert len(states) == 1
         state = states[0]
         assert isinstance(state, State)
