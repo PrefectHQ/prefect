@@ -57,13 +57,13 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} -t process",
+            f"work-pool create {pool_name} -t fake",
         )
         assert res.exit_code == 0
         assert f"Created work pool {pool_name!r}" in res.output
         client_res = await prefect_client.read_work_pool(pool_name)
         assert client_res.name == pool_name
-        assert client_res.base_job_template == {}
+        assert client_res.base_job_template == FAKE_DEFAULT_BASE_JOB_TEMPLATE
         assert isinstance(client_res, WorkPool)
 
     @pytest.mark.usefixtures("mock_collection_registry")
@@ -145,11 +145,11 @@ class TestCreate:
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
-            f"work-pool create {pool_name} -t process",
+            f"work-pool create {pool_name} -t fake",
         )
         assert res.exit_code == 0
         client_res = await prefect_client.read_work_pool(pool_name)
-        assert client_res.base_job_template == dict()
+        assert client_res.base_job_template == FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
     @pytest.mark.usefixtures("mock_collection_registry")
     async def test_default_paused(self, prefect_client):
