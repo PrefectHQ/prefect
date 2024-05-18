@@ -258,16 +258,9 @@ class FlowRunEngine(Generic[P, R]):
             ):
                 return subflow_run
 
-        try:
-            flow_run_name = _resolve_custom_flow_run_name(
-                flow=self.flow, parameters=parameters
-            )
-        except TypeError:
-            flow_run_name = None
 
         flow_run = client.create_flow_run(
             flow=self.flow,
-            name=flow_run_name,
             parameters=self.flow.serialize_parameters(parameters),
             state=Pending(),
             parent_task_run_id=getattr(parent_task_run, "id", None),
