@@ -33,7 +33,12 @@ from prefect.context import FlowRunContext
 from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.logging.handlers import APILogHandler
-from prefect.logging.loggers import flow_run_logger, get_logger, get_run_logger
+from prefect.logging.loggers import (
+    flow_run_logger,
+    get_logger,
+    get_run_logger,
+    patch_print,
+)
 from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
@@ -280,7 +285,10 @@ class FlowRunEngine(Generic[P, R]):
         if not self.flow_run:
             raise ValueError("Flow run not set")
 
+        from prefect.utilities.engine import should_log_prints
+
         self.flow_run = client.read_flow_run(self.flow_run.id)
+        log_prints = should_log_prints(self.flow)
 
         # if running in a completely synchronous frame, anyio will not detect the
         # backend to use for the task group
@@ -292,11 +300,13 @@ class FlowRunEngine(Generic[P, R]):
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
             # wait for futures to complete
+            if log_prints:
+                stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
-                    log_prints=self.flow.log_prints or False,
+                    log_prints=log_prints,
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,

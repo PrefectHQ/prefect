@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -30,7 +30,7 @@ from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.logging.handlers import APILogHandler
-from prefect.logging.loggers import get_logger, task_run_logger
+from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TASKS_REFRESH_CACHE
@@ -368,16 +368,27 @@ class TaskRunEngine(Generic[P, R]):
         if not self.task_run:
             raise ValueError("Task run is not set")
 
+        from prefect.utilities.engine import should_log_prints
+
         self.task_run = client.read_task_run(self.task_run.id)
 
-        with TaskRunContext(
-            task=self.task,
-            log_prints=self.task.log_prints or False,
-            task_run=self.task_run,
-            parameters=self.parameters,
-            result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
-            client=client,
-        ):
+        log_prints = should_log_prints(self.task)
+
+        with ExitStack() as stack:
+            if log_prints:
+                stack.enter_context(patch_print())
+            stack.enter_context(
+                TaskRunContext(
+                    task=self.task,
+                    log_prints=log_prints,
+                    task_run=self.task_run,
+                    parameters=self.parameters,
+                    result_factory=run_sync(
+                        ResultFactory.from_autonomous_task(self.task)
+                    ),  # type: ignore
+                    client=client,
+                )
+            )
             # set the logger to the task run logger
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
