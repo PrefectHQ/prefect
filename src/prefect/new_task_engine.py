@@ -70,6 +70,7 @@ class TaskRunEngine(Generic[P, R]):
     wait_for: Optional[Iterable[PrefectFuture]] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
+    _task_name_set: bool = False
 
     def __post_init__(self):
         if self.parameters is None:
@@ -381,7 +382,7 @@ class TaskRunEngine(Generic[P, R]):
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
             # update the task run name if necessary
-            if self.task.task_run_name:
+            if not self._task_name_set and self.task.task_run_name:
                 task_run_name = _resolve_custom_task_run_name(
                     task=self.task, parameters=self.parameters
                 )
@@ -393,6 +394,7 @@ class TaskRunEngine(Generic[P, R]):
                     f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
                 )
                 self.task_run.name = task_run_name
+                self._task_name_set = True
             yield
 
     @contextmanager
