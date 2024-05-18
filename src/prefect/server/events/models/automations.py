@@ -107,8 +107,7 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
         """
         This function is called on a deferred basis, and in some race conditions
         (e.g. unit tests) the retrieved event loop may be closed by the time the
-        coro is actually run. In this case, we run the coro in a new loop via
-        asyncio.run.
+        coro is actually run. In this case, we run the coro in a new loop.
         """
         loop = asyncio.get_event_loop()
 
