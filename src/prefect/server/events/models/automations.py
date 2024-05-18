@@ -1,4 +1,3 @@
-import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
@@ -17,6 +16,7 @@ from prefect.server.events.schemas.automations import (
     AutomationUpdate,
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
+from prefect.utilities.asyncutils import run_sync
 
 
 @asynccontextmanager
@@ -104,23 +104,7 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
     sync_session = session.sync_session
 
     def change_notification(session, **kwargs):
-        """
-        This function is called on a deferred basis, and in some race conditions
-        (e.g. unit tests) the retrieved event loop may be closed by the time the
-        coro is actually run. In this case, we run the coro in a new loop.
-        """
-        loop = asyncio.get_event_loop()
-
-        coro = automation_changed(automation.id, f"automation__{event}")
-        try:
-            asyncio.run_coroutine_threadsafe(coro, loop=loop)
-        except RuntimeError as exc:
-            if "Event loop is closed" in str(exc):
-                loop = asyncio.new_event_loop()
-                asyncio.run_coroutine_threadsafe(coro, loop=loop)
-                loop.close()
-            else:
-                raise
+        run_sync(automation_changed(automation.id, f"automation__{event}"))
 
     sa.event.listen(sync_session, "after_commit", change_notification, once=True)
 
