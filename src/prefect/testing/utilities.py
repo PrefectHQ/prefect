@@ -3,8 +3,6 @@ Internal utilities for tests.
 """
 
 import asyncio
-import anyio
-import pytest
 import warnings
 from contextlib import ExitStack, contextmanager
 from functools import wraps
@@ -12,6 +10,9 @@ from pathlib import Path
 from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, List, Union
+
+import anyio
+import pytest
 
 import prefect.context
 import prefect.settings

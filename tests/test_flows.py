@@ -69,8 +69,8 @@ from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     AsyncMock,
     exceptions_equal,
-    get_most_recent_flow_run,
     fails_with_new_engine,
+    get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -3667,24 +3667,28 @@ class TestFlowFromSource:
         assert loaded_flow.name == "test-flow"
         assert loaded_flow() == 1
 
-    def test_loaded_flow_to_deployment_has_storage(self):
+    async def test_loaded_flow_to_deployment_has_storage(self):
         storage = MockStorage()
 
-        loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+        loaded_flow = await Flow.from_source(
+            entrypoint="flows.py:test_flow", source=storage
+        )
 
-        deployment = loaded_flow.to_deployment(name="test")
+        deployment = await loaded_flow.to_deployment(name="test")
 
         assert deployment.storage == storage
 
-    def test_loaded_flow_can_be_updated_with_options(self):
+    async def test_loaded_flow_can_be_updated_with_options(self):
         storage = MockStorage()
         storage.set_base_path(Path.cwd())
 
-        loaded_flow = Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+        loaded_flow = await Flow.from_source(
+            entrypoint="flows.py:test_flow", source=storage
+        )
 
         flow_with_options = loaded_flow.with_options(name="with_options")
 
-        deployment = flow_with_options.to_deployment(name="test")
+        deployment = await flow_with_options.to_deployment(name="test")
 
         assert deployment.storage == storage
 
@@ -3759,8 +3763,8 @@ class TestFlowDeploy:
         return local_flow_deploy
 
     @pytest.fixture
-    def remote_flow(self):
-        remote_flow = flow.from_source(
+    async def remote_flow(self):
+        remote_flow = await flow.from_source(
             entrypoint="flows.py:test_flow", source=MockStorage()
         )
         return remote_flow
