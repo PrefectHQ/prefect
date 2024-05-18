@@ -360,6 +360,8 @@ class TaskRunEngine(Generic[P, R]):
 
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+        from prefect.utilities.engine import _resolve_custom_task_run_name
+
         if client is None:
             client = self.client
         if not self.task_run:
@@ -377,6 +379,20 @@ class TaskRunEngine(Generic[P, R]):
         ):
             # set the logger to the task run logger
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+
+            # update the task run name if necessary
+            if self.task.task_run_name:
+                task_run_name = _resolve_custom_task_run_name(
+                    task=self.task, parameters=self.parameters
+                )
+                self.client.set_task_run_name(
+                    task_run_id=self.task_run.id, name=task_run_name
+                )
+                self.logger.extra["task_run_name"] = task_run_name
+                self.logger.debug(
+                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                )
+                self.task_run.name = task_run_name
             yield
 
     @contextmanager
@@ -404,6 +420,9 @@ class TaskRunEngine(Generic[P, R]):
                             extra_task_inputs=dependencies,
                         )
                     )
+                self.logger.info(
+                    f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                )
 
                 yield self
             except Exception:

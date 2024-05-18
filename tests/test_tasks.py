@@ -168,7 +168,6 @@ class TestTaskRunName:
             def my_task():
                 pass
 
-    @fails_with_new_engine
     def test_invalid_runtime_run_name(self):
         class InvalidTaskRunNameArg:
             def format(*args, **kwargs):
@@ -1585,7 +1584,6 @@ class TestCacheFunctionBuiltins:
 
 
 class TestTaskTimeouts:
-    @fails_with_new_engine
     async def test_task_timeouts_actually_timeout(self, timeout_test_flow):
         flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
@@ -1597,7 +1595,6 @@ class TestTaskTimeouts:
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
         assert timed_out.is_crashed() is False
 
-    @fails_with_new_engine
     async def test_task_timeouts_do_not_crash_flow_runs(self, timeout_test_flow):
         flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
@@ -3489,7 +3486,6 @@ async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_
     assert task_run.name == "chris-wuz-here"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function_not_returning_string(prefect_client):
     def generate_task_run_name():
         pass
