@@ -1723,6 +1723,7 @@ class TestFlowRunLogs:
         assert "x + y" in error_logs, "Should reference the line of code"
 
     @fails_with_new_engine
+    @pytest.mark.xfail(reason="Weird state sharing between new and old engine tests")
     async def test_raised_exceptions_include_tracebacks(self, prefect_client):
         @flow
         def my_flow():
