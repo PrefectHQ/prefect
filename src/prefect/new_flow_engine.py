@@ -88,6 +88,7 @@ class FlowRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
+    _flow_run_name_set: bool = False
 
     def __post_init__(self):
         if self.flow is None and self.flow_run_id is None:
@@ -338,12 +339,14 @@ class FlowRunEngine(Generic[P, R]):
 
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+        from prefect.utilities.engine import (
+            should_log_prints,
+        )
+
         if client is None:
             client = self.client
         if not self.flow_run:
             raise ValueError("Flow run not set")
-
-        from prefect.utilities.engine import should_log_prints
 
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
@@ -375,6 +378,21 @@ class FlowRunEngine(Generic[P, R]):
             )
             # set the logger to the flow run logger
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+
+            # update the flow run name if necessary
+            if not self._flow_run_name_set and self.flow.flow_run_name:
+                flow_run_name = _resolve_custom_flow_run_name(
+                    flow=self.flow, parameters=self.parameters
+                )
+                self.client.set_flow_run_name(
+                    flow_run_id=self.flow_run.id, name=flow_run_name
+                )
+                self.logger.extra["flow_run_name"] = flow_run_name
+                self.logger.debug(
+                    f"Renamed flow run {self.flow_run.name!r} to {flow_run_name!r}"
+                )
+                self.flow_run.name = flow_run_name
+                self._flow_run_name_set = True
             yield
 
     @contextmanager

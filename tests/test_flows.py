@@ -54,6 +54,7 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_FLOW_DEFAULT_RETRIES,
     temporary_settings,
 )
@@ -81,9 +82,12 @@ from prefect.utilities.hashing import file_hash
 SLEEP_TIME = 10
 
 
-@flow
-def test_flow():
-    pass
+@pytest.fixture(
+    autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
+)
+def set_new_engine_setting(request):
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
+        yield
 
 
 @pytest.fixture
@@ -1162,6 +1166,7 @@ class TestFlowRunTags:
 
 
 class TestFlowTimeouts:
+    @fails_with_new_engine
     def test_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         def my_flow():
@@ -1174,6 +1179,7 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
+    @fails_with_new_engine
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         async def my_flow():
@@ -1186,6 +1192,7 @@ class TestFlowTimeouts:
             await state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
+    @fails_with_new_engine
     def test_timeout_only_applies_if_exceeded(self):
         @flow(timeout_seconds=10)
         def my_flow():
@@ -1193,7 +1200,9 @@ class TestFlowTimeouts:
 
         state = my_flow(return_state=True)
         assert state.is_completed()
+        assert state.result() is None  # only added so this fails on new engine
 
+    @fails_with_new_engine
     def test_user_timeout_is_not_hidden(self):
         @flow(timeout_seconds=30)
         def my_flow():
@@ -1206,6 +1215,7 @@ class TestFlowTimeouts:
             state.result()
         assert "exceeded timeout" not in state.message
 
+    @fails_with_new_engine
     @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         completed = False
@@ -1222,6 +1232,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
         assert not completed
 
+    @fails_with_new_engine
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
         Sync flow runs tasks will fail after a timeout which will cause the flow to exit
@@ -1249,6 +1260,7 @@ class TestFlowTimeouts:
         assert not completed
         assert not task_completed
 
+    @fails_with_new_engine
     async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
@@ -1269,6 +1281,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
         assert not completed
 
+    @fails_with_new_engine
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
@@ -1294,6 +1307,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
         assert not completed
 
+    @fails_with_new_engine
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
         Sync flow runs can be cancelled after a timeout once a task is called
@@ -1324,6 +1338,7 @@ class TestFlowTimeouts:
 
         assert not completed
 
+    @fails_with_new_engine
     async def test_subflow_timeout_waits_until_execution_starts(self, tmp_path):
         """
         Subflow with a timeout shouldn't start their timeout before the subflow is started.
@@ -1477,6 +1492,7 @@ class TestFlowParameterTypes:
 
         assert my_flow() == data
 
+    @fails_with_new_engine
     def test_subflow_parameters_can_be_pydantic_models_from_task_future(self):
         @flow
         def my_flow():
@@ -2852,6 +2868,7 @@ class TestFlowHooksOnCancellation:
             def flow2():
                 pass
 
+    @fails_with_new_engine
     def test_on_cancellation_hooks_run_on_cancelled_state(self):
         my_mock = MagicMock()
 
@@ -2900,6 +2917,7 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         my_mock.assert_not_called()
 
+    @fails_with_new_engine
     def test_other_cancellation_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
 
@@ -2919,6 +2937,7 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled1"), call("cancelled3")]
 
+    @fails_with_new_engine
     def test_on_cancelled_hook_on_subflow_succeeds(self):
         my_mock = MagicMock()
 
@@ -2948,6 +2967,7 @@ class TestFlowHooksOnCancellation:
             (create_async_hook, create_async_hook),
         ],
     )
+    @fails_with_new_engine
     def test_on_cancellation_hooks_work_with_sync_and_async(self, hook1, hook2):
         my_mock = MagicMock()
         hook1_with_mock = hook1(my_mock)
@@ -2960,6 +2980,7 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
+    @fails_with_new_engine
     async def test_on_cancellation_hook_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -2986,6 +3007,7 @@ class TestFlowHooksOnCancellation:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled")]
 
+    @fails_with_new_engine
     async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3078,6 +3100,7 @@ class TestFlowHooksOnCrashed:
             def flow2():
                 pass
 
+    @fails_with_new_engine
     def test_on_crashed_hooks_run_on_crashed_state(self):
         my_mock = MagicMock()
 
@@ -3128,6 +3151,7 @@ class TestFlowHooksOnCrashed:
         assert state.type == StateType.FAILED
         my_mock.assert_not_called()
 
+    @fails_with_new_engine
     def test_other_crashed_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3147,6 +3171,7 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed1"), call("crashed3")]
 
+    @fails_with_new_engine
     @pytest.mark.parametrize(
         "hook1, hook2",
         [
@@ -3168,6 +3193,7 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
+    @fails_with_new_engine
     def test_on_crashed_hook_on_subflow_succeeds(self):
         my_mock = MagicMock()
 
@@ -3188,6 +3214,7 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
+    @fails_with_new_engine
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3205,6 +3232,7 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
+    @fails_with_new_engine
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3306,6 +3334,7 @@ class TestFlowHooksOnRunning:
             def flow2():
                 pass
 
+    @fails_with_new_engine
     def test_on_running_hooks_run_on_running(self):
         my_mock = MagicMock()
 
@@ -3323,6 +3352,7 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
+    @fails_with_new_engine
     def test_on_running_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -3340,6 +3370,7 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
+    @fails_with_new_engine
     def test_other_running_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3360,6 +3391,7 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
+    @fails_with_new_engine
     @pytest.mark.parametrize(
         "hook1, hook2",
         [
@@ -3384,8 +3416,16 @@ class TestFlowHooksOnRunning:
 
 
 class TestFlowToDeployment:
+    @property
+    def flow(self):
+        @flow
+        def test_flow():
+            pass
+
+        return test_flow
+
     async def test_to_deployment_returns_runner_deployment(self):
-        deployment = await test_flow.to_deployment(
+        deployment = await self.flow.to_deployment(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
@@ -3428,7 +3468,7 @@ class TestFlowToDeployment:
         ]
 
     async def test_to_deployment_accepts_interval(self):
-        deployment = await test_flow.to_deployment(name="test", interval=3600)
+        deployment = await self.flow.to_deployment(name="test", interval=3600)
 
         assert deployment.schedules
         assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
@@ -3437,27 +3477,27 @@ class TestFlowToDeployment:
         )
 
     async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
-        deployment = await test_flow.to_deployment(
+        deployment = await self.flow.to_deployment(
             name="test", entrypoint_type=EntrypointType.MODULE_PATH
         )
 
-        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
+        assert deployment.entrypoint == f"{self.flow.__module__}.{self.flow.__name__}"
 
     async def test_to_deployment_accepts_cron(self):
-        deployment = await test_flow.to_deployment(name="test", cron="* * * * *")
+        deployment = await self.flow.to_deployment(name="test", cron="* * * * *")
 
         assert deployment.schedules
         assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
     async def test_to_deployment_accepts_rrule(self):
-        deployment = await test_flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
+        deployment = await self.flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
         assert deployment.schedules
         assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
     async def test_to_deployment_invalid_name_raises(self):
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
-            await test_flow.to_deployment("test/deployment")
+            await self.flow.to_deployment("test/deployment")
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -3480,10 +3520,18 @@ class TestFlowToDeployment:
             warnings.filterwarnings("ignore", category=DeprecationWarning)
             expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             with pytest.raises(ValueError, match=expected_message):
-                await test_flow.to_deployment(__file__, **kwargs)
+                await self.flow.to_deployment(__file__, **kwargs)
 
 
 class TestFlowServe:
+    @property
+    def flow(self):
+        @flow
+        def test_flow():
+            pass
+
+        return test_flow
+
     @pytest.fixture(autouse=True)
     async def mock_runner_start(self, monkeypatch):
         mock = AsyncMock()
@@ -3491,7 +3539,7 @@ class TestFlowServe:
         return mock
 
     async def test_serve_prints_message(self, capsys):
-        await test_flow.serve("test")
+        await self.flow.serve("test")
 
         captured = capsys.readouterr()
 
@@ -3502,7 +3550,7 @@ class TestFlowServe:
         assert "$ prefect deployment run 'test-flow/test'" in captured.out
 
     async def test_serve_creates_deployment(self, prefect_client: PrefectClient):
-        await test_flow.serve(
+        await self.flow.serve(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
@@ -3528,15 +3576,15 @@ class TestFlowServe:
         assert not deployment.is_schedule_active
 
     async def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
-        deployment = await test_flow.serve(
+        deployment = await self.flow.serve(
             name="test", entrypoint_type=EntrypointType.MODULE_PATH
         )
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
-        assert deployment.entrypoint == f"{test_flow.__module__}.{test_flow.__name__}"
+        assert deployment.entrypoint == f"{self.flow.__module__}.{self.flow.__name__}"
 
     async def test_serve_handles__file__(self, prefect_client: PrefectClient):
-        await test_flow.serve(__file__)
+        await self.flow.serve(__file__)
 
         deployment = await prefect_client.read_deployment_by_name(
             name="test-flow/test_flows"
@@ -3547,7 +3595,7 @@ class TestFlowServe:
     async def test_serve_creates_deployment_with_interval_schedule(
         self, prefect_client: PrefectClient
     ):
-        await test_flow.serve(
+        await self.flow.serve(
             "test",
             interval=3600,
         )
@@ -3561,7 +3609,7 @@ class TestFlowServe:
     async def test_serve_creates_deployment_with_cron_schedule(
         self, prefect_client: PrefectClient
     ):
-        await test_flow.serve("test", cron="* * * * *")
+        await self.flow.serve("test", cron="* * * * *")
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
@@ -3571,7 +3619,7 @@ class TestFlowServe:
     async def test_serve_creates_deployment_with_rrule_schedule(
         self, prefect_client: PrefectClient
     ):
-        await test_flow.serve("test", rrule="FREQ=MINUTELY")
+        await self.flow.serve("test", rrule="FREQ=MINUTELY")
 
         deployment = await prefect_client.read_deployment_by_name(name="test-flow/test")
 
@@ -3599,14 +3647,14 @@ class TestFlowServe:
             warnings.filterwarnings("ignore", category=DeprecationWarning)
             expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             with pytest.raises(ValueError, match=expected_message):
-                await test_flow.serve(__file__, **kwargs)
+                await self.flow.serve(__file__, **kwargs)
 
     async def test_serve_starts_a_runner(self, mock_runner_start):
         """
         This test only makes sure Runner.start() is called. The actual
         functionality of the runner is tested in test_runner.py
         """
-        await test_flow.serve("test")
+        await self.flow.serve("test")
 
         mock_runner_start.assert_awaited_once()
 
@@ -3615,7 +3663,7 @@ class TestFlowServe:
         monkeypatch.setattr("prefect.runner.Runner", runner_mock)
 
         limit = 42
-        await test_flow.serve("test", limit=limit)
+        await self.flow.serve("test", limit=limit)
 
         runner_mock.assert_called_once_with(
             name="test", pause_on_shutdown=ANY, limit=limit
