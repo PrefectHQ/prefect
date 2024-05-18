@@ -710,7 +710,7 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="foo"):
             await raise_state_exception(state)
 
-    def test_flow_state_reflects_returned_multiple_task_run_states(self):
+    async def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task
         def fail1():
             raise ValueError("Test 1")
@@ -736,17 +736,18 @@ class TestFlowCall:
         assert flow_state.message == "2/3 states failed."
 
         # The task run states are attached as a tuple
-        first, second, third = flow_state.result(raise_on_failure=False)
+        first, second, third = await flow_state.result(raise_on_failure=False)
         assert first.is_failed()
         assert second.is_failed()
         assert third.is_completed()
 
         with pytest.raises(ValueError, match="Test 1"):
-            first.result()
+            await first.result()
 
         with pytest.raises(ValueError, match="Test 2"):
-            second.result()
+            await second.result()
 
+    @fails_with_new_engine
     async def test_call_execution_blocked_does_not_run_flow(self):
         @flow(version="test")
         def foo(x, y=3, z=3):
@@ -775,7 +776,7 @@ class TestFlowCall:
         flow_state = my_flow(return_state=True)
         assert flow_state.is_cancelled()
 
-    def test_flow_state_with_cancelled_tasks_has_cancelled_state(self):
+    async def test_flow_state_with_cancelled_tasks_has_cancelled_state(self):
         @task
         def cancel():
             return Cancelled()
@@ -797,13 +798,13 @@ class TestFlowCall:
         assert flow_state.message == "1/3 states cancelled."
 
         # The task run states are attached as a tuple
-        first, second, third = flow_state.result(raise_on_failure=False)
+        first, second, third = await flow_state.result(raise_on_failure=False)
         assert first.is_cancelled()
         assert second.is_completed()
         assert third.is_failed()
 
         with pytest.raises(CancelledRun):
-            first.result()
+            await first.result()
 
     def test_flow_with_cancelled_subflow_has_cancelled_state(self):
         @task
@@ -895,6 +896,7 @@ class TestSubflowCalls:
 
         assert await parent(1, 2) == 6
 
+    @fails_with_new_engine
     def test_sync_flow_with_async_subflow(self):
         result = "a string, not a coroutine"
 
@@ -908,6 +910,7 @@ class TestSubflowCalls:
 
         assert parent() == result
 
+    @fails_with_new_engine
     def test_sync_flow_with_async_subflow_and_async_task(self):
         @task
         async def compute(x, y, z):
@@ -1026,8 +1029,7 @@ class TestSubflowCalls:
             nonlocal child_state
             child_state = child("foo", return_state=True)
 
-            # create a happy child too
-            child(1, return_state=True)
+            return child_state, child(1, return_state=True)
 
         parent_state = parent(return_state=True)
 
@@ -1102,6 +1104,7 @@ class TestSubflowCalls:
             child_flow_run.id == child_flow_run_id
         ), "The server subflow run id matches the client"
 
+    @fails_with_new_engine
     async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
@@ -3471,13 +3474,13 @@ class TestFlowToDeployment:
             )
         ],
     )
-    def test_to_deployment_raises_on_multiple_schedule_parameters(self, kwargs):
+    async def test_to_deployment_raises_on_multiple_schedule_parameters(self, kwargs):
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
             expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             with pytest.raises(ValueError, match=expected_message):
-                test_flow.to_deployment(__file__, **kwargs)
+                await test_flow.to_deployment(__file__, **kwargs)
 
 
 class TestFlowServe:
