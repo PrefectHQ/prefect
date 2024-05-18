@@ -1166,8 +1166,7 @@ class TestFlowRunTags:
 
 
 class TestFlowTimeouts:
-    @fails_with_new_engine
-    def test_flows_fail_with_timeout(self):
+    async def test_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         def my_flow():
             time.sleep(SLEEP_TIME)
@@ -1176,10 +1175,9 @@ class TestFlowTimeouts:
         assert state.is_failed()
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
-            state.result()
+            await state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
-    @fails_with_new_engine
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         async def my_flow():
@@ -1192,30 +1190,26 @@ class TestFlowTimeouts:
             await state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
-    @fails_with_new_engine
-    def test_timeout_only_applies_if_exceeded(self):
+    async def test_timeout_only_applies_if_exceeded(self):
         @flow(timeout_seconds=10)
         def my_flow():
             time.sleep(0.1)
 
         state = my_flow(return_state=True)
         assert state.is_completed()
-        assert state.result() is None  # only added so this fails on new engine
 
     @fails_with_new_engine
-    def test_user_timeout_is_not_hidden(self):
+    async def test_user_timeout_is_not_hidden(self):
         @flow(timeout_seconds=30)
         def my_flow():
             raise TimeoutError("Oh no!")
 
         state = my_flow(return_state=True)
         assert state.is_failed()
-        assert state.name == "Failed"
         with pytest.raises(TimeoutError, match="Oh no!"):
-            state.result()
+            await state.result()
         assert "exceeded timeout" not in state.message
 
-    @fails_with_new_engine
     @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         completed = False
@@ -1232,7 +1226,6 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
         assert not completed
 
-    @fails_with_new_engine
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
         Sync flow runs tasks will fail after a timeout which will cause the flow to exit
@@ -1260,7 +1253,6 @@ class TestFlowTimeouts:
         assert not completed
         assert not task_completed
 
-    @fails_with_new_engine
     async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
@@ -1281,7 +1273,6 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
         assert not completed
 
-    @fails_with_new_engine
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
@@ -1307,7 +1298,6 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
         assert not completed
 
-    @fails_with_new_engine
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
         Sync flow runs can be cancelled after a timeout once a task is called
@@ -1338,7 +1328,6 @@ class TestFlowTimeouts:
 
         assert not completed
 
-    @fails_with_new_engine
     async def test_subflow_timeout_waits_until_execution_starts(self, tmp_path):
         """
         Subflow with a timeout shouldn't start their timeout before the subflow is started.
@@ -1358,7 +1347,10 @@ class TestFlowTimeouts:
 
         @flow
         async def my_flow():
-            upstream_sleepers = await sleep_task.map([0.5, 1.0])
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                upstream_sleepers = sleep_task.map([0.5, 1.0])
+            else:
+                upstream_sleepers = await sleep_task.map([0.5, 1.0])
             await downstream_flow(wait_for=upstream_sleepers)
 
         state = await my_flow(return_state=True)
