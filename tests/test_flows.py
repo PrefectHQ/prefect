@@ -1688,6 +1688,7 @@ class TestFlowRunLogs:
 
         my_flow()
 
+        await asyncio.sleep(0.5)  # needed for new engine for some reason
         logs = await prefect_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
@@ -1714,6 +1715,7 @@ class TestFlowRunLogs:
 
         my_flow()
 
+        await asyncio.sleep(0.5)  # needed for new engine for some reason
         logs = await prefect_client.read_logs()
         error_logs = "\n".join([log.message for log in logs if log.level == 40])
         assert "Traceback" in error_logs
