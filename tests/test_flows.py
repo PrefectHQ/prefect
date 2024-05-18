@@ -1525,6 +1525,7 @@ class TestFlowParameterTypes:
 
 
 class TestSubflowTaskInputs:
+    @fails_with_new_engine
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):
         @task
         def child_task(x):
@@ -1599,6 +1600,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
+    @fails_with_new_engine
     async def test_subflow_with_one_upstream_task_future_and_allow_failure(
         self, prefect_client
     ):
@@ -1627,6 +1629,7 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
+    @fails_with_new_engine
     async def test_subflow_with_one_upstream_task_state_and_allow_failure(
         self, prefect_client
     ):
@@ -1717,6 +1720,7 @@ class TestFlowRunLogs:
         assert "NameError" in error_logs, "Should reference the exception type"
         assert "x + y" in error_logs, "Should reference the line of code"
 
+    @fails_with_new_engine
     async def test_raised_exceptions_include_tracebacks(self, prefect_client):
         @flow
         def my_flow():
@@ -1726,6 +1730,8 @@ class TestFlowRunLogs:
             my_flow()
 
         logs = await prefect_client.read_logs()
+        assert logs
+
         error_logs = "\n".join(
             [
                 log.message
@@ -1795,6 +1801,7 @@ class TestSubflowRunLogs:
             == subflow_run_id
         ), "Child log message has correct id"
 
+    @fails_with_new_engine
     async def test_subflow_logs_are_written_correctly_with_tasks(self, prefect_client):
         @task
         def a_log_task():
@@ -2320,6 +2327,7 @@ def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
     import_object_mock.assert_called_with("my.module.pretend_flow")
 
 
+@fails_with_new_engine
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,

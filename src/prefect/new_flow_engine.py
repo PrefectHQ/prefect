@@ -258,7 +258,6 @@ class FlowRunEngine(Generic[P, R]):
             ):
                 return subflow_run
 
-
         flow_run = client.create_flow_run(
             flow=self.flow,
             parameters=self.flow.serialize_parameters(parameters),
@@ -510,6 +509,7 @@ async def run_flow_async(
 
                 except Exception as exc:
                     # If the flow fails, and we have retries left, set the flow to retrying.
+                    run.logger.exception("Encountered exception during execution:")
                     run.handle_exception(exc)
 
         if run.state.is_final():
@@ -546,6 +546,7 @@ def run_flow_sync(
 
                 except Exception as exc:
                     # If the flow fails, and we have retries left, set the flow to retrying.
+                    run.logger.exception("Encountered exception during execution:")
                     run.handle_exception(exc)
 
         if run.state.is_final():
