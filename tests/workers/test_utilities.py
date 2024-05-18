@@ -50,7 +50,6 @@ class TestGetAvailableWorkPoolTypes:
             "fake",
             "faker",
             "kubernetes",
-            "prefect-agent",
             "process",
         ]
 
@@ -74,7 +73,6 @@ class TestGetAvailableWorkPoolTypes:
             "docker",
             "ecs",
             "kubernetes",
-            "prefect-agent",
             "process",
             "vertex-ai",
         }
