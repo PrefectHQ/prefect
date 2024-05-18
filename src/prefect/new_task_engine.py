@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -29,11 +29,13 @@ from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
-from prefect.logging.loggers import get_logger, task_run_logger
+from prefect.logging.handlers import APILogHandler
+from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
+    Failed,
     Paused,
     Pending,
     Retrying,
@@ -68,6 +70,7 @@ class TaskRunEngine(Generic[P, R]):
     wait_for: Optional[Iterable[PrefectFuture]] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
+    _task_name_set: bool = False
 
     def __post_init__(self):
         if self.parameters is None:
@@ -92,9 +95,23 @@ class TaskRunEngine(Generic[P, R]):
         ] = self.task.retry_condition_fn
         if not self.task_run:
             raise ValueError("Task run is not set")
-        return not retry_condition or retry_condition(
-            self.task, self.task_run, self.state
-        )
+        try:
+            self.logger.debug(
+                f"Running `retry_condition_fn` check {retry_condition!r} for task"
+                f" {self.task.name!r}"
+            )
+            return not retry_condition or retry_condition(
+                self.task, self.task_run, self.state
+            )
+        except Exception:
+            self.logger.error(
+                (
+                    "An error was encountered while running `retry_condition_fn` check"
+                    f" '{retry_condition!r}' for task {self.task.name!r}"
+                ),
+                exc_info=True,
+            )
+            return False
 
     def get_hooks(self, state: State, as_async: bool = False) -> Iterable[Callable]:
         task = self.task
@@ -326,6 +343,16 @@ class TaskRunEngine(Generic[P, R]):
             )
             self.set_state(state)
 
+    def handle_timeout(self, exc: TimeoutError) -> None:
+        message = f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
+        self.logger.error(message)
+        state = Failed(
+            data=exc,
+            message=message,
+            name="TimedOut",
+        )
+        self.set_state(state)
+
     def handle_crash(self, exc: BaseException) -> None:
         state = run_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
@@ -334,28 +361,52 @@ class TaskRunEngine(Generic[P, R]):
 
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+        from prefect.utilities.engine import _resolve_custom_task_run_name
+
         if client is None:
             client = self.client
         if not self.task_run:
             raise ValueError("Task run is not set")
 
+        from prefect.utilities.engine import should_log_prints
+
         self.task_run = client.read_task_run(self.task_run.id)
 
-        with TaskRunContext(
-            task=self.task,
-            log_prints=self.task.log_prints or False,
-            task_run=self.task_run,
-            parameters=self.parameters,
-            result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
-            client=client,
-        ):
+        log_prints = should_log_prints(self.task)
+
+        with ExitStack() as stack:
+            if log_prints:
+                stack.enter_context(patch_print())
+            stack.enter_context(
+                TaskRunContext(
+                    task=self.task,
+                    log_prints=log_prints,
+                    task_run=self.task_run,
+                    parameters=self.parameters,
+                    result_factory=run_sync(
+                        ResultFactory.from_autonomous_task(self.task)
+                    ),  # type: ignore
+                    client=client,
+                )
+            )
             # set the logger to the task run logger
-            current_logger = self.logger
-            try:
-                self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
-                yield
-            finally:
-                self.logger = current_logger
+            self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+
+            # update the task run name if necessary
+            if not self._task_name_set and self.task.task_run_name:
+                task_run_name = _resolve_custom_task_run_name(
+                    task=self.task, parameters=self.parameters
+                )
+                self.client.set_task_run_name(
+                    task_run_id=self.task_run.id, name=task_run_name
+                )
+                self.logger.extra["task_run_name"] = task_run_name
+                self.logger.debug(
+                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                )
+                self.task_run.name = task_run_name
+                self._task_name_set = True
+            yield
 
     @contextmanager
     def start(
@@ -382,6 +433,9 @@ class TaskRunEngine(Generic[P, R]):
                             extra_task_inputs=dependencies,
                         )
                     )
+                self.logger.info(
+                    f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                )
 
                 yield self
             except Exception:
@@ -395,6 +449,19 @@ class TaskRunEngine(Generic[P, R]):
                 self.handle_crash(exc)
                 raise
             finally:
+                # If debugging, use the more complete `repr` than the usual `str` description
+                display_state = (
+                    repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+                )
+                self.logger.log(
+                    level=logging.INFO if self.state.is_completed() else logging.ERROR,
+                    msg=f"Finished in state {display_state}",
+                )
+
+                maybe_awaitable = APILogHandler.flush()
+                if inspect.isawaitable(maybe_awaitable):
+                    run_sync(maybe_awaitable)
+
                 self._is_started = False
                 self._client = None
 
@@ -429,11 +496,15 @@ def run_task_sync(
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
                         )
+                        run.logger.debug(
+                            f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                        )
                         result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
                     # If the task run is successful, finalize it.
                     run.handle_success(result)
-
+                except TimeoutError as exc:
+                    run.handle_timeout(exc)
                 except Exception as exc:
                     run.handle_exception(exc)
 
@@ -476,10 +547,15 @@ async def run_task_async(
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
                         )
+                        run.logger.debug(
+                            f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                        )
                         result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
 
                     # If the task run is successful, finalize it.
                     run.handle_success(result)
+                except TimeoutError as exc:
+                    run.handle_timeout(exc)
                 except Exception as exc:
                     run.handle_exception(exc)
 

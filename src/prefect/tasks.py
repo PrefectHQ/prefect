@@ -41,7 +41,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.futures import PrefectFuture
-from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.logging.loggers import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
@@ -521,9 +521,9 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> TaskRun:
+        from prefect.engine import NUM_CHARS_DYNAMIC_KEY
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
-            _resolve_custom_task_run_name,
             collect_task_run_inputs_sync,
         )
 
@@ -534,15 +534,16 @@ class Task(Generic[P, R]):
         if parameters is None:
             parameters = {}
 
-        try:
-            task_run_name = _resolve_custom_task_run_name(self, parameters)
-        except TypeError:
-            task_run_name = None
-
         if flow_run_context:
             dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
         else:
             dynamic_key = uuid4().hex
+
+        task_run_name = (
+            f"{self.name}-{dynamic_key}"
+            if flow_run_context and flow_run_context.flow_run
+            else f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
+        )
 
         # collect task inputs
         task_inputs = {
@@ -595,13 +596,6 @@ class Task(Generic[P, R]):
         # the new engine uses sync clients but old engines use async clients
         if inspect.isawaitable(task_run):
             task_run = await task_run
-
-        if flow_run_context and flow_run_context.flow_run:
-            get_run_logger(flow_run_context).debug(
-                f"Created task run {task_run.name!r} for task {self.name!r}"
-            )
-        else:
-            logger.debug(f"Created task run {task_run.name!r} for task {self.name!r}")
 
         return task_run
 

@@ -9,7 +9,7 @@ from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.new_futures import PrefectConcurrentFuture, PrefectFuture
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
@@ -136,10 +136,20 @@ class ThreadPoolTaskRunner(TaskRunner):
         """
         if not self._started or self._executor is None:
             raise RuntimeError("Task runner is not started")
+
+        from prefect.context import FlowRunContext
         from prefect.new_task_engine import run_task_async, run_task_sync
 
         task_run_id = uuid.uuid4()
         context = copy_context()
+
+        flow_run_ctx = FlowRunContext.get()
+        if flow_run_ctx:
+            get_run_logger(flow_run_ctx).info(
+                f"Submitting task {task.name} to thread pool executor..."
+            )
+        else:
+            self.logger.info(f"Submitting task {task.name} to thread pool executor...")
 
         if task.isasync:
             # TODO: Explore possibly using a long-lived thread with an event loop
