@@ -393,14 +393,6 @@ def mock_collection_registry(
     k8s_default_base_job_template,
 ):
     mock_body = {
-        "prefect": {
-            "prefect-agent": {
-                "type": "prefect-agent",
-                "default_base_job_configuration": {},
-                "display_name": "Prefect Agent",
-                "description": "A Prefect Agent pool.",
-            }
-        },
         "prefect-fake": {
             "fake": {
                 "type": "fake",
