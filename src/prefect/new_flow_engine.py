@@ -6,6 +6,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    Callable,
     Coroutine,
     Dict,
     Generic,
@@ -29,7 +30,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext
+from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import Abort, Pause
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.logging.handlers import APILogHandler
@@ -53,6 +54,7 @@ from prefect.states import (
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.engine import (
+    _get_hook_name,
     _resolve_custom_flow_run_name,
     propose_state_sync,
 )
@@ -110,6 +112,9 @@ class FlowRunEngine(Generic[P, R]):
         while state.is_pending():
             time.sleep(0.2)
             state = self.set_state(new_state)
+        if state.is_running():
+            for hook in self.get_hooks(state):
+                hook()
         return state
 
     def set_state(self, state: State, force: bool = False) -> State:
@@ -265,6 +270,7 @@ class FlowRunEngine(Generic[P, R]):
             parameters=self.flow.serialize_parameters(parameters),
             state=Pending(),
             parent_task_run_id=getattr(parent_task_run, "id", None),
+            tags=TagsContext.get().current_tags,
         )
         if flow_run_ctx:
             parent_logger = get_run_logger(flow_run_ctx)
@@ -277,6 +283,58 @@ class FlowRunEngine(Generic[P, R]):
             )
 
         return flow_run
+
+    def get_hooks(self, state: State, as_async: bool = False) -> Iterable[Callable]:
+        flow = self.flow
+        flow_run = self.flow_run
+
+        if not flow_run:
+            raise ValueError("Task run is not set")
+
+        hooks = None
+        if state.is_failed() and flow.on_failure:
+            hooks = flow.on_failure
+        elif state.is_completed() and flow.on_completion:
+            hooks = flow.on_completion
+
+        for hook in hooks or []:
+            hook_name = _get_hook_name(hook)
+
+            @contextmanager
+            def hook_context():
+                try:
+                    self.logger.info(
+                        f"Running hook {hook_name!r} in response to entering state"
+                        f" {state.name!r}"
+                    )
+                    yield
+                except Exception:
+                    self.logger.error(
+                        f"An error was encountered while running hook {hook_name!r}",
+                        exc_info=True,
+                    )
+                else:
+                    self.logger.info(
+                        f"Hook {hook_name!r} finished running successfully"
+                    )
+
+            if as_async:
+
+                async def _hook_fn():
+                    with hook_context():
+                        result = hook(flow, flow_run, state)
+                        if inspect.isawaitable(result):
+                            await result
+
+            else:
+
+                def _hook_fn():
+                    with hook_context():
+                        result = hook(flow, flow_run, state)
+                        if inspect.isawaitable(result):
+                            run_sync(result)
+
+            yield _hook_fn
 
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
@@ -443,6 +501,9 @@ async def run_flow_async(
                     # If the flow fails, and we have retries left, set the flow to retrying.
                     run.handle_exception(exc)
 
+        if run.state.is_final():
+            for hook in run.get_hooks(run.state, as_async=True):
+                await hook()
         if return_type == "state":
             return run.state
         return run.result()
@@ -476,6 +537,9 @@ def run_flow_sync(
                     # If the flow fails, and we have retries left, set the flow to retrying.
                     run.handle_exception(exc)
 
+        if run.state.is_final():
+            for hook in run.get_hooks(run.state):
+                hook()
         if return_type == "state":
             return run.state
         return run.result()
