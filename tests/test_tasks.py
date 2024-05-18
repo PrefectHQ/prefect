@@ -2585,7 +2585,9 @@ class TestTaskRunLogs:
 
         logs = await _wait_for_logs(prefect_client)
         assert logs, "There should be logs"
-        assert all([log.flow_run_id == flow_run_id for log in logs])
+        assert all([log.flow_run_id == flow_run_id for log in logs]), str(
+            [log.flow_run_id for log in logs]
+        )
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert task_run_logs, f"There should be task run logs in {logs}"
         assert all([log.task_run_id == task_run_id for log in task_run_logs])
