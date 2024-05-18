@@ -56,7 +56,7 @@ async def get_collection_view(view: str):
 
             data = resp.json()
             if view == "aggregate-worker-metadata":
-                data["prefect"].pop("prefect-agent", None)
+                data.get("prefect", {}).pop("prefect-agent", None)
 
             GLOBAL_COLLECTIONS_VIEW_CACHE[view] = data
             return data
