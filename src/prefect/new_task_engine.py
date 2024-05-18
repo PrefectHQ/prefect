@@ -485,6 +485,9 @@ def run_task_sync(
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
                         )
+                        run.logger.debug(
+                            f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                        )
                         result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
                     # If the task run is successful, finalize it.
@@ -532,6 +535,9 @@ async def run_task_async(
                     with timeout_async(seconds=run.task.timeout_seconds):
                         call_args, call_kwargs = parameters_to_args_kwargs(
                             task.fn, run.parameters or {}
+                        )
+                        run.logger.debug(
+                            f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
                         )
                         result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
 
