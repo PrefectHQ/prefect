@@ -1,6 +1,6 @@
 # Originally generated from `alembic init`
 # https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
-
+import asyncio
 import contextlib
 
 import sqlalchemy
@@ -172,4 +172,4 @@ async def apply_migrations() -> None:
 if context.is_offline_mode():
     dry_run_migrations()
 else:
-    apply_migrations()
+    asyncio.run(apply_migrations())

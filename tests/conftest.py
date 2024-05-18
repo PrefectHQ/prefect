@@ -54,6 +54,7 @@ from prefect.settings import (
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_CANCELLATION,
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_EXPERIMENTAL_WARN_ENHANCED_CANCELLATION,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
@@ -607,3 +608,9 @@ def leaves_no_extraneous_files():
             "One of the tests in this module left new files in the "
             f"working directory: {new_files}"
         )
+
+
+@pytest.fixture(autouse=True)
+def enable_new_engine():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: 1}):
+        yield
