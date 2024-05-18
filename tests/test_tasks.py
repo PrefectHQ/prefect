@@ -3,7 +3,7 @@ import datetime
 import inspect
 import time
 from asyncio import Event, sleep
-from functools import partial, wraps
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
@@ -38,7 +38,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
-from prefect.testing.utilities import exceptions_equal
+from prefect.testing.utilities import exceptions_equal, fails_with_new_engine
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.collections import quote
@@ -51,51 +51,6 @@ from prefect.utilities.engine import get_state_for_result
 def set_new_engine_setting(request):
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
         yield
-
-
-def fails_with_new_engine(func):
-    @wraps(func)
-    def sync_wrapper(*args, **kwargs):
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            try:
-                func(*args, **kwargs)
-            except (
-                Exception,
-                anyio._backends._asyncio.ExceptionGroup,
-                pytest.fail.Exception,
-            ):
-                pytest.xfail(
-                    "This test fails with the new engine",
-                )
-            else:
-                pytest.fail(
-                    "Test passed unexpectedly with the new engine", pytrace=False
-                )
-        return func(*args, **kwargs)
-
-    @wraps(func)
-    async def async_wrapper(*args, **kwargs):
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            try:
-                await func(*args, **kwargs)
-            except (
-                Exception,
-                anyio._backends._asyncio.ExceptionGroup,
-                pytest.fail.Exception,
-            ):
-                pytest.xfail(
-                    "This test fails with the new engine",
-                )
-            else:
-                pytest.fail(
-                    "Test passed unexpectedly with the new engine", pytrace=False
-                )
-        return await func(*args, **kwargs)
-
-    if asyncio.iscoroutinefunction(func):
-        return async_wrapper
-    else:
-        return sync_wrapper
 
 
 def comparable_inputs(d):
