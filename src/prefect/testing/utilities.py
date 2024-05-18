@@ -2,12 +2,17 @@
 Internal utilities for tests.
 """
 
+import asyncio
 import warnings
 from contextlib import ExitStack, contextmanager
+from functools import wraps
 from pathlib import Path
 from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, List, Union
+
+import anyio
+import pytest
 
 import prefect.context
 import prefect.settings
@@ -17,11 +22,57 @@ from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 from prefect.states import State
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.filesystems import ReadableFileSystem
+
+
+def fails_with_new_engine(func):
+    @wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+            try:
+                func(*args, **kwargs)
+            except (
+                Exception,
+                anyio._backends._asyncio.ExceptionGroup,
+                pytest.fail.Exception,
+            ):
+                pytest.xfail(
+                    "This test fails with the new engine",
+                )
+            else:
+                pytest.fail(
+                    "Test passed unexpectedly with the new engine", pytrace=False
+                )
+        return func(*args, **kwargs)
+
+    @wraps(func)
+    async def async_wrapper(*args, **kwargs):
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+            try:
+                await func(*args, **kwargs)
+            except (
+                Exception,
+                anyio._backends._asyncio.ExceptionGroup,
+                pytest.fail.Exception,
+            ):
+                pytest.xfail(
+                    "This test fails with the new engine",
+                )
+            else:
+                pytest.fail(
+                    "Test passed unexpectedly with the new engine", pytrace=False
+                )
+        return await func(*args, **kwargs)
+
+    if asyncio.iscoroutinefunction(func):
+        return async_wrapper
+    else:
+        return sync_wrapper
 
 
 def exceptions_equal(a, b):
