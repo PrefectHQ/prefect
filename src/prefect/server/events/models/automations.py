@@ -117,7 +117,9 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
             asyncio.run_coroutine_threadsafe(coro, loop=loop)
         except RuntimeError as exc:
             if "Event loop is closed" in str(exc):
-                asyncio.run(coro)
+                loop = asyncio.new_event_loop()
+                asyncio.run_coroutine_threadsafe(coro, loop=loop)
+                loop.close()
             else:
                 raise
 
