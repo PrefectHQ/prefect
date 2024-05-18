@@ -253,7 +253,7 @@ class TestApplyValues:
 
 
 class TestResolveBlockDocumentReferences:
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     async def block_document_id(self):
         class ArbitraryBlock(Block):
             a: int
