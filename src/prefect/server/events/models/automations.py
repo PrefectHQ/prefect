@@ -104,7 +104,11 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
     sync_session = session.sync_session
 
     def change_notification(session, **kwargs):
-        run_sync(automation_changed(automation.id, f"automation__{event}"))
+        try:
+            run_sync(automation_changed(automation.id, f"automation__{event}"))
+        except Exception:
+            # On exception, do not re-raise, just move on
+            pass
 
     sa.event.listen(sync_session, "after_commit", change_notification, once=True)
 
