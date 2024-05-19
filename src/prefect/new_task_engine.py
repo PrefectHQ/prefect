@@ -168,12 +168,24 @@ class TaskRunEngine(Generic[P, R]):
     def _compute_state_details(
         self, include_cache_expiration: bool = False
     ) -> StateDetails:
+        from prefect.utilities.engine import should_log_prints
+
+        # We sometimes call this prior to setting up the run context, so we create a temporary
+        # context here
+        # TODO: Should we set up the run context earlier in Engine.start?
+        log_prints = should_log_prints(self.task)
+        task_run_context = TaskRunContext(
+            task=self.task,
+            log_prints=log_prints,
+            task_run=self.task_run,
+            parameters=self.parameters,
+            result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
+            client=self.client,
+        )
         ## setup cache metadata
-        if self._initial_run_context is None:
-            raise ValueError("Run context is not set")
         cache_key = (
             self.task.cache_key_fn(
-                self._initial_run_context,
+                task_run_context,
                 self.parameters or {},
             )
             if self.task.cache_key_fn
@@ -195,6 +207,7 @@ class TaskRunEngine(Generic[P, R]):
             )
         else:
             cache_expiration = None
+
         return StateDetails(
             cache_key=cache_key,
             refresh_cache=refresh_cache,
@@ -240,7 +253,7 @@ class TaskRunEngine(Generic[P, R]):
             context={},
         )
 
-    def begin_run(self, wait_for: Optional[Iterable[PrefectFuture]] = None):
+    def begin_run(self):
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
@@ -255,10 +268,10 @@ class TaskRunEngine(Generic[P, R]):
                 force=self.state.is_pending(),
             )
             return
-        else:
-            state_details = self._compute_state_details()
-            new_state = Running(state_details=state_details)
-            state = self.set_state(new_state)
+
+        state_details = self._compute_state_details()
+        new_state = Running(state_details=state_details)
+        state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
         backoff_count = 0
@@ -377,7 +390,7 @@ class TaskRunEngine(Generic[P, R]):
         log_prints = should_log_prints(self.task)
 
         with ExitStack() as stack:
-            if self._initial_run_context.log_prints:
+            if log_prints:
                 stack.enter_context(patch_print())
             stack.enter_context(
                 TaskRunContext(
@@ -419,7 +432,6 @@ class TaskRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
-        from prefect.utilities.engine import should_log_prints
 
         with get_client(sync_client=True) as client:
             self._client = client
@@ -439,17 +451,6 @@ class TaskRunEngine(Generic[P, R]):
                     )
                 self.logger.info(
                     f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                )
-                log_prints = should_log_prints(self.task)
-                self._initial_run_context = TaskRunContext(
-                    task=self.task,
-                    log_prints=log_prints,
-                    task_run=self.task_run,
-                    parameters=self.parameters,
-                    result_factory=run_sync(
-                        ResultFactory.from_autonomous_task(self.task)
-                    ),  # type: ignore
-                    client=client,
                 )
 
                 yield self
