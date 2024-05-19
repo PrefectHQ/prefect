@@ -44,6 +44,7 @@ from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
 from prefect.states import (
+    Failed,
     Pending,
     Running,
     State,
@@ -58,6 +59,7 @@ from prefect.utilities.engine import (
     _resolve_custom_flow_run_name,
     propose_state_sync,
 )
+from prefect.utilities.timeout import timeout, timeout_async
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -88,6 +90,7 @@ class FlowRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
+    _flow_run_name_set: bool = False
 
     def __post_init__(self):
         if self.flow is None and self.flow_run_id is None:
@@ -178,6 +181,16 @@ class FlowRunEngine(Generic[P, R]):
             state = self.set_state(Running())
         return state
 
+    def handle_timeout(self, exc: TimeoutError) -> None:
+        message = f"Flow run exceeded timeout of {self.flow.timeout_seconds} seconds"
+        self.logger.error(message)
+        state = Failed(
+            data=exc,
+            message=message,
+            name="TimedOut",
+        )
+        self.set_state(state)
+
     def handle_crash(self, exc: BaseException) -> None:
         state = run_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
@@ -257,16 +270,8 @@ class FlowRunEngine(Generic[P, R]):
             ):
                 return subflow_run
 
-        try:
-            flow_run_name = _resolve_custom_flow_run_name(
-                flow=self.flow, parameters=parameters
-            )
-        except TypeError:
-            flow_run_name = None
-
         flow_run = client.create_flow_run(
             flow=self.flow,
-            name=flow_run_name,
             parameters=self.flow.serialize_parameters(parameters),
             state=Pending(),
             parent_task_run_id=getattr(parent_task_run, "id", None),
@@ -338,12 +343,14 @@ class FlowRunEngine(Generic[P, R]):
 
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+        from prefect.utilities.engine import (
+            should_log_prints,
+        )
+
         if client is None:
             client = self.client
         if not self.flow_run:
             raise ValueError("Flow run not set")
-
-        from prefect.utilities.engine import should_log_prints
 
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
@@ -375,6 +382,21 @@ class FlowRunEngine(Generic[P, R]):
             )
             # set the logger to the flow run logger
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+
+            # update the flow run name if necessary
+            if not self._flow_run_name_set and self.flow.flow_run_name:
+                flow_run_name = _resolve_custom_flow_run_name(
+                    flow=self.flow, parameters=self.parameters
+                )
+                self.client.set_flow_run_name(
+                    flow_run_id=self.flow_run.id, name=flow_run_name
+                )
+                self.logger.extra["flow_run_name"] = flow_run_name
+                self.logger.debug(
+                    f"Renamed flow run {self.flow_run.name!r} to {flow_run_name!r}"
+                )
+                self.flow_run.name = flow_run_name
+                self._flow_run_name_set = True
             yield
 
     @contextmanager
@@ -487,18 +509,22 @@ async def run_flow_async(
             with run.enter_run_context():
                 try:
                     # This is where the flow is actually run.
-                    call_args, call_kwargs = parameters_to_args_kwargs(
-                        flow.fn, run.parameters or {}
-                    )
-                    run.logger.debug(
-                        f"Executing flow {flow.name!r} for flow run {run.flow_run.name!r}..."
-                    )
-                    result = cast(R, await flow.fn(*call_args, **call_kwargs))  # type: ignore
+                    with timeout_async(seconds=run.flow.timeout_seconds):
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            flow.fn, run.parameters or {}
+                        )
+                        run.logger.debug(
+                            f"Executing flow {flow.name!r} for flow run {run.flow_run.name!r}..."
+                        )
+                        result = cast(R, await flow.fn(*call_args, **call_kwargs))  # type: ignore
                     # If the flow run is successful, finalize it.
                     run.handle_success(result)
 
+                except TimeoutError as exc:
+                    run.handle_timeout(exc)
                 except Exception as exc:
                     # If the flow fails, and we have retries left, set the flow to retrying.
+                    run.logger.exception("Encountered exception during execution:")
                     run.handle_exception(exc)
 
         if run.state.is_final():
@@ -526,15 +552,22 @@ def run_flow_sync(
             with run.enter_run_context():
                 try:
                     # This is where the flow is actually run.
-                    call_args, call_kwargs = parameters_to_args_kwargs(
-                        flow.fn, run.parameters or {}
-                    )
-                    result = cast(R, flow.fn(*call_args, **call_kwargs))  # type: ignore
+                    with timeout(seconds=run.flow.timeout_seconds):
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            flow.fn, run.parameters or {}
+                        )
+                        run.logger.debug(
+                            f"Executing flow {flow.name!r} for flow run {run.flow_run.name!r}..."
+                        )
+                        result = cast(R, flow.fn(*call_args, **call_kwargs))  # type: ignore
                     # If the flow run is successful, finalize it.
                     run.handle_success(result)
 
+                except TimeoutError as exc:
+                    run.handle_timeout(exc)
                 except Exception as exc:
                     # If the flow fails, and we have retries left, set the flow to retrying.
+                    run.logger.exception("Encountered exception during execution:")
                     run.handle_exception(exc)
 
         if run.state.is_final():
