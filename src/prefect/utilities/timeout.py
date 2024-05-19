@@ -23,9 +23,6 @@ def timeout_async(seconds: Optional[float] = None):
 
 @contextmanager
 def timeout(seconds: Optional[float] = None):
-    print("=" * 100)
-    print(seconds)
-    print("=" * 100)
     if seconds is None:
         yield
         return
