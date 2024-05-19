@@ -31,7 +31,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TagsContext
-from prefect.exceptions import Abort, Pause
+from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
@@ -53,10 +53,12 @@ from prefect.states import (
 )
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     _resolve_custom_flow_run_name,
     propose_state_sync,
+    resolve_to_final_result,
 )
 
 P = ParamSpec("P")
@@ -85,6 +87,7 @@ class FlowRunEngine(Generic[P, R]):
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
+    wait_for: Optional[Iterable[PrefectFuture]] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
@@ -106,7 +109,61 @@ class FlowRunEngine(Generic[P, R]):
     def state(self) -> State:
         return self.flow_run.state  # type: ignore
 
+    def _resolve_parameters(self):
+        if not self.parameters:
+            return {}
+
+        resolved_parameters = {}
+        for parameter, value in self.parameters.items():
+            try:
+                resolved_parameters[parameter] = visit_collection(
+                    value,
+                    visit_fn=resolve_to_final_result,
+                    return_data=True,
+                    max_depth=-1,
+                    remove_annotations=True,
+                    context={},
+                )
+            except UpstreamTaskError:
+                raise
+            except Exception as exc:
+                raise PrefectException(
+                    f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                    " parameter type is not supported, consider using the `quote`"
+                    " annotation to skip resolution of inputs."
+                ) from exc
+
+        self.parameters = resolved_parameters
+
+    def _wait_for_dependencies(self):
+        if not self.wait_for:
+            return
+
+        visit_collection(
+            self.wait_for,
+            visit_fn=resolve_to_final_result,
+            return_data=False,
+            max_depth=-1,
+            remove_annotations=True,
+            context={},
+        )
+
     def begin_run(self) -> State:
+        try:
+            self._resolve_parameters()
+            self._wait_for_dependencies()
+        except UpstreamTaskError as upstream_exc:
+            state = self.set_state(
+                Pending(
+                    name="NotReady",
+                    message=str(upstream_exc),
+                ),
+                # if orchestrating a run already in a pending state, force orchestration to
+                # update the state name
+                force=self.state.is_pending(),
+            )
+            return state
+
         new_state = Running()
         state = self.set_state(new_state)
         while state.is_pending():
@@ -243,11 +300,13 @@ class FlowRunEngine(Generic[P, R]):
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+
             parent_task_run = run_sync(
                 parent_task.create_run(
                     client=self.client,
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
+                    wait_for=self.wait_for,
                 )
             )
 
@@ -476,8 +535,9 @@ async def run_flow_async(
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
-
-    engine = FlowRunEngine[P, R](flow, parameters, flow_run, flow_run_id)
+    engine = FlowRunEngine[P, R](
+        flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
+    )
 
     # This is a context manager that keeps track of the state of the flow run.
     with engine.start() as run:
@@ -516,7 +576,9 @@ def run_flow_sync(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
-    engine = FlowRunEngine[P, R](flow, parameters, flow_run)
+    engine = FlowRunEngine[P, R](
+        flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
+    )
 
     # This is a context manager that keeps track of the state of the flow run.
     with engine.start() as run:

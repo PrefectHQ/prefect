@@ -1991,7 +1991,6 @@ class TestTaskInputs:
             name=[TaskRunResult(id=name_state.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_result_upstream_from_future(
         self, prefect_client
     ):
@@ -2008,7 +2007,11 @@ class TestTaskInputs:
             upstream_future = upstream.submit(257)
             upstream_result = upstream_future.result()
             downstream_state = downstream(upstream_result, return_state=True)
-            upstream_state = upstream_future.wait()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                upstream_future.wait()
+                upstream_state = upstream_future.state
+            else:
+                upstream_state = upstream_future.wait()
             return upstream_state, downstream_state
 
         upstream_state, downstream_state = test_flow()
@@ -2272,8 +2275,7 @@ class TestTaskInputs:
 
 
 class TestSubflowWaitForTasks:
-    @fails_with_new_engine
-    def test_downstream_does_not_run_if_upstream_fails(self):
+    async def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
             raise ValueError("Fail task!")
@@ -2289,7 +2291,7 @@ class TestSubflowWaitForTasks:
             return b
 
         flow_state = test_flow(return_state=True)
-        subflow_state = flow_state.result(raise_on_failure=False)
+        subflow_state = await flow_state.result(raise_on_failure=False)
         assert subflow_state.is_pending()
         assert subflow_state.name == "NotReady"
 
@@ -2310,8 +2312,6 @@ class TestSubflowWaitForTasks:
 
         assert test_flow() == 2
 
-    # requires an update to the new flow engine to support `wait_For`
-    @fails_with_new_engine
     async def test_backend_task_inputs_includes_wait_for_tasks(self, prefect_client):
         @task
         def foo(x):
@@ -2374,7 +2374,6 @@ class TestSubflowWaitForTasks:
 
         assert (await test_flow()) == 42
 
-    @fails_with_new_engine
     async def test_subflows_waiting_for_tasks_can_deadlock(self):
         @task
         async def waiter_task(event, delay):
@@ -2392,7 +2391,10 @@ class TestSubflowWaitForTasks:
         @flow
         async def test_flow():
             e = Event()
-            f = await waiter_task.submit(e, 1)
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                f = waiter_task.submit(e, 1)
+            else:
+                f = await waiter_task.submit(e, 1)
             b = await setter_flow(e, wait_for=[f])
             return b
 
@@ -3272,6 +3274,7 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
+    # Will not be supported in new engine - SequentialTaskRunner will be removed
     @fails_with_new_engine
     def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
@@ -3304,6 +3307,7 @@ class TestTaskMap:
 
         assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
+    # Will not be supported in new engine - SequentialTaskRunner will be removed
     @fails_with_new_engine
     async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
@@ -3336,6 +3340,7 @@ class TestTaskMap:
 
         assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
+    # Will not be supported in new engine - SequentialTaskRunner will be removed
     @fails_with_new_engine
     async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
@@ -3677,7 +3682,6 @@ class TestTaskHooksOnCompletion:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
-    @fails_with_new_engine
     def test_on_completion_hooks_dont_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -3694,6 +3698,9 @@ class TestTaskHooksOnCompletion:
         @flow
         def my_flow():
             future = my_task.submit()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return future.state
             return future.wait()
 
         with pytest.raises(Exception, match="oops"):
@@ -3808,7 +3815,6 @@ class TestTaskHooksOnFailure:
             def flow2():
                 pass
 
-    @fails_with_new_engine
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -3825,6 +3831,9 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return future.state
             return future.wait()
 
         with pytest.raises(Exception, match="oops"):
@@ -3832,7 +3841,6 @@ class TestTaskHooksOnFailure:
             assert state.type == StateType.FAILED
             assert my_mock.call_args_list == [call("failed1"), call("failed2")]
 
-    @fails_with_new_engine
     def test_on_failure_hooks_dont_run_on_completed(self):
         my_mock = MagicMock()
 
@@ -3849,13 +3857,15 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return future.state
             return future.wait()
 
         state = my_flow()
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == []
 
-    @fails_with_new_engine
     def test_other_failure_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3875,6 +3885,9 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return future.state
             return future.wait()
 
         with pytest.raises(Exception, match="oops"):
@@ -3891,7 +3904,6 @@ class TestTaskHooksOnFailure:
             (create_async_hook, create_async_hook),
         ],
     )
-    @fails_with_new_engine
     def test_on_failure_hooks_work_with_sync_and_async_functions(self, hook1, hook2):
         my_mock = MagicMock()
         hook1_with_mock = hook1(my_mock)
@@ -3904,6 +3916,9 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return future.state
             return future.wait()
 
         with pytest.raises(Exception, match="oops"):
@@ -3911,7 +3926,6 @@ class TestTaskHooksOnFailure:
             assert state.type == StateType.FAILED
             assert my_mock.call_args_list == [call(), call()]
 
-    @fails_with_new_engine
     def test_failure_hooks_dont_run_on_retries(self):
         my_mock = MagicMock()
 
@@ -3925,6 +3939,9 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return future.state
             return future.wait()
 
         state = my_flow(return_state=True)
@@ -4071,7 +4088,6 @@ class TestNestedTasks:
 
         assert my_flow() == 12
 
-    @fails_with_new_engine
     async def test_nested_async_map(self):
         @task
         async def inner_task(x):
@@ -4079,8 +4095,12 @@ class TestNestedTasks:
 
         @task
         async def outer_task(x):
-            futures = await inner_task.map(x)
-            return sum([await future.result() for future in futures])
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                futures = inner_task.map(x)
+                return sum([future.result() for future in futures])
+            else:
+                futures = await inner_task.map(x)
+                return sum([await future.result() for future in futures])
 
         @flow
         async def my_flow():
@@ -4134,8 +4154,7 @@ class TestNestedTasks:
 
         assert await my_flow() == 10
 
-    @fails_with_new_engine
-    def test_nested_cache_key_fn(self):
+    async def test_nested_cache_key_fn(self):
         def inner_task(x):
             return x * 2
 
@@ -4155,8 +4174,8 @@ class TestNestedTasks:
         assert state1.name == "Completed"
         assert state2.name == "Cached"
 
-        assert state1.result() == 4
-        assert state2.result() == 4
+        assert await state1.result() == 4
+        assert await state2.result() == 4
 
     async def test_nested_async_cache_key_fn(self):
         @task
@@ -4182,8 +4201,7 @@ class TestNestedTasks:
         assert await state1.result() == 4
         assert await state2.result() == 4
 
-    @fails_with_new_engine
-    def test_nested_cache_key_fn_inner_task_cached(self):
+    async def test_nested_cache_key_fn_inner_task_cached(self):
         @task(cache_key_fn=task_input_hash)
         def inner_task(x):
             return x * 2
@@ -4201,12 +4219,12 @@ class TestNestedTasks:
 
         state = my_flow()
         assert state.name == "Completed"
-        inner_state1, inner_state2 = state.result()
+        inner_state1, inner_state2 = await state.result()
         assert inner_state1.name == "Completed"
         assert inner_state2.name == "Cached"
 
-        assert inner_state1.result() == 4
-        assert inner_state2.result() == 4
+        assert await inner_state1.result() == 4
+        assert await inner_state2.result() == 4
 
     async def test_nested_async_cache_key_fn_inner_task_cached(self):
         @task(cache_key_fn=task_input_hash)
