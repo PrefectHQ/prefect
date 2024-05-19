@@ -266,9 +266,6 @@ class TestAPILogHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         handler.flush()
 
-        # Yield to the worker thread
-        time.sleep(2)
-
         logs = await prefect_client.read_logs()
         assert len(logs) == 1
 
