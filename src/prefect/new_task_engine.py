@@ -31,7 +31,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
-from prefect.new_futures import PrefectFuture, resolve_futures_to_states
+from prefect.new_futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
@@ -68,6 +68,7 @@ class TaskRunEngine(Generic[P, R]):
     task_run: Optional[TaskRun] = None
     retries: int = 0
     wait_for: Optional[Iterable[PrefectFuture]] = None
+    _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     _task_name_set: bool = False
@@ -168,10 +169,11 @@ class TaskRunEngine(Generic[P, R]):
         self, include_cache_expiration: bool = False
     ) -> StateDetails:
         ## setup cache metadata
-        task_run_context = TaskRunContext.get()
+        if self._initial_run_context is None:
+            raise ValueError("Run context is not set")
         cache_key = (
             self.task.cache_key_fn(
-                task_run_context,
+                self._initial_run_context,
                 self.parameters or {},
             )
             if self.task.cache_key_fn
@@ -307,7 +309,7 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Result factory is not set")
         terminal_state = run_sync(
             return_value_to_state(
-                resolve_futures_to_states(result),
+                result,
                 result_factory=result_factory,
             )
         )
@@ -361,21 +363,21 @@ class TaskRunEngine(Generic[P, R]):
 
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
-        from prefect.utilities.engine import _resolve_custom_task_run_name
+        from prefect.utilities.engine import (
+            _resolve_custom_task_run_name,
+            should_log_prints,
+        )
 
         if client is None:
             client = self.client
         if not self.task_run:
             raise ValueError("Task run is not set")
 
-        from prefect.utilities.engine import should_log_prints
-
         self.task_run = client.read_task_run(self.task_run.id)
-
         log_prints = should_log_prints(self.task)
 
         with ExitStack() as stack:
-            if log_prints:
+            if self._initial_run_context.log_prints:
                 stack.enter_context(patch_print())
             stack.enter_context(
                 TaskRunContext(
@@ -417,6 +419,8 @@ class TaskRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
+        from prefect.utilities.engine import should_log_prints
+
         with get_client(sync_client=True) as client:
             self._client = client
             self._is_started = True
@@ -435,6 +439,17 @@ class TaskRunEngine(Generic[P, R]):
                     )
                 self.logger.info(
                     f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                )
+                log_prints = should_log_prints(self.task)
+                self._initial_run_context = TaskRunContext(
+                    task=self.task,
+                    log_prints=log_prints,
+                    task_run=self.task_run,
+                    parameters=self.parameters,
+                    result_factory=run_sync(
+                        ResultFactory.from_autonomous_task(self.task)
+                    ),  # type: ignore
+                    client=client,
                 )
 
                 yield self
