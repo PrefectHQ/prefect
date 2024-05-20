@@ -11,6 +11,7 @@ import aiosqlite
 import asyncpg
 import pendulum
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +31,8 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.server.utilities.database import get_dialect
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
 
@@ -128,12 +131,20 @@ async def clear_db(db, request):
         for attempt in range(max_retries):
             try:
                 async with db.session_context(begin_transaction=True) as session:
-                    await session.execute(db.Agent.__table__.delete())
-                    await session.execute(db.WorkPool.__table__.delete())
+                    dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
+                    breakpoint()
+                    if dialect.name == "sqlite":
+                        await session.execute(db.Agent.__table__.delete())
+                        await session.execute(db.WorkPool.__table__.delete())
 
-                    for table in reversed(db.Base.metadata.sorted_tables):
-                        await session.execute(table.delete())
-                    break
+                        for table in reversed(db.Base.metadata.sorted_tables):
+                            await session.execute(table.delete())
+                        break
+                    else:
+                        await session.execute(text("DROP SCHEMA public CASCADE;"))
+                        await session.execute(text("CREATE SCHEMA public;"))
+                        await session.commit()
+                        break
             except InterfaceError:
                 if attempt < max_retries - 1:
                     print(
@@ -152,6 +163,7 @@ async def session(db) -> AsyncGenerator[AsyncSession, None]:
     session = await db.session()
     async with session:
         yield session
+        await session.rollback()
 
 
 @pytest.fixture
