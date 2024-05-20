@@ -822,9 +822,10 @@ async def run(
         help=("A deployment id to search for if no name is given"),
     ),
     params: List[str] = typer.Option(
-        None,
+        ...,
         "-p",
         "--param",
+        default_factory=list,
         help=(
             "A key, value pair (key=value) specifying a flow parameter. The value will"
             " be interpreted as JSON. May be passed multiple times to specify multiple"
@@ -856,8 +857,9 @@ async def run(
         ),
     ),
     tags: List[str] = typer.Option(
-        [],
+        ...,
         "--tag",
+        default_factory=list,
         help=("Tag(s) to be applied to flow run."),
     ),
     watch: bool = typer.Option(
