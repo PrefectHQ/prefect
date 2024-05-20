@@ -194,6 +194,7 @@ async def read_task_run_counts_by_state(
     async with db.session_context(begin_transaction=False) as session:
         return await models.task_runs.count_task_runs_by_state(
             session=session,
+            db=db,
             flow_filter=flows,
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,

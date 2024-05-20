@@ -96,7 +96,7 @@ async def read_flow_run_notification_policies(
     )
 
     if flow_run_notification_policy_filter:
-        query = query.where(flow_run_notification_policy_filter.as_sql_filter())
+        query = query.where(flow_run_notification_policy_filter.as_sql_filter(db))
 
     if offset is not None:
         query = query.offset(offset)

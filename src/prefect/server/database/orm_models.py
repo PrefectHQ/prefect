@@ -9,9 +9,9 @@ import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
-    DeclarativeBase,
+    as_declarative,
+    declarative_mixin,
     declared_attr,
-    registry,
     synonym,
 )
 from sqlalchemy.sql.expression import ColumnElement
@@ -47,41 +47,11 @@ from prefect.server.utilities.encryption import decrypt_fernet, encrypt_fernet
 from prefect.utilities.names import generate_slug
 
 
-class Base(DeclarativeBase):
+class ORMBase:
     """
     Base SQLAlchemy model that automatically infers the table name
     and provides ID, created, and updated columns
     """
-
-    registry = registry(
-        metadata=sa.schema.MetaData(
-            # define naming conventions for our Base class to use
-            # sqlalchemy will use the following templated strings
-            # to generate the names of indices, constraints, and keys
-            #
-            # we offset the table name with two underscores (__) to
-            # help differentiate, for example, between "flow_run.state_type"
-            # and "flow_run_state.type".
-            #
-            # more information on this templating and available
-            # customization can be found here
-            # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
-            #
-            # this also allows us to avoid having to specify names explicitly
-            # when using sa.ForeignKey.use_alter = True
-            # https://docs.sqlalchemy.org/en/14/core/constraints.html
-            naming_convention={
-                "ix": "ix_%(table_name)s__%(column_0_N_name)s",
-                "uq": "uq_%(table_name)s__%(column_0_N_name)s",
-                "ck": "ck_%(table_name)s__%(constraint_name)s",
-                "fk": "fk_%(table_name)s__%(column_0_N_name)s__%(referred_table_name)s",
-                "pk": "pk_%(table_name)s",
-            }
-        ),
-        type_annotation_map={
-            uuid.UUID: UUID,
-        },
-    )
 
     # required in order to access columns with server defaults
     # or SQL expression defaults, subsequent to a flush, without
@@ -133,27 +103,37 @@ class Base(DeclarativeBase):
     )
 
 
-class Flow(Base):
+@declarative_mixin
+class ORMFlow:
     """SQLAlchemy mixin of a flow."""
 
     name = sa.Column(sa.String, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runs = sa.orm.relationship("FlowRun", back_populates="flow", lazy="raise")
-    deployments = sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
+    @declared_attr
+    def flow_runs(cls):
+        return sa.orm.relationship("FlowRun", back_populates="flow", lazy="raise")
 
-    __table_args__ = (
-        sa.UniqueConstraint("name"),
-        sa.Index("ix_flow__created", "created"),
-    )
+    @declared_attr
+    def deployments(cls):
+        return sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"), sa.Index("ix_flow__created", "created"))
 
 
-class FlowRunState(Base):
+@declarative_mixin
+class ORMFlowRunState:
     """SQLAlchemy mixin of a flow run state."""
 
-    flow_run_id = sa.Column(
-        UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
-    )
+    # this column isn't explicitly indexed because it is included in
+    # the unique compound index on (flow_run_id, timestamp)
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+        )
 
     type = sa.Column(
         sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
@@ -174,22 +154,26 @@ class FlowRunState(Base):
     )
     _data = sa.Column(sa.JSON, nullable=True, name="data")
 
-    result_artifact_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "artifact.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
-    )
+    @declared_attr
+    def result_artifact_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "artifact.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
 
-    _result_artifact = sa.orm.relationship(
-        "Artifact",
-        lazy="selectin",
-        foreign_keys=[result_artifact_id],
-        primaryjoin="Artifact.id==FlowRunState.result_artifact_id",
-    )
+    @declared_attr
+    def _result_artifact(cls):
+        return sa.orm.relationship(
+            "Artifact",
+            lazy="selectin",
+            foreign_keys=[cls.result_artifact_id],
+            primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
+        )
 
     @hybrid_property
     def data(self):
@@ -201,33 +185,40 @@ class FlowRunState(Base):
             return None
         return self._result_artifact.data
 
-    flow_run = sa.orm.relationship(
-        "FlowRun",
-        lazy="raise",
-        foreign_keys=[flow_run_id],
-    )
+    @declared_attr
+    def flow_run(cls):
+        return sa.orm.relationship(
+            "FlowRun",
+            lazy="raise",
+            foreign_keys=[cls.flow_run_id],
+        )
 
     def as_state(self) -> schemas.states.State:
         return schemas.states.State.from_orm(self)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run_state__flow_run_id_timestamp_desc",
-            "flow_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_flow_run_state__flow_run_id_timestamp_desc",
+                "flow_run_id",
+                sa.desc("timestamp"),
+                unique=True,
+            ),
+        )
 
 
-class TaskRunState(Base):
+@declarative_mixin
+class ORMTaskRunState:
     """SQLAlchemy model of a task run state."""
 
     # this column isn't explicitly indexed because it is included in
     # the unique compound index on (task_run_id, timestamp)
-    task_run_id = sa.Column(
-        UUID(), sa.ForeignKey("task_run.id", ondelete="cascade"), nullable=False
-    )
+    @declared_attr
+    def task_run_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("task_run.id", ondelete="cascade"), nullable=False
+        )
 
     type = sa.Column(
         sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
@@ -248,22 +239,26 @@ class TaskRunState(Base):
     )
     _data = sa.Column(sa.JSON, nullable=True, name="data")
 
-    result_artifact_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "artifact.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
-    )
+    @declared_attr
+    def result_artifact_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "artifact.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
 
-    _result_artifact = sa.orm.relationship(
-        "Artifact",
-        lazy="selectin",
-        foreign_keys=[result_artifact_id],
-        primaryjoin="Artifact.id==TaskRunState.result_artifact_id",
-    )
+    @declared_attr
+    def _result_artifact(cls):
+        return sa.orm.relationship(
+            "Artifact",
+            lazy="selectin",
+            foreign_keys=[cls.result_artifact_id],
+            primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
+        )
 
     @hybrid_property
     def data(self):
@@ -275,26 +270,31 @@ class TaskRunState(Base):
             return None
         return self._result_artifact.data
 
-    task_run = sa.orm.relationship(
-        "TaskRun",
-        lazy="raise",
-        foreign_keys=[task_run_id],
-    )
+    @declared_attr
+    def task_run(cls):
+        return sa.orm.relationship(
+            "TaskRun",
+            lazy="raise",
+            foreign_keys=[cls.task_run_id],
+        )
 
     def as_state(self) -> schemas.states.State:
         return schemas.states.State.from_orm(self)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run_state__task_run_id_timestamp_desc",
-            "task_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_task_run_state__task_run_id_timestamp_desc",
+                "task_run_id",
+                sa.desc("timestamp"),
+                unique=True,
+            ),
+        )
 
 
-class Artifact(Base):
+@declarative_mixin
+class ORMArtifact:
     """
     SQLAlchemy model of artifacts.
     """
@@ -305,17 +305,21 @@ class Artifact(Base):
         index=True,
     )
 
-    task_run_id = sa.Column(
-        UUID(),
-        nullable=True,
-        index=True,
-    )
+    @declared_attr
+    def task_run_id(cls):
+        return sa.Column(
+            UUID(),
+            nullable=True,
+            index=True,
+        )
 
-    flow_run_id = sa.Column(
-        UUID(),
-        nullable=True,
-        index=True,
-    )
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(),
+            nullable=True,
+            index=True,
+        )
 
     type = sa.Column(sa.String)
     data = sa.Column(sa.JSON, nullable=True)
@@ -324,15 +328,17 @@ class Artifact(Base):
     # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
     metadata_ = sa.Column(sa.JSON, nullable=True)
 
-    __table_args__ = (
-        sa.Index(
-            "ix_artifact__key",
-            "key",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_artifact__key",
+                "key",
+            ),
+        )
 
 
-class ArtifactCollection(Base):
+class ORMArtifactCollection:
     key = sa.Column(
         sa.String,
         nullable=False,
@@ -355,17 +361,19 @@ class ArtifactCollection(Base):
     description = sa.Column(sa.String, nullable=True)
     metadata_ = sa.Column(sa.JSON, nullable=True)
 
-    __table_args__ = (
-        sa.UniqueConstraint("key"),
-        sa.Index(
-            "ix_artifact_collection__key_latest_id",
-            "key",
-            "latest_id",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.UniqueConstraint("key"),
+            sa.Index(
+                "ix_artifact_collection__key_latest_id",
+                "key",
+                "latest_id",
+            ),
+        )
 
 
-class TaskRunStateCache(Base):
+class ORMTaskRunStateCache:
     """
     SQLAlchemy model of a task run state cache.
     """
@@ -377,21 +385,22 @@ class TaskRunStateCache(Base):
     )
     task_run_state_id = sa.Column(UUID(), nullable=False)
 
-    __table_args__ = (
-        sa.Index(
-            "ix_task_run_state_cache__cache_key_created_desc",
-            "cache_key",
-            sa.desc("created"),
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_task_run_state_cache__cache_key_created_desc",
+                "cache_key",
+                sa.desc("created"),
+            ),
+        )
 
 
-class Run(Base):
+@declarative_mixin
+class ORMRun:
     """
     Common columns and logic for FlowRun and TaskRun models
     """
-
-    __abstract__ = True
 
     name = sa.Column(
         sa.String,
@@ -483,15 +492,18 @@ class Run(Base):
         )
 
 
-class FlowRun(Run):
+@declarative_mixin
+class ORMFlowRun(ORMRun):
     """SQLAlchemy model of a flow run."""
 
-    flow_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("flow.id", ondelete="cascade"),
-        nullable=False,
-        index=True,
-    )
+    @declared_attr
+    def flow_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("flow.id", ondelete="cascade"),
+            nullable=False,
+            index=True,
+        )
 
     deployment_id = sa.Column(UUID(), nullable=True)
     work_queue_name = sa.Column(sa.String, index=True)
@@ -517,54 +529,64 @@ class FlowRun(Run):
     infrastructure_pid = sa.Column(sa.String)
     job_variables = sa.Column(JSON, server_default="{}", default=dict, nullable=True)
 
-    infrastructure_document_id = sa.Column(
-        UUID,
-        sa.ForeignKey("block_document.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
+    @declared_attr
+    def infrastructure_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=True,
+        )
 
-    parent_task_run_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "task_run.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
-    )
+    @declared_attr
+    def parent_task_run_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "task_run.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
 
     auto_scheduled = sa.Column(
         sa.Boolean, server_default="0", default=False, nullable=False
     )
 
     # TODO remove this foreign key for significant delete performance gains
-    state_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "flow_run_state.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
-    )
+    @declared_attr
+    def state_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "flow_run_state.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
 
-    work_queue_id = sa.Column(
-        UUID,
-        sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
+    @declared_attr
+    def work_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        )
 
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
-    _state = sa.orm.relationship(
-        "FlowRunState",
-        lazy="selectin",
-        foreign_keys=[state_id],
-        primaryjoin="FlowRunState.id==FlowRun.state_id",
-    )
+    @declared_attr
+    def _state(cls):
+        return sa.orm.relationship(
+            "FlowRunState",
+            lazy="selectin",
+            foreign_keys=[cls.state_id],
+            primaryjoin="FlowRunState.id==%s.state_id" % cls.__name__,
+        )
 
     @hybrid_property
     def state(self):
@@ -592,84 +614,97 @@ class FlowRun(Run):
             state.flow_run_id = self.id
         self._state = state
 
-    flow = sa.orm.relationship("Flow", back_populates="flow_runs", lazy="raise")
+    @declared_attr
+    def flow(cls):
+        return sa.orm.relationship("Flow", back_populates="flow_runs", lazy="raise")
 
-    task_runs = sa.orm.relationship(
-        "TaskRun",
-        back_populates="flow_run",
-        lazy="raise",
-        # foreign_keys=lambda: [flow_run_id],
-        primaryjoin="TaskRun.flow_run_id==FlowRun.id",
-    )
+    @declared_attr
+    def task_runs(cls):
+        return sa.orm.relationship(
+            "TaskRun",
+            back_populates="flow_run",
+            lazy="raise",
+            # foreign_keys=lambda: [cls.flow_run_id],
+            primaryjoin="TaskRun.flow_run_id==%s.id" % cls.__name__,
+        )
 
-    parent_task_run = sa.orm.relationship(
-        "TaskRun",
-        back_populates="subflow_run",
-        lazy="raise",
-        foreign_keys=[parent_task_run_id],
-    )
+    @declared_attr
+    def parent_task_run(cls):
+        return sa.orm.relationship(
+            "TaskRun",
+            back_populates="subflow_run",
+            lazy="raise",
+            foreign_keys=lambda: [cls.parent_task_run_id],
+        )
 
-    work_queue = sa.orm.relationship(
-        "WorkQueue",
-        lazy="selectin",
-        foreign_keys=[work_queue_id],
-    )
+    @declared_attr
+    def work_queue(cls):
+        return sa.orm.relationship(
+            "WorkQueue",
+            lazy="selectin",
+            foreign_keys=[cls.work_queue_id],
+        )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run__flow_id_idempotency_key",
-            "flow_id",
-            "idempotency_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_flow_run__coalesce_start_time_expected_start_time_desc",
-            sa.desc(coalesce("start_time", "expected_start_time")),
-        ),
-        sa.Index(
-            "ix_flow_run__coalesce_start_time_expected_start_time_asc",
-            sa.asc(coalesce("start_time", "expected_start_time")),
-        ),
-        sa.Index(
-            "ix_flow_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_flow_run__state_type",
-            "state_type",
-        ),
-        sa.Index(
-            "ix_flow_run__state_name",
-            "state_name",
-        ),
-        sa.Index(
-            "ix_flow_run__state_timestamp",
-            "state_timestamp",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_flow_run__flow_id_idempotency_key",
+                "flow_id",
+                "idempotency_key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_desc",
+                sa.desc(coalesce("start_time", "expected_start_time")),
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_asc",
+                sa.asc(coalesce("start_time", "expected_start_time")),
+            ),
+            sa.Index(
+                "ix_flow_run__expected_start_time_desc",
+                sa.desc("expected_start_time"),
+            ),
+            sa.Index(
+                "ix_flow_run__next_scheduled_start_time_asc",
+                sa.asc("next_scheduled_start_time"),
+            ),
+            sa.Index(
+                "ix_flow_run__end_time_desc",
+                sa.desc("end_time"),
+            ),
+            sa.Index(
+                "ix_flow_run__start_time",
+                "start_time",
+            ),
+            sa.Index(
+                "ix_flow_run__state_type",
+                "state_type",
+            ),
+            sa.Index(
+                "ix_flow_run__state_name",
+                "state_name",
+            ),
+            sa.Index(
+                "ix_flow_run__state_timestamp",
+                "state_timestamp",
+            ),
+        )
 
 
-class TaskRun(Run):
+@declarative_mixin
+class ORMTaskRun(ORMRun):
     """SQLAlchemy model of a task run."""
 
-    flow_run_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("flow_run.id", ondelete="cascade"),
-        nullable=True,
-        index=True,
-    )
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("flow_run.id", ondelete="cascade"),
+            nullable=True,
+            index=True,
+        )
 
     task_key = sa.Column(sa.String, nullable=False)
     dynamic_key = sa.Column(sa.String, nullable=False)
@@ -705,25 +740,29 @@ class TaskRun(Run):
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     # TODO remove this foreign key for significant delete performance gains
-    state_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "task_run_state.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
-    )
+    @declared_attr
+    def state_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "task_run_state.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
 
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
-    _state = sa.orm.relationship(
-        "TaskRunState",
-        lazy="selectin",
-        foreign_keys=[state_id],
-        primaryjoin="TaskRunState.id==TaskRun.state_id",
-    )
+    @declared_attr
+    def _state(cls):
+        return sa.orm.relationship(
+            "TaskRunState",
+            lazy="selectin",
+            foreign_keys=[cls.state_id],
+            primaryjoin="TaskRunState.id==%s.state_id" % cls.__name__,
+        )
 
     @hybrid_property
     def state(self):
@@ -751,68 +790,77 @@ class TaskRun(Run):
             state.task_run_id = self.id
         self._state = state
 
-    flow_run = sa.orm.relationship(
-        "FlowRun",
-        back_populates="task_runs",
-        lazy="raise",
-        foreign_keys=[flow_run_id],
-    )
+    @declared_attr
+    def flow_run(cls):
+        return sa.orm.relationship(
+            "FlowRun",
+            back_populates="task_runs",
+            lazy="raise",
+            foreign_keys=[cls.flow_run_id],
+        )
 
-    subflow_run = sa.orm.relationship(
-        "FlowRun",
-        back_populates="parent_task_run",
-        lazy="raise",
-        # foreign_keys=["FlowRun.parent_task_run_id"],
-        primaryjoin="FlowRun.parent_task_run_id==TaskRun.id",
-        uselist=False,
-    )
+    @declared_attr
+    def subflow_run(cls):
+        return sa.orm.relationship(
+            "FlowRun",
+            back_populates="parent_task_run",
+            lazy="raise",
+            # foreign_keys=["FlowRun.parent_task_run_id"],
+            primaryjoin="FlowRun.parent_task_run_id==%s.id" % cls.__name__,
+            uselist=False,
+        )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run__flow_run_id_task_key_dynamic_key",
-            "flow_run_id",
-            "task_key",
-            "dynamic_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_task_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_task_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_task_run__state_type",
-            "state_type",
-        ),
-        sa.Index(
-            "ix_task_run__state_name",
-            "state_name",
-        ),
-        sa.Index(
-            "ix_task_run__state_timestamp",
-            "state_timestamp",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_task_run__flow_run_id_task_key_dynamic_key",
+                "flow_run_id",
+                "task_key",
+                "dynamic_key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_task_run__expected_start_time_desc",
+                sa.desc("expected_start_time"),
+            ),
+            sa.Index(
+                "ix_task_run__next_scheduled_start_time_asc",
+                sa.asc("next_scheduled_start_time"),
+            ),
+            sa.Index(
+                "ix_task_run__end_time_desc",
+                sa.desc("end_time"),
+            ),
+            sa.Index(
+                "ix_task_run__start_time",
+                "start_time",
+            ),
+            sa.Index(
+                "ix_task_run__state_type",
+                "state_type",
+            ),
+            sa.Index(
+                "ix_task_run__state_name",
+                "state_name",
+            ),
+            sa.Index(
+                "ix_task_run__state_timestamp",
+                "state_timestamp",
+            ),
+        )
 
 
-class DeploymentSchedule(Base):
-    deployment_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("deployment.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+@declarative_mixin
+class ORMDeploymentSchedule:
+    @declared_attr
+    def deployment_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("deployment.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
 
     schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES), nullable=False)
     active = sa.Column(sa.Boolean, nullable=False, default=True)
@@ -821,7 +869,8 @@ class DeploymentSchedule(Base):
     catchup = sa.Column(sa.Boolean, nullable=False, default=False)
 
 
-class Deployment(Base):
+@declarative_mixin
+class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
     name = sa.Column(sa.String, nullable=False)
@@ -845,19 +894,23 @@ class Deployment(Base):
     def job_variables(self):
         return synonym("infra_overrides")
 
-    flow_id = sa.Column(
-        UUID,
-        sa.ForeignKey("flow.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+    @declared_attr
+    def flow_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("flow.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
 
-    work_queue_id = sa.Column(
-        UUID,
-        sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
+    @declared_attr
+    def work_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        )
 
     schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES))
     is_schedule_active = sa.Column(
@@ -867,11 +920,13 @@ class Deployment(Base):
         sa.Boolean, nullable=False, server_default="0", default=False, index=True
     )
 
-    schedules = sa.orm.relationship(
-        "DeploymentSchedule",
-        lazy="selectin",
-        order_by=sa.desc(sa.text("updated")),
-    )
+    @declared_attr
+    def schedules(cls):
+        return sa.orm.relationship(
+            "DeploymentSchedule",
+            lazy="selectin",
+            order_by=sa.desc(sa.text("updated")),
+        )
 
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -893,41 +948,52 @@ class Deployment(Base):
         nullable=True,
     )
 
-    infrastructure_document_id = sa.Column(
-        UUID,
-        sa.ForeignKey("block_document.id", ondelete="CASCADE"),
-        nullable=True,
-        index=False,
-    )
+    @declared_attr
+    def infrastructure_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
+        )
 
-    storage_document_id = sa.Column(
-        UUID,
-        sa.ForeignKey("block_document.id", ondelete="CASCADE"),
-        nullable=True,
-        index=False,
-    )
+    @declared_attr
+    def storage_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
+        )
 
-    flow = sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
+    @declared_attr
+    def flow(cls):
+        return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
 
-    work_queue = sa.orm.relationship(
-        "WorkQueue", lazy="selectin", foreign_keys=[work_queue_id]
-    )
+    @declared_attr
+    def work_queue(cls):
+        return sa.orm.relationship(
+            "WorkQueue", lazy="selectin", foreign_keys=[cls.work_queue_id]
+        )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_deployment__flow_id_name",
-            "flow_id",
-            "name",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_deployment__created",
-            "created",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_deployment__flow_id_name",
+                "flow_id",
+                "name",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_deployment__created",
+                "created",
+            ),
+        )
 
 
-class Log(Base):
+@declarative_mixin
+class ORMLog:
     """
     SQLAlchemy model of a logging statement.
     """
@@ -941,24 +1007,30 @@ class Log(Base):
     # The client-side timestamp of this logged statement.
     timestamp = sa.Column(Timestamp(), nullable=False, index=True)
 
-    __table_args__ = (
-        sa.Index(
-            "ix_log__flow_run_id_timestamp",
-            "flow_run_id",
-            "timestamp",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_log__flow_run_id_timestamp",
+                "flow_run_id",
+                "timestamp",
+            ),
+        )
 
 
-class ConcurrencyLimit(Base):
+@declarative_mixin
+class ORMConcurrencyLimit:
     tag = sa.Column(sa.String, nullable=False)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
     active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    __table_args__ = (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
 
-class ConcurrencyLimitV2(Base):
+@declarative_mixin
+class ORMConcurrencyLimitV2:
     active = sa.Column(sa.Boolean, nullable=False, default=True)
     name = sa.Column(sa.String, nullable=False)
     limit = sa.Column(sa.Integer, nullable=False)
@@ -971,7 +1043,8 @@ class ConcurrencyLimitV2(Base):
     __table_args__ = (sa.UniqueConstraint("name"),)
 
 
-class BlockType(Base):
+@declarative_mixin
+class ORMBlockType:
     name = sa.Column(sa.String, nullable=False)
     slug = sa.Column(sa.String, nullable=False)
     logo_url = sa.Column(sa.String, nullable=True)
@@ -982,16 +1055,19 @@ class BlockType(Base):
         sa.Boolean, nullable=False, server_default="0", default=False
     )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_block_type__slug",
-            "slug",
-            unique=True,
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_block_type__slug",
+                "slug",
+                unique=True,
+            ),
+        )
 
 
-class BlockSchema(Base):
+@declarative_mixin
+class ORMBlockSchema:
     checksum = sa.Column(sa.String, nullable=False)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     capabilities = sa.Column(JSON, server_default="[]", default=list, nullable=False)
@@ -1001,73 +1077,95 @@ class BlockSchema(Base):
         nullable=False,
     )
 
-    block_type_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_type.id", ondelete="cascade"),
-        nullable=False,
-        index=True,
-    )
+    @declared_attr
+    def block_type_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_type.id", ondelete="cascade"),
+            nullable=False,
+            index=True,
+        )
 
-    block_type = sa.orm.relationship("BlockType", lazy="selectin")
+    @declared_attr
+    def block_type(cls):
+        return sa.orm.relationship("BlockType", lazy="selectin")
 
-    __table_args__ = (
-        sa.Index(
-            "uq_block_schema__checksum_version",
-            "checksum",
-            "version",
-            unique=True,
-        ),
-        sa.Index("ix_block_schema__created", "created"),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_block_schema__checksum_version",
+                "checksum",
+                "version",
+                unique=True,
+            ),
+            sa.Index("ix_block_schema__created", "created"),
+        )
 
 
-class BlockSchemaReference(Base):
+@declarative_mixin
+class ORMBlockSchemaReference:
     name = sa.Column(sa.String, nullable=False)
 
-    parent_block_schema_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_schema.id", ondelete="cascade"),
-        nullable=False,
-    )
+    @declared_attr
+    def parent_block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
+        )
 
-    reference_block_schema_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_schema.id", ondelete="cascade"),
-        nullable=False,
-    )
+    @declared_attr
+    def reference_block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
+        )
 
 
-class BlockDocument(Base):
+@declarative_mixin
+class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
 
     block_type_name = sa.Column(sa.String, nullable=True)
 
-    block_type_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_type.id", ondelete="cascade"),
-        nullable=False,
-    )
+    @declared_attr
+    def block_type_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_type.id", ondelete="cascade"),
+            nullable=False,
+        )
 
-    block_type = sa.orm.relationship("BlockType", lazy="selectin")
+    @declared_attr
+    def block_type(cls):
+        return sa.orm.relationship("BlockType", lazy="selectin")
 
-    block_schema_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_schema.id", ondelete="cascade"),
-        nullable=False,
-    )
+    @declared_attr
+    def block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
+        )
 
-    block_schema = sa.orm.relationship("BlockSchema", lazy="selectin")
+    @declared_attr
+    def block_schema(cls):
+        return sa.orm.relationship("BlockSchema", lazy="selectin")
 
-    __table_args__ = (
-        sa.Index(
-            "uq_block__type_id_name",
-            "block_type_id",
-            "name",
-            unique=True,
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_block__type_id_name",
+                "block_type_id",
+                "name",
+                unique=True,
+            ),
+        )
 
     async def encrypt_data(self, session, data):
         """
@@ -1086,30 +1184,39 @@ class BlockDocument(Base):
         return await decrypt_fernet(session, self.data)
 
 
-class BlockDocumentReference(Base):
+@declarative_mixin
+class ORMBlockDocumentReference:
     name = sa.Column(sa.String, nullable=False)
 
-    parent_block_document_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_document.id", ondelete="cascade"),
-        nullable=False,
-    )
+    @declared_attr
+    def parent_block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
 
-    reference_block_document_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_document.id", ondelete="cascade"),
-        nullable=False,
-    )
+    @declared_attr
+    def reference_block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
 
 
-class Configuration(Base):
+@declarative_mixin
+class ORMConfiguration:
     key = sa.Column(sa.String, nullable=False, index=True)
     value = sa.Column(JSON, nullable=False)
 
-    __table_args__ = (sa.UniqueConstraint("key"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("key"),)
 
 
-class SavedSearch(Base):
+@declarative_mixin
+class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
     name = sa.Column(sa.String, nullable=False)
@@ -1120,10 +1227,13 @@ class SavedSearch(Base):
         nullable=False,
     )
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
 
 
-class WorkQueue(Base):
+@declarative_mixin
+class ORMWorkQueue:
     """SQLAlchemy model of a work queue"""
 
     name = sa.Column(sa.String, nullable=False)
@@ -1150,23 +1260,30 @@ class WorkQueue(Base):
         server_default=WorkQueueStatus.NOT_READY.value,
     )
 
-    __table_args__ = (sa.UniqueConstraint("work_pool_id", "name"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("work_pool_id", "name"),)
 
-    work_pool_id = sa.Column(
-        UUID,
-        sa.ForeignKey("work_pool.id", ondelete="cascade"),
-        nullable=False,
-        index=True,
-    )
+    @declared_attr
+    def work_pool_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_pool.id", ondelete="cascade"),
+            nullable=False,
+            index=True,
+        )
 
-    work_pool = sa.orm.relationship(
-        "WorkPool",
-        lazy="selectin",
-        foreign_keys=[work_pool_id],
-    )
+    @declared_attr
+    def work_pool(cls):
+        return sa.orm.relationship(
+            "WorkPool",
+            lazy="selectin",
+            foreign_keys=[cls.work_pool_id],
+        )
 
 
-class WorkPool(Base):
+@declarative_mixin
+class ORMWorkPool:
     """SQLAlchemy model of an worker"""
 
     name = sa.Column(sa.String, nullable=False)
@@ -1189,10 +1306,13 @@ class WorkPool(Base):
     last_transitioned_status_at = sa.Column(Timestamp(), nullable=True)
     last_status_event_id = sa.Column(UUID, nullable=True)
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
 
 
-class Worker(Base):
+@declarative_mixin
+class ORMWorker:
     """SQLAlchemy model of an worker"""
 
     @declared_attr
@@ -1221,20 +1341,25 @@ class Worker(Base):
         server_default=WorkerStatus.OFFLINE.value,
     )
 
-    __table_args__ = (sa.UniqueConstraint("work_pool_id", "name"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("work_pool_id", "name"),)
 
 
-class Agent(Base):
+@declarative_mixin
+class ORMAgent:
     """SQLAlchemy model of an agent"""
 
     name = sa.Column(sa.String, nullable=False)
 
-    work_queue_id = sa.Column(
-        UUID,
-        sa.ForeignKey("work_queue.id"),
-        nullable=False,
-        index=True,
-    )
+    @declared_attr
+    def work_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_queue.id"),
+            nullable=False,
+            index=True,
+        )
 
     last_activity_time = sa.Column(
         Timestamp(),
@@ -1243,29 +1368,37 @@ class Agent(Base):
         default=lambda: pendulum.now("UTC"),
     )
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
 
 
-class FlowRunNotificationPolicy(Base):
+@declarative_mixin
+class ORMFlowRunNotificationPolicy:
     is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
     state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=[], nullable=False)
     message_template = sa.Column(sa.String, nullable=True)
 
-    block_document_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_document.id", ondelete="cascade"),
-        nullable=False,
-    )
+    @declared_attr
+    def block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
 
-    block_document = sa.orm.relationship(
-        "BlockDocument",
-        lazy="selectin",
-        foreign_keys=[block_document_id],
-    )
+    @declared_attr
+    def block_document(cls):
+        return sa.orm.relationship(
+            "BlockDocument",
+            lazy="selectin",
+            foreign_keys=[cls.block_document_id],
+        )
 
 
-class FlowRunNotificationQueue(Base):
+@declarative_mixin
+class ORMFlowRunNotificationQueue:
     # these are both foreign keys but there is no need to enforce that constraint
     # as this is just a queue for service workers; if the keys don't match at the
     # time work is pulled, the work can be discarded
@@ -1273,7 +1406,8 @@ class FlowRunNotificationQueue(Base):
     flow_run_state_id = sa.Column(UUID, nullable=False)
 
 
-class Variable(Base):
+@declarative_mixin
+class ORMVariable:
     name = sa.Column(sa.String, nullable=False)
     value = sa.Column(sa.String, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
@@ -1281,10 +1415,13 @@ class Variable(Base):
     __table_args__ = (sa.UniqueConstraint("name"),)
 
 
-class FlowRunInput(Base):
-    flow_run_id = sa.Column(
-        UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
-    )
+@declarative_mixin
+class ORMFlowRunInput:
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+        )
 
     key = sa.Column(sa.String, nullable=False)
     value = sa.Column(sa.Text(), nullable=False)
@@ -1293,13 +1430,15 @@ class FlowRunInput(Base):
     __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
 
 
-class CsrfToken(Base):
+@declarative_mixin
+class ORMCsrfToken:
     token = sa.Column(sa.String, nullable=False)
     client = sa.Column(sa.String, nullable=False, unique=True)
     expiration = sa.Column(Timestamp(), nullable=False)
 
 
-class Automation(Base):
+@declarative_mixin
+class ORMAutomation:
     name = sa.Column(sa.String, nullable=False)
     description = sa.Column(sa.String, nullable=False, default="")
 
@@ -1315,9 +1454,11 @@ class Automation(Base):
         Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
     )
 
-    related_resources = sa.orm.relationship(
-        "AutomationRelatedResource", back_populates="automation", lazy="raise"
-    )
+    @declared_attr
+    def related_resources(cls):
+        return sa.orm.relationship(
+            "AutomationRelatedResource", back_populates="automation", lazy="raise"
+        )
 
     @classmethod
     def sort_expression(cls, value: AutomationSort) -> ColumnElement:
@@ -1331,25 +1472,30 @@ class Automation(Base):
         return sort_mapping[value]
 
 
-class AutomationBucket(Base):
-    __table_args__ = (
-        sa.Index(
-            "uq_automation_bucket__automation_id__trigger_id__bucketing_key",
-            "automation_id",
-            "trigger_id",
-            "bucketing_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_automation_bucket__automation_id__end",
-            "automation_id",
-            "end",
-        ),
-    )
+@declarative_mixin
+class ORMAutomationBucket:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_automation_bucket__automation_id__trigger_id__bucketing_key",
+                "automation_id",
+                "trigger_id",
+                "bucketing_key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_automation_bucket__automation_id__end",
+                "automation_id",
+                "end",
+            ),
+        )
 
-    automation_id = sa.Column(
-        UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
-    )
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
 
     trigger_id = sa.Column(UUID, nullable=False)
 
@@ -1367,44 +1513,56 @@ class AutomationBucket(Base):
     triggered_at = sa.Column(Timestamp(), nullable=True)
 
 
-class AutomationRelatedResource(Base):
-    __table_args__ = (
-        sa.Index(
-            "uq_automation_related_resource__automation_id__resource_id",
-            "automation_id",
-            "resource_id",
-            unique=True,
-        ),
-    )
+@declarative_mixin
+class ORMAutomationRelatedResource:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_automation_related_resource__automation_id__resource_id",
+                "automation_id",
+                "resource_id",
+                unique=True,
+            ),
+        )
 
-    automation_id = sa.Column(
-        UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
-    )
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
 
     resource_id = sa.Column(sa.String, index=True)
     automation_owned_by_resource = sa.Column(
         sa.Boolean, nullable=False, default=False, server_default="0"
     )
 
-    automation = sa.orm.relationship(
-        "Automation", back_populates="related_resources", lazy="raise"
-    )
+    @declared_attr
+    def automation(cls):
+        return sa.orm.relationship(
+            "Automation", back_populates="related_resources", lazy="raise"
+        )
 
 
-class CompositeTriggerChildFiring(Base):
-    __table_args__ = (
-        sa.Index(
-            "uq_composite_trigger_child_firing__a_id__pt_id__ct__id",
-            "automation_id",
-            "parent_trigger_id",
-            "child_trigger_id",
-            unique=True,
-        ),
-    )
+@declarative_mixin
+class ORMCompositeTriggerChildFiring:
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_composite_trigger_child_firing__a_id__pt_id__ct__id",
+                "automation_id",
+                "parent_trigger_id",
+                "child_trigger_id",
+                unique=True,
+            ),
+        )
 
-    automation_id = sa.Column(
-        UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
-    )
+    @declared_attr
+    def automation_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+        )
 
     parent_trigger_id = sa.Column(UUID(), nullable=False)
 
@@ -1414,32 +1572,38 @@ class CompositeTriggerChildFiring(Base):
     child_firing = sa.Column(Pydantic(Firing), nullable=False)
 
 
-class AutomationEventFollower(Base):
+@declarative_mixin
+class ORMAutomationEventFollower:
     leader_event_id = sa.Column(UUID(), nullable=False, index=True)
     follower_event_id = sa.Column(UUID(), nullable=False, unique=True)
     received = sa.Column(Timestamp(), nullable=False, index=True)
     follower = sa.Column(Pydantic(ReceivedEvent), nullable=False)
 
 
-class Event(Base):
+@declarative_mixin
+class ORMEvent:
     @declared_attr
     def __tablename__(cls):
         return "events"
 
-    __table_args__ = (
-        sa.Index("ix_events__related_resource_ids", "related_resource_ids"),
-        sa.Index("ix_events__occurred", "occurred"),
-        sa.Index("ix_events__event__id", "event", "id"),
-        sa.Index(
-            "ix_events__event_resource_id_occurred",
-            "event",
-            "resource_id",
-            "occurred",
-        ),
-        sa.Index("ix_events__occurred_id", "occurred", "id"),
-        sa.Index("ix_events__event_occurred_id", "event", "occurred", "id"),
-        sa.Index("ix_events__event_related_occurred", "event", "related", "occurred"),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_events__related_resource_ids", "related_resource_ids"),
+            sa.Index("ix_events__occurred", "occurred"),
+            sa.Index("ix_events__event__id", "event", "id"),
+            sa.Index(
+                "ix_events__event_resource_id_occurred",
+                "event",
+                "resource_id",
+                "occurred",
+            ),
+            sa.Index("ix_events__occurred_id", "occurred", "id"),
+            sa.Index("ix_events__event_occurred_id", "event", "occurred", "id"),
+            sa.Index(
+                "ix_events__event_related_occurred", "event", "related", "occurred"
+            ),
+        )
 
     occurred = sa.Column(Timestamp(), nullable=False)
     event = sa.Column(sa.Text(), nullable=False)
@@ -1455,18 +1619,21 @@ class Event(Base):
     follows = sa.Column(UUID(), nullable=True)
 
 
-class EventResource(Base):
+@declarative_mixin
+class ORMEventResource:
     @declared_attr
     def __tablename__(cls):
         return "event_resources"
 
-    __table_args__ = (
-        sa.Index(
-            "ix_event_resources__resource_id__occurred",
-            "resource_id",
-            "occurred",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_event_resources__resource_id__occurred",
+                "resource_id",
+                "occurred",
+            ),
+        )
 
     occurred = sa.Column("occurred", Timestamp(), nullable=False)
     resource_id = sa.Column("resource_id", sa.Text(), nullable=False)
@@ -1475,61 +1642,349 @@ class EventResource(Base):
     event_id = sa.Column("event_id", UUID(), nullable=False)
 
 
-# These are temporary until we've migrated all the references to the new,
-# non-ORM names
-
-ORMFlow = Flow
-ORMFlowRunState = FlowRunState
-ORMTaskRunState = TaskRunState
-ORMArtifact = Artifact
-ORMArtifactCollection = ArtifactCollection
-ORMTaskRunStateCache = TaskRunStateCache
-ORMRun = Run
-ORMFlowRun = FlowRun
-ORMTaskRun = TaskRun
-ORMDeploymentSchedule = DeploymentSchedule
-ORMDeployment = Deployment
-ORMLog = Log
-ORMConcurrencyLimit = ConcurrencyLimit
-ORMConcurrencyLimitV2 = ConcurrencyLimitV2
-ORMBlockType = BlockType
-ORMBlockSchema = BlockSchema
-ORMBlockSchemaReference = BlockSchemaReference
-ORMBlockDocument = BlockDocument
-ORMBlockDocumentReference = BlockDocumentReference
-ORMConfiguration = Configuration
-ORMSavedSearch = SavedSearch
-ORMWorkQueue = WorkQueue
-ORMWorkPool = WorkPool
-ORMWorker = Worker
-ORMAgent = Agent
-ORMFlowRunNotificationPolicy = FlowRunNotificationPolicy
-ORMFlowRunNotificationQueue = FlowRunNotificationQueue
-ORMVariable = Variable
-ORMFlowRunInput = FlowRunInput
-ORMCsrfToken = CsrfToken
-ORMAutomation = Automation
-ORMAutomationBucket = AutomationBucket
-ORMAutomationRelatedResource = AutomationRelatedResource
-ORMCompositeTriggerChildFiring = CompositeTriggerChildFiring
-ORMAutomationEventFollower = AutomationEventFollower
-ORMEvent = Event
-ORMEventResource = EventResource
-
-
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
 
     Modifications to core Prefect REST API data structures can have unintended consequences.
     Use with caution.
+
+    Args:
+        base_metadata: sqlalchemy.schema.Metadata used to create the Base orm class
+        base_model_mixins: a list of mixins to add to the Base orm model
+        flow_mixin: flow orm mixin, combined with Base orm class
+        flow_run_mixin: flow run orm mixin, combined with Base orm class
+        flow_run_state_mixin: flow run state mixin, combined with Base orm class
+        task_run_mixin: task run mixin, combined with Base orm class
+        task_run_state_mixin: task run state, combined with Base orm class
+        task_run_state_cache_mixin: task run state cache orm mixin, combined with Base orm class
+        deployment_mixin: deployment orm mixin, combined with Base orm class
+        saved_search_mixin: saved search orm mixin, combined with Base orm class
+        log_mixin: log orm mixin, combined with Base orm class
+        work_pool_mixin: work pool orm mixin, combined with Base orm class
+        worker_mixin: worker orm mixin, combined with Base orm class
+        concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_type_mixin: block_type orm mixin, combined with Base orm class
+        block_schema_mixin: block_schema orm mixin, combined with Base orm class
+        block_schema_reference_mixin: block_schema_reference orm mixin, combined with Base orm class
+        block_document_mixin: block_document orm mixin, combined with Base orm class
+        block_document_reference_mixin: block_document_reference orm mixin, combined with Base orm class
+        configuration_mixin: configuration orm mixin, combined with Base orm class
+
     """
+
+    def __init__(
+        self,
+        base_metadata: sa.schema.MetaData = None,
+        base_model_mixins: List = None,
+        flow_mixin=ORMFlow,
+        flow_run_mixin=ORMFlowRun,
+        flow_run_state_mixin=ORMFlowRunState,
+        task_run_mixin=ORMTaskRun,
+        task_run_state_mixin=ORMTaskRunState,
+        artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
+        task_run_state_cache_mixin=ORMTaskRunStateCache,
+        deployment_mixin=ORMDeployment,
+        deployment_schedule_mixin=ORMDeploymentSchedule,
+        saved_search_mixin=ORMSavedSearch,
+        log_mixin=ORMLog,
+        concurrency_limit_mixin=ORMConcurrencyLimit,
+        concurrency_limit_v2_mixin=ORMConcurrencyLimitV2,
+        work_pool_mixin=ORMWorkPool,
+        worker_mixin=ORMWorker,
+        block_type_mixin=ORMBlockType,
+        block_schema_mixin=ORMBlockSchema,
+        block_schema_reference_mixin=ORMBlockSchemaReference,
+        block_document_mixin=ORMBlockDocument,
+        block_document_reference_mixin=ORMBlockDocumentReference,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        configuration_mixin=ORMConfiguration,
+        variable_mixin=ORMVariable,
+        csrf_token_mixin=ORMCsrfToken,
+        flow_run_input_mixin=ORMFlowRunInput,
+        automation_mixin=ORMAutomation,
+        automation_bucket_mixin=ORMAutomationBucket,
+        automation_related_resource_mixin=ORMAutomationRelatedResource,
+        composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
+        event_follower_mixin=ORMAutomationEventFollower,
+        event_mixin=ORMEvent,
+        event_resource_mixin=ORMEventResource,
+    ):
+        self.base_metadata = base_metadata or sa.schema.MetaData(
+            # define naming conventions for our Base class to use
+            # sqlalchemy will use the following templated strings
+            # to generate the names of indices, constraints, and keys
+            #
+            # we offset the table name with two underscores (__) to
+            # help differentiate, for example, between "flow_run.state_type"
+            # and "flow_run_state.type".
+            #
+            # more information on this templating and available
+            # customization can be found here
+            # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
+            #
+            # this also allows us to avoid having to specify names explicitly
+            # when using sa.ForeignKey.use_alter = True
+            # https://docs.sqlalchemy.org/en/14/core/constraints.html
+            naming_convention={
+                "ix": "ix_%(table_name)s__%(column_0_N_name)s",
+                "uq": "uq_%(table_name)s__%(column_0_N_name)s",
+                "ck": "ck_%(table_name)s__%(constraint_name)s",
+                "fk": "fk_%(table_name)s__%(column_0_N_name)s__%(referred_table_name)s",
+                "pk": "pk_%(table_name)s",
+            }
+        )
+        self.base_model_mixins = base_model_mixins or []
+
+        self._create_base_model()
+        self._create_orm_models(
+            flow_mixin=flow_mixin,
+            flow_run_mixin=flow_run_mixin,
+            flow_run_state_mixin=flow_run_state_mixin,
+            task_run_mixin=task_run_mixin,
+            task_run_state_mixin=task_run_state_mixin,
+            artifact_mixin=artifact_mixin,
+            artifact_collection_mixin=artifact_collection_mixin,
+            task_run_state_cache_mixin=task_run_state_cache_mixin,
+            deployment_mixin=deployment_mixin,
+            deployment_schedule_mixin=deployment_schedule_mixin,
+            saved_search_mixin=saved_search_mixin,
+            log_mixin=log_mixin,
+            concurrency_limit_mixin=concurrency_limit_mixin,
+            concurrency_limit_v2_mixin=concurrency_limit_v2_mixin,
+            work_pool_mixin=work_pool_mixin,
+            worker_mixin=worker_mixin,
+            work_queue_mixin=work_queue_mixin,
+            agent_mixin=agent_mixin,
+            block_type_mixin=block_type_mixin,
+            block_schema_mixin=block_schema_mixin,
+            block_schema_reference_mixin=block_schema_reference_mixin,
+            block_document_mixin=block_document_mixin,
+            block_document_reference_mixin=block_document_reference_mixin,
+            configuration_mixin=configuration_mixin,
+            variable_mixin=variable_mixin,
+            flow_run_input_mixin=flow_run_input_mixin,
+            csrf_token_mixin=csrf_token_mixin,
+            automation_mixin=automation_mixin,
+            automation_bucket_mixin=automation_bucket_mixin,
+            automation_related_resource_mixin=automation_related_resource_mixin,
+            composite_trigger_child_firing_mixin=composite_trigger_child_firing_mixin,
+            event_follower_mixin=event_follower_mixin,
+            event_mixin=event_mixin,
+            event_resource_mixin=event_resource_mixin,
+        )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """
-        return (self.__class__, Base.metadata)
+        return (self.__class__, self.base_metadata, tuple(self.base_model_mixins))
+
+    def _create_base_model(self):
+        """
+        Defines the base ORM model and binds it to `self`. The base model will be
+        extended by mixins specified in the database configuration. This method only
+        runs on instantiation.
+        """
+
+        @as_declarative(metadata=self.base_metadata)
+        class Base(*self.base_model_mixins, ORMBase):
+            pass
+
+        self.Base = Base
+
+    def _create_orm_models(
+        self,
+        flow_mixin=ORMFlow,
+        flow_run_mixin=ORMFlowRun,
+        flow_run_state_mixin=ORMFlowRunState,
+        task_run_mixin=ORMTaskRun,
+        task_run_state_mixin=ORMTaskRunState,
+        artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
+        task_run_state_cache_mixin=ORMTaskRunStateCache,
+        deployment_mixin=ORMDeployment,
+        deployment_schedule_mixin=ORMDeploymentSchedule,
+        saved_search_mixin=ORMSavedSearch,
+        log_mixin=ORMLog,
+        concurrency_limit_mixin=ORMConcurrencyLimit,
+        concurrency_limit_v2_mixin=ORMConcurrencyLimitV2,
+        work_pool_mixin=ORMWorkPool,
+        worker_mixin=ORMWorker,
+        block_type_mixin=ORMBlockType,
+        block_schema_mixin=ORMBlockSchema,
+        block_schema_reference_mixin=ORMBlockSchemaReference,
+        block_document_mixin=ORMBlockDocument,
+        block_document_reference_mixin=ORMBlockDocumentReference,
+        flow_run_notification_policy_mixin=ORMFlowRunNotificationPolicy,
+        flow_run_notification_queue_mixin=ORMFlowRunNotificationQueue,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        configuration_mixin=ORMConfiguration,
+        variable_mixin=ORMVariable,
+        csrf_token_mixin=ORMCsrfToken,
+        flow_run_input_mixin=ORMFlowRunInput,
+        automation_mixin=ORMAutomation,
+        automation_bucket_mixin=ORMAutomationBucket,
+        automation_related_resource_mixin=ORMAutomationRelatedResource,
+        composite_trigger_child_firing_mixin=ORMCompositeTriggerChildFiring,
+        event_follower_mixin=ORMAutomationEventFollower,
+        event_mixin=ORMEvent,
+        event_resource_mixin=ORMEventResource,
+    ):
+        """
+        Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
+        only runs on instantiation.
+        """
+
+        class Flow(flow_mixin, self.Base):
+            pass
+
+        class FlowRunState(flow_run_state_mixin, self.Base):
+            pass
+
+        class TaskRunState(task_run_state_mixin, self.Base):
+            pass
+
+        class Artifact(artifact_mixin, self.Base):
+            pass
+
+        class ArtifactCollection(artifact_collection_mixin, self.Base):
+            pass
+
+        class TaskRunStateCache(task_run_state_cache_mixin, self.Base):
+            pass
+
+        class FlowRun(flow_run_mixin, self.Base):
+            pass
+
+        class TaskRun(task_run_mixin, self.Base):
+            pass
+
+        class Deployment(deployment_mixin, self.Base):
+            pass
+
+        class DeploymentSchedule(deployment_schedule_mixin, self.Base):
+            pass
+
+        class SavedSearch(saved_search_mixin, self.Base):
+            pass
+
+        class Log(log_mixin, self.Base):
+            pass
+
+        class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
+            pass
+
+        class ConcurrencyLimitV2(concurrency_limit_v2_mixin, self.Base):
+            pass
+
+        class WorkPool(work_pool_mixin, self.Base):
+            pass
+
+        class Worker(worker_mixin, self.Base):
+            pass
+
+        class WorkQueue(work_queue_mixin, self.Base):
+            pass
+
+        class Agent(agent_mixin, self.Base):
+            pass
+
+        class BlockType(block_type_mixin, self.Base):
+            pass
+
+        class BlockSchema(block_schema_mixin, self.Base):
+            pass
+
+        class BlockSchemaReference(block_schema_reference_mixin, self.Base):
+            pass
+
+        class BlockDocument(block_document_mixin, self.Base):
+            pass
+
+        class BlockDocumentReference(block_document_reference_mixin, self.Base):
+            pass
+
+        class CsrfToken(csrf_token_mixin, self.Base):
+            pass
+
+        class FlowRunNotificationPolicy(flow_run_notification_policy_mixin, self.Base):
+            pass
+
+        class FlowRunNotificationQueue(flow_run_notification_queue_mixin, self.Base):
+            pass
+
+        class Configuration(configuration_mixin, self.Base):
+            pass
+
+        class Variable(variable_mixin, self.Base):
+            pass
+
+        class FlowRunInput(flow_run_input_mixin, self.Base):
+            pass
+
+        class Automation(automation_mixin, self.Base):
+            pass
+
+        class AutomationBucket(automation_bucket_mixin, self.Base):
+            pass
+
+        class AutomationRelatedResource(automation_related_resource_mixin, self.Base):
+            pass
+
+        class CompositeTriggerChildFiring(
+            composite_trigger_child_firing_mixin, self.Base
+        ):
+            pass
+
+        class AutomationEventFollower(event_follower_mixin, self.Base):
+            pass
+
+        class Event(event_mixin, self.Base):
+            pass
+
+        class EventResource(event_resource_mixin, self.Base):
+            pass
+
+        self.Flow = Flow
+        self.FlowRunState = FlowRunState
+        self.TaskRunState = TaskRunState
+        self.Artifact = Artifact
+        self.ArtifactCollection = ArtifactCollection
+        self.TaskRunStateCache = TaskRunStateCache
+        self.FlowRun = FlowRun
+        self.TaskRun = TaskRun
+        self.Deployment = Deployment
+        self.DeploymentSchedule = DeploymentSchedule
+        self.SavedSearch = SavedSearch
+        self.Log = Log
+        self.ConcurrencyLimit = ConcurrencyLimit
+        self.ConcurrencyLimitV2 = ConcurrencyLimitV2
+        self.WorkPool = WorkPool
+        self.Worker = Worker
+        self.WorkQueue = WorkQueue
+        self.Agent = Agent
+        self.BlockType = BlockType
+        self.BlockSchema = BlockSchema
+        self.BlockSchemaReference = BlockSchemaReference
+        self.BlockDocument = BlockDocument
+        self.BlockDocumentReference = BlockDocumentReference
+        self.FlowRunNotificationPolicy = FlowRunNotificationPolicy
+        self.FlowRunNotificationQueue = FlowRunNotificationQueue
+        self.Configuration = Configuration
+        self.Variable = Variable
+        self.FlowRunInput = FlowRunInput
+        self.CsrfToken = CsrfToken
+        self.Automation = Automation
+        self.AutomationBucket = AutomationBucket
+        self.AutomationRelatedResource = AutomationRelatedResource
+        self.CompositeTriggerChildFiring = CompositeTriggerChildFiring
+        self.AutomationEventFollower = AutomationEventFollower
+        self.Event = Event
+        self.EventResource = EventResource
 
     @property
     @abstractmethod
@@ -1540,56 +1995,56 @@ class BaseORMConfiguration(ABC):
     @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
-        return [Deployment.flow_id, Deployment.name]
+        return [self.Deployment.flow_id, self.Deployment.name]
 
     @property
     def concurrency_limit_unique_upsert_columns(self):
         """Unique columns for upserting a ConcurrencyLimit"""
-        return [ConcurrencyLimit.tag]
+        return [self.ConcurrencyLimit.tag]
 
     @property
     def flow_run_unique_upsert_columns(self):
         """Unique columns for upserting a FlowRun"""
-        return [FlowRun.flow_id, FlowRun.idempotency_key]
+        return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
 
     @property
     def block_type_unique_upsert_columns(self):
         """Unique columns for upserting a BlockType"""
-        return [BlockType.slug]
+        return [self.BlockType.slug]
 
     @property
     def artifact_collection_unique_upsert_columns(self):
         """Unique columns for upserting an ArtifactCollection"""
-        return [ArtifactCollection.key]
+        return [self.ArtifactCollection.key]
 
     @property
     def block_schema_unique_upsert_columns(self):
         """Unique columns for upserting a BlockSchema"""
-        return [BlockSchema.checksum, BlockSchema.version]
+        return [self.BlockSchema.checksum, self.BlockSchema.version]
 
     @property
     def flow_unique_upsert_columns(self):
         """Unique columns for upserting a Flow"""
-        return [Flow.name]
+        return [self.Flow.name]
 
     @property
     def saved_search_unique_upsert_columns(self):
         """Unique columns for upserting a SavedSearch"""
-        return [SavedSearch.name]
+        return [self.SavedSearch.name]
 
     @property
     def task_run_unique_upsert_columns(self):
         """Unique columns for upserting a TaskRun"""
         return [
-            TaskRun.flow_run_id,
-            TaskRun.task_key,
-            TaskRun.dynamic_key,
+            self.TaskRun.flow_run_id,
+            self.TaskRun.task_key,
+            self.TaskRun.dynamic_key,
         ]
 
     @property
     def block_document_unique_upsert_columns(self):
         """Unique columns for upserting a BlockDocument"""
-        return [BlockDocument.block_type_id, BlockDocument.name]
+        return [self.BlockDocument.block_type_id, self.BlockDocument.name]
 
 
 class AsyncPostgresORMConfiguration(BaseORMConfiguration):

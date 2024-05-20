@@ -93,7 +93,7 @@ class TestGetRunsInQueueQuery:
     async def test_get_runs_in_queue_query(
         self, session, db, fr_1, fr_2, fr_3, work_queue_1, work_queue_2
     ):
-        query = db.queries.get_scheduled_flow_runs_from_work_queues()
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
         result = await session.execute(query)
         runs = result.all()
 
@@ -107,7 +107,7 @@ class TestGetRunsInQueueQuery:
     async def test_get_runs_in_queue_query_with_scalars(
         self, session, db, fr_1, fr_2, fr_3, work_queue_1, work_queue_2
     ):
-        query = db.queries.get_scheduled_flow_runs_from_work_queues()
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
         result = await session.execute(query)
         # will only capture the flow run object
         runs = result.scalars().unique().all()
@@ -115,7 +115,9 @@ class TestGetRunsInQueueQuery:
         assert [r.id for r in runs] == [fr_1.id, fr_2.id, fr_3.id]
 
     async def test_get_runs_in_queue_limit(self, session, db, fr_1, fr_2, fr_3):
-        query = db.queries.get_scheduled_flow_runs_from_work_queues(limit_per_queue=1)
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(
+            db=db, limit_per_queue=1
+        )
         result = await session.execute(query)
         runs = result.all()
 
@@ -152,7 +154,9 @@ class TestGetRunsInQueueQuery:
 
         await session.commit()
 
-        query = db.queries.get_scheduled_flow_runs_from_work_queues(limit_per_queue=1)
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(
+            db=db, limit_per_queue=1
+        )
         result = await session.execute(query)
         runs = result.all()
 
@@ -163,7 +167,7 @@ class TestGetRunsInQueueQuery:
         self, session, db, fr_1, fr_2, fr_3
     ):
         query = db.queries.get_scheduled_flow_runs_from_work_queues(
-            scheduled_before=pendulum.now("UTC").subtract(seconds=90)
+            db=db, scheduled_before=pendulum.now("UTC").subtract(seconds=90)
         )
         result = await session.execute(query)
         runs = result.all()
@@ -174,7 +178,7 @@ class TestGetRunsInQueueQuery:
         self, session, db, fr_1, fr_2, fr_3, work_queue_2
     ):
         query = db.queries.get_scheduled_flow_runs_from_work_queues(
-            work_queue_ids=[work_queue_2.id]
+            db=db, work_queue_ids=[work_queue_2.id]
         )
         result = await session.execute(query)
         runs = result.all()
@@ -185,7 +189,7 @@ class TestGetRunsInQueueQuery:
         self, session, db, fr_1, fr_2, fr_3, work_queue_2
     ):
         query = db.queries.get_scheduled_flow_runs_from_work_queues(
-            work_queue_ids=[work_queue_2.id]
+            db=db, work_queue_ids=[work_queue_2.id]
         )
         # join query to deployments and filter for d3
         query = query.cte("scheduled_runs_query")
@@ -205,7 +209,7 @@ class TestGetRunsInQueueQuery:
         if db.database_config.connection_url.startswith("sqlite"):
             pytest.skip("FOR UPDATE SKIP LOCKED is not supported on SQLite")
 
-        query = db.queries.get_scheduled_flow_runs_from_work_queues()
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
         session1 = await db.session()
         session2 = await db.session()
@@ -355,7 +359,9 @@ class TestGetRunsFromWorkQueueQuery:
     async def test_get_all_runs(
         self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(session=session)
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
+            session=session, db=db
+        )
         assert len(runs) == 45
 
         # runs should be sorted
@@ -366,10 +372,10 @@ class TestGetRunsFromWorkQueueQuery:
         self, session, db: PrefectDBInterface, work_pools, work_queues, limit
     ):
         all_runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
-            session=session
+            session=session, db=db
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
-            session=session, limit=min(limit, 45)
+            session=session, db=db, limit=min(limit, 45)
         )
         assert len(runs) == min(limit, 45)
 
@@ -382,7 +388,7 @@ class TestGetRunsFromWorkQueueQuery:
         self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
-            session=session, work_pool_ids=[work_pools["wp_a"].id]
+            session=session, db=db, work_pool_ids=[work_pools["wp_a"].id]
         )
         assert len(runs) == 15
 
@@ -391,6 +397,7 @@ class TestGetRunsFromWorkQueueQuery:
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_pool_ids=[
                 work_pools["wp_a"].id,
                 work_pools["wp_b"].id,
@@ -404,6 +411,7 @@ class TestGetRunsFromWorkQueueQuery:
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_queue_ids=[work_queues["wq_aa"].id],
         )
         assert len(runs) == 5
@@ -414,6 +422,7 @@ class TestGetRunsFromWorkQueueQuery:
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_pool_ids=[
                 work_pools["wp_a"].id,
                 work_pools["wp_b"].id,
@@ -434,6 +443,7 @@ class TestGetRunsFromWorkQueueQuery:
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_queue_ids=[work_queues["wq_aa"].id],
         )
         assert len(runs) == 0
@@ -449,6 +459,7 @@ class TestGetRunsFromWorkQueueQuery:
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_queue_ids=[work_queues["wq_aa"].id],
         )
         assert len(runs) == 0
@@ -473,6 +484,7 @@ class TestGetRunsFromWorkQueueQuery:
         await session.commit()
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_queue_ids=[work_queues["wq_aa"].id],
         )
         assert len(runs) == expected
@@ -499,6 +511,7 @@ class TestGetRunsFromWorkQueueQuery:
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_queue_ids=[work_queues["wq_aa"].id],
         )
         assert len(runs) == expected
@@ -525,6 +538,7 @@ class TestGetRunsFromWorkQueueQuery:
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_pool_ids=[work_pools["wp_a"].id],
         )
         assert len(runs) == expected
@@ -534,7 +548,7 @@ class TestGetRunsFromWorkQueueQuery:
         self, session, db: PrefectDBInterface, work_pools, work_queues, limit
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
-            session=session, worker_limit=limit
+            session=session, db=db, worker_limit=limit
         )
         assert len(runs) == min(15, limit) * 3
         for wc in work_pools.values():
@@ -551,7 +565,7 @@ class TestGetRunsFromWorkQueueQuery:
         )
 
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
-            session=session, worker_limit=7
+            session=session, db=db, worker_limit=7
         )
 
         assert len(runs) == 14
@@ -564,7 +578,7 @@ class TestGetRunsFromWorkQueueQuery:
         self, session, db: PrefectDBInterface, work_pools, work_queues, limit
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
-            session=session, queue_limit=limit
+            session=session, db=db, queue_limit=limit
         )
         assert len(runs) == min(5, limit) * 9
         for wq in work_queues.values():
@@ -579,7 +593,7 @@ class TestGetRunsFromWorkQueueQuery:
             work_queue=schemas.actions.WorkQueueUpdate(is_paused=True),
         )
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
-            session=session, queue_limit=3
+            session=session, db=db, queue_limit=3
         )
         assert len(runs) == 24
         assert sum(1 for r in runs if r.work_queue_id == work_queues["wq_aa"].id) == 0
@@ -602,6 +616,7 @@ class TestGetRunsFromWorkQueueQuery:
 
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_pool_ids=[work_pools["wp_a"].id],
             respect_queue_priorities=respect_priorities,
         )
@@ -626,6 +641,7 @@ class TestGetRunsFromWorkQueueQuery:
 
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_pool_ids=[work_pools["wp_a"].id],
             respect_queue_priorities=True,
         )
@@ -656,6 +672,7 @@ class TestGetRunsFromWorkQueueQuery:
 
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             work_pool_ids=[work_pools["wp_a"].id, work_pools["wp_b"].id],
             respect_queue_priorities=True,
         )
@@ -672,7 +689,7 @@ class TestGetRunsFromWorkQueueQuery:
         # runs are not in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) != runs
 
-    async def test_concurrent_reads(self, db: PrefectDBInterface):
+    async def test_concurrent_reads(self, db):
         """
         Concurrent queries should not both receive runs. In this case one query
         receives some runs and the other receives none because the lock is taken
@@ -681,15 +698,15 @@ class TestGetRunsFromWorkQueueQuery:
         if db.database_config.connection_url.startswith("sqlite"):
             pytest.skip("FOR UPDATE SKIP LOCKED is not supported on SQLite")
 
-        db.queries.get_scheduled_flow_runs_from_work_queues()
+        db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
         async with db.session_context(begin_transaction=True) as session1:
             async with db.session_context(begin_transaction=True) as session2:
                 runs1 = await db.queries.get_scheduled_flow_runs_from_work_pool(
-                    session=session1, limit=35
+                    session=session1, db=db, limit=35
                 )
                 runs2 = await db.queries.get_scheduled_flow_runs_from_work_pool(
-                    session=session2
+                    session=session2, db=db
                 )
 
         assert len(runs1) == 35
@@ -704,15 +721,15 @@ class TestGetRunsFromWorkQueueQuery:
         if db.database_config.connection_url.startswith("sqlite"):
             pytest.skip("FOR UPDATE SKIP LOCKED is not supported on SQLite")
 
-        db.queries.get_scheduled_flow_runs_from_work_queues()
+        db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
         async with db.session_context(begin_transaction=True) as session1:
             async with db.session_context(begin_transaction=True) as session2:
                 runs1 = await db.queries.get_scheduled_flow_runs_from_work_pool(
-                    session=session1, queue_limit=2
+                    session=session1, db=db, queue_limit=2
                 )
                 runs2 = await db.queries.get_scheduled_flow_runs_from_work_pool(
-                    session=session2
+                    session=session2, db=db
                 )
 
         assert len(runs1) == 18
@@ -726,6 +743,7 @@ class TestGetRunsFromWorkQueueQuery:
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             scheduled_before=pendulum.now("UTC").add(hours=hours),
         )
         assert len(runs) == expected
@@ -738,6 +756,7 @@ class TestGetRunsFromWorkQueueQuery:
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             scheduled_after=pendulum.now("UTC").add(hours=hours),
         )
         assert len(runs) == expected
@@ -745,6 +764,7 @@ class TestGetRunsFromWorkQueueQuery:
     async def test_scheduled_before_and_after(self, session, db: PrefectDBInterface):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
+            db=db,
             # criteria should match no runs
             scheduled_before=pendulum.now("UTC").subtract(hours=1),
             scheduled_after=pendulum.now("UTC").add(hours=1),
