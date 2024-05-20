@@ -11,6 +11,7 @@ from fastapi.applications import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect import states as client_states
 from prefect.server import models
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -38,7 +39,6 @@ from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import CreatedBy, FlowRun
 from prefect.server.schemas.responses import FlowRunResponse
 from prefect.server.schemas.states import (
-    Cancelled,
     Pending,
     State,
     StateDetails,
@@ -83,7 +83,7 @@ async def test_instrumenting_a_flow_run_state_change(
     assert event.event == "prefect.flow-run.Running"
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
-    assert event.resource.model_dump() == Resource.model_validate(
+    assert event.resource == Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
@@ -777,7 +777,9 @@ async def test_cancelling_to_cancelled_transitions(
     response = await client.post(
         f"flow_runs/{flow_run.id}/set_state",
         json={
-            "state": Cancelled().model_dump(mode="json"),
+            "state": client_states.Cancelled()
+            .to_state_create()
+            .model_dump(mode="json"),
             "force": True,  # the Agent uses force=True here, which caused the bug
         },
     )
