@@ -594,6 +594,8 @@ class BaseQueryComponents(ABC):
                     created=artifact.created,
                     key=artifact.key,
                     type=artifact.type,
+                    # We're only using the data field for progress artifacts for now
+                    data=artifact.data if artifact.type == "progress" else None,
                     is_latest=artifact.key is None
                     or latest_in_collection_id is not None,
                 )
