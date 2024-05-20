@@ -1136,8 +1136,8 @@ this many scheduled runs, depending on the value of
 """
 
 PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
-    str,
-    default="100 days, 0:00:00",
+    timedelta,
+    default=timedelta(days=100),
 )
 """The scheduler will create new runs up to this far in the
 future. Note that this setting will take precedence over
