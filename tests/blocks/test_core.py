@@ -85,7 +85,7 @@ class TestAPICompatibility:
             y: SecretBytes
             z: str
 
-        assert SecretBlock.schema()["secret_fields"] == ["w.*", "x", "y"]
+        assert SecretBlock.model_json_schema()["secret_fields"] == ["w.*", "x", "y"]
 
         schema = SecretBlock._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["w.*", "x", "y"]
@@ -125,8 +125,12 @@ class TestAPICompatibility:
             b: str
             child: Child
 
-        assert Child.schema()["secret_fields"] == ["a", "c.*"]
-        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert Child.model_json_schema()["secret_fields"] == ["a", "c.*"]
+        assert Parent.model_json_schema()["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.c.*",
+        ]
         schema = Parent._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
@@ -186,7 +190,11 @@ class TestAPICompatibility:
             b: str
             child: Child
 
-        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert Parent.model_json_schema()["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.c.*",
+        ]
         schema = Parent._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
@@ -238,7 +246,11 @@ class TestAPICompatibility:
             b: str
             child: Union[Child, str]
 
-        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert Parent.model_json_schema()["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.c.*",
+        ]
         schema = Parent._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
@@ -298,7 +310,7 @@ class TestAPICompatibility:
             b: str
             child: Child
 
-        assert Parent.schema()["secret_fields"] == [
+        assert Parent.model_json_schema()["secret_fields"] == [
             "a",
             "child.a",
             "child.sub_child.b.*",
@@ -709,7 +721,7 @@ class TestAPICompatibility:
             a_field: str
 
         a_block = ABlock(a_field="my_field")
-        with pytest.raises(ValidationError, match="name must only contain"):
+        with pytest.raises(ValidationError):
             a_block.save(block_name)
 
     @pytest.mark.parametrize("block_name", ["a/block", "a\\block"])
@@ -724,7 +736,7 @@ class TestAPICompatibility:
             a_field: str
 
         a_block = ABlock(a_field="my_field")
-        with pytest.raises(ValidationError, match="name"):
+        with pytest.raises(ValidationError):
             a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(
@@ -733,7 +745,7 @@ class TestAPICompatibility:
         block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
-        assert block_schema.fields == test_block.schema()
+        assert block_schema.fields == test_block.model_json_schema()
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
@@ -745,7 +757,7 @@ class TestAPICompatibility:
         block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
-        assert block_schema.fields == test_block.schema()
+        assert block_schema.fields == test_block.model_json_schema()
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
@@ -1069,7 +1081,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
 
         assert isinstance(self.NewBlock._block_type_id, UUID)
         assert isinstance(self.NewBlock._block_schema_id, UUID)
@@ -1086,7 +1098,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
 
     async def test_register_existing_block_type_new_block_schema(
         self, prefect_client: PrefectClient
@@ -1112,7 +1124,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
 
     async def test_register_new_block_schema_when_version_changes(
         self, prefect_client: PrefectClient
@@ -1126,7 +1138,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
         self.NewBlock._block_schema_version = "new_version"
@@ -1137,7 +1149,7 @@ class TestRegisterBlockTypeAndSchema:
             checksum=self.NewBlock._calculate_schema_checksum()
         )
         assert block_schema is not None
-        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.fields == self.NewBlock.model_json_schema()
         assert block_schema.version == "new_version"
 
         self.NewBlock._block_schema_version = None

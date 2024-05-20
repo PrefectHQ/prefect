@@ -57,7 +57,7 @@ async def mock_infra_block_doc_id():
 
 @pytest.fixture
 async def block_work_pool(prefect_client, mock_infra_block_doc_id):
-    block_schema = MockInfrastructure.schema()
+    block_schema = MockInfrastructure.model_json_schema()
     return await prefect_client.create_work_pool(
         WorkPoolCreate(
             name="test",
@@ -143,7 +143,7 @@ async def block_worker_deployment_with_infra_overrides(session, flow, block_work
 
 async def test_base_job_configuration_from_template_and_overrides():
     """Test that the job configuration is correctly built from the template and overrides"""
-    block_schema = MockInfrastructure.schema()
+    block_schema = MockInfrastructure.model_json_schema()
     block = MockInfrastructure()
     block_document_id = await block.save("test")
     config = await BlockWorkerJobConfiguration.from_template_and_values(

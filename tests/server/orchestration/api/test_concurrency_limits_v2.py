@@ -4,15 +4,12 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.client import schemas as client_schemas
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     bulk_update_denied_slots,
     create_concurrency_limit,
     read_concurrency_limit,
-)
-from prefect.server.schemas.actions import (
-    ConcurrencyLimitV2Create,
-    ConcurrencyLimitV2Update,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
 
@@ -28,7 +25,7 @@ async def concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
     )
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
 
 
 @pytest.fixture
@@ -41,7 +38,7 @@ async def concurrency_limit_with_decay(session: AsyncSession) -> ConcurrencyLimi
     )
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
 
 
 @pytest.fixture
@@ -56,7 +53,7 @@ async def locked_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
     )
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
 
 
 @pytest.fixture
@@ -74,11 +71,11 @@ async def locked_concurrency_limit_with_decay(
     )
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
 
 
 async def test_create_concurrency_limit(client: AsyncClient):
-    data = ConcurrencyLimitV2Create(
+    data = client_schemas.actions.ConcurrencyLimitV2Create(
         name="limiter",
         limit=42,
     ).model_dump(mode="json")
@@ -93,7 +90,7 @@ async def test_read_concurrency_limit_by_id(
     client: AsyncClient,
 ):
     response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
 
     data = response.json()
     assert data["id"] == str(concurrency_limit.id)
@@ -142,11 +139,11 @@ async def test_update_concurrency_limit_by_id(
 ):
     response = await client.patch(
         f"/v2/concurrency_limits/{concurrency_limit.id}",
-        json=ConcurrencyLimitV2Update(name="new-name").model_dump(
-            mode="json", exclude_unset=True
-        ),
+        json=client_schemas.actions.ConcurrencyLimitV2Update(
+            name="new-name"
+        ).model_dump(mode="json", exclude_unset=True),
     )
-    assert response.status_code == 204
+    assert response.status_code == 204, response.text
 
     limit = await read_concurrency_limit(
         session, concurrency_limit_id=concurrency_limit.id
@@ -162,9 +159,9 @@ async def test_update_concurrency_limit_by_name(
 ):
     response = await client.patch(
         f"/v2/concurrency_limits/{concurrency_limit.name}",
-        json=ConcurrencyLimitV2Update(name="new-name").model_dump(
-            mode="json", exclude_unset=True
-        ),
+        json=client_schemas.actions.ConcurrencyLimitV2Update(
+            name="new-name"
+        ).model_dump(mode="json", exclude_unset=True),
     )
     assert response.status_code == 204
 
@@ -180,9 +177,9 @@ async def test_update_concurrency_non_existent_limit(
 ):
     response = await client.patch(
         f"/v2/concurrency_limits/{uuid.uuid4()}",
-        json=ConcurrencyLimitV2Update(name="new-name").model_dump(
-            mode="json", exclude_unset=True
-        ),
+        json=client_schemas.actions.ConcurrencyLimitV2Update(
+            name="new-name"
+        ).model_dump(mode="json", exclude_unset=True),
     )
     assert response.status_code == 404
 
@@ -193,7 +190,7 @@ async def test_delete_concurrency_limit_by_id(
     session: AsyncSession,
 ):
     response = await client.delete(f"/v2/concurrency_limits/{concurrency_limit.id}")
-    assert response.status_code == 204
+    assert response.status_code == 204, response.text
 
     assert not await read_concurrency_limit(
         session, concurrency_limit_id=concurrency_limit.id
@@ -265,7 +262,7 @@ async def test_increment_concurrency_limit_multi(
         )
         await session.commit()
 
-    other = ConcurrencyLimitV2.from_orm(other_model)
+    other = ConcurrencyLimitV2.model_validate(other_model)
 
     assert concurrency_limit.active_slots == 0
     response = await client.post(

@@ -105,7 +105,7 @@ async def create_block_schema(
             insert_values["fields"].pop("definitions", None)
 
     # Prevent saving block schema references in the block_schema table. They have
-    # they're own table.
+    # their own table.
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}
     )

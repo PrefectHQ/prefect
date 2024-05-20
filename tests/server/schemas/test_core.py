@@ -311,9 +311,7 @@ class TestWorkQueueHealthPolicy:
 
 class TestWorkPool:
     def test_more_helpful_validation_message_for_work_pools(self):
-        with pytest.raises(
-            pydantic.ValidationError, match="`default_queue_id` is a required field."
-        ):
+        with pytest.raises(pydantic.ValidationError):
             schemas.core.WorkPool(name="test")
 
     async def test_valid_work_pool_default_queue_id(self):

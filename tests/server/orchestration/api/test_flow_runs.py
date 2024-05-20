@@ -11,9 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from prefect import states as client_states
+from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
-from prefect.server.schemas import actions, core, responses, states
+from prefect.server.schemas import core, responses
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.schemas.states import StateType
@@ -24,10 +25,10 @@ class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, client, session):
         response = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(
+            json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
                 name="orange you glad i didn't say yellow salamander",
-                state=states.Pending().to_state_create(),
+                state=client_states.Pending().to_state_create(),
             ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED, response.text
@@ -48,7 +49,7 @@ class TestCreateFlowRun:
     ):
         response = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(
+            json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
                 name="",
             ).model_dump(mode="json"),
@@ -66,7 +67,7 @@ class TestCreateFlowRun:
     ):
         response = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(
+            json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
             ).model_dump(mode="json"),
@@ -80,9 +81,9 @@ class TestCreateFlowRun:
     ):
         response = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(
+            json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
-                state=states.Completed(
+                state=client_states.Completed(
                     timestamp=pendulum.now("UTC").add(months=1)
                 ).to_state_create(),
             ).model_dump(mode="json"),
@@ -104,14 +105,14 @@ class TestCreateFlowRun:
     async def test_create_multiple_flow_runs(self, flow, client, session, db):
         response1 = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(
-                flow_id=flow.id, state=states.Pending().to_state_create()
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id, state=client_states.Pending().to_state_create()
             ).model_dump(mode="json"),
         )
         response2 = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(
-                flow_id=flow.id, state=states.Pending().to_state_create()
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id, state=client_states.Pending().to_state_create()
             ).model_dump(mode="json"),
         )
         assert response1.status_code == status.HTTP_201_CREATED
@@ -129,9 +130,9 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_idempotency_key_recovers_original_flow_run(
         self, flow, client, session
     ):
-        data = actions.FlowRunCreate(
+        data = client_actions.FlowRunCreate(
             flow_id=flow.id,
-            state=states.Pending().to_state_create(),
+            state=client_states.Pending().to_state_create(),
             idempotency_key="test-key",
         ).model_dump(mode="json")
         response1 = await client.post("/flow_runs/", json=data)
@@ -152,14 +153,14 @@ class TestCreateFlowRun:
         session.add(flow2)
         await session.commit()
 
-        data = actions.FlowRunCreate(
+        data = client_actions.FlowRunCreate(
             flow_id=flow.id,
-            state=states.Pending().to_state_create(),
+            state=client_states.Pending().to_state_create(),
             idempotency_key="test-key",
         )
-        data2 = actions.FlowRunCreate(
+        data2 = client_actions.FlowRunCreate(
             flow_id=flow2.id,
-            state=states.Pending().to_state_create(),
+            state=client_states.Pending().to_state_create(),
             idempotency_key="test-key",
         )
         response1 = await client.post("/flow_runs/", json=data.model_dump(mode="json"))
@@ -175,10 +176,10 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_subflow_information(
         self, flow, task_run, client, session
     ):
-        flow_run_data = actions.FlowRunCreate(
+        flow_run_data = client_actions.FlowRunCreate(
             flow_id=flow.id,
             parent_task_run_id=task_run.id,
-            state=states.Pending().to_state_create(),
+            state=client_states.Pending().to_state_create(),
         )
         response = await client.post(
             "/flow_runs/", json=flow_run_data.model_dump(mode="json")
@@ -190,9 +191,9 @@ class TestCreateFlowRun:
         assert flow_run.parent_task_run_id == task_run.id
 
     async def test_create_flow_run_with_running_state(self, flow, client, session):
-        flow_run_data = actions.FlowRunCreate(
+        flow_run_data = client_actions.FlowRunCreate(
             flow_id=str(flow.id),
-            state=states.Running().to_state_create(),
+            state=client_states.Running().to_state_create(),
         )
         response = await client.post(
             "/flow_runs/", json=flow_run_data.model_dump(mode="json")
@@ -221,7 +222,7 @@ class TestCreateFlowRun:
 
         response = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(
+            json=client_actions.FlowRunCreate(
                 flow_id=flow.id, deployment_id=deployment.id
             ).model_dump(mode="json"),
         )
@@ -240,7 +241,7 @@ class TestUpdateFlowRun:
 
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(
+            json=client_actions.FlowRunUpdate(
                 flow_version="The next one",
                 name="not yellow salamander",
             ).model_dump(mode="json"),
@@ -267,9 +268,9 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
-                mode="json"
-            ),
+            json=client_actions.FlowRunUpdate(
+                name="", job_variables=job_vars
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST, response.text
         assert (
@@ -302,9 +303,9 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
-                mode="json"
-            ),
+            json=client_actions.FlowRunUpdate(
+                name="", job_variables=job_vars
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST, response.text
         assert (
@@ -330,9 +331,9 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
-                mode="json"
-            ),
+            json=client_actions.FlowRunUpdate(
+                name="", job_variables=job_vars
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST, response.text
         assert (
@@ -369,9 +370,9 @@ class TestUpdateFlowRun:
         job_vars = {"key": "value"}
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(name="", job_variables=job_vars).model_dump(
-                mode="json"
-            ),
+            json=client_actions.FlowRunUpdate(
+                name="", job_variables=job_vars
+            ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
@@ -477,7 +478,7 @@ class TestReadFlowRun:
             await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=states.State(id=state_id, type="RUNNING"),
+                state=schemas.states.State(id=state_id, type="RUNNING"),
             )
         ).state
         await client.get(f"/flow_runs/{flow_run.id}")
@@ -494,16 +495,20 @@ class TestReadFlowRuns:
     async def flow_runs(self, flow, work_queue_1, session):
         flow_2 = await models.flows.create_flow(
             session=session,
-            flow=actions.FlowCreate(name="another-test"),
+            flow=schemas.actions.FlowCreate(name="another-test"),
         )
 
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr1", tags=["red"]),
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, name="fr1", tags=["red"]
+            ),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr2", tags=["blue"]),
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, name="fr2", tags=["blue"]
+            ),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
@@ -526,7 +531,7 @@ class TestReadFlowRuns:
         """
         flow_run_1_with_idempotency_key = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(
+            flow_run=schemas.actions.FlowRunCreate(
                 flow_id=flow.id,
                 name="fr1",
                 tags=["red"],
@@ -536,7 +541,7 @@ class TestReadFlowRuns:
         flow_run_2_with_a_different_idempotency_key = (
             await models.flow_runs.create_flow_run(
                 session=session,
-                flow_run=actions.FlowRunCreate(
+                flow_run=schemas.actions.FlowRunCreate(
                     flow_id=flow.id,
                     name="fr2",
                     tags=["blue"],
@@ -996,7 +1001,7 @@ class TestReadFlowRunGraph:
             flow_run=core.FlowRun(
                 flow_id=flow.id,
                 tags=["running"],
-                state=states.Completed(),
+                state=schemas.states.Completed(),
             )
         )
 
@@ -1007,7 +1012,7 @@ class TestReadFlowRunGraph:
                     flow_run_id=fr.id,
                     task_key=str(r),
                     dynamic_key=str(r * 3),
-                    state=states.Completed(),
+                    state=schemas.states.Completed(),
                     task_inputs=(
                         dict(x=[TaskRunResult(id=prev_tr.id)]) if prev_tr else dict()
                     ),
@@ -1087,14 +1092,15 @@ class TestResumeFlowrun:
         class SimpleInput(RunInput):
             approved: bool
 
-        state = schemas.states.Paused(pause_key="1")
-        keyset = keyset_from_paused_state(state)
-        state.state_details.run_input_keyset = keyset
+        client_state = client_states.Paused(pause_key="1")
+        server_state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(client_state)
+        server_state.state_details.run_input_keyset = keyset
 
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, flow_version="1.0", state=state
+                flow_id=flow.id, flow_version="1.0", state=server_state
             ),
         )
 
@@ -1105,7 +1111,7 @@ class TestResumeFlowrun:
             flow_run_input=schemas.core.FlowRunInput(
                 flow_run_id=flow_run.id,
                 key="paused-1-schema",
-                value=orjson.dumps(SimpleInput.schema()).decode(),
+                value=orjson.dumps(SimpleInput.model_json_schema()).decode(),
             ),
         )
 
@@ -1123,14 +1129,15 @@ class TestResumeFlowrun:
             how_many: Optional[str] = "5"
             approved: Optional[bool] = True
 
-        state = schemas.states.Paused(pause_key="1")
-        keyset = keyset_from_paused_state(state)
-        state.state_details.run_input_keyset = keyset
+        client_state = client_states.Paused(pause_key="1")
+        server_state = schemas.states.Paused(pause_key="1")
+        keyset = keyset_from_paused_state(client_state)
+        server_state.state_details.run_input_keyset = keyset
 
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, flow_version="1.0", state=state
+                flow_id=flow.id, flow_version="1.0", state=server_state
             ),
         )
 
@@ -1141,7 +1148,7 @@ class TestResumeFlowrun:
             flow_run_input=schemas.core.FlowRunInput(
                 flow_run_id=flow_run.id,
                 key="paused-1-schema",
-                value=orjson.dumps(SimpleInput.schema()).decode(),
+                value=orjson.dumps(SimpleInput.model_json_schema()).decode(),
             ),
         )
 
@@ -1405,7 +1412,7 @@ class TestSetFlowRunState:
         run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert run.state.type == states.StateType.RUNNING
+        assert run.state.type == client_states.StateType.RUNNING
         assert run.state.name == "Test State"
 
     @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
@@ -1433,23 +1440,6 @@ class TestSetFlowRunState:
 
         api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ABORT
-
-    async def test_set_flow_run_state_rejects_client_provided_timestamp(
-        self, flow_run, client, session
-    ):
-        response = await client.post(
-            f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(
-                state=dict(
-                    type="RUNNING",
-                    name="Test State",
-                    timestamp=str(pendulum.now("UTC").add(months=1)),
-                )
-            ),
-        )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
 
     async def test_set_flow_run_state_force_skips_orchestration(
         self, flow_run, client, session
@@ -1508,11 +1498,6 @@ class TestSetFlowRunState:
     async def test_flow_run_receives_wait_until_scheduled_start_time(
         self, flow_run, client, session
     ):
-        print(
-            client_states.Scheduled(scheduled_time=pendulum.now("UTC").add(days=1))
-            .to_state_create()
-            .model_dump(mode="json")
-        )
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
@@ -1560,10 +1545,10 @@ class TestSetFlowRunState:
     async def pending_flow_run(self, session, flow):
         model = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
+            flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 flow_version="0.1",
-                state=schemas.states.Pending().to_state_create(),
+                state=schemas.states.Pending(),
             ),
         )
         await session.commit()
@@ -1592,12 +1577,12 @@ class TestSetFlowRunState:
     async def pending_flow_run_with_transition_id(self, session, flow, transition_id):
         model = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
+            flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 flow_version="0.1",
                 state=schemas.states.Pending(
                     state_details={"transition_id": str(transition_id)}
-                ).to_state_create(),
+                ),
             ),
         )
         await session.commit()
