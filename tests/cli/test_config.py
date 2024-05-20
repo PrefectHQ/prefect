@@ -93,8 +93,7 @@ def test_set_with_invalid_value_type():
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_API_DATABASE_TIMEOUT=HELLO"],
         expected_output="""
-            Validation error for setting 'PREFECT_API_DATABASE_TIMEOUT': value is not a valid float
-            Invalid setting value.
+            Validation error for setting 'PREFECT_API_DATABASE_TIMEOUT': Input should be a valid number, unable to parse string as a number
             """,
         expected_code=1,
     )
