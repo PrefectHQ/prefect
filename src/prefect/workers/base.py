@@ -156,7 +156,7 @@ class BaseJobConfiguration(BaseModel):
         }
         """
         configuration = {}
-        properties = cls.schema()["properties"]
+        properties = cls.model_json_schema()["properties"]
         for k, v in properties.items():
             if v.get("template"):
                 template = v["template"]
@@ -415,7 +415,7 @@ class BaseWorker(abc.ABC):
     @classmethod
     def get_default_base_job_template(cls) -> Dict:
         if cls.job_configuration_variables is None:
-            schema = cls.job_configuration.schema()
+            schema = cls.job_configuration.model_json_schema()
             # remove "template" key from all dicts in schema['properties'] because it is not a
             # relevant field
             for key, value in schema["properties"].items():
@@ -423,7 +423,7 @@ class BaseWorker(abc.ABC):
                     schema["properties"][key].pop("template", None)
             variables_schema = schema
         else:
-            variables_schema = cls.job_configuration_variables.schema()
+            variables_schema = cls.job_configuration_variables.model_json_schema()
         variables_schema.pop("title", None)
         return {
             "job_configuration": cls.job_configuration.json_template(),

@@ -486,7 +486,7 @@ class Deployment(BaseModel):
     @sync_compatible
     async def to_yaml(self, path: Path) -> None:
         yaml_dict = self._yaml_dict()
-        schema = self.schema()
+        schema = self.model_json_schema()
 
         with open(path, "w") as f:
             # write header

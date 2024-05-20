@@ -372,7 +372,7 @@ class TestJsonPatch:
         patch: JsonPatch = pydantic.Field(default_factory=lambda: JsonPatch([]))
 
     def test_json_schema(self):
-        schema = TestJsonPatch.PatchModel().schema()
+        schema = TestJsonPatch.PatchModel().model_json_schema()
 
         assert schema["properties"]["patch"] == {
             "title": "Patch",

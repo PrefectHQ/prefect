@@ -87,7 +87,7 @@ class Infrastructure(Block, abc.ABC):
                 " `.save()` on your block before publishing."
             )
 
-        block_schema = self.__class__.schema()
+        block_schema = self.__class__.model_json_schema()
         return {
             "job_configuration": {"block": "{{ block }}"},
             "variables": {

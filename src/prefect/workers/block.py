@@ -101,7 +101,7 @@ class BlockWorkerJobConfiguration(BaseModel):
         }
         """
         configuration = {}
-        properties = cls.schema()["properties"]
+        properties = cls.model_json_schema()["properties"]
         for k, v in properties.items():
             if v.get("template"):
                 template = v["template"]

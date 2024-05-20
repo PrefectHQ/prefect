@@ -21,7 +21,7 @@ from prefect.settings import (
 
 
 def test_resource_openapi_schema() -> None:
-    assert Resource.schema() == {
+    assert Resource.model_json_schema() == {
         "title": "Resource",
         "description": "An observable business object of interest to the user",
         "type": "object",
@@ -30,7 +30,7 @@ def test_resource_openapi_schema() -> None:
 
 
 def test_related_resource_openapi_schema() -> None:
-    assert RelatedResource.schema() == {
+    assert RelatedResource.model_json_schema() == {
         "title": "RelatedResource",
         "description": "A Resource with a specific role in an Event",
         "type": "object",

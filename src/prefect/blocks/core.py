@@ -17,6 +17,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    get_origin,
 )
 from uuid import UUID, uuid4
 
@@ -33,7 +34,8 @@ from pydantic import (
     SecretStr,
     ValidationError,
 )
-from typing_extensions import ParamSpec, Self, get_args, get_origin
+from pydantic.json_schema import GenerateJsonSchema
+from typing_extensions import Literal, ParamSpec, Self, get_args
 
 import prefect
 import prefect.exceptions
@@ -225,7 +227,7 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
     for name, field in model.model_fields.items():
         if Block.is_block_class(field.annotation):
             refs[name] = field.annotation._to_block_schema_reference_dict()
-        if get_origin(field.annotation) is Union:
+        if get_origin(field.annotation) in [Union, list]:
             for type_ in get_args(field.annotation):
                 if Block.is_block_class(type_):
                     if isinstance(refs.get(name), list):
@@ -272,7 +274,7 @@ class Block(BaseModel, ABC):
 
     def __repr_args__(self):
         repr_args = super().__repr_args__()
-        data_keys = self.schema()["properties"].keys()
+        data_keys = self.model_json_schema()["properties"].keys()
         return [
             (key, value) for key, value in repr_args if key is None or key in data_keys
         ]
@@ -446,7 +448,7 @@ class Block(BaseModel, ABC):
         # The keys passed to `include` must NOT be aliases, else some items will be missed
         # i.e. must do `self.schema_` vs `self.schema` to get a `schema_ = Field(alias="schema")`
         # reported from https://github.com/PrefectHQ/prefect-dbt/issues/54
-        data_keys = self.schema(by_alias=False)["properties"].keys()
+        data_keys = self.model_json_schema(by_alias=False)["properties"].keys()
 
         # `block_document_data`` must return the aliased version for it to show in the UI
         block_document_data = self.model_dump(by_alias=True, include=data_keys)
@@ -1076,3 +1078,20 @@ class Block(BaseModel, ABC):
             )
 
         return f"prefect.blocks.{self.get_block_type_slug()}.{block_document_name}"
+
+    @classmethod
+    def model_json_schema(
+        cls,
+        by_alias: bool = True,
+        ref_template: str = "#/definitions/{model}",
+        schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema,
+        mode: Literal["validation", "serialization"] = "validation",
+    ) -> Dict[str, Any]:
+        """TODO: stop overriding this method - use GenerateSchema in ConfigDict instead?"""
+        schema = super().model_json_schema(
+            by_alias, ref_template, schema_generator, mode
+        )
+        # ensure backwards compatibility by copying $defs into definitions
+        if "$defs" in schema:
+            schema["definitions"] = schema.pop("$defs")
+        return schema

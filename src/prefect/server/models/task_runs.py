@@ -32,7 +32,7 @@ logger = get_logger("server")
 
 @inject_db
 async def create_task_run(
-    session: sa.orm.Session,
+    session: AsyncSession,
     task_run: schemas.core.TaskRun,
     db: PrefectDBInterface,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
@@ -155,7 +155,7 @@ async def update_task_run(
 
 @inject_db
 async def read_task_run(
-    session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
+    session: AsyncSession, task_run_id: UUID, db: PrefectDBInterface
 ):
     """
     Read a task run by id.
@@ -249,7 +249,7 @@ async def _apply_task_run_filters(
 
 @inject_db
 async def read_task_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
@@ -300,7 +300,7 @@ async def read_task_runs(
 
 @inject_db
 async def count_task_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
@@ -385,7 +385,7 @@ async def count_task_runs_by_state(
 
 @inject_db
 async def delete_task_run(
-    session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
+    session: AsyncSession, task_run_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a task run by id.
@@ -405,7 +405,7 @@ async def delete_task_run(
 
 
 async def set_task_run_state(
-    session: sa.orm.Session,
+    session: AsyncSession,
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,

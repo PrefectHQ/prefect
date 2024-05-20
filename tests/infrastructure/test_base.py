@@ -319,7 +319,7 @@ async def test_generate_work_pool_base_job_template():
                 }
             },
             "required": ["block"],
-            "definitions": {"MockInfrastructure": block.schema()},
+            "definitions": {"MockInfrastructure": block.model_json_schema()},
         },
     }
 
@@ -357,7 +357,7 @@ async def test_publish_as_work_pool(
                 }
             },
             "required": ["block"],
-            "definitions": {"MockInfrastructure": block.schema()},
+            "definitions": {"MockInfrastructure": block.model_json_schema()},
         },
     }
 

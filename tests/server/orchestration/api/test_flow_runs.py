@@ -1148,7 +1148,7 @@ class TestResumeFlowrun:
             flow_run_input=schemas.core.FlowRunInput(
                 flow_run_id=flow_run.id,
                 key="paused-1-schema",
-                value=orjson.dumps(SimpleInput.schema()).decode(),
+                value=orjson.dumps(SimpleInput.model_json_schema()).decode(),
             ),
         )
 
