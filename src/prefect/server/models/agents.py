@@ -12,12 +12,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 
 
+@db_injector
 async def create_agent(
+    db: PrefectDBInterface,
     session: AsyncSession,
     agent: schemas.core.Agent,
 ):
@@ -31,18 +32,20 @@ async def create_agent(
         agent (schemas.core.Agent): a Agent model
 
     Returns:
-        orm_models.Agent: the newly-created or updated Agent
+        db.Agent: the newly-created or updated Agent
 
     """
 
-    model = orm_models.Agent(**agent.dict())
+    model = db.Agent(**agent.dict())
     session.add(model)
     await session.flush()
 
     return model
 
 
+@db_injector
 async def read_agent(
+    db: PrefectDBInterface,
     session: AsyncSession,
     agent_id: UUID,
 ):
@@ -54,13 +57,15 @@ async def read_agent(
         agent_id (str): a Agent id
 
     Returns:
-        orm_models.Agent: the Agent
+        db.Agent: the Agent
     """
 
-    return await session.get(orm_models.Agent, agent_id)
+    return await session.get(db.Agent, agent_id)
 
 
+@db_injector
 async def read_agents(
+    db: PrefectDBInterface,
     session: AsyncSession,
     offset: Union[int, None] = None,
     limit: Union[int, None] = None,
@@ -74,10 +79,10 @@ async def read_agents(
         limit(int): Query limit
 
     Returns:
-        List[orm_models.Agent]: Agents
+        List[db.Agent]: Agents
     """
 
-    query = select(orm_models.Agent).order_by(orm_models.Agent.name)
+    query = select(db.Agent).order_by(db.Agent.name)
 
     if offset is not None:
         query = query.offset(offset)
@@ -88,7 +93,9 @@ async def read_agents(
     return result.scalars().unique().all()
 
 
+@db_injector
 async def update_agent(
+    db: PrefectDBInterface,
     session: AsyncSession,
     agent_id: UUID,
     agent: schemas.core.Agent,
@@ -106,8 +113,8 @@ async def update_agent(
     """
 
     update_stmt = (
-        sa.update(orm_models.Agent)
-        .where(orm_models.Agent.id == agent_id)
+        sa.update(db.Agent)
+        .where(db.Agent.id == agent_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**agent.dict(shallow=True, exclude_unset=True))
@@ -142,14 +149,14 @@ async def record_agent_poll(
         id=agent_id, work_queue_id=work_queue_id, last_activity_time=pendulum.now("UTC")
     )
     insert_stmt = (
-        db.insert(orm_models.Agent)
+        db.insert(db.Agent)
         .values(
             **agent_data.dict(
                 include={"id", "name", "work_queue_id", "last_activity_time"}
             )
         )
         .on_conflict_do_update(
-            index_elements=[orm_models.Agent.id],
+            index_elements=[db.Agent.id],
             set_=agent_data.dict(
                 shallow=True, include={"work_queue_id", "last_activity_time"}
             ),
@@ -158,7 +165,9 @@ async def record_agent_poll(
     await session.execute(insert_stmt)
 
 
+@db_injector
 async def delete_agent(
+    db: PrefectDBInterface,
     session: AsyncSession,
     agent_id: UUID,
 ) -> bool:
@@ -173,7 +182,5 @@ async def delete_agent(
         bool: whether or not the Agent was deleted
     """
 
-    result = await session.execute(
-        delete(orm_models.Agent).where(orm_models.Agent.id == agent_id)
-    )
+    result = await session.execute(delete(db.Agent).where(db.Agent.id == agent_id))
     return result.rowcount > 0

@@ -114,7 +114,7 @@ async def raw_count_events(
         ).select_from(db.Event)
 
     select_events_query_result = await session.execute(
-        select_events_query.where(sa.and_(*events_filter.build_where_clauses()))
+        select_events_query.where(sa.and_(*events_filter.build_where_clauses(db)))
     )
     return select_events_query_result.scalar() or 0
 
@@ -155,7 +155,7 @@ async def read_events(
             sa.select(db.Event, window_function)
             .where(
                 sa.and_(
-                    *events_filter.build_where_clauses()
+                    *events_filter.build_where_clauses(db)
                 )  # Ensure the same filters are applied here
             )
             .subquery()
@@ -173,7 +173,7 @@ async def read_events(
     else:
         # If no distinct fields are provided, create a query for all events
         select_events_query = sa.select(db.Event).where(
-            sa.and_(*events_filter.build_where_clauses())
+            sa.and_(*events_filter.build_where_clauses(db))
         )
         # Order by the occurred timestamp
         select_events_query = select_events_query.order_by(order(db.Event.occurred))
