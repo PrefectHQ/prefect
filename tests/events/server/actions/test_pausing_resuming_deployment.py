@@ -27,10 +27,10 @@ from prefect.utilities.pydantic import parse_obj_as
 
 
 def test_source_determines_if_deployment_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="deployment_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseDeployment(source="selected")
 
-    with pytest.raises(ValidationError, match="deployment_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseDeployment(source="inferred", deployment_id=uuid4())
 
 

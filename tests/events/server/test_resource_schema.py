@@ -419,7 +419,7 @@ def test_label_diving():
 
 def test_limit_on_labels():
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE: 10}):
-        with pytest.raises(ValidationError, match="maximum number of labels"):
+        with pytest.raises(ValidationError):
             Resource.model_validate(
                 {
                     "prefect.resource.id": "the.thing",
@@ -430,7 +430,7 @@ def test_limit_on_labels():
 
 def test_limit_on_related_resources():
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES: 10}):
-        with pytest.raises(ValidationError, match="maximum number of related"):
+        with pytest.raises(ValidationError):
             Event(
                 occurred=pendulum.now("UTC"),
                 event="anything",

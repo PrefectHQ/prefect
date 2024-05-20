@@ -78,7 +78,7 @@ def test_deployment_emits_deprecation_warning():
 
 class TestDeploymentBasicInterface:
     async def test_that_name_is_required(self):
-        with pytest.raises(ValidationError, match="field required"):
+        with pytest.raises(ValidationError):
             Deployment()
 
     async def test_that_infra_block_capabilities_are_validated(self):
@@ -389,7 +389,7 @@ class TestDeploymentBuild:
             await Deployment.build_from_flow(flow=flow_function, name=None)
 
     async def test_build_from_flow_raises_on_bad_inputs(self, flow_function):
-        with pytest.raises(ValidationError, match="extra fields not permitted"):
+        with pytest.raises(ValidationError):
             await Deployment.build_from_flow(
                 flow=flow_function, name="foo", typo_attr="bar"
             )

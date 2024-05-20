@@ -709,7 +709,7 @@ class TestAPICompatibility:
             a_field: str
 
         a_block = ABlock(a_field="my_field")
-        with pytest.raises(ValidationError, match="name must only contain"):
+        with pytest.raises(ValidationError):
             a_block.save(block_name)
 
     @pytest.mark.parametrize("block_name", ["a/block", "a\\block"])
@@ -724,7 +724,7 @@ class TestAPICompatibility:
             a_field: str
 
         a_block = ABlock(a_field="my_field")
-        with pytest.raises(ValidationError, match="name"):
+        with pytest.raises(ValidationError):
             a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(

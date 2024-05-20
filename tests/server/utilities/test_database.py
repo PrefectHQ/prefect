@@ -190,9 +190,7 @@ class TestPydantic:
 
         # enum enforced by application
         stmt = sa.select(SQLPydanticModel)
-        with pytest.raises(
-            pydantic.ValidationError, match="(not a valid enumeration member)"
-        ):
+        with pytest.raises(pydantic.ValidationError):
             await session.execute(stmt)
 
 

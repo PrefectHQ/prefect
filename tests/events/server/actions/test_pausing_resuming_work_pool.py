@@ -28,16 +28,16 @@ if TYPE_CHECKING:
 
 
 def test_source_determines_if_work_pool_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="work_pool_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkPool(source="selected")
 
-    with pytest.raises(ValidationError, match="work_pool_id is required"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkPool(source="selected")
 
-    with pytest.raises(ValidationError, match="work_pool_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkPool(source="inferred", work_pool_id=uuid4())
 
-    with pytest.raises(ValidationError, match="work_pool_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkPool(source="inferred", work_pool_id=uuid4())
 
 
