@@ -1,4 +1,5 @@
 """Module containing implementation for deploying projects."""
+
 import json
 import os
 import re
@@ -90,9 +91,10 @@ async def deploy(
         help="DEPRECATED: The name of a registered flow to create a deployment for.",
     ),
     names: List[str] = typer.Option(
-        None,
+        ...,
         "--name",
         "-n",
+        default_factory=list,
         help=(
             "The name to give the deployment. Can be a pattern. Examples:"
             " 'my-deployment', 'my-flow/my-deployment', 'my-deployment-*',"
@@ -276,6 +278,7 @@ async def deploy(
                 parsed_names.extend(_parse_name_from_pattern(deploy_configs, name))
             else:
                 parsed_names.append(name)
+
         deploy_configs = _pick_deploy_configs(
             deploy_configs, parsed_names, deploy_all, ci
         )
