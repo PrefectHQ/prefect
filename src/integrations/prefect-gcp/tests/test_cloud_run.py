@@ -2,18 +2,12 @@ from copy import deepcopy
 from unittest.mock import Mock
 
 import anyio
-from prefect_gcp.workers.cloud_run import CloudRunWorker
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 import pytest
 from googleapiclient.errors import HttpError
 from prefect_gcp.cloud_run import CloudRunJob, CloudRunJobResult, Execution, Job
 from prefect_gcp.credentials import GcpCredentials
+from prefect_gcp.workers.cloud_run import CloudRunWorker
+from pydantic import ValidationError
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import (
@@ -551,7 +545,7 @@ class TestCloudRunJobContainerSettings:
 
     def test_memory_validation_fails(self, gcp_credentials):
         """Make sure memory validation fails without both unit and memory"""
-        with pytest.raises(pydantic.error_wrappers.ValidationError):
+        with pytest.raises(ValidationError):
             CloudRunJob(
                 image="gcr.io//not-a/real-image",
                 region="middle-earth2",
@@ -559,7 +553,7 @@ class TestCloudRunJobContainerSettings:
                 cpu=1,
                 memory_unit="G",
             )
-        with pytest.raises(pydantic.error_wrappers.ValidationError):
+        with pytest.raises(ValidationError):
             CloudRunJob(
                 image="gcr.io//not-a/real-image",
                 region="middle-earth2",

@@ -1,12 +1,6 @@
 import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1.error_wrappers import ValidationError
-else:
-    from pydantic.error_wrappers import ValidationError
-
 from prefect_dbt.cli.credentials import DbtCliProfile, GlobalConfigs, TargetConfigs
+from pydantic import ValidationError
 
 
 @pytest.mark.parametrize("configs_type", ["dict", "model"])

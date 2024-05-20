@@ -3,19 +3,13 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Tuple
 
-import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.testing.utilities import AsyncMock
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1.error_wrappers import ValidationError
-else:
-    from pydantic.error_wrappers import ValidationError
-
 import prefect_github
+import pytest
 from prefect_github import GitHubCredentials
 from prefect_github.repository import GitHubRepository
+from pydantic import ValidationError
+
+from prefect.testing.utilities import AsyncMock
 
 
 class TestGitHubRepository:
