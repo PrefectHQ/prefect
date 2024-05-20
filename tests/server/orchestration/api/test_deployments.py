@@ -7,10 +7,16 @@ import pytest
 import sqlalchemy as sa
 from starlette import status
 
+from prefect.client.schemas import schedules as client_schedules
+from prefect.client.schemas.actions import (
+    DeploymentCreate,
+    DeploymentScheduleCreate,
+    DeploymentUpdate,
+)
+from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
-from prefect.server.schemas.actions import DeploymentCreate, DeploymentUpdate
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -56,7 +62,7 @@ class TestCreateDeployment:
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         assert response.json()["name"] == "My Deployment"
         assert response.json()["version"] == "mint"
         assert response.json()["manifest_path"] == "file.json"
@@ -99,7 +105,7 @@ class TestCreateDeployment:
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
 
         deployment_response = DeploymentResponse(**response.json())
         assert deployment_response.name == "My Deployment"
@@ -132,11 +138,11 @@ class TestCreateDeployment:
         flow,
         infrastructure_document_id,
     ):
-        schedule = schemas.schedules.IntervalSchedule(
+        schedule = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
 
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name="My Deployment",
             version="mint",
             manifest_path="file.json",
@@ -154,9 +160,9 @@ class TestCreateDeployment:
         data = response.json()
         deployment_id = data["id"]
 
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
         assert data["name"] == "My Deployment"
-        assert schemas.schedules.IntervalSchedule(**data["schedule"]) == schedule
+        assert client_schedules.IntervalSchedule(**data["schedule"]) == schedule
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session,
@@ -176,14 +182,14 @@ class TestCreateDeployment:
         flow,
         infrastructure_document_id,
     ):
-        schedule1 = schemas.schedules.IntervalSchedule(
+        schedule1 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
-        schedule2 = schemas.schedules.IntervalSchedule(
+        schedule2 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=2)
         )
 
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name="My Deployment",
             version="mint",
             manifest_path="file.json",
@@ -192,11 +198,11 @@ class TestCreateDeployment:
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule1,
                     active=True,
                 ),
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule2,
                     active=False,
                 ),
@@ -206,20 +212,20 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         deployment_id = response.json()["id"]
         data = response.json()
-        schedules = [schemas.core.DeploymentSchedule(**s) for s in data["schedules"]]
+        schedules = [DeploymentSchedule(**s) for s in data["schedules"]]
 
         assert len(schedules) == 2
         assert schedules == [
-            schemas.core.DeploymentSchedule(
+            DeploymentSchedule(
                 schedule=schedule2,
                 active=False,
                 deployment_id=deployment_id,
             ),
-            schemas.core.DeploymentSchedule(
+            DeploymentSchedule(
                 schedule=schedule1,
                 active=True,
                 deployment_id=deployment_id,
@@ -233,14 +239,14 @@ class TestCreateDeployment:
         flow,
         infrastructure_document_id,
     ):
-        schedule1 = schemas.schedules.IntervalSchedule(
+        schedule1 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
-        schedule2 = schemas.schedules.IntervalSchedule(
+        schedule2 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=2)
         )
 
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name="My Deployment",
             version="mint",
             manifest_path="file.json",
@@ -249,11 +255,11 @@ class TestCreateDeployment:
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule1,
                     active=True,
                 ),
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule2,
                     active=True,
                 ),
@@ -263,7 +269,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         deployment_id = response.json()["id"]
 
@@ -286,7 +292,7 @@ class TestCreateDeployment:
         # are returned in the correct order.
 
         response = await client.get(f"/deployments/{deployment_id}")
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
 
         data = response.json()
         deployment_id = data["id"]
@@ -302,7 +308,7 @@ class TestCreateDeployment:
         # with the opposite value of `paused`.
 
         assert (
-            schemas.schedules.IntervalSchedule(**data["schedule"])
+            client_schedules.IntervalSchedule(**data["schedule"])
             == schedules[0].schedule
         )
         assert data["is_schedule_active"] is not data["paused"]
@@ -313,7 +319,7 @@ class TestCreateDeployment:
         flow,
         infrastructure_document_id,
     ):
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name="My Deployment",
             version="mint",
             manifest_path="file.json",
@@ -327,7 +333,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         data = response.json()
         assert data["schedule"] is None
@@ -338,7 +344,7 @@ class TestCreateDeployment:
             name="My Deployment", manifest_path="", flow_id=flow.id
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         assert response.json()["work_queue_name"] is None
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
@@ -357,7 +363,7 @@ class TestCreateDeployment:
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
         assert response.json()["name"] == "My Deployment"
         deployment_id = response.json()["id"]
 
@@ -370,7 +376,7 @@ class TestCreateDeployment:
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["paused"]
@@ -389,7 +395,7 @@ class TestCreateDeployment:
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert not response.json()["paused"]
@@ -410,7 +416,7 @@ class TestCreateDeployment:
             flow_id=flow.id,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
         assert response.json()["name"] == "My Deployment"
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
@@ -426,7 +432,7 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                schedule=schemas.schedules.IntervalSchedule(
+                schedule=client_schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1),
                     anchor_date=pendulum.datetime(2020, 1, 1),
                 ),
@@ -485,7 +491,7 @@ class TestCreateDeployment:
         # upsert the deployment with schedule inactive
         await client.post(
             "/deployments/",
-            json=schemas.actions.DeploymentCreate(
+            json=DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
                 schedule=deployment.schedule,
@@ -526,10 +532,10 @@ class TestCreateDeployment:
         # upsert the deployment with schedule active
         await client.post(
             "/deployments/",
-            json=schemas.actions.DeploymentCreate(
+            json=DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
-                schedule=schemas.schedules.IntervalSchedule(
+                schedule=client_schedules.IntervalSchedule(
                     interval=datetime.timedelta(seconds=1),
                     anchor_date=pendulum.datetime(2020, 1, 1),
                 ),
@@ -562,7 +568,7 @@ class TestCreateDeployment:
             storage_document_id=storage_document_id,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.status_code == status.HTTP_409_CONFLICT, response.text
         assert (
             "Error creating deployment. Could not find infrastructure block with id"
             in response.json()["detail"]
@@ -577,7 +583,7 @@ class TestCreateDeployment:
             storage_document_id=uuid4(),
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.status_code == status.HTTP_409_CONFLICT, response.text
         assert (
             "Error creating deployment. Could not find storage block with id"
             in response.json()["detail"]
@@ -606,7 +612,7 @@ class TestCreateDeployment:
             work_queue_name=work_queue_1.name,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
 
         deployment_response = DeploymentResponse(**response.json())
         assert deployment_response.name == "My Deployment"
@@ -655,7 +661,7 @@ class TestCreateDeployment:
             work_pool_name=work_pool.name,
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
 
         deployment_response = DeploymentResponse(**response.json())
         assert deployment_response.name == "My Deployment"
@@ -703,7 +709,7 @@ class TestCreateDeployment:
             work_queue_name="new-queue",
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         assert response.json()["work_pool_name"] == work_pool.name
         assert response.json()["work_queue_name"] == "new-queue"
         deployment_id = response.json()["id"]
@@ -797,7 +803,7 @@ class TestCreateDeployment:
         ).model_dump(mode="json")
 
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
     @pytest.mark.parametrize(
         "template, overrides",
@@ -883,7 +889,7 @@ class TestCreateDeployment:
         ).model_dump(mode="json")
 
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
     async def test_create_deployment_can_create_work_queue(
         self,
@@ -907,7 +913,7 @@ class TestCreateDeployment:
             work_queue_name="new-work-pool-queue",
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
 
         assert response.json()["work_queue_name"] == "new-work-pool-queue"
         deployment_id = response.json()["id"]
@@ -946,7 +952,7 @@ class TestCreateDeployment:
             work_queue_name="default",
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
         assert response.json()["detail"] == 'Work pool "imaginary-work-pool" not found.'
 
     async def test_create_deployment_rejects_invalid_parameter_schemas(
@@ -971,7 +977,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 422
+        assert response.status_code == 422, response.text
         assert "'blork' is not valid under any of the given schemas" in response.text
 
     async def test_create_deployment_does_not_reject_invalid_parameter_schemas_by_default(
@@ -995,7 +1001,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
     async def test_create_deployment_enforces_parameter_schema(
         self,
@@ -1019,7 +1025,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 422
+        assert response.status_code == 422, response.text
         assert (
             "Validation failed for field 'foo'. Failure reason: 1 is not of type"
             " 'string'" in response.text
@@ -1046,7 +1052,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
     async def test_create_deployment_parameter_enforcement_allows_partial_parameters(
         self,
@@ -1094,7 +1100,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
     async def test_can_pause_deployment_by_upserting_is_schedule_active_legacy_client_support(
         self,
@@ -1103,7 +1109,7 @@ class TestCreateDeployment:
     ):
         assert deployment.paused is False
 
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name=deployment.name,
             flow_id=deployment.flow_id,
             manifest_path="file.json",
@@ -1114,7 +1120,7 @@ class TestCreateDeployment:
         del data["paused"]
 
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert response.json()["paused"] is True
         assert response.json()["is_schedule_active"] is False
 
@@ -1125,7 +1131,7 @@ class TestCreateDeployment:
     ):
         assert deployment.paused is False
 
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name=deployment.name,
             flow_id=deployment.flow_id,
             manifest_path="file.json",
@@ -1133,7 +1139,7 @@ class TestCreateDeployment:
         ).model_dump(mode="json")
 
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert response.json()["paused"] is True
         assert response.json()["is_schedule_active"] is False
 
@@ -1145,20 +1151,20 @@ class TestReadDeployment:
         deployment,
     ):
         response = await client.get(f"/deployments/{deployment.id}")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()["id"] == str(deployment.id)
         assert response.json()["name"] == deployment.name
         assert response.json()["flow_id"] == str(deployment.flow_id)
 
     async def test_read_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/{uuid4()}")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
 
 class TestReadDeploymentByName:
     async def test_read_deployment_by_name(self, client, flow, deployment):
         response = await client.get(f"/deployments/name/{flow.name}/{deployment.name}")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()["id"] == str(deployment.id)
         assert response.json()["name"] == deployment.name
         assert response.json()["flow_id"] == str(deployment.flow_id)
@@ -1168,19 +1174,19 @@ class TestReadDeploymentByName:
 
     async def test_read_deployment_by_name_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/name/{uuid4()}")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     async def test_read_deployment_by_name_returns_404_if_just_given_flow_name(
         self, client, flow
     ):
         response = await client.get(f"/deployments/name/{flow.name}")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     async def test_read_deployment_by_name_returns_404_if_just_given_deployment_name(
         self, client, deployment
     ):
         response = await client.get(f"/deployments/name/{deployment.name}")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     @pytest.mark.parametrize(
         "name",
@@ -1208,7 +1214,7 @@ class TestReadDeploymentByName:
         deployment_id = response.json()["id"]
 
         response = await client.get(f"/deployments/name/{flow.name}/{name}")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()["id"] == deployment_id
 
     @pytest.mark.parametrize(
@@ -1222,7 +1228,7 @@ class TestReadDeploymentByName:
         self, client, name, flow
     ):
         response = await client.get(f"/deployments/name/{flow.name}/{name}")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
 
 class TestReadDeployments:
@@ -1269,7 +1275,7 @@ class TestReadDeployments:
 
     async def test_read_deployments(self, deployments, client):
         response = await client.post("/deployments/filter")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()) == 2
 
         assert response.json()[0]["status"] == "NOT_READY"
@@ -1283,7 +1289,7 @@ class TestReadDeployments:
             ).model_dump(mode="json")
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1)
         }
@@ -1294,7 +1300,7 @@ class TestReadDeployments:
             ).model_dump(mode="json")
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()) == 0
 
         deployment_filter = dict(
@@ -1303,7 +1309,7 @@ class TestReadDeployments:
             ).model_dump(mode="json")
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1),
             str(deployment_id_2),
@@ -1318,17 +1324,17 @@ class TestReadDeployments:
             ).model_dump(mode="json"),
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()) == 0
 
     async def test_read_deployments_applies_limit(self, deployments, client):
         response = await client.post("/deployments/filter", json=dict(limit=1))
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
         response = await client.post("/deployments/filter", json=dict(offset=1))
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()) == 1
         # sorted by name by default
         assert response.json()[0]["name"] == "My Deployment Y"
@@ -1338,7 +1344,7 @@ class TestReadDeployments:
             "/deployments/filter",
             json=dict(sort=schemas.sorting.DeploymentSort.NAME_ASC),
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()[0]["name"] == "My Deployment X"
 
         response_desc = await client.post(
@@ -1350,7 +1356,7 @@ class TestReadDeployments:
 
     async def test_read_deployments_returns_empty_list(self, client):
         response = await client.post("/deployments/filter")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json() == []
 
 
@@ -1364,7 +1370,7 @@ class TestUpdateDeployment:
             f"/deployments/{deployment_with_parameter_schema.id}",
             json={"parameters": {"x": 1}},
         )
-        assert response.status_code == 409
+        assert response.status_code == 409, response.text
         assert (
             "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
             in response.text
@@ -1379,7 +1385,7 @@ class TestUpdateDeployment:
             f"/deployments/{deployment.id}",
             json={"parameters": {"x": 1}},
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
     async def test_update_deployment_can_toggle_parameter_schema_validation(
         self,
@@ -1391,7 +1397,7 @@ class TestUpdateDeployment:
             f"/deployments/{deployment_with_parameter_schema.id}",
             json={"parameters": {"x": 1}, "enforce_parameter_schema": False},
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(
             f"/deployments/{deployment_with_parameter_schema.id}"
@@ -1405,14 +1411,14 @@ class TestUpdateDeployment:
             json={"enforce_parameter_schema": True},
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 409, response.text
 
         # Turn on parameter schema enforcement, and parameters are now valid
         response = await client.patch(
             f"/deployments/{deployment_with_parameter_schema.id}",
             json={"parameters": {"x": "y"}, "enforce_parameter_schema": True},
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(
             f"/deployments/{deployment_with_parameter_schema.id}"
@@ -1465,7 +1471,7 @@ class TestUpdateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         deployment_id = response.json()["id"]
 
@@ -1474,7 +1480,7 @@ class TestUpdateDeployment:
             json={"parameters": {"person": {"greeting": "*head nod*"}}},
         )
 
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
     async def test_update_deployment_hydrates_parameters(
         self,
@@ -1489,7 +1495,7 @@ class TestUpdateDeployment:
                 }
             },
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(
             f"/deployments/{deployment_with_parameter_schema.id}"
@@ -1503,20 +1509,20 @@ class TestUpdateDeployment:
         session,
     ):
         update_data = DeploymentUpdate(
-            schedule=schemas.schedules.IntervalSchedule(
+            schedule=client_schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1)
             )
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session,
             deployment_id=deployment.id,
         )
         assert len(schedules) == 1
-        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert isinstance(schedules[0].schedule, client_schedules.IntervalSchedule)
         assert schedules[0].schedule.interval == datetime.timedelta(days=1)
 
     async def test_update_deployment_can_remove_schedules(
@@ -1527,8 +1533,8 @@ class TestUpdateDeployment:
     ):
         update_data = DeploymentUpdate(
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
-                    schedule=schemas.schedules.IntervalSchedule(
+                DeploymentScheduleCreate(
+                    schedule=client_schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1)
                     ),
                     active=True,
@@ -1537,14 +1543,14 @@ class TestUpdateDeployment:
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session,
             deployment_id=deployment.id,
         )
         assert len(schedules) == 1
-        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert isinstance(schedules[0].schedule, client_schedules.IntervalSchedule)
         assert schedules[0].schedule.interval == datetime.timedelta(days=1)
 
         # Now remove the schedule.
@@ -1553,10 +1559,10 @@ class TestUpdateDeployment:
         )
 
         response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(f"/deployments/{deployment.id}")
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert response.json()["schedules"] == []
         assert response.json()["schedule"] is None
 
@@ -1567,14 +1573,14 @@ class TestUpdateDeployment:
         flow,
         infrastructure_document_id,
     ):
-        schedule1 = schemas.schedules.IntervalSchedule(
+        schedule1 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
-        schedule2 = schemas.schedules.IntervalSchedule(
+        schedule2 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=2)
         )
 
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name="My Deployment",
             version="mint",
             manifest_path="file.json",
@@ -1583,18 +1589,18 @@ class TestUpdateDeployment:
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule1,
                     active=True,
                 ),
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule2,
                     active=False,
                 ),
             ],
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         deployment_id = response.json()["id"]
         original_schedule_ids = [
@@ -1604,20 +1610,20 @@ class TestUpdateDeployment:
         # When we receive a PATCH request with schedules, we should replace the
         # existing schedules with the newly created ones.
 
-        schedule3 = schemas.schedules.IntervalSchedule(
+        schedule3 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=3)
         )
-        schedule4 = schemas.schedules.IntervalSchedule(
+        schedule4 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=7)
         )
 
         update_data = DeploymentUpdate(
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule3,
                     active=True,
                 ),
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule4,
                     active=False,
                 ),
@@ -1625,7 +1631,7 @@ class TestUpdateDeployment:
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(
             f"/deployments/{deployment_id}",
@@ -1638,11 +1644,11 @@ class TestUpdateDeployment:
         assert len(schedules) == 2
         assert [schedule.id for schedule in schedules] != original_schedule_ids
 
-        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert isinstance(schedules[0].schedule, client_schedules.IntervalSchedule)
         assert schedules[0].schedule.interval == schedule4.interval
         assert schedules[0].active is False
 
-        assert isinstance(schedules[1].schedule, schemas.schedules.IntervalSchedule)
+        assert isinstance(schedules[1].schedule, client_schedules.IntervalSchedule)
         assert schedules[1].schedule.interval == schedule3.interval
         assert schedules[1].active is True
 
@@ -1653,14 +1659,14 @@ class TestUpdateDeployment:
         flow,
         infrastructure_document_id,
     ):
-        schedule1 = schemas.schedules.IntervalSchedule(
+        schedule1 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
-        schedule2 = schemas.schedules.IntervalSchedule(
+        schedule2 = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=2)
         )
 
-        data = DeploymentCreate(  # type: ignore
+        data = DeploymentCreate(
             name="My Deployment",
             version="mint",
             manifest_path="file.json",
@@ -1669,18 +1675,18 @@ class TestUpdateDeployment:
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule1,
                     active=True,
                 ),
-                schemas.actions.DeploymentScheduleCreate(
+                DeploymentScheduleCreate(
                     schedule=schedule2,
                     active=False,
                 ),
             ],
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         deployment_id = response.json()["id"]
 
@@ -1690,13 +1696,13 @@ class TestUpdateDeployment:
         # trying to update.
 
         update_data = DeploymentUpdate(
-            schedule=schemas.schedules.IntervalSchedule(
+            schedule=client_schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=3)
             )
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
-        assert response.status_code == 422
+        assert response.status_code == 422, response.text
         assert b"multiple schedules" in response.content
 
     async def test_can_pause_deployment_by_updating_is_schedule_active(
@@ -1710,7 +1716,7 @@ class TestUpdateDeployment:
         response = await client.patch(
             f"/deployments/{deployment.id}", json={"is_schedule_active": False}
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         await session.refresh(deployment)
 
@@ -1729,7 +1735,7 @@ class TestUpdateDeployment:
         response = await client.patch(
             f"/deployments/{deployment.id}", json={"paused": True}
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         await session.refresh(deployment)
 
@@ -1748,18 +1754,18 @@ class TestUpdateDeployment:
         # if the schedule was not provided in the request.
         # https://github.com/PrefectHQ/nebula/issues/6994
 
-        legacy_schedule = schemas.schedules.IntervalSchedule(
+        legacy_schedule = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
         response = await client.patch(
             f"/deployments/{deployment.id}",
             json={"schedule": legacy_schedule.model_dump(mode="json")},
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         await session.refresh(deployment)
 
-        new_schedule = schemas.schedules.IntervalSchedule(
+        new_schedule = client_schedules.IntervalSchedule(
             interval=datetime.timedelta(hours=1)
         )
 
@@ -1774,7 +1780,7 @@ class TestUpdateDeployment:
             session=session,
             deployment_id=deployment.id,
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(  # type: ignore [call-arg]
+                schemas.actions.DeploymentScheduleCreate(
                     active=True, schedule=new_schedule
                 )
             ],
@@ -1785,14 +1791,14 @@ class TestUpdateDeployment:
         response = await client.patch(
             f"/deployments/{deployment.id}", json={"paused": True}
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session, deployment_id=deployment.id
         )
 
         assert len(schedules) == 1
-        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert isinstance(schedules[0].schedule, client_schedules.IntervalSchedule)
         assert schedules[0].schedule.interval == new_schedule.interval
         assert schedules[0].active is True
 
@@ -1907,7 +1913,7 @@ class TestGetScheduledFlowRuns:
             "/deployments/get_scheduled_flow_runs",
             json=dict(deployment_ids=[str(deployment_1.id)]),
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert {res["id"] for res in response.json()} == {
             str(flow_run.id) for flow_run in flow_runs[:2]
         }
@@ -1925,7 +1931,7 @@ class TestGetScheduledFlowRuns:
             "/deployments/get_scheduled_flow_runs",
             json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert {res["id"] for res in response.json()} == {
             str(flow_run.id) for flow_run in flow_runs
         }
@@ -1944,7 +1950,7 @@ class TestGetScheduledFlowRuns:
             "/deployments/get_scheduled_flow_runs",
             json=dict(deployment_ids=[str(deployment_1.id)], limit=1),
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert {res["id"] for res in response.json()} == {str(flow_runs[0].id)}
 
         # limit should still be constrained by Orion settings though
@@ -1952,7 +1958,7 @@ class TestGetScheduledFlowRuns:
             "/deployments/get_scheduled_flow_runs",
             json=dict(limit=9001),
         )
-        assert response.status_code == 422
+        assert response.status_code == 422, response.text
 
     async def test_get_scheduled_runs_respects_scheduled_before(
         self,
@@ -1969,7 +1975,7 @@ class TestGetScheduledFlowRuns:
                 scheduled_before=str(pendulum.now("UTC").subtract(minutes=2)),
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert {res["id"] for res in response.json()} == {str(flow_runs[0].id)}
 
     async def test_get_scheduled_runs_sort_order(
@@ -1984,7 +1990,7 @@ class TestGetScheduledFlowRuns:
             "/deployments/get_scheduled_flow_runs",
             json=dict(deployment_ids=[str(deployment_1.id), str(deployment_2.id)]),
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert [res["id"] for res in response.json()] == [
             str(flow_run.id) for flow_run in flow_runs[:3]
         ]
@@ -2104,11 +2110,11 @@ class TestDeleteDeployment:
 
         # delete the deployment
         response = await client.delete(f"/deployments/{deployment.id}")
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         # make sure it's deleted
         response = await client.get(f"/deployments/{deployment.id}")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
         # make sure scheduled flow runs are deleted
         n_runs = await models.flow_runs.count_flow_runs(
@@ -2121,7 +2127,7 @@ class TestDeleteDeployment:
 
     async def test_delete_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/deployments/{uuid4()}")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
 
 class TestSetScheduleActive:
@@ -2130,7 +2136,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
@@ -2143,14 +2149,14 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
 
     async def test_set_schedule_inactive_with_missing_deployment(self, client):
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_inactive")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     async def test_set_schedule_inactive_sets_child_schedule_inactive(
         self,
@@ -2174,7 +2180,7 @@ class TestSetScheduleActive:
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
+                    schedule=client_schedules.IntervalSchedule(
                         interval=datetime.timedelta(hours=1)
                     ),
                 )
@@ -2190,7 +2196,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session, deployment_id=deployment.id
@@ -2216,13 +2222,13 @@ class TestSetScheduleActive:
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
+                    schedule=client_schedules.IntervalSchedule(
                         interval=datetime.timedelta(hours=1)
                     ),
                 ),
                 schemas.actions.DeploymentScheduleCreate(
                     active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
+                    schedule=client_schedules.IntervalSchedule(
                         interval=datetime.timedelta(hours=2)
                     ),
                 ),
@@ -2238,7 +2244,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == 422
+        assert response.status_code == 422, response.text
         assert b"multiple schedules" in response.content
 
     async def test_set_schedule_active(self, client, deployment, session):
@@ -2248,7 +2254,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
@@ -2263,14 +2269,14 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
 
     async def test_set_schedule_active_with_missing_deployment(self, client):
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     async def test_set_schedule_active_toggles_active_flag(
         self, client, deployment, session
@@ -2310,7 +2316,7 @@ class TestSetScheduleActive:
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     active=False,
-                    schedule=schemas.schedules.IntervalSchedule(
+                    schedule=client_schedules.IntervalSchedule(
                         interval=datetime.timedelta(hours=1)
                     ),
                 )
@@ -2326,7 +2332,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
 
         schedules = await models.deployments.read_deployment_schedules(
             session=session, deployment_id=deployment.id
@@ -2352,13 +2358,13 @@ class TestSetScheduleActive:
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
+                    schedule=client_schedules.IntervalSchedule(
                         interval=datetime.timedelta(hours=1)
                     ),
                 ),
                 schemas.actions.DeploymentScheduleCreate(
                     active=True,
-                    schedule=schemas.schedules.IntervalSchedule(
+                    schedule=client_schedules.IntervalSchedule(
                         interval=datetime.timedelta(hours=2)
                     ),
                 ),
@@ -2374,7 +2380,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == 422
+        assert response.status_code == 422, response.text
         assert b"multiple schedules" in response.content
 
     async def test_set_schedule_active_doesnt_schedule_runs_if_no_schedule_set(
@@ -2567,7 +2573,7 @@ class TestCreateFlowRunFromDeployment:
         response = await client.post(
             f"deployments/{deployment_with_version.id}/create_flow_run", json={}
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
         assert response.json()["deployment_version"] == "1.0"
 
     async def test_create_flow_run_from_deployment_uses_work_queue_name(
@@ -2630,7 +2636,7 @@ class TestCreateFlowRunFromDeployment:
                 job_variables=job_vars
             ).model_dump(mode="json"),
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
         flow_run_id = response.json()["id"]
 
         flow_run = await models.flow_runs.read_flow_run(
@@ -2639,7 +2645,7 @@ class TestCreateFlowRunFromDeployment:
         assert flow_run.job_variables == job_vars
 
         response = await client.get(f"flow_runs/{flow_run_id}")
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert response.json()["job_variables"] == job_vars
 
     async def test_create_flow_run_from_deployment_disambiguates_queue_name_from_other_pools(
@@ -2701,7 +2707,7 @@ class TestCreateFlowRunFromDeployment:
             json={"parameters": {"x": 1}},
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 409, response.text
         assert (
             "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
             in response.text
@@ -2712,7 +2718,7 @@ class TestCreateFlowRunFromDeployment:
             json={"parameters": {"x": "y"}},
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
     async def test_create_flow_run_does_not_enforce_parameter_schema_when_enforcement_is_toggled_off(
         self,
@@ -2729,7 +2735,7 @@ class TestCreateFlowRunFromDeployment:
             json={"parameters": {"x": 1}},
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
     async def test_create_flow_run_from_deployment_parameter_enforcement_rejects_partial_parameters(
         self,
@@ -2776,7 +2782,7 @@ class TestCreateFlowRunFromDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         deployment_id = response.json()["id"]
 
@@ -2785,7 +2791,7 @@ class TestCreateFlowRunFromDeployment:
             json={"parameters": {"person": {"greeting": "*half hearted wave*"}}},
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 409, response.text
         assert "Validation failed for field 'person'" in response.text
         assert "Failure reason: 'name' is a required property" in response.text
 
@@ -2803,7 +2809,7 @@ class TestCreateFlowRunFromDeployment:
             },
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
         assert response.json()["parameters"]["x"] == "str_of_json"
 
     async def test_create_flow_run_from_deployment_hydration_error(
@@ -2820,7 +2826,7 @@ class TestCreateFlowRunFromDeployment:
             },
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 400, response.text
         assert (
             "Error hydrating flow run parameters: Invalid JSON: Expecting value:"
             in response.json()["detail"]
@@ -2830,7 +2836,7 @@ class TestCreateFlowRunFromDeployment:
 class TestGetDeploymentWorkQueueCheck:
     async def test_404_on_bad_id(self, client):
         response = await client.get(f"deployments/{uuid4()}/work_queue_check")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     async def test_well_formed_response(
         self,
@@ -2864,7 +2870,7 @@ class TestGetDeploymentWorkQueueCheck:
         await session.commit()
 
         response = await client.get(f"deployments/{deployment.id}/work_queue_check")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
         dialect = get_dialect(connection_url)
