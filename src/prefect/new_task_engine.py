@@ -168,20 +168,7 @@ class TaskRunEngine(Generic[P, R]):
     def _compute_state_details(
         self, include_cache_expiration: bool = False
     ) -> StateDetails:
-        from prefect.utilities.engine import should_log_prints
-
-        # We sometimes call this prior to setting up the run context, so we create a temporary
-        # context here
-        # TODO: Should we set up the run context earlier in Engine.start?
-        log_prints = should_log_prints(self.task)
-        task_run_context = TaskRunContext(
-            task=self.task,
-            log_prints=log_prints,
-            task_run=self.task_run,
-            parameters=self.parameters,
-            result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
-            client=self.client,
-        )
+        task_run_context = TaskRunContext.get()
         ## setup cache metadata
         cache_key = (
             self.task.cache_key_fn(
@@ -502,35 +489,38 @@ def run_task_sync(
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
-        run.begin_run()
+        with run.enter_run_context():
+            run.begin_run()
 
-        while run.is_running():
-            with run.enter_run_context():
-                try:
-                    # This is where the task is actually run.
-                    with timeout(seconds=run.task.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, run.parameters or {}
-                        )
-                        run.logger.debug(
-                            f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
-                        )
-                        result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
+            while run.is_running():
+                # enter run context on each loop iteration to ensure the context
+                # contains the latest task run metadata
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            run.logger.debug(
+                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                            )
+                            result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
-                    # If the task run is successful, finalize it.
-                    run.handle_success(result)
-                except TimeoutError as exc:
-                    run.handle_timeout(exc)
-                except Exception as exc:
-                    run.handle_exception(exc)
+                        # If the task run is successful, finalize it.
+                        run.handle_success(result)
+                    except TimeoutError as exc:
+                        run.handle_timeout(exc)
+                    except Exception as exc:
+                        run.handle_exception(exc)
 
-        if run.state.is_final():
-            for hook in run.get_hooks(run.state):
-                hook()
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state):
+                    hook()
 
-        if return_type == "state":
-            return run.state
-        return run.result()
+            if return_type == "state":
+                return run.state
+            return run.result()
 
 
 async def run_task_async(
@@ -553,35 +543,38 @@ async def run_task_async(
 
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
-        run.begin_run()
+        with run.enter_run_context():
+            run.begin_run()
 
-        while run.is_running():
-            with run.enter_run_context():
-                try:
-                    # This is where the task is actually run.
-                    with timeout_async(seconds=run.task.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, run.parameters or {}
-                        )
-                        run.logger.debug(
-                            f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
-                        )
-                        result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
+            while run.is_running():
+                # enter run context on each loop iteration to ensure the context
+                # contains the latest task run metadata
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout_async(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            run.logger.debug(
+                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                            )
+                            result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
 
-                    # If the task run is successful, finalize it.
-                    run.handle_success(result)
-                except TimeoutError as exc:
-                    run.handle_timeout(exc)
-                except Exception as exc:
-                    run.handle_exception(exc)
+                        # If the task run is successful, finalize it.
+                        run.handle_success(result)
+                    except TimeoutError as exc:
+                        run.handle_timeout(exc)
+                    except Exception as exc:
+                        run.handle_exception(exc)
 
-        if run.state.is_final():
-            for hook in run.get_hooks(run.state, as_async=True):
-                await hook()
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state, as_async=True):
+                    await hook()
 
-        if return_type == "state":
-            return run.state
-        return run.result()
+            if return_type == "state":
+                return run.state
+            return run.result()
 
 
 def run_task(
