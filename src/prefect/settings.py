@@ -1921,7 +1921,7 @@ class Settings(SettingsFieldsMixin):
             if setting in include
         }
 
-        # Cast to strings and drop null values, make timedelta values human readable
+        # Cast to strings and drop null values
         return {key: str(value) for key, value in env.items() if value is not None}
 
     model_config = ConfigDict(frozen=True)
