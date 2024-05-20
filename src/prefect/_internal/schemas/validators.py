@@ -412,7 +412,7 @@ def default_timezone(v: Optional[str], values: Optional[dict] = None) -> str:
 
     # anchor schedules
     elif v is None and values and values.get("anchor_date"):
-        tz = values["anchor_date"].tz.name
+        tz = getattr(values["anchor_date"].tz, "name", None) or "UTC"
         if tz in timezones:
             return tz
         # sometimes anchor dates have "timezones" that are UTC offsets
