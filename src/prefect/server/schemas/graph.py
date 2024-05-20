@@ -19,6 +19,7 @@ class GraphArtifact(PrefectBaseModel):
     key: Optional[str]
     type: str
     is_latest: bool
+    data: Optional[float]  # we only return data for progress artifacts for now
 
 
 class Edge(PrefectBaseModel):

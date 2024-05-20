@@ -50,6 +50,7 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
     ArtifactCreate,
+    ArtifactUpdate,
     BlockDocumentCreate,
     BlockDocumentUpdate,
     BlockSchemaCreate,
@@ -2845,6 +2846,25 @@ class PrefectClient:
         )
 
         return pydantic.parse_obj_as(Artifact, response.json())
+
+    async def update_artifact(
+        self,
+        artifact_id: UUID,
+        artifact: ArtifactUpdate,
+    ) -> None:
+        """
+        Updates an artifact
+
+        Args:
+            artifact: Desired values for the updated artifact.
+        Returns:
+            Information about the updated artifact.
+        """
+
+        await self._client.patch(
+            f"/artifacts/{artifact_id}",
+            json=artifact.dict(json_compatible=True, exclude_unset=True),
+        )
 
     async def read_artifacts(
         self,

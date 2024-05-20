@@ -13,12 +13,16 @@ from typing_extensions import Self
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
+from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.objects import Artifact as ArtifactResponse
 from prefect.client.schemas.sorting import ArtifactSort
 from prefect.client.utilities import get_or_create_client, inject_client
+from prefect.logging.loggers import get_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.context import get_task_and_flow_run_ids
+
+logger = get_logger("artifacts")
 
 
 class Artifact(ArtifactRequest):
@@ -171,6 +175,24 @@ class TableArtifact(Artifact):
         return json.dumps(self._sanitize(self.table))
 
 
+class ProgressArtifact(Artifact):
+    progress: float
+    type: Optional[str] = "progress"
+
+    async def format(self) -> float:
+        # Ensure progress is between 0 and 100
+        min_progress = 0.0
+        max_progress = 100.0
+        if self.progress < min_progress or self.progress > max_progress:
+            logger.warning(
+                f"ProgressArtifact received an invalid value, Progress: {self.progress}%"
+            )
+            self.progress = max(min_progress, min(self.progress, max_progress))
+            logger.warning(f"Interpreting as {self.progress}% progress")
+
+        return self.progress
+
+
 @inject_client
 async def _create_artifact(
     type: str,
@@ -292,3 +314,69 @@ async def create_table_artifact(
     ).create()
 
     return artifact.id
+
+
+@sync_compatible
+async def create_progress_artifact(
+    progress: float,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+) -> UUID:
+    """
+    Create a progress artifact.
+
+    Arguments:
+        progress: The percentage of progress represented by a float between 0 and 100.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The progress artifact ID.
+    """
+
+    artifact = await ProgressArtifact(
+        key=key,
+        description=description,
+        progress=progress,
+    ).create()
+
+    return artifact.id
+
+
+@sync_compatible
+async def update_progress_artifact(
+    artifact_id: UUID,
+    progress: float,
+    description: Optional[str] = None,
+    client: Optional[PrefectClient] = None,
+) -> UUID:
+    """
+    Update a progress artifact.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        progress: The percentage of progress represented by a float between 0 and 100.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The progress artifact ID.
+    """
+
+    client, _ = get_or_create_client(client)
+
+    artifact = ProgressArtifact(
+        description=description,
+        progress=progress,
+    )
+
+    await client.update_artifact(
+        artifact_id=artifact_id,
+        artifact=ArtifactUpdate(
+            description=artifact.description,
+            data=await artifact.format(),
+        ),
+    )
+
+    return artifact_id
