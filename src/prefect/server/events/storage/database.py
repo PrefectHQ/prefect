@@ -1,15 +1,9 @@
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Sequence, Tuple
 
+import pydantic.v1 as pydantic
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
 
 from prefect.logging.loggers import get_logger
 from prefect.server.database.dependencies import db_injector, provide_database_interface
@@ -120,7 +114,7 @@ async def raw_count_events(
         ).select_from(db.Event)
 
     select_events_query_result = await session.execute(
-        select_events_query.where(sa.and_(*events_filter.build_where_clauses(db)))
+        select_events_query.where(sa.and_(*events_filter.build_where_clauses()))
     )
     return select_events_query_result.scalar() or 0
 
@@ -161,7 +155,7 @@ async def read_events(
             sa.select(db.Event, window_function)
             .where(
                 sa.and_(
-                    *events_filter.build_where_clauses(db)
+                    *events_filter.build_where_clauses()
                 )  # Ensure the same filters are applied here
             )
             .subquery()
@@ -179,7 +173,7 @@ async def read_events(
     else:
         # If no distinct fields are provided, create a query for all events
         select_events_query = sa.select(db.Event).where(
-            sa.and_(*events_filter.build_where_clauses(db))
+            sa.and_(*events_filter.build_where_clauses())
         )
         # Order by the occurred timestamp
         select_events_query = select_events_query.order_by(order(db.Event.occurred))

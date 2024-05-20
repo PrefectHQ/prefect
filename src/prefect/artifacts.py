@@ -6,16 +6,12 @@ from __future__ import annotations
 
 import json  # noqa: I001
 import math
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
-from typing_extensions import Self
-
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
-from prefect.client.schemas.objects import Artifact as ArtifactResponse
 from prefect.client.schemas.sorting import ArtifactSort
 from prefect.client.utilities import get_or_create_client, inject_client
 from prefect.logging.loggers import get_logger
@@ -23,6 +19,12 @@ from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.context import get_task_and_flow_run_ids
 
 logger = get_logger("artifacts")
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
+
+    from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import Artifact as ArtifactResponse
 
 
 class Artifact(ArtifactRequest):
@@ -40,9 +42,9 @@ class Artifact(ArtifactRequest):
 
     @sync_compatible
     async def create(
-        self: Self,
-        client: Optional[PrefectClient] = None,
-    ) -> ArtifactResponse:
+        self: "Self",
+        client: Optional["PrefectClient"] = None,
+    ) -> "ArtifactResponse":
         """
         A method to create an artifact.
 
@@ -68,8 +70,8 @@ class Artifact(ArtifactRequest):
     @classmethod
     @sync_compatible
     async def get(
-        cls, key: Optional[str] = None, client: Optional[PrefectClient] = None
-    ) -> Optional[ArtifactResponse]:
+        cls, key: Optional[str] = None, client: Optional["PrefectClient"] = None
+    ) -> Optional["ArtifactResponse"]:
         """
         A method to get an artifact.
 
@@ -99,9 +101,9 @@ class Artifact(ArtifactRequest):
         key: Optional[str] = None,
         description: Optional[str] = None,
         data: Optional[Union[Dict[str, Any], Any]] = None,
-        client: Optional[PrefectClient] = None,
+        client: Optional["PrefectClient"] = None,
         **kwargs: Any,
-    ) -> Tuple[ArtifactResponse, bool]:
+    ) -> Tuple["ArtifactResponse", bool]:
         """
         A method to get or create an artifact.
 
@@ -199,7 +201,7 @@ async def _create_artifact(
     key: Optional[str] = None,
     description: Optional[str] = None,
     data: Optional[Union[Dict[str, Any], Any]] = None,
-    client: Optional[PrefectClient] = None,
+    client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
     Helper function to create an artifact.
@@ -232,7 +234,7 @@ async def create_link_artifact(
     link_text: Optional[str] = None,
     key: Optional[str] = None,
     description: Optional[str] = None,
-    client: Optional[PrefectClient] = None,
+    client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
     Create a link artifact.

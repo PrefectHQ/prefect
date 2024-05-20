@@ -2,6 +2,7 @@ import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager
 from typing import (
+    TYPE_CHECKING,
     FrozenSet,
     Tuple,
 )
@@ -12,13 +13,15 @@ from prefect._vendor.starlette import status
 from prefect import get_client
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import QueueService
-from prefect.client.orchestration import PrefectClient
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 class ConcurrencySlotAcquisitionService(QueueService):
     def __init__(self, concurrency_limit_names: FrozenSet[str]):
         super().__init__(concurrency_limit_names)
-        self._client: PrefectClient
+        self._client: "PrefectClient"
         self.concurrency_limit_names = sorted(list(concurrency_limit_names))
 
     @asynccontextmanager

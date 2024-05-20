@@ -66,35 +66,19 @@ from typing import (
 from urllib.parse import urlparse
 
 import toml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_settings
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-else:
-    from pydantic import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-
+from pydantic.v1 import (
+    BaseModel,
+    BaseSettings,
+    Field,
+    create_model,
+    fields,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -108,6 +92,8 @@ REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
     "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS",
+    "PREFECT_EXPERIMENTAL_EVENTS",
     "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
     "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
     "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
@@ -1459,13 +1445,6 @@ Whether or not to enable flow run input.
 
 # Prefect Events feature flags
 
-PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
-"""
-Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
-will always emit events during flow and task runs regardless of this setting.
-"""
-
-
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
@@ -1624,6 +1603,7 @@ PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
 Whether or not to disable the sync_compatible decorator utility.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 
 # Defaults -----------------------------------------------------------------------------
 

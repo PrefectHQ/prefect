@@ -1,6 +1,5 @@
 import json
 import os
-import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
@@ -73,7 +72,6 @@ from prefect.client.schemas.responses import (
 )
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
 from prefect.client.utilities import inject_client
-from prefect.deprecated.data_documents import DataDocument
 from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.settings import (
@@ -567,9 +565,7 @@ async def test_create_then_read_flow(prefect_client):
     assert lookup.name == foo.name
 
 
-async def test_create_then_read_deployment(
-    prefect_client, infrastructure_document_id, storage_document_id
-):
+async def test_create_then_read_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
         pass
@@ -587,7 +583,6 @@ async def test_create_then_read_deployment(
         schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
@@ -605,12 +600,11 @@ async def test_create_then_read_deployment(
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
-    assert lookup.infrastructure_document_id == infrastructure_document_id
     assert lookup.parameter_openapi_schema == {}
 
 
 async def test_create_then_read_deployment_using_deprecated_infra_overrides_instead_of_job_variables(
-    prefect_client, infrastructure_document_id, storage_document_id
+    prefect_client, storage_document_id
 ):
     @flow
     def foo():
@@ -629,7 +623,6 @@ async def test_create_then_read_deployment_using_deprecated_infra_overrides_inst
         schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
         infra_overrides={"foo": "bar"},
@@ -648,9 +641,7 @@ async def test_create_then_read_deployment_using_deprecated_infra_overrides_inst
     assert lookup.job_variables == {"foo": "bar"}
 
 
-async def test_updating_deployment(
-    prefect_client, infrastructure_document_id, storage_document_id
-):
+async def test_updating_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
         pass
@@ -666,7 +657,6 @@ async def test_updating_deployment(
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
@@ -687,7 +677,7 @@ async def test_updating_deployment(
 
 
 async def test_updating_deployment_and_removing_schedule(
-    prefect_client, infrastructure_document_id, storage_document_id
+    prefect_client, storage_document_id
 ):
     @flow
     def foo():
@@ -704,7 +694,6 @@ async def test_updating_deployment_and_removing_schedule(
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
@@ -1139,7 +1128,7 @@ async def test_delete_task_run(prefect_client):
     )
 
     await prefect_client.delete_task_run(task_run.id)
-    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="Not Found"):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
         await prefect_client.read_task_run(task_run.id)
 
 
@@ -1464,40 +1453,6 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
     )
 
 
-class TestResolveDataDoc:
-    @pytest.fixture(autouse=True)
-    def ignore_deprecation_warnings(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
-            yield
-
-    async def test_does_not_allow_other_types(self, prefect_client):
-        with pytest.raises(TypeError, match="invalid type str"):
-            await prefect_client.resolve_datadoc("foo")
-
-    async def test_resolves_data_document(self, prefect_client):
-        innermost = await prefect_client.resolve_datadoc(
-            DataDocument.encode("cloudpickle", "hello")
-        )
-        assert innermost == "hello"
-
-    async def test_resolves_nested_data_documents(self, prefect_client):
-        innermost = await prefect_client.resolve_datadoc(
-            DataDocument.encode("cloudpickle", DataDocument.encode("json", "hello"))
-        )
-        assert innermost == "hello"
-
-    async def test_resolves_nested_data_documents_when_inner_is_bytes(
-        self, prefect_client
-    ):
-        innermost = await prefect_client.resolve_datadoc(
-            DataDocument.encode(
-                "cloudpickle", DataDocument.encode("json", "hello").json().encode()
-            )
-        )
-        assert innermost == "hello"
-
-
 class TestClientAPIVersionRequests:
     @pytest.fixture
     def versions(self):
@@ -1642,7 +1597,7 @@ class TestClientAPIKey:
 
 class TestClientWorkQueues:
     @pytest.fixture
-    async def deployment(self, prefect_client, infrastructure_document_id):
+    async def deployment(self, prefect_client):
         foo = flow(lambda: None, name="foo")
         flow_id = await prefect_client.create_flow(foo)
         schedule = IntervalSchedule(
@@ -1656,7 +1611,6 @@ class TestClientWorkQueues:
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",
-            infrastructure_document_id=infrastructure_document_id,
         )
         return deployment_id
 
@@ -2080,15 +2034,6 @@ class TestAutomations:
             actions=[],
         )
 
-    async def test_create_not_enabled_runtime_error(
-        self, events_disabled, prefect_client, automation: AutomationCore
-    ):
-        with pytest.raises(
-            RuntimeError,
-            match="The current server and client configuration does not support",
-        ):
-            await prefect_client.create_automation(automation)
-
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
             created_automation = automation.dict(json_compatible=True)
@@ -2221,16 +2166,6 @@ class TestAutomations:
 
             assert nonexistent_automation == []
 
-    async def test_delete_owned_automations_not_enabled_runtime_error(
-        self, events_disabled, prefect_client
-    ):
-        with pytest.raises(
-            RuntimeError,
-            match="The current server and client configuration does not support",
-        ):
-            resource_id = f"prefect.deployment.{uuid4()}"
-            await prefect_client.delete_resource_owned_automations(resource_id)
-
     async def test_delete_owned_automations(self, cloud_client):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
             resource_id = f"prefect.deployment.{uuid4()}"
@@ -2358,7 +2293,7 @@ async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client)
 
 class TestPrefectClientDeploymentSchedules:
     @pytest.fixture
-    async def deployment(self, prefect_client, infrastructure_document_id):
+    async def deployment(self, prefect_client):
         foo = flow(lambda: None, name="foo")
         flow_id = await prefect_client.create_flow(foo)
         schedule = IntervalSchedule(
@@ -2372,7 +2307,6 @@ class TestPrefectClientDeploymentSchedules:
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",
-            infrastructure_document_id=infrastructure_document_id,
         )
         deployment = await prefect_client.read_deployment(deployment_id)
         return deployment

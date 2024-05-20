@@ -163,13 +163,6 @@ async def create_work_pool(
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
     """
-
-    if not work_pool.name.lower().strip("' \""):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Work pool name cannot be empty.",
-        )
-
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

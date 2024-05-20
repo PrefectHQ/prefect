@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 
@@ -38,9 +37,7 @@ from prefect.server.events.schemas.events import RelatedResource
 
 @pytest.fixture
 def enable_automations():
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_EVENTS: True, PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}
-    ):
+    with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
         yield
 
 

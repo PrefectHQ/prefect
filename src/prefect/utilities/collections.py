@@ -28,12 +28,7 @@ from typing import (
 )
 from unittest.mock import Mock
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
+import pydantic.v1 as pydantic
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
@@ -225,7 +220,7 @@ class StopVisiting(BaseException):
 
 def visit_collection(
     expr,
-    visit_fn: Callable[[Any], Any],
+    visit_fn: Union[Callable[[Any, dict], Any], Callable[[Any], Any]],
     return_data: bool = False,
     max_depth: int = -1,
     context: Optional[dict] = None,
@@ -252,8 +247,10 @@ def visit_collection(
 
     Args:
         expr (Any): a Python object or expression
-        visit_fn (Callable[[Any], Awaitable[Any]]): an async function that
-            will be applied to every non-collection element of expr.
+        visit_fn (Callable[[Any, Optional[dict]], Awaitable[Any]]): a function that
+            will be applied to every non-collection element of expr. The function can
+            accept one or two arguments. If two arguments are accepted, the second
+            argument will be the context dictionary.
         return_data (bool): if `True`, a copy of `expr` containing data modified
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).

@@ -2,17 +2,13 @@ ruff
 cairosvg
 codespell>=2.2.6
 ddtrace
-# Pin IPython to 8.12 when building on Python 3.8
-# https://github.com/ipython/ipython/blob/main/README.rst
-ipython == 8.12.*; python_version == '3.8'
-ipython; python_version > '3.8'
+ipython
 jinja2
 mkdocs
 mkdocs-gen-files
 mkdocs-material
 mkdocstrings-python
 mike
-mock; python_version < '3.8'
 moto >= 5
 mypy >= 1.9.0
 numpy
@@ -30,7 +26,7 @@ pytest-xdist < 3.4.0 # 3.5.0 introduces some flakiness. Need to investigate and 
 pytkdocs >= 0.14.2
 pyyaml
 requests
-setuptools != 60.9.0; python_version < '3.8'
+setuptools
 vermin
 virtualenv
 watchfiles

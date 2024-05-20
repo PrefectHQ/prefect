@@ -2,18 +2,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Type
 
 import yaml
-
-from prefect._internal.compatibility.deprecated import deprecated_class
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_yaml
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
+from pydantic.v1 import Field, validator
 from typing_extensions import Self
 
+from prefect._internal.compatibility.deprecated import deprecated_class
+from prefect._internal.schemas.validators import validate_yaml
 from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
 from prefect.utilities.importtools import lazy_import
