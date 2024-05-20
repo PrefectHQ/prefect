@@ -431,6 +431,7 @@ class RRuleSchedule(PrefectBaseModel):
             dtstart=DEFAULT_ANCHOR_DATE,
             cache=True,
         )
+
         timezone = dateutil.tz.gettz(self.timezone)
         if isinstance(rrule, dateutil.rrule.rrule):
             kwargs = dict(dtstart=rrule._dtstart.replace(tzinfo=timezone))

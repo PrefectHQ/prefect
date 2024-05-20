@@ -25,7 +25,7 @@ RRDaily = "FREQ=DAILY"
 
 class TestCreateIntervalSchedule:
     def test_interval_is_required(self):
-        with pytest.raises(ValidationError, match="(field required)"):
+        with pytest.raises(ValidationError, match="(Field required)"):
             IntervalSchedule()
 
     @pytest.mark.parametrize("minutes", [-1, 0])
@@ -591,7 +591,7 @@ class TestRRuleScheduleDaylightSavingsTime:
 
 class TestCreateRRuleSchedule:
     async def test_rrule_is_required(self):
-        with pytest.raises(ValidationError, match="(field required)"):
+        with pytest.raises(ValidationError, match="(Field required)"):
             RRuleSchedule()
 
     async def test_create_from_rrule_str(self):
