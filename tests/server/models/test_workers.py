@@ -40,7 +40,9 @@ class TestCreateWorkPool:
 
     @pytest.mark.parametrize("name", ["hi/there", "hi%there"])
     async def test_create_invalid_name(self, session, name):
-        with pytest.raises(pydantic.ValidationError, match="(invalid character)"):
+        with pytest.raises(
+            pydantic.ValidationError, match="String should match pattern"
+        ):
             schemas.core.WorkPool(name=name)
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
@@ -298,7 +300,9 @@ class TestCreateWorkQueue:
 
     @pytest.mark.parametrize("name", ["hi/there", "hi%there"])
     async def test_create_invalid_name(self, session, work_pool, name):
-        with pytest.raises(pydantic.ValidationError, match="(invalid character)"):
+        with pytest.raises(
+            pydantic.ValidationError, match="String should match pattern"
+        ):
             schemas.actions.WorkQueueCreate(name=name)
 
 

@@ -3,7 +3,6 @@ from .credentials import AwsCredentials, MinIOCredentials
 from .client_parameters import AwsClientParameters
 from .lambda_function import LambdaFunction
 from .s3 import S3Bucket
-from .ecs import ECSTask
 from .secrets_manager import AwsSecret
 from .workers import ECSWorker
 
@@ -21,7 +20,6 @@ __all__ = [
     "LambdaFunction",
     "MinIOCredentials",
     "S3Bucket",
-    "ECSTask",
     "AwsSecret",
     "ECSWorker",
 ]

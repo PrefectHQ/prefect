@@ -650,6 +650,7 @@ class Block(BaseModel, ABC):
         block._define_metadata_on_nested_blocks(
             block_document.block_document_references
         )
+
         resources: Optional[ResourceTuple] = block._event_method_called_resources()
         if resources:
             kind = block._event_kind()
