@@ -186,7 +186,7 @@ class TestIntervalSchedule:
         # Regression test for https://github.com/PrefectHQ/orion/issues/2466
         clock = IntervalSchedule(
             interval=timedelta(days=1),
-            anchor_date=datetime(2022, 1, 1),
+            anchor_date=datetime(2022, 1, 1, tz=None),
         )
         dates = await clock.get_dates(start=datetime(2022, 1, 1), n=3)
         assert dates == [
