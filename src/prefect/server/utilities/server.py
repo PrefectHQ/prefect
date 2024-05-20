@@ -2,9 +2,7 @@
 Utilities for the Prefect REST API server.
 """
 
-import functools
-import inspect
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import AsyncExitStack
 from typing import Any, Callable, Coroutine, Sequence, Set, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
@@ -25,61 +23,6 @@ def method_paths_from_routes(routes: Sequence[BaseRoute]) -> Set[str]:
                 method_paths.add(f"{method} {route.path}")
 
     return method_paths
-
-
-def response_scoped_dependency(dependency: Callable):
-    """
-    Ensure that this dependency closes before the response is returned to the client. By
-    default, FastAPI closes dependencies after sending the response.
-
-    Uses an async stack that is exited before the response is returned. This is
-    particularly useful for database sessions which must be committed before the client
-    can do more work.
-
-    NOTE: Do not use a response-scoped dependency within a FastAPI background task.
-          Background tasks run after FastAPI sends the response, so a response-scoped
-          dependency will already be closed. Use a normal FastAPI dependency instead.
-
-    Args:
-        dependency: An async callable. FastAPI dependencies may still be used.
-
-    Returns:
-        A wrapped `dependency` which will push the `dependency` context manager onto
-        a stack when called.
-    """
-    signature = inspect.signature(dependency)
-
-    async def wrapper(*args, request: Request, **kwargs):
-        # Replicate FastAPI behavior of auto-creating a context manager
-        if inspect.isasyncgenfunction(dependency):
-            context_manager = asynccontextmanager(dependency)
-        else:
-            context_manager = dependency
-
-        # Ensure request is provided if requested
-        if "request" in signature.parameters:
-            kwargs["request"] = request
-
-        # Enter the route handler provided stack that is closed before responding,
-        # return the value yielded by the wrapped dependency
-        return await request.state.response_scoped_stack.enter_async_context(
-            context_manager(*args, **kwargs)
-        )
-
-    # Ensure that the signature includes `request: Request` to ensure that FastAPI will
-    # inject the request as a dependency; maintain the old signature so those depends
-    # work
-    request_parameter = inspect.signature(wrapper).parameters["request"]
-    functools.update_wrapper(wrapper, dependency)
-
-    if "request" not in signature.parameters:
-        new_parameters = signature.parameters.copy()
-        new_parameters["request"] = request_parameter
-        wrapper.__signature__ = signature.replace(
-            parameters=tuple(new_parameters.values())
-        )
-
-    return wrapper
 
 
 class PrefectAPIRoute(APIRoute):
