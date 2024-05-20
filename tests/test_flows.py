@@ -2871,7 +2871,6 @@ class TestFlowHooksOnCancellation:
             def flow2():
                 pass
 
-    @fails_with_new_engine
     def test_on_cancellation_hooks_run_on_cancelled_state(self):
         my_mock = MagicMock()
 
@@ -2920,7 +2919,6 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         my_mock.assert_not_called()
 
-    @fails_with_new_engine
     def test_other_cancellation_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
 
@@ -2940,7 +2938,6 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled1"), call("cancelled3")]
 
-    @fails_with_new_engine
     def test_on_cancelled_hook_on_subflow_succeeds(self):
         my_mock = MagicMock()
 
@@ -2970,7 +2967,6 @@ class TestFlowHooksOnCancellation:
             (create_async_hook, create_async_hook),
         ],
     )
-    @fails_with_new_engine
     def test_on_cancellation_hooks_work_with_sync_and_async(self, hook1, hook2):
         my_mock = MagicMock()
         hook1_with_mock = hook1(my_mock)
@@ -3007,9 +3003,10 @@ class TestFlowHooksOnCancellation:
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
-            await my_flow(return_state=True)
+            my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled")]
 
+    # runner handles running on cancellation hooks
     @fails_with_new_engine
     async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
@@ -3025,7 +3022,7 @@ class TestFlowHooksOnCancellation:
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
-            await my_flow(return_state=True)
+            my_flow(return_state=True)
         my_mock.assert_not_called()
 
     def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
@@ -3103,7 +3100,6 @@ class TestFlowHooksOnCrashed:
             def flow2():
                 pass
 
-    @fails_with_new_engine
     def test_on_crashed_hooks_run_on_crashed_state(self):
         my_mock = MagicMock()
 
@@ -3154,7 +3150,6 @@ class TestFlowHooksOnCrashed:
         assert state.type == StateType.FAILED
         my_mock.assert_not_called()
 
-    @fails_with_new_engine
     def test_other_crashed_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3174,7 +3169,6 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed1"), call("crashed3")]
 
-    @fails_with_new_engine
     @pytest.mark.parametrize(
         "hook1, hook2",
         [
@@ -3196,7 +3190,6 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
-    @fails_with_new_engine
     def test_on_crashed_hook_on_subflow_succeeds(self):
         my_mock = MagicMock()
 
