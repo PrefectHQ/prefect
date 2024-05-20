@@ -1136,8 +1136,8 @@ this many scheduled runs, depending on the value of
 """
 
 PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
-    timedelta,
-    default=timedelta(days=100),
+    str,
+    default="100 days, 0:00:00",
 )
 """The scheduler will create new runs up to this far in the
 future. Note that this setting will take precedence over
@@ -1921,7 +1921,7 @@ class Settings(SettingsFieldsMixin):
             if setting in include
         }
 
-        # Cast to strings and drop null values
+        # Cast to strings and drop null values, make timedelta values human readable
         return {key: str(value) for key, value in env.items() if value is not None}
 
     model_config = ConfigDict(frozen=True)

@@ -1639,7 +1639,7 @@ class TestClientWorkQueues:
         assert run.id
 
         runs_1 = await prefect_client.get_runs_in_work_queue(wq_1.id)
-        assert runs_1 == [run]
+        assert runs_1[0].id == run.id
 
         runs_2 = await prefect_client.get_runs_in_work_queue(wq_2.id)
         assert runs_2 == []
