@@ -254,8 +254,8 @@ async def test_history_returns_maximum_items(client, route):
     response = await client.post(
         f"/{route}/history",
         json=dict(
-            history_start=str(dt),
-            history_end=str(dt.add(days=10)),
+            history_start=dt.isoformat(),
+            history_end=dt.add(days=10).isoformat(),
             history_interval_seconds=timedelta(minutes=1).total_seconds(),
         ),
     )
@@ -263,12 +263,11 @@ async def test_history_returns_maximum_items(client, route):
     assert response.status_code == status.HTTP_200_OK
 
     # only first 500 items returned
-    assert len(response.json()) == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert min([r["interval_start"] for r in response.json()]) == dt.isoformat()
-    assert (
-        max([r["interval_start"] for r in response.json()])
-        == dt.add(minutes=499).isoformat()
-    )
+    assert len(response.json()) == 500
+
+    intervals = [pendulum.parse(r["interval_start"]) for r in response.json()]
+    assert min(intervals) == dt
+    assert max(intervals) == dt.add(minutes=499)
 
 
 async def test_daily_bins_flow_runs(client):
