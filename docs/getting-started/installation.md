@@ -6,17 +6,9 @@ tags:
     - development
     - Linux
     - Windows
-    - SQLite
     - upgrade
 search:
   boost: 2
-
-Notes: 
-- change to "Install"
-- page doesn't really discuss configuration
-- we should move DB content to the self-hosted page (makes this page simpler and encourages "just use Cloud")
-- removing esoteric content; can be placed elsewhere if it's necessary
-- point to quickstart after this instead of the tutorial
 ---
 
 # Install Prefect
@@ -83,46 +75,32 @@ Server:
 ```
 </div>
 
-## Operating system-specific notes
+## Windows installation notes
 
-### Windows
+You can install and run Prefect via Windows PowerShell, the Windows Command Prompt, or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). After installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
 
-You can install and run Prefect via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). After installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
-
-The `Scripts` folder path looks something like this (the username and Python version may be different on your system):
+The `Scripts` folder path looks something like (the username and Python version may be different on your system):
 
 ```bash
 C:\Users\MyUserNameHere\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\Scripts
 ```
 
-Watch the `pip install` output messages for the `Scripts` folder path on your system.
+Review the `pip install` output messages for the `Scripts` folder path on your system.
 
-If you're using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
-
-### Linux installation notes
-
-Linux is a popular operating system for running Prefect.
-If you are hosting your own Prefect server instance with a SQLite database, note that certain Linux versions of SQLite can be problematic.
-Compatible versions include Ubuntu 22.04 LTS and Ubuntu 20.04 LTS.
-
-Alternatively, you can [install SQLite on Red Hat Custom Linux (RHEL)](#install-sqlite-on-rhel) or use the `conda` virtual environment manager and configure a compatible SQLite version.
-
-
-## `prefect-client` library
+## Minimal Prefect installation
 
 The `prefect-client` library is a minimal installation of Prefect designed for interacting with Prefect Cloud or a remote self-hosted server instance.
 
 `prefect-client` enables a subset of Prefect's functionality with a smaller installation size, making it ideal for use in lightweight, resource-constrained, or ephemeral environments.
 It omits all CLI and server components found in the `prefect` library.
 
-Install the latest version with:
+To install the latest release of `prefect-client`, run:
 
 <div class="terminal">
 ```bash
 pip install -U prefect-client
 ```
 </div>
-
 
 ## Next steps
 
