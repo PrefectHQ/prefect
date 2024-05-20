@@ -63,9 +63,10 @@ async def start(
         prompt=True,
     ),
     work_queues: List[str] = typer.Option(
-        None,
+        ...,
         "-q",
         "--work-queue",
+        default_factory=list,
         help=(
             "One or more work queue names for the worker to pull from. If not provided,"
             " the worker will pull from all work queues in the work pool."
