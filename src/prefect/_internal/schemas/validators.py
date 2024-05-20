@@ -312,6 +312,8 @@ def set_deployment_schedules(values: dict) -> dict:
             for key in ["schedule", "is_schedule_active"]
             if key in values
         }
+        if "is_schedule_active" in kwargs:
+            kwargs["active"] = kwargs.pop("is_schedule_active")
 
         values["schedules"] = [DeploymentScheduleCreate(**kwargs)]
 
