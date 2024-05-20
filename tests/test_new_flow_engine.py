@@ -1,21 +1,30 @@
+import asyncio
 import logging
+import time
+import warnings
 from textwrap import dedent
 from unittest.mock import MagicMock
 from uuid import UUID
 
+import anyio
 import pytest
 
 from prefect import Flow, flow, get_run_logger, task
-from prefect.client.orchestration import SyncPrefectClient
+from prefect._internal.compatibility.experimental import ExperimentalFeature
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext, TaskRunContext
-from prefect.exceptions import CrashedRun, ParameterTypeError
+from prefect.context import FlowRunContext, TaskRunContext, get_run_context
+from prefect.engine import pause_flow_run, resume_flow_run, suspend_flow_run
+from prefect.exceptions import CrashedRun, FailedRun, ParameterTypeError, Pause
+from prefect.input.actions import read_flow_run_input
+from prefect.input.run_input import RunInput
 from prefect.new_flow_engine import (
     FlowRunEngine,
     load_flow_and_flow_run,
     run_flow,
+    run_flow_async,
     run_flow_sync,
 )
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
@@ -45,7 +54,9 @@ class TestFlowRunEngine:
         assert engine.parameters == {}
 
     async def test_empty_init(self):
-        with pytest.raises(ValueError, match="must be provided"):
+        with pytest.raises(
+            TypeError, match="missing 1 required positional argument: 'flow'"
+        ):
             FlowRunEngine()
 
     async def test_client_attr_raises_informative_error(self):
@@ -529,7 +540,7 @@ class TestFlowRetries:
             flow_run_count += 1
             return await child_flow()
 
-        state = await parent_flow._run()
+        state = await parent_flow(return_state=True)
         assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
@@ -594,7 +605,7 @@ class TestFlowRetries:
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = child_flow._run()
+            state = child_flow(return_state=True)
 
             # It is important that the flow run fails after the child flow run is created
             if flow_run_count == 1:
@@ -602,7 +613,7 @@ class TestFlowRetries:
 
             return state
 
-        parent_state = parent_flow._run()
+        parent_state = parent_flow(return_state=True)
         child_state = await parent_state.result()
         assert await child_state.result() == "hello"
         assert flow_run_count == 2
@@ -864,3 +875,487 @@ class TestFlowCrashDetection:
         assert "Execution was aborted" in flow_run.state.message
         with pytest.raises(CrashedRun, match="Execution was aborted"):
             await flow_run.state.result()
+
+
+class TestPauseFlowRun:
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
+    async def test_tasks_cannot_be_paused(self):
+        @task
+        async def the_little_task_that_pauses():
+            await pause_flow_run()
+            return True
+
+        @flow
+        async def the_mountain():
+            return await the_little_task_that_pauses()
+
+        with pytest.raises(RuntimeError, match="Cannot pause task runs.*"):
+            await the_mountain()
+
+    async def test_paused_flows_fail_if_not_resumed(self):
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @flow
+        async def pausing_flow():
+            await doesnt_pause()
+            await pause_flow_run(timeout=0.1)
+            await doesnt_pause()
+
+        with pytest.raises(FailedRun):
+            await pausing_flow()
+
+    def test_paused_flows_block_execution_in_sync_flows(self, prefect_client):
+        completed = False
+
+        @flow
+        def pausing_flow():
+            nonlocal completed
+            pause_flow_run(timeout=0.1)
+            completed = True
+
+        pausing_flow(return_state=True)
+        assert not completed
+
+    async def test_paused_flows_block_execution_in_async_flows(self, prefect_client):
+        @task
+        async def foo():
+            return 42
+
+        @flow
+        async def pausing_flow():
+            await foo()
+            await foo()
+            await pause_flow_run(timeout=0.1)
+            await foo()
+
+        flow_run_state = await pausing_flow(return_state=True)
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await prefect_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_can_be_resumed(self, prefect_client):
+        @task
+        async def foo():
+            return 42
+
+        @flow
+        async def pausing_flow():
+            await foo()
+            await foo()
+            await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
+            await foo()
+            await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
+            await foo()
+            await foo()
+
+        async def flow_resumer():
+            await anyio.sleep(3)
+            flow_runs = await prefect_client.read_flow_runs(limit=1)
+            active_flow_run = flow_runs[0]
+            await resume_flow_run(active_flow_run.id)
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await prefect_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 5, "all tasks should finish running"
+
+    async def test_paused_flows_can_receive_input(self, prefect_client):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            flow_input = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=FlowInput
+            )
+            return flow_input
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"x": 42})
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        flow_input = await flow_run_state.result()
+        assert isinstance(flow_input, FlowInput)
+        assert flow_input.x == 42
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+    async def test_paused_flows_can_receive_automatic_input(
+        self, prefect_client: PrefectClient
+    ):
+        flow_run_id = None
+
+        @flow
+        async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            age = await pause_flow_run(int, timeout=10, poll_interval=2)
+            return age
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"value": 42})
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        age = await flow_run_state.result()
+        assert isinstance(age, int)
+        assert age == 42
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+    async def test_paused_task_polling(self, monkeypatch, prefect_client):
+        sleeper = MagicMock(side_effect=[None, None, None, None, None])
+        monkeypatch.setattr("prefect.new_task_engine.time.sleep", sleeper)
+
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @task
+        async def doesnt_run():
+            assert False, "This task should not run"
+
+        @flow
+        async def pausing_flow():
+            await doesnt_pause()
+            # don't wait on this to avoid blocking execution
+            asyncio.create_task(pause_flow_run(timeout=20, poll_interval=100))
+
+            # wait for the flow run to enter the paused state
+            flow_run_id = FlowRunContext.get().flow_run.id
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            # execution isn't blocked, so this task should enter the engine, but not begin
+            # execution
+            with pytest.raises(RuntimeError):
+                # the sleeper mock will exhaust its side effects after 6 calls
+                await doesnt_run()
+
+        await pausing_flow()
+
+        sleep_intervals = [c.args[0] for c in sleeper.call_args_list]
+        assert len(sleep_intervals) == 6
+
+
+class TestSuspendFlowRun:
+    @pytest.fixture(autouse=True)
+    def ignore_experimental_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ExperimentalFeature)
+            yield
+
+    async def test_suspended_flow_runs_do_not_block_execution(
+        self, prefect_client, deployment, session
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+            flow_run_id = context.flow_run.id
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            await suspend_flow_run()
+            await asyncio.sleep(20)
+
+        start = time.time()
+        with pytest.raises(Pause):
+            await suspending_flow()
+        end = time.time()
+        assert end - start < 20
+
+    async def test_suspended_flow_run_has_correct_state(
+        self, prefect_client, deployment, session
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+            flow_run_id = context.flow_run.id
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                flow_run_id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            await suspend_flow_run()
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        state = flow_run.state
+        assert state.is_paused()
+        assert state.name == "Suspended"
+
+    async def test_suspending_flow_run_without_deployment_fails(self):
+        @flow()
+        async def suspending_flow():
+            await suspend_flow_run()
+
+        with pytest.raises(
+            RuntimeError, match="Cannot suspend flows without a deployment."
+        ):
+            await suspending_flow()
+
+    async def test_suspending_sub_flow_run_fails(self):
+        @flow()
+        async def suspending_flow():
+            await suspend_flow_run()
+
+        @flow
+        async def main_flow():
+            await suspending_flow()
+
+        with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
+            await main_flow()
+
+    async def test_suspend_flow_run_by_id(self, prefect_client, deployment, session):
+        flow_run_id = None
+        task_completions = 0
+
+        @task
+        async def increment_completions():
+            nonlocal task_completions
+            task_completions += 1
+            await asyncio.sleep(0.1)
+
+        @flow
+        async def suspendable_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            from prefect.server.models.flow_runs import update_flow_run
+
+            await update_flow_run(
+                session,
+                context.flow_run.id,
+                FlowRun.construct(deployment_id=deployment.id),
+            )
+            await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            for i in range(20):
+                await increment_completions()
+
+        async def suspending_func():
+            nonlocal flow_run_id
+
+            while flow_run_id is None:
+                await asyncio.sleep(0.1)
+
+            # Sleep for a bit to let some of `suspendable_flow`s tasks complete
+            await asyncio.sleep(0.5)
+
+            await suspend_flow_run(flow_run_id=flow_run_id)
+
+        with pytest.raises(Pause):
+            await asyncio.gather(suspendable_flow(), suspending_func())
+
+        # When suspending a flow run by id, that flow run must use tasks for
+        # the suspension to take place. This setup allows for `suspendable_flow`
+        # to complete some tasks before `suspending_flow` suspends the flow run.
+        # Here then we check to ensure that some tasks completed but not _all_
+        # of the tasks.
+        assert task_completions > 0 and task_completions < 20
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        state = flow_run.state
+        assert state.is_paused(), state
+        assert state.name == "Suspended"
+
+    async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
+        flow_run_id = None
+
+        class FlowInput(RunInput):
+            x: int
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            if not context.flow_run.deployment_id:
+                # Ensure that the flow run has a deployment id so it's
+                # suspendable.
+                from prefect.server.models.flow_runs import update_flow_run
+
+                await update_flow_run(
+                    session,
+                    context.flow_run.id,
+                    FlowRun.construct(deployment_id=deployment.id),
+                )
+                await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            flow_input = await suspend_flow_run(wait_for_input=FlowInput)
+
+            return flow_input
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        assert flow_run_id
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        keyset = flow_run.state.state_details.run_input_keyset
+
+        schema = await read_flow_run_input(
+            key=keyset["schema"], flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+        await resume_flow_run(flow_run_id, run_input={"x": 42})
+
+        flow_input = await run_flow_async(
+            flow=suspending_flow,
+            flow_run=flow_run,
+            parameters={},
+        )
+        assert flow_input
+        assert flow_input.x == 42
+
+    async def test_suspend_can_receive_automatic_input(
+        self, deployment, session, prefect_client
+    ):
+        flow_run_id = None
+
+        @flow()
+        async def suspending_flow():
+            nonlocal flow_run_id
+            context = get_run_context()
+            assert context.flow_run
+
+            if not context.flow_run.deployment_id:
+                # Ensure that the flow run has a deployment id so it's
+                # suspendable.
+                from prefect.server.models.flow_runs import update_flow_run
+
+                await update_flow_run(
+                    session,
+                    context.flow_run.id,
+                    FlowRun.construct(deployment_id=deployment.id),
+                )
+                await session.commit()
+
+            flow_run_id = context.flow_run.id
+
+            age = await suspend_flow_run(int)
+
+            return age
+
+        with pytest.raises(Pause):
+            await suspending_flow()
+
+        assert flow_run_id
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        keyset = flow_run.state.state_details.run_input_keyset
+
+        schema = await read_flow_run_input(
+            key=keyset["schema"], flow_run_id=flow_run_id
+        )
+        assert schema is not None
+
+        await resume_flow_run(flow_run_id, run_input={"value": 42})
+
+        age = await run_flow_async(
+            flow=suspending_flow,
+            flow_run=flow_run,
+            parameters={},
+        )
+
+        assert age == 42

@@ -136,7 +136,7 @@ class PrefectTyper(typer.Typer):
 
         def wrapper(fn):
             if is_async_fn(fn):
-                fn = sync_compatible(fn)
+                fn = sync_compatible(fn, force_sync=True)
             fn = with_cli_exception_handling(fn)
             if deprecated:
                 if not deprecated_name or not deprecated_start_date:
