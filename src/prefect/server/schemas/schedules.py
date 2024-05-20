@@ -74,9 +74,10 @@ class IntervalSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     interval: PositiveDuration
-    anchor_date: Optional[
-        Annotated[DateTime, AfterValidator(default_anchor_date)]
-    ] = Field(default=None, examples=["2020-01-01T00:00:00Z"])
+    anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
+        default_factory=lambda: pendulum.now("UTC"),
+        examples=["2020-01-01T00:00:00Z"],
+    )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
     @model_validator(mode="after")
