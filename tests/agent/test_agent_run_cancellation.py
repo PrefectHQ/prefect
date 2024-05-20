@@ -55,7 +55,7 @@ async def _create_test_deployment_from_orm(
 
     deployment_id = await prefect_client.create_deployment(
         **updated_deployment.model_dump(
-            exclude=api_deployment._reset_fields().union(
+            exclude=api_deployment._reset_fields.union(
                 {
                     "schedules",
                     "is_schedule_active",

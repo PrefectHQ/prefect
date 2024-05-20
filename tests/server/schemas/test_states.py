@@ -49,7 +49,7 @@ class TestState:
     def test_state_copy_with_field_reset_creates_insertable_object(self):
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
-        new_state = state.copy(reset_fields=True)
+        new_state = state.reset_fields()
         # New UUID
         assert new_state.id != state.id
         assert isinstance(new_state.id, UUID)
