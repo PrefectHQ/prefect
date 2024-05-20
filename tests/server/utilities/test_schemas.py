@@ -1,7 +1,7 @@
 import importlib
 import os
 from contextlib import contextmanager
-from typing import Any, Generator, Type
+from typing import Any, Dict, Generator, List, Type, Union
 from uuid import uuid4
 
 import pendulum
@@ -20,7 +20,7 @@ class NestedFunModel(pydantic.BaseModel):
     nested_secret_str: pydantic.SecretStr
     nested_secret_bytes: pydantic.SecretBytes
     nested_secret_int: pydantic.Secret[int]
-    all_my_enemies_secrets: list[pydantic.SecretStr]
+    all_my_enemies_secrets: List[pydantic.SecretStr]
 
 
 class FunSecretModel(PrefectBaseModel):
@@ -31,7 +31,7 @@ class FunSecretModel(PrefectBaseModel):
     secret_bytes_manual: pydantic.Secret[bytes]
     secret_int: pydantic.Secret[int]
     nested_model: NestedFunModel
-    normal_dictionary: dict[str, str | dict[str, Any]]
+    normal_dictionary: Dict[str, Union[str, Dict[str, Any]]]
 
 
 @contextmanager

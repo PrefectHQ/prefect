@@ -1,8 +1,8 @@
 import asyncio
 from uuid import UUID
 
-import pydantic
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -93,7 +93,7 @@ async def test_create_concurrency_limit(session: AsyncSession):
 
 async def test_create_concurrency_limit_with_invalid_name_raises(session: AsyncSession):
     with pytest.raises(
-        pydantic.error_wrappers.ValidationError,
+        ValidationError,
         match="contains an invalid character",
     ):
         await create_concurrency_limit(
@@ -110,7 +110,7 @@ async def test_create_concurrency_limit_with_invalid_limit_raises(
     session: AsyncSession,
 ):
     with pytest.raises(
-        pydantic.error_wrappers.ValidationError,
+        ValidationError,
         match=" Input should be greater than or equal to 0",
     ):
         await create_concurrency_limit(
@@ -127,7 +127,7 @@ async def test_create_concurrency_limit_with_invalid_slot_decay_raises(
     session: AsyncSession,
 ):
     with pytest.raises(
-        pydantic.error_wrappers.ValidationError,
+        ValidationError,
         match=" Input should be greater than or equal to 0",
     ):
         await create_concurrency_limit(
@@ -278,7 +278,7 @@ async def test_update_concurrency_limit_with_invalid_name_raises(
     concurrency_limit: ConcurrencyLimitV2, session: AsyncSession
 ):
     with pytest.raises(
-        pydantic.error_wrappers.ValidationError,
+        ValidationError,
         match="contains an invalid character",
     ):
         await update_concurrency_limit(
@@ -292,7 +292,7 @@ async def test_update_concurrency_limit_with_invalid_limit_raises(
     concurrency_limit: ConcurrencyLimitV2, session: AsyncSession
 ):
     with pytest.raises(
-        pydantic.error_wrappers.ValidationError,
+        ValidationError,
         match=" Input should be greater than or equal to 0",
     ):
         await update_concurrency_limit(
@@ -306,7 +306,7 @@ async def test_update_concurrency_limit_with_invalid_slot_decay_raises(
     concurrency_limit: ConcurrencyLimitV2, session: AsyncSession
 ):
     with pytest.raises(
-        pydantic.error_wrappers.ValidationError,
+        ValidationError,
         match=" Input should be greater than or equal to 0",
     ):
         await update_concurrency_limit(
