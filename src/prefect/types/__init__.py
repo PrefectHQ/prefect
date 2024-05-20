@@ -15,29 +15,9 @@ PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 
 
-class NonNegativeDuration(timedelta):
-    """A timedelta that must be greater than or equal to 0."""
+NonNegativeDuration = Annotated[timedelta, Field(ge=0)]
 
-    schema: ClassVar = core_schema.timedelta_schema(ge=timedelta(seconds=0))
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-
-class PositiveDuration(timedelta):
-    """A timedelta that must be greater than 0."""
-
-    schema: ClassVar = core_schema.timedelta_schema(gt=timedelta(seconds=0))
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
+PositiveDuration = Annotated[timedelta, Field(gt=0)]
 
 __all__ = [
     "NonNegativeInteger",
