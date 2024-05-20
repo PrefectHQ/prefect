@@ -3,19 +3,9 @@ from uuid import uuid4
 import pendulum
 import sqlalchemy as sa
 
-from prefect.server import schemas
 from prefect.server.schemas.filters import LogFilter
 
 NOW = pendulum.now("UTC")
-
-
-async def test_filters_without_params_do_not_error():
-    class MyFilter(schemas.filters.PrefectFilterBaseModel):
-        def _get_filter_list(self, db):
-            return []
-
-    # should not error
-    MyFilter().as_sql_filter(None)
 
 
 class TestLogFilters:

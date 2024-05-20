@@ -529,7 +529,6 @@ async def read_flow_run_graph(
     """Given a flow run, return the graph of it's task and subflow runs. If a `since`
     datetime is provided, only return items that may have changed since that time."""
     return await db.queries.flow_run_graph_v2(
-        db=db,
         session=session,
         flow_run_id=flow_run_id,
         since=since,
