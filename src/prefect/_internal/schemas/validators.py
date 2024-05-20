@@ -375,8 +375,6 @@ def reconcile_paused_deployment(values):
 
 
 def default_anchor_date(v: DateTime) -> DateTime:
-    if v is None:
-        return pendulum.now("UTC")
     return pendulum.instance(v)
 
 
