@@ -6,7 +6,7 @@ Intended for internal use by the Prefect REST API.
 import contextlib
 import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 from uuid import UUID
 
 import pendulum
@@ -17,6 +17,7 @@ from sqlalchemy.orm import load_only, selectinload
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
@@ -34,9 +35,6 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
 
-if TYPE_CHECKING:
-    from prefect.server.database.orm_models import ORMFlowRun
-
 
 @db_injector
 async def create_flow_run(
@@ -44,7 +42,7 @@ async def create_flow_run(
     session: AsyncSession,
     flow_run: schemas.core.FlowRun,
     orchestration_parameters: Optional[dict] = None,
-) -> "ORMFlowRun":
+) -> orm_models.FlowRun:
     """Creates a new flow run.
 
     If the provided flow run has a state attached, it will also be created.
@@ -54,7 +52,7 @@ async def create_flow_run(
         flow_run: a flow run model
 
     Returns:
-        db.FlowRun: the newly-created flow run
+        orm_models.FlowRun: the newly-created flow run
     """
     now = pendulum.now("UTC")
 
@@ -74,14 +72,14 @@ async def create_flow_run(
 
     # if no idempotency key was provided, create the run directly
     if not flow_run.idempotency_key:
-        model = db.FlowRun(**flow_run_dict)
+        model = orm_models.FlowRun(**flow_run_dict)
         session.add(model)
         await session.flush()
 
     # otherwise let the database take care of enforcing idempotency
     else:
         insert_stmt = (
-            db.insert(db.FlowRun)
+            db.insert(orm_models.FlowRun)
             .values(**flow_run_dict)
             .on_conflict_do_nothing(
                 index_elements=db.flow_run_unique_upsert_columns,
@@ -91,17 +89,19 @@ async def create_flow_run(
 
         # read the run to see if idempotency was applied or not
         query = (
-            sa.select(db.FlowRun)
+            sa.select(orm_models.FlowRun)
             .where(
                 sa.and_(
-                    db.FlowRun.flow_id == flow_run.flow_id,
-                    db.FlowRun.idempotency_key == flow_run.idempotency_key,
+                    orm_models.FlowRun.flow_id == flow_run.flow_id,
+                    orm_models.FlowRun.idempotency_key == flow_run.idempotency_key,
                 )
             )
             .limit(1)
             .execution_options(populate_existing=True)
             .options(
-                selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
+                selectinload(orm_models.FlowRun.work_queue).selectinload(
+                    orm_models.WorkQueue.work_pool
+                )
             )
         )
         result = await session.execute(query)
@@ -120,9 +120,7 @@ async def create_flow_run(
     return model
 
 
-@db_injector
 async def update_flow_run(
-    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
     flow_run: schemas.actions.FlowRunUpdate,
@@ -139,8 +137,8 @@ async def update_flow_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(db.FlowRun)
-        .where(db.FlowRun.id == flow_run_id)
+        sa.update(orm_models.FlowRun)
+        .where(orm_models.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow_run.dict(shallow=True, exclude_unset=True))
@@ -149,13 +147,11 @@ async def update_flow_run(
     return result.rowcount > 0
 
 
-@db_injector
 async def read_flow_run(
-    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
     for_update: bool = False,
-) -> Optional["ORMFlowRun"]:
+) -> Optional[orm_models.FlowRun]:
     """
     Reads a flow run by id.
 
@@ -164,13 +160,15 @@ async def read_flow_run(
         flow_run_id: a flow run id
 
     Returns:
-        db.FlowRun: the flow run
+        orm_models.FlowRun: the flow run
     """
     select = (
-        sa.select(db.FlowRun)
-        .where(db.FlowRun.id == flow_run_id)
+        sa.select(orm_models.FlowRun)
+        .where(orm_models.FlowRun.id == flow_run_id)
         .options(
-            selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
+            selectinload(orm_models.FlowRun.work_queue).selectinload(
+                orm_models.WorkQueue.work_pool
+            )
         )
     )
 
@@ -181,9 +179,7 @@ async def read_flow_run(
     return result.scalar()
 
 
-@db_injector
 async def _apply_flow_run_filters(
-    db: PrefectDBInterface,
     query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
@@ -197,51 +193,51 @@ async def _apply_flow_run_filters(
     """
 
     if flow_run_filter:
-        query = query.where(flow_run_filter.as_sql_filter(db))
+        query = query.where(flow_run_filter.as_sql_filter())
 
     if deployment_filter:
-        exists_clause = select(db.Deployment).where(
-            db.Deployment.id == db.FlowRun.deployment_id,
-            deployment_filter.as_sql_filter(db),
+        exists_clause = select(orm_models.Deployment).where(
+            orm_models.Deployment.id == orm_models.FlowRun.deployment_id,
+            deployment_filter.as_sql_filter(),
         )
         query = query.where(exists_clause.exists())
 
     if work_pool_filter:
-        exists_clause = select(db.WorkPool).where(
-            db.WorkQueue.id == db.FlowRun.work_queue_id,
-            db.WorkPool.id == db.WorkQueue.work_pool_id,
-            work_pool_filter.as_sql_filter(db),
+        exists_clause = select(orm_models.WorkPool).where(
+            orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
+            orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
+            work_pool_filter.as_sql_filter(),
         )
 
         query = query.where(exists_clause.exists())
 
     if work_queue_filter:
-        exists_clause = select(db.WorkQueue).where(
-            db.WorkQueue.id == db.FlowRun.work_queue_id,
-            work_queue_filter.as_sql_filter(db),
+        exists_clause = select(orm_models.WorkQueue).where(
+            orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
+            work_queue_filter.as_sql_filter(),
         )
         query = query.where(exists_clause.exists())
 
     if flow_filter or task_run_filter:
         if flow_filter:
-            exists_clause = select(db.Flow).where(
-                db.Flow.id == db.FlowRun.flow_id,
-                flow_filter.as_sql_filter(db),
+            exists_clause = select(orm_models.Flow).where(
+                orm_models.Flow.id == orm_models.FlowRun.flow_id,
+                flow_filter.as_sql_filter(),
             )
 
         if task_run_filter:
             if not flow_filter:
-                exists_clause = select(db.TaskRun).where(
-                    db.TaskRun.flow_run_id == db.FlowRun.id
+                exists_clause = select(orm_models.TaskRun).where(
+                    orm_models.TaskRun.flow_run_id == orm_models.FlowRun.id
                 )
             else:
                 exists_clause = exists_clause.join(
-                    db.TaskRun,
-                    db.TaskRun.flow_run_id == db.FlowRun.id,
+                    orm_models.TaskRun,
+                    orm_models.TaskRun.flow_run_id == orm_models.FlowRun.id,
                 )
             exists_clause = exists_clause.where(
-                db.FlowRun.id == db.TaskRun.flow_run_id,
-                task_run_filter.as_sql_filter(db),
+                orm_models.FlowRun.id == orm_models.TaskRun.flow_run_id,
+                task_run_filter.as_sql_filter(),
             )
 
         query = query.where(exists_clause.exists())
@@ -249,9 +245,7 @@ async def _apply_flow_run_filters(
     return query
 
 
-@db_injector
 async def read_flow_runs(
-    db: PrefectDBInterface,
     session: AsyncSession,
     columns: List = None,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -263,7 +257,7 @@ async def read_flow_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
-) -> Sequence["ORMFlowRun"]:
+) -> Sequence[orm_models.FlowRun]:
     """
     Read flow runs.
 
@@ -279,13 +273,15 @@ async def read_flow_runs(
         sort: Query sort
 
     Returns:
-        List[db.FlowRun]: flow runs
+        List[orm_models.FlowRun]: flow runs
     """
     query = (
-        select(db.FlowRun)
-        .order_by(sort.as_sql_sort(db))
+        select(orm_models.FlowRun)
+        .order_by(sort.as_sql_sort())
         .options(
-            selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
+            selectinload(orm_models.FlowRun.work_queue).selectinload(
+                orm_models.WorkQueue.work_pool
+            )
         )
     )
 
@@ -372,9 +368,7 @@ async def read_task_run_dependencies(
     return dependency_graph
 
 
-@db_injector
 async def count_flow_runs(
-    db: PrefectDBInterface,
     session: AsyncSession,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
@@ -397,7 +391,7 @@ async def count_flow_runs(
         int: count of flow runs
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(db.FlowRun)
+    query = select(sa.func.count(sa.text("*"))).select_from(orm_models.FlowRun)
 
     query = await _apply_flow_run_filters(
         query,
@@ -413,10 +407,7 @@ async def count_flow_runs(
     return result.scalar()
 
 
-@db_injector
-async def delete_flow_run(
-    db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID
-) -> bool:
+async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     """
     Delete a flow run by flow_run_id.
 
@@ -429,7 +420,7 @@ async def delete_flow_run(
     """
 
     result = await session.execute(
-        delete(db.FlowRun).where(db.FlowRun.id == flow_run_id)
+        delete(orm_models.FlowRun).where(orm_models.FlowRun.id == flow_run_id)
     )
     return result.rowcount > 0
 
@@ -538,7 +529,6 @@ async def read_flow_run_graph(
     """Given a flow run, return the graph of it's task and subflow runs. If a `since`
     datetime is provided, only return items that may have changed since that time."""
     return await db.queries.flow_run_graph_v2(
-        db=db,
         session=session,
         flow_run_id=flow_run_id,
         since=since,
