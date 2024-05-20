@@ -379,6 +379,8 @@ class FlowRunEngine(Generic[P, R]):
             and flow.on_crashed
         ):
             hooks = flow.on_crashed
+        elif state.is_running() and flow.on_running:
+            hooks = flow.on_running
 
         for hook in hooks or []:
             hook_name = _get_hook_name(hook)
