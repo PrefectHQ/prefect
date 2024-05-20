@@ -196,7 +196,7 @@ class DeploymentCreate(ActionBaseModel):
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
