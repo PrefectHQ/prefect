@@ -453,7 +453,7 @@ async def deployment(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello).model_dump(),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -493,7 +493,7 @@ async def deployment_with_version(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello).model_dump(),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
             version="1.0",
         ),
@@ -534,7 +534,7 @@ async def deployment_2(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id_2,
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello).model_dump(),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -571,7 +571,7 @@ async def deployment_in_default_work_pool(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue.id,
         ),
     )
@@ -606,7 +606,7 @@ async def deployment_in_non_default_work_pool(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1146,7 +1146,7 @@ async def worker_deployment_wq1(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1173,7 +1173,7 @@ async def worker_deployment_infra_wq1(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
             infrastructure_document_id=infrastructure_document_id,
         ),
@@ -1204,7 +1204,7 @@ async def worker_deployment_wq_2(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_2.id,
         ),
     )

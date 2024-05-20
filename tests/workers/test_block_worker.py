@@ -107,7 +107,7 @@ async def block_worker_deployment(session, flow, block_work_pool):
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=block_work_pool.default_queue_id,
         ),
     )
@@ -132,7 +132,7 @@ async def block_worker_deployment_with_infra_overrides(session, flow, block_work
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             job_variables={"field": "you've changed man", "env.test_value": "bloop"},
             work_queue_id=block_work_pool.default_queue_id,
         ),

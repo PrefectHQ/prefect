@@ -219,12 +219,8 @@ class ParameterSchema(pydantic.BaseModel):
     required: List[str] = None
     definitions: Optional[Dict[str, Any]] = None
 
-    def dict(self, *args, **kwargs):
-        """Exclude `None` fields by default to comply with
-        the OpenAPI spec.
-        """
-        kwargs.setdefault("exclude_none", True)
-        return super().model_dump(*args, **kwargs)
+    def model_dump_for_openapi(self) -> Dict[str, Any]:
+        return self.model_dump(mode="python", exclude_none=True)
 
 
 def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
