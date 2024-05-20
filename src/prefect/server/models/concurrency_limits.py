@@ -10,16 +10,15 @@ import pendulum
 import sqlalchemy as sa
 
 import prefect.server.schemas as schemas
-from prefect.server.database import orm_models
-from prefect.server.database.dependencies import db_injector
+from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 
 
-@db_injector
+@inject_db
 async def create_concurrency_limit(
-    db: PrefectDBInterface,
     session: sa.orm.Session,
     concurrency_limit: schemas.core.ConcurrencyLimit,
+    db: PrefectDBInterface,
 ):
     insert_values = concurrency_limit.dict(shallow=True, exclude_unset=False)
     insert_values.pop("created")
@@ -32,7 +31,7 @@ async def create_concurrency_limit(
     concurrency_limit.updated = pendulum.now("UTC")
 
     insert_stmt = (
-        db.insert(orm_models.ConcurrencyLimit)
+        db.insert(db.ConcurrencyLimit)
         .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.concurrency_limit_unique_upsert_columns,
@@ -45,8 +44,8 @@ async def create_concurrency_limit(
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(orm_models.ConcurrencyLimit)
-        .where(orm_models.ConcurrencyLimit.tag == concurrency_tag)
+        sa.select(db.ConcurrencyLimit)
+        .where(db.ConcurrencyLimit.tag == concurrency_tag)
         .execution_options(populate_existing=True)
     )
 
@@ -54,51 +53,53 @@ async def create_concurrency_limit(
     return result.scalar()
 
 
+@inject_db
 async def read_concurrency_limit(
     session: sa.orm.Session,
     concurrency_limit_id: UUID,
+    db: PrefectDBInterface,
 ):
     """
     Reads a concurrency limit by id. If used for orchestration, simultaneous read race
     conditions might allow the concurrency limit to be temporarily exceeded.
     """
 
-    query = sa.select(orm_models.ConcurrencyLimit).where(
-        orm_models.ConcurrencyLimit.id == concurrency_limit_id
+    query = sa.select(db.ConcurrencyLimit).where(
+        db.ConcurrencyLimit.id == concurrency_limit_id
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
+@inject_db
 async def read_concurrency_limit_by_tag(
     session: sa.orm.Session,
     tag: str,
+    db: PrefectDBInterface,
 ):
     """
     Reads a concurrency limit by tag. If used for orchestration, simultaneous read race
     conditions might allow the concurrency limit to be temporarily exceeded.
     """
 
-    query = sa.select(orm_models.ConcurrencyLimit).where(
-        orm_models.ConcurrencyLimit.tag == tag
-    )
+    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.execute(query)
     return result.scalar()
 
 
+@inject_db
 async def reset_concurrency_limit_by_tag(
     session: sa.orm.Session,
     tag: str,
+    db: PrefectDBInterface,
     slot_override: Optional[List[UUID]] = None,
 ):
     """
     Resets a concurrency limit by tag.
     """
-    query = sa.select(orm_models.ConcurrencyLimit).where(
-        orm_models.ConcurrencyLimit.tag == tag
-    )
+    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
     result = await session.execute(query)
     concurrency_limit = result.scalar()
     if concurrency_limit:
@@ -109,9 +110,11 @@ async def reset_concurrency_limit_by_tag(
     return concurrency_limit
 
 
+@inject_db
 async def filter_concurrency_limits_for_orchestration(
     session: sa.orm.Session,
     tags: List[str],
+    db: PrefectDBInterface,
 ):
     """
     Filters concurrency limits by tag. This will apply a "select for update" lock on
@@ -120,41 +123,45 @@ async def filter_concurrency_limits_for_orchestration(
     """
 
     query = (
-        sa.select(orm_models.ConcurrencyLimit)
-        .filter(orm_models.ConcurrencyLimit.tag.in_(tags))
-        .order_by(orm_models.ConcurrencyLimit.tag)
+        sa.select(db.ConcurrencyLimit)
+        .filter(db.ConcurrencyLimit.tag.in_(tags))
+        .order_by(db.ConcurrencyLimit.tag)
         .with_for_update()
     )
     result = await session.execute(query)
     return result.scalars().all()
 
 
+@inject_db
 async def delete_concurrency_limit(
     session: sa.orm.Session,
     concurrency_limit_id: UUID,
+    db: PrefectDBInterface,
 ) -> bool:
-    query = sa.delete(orm_models.ConcurrencyLimit).where(
-        orm_models.ConcurrencyLimit.id == concurrency_limit_id
+    query = sa.delete(db.ConcurrencyLimit).where(
+        db.ConcurrencyLimit.id == concurrency_limit_id
     )
 
     result = await session.execute(query)
     return result.rowcount > 0
 
 
+@inject_db
 async def delete_concurrency_limit_by_tag(
     session: sa.orm.Session,
     tag: str,
+    db: PrefectDBInterface,
 ) -> bool:
-    query = sa.delete(orm_models.ConcurrencyLimit).where(
-        orm_models.ConcurrencyLimit.tag == tag
-    )
+    query = sa.delete(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.execute(query)
     return result.rowcount > 0
 
 
+@inject_db
 async def read_concurrency_limits(
     session: sa.orm.Session,
+    db: PrefectDBInterface,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ):
@@ -168,12 +175,10 @@ async def read_concurrency_limits(
         limit: Query limit
 
     Returns:
-        List[orm_models.ConcurrencyLimit]: concurrency limits
+        List[db.ConcurrencyLimit]: concurrency limits
     """
 
-    query = sa.select(orm_models.ConcurrencyLimit).order_by(
-        orm_models.ConcurrencyLimit.tag
-    )
+    query = sa.select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
 
     if offset is not None:
         query = query.offset(offset)

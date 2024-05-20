@@ -5,6 +5,7 @@ Intended for internal use by the Prefect REST API.
 
 import datetime
 from typing import (
+    TYPE_CHECKING,
     Awaitable,
     Callable,
     Dict,
@@ -20,13 +21,15 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
+
+if TYPE_CHECKING:
+    from prefect.server.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkQueue
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
@@ -39,10 +42,12 @@ DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 # -----------------------------------------------------
 
 
+@db_injector
 async def create_work_pool(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool: schemas.core.WorkPool,
-) -> orm_models.WorkPool:
+) -> "ORMWorkPool":
     """
     Creates a work pool.
 
@@ -53,11 +58,11 @@ async def create_work_pool(
         work_pool (schemas.core.WorkPool): a WorkPool model
 
     Returns:
-        orm_models.WorkPool: the newly-created WorkPool
+        db.WorkPool: the newly-created WorkPool
 
     """
 
-    pool = orm_models.WorkPool(**work_pool.dict())
+    pool = db.WorkPool(**work_pool.dict())
 
     if pool.type != "prefect-agent":
         if pool.is_paused:
@@ -82,9 +87,10 @@ async def create_work_pool(
     return pool
 
 
+@db_injector
 async def read_work_pool(
-    session: AsyncSession, work_pool_id: UUID
-) -> Optional[orm_models.WorkPool]:
+    db: PrefectDBInterface, session: AsyncSession, work_pool_id: UUID
+) -> Optional["ORMWorkPool"]:
     """
     Reads a WorkPool by id.
 
@@ -93,20 +99,17 @@ async def read_work_pool(
         work_pool_id (UUID): a WorkPool id
 
     Returns:
-        orm_models.WorkPool: the WorkPool
+        db.WorkPool: the WorkPool
     """
-    query = (
-        sa.select(orm_models.WorkPool)
-        .where(orm_models.WorkPool.id == work_pool_id)
-        .limit(1)
-    )
+    query = sa.select(db.WorkPool).where(db.WorkPool.id == work_pool_id).limit(1)
     result = await session.execute(query)
     return result.scalar()
 
 
+@db_injector
 async def read_work_pool_by_name(
-    session: AsyncSession, work_pool_name: str
-) -> Optional[orm_models.WorkPool]:
+    db: PrefectDBInterface, session: AsyncSession, work_pool_name: str
+) -> Optional["ORMWorkPool"]:
     """
     Reads a WorkPool by name.
 
@@ -115,23 +118,21 @@ async def read_work_pool_by_name(
         work_pool_name (str): a WorkPool name
 
     Returns:
-        orm_models.WorkPool: the WorkPool
+        db.WorkPool: the WorkPool
     """
-    query = (
-        sa.select(orm_models.WorkPool)
-        .where(orm_models.WorkPool.name == work_pool_name)
-        .limit(1)
-    )
+    query = sa.select(db.WorkPool).where(db.WorkPool.name == work_pool_name).limit(1)
     result = await session.execute(query)
     return result.scalar()
 
 
+@db_injector
 async def read_work_pools(
+    db: PrefectDBInterface,
     session: AsyncSession,
-    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
-    offset: Optional[int] = None,
-    limit: Optional[int] = None,
-) -> Sequence[orm_models.WorkPool]:
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    offset: int = None,
+    limit: int = None,
+) -> Sequence["ORMWorkPool"]:
     """
     Read worker configs.
 
@@ -140,13 +141,13 @@ async def read_work_pools(
         offset: Query offset
         limit: Query limit
     Returns:
-        List[orm_models.WorkPool]: worker configs
+        List[db.WorkPool]: worker configs
     """
 
-    query = select(orm_models.WorkPool).order_by(orm_models.WorkPool.name)
+    query = select(db.WorkPool).order_by(db.WorkPool.name)
 
     if work_pool_filter is not None:
-        query = query.where(work_pool_filter.as_sql_filter())
+        query = query.where(work_pool_filter.as_sql_filter(db))
     if offset is not None:
         query = query.offset(offset)
     if limit is not None:
@@ -156,9 +157,11 @@ async def read_work_pools(
     return result.scalars().unique().all()
 
 
+@db_injector
 async def count_work_pools(
+    db: PrefectDBInterface,
     session: AsyncSession,
-    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
 ) -> int:
     """
     Read worker configs.
@@ -170,22 +173,24 @@ async def count_work_pools(
         int: the count of work pools matching the criteria
     """
 
-    query = select(sa.func.count()).select_from(orm_models.WorkPool)
+    query = select(sa.func.count()).select_from(db.WorkPool)
 
     if work_pool_filter is not None:
-        query = query.where(work_pool_filter.as_sql_filter())
+        query = query.where(work_pool_filter.as_sql_filter(db))
 
     result = await session.execute(query)
     return result.scalar()
 
 
+@db_injector
 async def update_work_pool(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     work_pool: schemas.actions.WorkPoolUpdate,
     emit_status_change: Optional[
         Callable[
-            [UUID, pendulum.DateTime, orm_models.WorkPool, orm_models.WorkPool],
+            [UUID, pendulum.DateTime, "ORMWorkPool", "ORMWorkPool"],
             Awaitable[None],
         ]
     ],
@@ -241,8 +246,8 @@ async def update_work_pool(
         update_data["last_transitioned_status_at"] = pendulum.now("UTC")
 
     update_stmt = (
-        sa.update(orm_models.WorkPool)
-        .where(orm_models.WorkPool.id == work_pool_id)
+        sa.update(db.WorkPool)
+        .where(db.WorkPool.id == work_pool_id)
         .values(**update_data)
     )
     result = await session.execute(update_stmt)
@@ -265,7 +270,10 @@ async def update_work_pool(
     return updated
 
 
-async def delete_work_pool(session: AsyncSession, work_pool_id: UUID) -> bool:
+@db_injector
+async def delete_work_pool(
+    db: PrefectDBInterface, session: AsyncSession, work_pool_id: UUID
+) -> bool:
     """
     Delete a WorkPool by id.
 
@@ -278,7 +286,7 @@ async def delete_work_pool(session: AsyncSession, work_pool_id: UUID) -> bool:
     """
 
     result = await session.execute(
-        delete(orm_models.WorkPool).where(orm_models.WorkPool.id == work_pool_id)
+        delete(db.WorkPool).where(db.WorkPool.id == work_pool_id)
     )
     return result.rowcount > 0
 
@@ -317,6 +325,7 @@ async def get_scheduled_flow_runs(
 
     return await db.queries.get_scheduled_flow_runs_from_work_pool(
         session=session,
+        db=db,
         work_pool_ids=work_pool_ids,
         work_queue_ids=work_queue_ids,
         scheduled_before=scheduled_before,
@@ -335,11 +344,13 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 
 
+@db_injector
 async def create_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     work_queue: schemas.actions.WorkQueueCreate,
-) -> orm_models.WorkQueue:
+) -> "ORMWorkQueue":
     """
     Creates a work pool queue.
 
@@ -349,14 +360,14 @@ async def create_work_queue(
         work_queue (schemas.actions.WorkQueueCreate): a WorkQueue action model
 
     Returns:
-        orm_models.WorkQueue: the newly-created WorkQueue
+        db.WorkQueue: the newly-created WorkQueue
 
     """
     data = work_queue.dict(exclude={"work_pool_id"})
     if work_queue.priority is None:
         # Set the priority to be the first priority value that isn't already taken
-        priorities_query = sa.select(orm_models.WorkQueue.priority).where(
-            orm_models.WorkQueue.work_pool_id == work_pool_id
+        priorities_query = sa.select(db.WorkQueue.priority).where(
+            db.WorkQueue.work_pool_id == work_pool_id
         )
         priorities = (await session.execute(priorities_query)).scalars().all()
 
@@ -375,7 +386,7 @@ async def create_work_queue(
 
         data["priority"] = priority
 
-    model = orm_models.WorkQueue(**data, work_pool_id=work_pool_id)
+    model = db.WorkQueue(**data, work_pool_id=work_pool_id)
 
     session.add(model)
     await session.flush()
@@ -390,7 +401,9 @@ async def create_work_queue(
     return model
 
 
+@db_injector
 async def bulk_update_work_queue_priorities(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     new_priorities: Dict[UUID, int],
@@ -400,7 +413,7 @@ async def bulk_update_work_queue_priorities(
     pool.
 
     It loads all queues fully into memory, sorts them, and flushes the update to
-    the orm_models. The algorithm ensures that priorities are unique integers > 0, and
+    the db. The algorithm ensures that priorities are unique integers > 0, and
     makes the minimum number of changes required to satisfy the provided
     `new_priorities`. For example, if no queues currently have the provided
     `new_priorities`, then they are assigned without affecting other queues. If
@@ -418,9 +431,9 @@ async def bulk_update_work_queue_priorities(
 
     # get all the work queues, sorted by priority
     work_queues_query = (
-        sa.select(orm_models.WorkQueue)
-        .where(orm_models.WorkQueue.work_pool_id == work_pool_id)
-        .order_by(orm_models.WorkQueue.priority.asc())
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.work_pool_id == work_pool_id)
+        .order_by(db.WorkQueue.priority.asc())
     )
     result = await session.execute(work_queues_query)
     all_work_queues = result.scalars().all()
@@ -454,13 +467,15 @@ async def bulk_update_work_queue_priorities(
     await session.flush()
 
 
+@db_injector
 async def read_work_queues(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-) -> Sequence[orm_models.WorkQueue]:
+) -> Sequence["ORMWorkQueue"]:
     """
     Read all work pool queues for a work pool. Results are ordered by ascending priority.
 
@@ -473,17 +488,17 @@ async def read_work_queues(
 
 
     Returns:
-        List[orm_models.WorkQueue]: the WorkQueues
+        List[db.WorkQueue]: the WorkQueues
 
     """
     query = (
-        sa.select(orm_models.WorkQueue)
-        .where(orm_models.WorkQueue.work_pool_id == work_pool_id)
-        .order_by(orm_models.WorkQueue.priority.asc())
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.work_pool_id == work_pool_id)
+        .order_by(db.WorkQueue.priority.asc())
     )
 
     if work_queue_filter is not None:
-        query = query.where(work_queue_filter.as_sql_filter())
+        query = query.where(work_queue_filter.as_sql_filter(db))
     if offset is not None:
         query = query.offset(offset)
     if limit is not None:
@@ -493,10 +508,12 @@ async def read_work_queues(
     return result.scalars().unique().all()
 
 
+@db_injector
 async def read_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-) -> Optional[orm_models.WorkQueue]:
+) -> Optional["ORMWorkQueue"]:
     """
     Read a specific work pool queue.
 
@@ -505,17 +522,19 @@ async def read_work_queue(
         work_queue_id (UUID): a work pool queue id
 
     Returns:
-        orm_models.WorkQueue: the WorkQueue
+        db.WorkQueue: the WorkQueue
 
     """
-    return await session.get(orm_models.WorkQueue, work_queue_id)
+    return await session.get(db.WorkQueue, work_queue_id)
 
 
+@db_injector
 async def read_work_queue_by_name(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_name: str,
     work_queue_name: str,
-) -> Optional[orm_models.WorkQueue]:
+) -> Optional["ORMWorkQueue"]:
     """
     Reads a WorkQueue by name.
 
@@ -525,17 +544,14 @@ async def read_work_queue_by_name(
         work_queue_name (str): a WorkQueue name
 
     Returns:
-        orm_models.WorkQueue: the WorkQueue
+        db.WorkQueue: the WorkQueue
     """
     query = (
-        sa.select(orm_models.WorkQueue)
-        .join(
-            orm_models.WorkPool,
-            orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
-        )
+        sa.select(db.WorkQueue)
+        .join(db.WorkPool, db.WorkPool.id == db.WorkQueue.work_pool_id)
         .where(
-            orm_models.WorkPool.name == work_pool_name,
-            orm_models.WorkQueue.name == work_queue_name,
+            db.WorkPool.name == work_pool_name,
+            db.WorkQueue.name == work_queue_name,
         )
         .limit(1)
     )
@@ -543,13 +559,13 @@ async def read_work_queue_by_name(
     return result.scalar()
 
 
+@db_injector
 async def update_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
-    emit_status_change: Optional[
-        Callable[[orm_models.WorkQueue], Awaitable[None]]
-    ] = None,
+    emit_status_change: Optional[Callable[["ORMWorkQueue"], Awaitable[None]]] = None,
     default_status: WorkQueueStatus = WorkQueueStatus.NOT_READY,
 ) -> bool:
     """
@@ -571,7 +587,7 @@ async def update_work_queue(
     update_values = work_queue.dict(shallow=True, exclude_unset=True)
 
     if "is_paused" in update_values:
-        if (wq := await session.get(orm_models.WorkQueue, work_queue_id)) is None:
+        if (wq := await session.get(db.WorkQueue, work_queue_id)) is None:
             return False
 
         # Only update the status to paused if it's not already paused. This ensures a work queue that is already
@@ -599,8 +615,8 @@ async def update_work_queue(
                 update_values["status"] = schemas.statuses.WorkQueueStatus.READY
 
     update_stmt = (
-        sa.update(orm_models.WorkQueue)
-        .where(orm_models.WorkQueue.id == work_queue_id)
+        sa.update(db.WorkQueue)
+        .where(db.WorkQueue.id == work_queue_id)
         .values(update_values)
     )
     result = await session.execute(update_stmt)
@@ -609,7 +625,7 @@ async def update_work_queue(
 
     if updated:
         if "priority" in update_values or "status" in update_values:
-            updated_work_queue = await session.get(orm_models.WorkQueue, work_queue_id)
+            updated_work_queue = await session.get(db.WorkQueue, work_queue_id)
 
             if "priority" in update_values:
                 await bulk_update_work_queue_priorities(
@@ -624,7 +640,9 @@ async def update_work_queue(
     return updated
 
 
+@db_injector
 async def delete_work_queue(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
 ) -> bool:
@@ -639,7 +657,7 @@ async def delete_work_queue(
         bool: whether or not the WorkQueue was deleted
 
     """
-    work_queue = await session.get(orm_models.WorkQueue, work_queue_id)
+    work_queue = await session.get(db.WorkQueue, work_queue_id)
     if work_queue is None:
         return False
 
@@ -670,22 +688,24 @@ async def delete_work_queue(
 # -----------------------------------------------------
 
 
+@db_injector
 async def read_workers(
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
     worker_filter: schemas.filters.WorkerFilter = None,
     limit: int = None,
     offset: int = None,
-) -> Sequence[orm_models.Worker]:
+) -> Sequence["ORMWorker"]:
     query = (
-        sa.select(orm_models.Worker)
-        .where(orm_models.Worker.work_pool_id == work_pool_id)
-        .order_by(orm_models.Worker.last_heartbeat_time.desc())
+        sa.select(db.Worker)
+        .where(db.Worker.work_pool_id == work_pool_id)
+        .order_by(db.Worker.last_heartbeat_time.desc())
         .limit(limit)
     )
 
     if worker_filter:
-        query = query.where(worker_filter.as_sql_filter())
+        query = query.where(worker_filter.as_sql_filter(db))
 
     if limit is not None:
         query = query.limit(limit)
@@ -732,12 +752,12 @@ async def worker_heartbeat(
         update_values["heartbeat_interval_seconds"] = heartbeat_interval_seconds
 
     insert_stmt = (
-        db.insert(orm_models.Worker)
+        db.insert(db.Worker)
         .values(**base_values, **update_values)
         .on_conflict_do_update(
             index_elements=[
-                orm_models.Worker.work_pool_id,
-                orm_models.Worker.name,
+                db.Worker.work_pool_id,
+                db.Worker.name,
             ],
             set_=update_values,
         )
@@ -767,9 +787,8 @@ async def delete_worker(
 
     """
     result = await session.execute(
-        delete(orm_models.Worker).where(
-            orm_models.Worker.work_pool_id == work_pool_id,
-            orm_models.Worker.name == worker_name,
+        delete(db.Worker).where(
+            db.Worker.work_pool_id == work_pool_id, db.Worker.name == worker_name
         )
     )
 
@@ -779,8 +798,8 @@ async def delete_worker(
 async def emit_work_pool_status_event(
     event_id: UUID,
     occurred: pendulum.DateTime,
-    pre_update_work_pool: Optional[orm_models.WorkPool],
-    work_pool: orm_models.WorkPool,
+    pre_update_work_pool: Optional["ORMWorkPool"],
+    work_pool: "ORMWorkPool",
 ):
     if not work_pool.status:
         return
