@@ -83,7 +83,7 @@ class TestCreateWorkPool:
         response = await client.post(
             "/work_pools/", json=dict(name="Pool 1", type="test")
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         result = parse_obj_as(WorkPool, response.json())
         assert result.name == "Pool 1"
         assert result.is_paused is False
@@ -102,7 +102,7 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", type="test", is_paused=True, concurrency_limit=5),
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         result = parse_obj_as(WorkPool, response.json())
         assert result.name == "Pool 1"
         assert result.is_paused is True
@@ -130,7 +130,7 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", type="test", base_job_template=base_job_template),
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         result = parse_obj_as(WorkPool, response.json())
         assert result.base_job_template == base_job_template
 
@@ -139,17 +139,21 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name=work_pool.name, type="PROCESS"),
         )
-        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.status_code == status.HTTP_409_CONFLICT, response.text
 
     @pytest.mark.parametrize("name", ["", "hi/there", "hi%there"])
     async def test_create_work_pool_with_invalid_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
 
     @pytest.mark.parametrize("name", ["''", " ", "' ' "])
     async def test_create_work_pool_with_emptyish_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert "name cannot be an empty string" in response.content.decode()
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
@@ -157,14 +161,14 @@ class TestCreateWorkPool:
         response = await client.post(
             "/work_pools/", json=dict(name="Pool 1", type=type)
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         result = parse_obj_as(WorkPool, response.json())
         assert result.type == type
 
     @pytest.mark.parametrize("name", RESERVED_POOL_NAMES)
     async def test_create_reserved_pool_fails(self, session, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_403_FORBIDDEN, response.text
         assert "reserved for internal use" in response.json()["detail"]
 
     async def test_create_work_pool_template_validation_missing_keys(self, client):
@@ -172,7 +176,9 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template={"foo": "bar", "x": ["y"]}),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
             " `variables` key." in response.json()["exception_detail"][0]["msg"]
@@ -199,7 +205,9 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template=missing_variable_template),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -233,7 +241,9 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template=missing_variable_template),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -265,7 +275,7 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
         )
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
         assert "Block not found" in response.json()["detail"]
 
     async def test_create_work_pool_template_validation_rejects_block_document_reference_incorrect_type(
@@ -298,7 +308,7 @@ class TestCreateWorkPool:
             "Failure reason: {'foo': 'bar'} is not of type 'string'"
             in response.json()["detail"]
         )
-        assert response.status_code == 422
+        assert response.status_code == 422, response.text
 
     async def test_create_work_pool_template_validation_accepts_valid_block_document_reference(
         self,
@@ -326,21 +336,21 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
 
 class TestDeleteWorkPool:
     async def test_delete_work_pool(self, client, work_pool, session):
         work_pool_id = work_pool.id
         response = await client.delete(f"/work_pools/{work_pool.name}")
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
         assert not await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id
         )
 
     async def test_nonexistent_work_pool(self, client):
         response = await client.delete("/work_pools/does-not-exist")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     @pytest.mark.parametrize("name", RESERVED_POOL_NAMES)
     async def test_delete_reserved_pool_fails(self, session, client, name):
@@ -350,7 +360,7 @@ class TestDeleteWorkPool:
         await session.commit()
 
         response = await client.delete(f"/work_pools/{name}")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_403_FORBIDDEN, response.text
         assert "reserved for internal use" in response.json()["detail"]
 
 
@@ -360,7 +370,7 @@ class TestUpdateWorkPool:
             f"/work_pools/{work_pool.name}",
             json=dict(is_paused=True, concurrency_limit=5),
         )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         session.expunge_all()
         result = await models.workers.read_work_pool(
@@ -382,7 +392,7 @@ class TestUpdateWorkPool:
             ),
         )
 
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(f"/work_pools/{work_pool.name}")
 
@@ -396,7 +406,7 @@ class TestUpdateWorkPool:
                 mode="json", exclude_unset=True
             ),
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(f"/work_pools/{work_pool.name}")
 
@@ -474,7 +484,7 @@ class TestUpdateWorkPool:
             f"/work_pools/{work_pool.name}",
             json=dict(concurrency_limit=0),
         )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         async with db.session_context() as session:
             result = await models.workers.read_work_pool(
@@ -489,7 +499,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{work_pool.name}",
             json=dict(concurrency_limit=-5),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
 
         session.expunge_all()
         result = await models.workers.read_work_pool(
@@ -509,7 +521,7 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(description=name, is_paused=True, concurrency_limit=5),
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_403_FORBIDDEN, response.text
         assert "reserved for internal use" in response.json()["detail"]
 
         # succeeds if just pause and concurrency
@@ -517,7 +529,7 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(is_paused=True, concurrency_limit=5),
         )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
     async def test_update_work_pool_template(self, session, client):
         name = "Pool 1"
@@ -549,7 +561,7 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(base_job_template=base_job_template),
         )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         session.expunge_all()
         result = await models.workers.read_work_pool(
@@ -576,7 +588,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(name=name, base_job_template={"foo": "bar", "x": ["y"]}),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
             " `variables` key." in response.json()["exception_detail"][0]["msg"]
@@ -614,7 +628,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(name=name, base_job_template=missing_variable_template),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -658,7 +674,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(name="Pool 1", base_job_template=missing_variable_template),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -671,7 +689,7 @@ class TestUpdateWorkPool:
 class TestReadWorkPool:
     async def test_read_work_pool(self, client, work_pool):
         response = await client.get(f"/work_pools/{work_pool.name}")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         result = parse_obj_as(WorkPool, response.json())
         assert result.name == work_pool.name
         assert result.id == work_pool.id
@@ -679,7 +697,7 @@ class TestReadWorkPool:
 
     async def test_read_invalid_config(self, client):
         response = await client.get("/work_pools/does-not-exist")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     async def test_read_work_pool_that_fails_validation(
         self,
@@ -687,7 +705,7 @@ class TestReadWorkPool:
         invalid_work_pool,
     ):
         response = await client.get(f"/work_pools/{invalid_work_pool.name}")
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert response.json()["id"] == str(invalid_work_pool.id)
         assert response.json()["name"] == "wp-1"
 
@@ -700,19 +718,19 @@ class TestReadWorkPools:
 
     async def test_read_work_pools(self, client, session):
         response = await client.post("/work_pools/filter")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         result = parse_obj_as(List[WorkPool], response.json())
         assert [r.name for r in result] == ["A", "B", "C"]
 
     async def test_read_work_pools_with_limit(self, client, session):
         response = await client.post("/work_pools/filter", json=dict(limit=2))
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         result = parse_obj_as(List[WorkPool], response.json())
         assert [r.name for r in result] == ["A", "B"]
 
     async def test_read_work_pools_with_offset(self, client, session):
         response = await client.post("/work_pools/filter", json=dict(offset=1))
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         result = parse_obj_as(List[WorkPool], response.json())
         assert [r.name for r in result] == ["B", "C"]
 
@@ -722,7 +740,7 @@ class TestReadWorkPools:
         invalid_work_pool,
     ):
         response = await client.post("/work_pools/filter")
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert len(response.json()) == 4
 
 
@@ -734,14 +752,14 @@ class TestCountWorkPools:
 
     async def test_count_work_pools(self, client):
         response = await client.post("/work_pools/count")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json() == 3
 
     async def test_count_work_pools_applies_filter(self, client):
         response = await client.post(
             "/work_pools/count", json={"work_pools": {"name": {"any_": ["A"]}}}
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json() == 1
 
 
@@ -751,7 +769,7 @@ class TestCreateWorkQueue:
             f"/work_pools/{work_pool.name}/queues",
             json=dict(name="test-queue", description="test queue"),
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
         result = parse_obj_as(WorkQueue, response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
@@ -768,7 +786,7 @@ class TestCreateWorkQueue:
             f"work_pools/{work_pool.name}/queues",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
         assert response.json()["priority"] == 99
         work_queue_id = response.json()["id"]
 
@@ -910,7 +928,7 @@ class TestUpdateWorkQueue:
             json=new_data,
         )
 
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
@@ -938,7 +956,7 @@ class TestUpdateWorkQueue:
             json=new_data,
         )
 
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
 
         response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
@@ -1027,7 +1045,7 @@ class TestUpdateWorkQueue:
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=pause_data,
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
         response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
         )
@@ -1060,7 +1078,7 @@ class TestUpdateWorkQueue:
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=unpause_data,
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
         unpaused_data_response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
         )
@@ -1100,7 +1118,7 @@ class TestUpdateWorkQueue:
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=pause_data,
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
         response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
         )
@@ -1133,7 +1151,7 @@ class TestUpdateWorkQueue:
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=unpause_data,
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
         unpaused_data_response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
         )
@@ -1172,7 +1190,7 @@ class TestUpdateWorkQueue:
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=pause_data,
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
         response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
         )
@@ -1205,7 +1223,7 @@ class TestUpdateWorkQueue:
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
             json=unpause_data,
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, response.text
         unpaused_data_response = await client.get(
             f"/work_pools/{work_pool.name}/queues/{work_queue_1.name}",
         )
@@ -1239,7 +1257,7 @@ class TestWorkPoolStatus:
         )
 
         response = await client.get(f"/work_pools/{work_pool.name}")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         result = parse_obj_as(WorkPool, response.json())
         assert result.status == schemas.statuses.WorkPoolStatus.READY
@@ -1283,7 +1301,7 @@ class TestWorkPoolStatus:
         )
 
         response = await client.get(f"/work_pools/{work_pool.name}")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         result = parse_obj_as(WorkPool, response.json())
         assert result.is_paused
@@ -1294,7 +1312,7 @@ class TestWorkPoolStatus:
     ):
         """Work pools that are Prefect Agent work pools should have `null` for status."""
         response = await client.get(f"/work_pools/{prefect_agent_work_pool.name}")
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         result = parse_obj_as(WorkPool, response.json())
         assert result.status is None
@@ -1313,7 +1331,7 @@ class TestWorkerProcess:
             f"/work_pools/{work_pool.name}/workers/heartbeat",
             json=dict(name="test-worker"),
         )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         workers_response = await client.post(
             f"/work_pools/{work_pool.name}/workers/filter"
@@ -1390,7 +1408,9 @@ class TestWorkerProcess:
 
     async def test_heartbeat_worker_requires_name(self, client, work_pool):
         response = await client.post(f"/work_pools/{work_pool.name}/workers/heartbeat")
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        ), response.text
         assert b'"missing","loc":["body","name"]' in response.content
 
     async def test_heartbeat_worker_upserts_for_same_name(self, client, work_pool):
@@ -1498,7 +1518,7 @@ class TestDeleteWorker:
         response = await client.delete(
             f"/work_pools/{work_pool.name}/workers/{deleted_worker_name}"
         )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
         remaining_workers = await models.workers.read_workers(
             session=session,
             work_pool_id=work_pool_id,
@@ -1520,7 +1540,7 @@ class TestDeleteWorker:
         await session.commit()
 
         response = await client.delete(f"/work_pools/{wp.name}/workers/does-not-exist")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
 
 class TestGetScheduledRuns:
@@ -1673,7 +1693,7 @@ class TestGetScheduledRuns:
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.text
 
         data = parse_obj_as(
             List[schemas.responses.WorkerFlowRunResponse], response.json()
@@ -1727,7 +1747,7 @@ class TestGetScheduledRuns:
             json=dict(work_queue_names=[work_queues["wq_ba"].name]),
         )
 
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     async def test_get_all_runs_scheduled_before(self, client, work_pools, work_queues):
         response = await client.post(

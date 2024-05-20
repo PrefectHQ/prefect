@@ -39,7 +39,13 @@ from prefect.server.utilities.schemas.bases import (
     PrefectBaseModel,
 )
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import Name, NameOrEmpty, NonNegativeInteger, PositiveInteger
+from prefect.types import (
+    Name,
+    NameOrEmpty,
+    NonEmptyishName,
+    NonNegativeInteger,
+    PositiveInteger,
+)
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
@@ -1047,7 +1053,7 @@ class Agent(ORMBaseModel):
 class WorkPool(ORMBaseModel):
     """An ORM representation of a work pool"""
 
-    name: Name = Field(
+    name: NonEmptyishName = Field(
         description="The name of the work pool.",
     )
     description: Optional[str] = Field(
