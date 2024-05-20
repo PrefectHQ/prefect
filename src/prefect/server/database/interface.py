@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from prefect.server.database import orm_models
 from prefect.server.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.server.database.configurations import BaseDatabaseConfiguration
-from prefect.server.database.orm_models import BaseORMConfiguration
 from prefect.server.database.query_components import BaseQueryComponents
 from prefect.server.utilities.database import get_dialect
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -45,7 +45,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
         self,
         database_config: BaseDatabaseConfiguration,
         query_components: BaseQueryComponents,
-        orm: BaseORMConfiguration,
+        orm: orm_models.BaseORMConfiguration,
     ):
         self.database_config = database_config
         self.queries = query_components
@@ -127,187 +127,187 @@ class PrefectDBInterface(metaclass=DBSingleton):
     @property
     def Base(self):
         """Base class for orm models"""
-        return self.orm.Base
+        return orm_models.Base
 
     @property
     def Flow(self):
         """A flow orm model"""
-        return self.orm.Flow
+        return orm_models.Flow
 
     @property
     def FlowRun(self):
         """A flow run orm model"""
-        return self.orm.FlowRun
+        return orm_models.FlowRun
 
     @property
     def FlowRunState(self):
         """A flow run state orm model"""
-        return self.orm.FlowRunState
+        return orm_models.FlowRunState
 
     @property
     def TaskRun(self):
         """A task run orm model"""
-        return self.orm.TaskRun
+        return orm_models.TaskRun
 
     @property
     def TaskRunState(self):
         """A task run state orm model"""
-        return self.orm.TaskRunState
+        return orm_models.TaskRunState
 
     @property
     def Artifact(self):
         """An artifact orm model"""
-        return self.orm.Artifact
+        return orm_models.Artifact
 
     @property
     def ArtifactCollection(self):
         """An artifact collection orm model"""
-        return self.orm.ArtifactCollection
+        return orm_models.ArtifactCollection
 
     @property
     def TaskRunStateCache(self):
         """A task run state cache orm model"""
-        return self.orm.TaskRunStateCache
+        return orm_models.TaskRunStateCache
 
     @property
     def Deployment(self):
         """A deployment orm model"""
-        return self.orm.Deployment
+        return orm_models.Deployment
 
     @property
     def DeploymentSchedule(self):
         """A deployment schedule orm model"""
-        return self.orm.DeploymentSchedule
+        return orm_models.DeploymentSchedule
 
     @property
     def SavedSearch(self):
         """A saved search orm model"""
-        return self.orm.SavedSearch
+        return orm_models.SavedSearch
 
     @property
     def WorkPool(self):
         """A work pool orm model"""
-        return self.orm.WorkPool
+        return orm_models.WorkPool
 
     @property
     def Worker(self):
         """A worker process orm model"""
-        return self.orm.Worker
+        return orm_models.Worker
 
     @property
     def Log(self):
         """A log orm model"""
-        return self.orm.Log
+        return orm_models.Log
 
     @property
     def ConcurrencyLimit(self):
         """A concurrency model"""
-        return self.orm.ConcurrencyLimit
+        return orm_models.ConcurrencyLimit
 
     @property
     def ConcurrencyLimitV2(self):
         """A v2 concurrency model"""
-        return self.orm.ConcurrencyLimitV2
+        return orm_models.ConcurrencyLimitV2
 
     @property
     def CsrfToken(self):
         """A csrf token model"""
-        return self.orm.CsrfToken
+        return orm_models.CsrfToken
 
     @property
     def WorkQueue(self):
         """A work queue model"""
-        return self.orm.WorkQueue
+        return orm_models.WorkQueue
 
     @property
     def Agent(self):
         """An agent model"""
-        return self.orm.Agent
+        return orm_models.Agent
 
     @property
     def BlockType(self):
         """A block type model"""
-        return self.orm.BlockType
+        return orm_models.BlockType
 
     @property
     def BlockSchema(self):
         """A block schema model"""
-        return self.orm.BlockSchema
+        return orm_models.BlockSchema
 
     @property
     def BlockSchemaReference(self):
         """A block schema reference model"""
-        return self.orm.BlockSchemaReference
+        return orm_models.BlockSchemaReference
 
     @property
     def BlockDocument(self):
         """A block document model"""
-        return self.orm.BlockDocument
+        return orm_models.BlockDocument
 
     @property
     def BlockDocumentReference(self):
         """A block document reference model"""
-        return self.orm.BlockDocumentReference
+        return orm_models.BlockDocumentReference
 
     @property
     def FlowRunNotificationPolicy(self):
         """A flow run notification policy model"""
-        return self.orm.FlowRunNotificationPolicy
+        return orm_models.FlowRunNotificationPolicy
 
     @property
     def FlowRunNotificationQueue(self):
         """A flow run notification queue model"""
-        return self.orm.FlowRunNotificationQueue
+        return orm_models.FlowRunNotificationQueue
 
     @property
     def Configuration(self):
         """An configuration model"""
-        return self.orm.Configuration
+        return orm_models.Configuration
 
     @property
     def Variable(self):
         """A variable model"""
-        return self.orm.Variable
+        return orm_models.Variable
 
     @property
     def FlowRunInput(self):
         """A flow run input model"""
-        return self.orm.FlowRunInput
+        return orm_models.FlowRunInput
 
     @property
     def Automation(self):
         """An automation model"""
-        return self.orm.Automation
+        return orm_models.Automation
 
     @property
     def AutomationBucket(self):
         """An automation bucket model"""
-        return self.orm.AutomationBucket
+        return orm_models.AutomationBucket
 
     @property
     def AutomationRelatedResource(self):
         """An automation related resource model"""
-        return self.orm.AutomationRelatedResource
+        return orm_models.AutomationRelatedResource
 
     @property
     def CompositeTriggerChildFiring(self):
         """A model capturing a composite trigger's child firing"""
-        return self.orm.CompositeTriggerChildFiring
+        return orm_models.CompositeTriggerChildFiring
 
     @property
     def AutomationEventFollower(self):
         """A model capturing one event following another event"""
-        return self.orm.AutomationEventFollower
+        return orm_models.AutomationEventFollower
 
     @property
     def Event(self):
         """An event model"""
-        return self.orm.Event
+        return orm_models.Event
 
     @property
     def EventResource(self):
         """An event resource model"""
-        return self.orm.EventResource
+        return orm_models.EventResource
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -380,8 +380,8 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
         return self.queries.set_state_id_on_inserted_flow_runs_statement(
-            self.FlowRun,
-            self.FlowRunState,
+            orm_models.FlowRun,
+            orm_models.FlowRunState,
             inserted_flow_run_ids,
             insert_flow_run_states,
         )
@@ -403,14 +403,12 @@ class PrefectDBInterface(metaclass=DBSingleton):
         self, session: sa.orm.Session, limit: int
     ):
         return await self.queries.get_flow_run_notifications_from_queue(
-            session=session, db=self, limit=limit
+            session=session, limit=limit
         )
 
     async def read_configuration_value(self, session: sa.orm.Session, key: str):
         """Read a configuration value"""
-        return await self.queries.read_configuration_value(
-            db=self, session=session, key=key
-        )
+        return await self.queries.read_configuration_value(session=session, key=key)
 
     def clear_configuration_value_cache_for_key(self, key: str):
         """Removes a configuration key from the cache."""

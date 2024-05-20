@@ -203,7 +203,7 @@ class Countable(AutoEnum):
                 sa.func.min(db.Event.occurred).label("oldest"),
                 sa.func.count().label("count"),
             )
-            .where(sa.and_(*filter.build_where_clauses(db)))
+            .where(sa.and_(*filter.build_where_clauses()))
             .group_by("value", "label")
         )
 
