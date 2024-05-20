@@ -1,9 +1,10 @@
-from typing import Annotated, Any, Callable, ClassVar, Generator
+from typing import Annotated
 
-from pydantic_core import core_schema, CoreSchema, SchemaValidator
 from pydantic import BeforeValidator, Field
-from typing_extensions import Self
 from datetime import timedelta
+from zoneinfo import available_timezones
+
+timezone_set = available_timezones()
 
 
 NonNegativeInteger = Annotated[int, Field(ge=0)]
@@ -12,6 +13,7 @@ NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 
 NonNegativeDuration = Annotated[timedelta, Field(ge=timedelta(seconds=0))]
 PositiveDuration = Annotated[timedelta, Field(gt=timedelta(seconds=0))]
+TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(timezone_set))]
 
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
