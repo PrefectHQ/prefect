@@ -636,6 +636,8 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         filters = []
         if self.is_null_ is True:
             filters.append(db.TaskRun.flow_run_id.is_(None))
+        elif self.is_null_ is False and self.any_ is None:
+            filters.append(db.TaskRun.flow_run_id.is_not(None))
         else:
             if self.any_ is not None:
                 filters.append(db.TaskRun.flow_run_id.in_(self.any_))
