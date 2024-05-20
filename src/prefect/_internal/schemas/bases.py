@@ -4,12 +4,13 @@ Utilities for creating and working with Prefect REST API schemas.
 
 import datetime
 import os
-from typing import TYPE_CHECKING, Any, Dict, Optional, Set, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Optional, Set, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import Self
 
 from prefect.utilities.pydantic import default_secret_encoder
 
@@ -31,7 +32,9 @@ class PrefectBaseModel(BaseModel):
     subtle unintentional testing errors.
     """
 
-    model_config: ConfigDict = ConfigDict(
+    _reset_fields: ClassVar[Set[str]] = set()
+
+    model_config = ConfigDict(
         extra=(
             "ignore"
             if os.getenv("PREFECT_TEST_MODE", "0").lower() not in ["true", "1"]
@@ -39,21 +42,15 @@ class PrefectBaseModel(BaseModel):
         )
     )
 
-    def _reset_fields(self) -> Set[str]:
-        """A set of field names that are reset when the PrefectBaseModel is copied.
-        These fields are also disregarded for equality comparisons.
-        """
-        return set()
-
     def __eq__(self, other: Any) -> bool:
         """Equaltiy operator that ignores the resettable fields of the PrefectBaseModel.
 
         NOTE: this equality operator will only be applied if the PrefectBaseModel is
         the left-hand operand. This is a limitation of Python.
         """
-        copy_dict = self.model_dump(exclude=self._reset_fields())
+        copy_dict = self.model_dump(exclude=self._reset_fields)
         if isinstance(other, PrefectBaseModel):
-            return copy_dict == other.model_dump(exclude=other._reset_fields())
+            return copy_dict == other.model_dump(exclude=other._reset_fields)
         if isinstance(other, BaseModel):
             return copy_dict == other.model_dump()
         else:
@@ -77,6 +74,20 @@ class PrefectBaseModel(BaseModel):
                 value = pendulum.instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
+
+    def reset_fields(self: Self) -> Self:
+        """
+        Reset the fields of the model that are in the `_reset_fields` set.
+
+        Returns:
+            PrefectBaseModel: A new instance of the model with the reset fields.
+        """
+        return self.model_copy(
+            update={
+                field: self.model_fields[field].get_default()
+                for field in self._reset_fields
+            }
+        )
 
     def model_dump_with_secrets(
         self,
@@ -144,10 +155,8 @@ class IDBaseModel(PrefectBaseModel):
     The ID is reset on copy() and not included in equality comparisons.
     """
 
+    _reset_fields: ClassVar[Set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
-
-    def _reset_fields(self) -> Set[str]:
-        return super()._reset_fields().union({"id"})
 
 
 class ObjectBaseModel(IDBaseModel):
@@ -159,13 +168,11 @@ class ObjectBaseModel(IDBaseModel):
     equality comparisons.
     """
 
+    _reset_fields: ClassVar[Set[str]] = {"id", "created", "updated"}
     model_config = ConfigDict(from_attributes=True)
 
     created: Optional[DateTime] = Field(default=None, repr=False)
     updated: Optional[DateTime] = Field(default=None, repr=False)
-
-    def _reset_fields(self) -> Set[str]:
-        return super()._reset_fields().union({"created", "updated"})
 
 
 class ActionBaseModel(PrefectBaseModel):

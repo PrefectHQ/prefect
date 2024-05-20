@@ -89,7 +89,7 @@ class TestOrchestrationResult:
     ):
         status = SetStateStatus.ACCEPT
         cast_result = OrchestrationResult(
-            status=status, details=response_details.model_dump()
+            state=None, status=status, details=response_details.model_dump()
         )
         assert isinstance(cast_result.details, response_type)
 
