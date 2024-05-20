@@ -18,10 +18,9 @@ from prefect._internal.schemas.validators import (
     default_timezone,
     validate_cron_string,
     validate_rrule_string,
-    validate_rrule_timezone,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types import PositiveDuration
+from prefect.types import PositiveDuration, TimeZone
 
 MAX_ITERATIONS = 1000
 
@@ -366,7 +365,7 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("rrule")
     @classmethod
@@ -475,12 +474,6 @@ class RRuleSchedule(PrefectBaseModel):
             rrule._exdate = localized_exdates
 
             return rrule
-
-    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
-    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
-    @field_validator("timezone")
-    def valid_timezone(cls, v):
-        return validate_rrule_timezone(v)
 
     async def get_dates(
         self,
