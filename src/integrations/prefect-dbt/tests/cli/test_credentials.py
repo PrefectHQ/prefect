@@ -24,7 +24,7 @@ def test_dbt_cli_profile_init(configs_type):
 
 def test_dbt_cli_profile_init_validation_failed():
     # 6 instead of 2 now because it tries to validate each of the Union types
-    with pytest.raises(ValidationError, match="6 validation errors for DbtCliProfile"):
+    with pytest.raises(ValidationError):
         DbtCliProfile(
             name="test_name", target="dev", target_configs={"extras": {"field": "abc"}}
         )

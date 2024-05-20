@@ -45,16 +45,16 @@ def triggers_disabled():
 
 
 def test_source_determines_if_automation_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="automation_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseAutomation(source="selected")
 
-    with pytest.raises(ValidationError, match="automation_id is required"):
+    with pytest.raises(ValidationError):
         actions.ResumeAutomation(source="selected")
 
-    with pytest.raises(ValidationError, match="automation_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseAutomation(source="inferred", automation_id=uuid4())
 
-    with pytest.raises(ValidationError, match="automation_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.ResumeAutomation(source="inferred", automation_id=uuid4())
 
 

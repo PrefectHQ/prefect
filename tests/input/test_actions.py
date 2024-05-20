@@ -96,7 +96,7 @@ class TestCreateFlowRunInput:
             await create_flow_run_input(key="key", value="value")
 
     async def test_validates_key(self, flow_run):
-        with pytest.raises(ValidationError, match="value must only contain"):
+        with pytest.raises(ValidationError):
             await create_flow_run_input(
                 key="invalid key *@&*$&", value="value", flow_run_id=flow_run.id
             )

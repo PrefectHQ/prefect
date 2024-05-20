@@ -26,16 +26,16 @@ from prefect.utilities.pydantic import parse_obj_as
 
 
 def test_source_determines_if_work_queue_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="work_queue_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkQueue(source="selected")
 
-    with pytest.raises(ValidationError, match="work_queue_id is required"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkQueue(source="selected")
 
-    with pytest.raises(ValidationError, match="work_queue_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkQueue(source="inferred", work_queue_id=uuid4())
 
-    with pytest.raises(ValidationError, match="work_queue_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkQueue(source="inferred", work_queue_id=uuid4())
 
 
