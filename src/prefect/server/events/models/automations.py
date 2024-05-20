@@ -42,7 +42,7 @@ async def read_automations_for_workspace(
     query = query.order_by(db.Automation.sort_expression(sort))
 
     if automation_filter:
-        query = query.where(automation_filter.as_sql_filter(db))
+        query = query.where(automation_filter.as_sql_filter())
     if limit is not None:
         query = query.limit(limit)
     if offset is not None:
@@ -325,7 +325,7 @@ async def read_automations_related_to_resource(
         )
 
     if automation_filter:
-        query = query.where(automation_filter.as_sql_filter(db))
+        query = query.where(automation_filter.as_sql_filter())
 
     result = await session.execute(query)
     return [Automation.from_orm(a) for a in result.scalars().all()]

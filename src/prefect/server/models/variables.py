@@ -80,10 +80,10 @@ async def read_variables(
     """
     Read variables, applying filers.
     """
-    query = sa.select(db.Variable).order_by(sort.as_sql_sort(db))
+    query = sa.select(db.Variable).order_by(sort.as_sql_sort())
 
     if variable_filter:
-        query = query.where(variable_filter.as_sql_filter(db))
+        query = query.where(variable_filter.as_sql_filter())
 
     if offset is not None:
         query = query.offset(offset)
@@ -107,7 +107,7 @@ async def count_variables(
     query = sa.select(sa.func.count()).select_from(db.Variable)
 
     if variable_filter:
-        query = query.where(variable_filter.as_sql_filter(db))
+        query = query.where(variable_filter.as_sql_filter())
 
     result = await session.execute(query)
     return result.scalar()
