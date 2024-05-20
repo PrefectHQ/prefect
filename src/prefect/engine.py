@@ -905,7 +905,9 @@ async def orchestrate_flow_run(
             terminal_state = await exception_to_failed_state(
                 exc,
                 message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
-                result_factory=flow_run_context.result_factory,
+                result_factory=flow_run_context.result_factory
+                if flow_run_context
+                else None,
                 name="TimedOut",
             )
         except Exception:
@@ -913,7 +915,9 @@ async def orchestrate_flow_run(
             logger.exception("Encountered exception during execution:")
             terminal_state = await exception_to_failed_state(
                 message="Flow run encountered an exception.",
-                result_factory=flow_run_context.result_factory,
+                result_factory=flow_run_context.result_factory
+                if flow_run_context
+                else None,
             )
         else:
             if result is None:
@@ -935,7 +939,8 @@ async def orchestrate_flow_run(
             # complete. Ensure that we wait for them before proposing a final state
             # for the flow run.
             await wait_for_task_runs_and_report_crashes(
-                flow_run_context.task_run_futures, client=client
+                flow_run_context.task_run_futures if flow_run_context else [],
+                client=client,
             )
 
         # Before setting the flow run state, store state.data using

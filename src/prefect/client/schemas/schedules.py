@@ -3,12 +3,12 @@ Schedule schemas
 """
 
 import datetime
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 import dateutil
 import dateutil.rrule
 import pendulum
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -58,18 +58,16 @@ class IntervalSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid", exclude_none=True)
 
     interval: PositiveDuration
-    anchor_date: Optional[DateTime] = None
+    anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
+        default_factory=lambda: pendulum.now("UTC"),
+        examples=["2020-01-01T00:00:00Z"],
+    )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
 
-    @field_validator("anchor_date")
-    @classmethod
-    def validate_anchor_date(cls, v):
-        return default_anchor_date(v)
-
-    @field_validator("timezone")
-    @classmethod
-    def validate_default_timezone(cls, v, values):
-        return default_timezone(v, values=values)
+    @model_validator(mode="after")
+    def validate_timezone(self):
+        self.timezone = default_timezone(self.timezone, self.model_dump())
+        return self
 
 
 class CronSchedule(PrefectBaseModel):
@@ -303,6 +301,8 @@ def construct_schedule(
     if interval:
         if isinstance(interval, (int, float)):
             interval = datetime.timedelta(seconds=interval)
+        if not anchor_date:
+            anchor_date = DateTime.now()
         schedule = IntervalSchedule(
             interval=interval, anchor_date=anchor_date, timezone=timezone
         )

@@ -2,6 +2,7 @@ import datetime
 from itertools import combinations
 
 import pytest
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -77,16 +78,16 @@ class TestConstructSchedule:
         assert result.interval == interval
 
     def test_datetime_anchor_date(self):
-        anchor = datetime.datetime.now()
+        anchor = DateTime.now()
         result = construct_schedule(interval=300, anchor_date=anchor)
         assert result == IntervalSchedule(
             interval=datetime.timedelta(seconds=300), anchor_date=anchor
         )
 
     def test_string_anchor_date(self):
-        anchor = "2023-01-01"
+        anchor = "2023-01-01T00:00:00Z"
         result = construct_schedule(interval=300, anchor_date=anchor)
         assert result == IntervalSchedule(
             interval=datetime.timedelta(seconds=300),
-            anchor_date=datetime.datetime(2023, 1, 1),
+            anchor_date=DateTime.fromisoformat(anchor),
         )
