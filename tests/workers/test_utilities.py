@@ -50,7 +50,6 @@ class TestGetAvailableWorkPoolTypes:
             "fake",
             "faker",
             "kubernetes",
-            "prefect-agent",
             "process",
         ]
 
@@ -74,24 +73,21 @@ class TestGetAvailableWorkPoolTypes:
             "docker",
             "ecs",
             "kubernetes",
-            "prefect-agent",
             "process",
             "vertex-ai",
         }
 
 
+@pytest.mark.usefixtures("mock_collection_registry")
 class TestGetDefaultBaseJobTemplateForInfrastructureType:
-    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_get_default_base_job_template_for_local_registry(self):
         result = await get_default_base_job_template_for_infrastructure_type("process")
         assert result == ProcessWorker.get_default_base_job_template()
 
-    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_get_default_base_job_template_for_collection_registry(self):
         result = await get_default_base_job_template_for_infrastructure_type("fake")
         assert result == FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
-    @pytest.mark.usefixtures("mock_collection_registry")
     async def test_get_default_base_job_template_for_non_existent_infrastructure_type(
         self,
     ):

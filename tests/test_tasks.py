@@ -3,7 +3,7 @@ import datetime
 import inspect
 import time
 from asyncio import Event, sleep
-from functools import partial, wraps
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call
@@ -38,7 +38,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
-from prefect.testing.utilities import exceptions_equal
+from prefect.testing.utilities import exceptions_equal, fails_with_new_engine
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.collections import quote
@@ -51,51 +51,6 @@ from prefect.utilities.engine import get_state_for_result
 def set_new_engine_setting(request):
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
         yield
-
-
-def fails_with_new_engine(func):
-    @wraps(func)
-    def sync_wrapper(*args, **kwargs):
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            try:
-                func(*args, **kwargs)
-            except (
-                Exception,
-                anyio._backends._asyncio.ExceptionGroup,
-                pytest.fail.Exception,
-            ):
-                pytest.xfail(
-                    "This test fails with the new engine",
-                )
-            else:
-                pytest.fail(
-                    "Test passed unexpectedly with the new engine", pytrace=False
-                )
-        return func(*args, **kwargs)
-
-    @wraps(func)
-    async def async_wrapper(*args, **kwargs):
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            try:
-                await func(*args, **kwargs)
-            except (
-                Exception,
-                anyio._backends._asyncio.ExceptionGroup,
-                pytest.fail.Exception,
-            ):
-                pytest.xfail(
-                    "This test fails with the new engine",
-                )
-            else:
-                pytest.fail(
-                    "Test passed unexpectedly with the new engine", pytrace=False
-                )
-        return await func(*args, **kwargs)
-
-    if asyncio.iscoroutinefunction(func):
-        return async_wrapper
-    else:
-        return sync_wrapper
 
 
 def comparable_inputs(d):
@@ -168,7 +123,6 @@ class TestTaskRunName:
             def my_task():
                 pass
 
-    @fails_with_new_engine
     def test_invalid_runtime_run_name(self):
         class InvalidTaskRunNameArg:
             def format(*args, **kwargs):
@@ -1585,7 +1539,6 @@ class TestCacheFunctionBuiltins:
 
 
 class TestTaskTimeouts:
-    @fails_with_new_engine
     async def test_task_timeouts_actually_timeout(self, timeout_test_flow):
         flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
@@ -1597,7 +1550,6 @@ class TestTaskTimeouts:
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
         assert timed_out.is_crashed() is False
 
-    @fails_with_new_engine
     async def test_task_timeouts_do_not_crash_flow_runs(self, timeout_test_flow):
         flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
@@ -2633,7 +2585,9 @@ class TestTaskRunLogs:
 
         logs = await _wait_for_logs(prefect_client)
         assert logs, "There should be logs"
-        assert all([log.flow_run_id == flow_run_id for log in logs])
+        assert all([log.flow_run_id == flow_run_id for log in logs]), str(
+            [log for log in logs]
+        )
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert task_run_logs, f"There should be task run logs in {logs}"
         assert all([log.task_run_id == task_run_id for log in task_run_logs])
@@ -3462,7 +3416,6 @@ async def test_task_run_name_is_set_with_function(prefect_client):
     assert task_run.name == "is-this-a-bird"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_client):
     def generate_task_run_name():
         params = task_run_ctx.parameters
@@ -3489,7 +3442,6 @@ async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_
     assert task_run.name == "chris-wuz-here"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function_not_returning_string(prefect_client):
     def generate_task_run_name():
         pass
