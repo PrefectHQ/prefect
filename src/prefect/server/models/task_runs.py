@@ -176,12 +176,12 @@ async def read_task_run(
 async def _apply_task_run_filters(
     query,
     db: PrefectDBInterface,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
 ):
     """
     Applies filters to a task run query as a combination of EXISTS subqueries.
