@@ -534,7 +534,7 @@ async def deployment_2(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id_2,
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump(),
             work_queue_id=work_queue_1.id,
         ),
     )
