@@ -1484,7 +1484,6 @@ class TestFlowParameterTypes:
 
         assert my_flow() == data
 
-    @fails_with_new_engine
     def test_subflow_parameters_can_be_pydantic_models_from_task_future(self):
         @flow
         def my_flow():
@@ -1621,7 +1620,6 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_subflow_with_one_upstream_task_state_and_allow_failure(
         self, prefect_client
     ):
