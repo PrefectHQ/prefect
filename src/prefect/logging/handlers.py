@@ -1,3 +1,4 @@
+import inspect
 import json
 import logging
 import sys
@@ -15,7 +16,6 @@ from rich.theme import Theme
 from typing_extensions import Self
 
 import prefect.context
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
 from prefect._internal.concurrency.threads import in_global_loop
@@ -34,6 +34,7 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
+from prefect.utilities.asyncutils import run_sync
 
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
@@ -106,10 +107,11 @@ class APILogHandler(logging.Handler):
                     " would block the event loop and cause a deadlock. Use"
                     " `APILogWorker.aflush` instead."
                 )
-
-            # Not ideal, but this method is called by the stdlib and cannot return a
-            # coroutine so we just schedule the drain in a new thread and continue
-            from_sync.call_soon_in_new_thread(create_call(APILogWorker.drain_all))
+            # This method is called by the stdlib and cannot return a
+            # coroutine so we just schedule the drain in a new thread
+            result = APILogWorker.drain_all()
+            if inspect.isawaitable(result):
+                run_sync(result)
             return None
         else:
             # We set a timeout of 5s because we don't want to block forever if the worker
