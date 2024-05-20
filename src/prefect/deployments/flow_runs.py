@@ -1,12 +1,4 @@
-"""
-Objects for specifying deployments and utilities for loading flows from deployments.
-"""
-
-import json
-import os
-import sys
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Optional, Union
 from uuid import UUID
 
@@ -17,109 +9,21 @@ from prefect._internal.compatibility.deprecated import (
     deprecated_parameter,
     handle_deprecated_infra_overrides_parameter,
 )
-from prefect.blocks.core import Block
+from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.deployments.steps.core import run_steps
-from prefect.filesystems import LocalFileSystem
-from prefect.flows import load_flow_from_entrypoint
-from prefect.logging.loggers import flow_run_logger
+from prefect.logging import get_logger
 from prefect.states import Scheduled
 from prefect.tasks import Task
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-from prefect.utilities.filesystem import relative_path_to_current_platform
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
-    from prefect.flows import Flow
-
-if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
-    from prefect.client.schemas.objects import FlowRun
-    from prefect.flows import Flow
 
 
-@inject_client
-async def load_flow_from_flow_run(
-    flow_run: "FlowRun",
-    client: "PrefectClient",
-    ignore_storage: bool = False,
-    storage_base_path: Optional[str] = None,
-) -> "Flow":
-    """
-    Load a flow from the location/script provided in a deployment's storage document.
-
-    If `ignore_storage=True` is provided, no pull from remote storage occurs.  This flag
-    is largely for testing, and assumes the flow is already available locally.
-    """
-    deployment = await client.read_deployment(flow_run.deployment_id)
-
-    if deployment.entrypoint is None:
-        raise ValueError(
-            f"Deployment {deployment.id} does not have an entrypoint and can not be run."
-        )
-
-    run_logger = flow_run_logger(flow_run)
-
-    runner_storage_base_path = storage_base_path or os.environ.get(
-        "PREFECT__STORAGE_BASE_PATH"
-    )
-
-    # If there's no colon, assume it's a module path
-    if ":" not in deployment.entrypoint:
-        run_logger.debug(
-            f"Importing flow code from module path {deployment.entrypoint}"
-        )
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, deployment.entrypoint
-        )
-        return flow
-
-    if not ignore_storage and not deployment.pull_steps:
-        sys.path.insert(0, ".")
-        if deployment.storage_document_id:
-            storage_document = await client.read_block_document(
-                deployment.storage_document_id
-            )
-            storage_block = Block._from_block_document(storage_document)
-        else:
-            basepath = deployment.path or Path(deployment.manifest_path).parent
-            if runner_storage_base_path:
-                basepath = str(basepath).replace(
-                    "$STORAGE_BASE_PATH", runner_storage_base_path
-                )
-            storage_block = LocalFileSystem(basepath=basepath)
-
-        from_path = (
-            str(deployment.path).replace("$STORAGE_BASE_PATH", runner_storage_base_path)
-            if runner_storage_base_path and deployment.path
-            else deployment.path
-        )
-        run_logger.info(f"Downloading flow code from storage at {from_path!r}")
-        await storage_block.get_directory(from_path=from_path, local_path=".")
-
-    if deployment.pull_steps:
-        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
-        output = await run_steps(deployment.pull_steps)
-        if output.get("directory"):
-            run_logger.debug(f"Changing working directory to {output['directory']!r}")
-            os.chdir(output["directory"])
-
-    import_path = relative_path_to_current_platform(deployment.entrypoint)
-    # for backwards compat
-    if deployment.manifest_path:
-        with open(deployment.manifest_path, "r") as f:
-            import_path = json.load(f)["import_path"]
-            import_path = (
-                Path(deployment.manifest_path).parent / import_path
-            ).absolute()
-    run_logger.debug(f"Importing flow code from '{import_path}'")
-
-    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
-
-    return flow
+logger = get_logger(__name__)
 
 
 @sync_compatible

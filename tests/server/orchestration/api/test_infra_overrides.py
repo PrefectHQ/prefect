@@ -3,14 +3,19 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from prefect.blocks.kubernetes import KubernetesClusterConfig
+from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.models import deployments
 
 
+class MockKubernetesClusterConfig(Block):
+    context_name: str
+    config: Dict[str, Any]
+
+
 @pytest.fixture
 async def k8s_credentials():
-    block = KubernetesClusterConfig(context_name="default", config={})
+    block = MockKubernetesClusterConfig(context_name="default", config={})
     await block.save("k8s-credentials")
     return block
 

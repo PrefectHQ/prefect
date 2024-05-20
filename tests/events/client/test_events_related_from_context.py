@@ -126,7 +126,7 @@ async def test_can_exclude_by_resource_id(prefect_client):
 
         return await related_resources_from_run_context(exclude=exclude)
 
-    state = await test_flow._run()
+    state = await test_flow(return_state=True)
 
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
 
@@ -144,9 +144,9 @@ async def test_gets_related_from_task_run_context(prefect_client):
 
     @flow
     async def test_flow():
-        return await test_task._run()
+        return await test_task(return_state=True)
 
-    state = await test_flow._run()
+    state = await test_flow(return_state=True)
     task_state = await state.result()
 
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)

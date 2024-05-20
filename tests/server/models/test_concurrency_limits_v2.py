@@ -92,10 +92,7 @@ async def test_create_concurrency_limit(session: AsyncSession):
 
 
 async def test_create_concurrency_limit_with_invalid_name_raises(session: AsyncSession):
-    with pytest.raises(
-        ValidationError,
-        match="contains an invalid character",
-    ):
+    with pytest.raises(ValidationError, match="String should match pattern"):
         await create_concurrency_limit(
             session=session,
             concurrency_limit=ConcurrencyLimitV2(
@@ -277,10 +274,7 @@ async def test_delete_concurrency_limit_by_id(
 async def test_update_concurrency_limit_with_invalid_name_raises(
     concurrency_limit: ConcurrencyLimitV2, session: AsyncSession
 ):
-    with pytest.raises(
-        ValidationError,
-        match="contains an invalid character",
-    ):
+    with pytest.raises(ValidationError, match="String should match pattern"):
         await update_concurrency_limit(
             session=session,
             concurrency_limit=ConcurrencyLimitV2Update(name="test_limit & 0 < 1"),

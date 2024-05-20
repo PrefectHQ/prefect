@@ -45,8 +45,6 @@ import prefect.serializers
 import prefect.blocks.kubernetes
 import prefect.blocks.notifications
 import prefect.blocks.system
-import prefect.infrastructure.process
-import prefect.infrastructure.container
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
