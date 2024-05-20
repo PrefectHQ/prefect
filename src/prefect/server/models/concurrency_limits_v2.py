@@ -4,7 +4,8 @@ from uuid import UUID
 import sqlalchemy as sa
 
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import inject_db
+from prefect.server.database import orm_models
+from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 
 
@@ -35,10 +36,10 @@ def active_slots_after_decay(db: PrefectDBInterface):
     return greatest(
         db,
         0,
-        db.ConcurrencyLimitV2.active_slots
+        orm_models.ConcurrencyLimitV2.active_slots
         - sa.func.floor(
-            db.ConcurrencyLimitV2.slot_decay_per_second
-            * seconds_ago(db, db.ConcurrencyLimitV2.updated)
+            orm_models.ConcurrencyLimitV2.slot_decay_per_second
+            * seconds_ago(db, orm_models.ConcurrencyLimitV2.updated)
         ),
     )
 
@@ -52,21 +53,22 @@ def denied_slots_after_decay(db: PrefectDBInterface):
     return greatest(
         db,
         0,
-        db.ConcurrencyLimitV2.denied_slots
+        orm_models.ConcurrencyLimitV2.denied_slots
         - sa.func.floor(
             sa.case(
                 (
-                    db.ConcurrencyLimitV2.slot_decay_per_second > 0.0,
-                    db.ConcurrencyLimitV2.slot_decay_per_second,
+                    orm_models.ConcurrencyLimitV2.slot_decay_per_second > 0.0,
+                    orm_models.ConcurrencyLimitV2.slot_decay_per_second,
                 ),
                 else_=(
                     1.0
                     / sa.cast(
-                        db.ConcurrencyLimitV2.avg_slot_occupancy_seconds, sa.Float
+                        orm_models.ConcurrencyLimitV2.avg_slot_occupancy_seconds,
+                        sa.Float,
                     )
                 ),
             )
-            * seconds_ago(db, db.ConcurrencyLimitV2.updated)
+            * seconds_ago(db, orm_models.ConcurrencyLimitV2.updated)
         ),
     )
 
@@ -80,15 +82,13 @@ OCCUPANCY_SAMPLES_MULTIPLIER = 2
 MINIMUM_OCCUPANCY_SECONDS_PER_SLOT = 0.1
 
 
-@inject_db
 async def create_concurrency_limit(
     session: sa.orm.Session,
-    db: PrefectDBInterface,
     concurrency_limit: Union[
         schemas.actions.ConcurrencyLimitV2Create, schemas.core.ConcurrencyLimitV2
     ],
 ):
-    model = db.ConcurrencyLimitV2(**concurrency_limit.dict())
+    model = orm_models.ConcurrencyLimitV2(**concurrency_limit.dict())
 
     session.add(model)
     await session.flush()
@@ -96,10 +96,8 @@ async def create_concurrency_limit(
     return model
 
 
-@inject_db
 async def read_concurrency_limit(
     session: sa.orm.Session,
-    db: PrefectDBInterface,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
 ):
@@ -107,23 +105,23 @@ async def read_concurrency_limit(
         raise ValueError("Must provide either concurrency_limit_id or name")
 
     where = (
-        db.ConcurrencyLimitV2.id == concurrency_limit_id
+        orm_models.ConcurrencyLimitV2.id == concurrency_limit_id
         if concurrency_limit_id
-        else db.ConcurrencyLimitV2.name == name
+        else orm_models.ConcurrencyLimitV2.name == name
     )
-    query = sa.select(db.ConcurrencyLimitV2).where(where)
+    query = sa.select(orm_models.ConcurrencyLimitV2).where(where)
     result = await session.execute(query)
     return result.scalar()
 
 
-@inject_db
 async def read_all_concurrency_limits(
     session: sa.orm.Session,
-    db: PrefectDBInterface,
     limit: int,
     offset: int,
 ):
-    query = sa.select(db.ConcurrencyLimitV2).order_by(db.ConcurrencyLimitV2.name)
+    query = sa.select(orm_models.ConcurrencyLimitV2).order_by(
+        orm_models.ConcurrencyLimitV2.name
+    )
 
     if offset is not None:
         query = query.offset(offset)
@@ -134,10 +132,8 @@ async def read_all_concurrency_limits(
     return result.scalars().unique().all()
 
 
-@inject_db
 async def update_concurrency_limit(
     session: sa.orm.Session,
-    db: PrefectDBInterface,
     concurrency_limit: schemas.actions.ConcurrencyLimitV2Update,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
@@ -152,13 +148,13 @@ async def update_concurrency_limit(
         raise ValueError("Must provide either concurrency_limit_id or name")
 
     where = (
-        db.ConcurrencyLimitV2.id == concurrency_limit_id
+        orm_models.ConcurrencyLimitV2.id == concurrency_limit_id
         if concurrency_limit_id
-        else db.ConcurrencyLimitV2.name == name
+        else orm_models.ConcurrencyLimitV2.name == name
     )
 
     result = await session.execute(
-        sa.update(db.ConcurrencyLimitV2)
+        sa.update(orm_models.ConcurrencyLimitV2)
         .where(where)
         .values(**concurrency_limit.dict(exclude_unset=True))
     )
@@ -166,10 +162,8 @@ async def update_concurrency_limit(
     return result.rowcount > 0
 
 
-@inject_db
 async def delete_concurrency_limit(
     session: sa.orm.Session,
-    db: PrefectDBInterface,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
 ) -> bool:
@@ -177,25 +171,23 @@ async def delete_concurrency_limit(
         raise ValueError("Must provide either concurrency_limit_id or name")
 
     where = (
-        db.ConcurrencyLimitV2.id == concurrency_limit_id
+        orm_models.ConcurrencyLimitV2.id == concurrency_limit_id
         if concurrency_limit_id
-        else db.ConcurrencyLimitV2.name == name
+        else orm_models.ConcurrencyLimitV2.name == name
     )
-    query = sa.delete(db.ConcurrencyLimitV2).where(where)
+    query = sa.delete(orm_models.ConcurrencyLimitV2).where(where)
 
     result = await session.execute(query)
     return result.rowcount > 0
 
 
-@inject_db
 async def bulk_read_or_create_concurrency_limits(
     session: sa.orm.Session,
-    db: PrefectDBInterface,
     names: List[str],
 ):
     # Get all existing concurrency limits in `names`.
-    existing_query = sa.select(db.ConcurrencyLimitV2).where(
-        db.ConcurrencyLimitV2.name.in_(names)
+    existing_query = sa.select(orm_models.ConcurrencyLimitV2).where(
+        orm_models.ConcurrencyLimitV2.name.in_(names)
     )
     existing_limits = list((await session.execute(existing_query)).scalars().all())
 
@@ -204,7 +196,7 @@ async def bulk_read_or_create_concurrency_limits(
 
     if missing_names:
         new_limits = [
-            db.ConcurrencyLimitV2(
+            orm_models.ConcurrencyLimitV2(
                 **schemas.core.ConcurrencyLimitV2(
                     name=name, limit=1, active=False
                 ).dict()
@@ -219,10 +211,10 @@ async def bulk_read_or_create_concurrency_limits(
     return existing_limits
 
 
-@inject_db
+@db_injector
 async def bulk_increment_active_slots(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: sa.orm.Session,
     concurrency_limit_ids: List[UUID],
     slots: int,
 ) -> bool:
@@ -230,12 +222,12 @@ async def bulk_increment_active_slots(
     denied_slots = denied_slots_after_decay(db)
 
     query = (
-        sa.update(db.ConcurrencyLimitV2)
+        sa.update(orm_models.ConcurrencyLimitV2)
         .where(
             sa.and_(
-                db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
-                db.ConcurrencyLimitV2.active == True,  # noqa
-                active_slots + slots <= db.ConcurrencyLimitV2.limit,
+                orm_models.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
+                orm_models.ConcurrencyLimitV2.active == True,  # noqa
+                active_slots + slots <= orm_models.ConcurrencyLimitV2.limit,
             )
         )
         .values(
@@ -248,20 +240,20 @@ async def bulk_increment_active_slots(
     return result.rowcount == len(concurrency_limit_ids)
 
 
-@inject_db
+@db_injector
 async def bulk_decrement_active_slots(
-    session: sa.orm.Session,
     db: PrefectDBInterface,
+    session: sa.orm.Session,
     concurrency_limit_ids: List[UUID],
     slots: int,
     occupancy_seconds: Optional[float] = None,
 ) -> bool:
     query = (
-        sa.update(db.ConcurrencyLimitV2)
+        sa.update(orm_models.ConcurrencyLimitV2)
         .where(
             sa.and_(
-                db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
-                db.ConcurrencyLimitV2.active == True,  # noqa
+                orm_models.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
+                orm_models.ConcurrencyLimitV2.active == True,  # noqa
             )
         )
         .values(
@@ -284,14 +276,14 @@ async def bulk_decrement_active_slots(
         query = query.values(
             # Update the average occupancy seconds per slot as a weighted
             # average over the last `limit * OCCUPANCY_SAMPLE_MULTIPLIER` samples.
-            avg_slot_occupancy_seconds=db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+            avg_slot_occupancy_seconds=orm_models.ConcurrencyLimitV2.avg_slot_occupancy_seconds
             + (
                 occupancy_seconds_per_slot
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                / (orm_models.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
             )
             - (
-                db.ConcurrencyLimitV2.avg_slot_occupancy_seconds
-                / (db.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
+                orm_models.ConcurrencyLimitV2.avg_slot_occupancy_seconds
+                / (orm_models.ConcurrencyLimitV2.limit * OCCUPANCY_SAMPLES_MULTIPLIER)
             ),
         )
 
@@ -299,19 +291,19 @@ async def bulk_decrement_active_slots(
     return result.rowcount == len(concurrency_limit_ids)
 
 
-@inject_db
+@db_injector
 async def bulk_update_denied_slots(
+    db: PrefectDBInterface,
     session: sa.orm.Session,
     concurrency_limit_ids: List[UUID],
     slots: int,
-    db: PrefectDBInterface,
 ):
     query = (
-        sa.update(db.ConcurrencyLimitV2)
+        sa.update(orm_models.ConcurrencyLimitV2)
         .where(
             sa.and_(
-                db.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
-                db.ConcurrencyLimitV2.active == True,  # noqa
+                orm_models.ConcurrencyLimitV2.id.in_(concurrency_limit_ids),
+                orm_models.ConcurrencyLimitV2.active == True,  # noqa
             )
         )
         .values(denied_slots=denied_slots_after_decay(db) + slots)
