@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="flow-run">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
+      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToRuns" />
     </template>
 
     <FlowRunGraphs v-if="flowRun && !isPending" :flow-run="flowRun" />
@@ -114,8 +114,8 @@
     },
   })
 
-  function goToFlowRuns(): void {
-    router.push(routes.flowRuns())
+  function goToRuns(): void {
+    router.push(routes.runs())
   }
 
   const stateType = computed(() => flowRun.value?.stateType)

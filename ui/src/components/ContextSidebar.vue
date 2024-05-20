@@ -6,7 +6,7 @@
       </router-link>
     </template>
     <p-context-nav-item title="Dashboard" :to="routes.dashboard()" />
-    <p-context-nav-item title="Flow Runs" :to="routes.flowRuns()" />
+    <p-context-nav-item title="Runs" :to="routes.runs()" />
     <p-context-nav-item title="Flows" :to="routes.flows()" />
     <p-context-nav-item title="Deployments" :to="routes.deployments()" />
     <p-context-nav-item v-if="canSeeWorkPools" title="Work Pools" :to="routes.workPools()" />
