@@ -19,7 +19,7 @@ from prefect._internal.schemas.validators import (
     validate_rrule_string,
     validate_rrule_timezone,
 )
-from prefect.types import PositiveDuration
+from prefect.types import PositiveDuration, TimeZone
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -59,17 +59,12 @@ class IntervalSchedule(PrefectBaseModel):
 
     interval: PositiveDuration
     anchor_date: Optional[DateTime] = None
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("anchor_date")
     @classmethod
     def validate_anchor_date(cls, v):
         return default_anchor_date(v)
-
-    @field_validator("timezone")
-    @classmethod
-    def validate_default_timezone(cls, v, values):
-        return default_timezone(v, values=values)
 
 
 class CronSchedule(PrefectBaseModel):
@@ -100,7 +95,7 @@ class CronSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
     day_or: bool = Field(
         default=True,
         description=(
@@ -145,7 +140,7 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("rrule")
     @classmethod
@@ -272,7 +267,7 @@ def construct_schedule(
     anchor_date: Optional[Union[datetime.datetime, str]] = None,
     cron: Optional[str] = None,
     rrule: Optional[str] = None,
-    timezone: Optional[str] = None,
+    timezone: Optional[TimeZone] = "UTC",
 ) -> SCHEDULE_TYPES:
     """
     Construct a schedule from the provided arguments.

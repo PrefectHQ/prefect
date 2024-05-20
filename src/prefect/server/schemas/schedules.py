@@ -21,13 +21,13 @@ from prefect._internal.schemas.validators import (
     validate_rrule_timezone,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types import PositiveDuration
+from prefect.types import PositiveDuration, TimeZone
 
 MAX_ITERATIONS = 1000
 
 
 def _prepare_scheduling_start_and_end(
-    start: Any, end: Any, timezone: str
+    start: Any, end: Any, timezone: TimeZone
 ) -> Tuple[pendulum.datetime, Optional[pendulum.datetime]]:
     """Uniformly prepares the start and end dates for any Schedule's get_dates call,
     coercing the arguments into timezone-aware pendulum datetimes."""
@@ -78,7 +78,7 @@ class IntervalSchedule(PrefectBaseModel):
         default_factory=lambda: pendulum.now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
 
     @model_validator(mode="after")
     def validate_timezone(self):
@@ -212,18 +212,13 @@ class CronSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
     day_or: bool = Field(
         default=True,
         description=(
             "Control croniter behavior for handling day and day_of_week entries."
         ),
     )
-
-    @model_validator(mode="after")
-    def validate_timezone(self):
-        self.timezone = default_timezone(self.timezone, self.model_dump())
-        return self
 
     @field_validator("cron")
     @classmethod
@@ -366,7 +361,7 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("rrule")
     @classmethod

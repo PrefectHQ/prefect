@@ -1,18 +1,30 @@
-from typing import Annotated, Any, Callable, ClassVar, Generator
+from typing import Annotated, Any, Callable, ClassVar
 
-from pydantic_core import core_schema, CoreSchema, SchemaValidator
+from pydantic_core import core_schema, CoreSchema
 from pydantic import Field
-from typing_extensions import Self
 from datetime import timedelta
+import zoneinfo
 
+timezones = zoneinfo.available_timezones()
 
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 
-
 PositiveInteger = Annotated[int, Field(gt=0)]
 
-
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
+
+
+class TimeZone(str):
+    schema = core_schema.with_default_schema(
+        schema=core_schema.str_schema(pattern="|".join(timezones)),
+        default="UTC",
+    )
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Callable[..., Any]
+    ) -> CoreSchema:
+        return cls.schema
 
 
 class NonNegativeDuration(timedelta):

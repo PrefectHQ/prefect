@@ -77,6 +77,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.types import TimeZone
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.collections import get_from_dict, isiterable
@@ -154,7 +155,7 @@ class RunnerDeployment(BaseModel):
     description: Optional[str] = Field(
         default=None, description="An optional description of the deployment."
     )
-    version: Optional[str] = Field(
+    version: Optional[TimeZone] = Field(
         default=None, description="An optional version for the deployment."
     )
     tags: List[str] = Field(
@@ -357,7 +358,7 @@ class RunnerDeployment(BaseModel):
         anchor_date: Optional[Union[datetime, str]] = None,
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
-        timezone: Optional[str] = None,
+        timezone: Optional[TimeZone] = "UTC",
         schedule: Optional[SCHEDULE_TYPES] = None,
         schedules: Optional[FlexibleScheduleList] = None,
     ) -> Union[List[MinimalDeploymentSchedule], FlexibleScheduleList]:
