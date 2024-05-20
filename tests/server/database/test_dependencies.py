@@ -121,7 +121,7 @@ async def test_injecting_really_dumb_query_components():
             pass
 
         def get_scheduled_flow_runs_from_work_queues(
-            self, db, limit_per_queue, work_queue_ids, scheduled_before
+            self, limit_per_queue, work_queue_ids, scheduled_before
         ):
             ...
 
@@ -130,7 +130,6 @@ async def test_injecting_really_dumb_query_components():
 
         async def flow_run_graph_v2(
             self,
-            db: PrefectDBInterface,
             session: AsyncSession,
             flow_run_id: UUID,
             since: datetime,

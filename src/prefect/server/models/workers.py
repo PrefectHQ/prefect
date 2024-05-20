@@ -127,7 +127,6 @@ async def read_work_pool_by_name(
 
 
 async def read_work_pools(
-    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
     offset: Optional[int] = None,
