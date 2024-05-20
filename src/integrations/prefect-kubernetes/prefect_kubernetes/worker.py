@@ -147,7 +147,7 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import Field, validator
 
-import kubernetes_asyncio as kubernetes
+import kubernetes_asyncio
 from kubernetes_asyncio.client import (
     ApiClient,
     BatchV1Api,
@@ -174,7 +174,7 @@ from prefect_kubernetes.utilities import (
 )
 
 if TYPE_CHECKING:
-    import kubernetes_asyncio as kubernetes
+    import kubernetes_asyncio
     from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
     from kubernetes_asyncio.client.exceptions import ApiException
     from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
@@ -187,7 +187,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
 
 else:
-    kubernetes = lazy_import("kubernetes_asyncio")
+    kubernetes_asyncio = lazy_import("kubernetes_asyncio")
 
 
 MAX_ATTEMPTS = 3
@@ -696,7 +696,7 @@ class KubernetesWorker(BaseWorker):
                         # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion # noqa
                         propagation_policy="Foreground",
                     )
-                except kubernetes.client.exceptions.ApiException as exc:
+                except kubernetes_asyncio.client.exceptions.ApiException as exc:
                     if exc.status == 404:
                         raise InfrastructureNotFound(
                             f"Unable to kill job {job_name!r}: The job was not found."
@@ -804,7 +804,7 @@ class KubernetesWorker(BaseWorker):
                 configuration.namespace,
                 configuration.job_manifest,
             )
-        except kubernetes.client.exceptions.ApiException as exc:
+        except kubernetes_asyncio.client.exceptions.ApiException as exc:
             # Parse the reason and message from the response if feasible
             message = ""
             if exc.reason:
@@ -910,7 +910,7 @@ class KubernetesWorker(BaseWorker):
 
     async def _job_events(
         self,
-        watch: kubernetes.watch.Watch,
+        watch: kubernetes_asyncio.watch.Watch,
         batch_client: BatchV1Api,
         job_name: str,
         namespace: str,
@@ -1022,7 +1022,7 @@ class KubernetesWorker(BaseWorker):
                 )
                 return -1
 
-            watch = kubernetes.watch.Watch()
+            watch = kubernetes_asyncio.watch.Watch()
 
             # The kubernetes library will disable retries if the timeout kwarg is
             # present regardless of the value so we do not pass it unless given
@@ -1112,7 +1112,7 @@ class KubernetesWorker(BaseWorker):
             job = await batch_client.read_namespaced_job(
                 name=job_id, namespace=configuration.namespace
             )
-        except kubernetes.client.exceptions.ApiException:
+        except kubernetes_asyncio.client.exceptions.ApiException:
             logger.error(f"Job {job_id!r} was removed.", exc_info=True)
             return None
         return job
@@ -1127,7 +1127,7 @@ class KubernetesWorker(BaseWorker):
         """Get the first running pod for a job."""
         from kubernetes_asyncio.client.models import V1Pod
 
-        watch = kubernetes.watch.Watch()
+        watch = kubernetes_asyncio.watch.Watch()
         logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
         last_pod_name: Optional[str] = None

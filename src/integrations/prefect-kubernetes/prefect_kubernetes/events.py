@@ -6,10 +6,10 @@ from prefect.events import Event, RelatedResource, emit_event
 from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
-    import kubernetes_asyncio as kubernetes
+    import kubernetes_asyncio
     from kubernetes_asyncio.client import ApiClient, V1Pod
 else:
-    kubernetes = lazy_import("kubernetes_asyncio")
+    kubernetes_asyncio = lazy_import("kubernetes_asyncio")
 
 EVICTED_REASONS = {
     "OOMKilled",
@@ -50,7 +50,7 @@ class KubernetesEventsReplicator:
         worker_related_resource = RelatedResource(__root__=worker_resource)
         self._related_resources = related_resources + [worker_related_resource]
 
-        self._watch = kubernetes.watch.Watch()
+        self._watch = kubernetes_asyncio.watch.Watch()
         self._thread = threading.Thread(target=self._replicate_pod_events)
 
         self._state = "READY"
@@ -81,7 +81,7 @@ class KubernetesEventsReplicator:
         seen_phases = set()
         last_event = None
 
-        core_client = kubernetes.client.CoreV1Api(api_client=self._client)
+        core_client = kubernetes_asyncio.client.CoreV1Api(api_client=self._client)
         async for event in self._watch.stream(
             func=core_client.list_namespaced_pod,
             namespace=self._namespace,
