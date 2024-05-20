@@ -19,7 +19,8 @@ from prefect.server.utilities.schemas.bases import (
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
-    import prefect
+    from prefect.server.database.orm_models import ORMFlowRunState, ORMTaskRunState
+    from prefect.server.schemas.actions import StateCreate
 
 R = TypeVar("R")
 
@@ -123,10 +124,7 @@ class State(StateBaseModel):
     @classmethod
     def from_orm_without_result(
         cls,
-        orm_state: Union[
-            "prefect.server.database.orm_models.ORMFlowRunState",
-            "prefect.server.database.orm_models.ORMTaskRunState",
-        ],
+        orm_state: Union["ORMFlowRunState", "ORMTaskRunState"],
         with_data: Optional[Any] = None,
     ):
         """
@@ -230,22 +228,16 @@ class State(StateBaseModel):
         state = State.model_validate(self)
         return state.result(raise_on_failure=raise_on_failure, fetch=fetch)
 
-    def to_state_create(self):
-        # Backwards compatibility for `to_state_create`
-        from prefect.client.schemas import State
+    def to_state_create(self) -> "StateCreate":
+        from prefect.server.schemas.actions import StateCreate
 
-        warnings.warn(
-            (
-                "Use of `prefect.server.schemas.states.State` from the client is"
-                " deprecated and support will be removed in a future release. Use"
-                " `prefect.states.State` instead."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
+        return StateCreate(
+            type=self.type,
+            name=self.name,
+            message=self.message,
+            data=self.data,
+            state_details=self.state_details,
         )
-
-        state = State.model_validate(self)
-        return state.to_state_create()
 
     def __repr__(self) -> str:
         """
