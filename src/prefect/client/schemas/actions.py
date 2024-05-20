@@ -11,7 +11,6 @@ from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
-    raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
     return_none_schedule,
     validate_message_template_variables,
@@ -21,7 +20,13 @@ from prefect._internal.schemas.validators import (
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
+from prefect.types import (
+    Name,
+    NonEmptyishName,
+    NonNegativeFloat,
+    NonNegativeInteger,
+    PositiveInteger,
+)
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
@@ -421,7 +426,7 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether the concurrency limit is active."
     )
-    name: str = Field(default=..., description="The name of the concurrency limit.")
+    name: Name = Field(default=..., description="The name of the concurrency limit.")
     limit: NonNegativeInteger = Field(default=..., description="The concurrency limit.")
     active_slots: NonNegativeInteger = Field(
         default=0, description="The number of active slots."
@@ -434,26 +439,16 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
         description="The decay rate for active slots when used as a rate limit.",
     )
 
-    @field_validator("name", check_fields=False)
-    @classmethod
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class ConcurrencyLimitV2Update(ActionBaseModel):
     """Data used by the Prefect REST API to update a v2 concurrency limit."""
 
     active: Optional[bool] = Field(None)
-    name: Optional[str] = Field(None)
+    name: Optional[Name] = Field(None)
     limit: Optional[NonNegativeInteger] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     denied_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
-
-    @field_validator("name", check_fields=False)
-    @classmethod
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class BlockTypeCreate(ActionBaseModel):
@@ -584,7 +579,7 @@ class LogCreate(ActionBaseModel):
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = Field(
+    name: NonEmptyishName = Field(
         description="The name of the work pool.",
     )
     description: Optional[str] = Field(None)
@@ -775,7 +770,7 @@ class VariableUpdate(ActionBaseModel):
 class GlobalConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a global concurrency limit."""
 
-    name: str = Field(description="The name of the global concurrency limit.")
+    name: Name = Field(description="The name of the global concurrency limit.")
     limit: NonNegativeInteger = Field(
         description=(
             "The maximum number of slots that can be occupied on this concurrency"
@@ -798,22 +793,12 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
         ),
     )
 
-    @field_validator("name", check_fields=False)
-    @classmethod
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a global concurrency limit."""
 
-    name: Optional[str] = Field(None)
+    name: Optional[Name] = Field(None)
     limit: Optional[NonNegativeInteger] = Field(None)
     active: Optional[NonNegativeInteger] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
-
-    @field_validator("name", check_fields=False)
-    @classmethod
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)

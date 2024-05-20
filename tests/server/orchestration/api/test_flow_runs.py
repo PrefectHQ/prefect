@@ -62,20 +62,6 @@ class TestCreateFlowRun:
         )
         assert flow_run.job_variables == {}
 
-    async def test_create_flow_run_with_infrastructure_document_id(
-        self, flow, client, infrastructure_document_id
-    ):
-        response = await client.post(
-            "/flow_runs/",
-            json=client_actions.FlowRunCreate(
-                flow_id=flow.id,
-                infrastructure_document_id=infrastructure_document_id,
-            ).model_dump(mode="json"),
-        )
-        assert response.json()["infrastructure_document_id"] == str(
-            infrastructure_document_id
-        )
-
     async def test_create_flow_run_with_state_sets_timestamp_on_server(
         self, flow, client, session
     ):

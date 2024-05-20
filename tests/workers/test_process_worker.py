@@ -616,7 +616,7 @@ async def test_process_kill_early_return(monkeypatch, work_pool):
     os_kill = MagicMock(side_effect=[None, ProcessLookupError])
     anyio_sleep = AsyncMock()
     monkeypatch.setattr("os.kill", os_kill)
-    monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
+    monkeypatch.setattr("prefect.workers.process.anyio.sleep", anyio_sleep)
 
     infrastructure_pid = f"{socket.gethostname()}:12345"
     grace_seconds = 30

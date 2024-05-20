@@ -43,6 +43,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
+from prefect.new_task_runners import TaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
@@ -228,7 +229,7 @@ class EngineContext(RunContext):
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
     autonomous_task_run: Optional[TaskRun] = None
-    task_runner: BaseTaskRunner
+    task_runner: Union[BaseTaskRunner, TaskRunner]
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
