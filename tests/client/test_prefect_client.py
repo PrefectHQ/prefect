@@ -1,7 +1,7 @@
 import json
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Generator, List
 from unittest.mock import ANY, MagicMock, Mock
 from uuid import UUID, uuid4
@@ -16,6 +16,7 @@ import pytest
 import respx
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -1314,7 +1315,7 @@ async def test_read_filtered_logs(session, prefect_client, deployment):
             name="prefect.flow_runs",
             level=20,
             message=f"Log from flow_run {id}.",
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=DateTime.now(),
             flow_run_id=id,
         )
         for id in flow_runs
