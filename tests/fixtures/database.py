@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import gc
+import logging
 import uuid
 import warnings
 from contextlib import asynccontextmanager
@@ -77,7 +78,10 @@ async def database_engine(db: PrefectDBInterface):
         else:
             continue
 
-        await driver_connection.close()
+        try:
+            await driver_connection.close()
+        except Exception:
+            logging.exception("Exception closed while closing connection.")
 
     # Finally, free up all references to connections and clean up proactively so that
     # we don't have any lingering connections after this.  This should prevent
