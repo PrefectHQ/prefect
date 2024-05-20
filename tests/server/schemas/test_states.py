@@ -26,7 +26,8 @@ class TestState:
 
     def test_state_raises_validation_error_for_invalid_type(self):
         with pytest.raises(
-            pydantic.ValidationError, match="(value is not a valid enumeration member)"
+            pydantic.ValidationError,
+            match="1 validation error for State\ntype\n  Input should be",
         ):
             State(type="Running")
 
@@ -42,7 +43,7 @@ class TestState:
     def test_state_copy_does_not_create_insertable_object(self):
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
-        new_state = state.copy()
+        new_state = state.model_copy()
         # Same UUID
         assert new_state.id == state.id
 

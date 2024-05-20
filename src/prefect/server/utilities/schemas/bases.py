@@ -97,7 +97,7 @@ class PrefectBaseModel(BaseModel):
         """
         return self.model_copy(
             update={
-                field: self.model_fields[field].get_default()
+                field: self.model_fields[field].get_default(call_default_factory=True)
                 for field in self._reset_fields
             }
         )
