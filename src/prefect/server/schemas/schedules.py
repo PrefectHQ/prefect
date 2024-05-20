@@ -365,7 +365,9 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
+    timezone: Optional[TimeZone] = Field(
+        None, examples=["America/New_York"], validate_default=True
+    )
 
     @field_validator("rrule")
     @classmethod
