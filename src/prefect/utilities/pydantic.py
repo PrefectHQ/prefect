@@ -270,7 +270,6 @@ class JsonPatch(JsonPatchBase):
     ) -> JsonSchemaValue:
         json_schema = handler(core_schema)
         json_schema = handler.resolve_ref_schema(json_schema)
-        json_schema.pop("title", None)
         json_schema.pop("required", None)
         json_schema.pop("properties", None)
         json_schema.update(

@@ -290,7 +290,6 @@ def visit_collection(
             return visit_fn(expr)
 
     # Visit every expression
-    breakpoint()
     try:
         result = visit_expression(expr)
     except StopVisiting:
@@ -341,43 +340,23 @@ def visit_collection(
         result = typ(**items) if return_data else None
 
     elif isinstance(expr, pydantic.BaseModel):
-        # NOTE: This implementation *does not* traverse private attributes
-        # Pydantic does not expose extras in `model_fields` so we use `model_fields_set`
-        # as well to get all of the relevant attributes
-        # Check for presence of attrs even if they're in the field set due to pydantic#4916
-        model_fields = {
-            f
-            for f in expr.model_fields_set.union(expr.model_fields)
-            if hasattr(expr, f)
-        }
-        items = [visit_nested(getattr(expr, key)) for key in model_fields]
-
-    elif isinstance(expr, pydantic.BaseModel):
         typ = cast(Type[pydantic.BaseModel], typ)
-        model_data = expr.model_dump()
-        model_fields = {
-            f
-            for f in expr.model_fields_set.union(expr.model_fields)
-            if hasattr(expr, f)
-        }
-        updated_data = {
-            key: visit_nested(model_data[key])
-            for key in model_fields
-            if key in model_data
-        }
 
-        breakpoint()
+        # when extra=allow, fields not in model_fields may be in model_fields_set
+        model_fields = expr.model_fields_set.union(expr.model_fields.keys())
+
+        updated_data = {
+            field: visit_nested(getattr(expr, field)) for field in model_fields
+        }
 
         if return_data:
             # Use construct to avoid validation and handle immutability
-            model_instance = typ.model_construct(**updated_data)
-
-            # Handle private attributes
-            for attr in expr.__private_attributes__:
-                if attr not in updated_data:
-                    setattr(model_instance, attr, getattr(expr, attr))
-
-            result = model_instance.model_copy(deep=True)
+            model_instance = typ.model_construct(
+                _fields_set=expr.model_fields_set, **updated_data
+            )
+            for private_attr in expr.__private_attributes__:
+                setattr(model_instance, private_attr, getattr(expr, private_attr))
+            result = model_instance
         else:
             result = None
 

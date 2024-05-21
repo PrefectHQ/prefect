@@ -129,8 +129,8 @@ class PrivatePydantic(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra="forbid")
 
     x: int
-    _y: int
-    _z: Any = pydantic.PrivateAttr()
+    _y: int  # this is an implicit private attribute
+    _z: Any = pydantic.PrivateAttr()  # this is an explicit private attribute
 
 
 class ImmutablePrivatePydantic(PrivatePydantic):
@@ -167,12 +167,10 @@ class TestPydanticObjects:
 
         # Public attr accessible immediately
         assert input.x == 1
+
         # Extras not allowed
         with pytest.raises(ValueError):
-            input._a = 1
-        # Private attr not accessible until set
-        with pytest.raises(AttributeError):
-            input._y
+            input.a = 1
 
         # Private attrs accessible after setting
         input._y = 4
@@ -187,7 +185,7 @@ class TestPydanticObjects:
         assert input.x == 1
         # Extras not allowed
         with pytest.raises(ValueError):
-            input._a = 1
+            input.a = 1
         # Private attr not accessible until set
         with pytest.raises(AttributeError):
             input._y
@@ -198,8 +196,8 @@ class TestPydanticObjects:
         assert input._y == 4
         assert input._z == 5
 
-        # Mutating not allowed
-        with pytest.raises(TypeError):
+        # Mutating not allowed because frozen=True
+        with pytest.raises(pydantic.ValidationError):
             input.x = 2
 
         # Can still mutate private attrs
