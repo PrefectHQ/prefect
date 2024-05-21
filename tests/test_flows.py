@@ -12,7 +12,7 @@ from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
-from typing import List
+from typing import List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
@@ -1673,6 +1673,24 @@ class TestSubflowTaskInputs:
         )
 
 
+# We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
+# written before we can read them to avoid flakiness.
+async def _wait_for_logs(
+    prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
+):
+    logs = []
+    for _ in range(5):
+        logs = await prefect_client.read_logs()
+        if logs:
+            if expected_num_logs is None:
+                break
+            else:
+                if len(logs) >= expected_num_logs:
+                    break
+        await asyncio.sleep(1)
+    return logs
+
+
 @pytest.mark.enable_api_log_handler
 class TestFlowRunLogs:
     async def test_user_logs_are_sent_to_orion(self, prefect_client):
@@ -1696,7 +1714,7 @@ class TestFlowRunLogs:
         await my_flow(1)
         await my_flow(2)
 
-        logs = await prefect_client.read_logs()
+        logs = await _wait_for_logs(prefect_client, expected_num_logs=6)
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
     async def test_exception_info_is_included_in_log(self, prefect_client):
