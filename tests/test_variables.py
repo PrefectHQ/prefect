@@ -20,12 +20,14 @@ async def test_set_variable():
     assert model.tags == ["123", "456"]
 
 
-def test_variable_with_same_name_and_not_overwrite_errors(variable):
+async def test_variable_with_same_name_and_not_overwrite_errors(variable):
     with pytest.raises(
         ValueError,
         match="You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`.",
     ):
-        variables.Variable.set(name=variable.name, value="new_value", overwrite=False)
+        await variables.Variable.set(
+            name=variable.name, value="new_value", overwrite=False
+        )
 
 
 async def test_variable_with_same_name_and_overwrite(variable):
@@ -38,11 +40,11 @@ async def test_variable_with_same_name_and_overwrite(variable):
     assert overwritten_variable.tags == new_tags
 
 
-def test_get(variable):
-    value = variables.get(variable.name)
+async def test_get(variable):
+    value = await variables.get(variable.name)
     assert value == variable.value
 
-    value = variables.get("doesnt_exist")
+    value = await variables.get("doesnt_exist")
     assert value is None
 
 

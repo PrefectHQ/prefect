@@ -12,7 +12,6 @@ import textwrap
 import time
 from functools import partial
 from string import Template
-from typing import List
 
 import anyio
 import typer
@@ -205,12 +204,6 @@ async def api(
 async def start(
     exclude_api: bool = typer.Option(False, "--no-api"),
     exclude_ui: bool = typer.Option(False, "--no-ui"),
-    work_queues: List[str] = typer.Option(
-        ["default"],
-        "-q",
-        "--work-queue",
-        help="One or more work queue names for the dev agent to pull from.",
-    ),
 ):
     """
     Starts a hot-reloading development server with API, UI, and agent processes.
