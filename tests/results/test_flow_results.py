@@ -401,7 +401,7 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_state_result_is_respected(persist_result, return_state):
+async def test_flow_state_result_is_respected(persist_result, return_state):
     @flow(persist_result=persist_result)
     def my_flow():
         return return_state
@@ -418,7 +418,7 @@ def test_flow_state_result_is_respected(persist_result, return_state):
     ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
 
     if return_state.data:
-        assert state.result(raise_on_failure=False) == return_state.data
+        assert await state.result(raise_on_failure=False) == return_state.data
 
 
 @pytest.mark.parametrize(

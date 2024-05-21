@@ -190,9 +190,9 @@ def test_root_flow_custom_serializer_by_instance():
     assert result_factory.storage_block_id is None
 
 
-def test_root_flow_custom_storage_by_slug(tmp_path):
+async def test_root_flow_custom_storage_by_slug(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow(result_storage="local-file-system/test")
     def foo():
@@ -205,9 +205,9 @@ def test_root_flow_custom_storage_by_slug(tmp_path):
     assert result_factory.storage_block_id == storage_id
 
 
-def test_root_flow_custom_storage_by_instance_presaved(tmp_path):
+async def test_root_flow_custom_storage_by_instance_presaved(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow(result_storage=storage)
     def foo():

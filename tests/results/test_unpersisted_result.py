@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from prefect import flow
 from prefect.results import MissingResult, UnpersistedResult
 
 
@@ -21,8 +22,13 @@ async def test_unpersisted_result_create_and_get(value):
 
 @pytest.mark.parametrize("value", TEST_VALUES)
 def test_unpersisted_result_create_and_get_sync(value):
-    result = UnpersistedResult.create(value)
-    assert result.get() == value
+    @flow
+    def sync():
+        result = UnpersistedResult.create(value)
+        return result.get()
+
+    output = sync()
+    assert output == value
 
 
 @pytest.mark.parametrize("value", TEST_VALUES)
