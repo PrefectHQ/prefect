@@ -3,10 +3,9 @@ from uuid import UUID
 import pytest
 
 from prefect import flow
-from prefect.automations import Automation
+from prefect.automations import Automation, DoNothing
+from prefect.events import ResourceSpecification
 from prefect.events.schemas.automations import EventTrigger, Posture
-from prefect.server.events import ResourceSpecification
-from prefect.server.events.actions import DoNothing
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
 
 

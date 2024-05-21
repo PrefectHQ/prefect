@@ -5,6 +5,24 @@ from pydantic import Field
 from typing_extensions import Self
 
 from prefect.client.utilities import get_or_create_client
+from prefect.events.actions import (
+    CallWebhook,
+    CancelFlowRun,
+    ChangeFlowRunState,
+    DeclareIncident,
+    DoNothing,
+    PauseAutomation,
+    PauseDeployment,
+    PauseWorkPool,
+    PauseWorkQueue,
+    ResumeAutomation,
+    ResumeDeployment,
+    ResumeWorkPool,
+    ResumeWorkQueue,
+    RunDeployment,
+    SendNotification,
+    SuspendFlowRun,
+)
 from prefect.events.schemas.automations import (
     AutomationCore,
     CompositeTrigger,
@@ -37,6 +55,23 @@ __all__ = [
     "SequenceTrigger",
     "CompoundTrigger",
     "MetricTriggerQuery",
+    # action types
+    "DoNothing",
+    "RunDeployment",
+    "PauseDeployment",
+    "ResumeDeployment",
+    "CancelFlowRun",
+    "ChangeFlowRunState",
+    "PauseWorkQueue",
+    "ResumeWorkQueue",
+    "SendNotification",
+    "CallWebhook",
+    "PauseAutomation",
+    "ResumeAutomation",
+    "SuspendFlowRun",
+    "PauseWorkPool",
+    "ResumeWorkPool",
+    "DeclareIncident",
 ]
 
 
