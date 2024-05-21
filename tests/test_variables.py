@@ -39,56 +39,48 @@ async def test_variable_with_same_name_and_overwrite(variable):
 
 
 def test_get(variable):
-    value = variables.get(variable.name)
-    assert value == variable.value
+    res = variables.Variable.get(variable.name)
+    assert res
+    assert res.id == variable.id
+    assert res.name == variable.name
+    assert res.value == variable.value
 
-    value = variables.get("doesnt_exist")
-    assert value is None
+    res = variables.Variable.get("doesnt_exist")
+    assert res is None
 
 
 async def test_get_async(variable):
-    value = await variables.get(variable.name)
-    assert value == variable.value
+    res = await variables.Variable.get(variable.name)
+    assert res
+    assert res.id == variable.id
+    assert res.name == variable.name
+    assert res.value == variable.value
 
-    value = await variables.get("doesnt_exist")
+    value = await variables.Variable.get("doesnt_exist")
     assert value is None
 
 
-def test_variables_work_in_sync_flows(variable):
-    @flow
-    def foo():
-        var = variables.get("my_variable")
-        return var
-
-    res = foo()
-    assert res == variable.value
-
-
-async def test_variables_work_in_async_flows(variable):
-    @flow
-    async def foo():
-        var = await variables.get("my_variable")
-        return var
-
-    res = await foo()
-    assert res == variable.value
-
-
-def test_variable_class_work_in_sync_flows(variable):
+def test_get_in_sync_flow(variable):
     @flow
     def foo():
         var = variables.Variable.get("my_variable")
         return var
 
     res = foo()
+    assert res
+    assert res.id == variable.id
+    assert res.name == variable.name
     assert res.value == variable.value
 
 
-async def test_variable_class_work_in_async_flows(variable):
+async def test_get_in_async_flow(variable):
     @flow
     async def foo():
         var = await variables.Variable.get("my_variable")
         return var
 
     res = await foo()
+    assert res
+    assert res.id == variable.id
+    assert res.name == variable.name
     assert res.value == variable.value
