@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import timezone
 from uuid import UUID, uuid4
 
 import pytest
+from pendulum import now as pendulum_now
 
 import prefect.exceptions
 from prefect import flow
@@ -369,7 +370,7 @@ def flow_run_factory(prefect_client):
                 name="prefect.flow_runs",
                 level=20,
                 message=f"Log {i} from flow_run {flow_run.id}.",
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=pendulum_now(tz=timezone.utc),
                 flow_run_id=flow_run.id,
             )
             for i in range(num_logs)
