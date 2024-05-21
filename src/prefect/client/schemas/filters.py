@@ -1088,22 +1088,6 @@ class VariableFilterName(PrefectBaseModel):
     )
 
 
-class VariableFilterValue(PrefectBaseModel):
-    """Filter by `Variable.value`."""
-
-    any_: Optional[List[str]] = Field(
-        default=None, description="A list of variables value to include"
-    )
-    like_: Optional[str] = Field(
-        default=None,
-        description=(
-            "A string to match variable value against. This can include "
-            "SQL wildcard characters like `%` and `_`."
-        ),
-        examples=["my-value-%"],
-    )
-
-
 class VariableFilterTags(PrefectBaseModel, OperatorMixin):
     """Filter by `Variable.tags`."""
 
@@ -1128,9 +1112,6 @@ class VariableFilter(PrefectBaseModel, OperatorMixin):
     )
     name: Optional[VariableFilterName] = Field(
         default=None, description="Filter criteria for `Variable.name`"
-    )
-    value: Optional[VariableFilterValue] = Field(
-        default=None, description="Filter criteria for `Variable.value`"
     )
     tags: Optional[VariableFilterTags] = Field(
         default=None, description="Filter criteria for `Variable.tags`"

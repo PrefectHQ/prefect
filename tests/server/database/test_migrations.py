@@ -677,3 +677,43 @@ async def test_not_adding_default_agent_pool_when_all_work_queues_have_work_pool
 
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
+
+
+#
+# async def test_migrate_variables_to_json(db):
+#     connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+#     dialect = get_dialect(connection_url)
+#
+#     # get the proper migration revisions
+#     if dialect.name == "postgresql":
+#         revisions = ("b23c83a12cb4", "94622c1663e8")
+#     else:
+#         revisions = ("20fbd53b3cef", "2ac65f1758c2")
+#
+#     try:
+#         await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+#
+#         session = await db.session()
+#         async with session:
+#             # clear the variables table
+#             await session.execute(sa.text("DELETE FROM variable;"))
+#             await session.commit()
+#
+#             await session.execute(
+#                 sa.text(
+#                     """INSERT INTO variable (name, value) VALUES ('var1', 'value1'), ('var2', '"value2"'), ('var3', '\"value3\"')"""
+#                 )
+#             )
+#
+#         # run the migration
+#         await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+#
+#         async with session:
+#             variable_values = (
+#                 await session.execute(sa.text("SELECT value FROM variable;"))
+#             ).fetchall()
+#
+#             print(1)
+#
+#     finally:
+#         await run_sync_in_worker_thread(alembic_upgrade)

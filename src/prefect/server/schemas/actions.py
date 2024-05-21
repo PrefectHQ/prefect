@@ -7,7 +7,17 @@ from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID, uuid4
 
-from pydantic.v1 import Field, HttpUrl, root_validator, validator
+import orjson
+from pydantic.v1 import (
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
 
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
@@ -1032,11 +1042,13 @@ class VariableCreate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: Union[
+        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
+        strict=True,
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -1046,6 +1058,20 @@ class VariableCreate(ActionBaseModel):
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+
+    @validator("value")
+    def validate_value(cls, v):
+        try:
+            json_string = orjson.dumps(v)
+        except orjson.JSONDecodeError:
+            raise ValueError("Variable value must be serializable to JSON.")
+
+        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
+            raise ValueError(
+                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+            )
+
+        return v
 
 
 class VariableUpdate(ActionBaseModel):
@@ -1057,17 +1083,33 @@ class VariableUpdate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Optional[str] = Field(
+    value: Union[
+        StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
+        strict=True,
     )
     tags: Optional[List[str]] = Field(
         default=None,
         description="A list of variable tags",
         examples=[["tag-1", "tag-2"]],
     )
+
+    @validator("value")
+    def validate_value(cls, v):
+        try:
+            json_string = orjson.dumps(v)
+        except orjson.JSONDecodeError:
+            raise ValueError("Variable value must be serializable to JSON.")
+
+        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
+            raise ValueError(
+                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+            )
+
+        return v
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)

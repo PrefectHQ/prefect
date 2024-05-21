@@ -2016,30 +2016,6 @@ class VariableFilterName(PrefectFilterBaseModel):
         return filters
 
 
-class VariableFilterValue(PrefectFilterBaseModel):
-    """Filter by `Variable.value`."""
-
-    any_: Optional[List[str]] = Field(
-        default=None, description="A list of variables value to include"
-    )
-    like_: Optional[str] = Field(
-        default=None,
-        description=(
-            "A string to match variable value against. This can include "
-            "SQL wildcard characters like `%` and `_`."
-        ),
-        examples=["my-value-%"],
-    )
-
-    def _get_filter_list(self) -> List:
-        filters = []
-        if self.any_ is not None:
-            filters.append(orm_models.Variable.value.in_(self.any_))
-        if self.like_ is not None:
-            filters.append(orm_models.Variable.value.ilike(f"%{self.like_}%"))
-        return filters
-
-
 class VariableFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Variable.tags`."""
 
@@ -2079,9 +2055,6 @@ class VariableFilter(PrefectOperatorFilterBaseModel):
     name: Optional[VariableFilterName] = Field(
         default=None, description="Filter criteria for `Variable.name`"
     )
-    value: Optional[VariableFilterValue] = Field(
-        default=None, description="Filter criteria for `Variable.value`"
-    )
     tags: Optional[VariableFilterTags] = Field(
         default=None, description="Filter criteria for `Variable.tags`"
     )
@@ -2093,8 +2066,6 @@ class VariableFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.id.as_sql_filter())
         if self.name is not None:
             filters.append(self.name.as_sql_filter())
-        if self.value is not None:
-            filters.append(self.value.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
         return filters

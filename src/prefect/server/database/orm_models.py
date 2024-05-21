@@ -1275,7 +1275,7 @@ class FlowRunNotificationQueue(Base):
 
 class Variable(Base):
     name = sa.Column(sa.String, nullable=False)
-    value = sa.Column(sa.String, nullable=False)
+    value = sa.Column(sa.JSON, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)

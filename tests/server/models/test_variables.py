@@ -21,7 +21,6 @@ from prefect.server.schemas.filters import (
     VariableFilterId,
     VariableFilterName,
     VariableFilterTags,
-    VariableFilterValue,
 )
 from prefect.server.schemas.sorting import VariableSort
 
@@ -166,30 +165,6 @@ class TestReadVariables:
         )
         assert len(res) == 2
         assert {r.id for r in res} == {v.id for v in variables if "variable1" in v.name}
-
-    async def test_filter_by_any_value(
-        self,
-        session,
-        variables,
-    ):
-        res = await read_variables(
-            session,
-            variable_filter=VariableFilter(value=VariableFilterValue(any_=["value1"])),
-        )
-        assert len(res) == 1
-        assert {r.id for r in res} == {v.id for v in variables if "value1" == v.value}
-
-    async def test_filter_by_like_value(
-        self,
-        session,
-        variables,
-    ):
-        res = await read_variables(
-            session,
-            variable_filter=VariableFilter(value=VariableFilterValue(like_="value1%")),
-        )
-        assert len(res) == 2
-        assert {r.id for r in res} == {v.id for v in variables if "value1" in v.value}
 
     async def test_filter_by_tag(
         self,
