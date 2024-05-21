@@ -20,47 +20,39 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table("variable") as batch_op:
-        batch_op.add_column("variable", sa.Column("json_value", JSON, nullable=True))
+    op.add_column("variable", sa.Column("json_value", JSON, nullable=True))
 
-        conn = batch_op.get_bind()
+    conn = op.get_bind()
 
-        result = conn.execute(sa.text("SELECT id, value FROM variable"))
-        rows = result.fetchall()
+    result = conn.execute(sa.text("SELECT id, value FROM variable"))
+    rows = result.fetchall()
 
-        for variable_id, value in rows:
-            # these values need to be json compatible strings
-            json_value = json.dumps(value)
-            conn.execute(
-                sa.text("UPDATE variable SET json_value = :json_value WHERE id = :id"),
-                {"json_value": json_value, "id": variable_id},
-            )
+    for variable_id, value in rows:
+        # these values need to be json compatible strings
+        json_value = json.dumps(value)
+        conn.execute(
+            sa.text("UPDATE variable SET json_value = :json_value WHERE id = :id"),
+            {"json_value": json_value, "id": variable_id},
+        )
 
-        batch_op.drop_column("variable", "value")
-        batch_op.alter_column("variable", "json_value", new_column_name="value")
+    op.drop_column("variable", "value")
+    op.alter_column("variable", "json_value", new_column_name="value")
 
 
 def downgrade():
-    with op.batch_alter_table("variable") as batch_op:
-        batch_op.add_column(
-            "variable", sa.Column("string_value", sa.String, nullable=True)
+    op.add_column("variable", sa.Column("string_value", sa.String, nullable=True))
+
+    conn = op.get_bind()
+
+    result = conn.execute(sa.text("SELECT id, value FROM variable"))
+    rows = result.fetchall()
+
+    for variable_id, value in rows:
+        string_value = str(value)
+        conn.execute(
+            sa.text("UPDATE variable SET string_value = :string_value WHERE id = :id"),
+            {"string_value": string_value, "id": variable_id},
         )
 
-        conn = batch_op.get_bind()
-
-        result = conn.execute(sa.text("SELECT id, value FROM variable"))
-        rows = result.fetchall()
-
-        for variable_id, value in rows:
-            string_value = str(value)
-            conn.execute(
-                sa.text(
-                    "UPDATE variable SET string_value = :string_value WHERE id = :id"
-                ),
-                {"string_value": string_value, "id": variable_id},
-            )
-
-        batch_op.drop_column("variable", "value")
-        batch_op.alter_column(
-            "variable", "string_value", new_column_name="value", nullable=False
-        )
+    op.drop_column("variable", "value")
+    op.alter_column("variable", "string_value", new_column_name="value", nullable=False)

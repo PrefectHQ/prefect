@@ -55,4 +55,4 @@ def downgrade():
         )
 
     op.drop_column("variable", "value")
-    op.alter_column("variable", "string_value", new_column_name="value")
+    op.alter_column("variable", "string_value", new_column_name="value", nullable=False)
