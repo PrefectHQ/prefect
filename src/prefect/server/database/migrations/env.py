@@ -1,6 +1,6 @@
 # Originally generated from `alembic init`
 # https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
-
+import asyncio
 import contextlib
 
 import sqlalchemy
@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from prefect.server.database.configurations import SQLITE_BEGIN_MODE
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.utilities.database import get_dialect
-from prefect.utilities.asyncutils import sync_compatible
 
 db_interface = provide_database_interface()
 config = context.config
@@ -157,7 +156,6 @@ def disable_sqlite_foreign_keys(context):
         context.execute("BEGIN IMMEDIATE")
 
 
-@sync_compatible
 async def apply_migrations() -> None:
     """
     Apply migrations to the database.
@@ -172,4 +170,4 @@ async def apply_migrations() -> None:
 if context.is_offline_mode():
     dry_run_migrations()
 else:
-    apply_migrations()
+    asyncio.run(apply_migrations())

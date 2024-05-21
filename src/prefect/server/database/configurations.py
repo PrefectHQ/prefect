@@ -224,6 +224,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 # that a given connection pulled from the pool will be
                 # usable.
                 pool_use_lifo=True,
+                statement_cache_size=0,
                 **kwargs,
             )
 
