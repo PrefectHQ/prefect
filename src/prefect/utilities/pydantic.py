@@ -16,20 +16,20 @@ from typing import (
 
 import pydantic
 from jsonpatch import JsonPatch as JsonPatchBase
-from pydantic import GetJsonSchemaHandler, TypeAdapter
+from pydantic import BaseModel, GetJsonSchemaHandler, TypeAdapter, ValidationError
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema, to_jsonable_python
-from typing_extensions import Literal, Self
+from typing_extensions import Literal
 
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
 D = TypeVar("D", bound=Any)
-M = TypeVar("M", bound=pydantic.BaseModel)
+M = TypeVar("M", bound=BaseModel)
 T = TypeVar("T", bound=Any)
 
 
-def _reduce_model(model: pydantic.BaseModel):
+def _reduce_model(model: BaseModel):
     """
     Helper for serializing a cythonized model with cloudpickle.
 
@@ -40,7 +40,7 @@ def _reduce_model(model: pydantic.BaseModel):
         _unreduce_model,
         (
             to_qualified_name(type(model)),
-            model.json(**getattr(model, "__reduce_kwargs__", {})),
+            model.model_dump_json(**getattr(model, "__reduce_kwargs__", {})),
         ),
     )
 
@@ -93,7 +93,7 @@ def add_cloudpickle_reduction(__model_cls: Optional[Type[M]] = None, **kwargs: A
         )
 
 
-def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
+def get_class_fields_only(model: Type[BaseModel]) -> set:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
@@ -102,7 +102,7 @@ def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
     parent_class_fields = set()
 
     for base in model.__class__.__bases__:
-        if issubclass(base, pydantic.BaseModel):
+        if issubclass(base, BaseModel):
             parent_class_fields.update(base.__annotations__.keys())
 
     return (subclass_class_fields - parent_class_fields) | (
@@ -135,7 +135,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
         model_cls, "__dispatch_key__"
     ) or "__dispatch_key__" in getattr(model_cls, "__annotations__", {})
 
-    defines_type_field = "type" in model_cls.__fields__
+    defines_type_field = "type" in model_cls.model_fields
 
     if not defines_dispatch_key and not defines_type_field:
         raise ValueError(
@@ -143,18 +143,8 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
             "or a type field. One of these is required for dispatch."
         )
 
-    elif defines_dispatch_key and not defines_type_field:
-        # Add a type field to store the value of the dispatch key
-        model_cls.__fields__["type"] = pydantic.fields.ModelField(
-            name="type",
-            type_=str,
-            required=True,
-            class_validators=None,
-            model_config=model_cls.__config__,
-        )
-
     elif not defines_dispatch_key and defines_type_field:
-        field_type_annotation = model_cls.__fields__["type"].type_
+        field_type_annotation = model_cls.model_fields["type"].annotation
         if field_type_annotation != str:
             raise TypeError(
                 f"Model class {model_cls.__name__!r} defines a 'type' field with "
@@ -164,7 +154,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
         # Set the dispatch key to retrieve the value from the type field
         @classmethod
         def dispatch_key_from_type_field(cls):
-            return cls.__fields__["type"].default
+            return cls.model_fields["type"].default
 
         model_cls.__dispatch_key__ = dispatch_key_from_type_field
 
@@ -186,12 +176,12 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
         data.setdefault("type", type_string)
         cls_init(__pydantic_self__, **data)
 
-    def __new__(cls: Type[Self], **kwargs) -> Self:
+    def __new__(cls: Type[M], **kwargs: Any) -> M:
         if "type" in kwargs:
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             except KeyError as exc:
-                raise pydantic.ValidationError(errors=[exc], model=cls)
+                raise ValidationError(errors=[exc], model=cls)
             return cls_new(subcls)
         else:
             return cls_new(cls)
@@ -217,7 +207,7 @@ class PartialModel(Generic[M]):
     a field already has a value.
 
     Example:
-        >>> class MyModel(pydantic.BaseModel):
+        >>> class MyModel(BaseModel):
         >>>     x: int
         >>>     y: str
         >>>     z: float
@@ -267,11 +257,21 @@ class PartialModel(Generic[M]):
 
 class JsonPatch(JsonPatchBase):
     @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetJsonSchemaHandler
+    ) -> core_schema.CoreSchema:
+        return core_schema.typed_dict_schema(
+            {"patch": core_schema.typed_dict_field(core_schema.dict_schema())}
+        )
+
+    @classmethod
     def __get_pydantic_json_schema__(
         cls, core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
         json_schema = handler(core_schema)
         json_schema = handler.resolve_ref_schema(json_schema)
+        json_schema.pop("required", None)
+        json_schema.pop("properties", None)
         json_schema.update(
             {
                 "type": "array",
@@ -297,7 +297,7 @@ def custom_pydantic_encoder(
 
         return encoder(obj)
     else:  # We have exited the for loop without finding a suitable encoder
-        if isinstance(obj, pydantic.BaseModel):
+        if isinstance(obj, BaseModel):
             return obj.model_dump(mode="json")
         else:
             return to_jsonable_python(obj)
@@ -370,7 +370,7 @@ def default_secret_encoder(value: object):
 
     if hasattr(value, "get_secret_value"):
         return cast(pydantic.Secret[object], value).get_secret_value()
-    elif isinstance(value, pydantic.BaseModel):
+    elif isinstance(value, BaseModel):
         return value.model_dump()
     elif isinstance(value, Mapping):  # dicts may contain secrets
         return {key: default_secret_encoder(val) for key, val in value.items()}

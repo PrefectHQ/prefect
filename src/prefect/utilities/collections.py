@@ -340,39 +340,22 @@ def visit_collection(
         result = typ(**items) if return_data else None
 
     elif isinstance(expr, pydantic.BaseModel):
-        # NOTE: This implementation *does not* traverse private attributes
-        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
-        # as well to get all of the relevant attributes
-        # Check for presence of attrs even if they're in the field set due to pydantic#4916
-        model_fields = {
-            f for f in expr.__fields_set__.union(expr.__fields__) if hasattr(expr, f)
+        typ = cast(Type[pydantic.BaseModel], typ)
+
+        # when extra=allow, fields not in model_fields may be in model_fields_set
+        model_fields = expr.model_fields_set.union(expr.model_fields.keys())
+
+        updated_data = {
+            field: visit_nested(getattr(expr, field)) for field in model_fields
         }
-        items = [visit_nested(getattr(expr, key)) for key in model_fields]
 
         if return_data:
-            # Collect fields with aliases so reconstruction can use the correct field name
-            aliases = {
-                key: value.alias
-                for key, value in expr.__fields__.items()
-                if value.has_alias
-            }
-
-            model_instance = typ(
-                **{
-                    aliases.get(key) or key: value
-                    for key, value in zip(model_fields, items)
-                }
+            # Use construct to avoid validation and handle immutability
+            model_instance = typ.model_construct(
+                _fields_set=expr.model_fields_set, **updated_data
             )
-
-            # Private attributes are not included in `__fields_set__` but we do not want
-            # to drop them from the model so we restore them after constructing a new
-            # model
-            for attr in expr.__private_attributes__:
-                # Use `object.__setattr__` to avoid errors on immutable models
-                object.__setattr__(model_instance, attr, getattr(expr, attr))
-
-            # Preserve data about which fields were explicitly set on the original model
-            object.__setattr__(model_instance, "__fields_set__", expr.__fields_set__)
+            for private_attr in expr.__private_attributes__:
+                setattr(model_instance, private_attr, getattr(expr, private_attr))
             result = model_instance
         else:
             result = None
