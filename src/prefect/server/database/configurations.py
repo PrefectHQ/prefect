@@ -203,6 +203,8 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if self.connection_timeout is not None:
                 connect_args["timeout"] = self.connection_timeout
 
+            connect_args["statement_cache_size"] = 0
+
             if connect_args:
                 connect_args["server_settings"] = {"jit": "off"}
                 kwargs["connect_args"] = connect_args
@@ -224,7 +226,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 # that a given connection pulled from the pool will be
                 # usable.
                 pool_use_lifo=True,
-                statement_cache_size=0,
                 **kwargs,
             )
 
