@@ -78,6 +78,29 @@ class TestCreateVariable:
         assert model.value == variable.value
         assert model.tags == variable.tags
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_create_variable_json_types(self, session, value):
+        variable = VariableCreate(name="my_variable", value=value, tags=["123", "456"])
+        model = await create_variable(session, variable)
+        await session.commit()
+        assert model
+        assert model.id
+        assert model.value == variable.value == value
+
     async def test_create_variable_name_unique(
         self,
         session,

@@ -84,7 +84,6 @@ class TestCreateVariable:
         [
             "string-value",
             '"string-value"',
-            '"string-value"',
             123,
             12.3,
             True,
@@ -496,7 +495,6 @@ class TestUpdateVariable:
         [
             "string-value",
             '"string-value"',
-            '"string-value"',
             123,
             12.3,
             True,
@@ -632,7 +630,6 @@ class TestUpdateVariableByName:
         "value",
         [
             "string-value",
-            '"string-value"',
             '"string-value"',
             123,
             12.3,
