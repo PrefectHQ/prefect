@@ -619,7 +619,7 @@ class Deployment(ORMBaseModel):
         default=None,
         description="Optional information about the updater of this deployment.",
     )
-    work_queue_id: UUID = Field(
+    work_queue_id: Optional[UUID] = Field(
         default=None,
         description=(
             "The id of the work pool queue to which this deployment is assigned."

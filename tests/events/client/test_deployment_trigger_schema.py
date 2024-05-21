@@ -1,8 +1,8 @@
 import datetime
 from uuid import uuid4
 
-import pydantic  # type: ignore
 import pytest
+from pydantic import TypeAdapter, ValidationError
 
 from prefect.events import (
     AutomationCore,
@@ -21,11 +21,14 @@ from prefect.events.schemas.deployment_triggers import (
     DeploymentSequenceTrigger,
     DeploymentTriggerTypes,
 )
-from prefect.utilities.pydantic import parse_obj_as
+
+deployment_trigger_adapter = TypeAdapter(DeploymentTriggerTypes)
 
 
 def test_deployment_trigger_defaults_to_empty_reactive_trigger():
-    trigger = parse_obj_as(DeploymentTriggerTypes, {"name": "A deployment automation"})
+    trigger = deployment_trigger_adapter.validate_python(
+        {"name": "A deployment automation"}
+    )
     assert isinstance(trigger, DeploymentEventTrigger)
     trigger.set_deployment_id(uuid4())
 
@@ -41,7 +44,7 @@ def test_deployment_trigger_defaults_to_empty_reactive_trigger():
 
 
 def test_deployment_trigger_defaults_name_but_can_have_it_overridden():
-    trigger = parse_obj_as(DeploymentTriggerTypes, {})
+    trigger = deployment_trigger_adapter.validate_python({})
     assert isinstance(trigger, DeploymentEventTrigger)
 
     deployment_id = uuid4()
@@ -58,7 +61,9 @@ def test_deployment_trigger_defaults_name_but_can_have_it_overridden():
 
 
 def test_deployment_trigger_defaults_to_reactive_event_trigger():
-    trigger = parse_obj_as(DeploymentTriggerTypes, {"name": "A deployment automation"})
+    trigger = deployment_trigger_adapter.validate_python(
+        {"name": "A deployment automation"}
+    )
     assert isinstance(trigger, DeploymentEventTrigger)
     trigger.set_deployment_id(uuid4())
 
@@ -86,8 +91,7 @@ def test_deployment_trigger_defaults_to_reactive_event_trigger():
 
 
 def test_deployment_trigger_proactive_trigger_with_defaults():
-    trigger = parse_obj_as(
-        DeploymentTriggerTypes,
+    trigger = deployment_trigger_adapter.validate_python(
         {"name": "A deployment automation", "posture": "Proactive"},
     )
     assert isinstance(trigger, DeploymentEventTrigger)
@@ -117,9 +121,8 @@ def test_deployment_trigger_proactive_trigger_with_defaults():
 
 
 def test_deployment_reactive_trigger_disallows_negative_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
-        parse_obj_as(
-            DeploymentTriggerTypes,
+    with pytest.raises(ValidationError, match="greater than or equal to 0 seconds"):
+        deployment_trigger_adapter.validate_python(
             {
                 "name": "A deployment automation",
                 "posture": "Reactive",
@@ -129,9 +132,8 @@ def test_deployment_reactive_trigger_disallows_negative_withins():
 
 
 def test_deployment_proactive_trigger_disallows_negative_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
-        parse_obj_as(
-            DeploymentTriggerTypes,
+    with pytest.raises(ValidationError, match="greater than or equal to 10 seconds"):
+        deployment_trigger_adapter.validate_python(
             {
                 "name": "A deployment automation",
                 "posture": "Proactive",
@@ -141,9 +143,8 @@ def test_deployment_proactive_trigger_disallows_negative_withins():
 
 
 def test_deployment_trigger_proactive_trigger_disallows_short_withins():
-    with pytest.raises(pydantic.ValidationError, match="minimum .?within.?"):
-        parse_obj_as(
-            DeploymentTriggerTypes,
+    with pytest.raises(ValidationError, match="greater than or equal to 10 seconds"):
+        deployment_trigger_adapter.validate_python(
             {
                 "name": "A deployment automation",
                 "posture": "Proactive",
@@ -153,8 +154,7 @@ def test_deployment_trigger_proactive_trigger_disallows_short_withins():
 
 
 def test_deployment_trigger_metric_trigger():
-    trigger = parse_obj_as(
-        DeploymentTriggerTypes,
+    trigger = deployment_trigger_adapter.validate_python(
         {
             "name": "A deployment automation",
             "posture": "Metric",
@@ -186,13 +186,12 @@ def test_deployment_trigger_metric_trigger():
 
 
 def test_compound_deployment_trigger_as_automation():
-    trigger = parse_obj_as(
-        DeploymentTriggerTypes,
+    trigger = deployment_trigger_adapter.validate_python(
         {
             "name": "A deployment automation",
             "type": "compound",
             "require": "all",
-            "within": "42",
+            "within": 42,
             "triggers": [
                 {"expect": ["foo.bar"]},
                 {"expect": ["buz.baz"]},
@@ -239,13 +238,12 @@ def test_compound_deployment_trigger_as_automation():
 
 
 def test_deeply_nested_compound_deployment_trigger_as_automation():
-    trigger = parse_obj_as(
-        DeploymentTriggerTypes,
+    trigger = deployment_trigger_adapter.validate_python(
         {
             "name": "A deployment automation",
             "type": "compound",
             "require": "all",
-            "within": "42",
+            "within": 42,
             "triggers": [
                 {
                     "type": "compound",
@@ -326,8 +324,7 @@ def test_deeply_nested_compound_deployment_trigger_as_automation():
 
 
 def test_sequence_deployment_trigger_as_automation():
-    trigger = parse_obj_as(
-        DeploymentTriggerTypes,
+    trigger = deployment_trigger_adapter.validate_python(
         {
             "name": "A deployment automation",
             "type": "sequence",

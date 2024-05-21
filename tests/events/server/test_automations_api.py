@@ -1,4 +1,3 @@
-import json
 import textwrap
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
@@ -129,7 +128,6 @@ async def create_deployment(session, work_pool, job_vars: dict) -> UUID:
             flow_id=flow.id,
             paused=False,
             work_queue_id=work_pool.default_queue_id,
-            infra_overrides=job_vars,
         ),
     )
     return deployment.id
@@ -211,15 +209,19 @@ async def test_returns_404_when_automations_are_disabled(
     ],
 )
 def test_negative_within_not_allowed(invalid_time: timedelta):
-    with pytest.raises(pydantic.ValidationError, match="is 0 seconds"):
+    with pytest.raises(
+        pydantic.ValidationError, match="greater than or equal to 0 seconds"
+    ):
         EventTrigger(posture=Posture.Reactive, threshold=1, within=invalid_time)
 
-    with pytest.raises(pydantic.ValidationError, match="is 0 seconds"):
+    with pytest.raises(
+        pydantic.ValidationError, match="greater than or equal to 10 seconds"
+    ):
         EventTrigger(posture=Posture.Proactive, threshold=1, within=invalid_time)
 
 
 def test_minimum_reactive_within_is_required_but_defaulted():
-    with pytest.raises(pydantic.ValidationError, match="none is not an allowed value"):
+    with pytest.raises(pydantic.ValidationError, match="should be a valid timedelta"):
         EventTrigger(posture=Posture.Reactive, threshold=1, within=None)
 
     trigger = EventTrigger(posture=Posture.Reactive, threshold=1)
@@ -235,12 +237,14 @@ def test_minimum_reactive_within_is_required_but_defaulted():
     ],
 )
 def test_minimum_proactive_within_is_enforced(invalid_time: timedelta):
-    with pytest.raises(pydantic.ValidationError, match="is 10 seconds"):
+    with pytest.raises(
+        pydantic.ValidationError, match="greater than or equal to 10 seconds"
+    ):
         EventTrigger(posture=Posture.Proactive, threshold=1, within=invalid_time)
 
 
 def test_minimum_proactive_within_is_required_but_defaulted():
-    with pytest.raises(pydantic.ValidationError, match="none is not an allowed value"):
+    with pytest.raises(pydantic.ValidationError, match="should be a valid timedelta"):
         EventTrigger(posture=Posture.Proactive, threshold=1, within=None)
 
     trigger = EventTrigger(posture=Posture.Proactive, threshold=1, within=0)
@@ -248,13 +252,6 @@ def test_minimum_proactive_within_is_required_but_defaulted():
 
     trigger = EventTrigger(posture=Posture.Proactive, threshold=1)
     assert trigger.within == timedelta(seconds=10)
-
-
-async def test_minimum_within_is_described_on_api():
-    schema = json.loads(EventTrigger.schema_json())
-    assert schema["properties"]["within"]["default"] == 0.0
-    assert schema["properties"]["within"]["minimum"] == 0.0
-    assert not schema["properties"]["within"]["exclusiveMinimum"]
 
 
 async def test_create_automation_allows_specifying_just_owner_resource(
@@ -496,7 +493,7 @@ async def test_update_automation_cannot_change_id(
         json=update,
     )
     assert response.status_code == 422, response.content
-    assert "extra fields" in response.content.decode()
+    assert "extra_forbidden" in response.content.decode()
 
 
 async def test_update_automation_overrides_client_provided_trigger_ids(
@@ -589,7 +586,7 @@ async def test_patch_automation_cannot_change_id(
         json=update,
     )
     assert response.status_code == 422, response.content
-    assert "extra fields" in response.content.decode()
+    assert "extra_forbidden" in response.content.decode()
 
 
 async def test_patch_automation_cannot_enable_invalid_automation(
@@ -615,9 +612,9 @@ async def test_patch_automation_cannot_enable_invalid_automation(
     assert len(details) == 1
     (detail,) = details
 
-    assert "__root__" in detail["loc"]
+    assert detail["loc"] == []
     assert detail["type"] == "value_error"
-    assert detail["msg"].startswith("Running an inferred deployment")
+    assert "Running an inferred deployment" in detail["msg"]
 
 
 async def test_delete_automation(

@@ -40,7 +40,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
@@ -565,16 +565,16 @@ class DeploymentAction(Action):
         None, description="The identifier of the deployment"
     )
 
-    @model_validator(mode="before")
-    def selected_deployment_requires_id(cls, values):
-        wants_selected_deployment = values.get("source") == "selected"
-        has_deployment_id = bool(values.get("deployment_id"))
+    @model_validator(mode="after")
+    def selected_deployment_requires_id(self) -> Self:
+        wants_selected_deployment = self.source == "selected"
+        has_deployment_id = bool(self.deployment_id)
         if wants_selected_deployment != has_deployment_id:
             raise ValueError(
                 "deployment_id is "
                 + ("not allowed" if has_deployment_id else "required")
             )
-        return values
+        return self
 
     async def deployment_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":
@@ -1200,15 +1200,15 @@ class WorkPoolAction(Action):
         description="The identifier of the work pool to pause",
     )
 
-    @model_validator(mode="before")
-    def selected_work_pool_requires_id(cls, values):
-        wants_selected_work_pool = values.get("source") == "selected"
-        has_work_pool_id = bool(values.get("work_pool_id"))
+    @model_validator(mode="after")
+    def selected_work_pool_requires_id(self) -> Self:
+        wants_selected_work_pool = self.source == "selected"
+        has_work_pool_id = bool(self.work_pool_id)
         if wants_selected_work_pool != has_work_pool_id:
             raise ValueError(
                 "work_pool_id is " + ("not allowed" if has_work_pool_id else "required")
             )
-        return values
+        return self
 
     async def work_pool_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":
@@ -1333,16 +1333,16 @@ class WorkQueueAction(Action):
         None, description="The identifier of the work queue to pause"
     )
 
-    @model_validator(mode="before")
-    def selected_work_queue_requires_id(cls, values):
-        wants_selected_work_queue = values.get("source") == "selected"
-        has_work_queue_id = bool(values.get("work_queue_id"))
+    @model_validator(mode="after")
+    def selected_work_queue_requires_id(self) -> Self:
+        wants_selected_work_queue = self.source == "selected"
+        has_work_queue_id = bool(self.work_queue_id)
         if wants_selected_work_queue != has_work_queue_id:
             raise ValueError(
                 "work_queue_id is "
                 + ("not allowed" if has_work_queue_id else "required")
             )
-        return values
+        return self
 
     async def work_queue_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":
@@ -1452,16 +1452,16 @@ class AutomationAction(Action):
         None, description="The identifier of the automation to act on"
     )
 
-    @model_validator(mode="before")
-    def selected_automation_requires_id(cls, values):
-        wants_selected_automation = values.get("source") == "selected"
-        has_automation_id = bool(values.get("automation_id"))
+    @model_validator(mode="after")
+    def selected_automation_requires_id(self) -> Self:
+        wants_selected_automation = self.source == "selected"
+        has_automation_id = bool(self.automation_id)
         if wants_selected_automation != has_automation_id:
             raise ValueError(
                 "automation_id is "
                 + ("not allowed" if has_automation_id else "required")
             )
-        return values
+        return self
 
     async def automation_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":

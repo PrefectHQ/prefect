@@ -60,7 +60,7 @@ async def test_gets_related_from_run_context(
         tags=["flow-run-one"],
     )
 
-    with FlowRunContext.construct(flow_run=flow_run):
+    with FlowRunContext.model_construct(flow_run=flow_run):
         related = await related_resources_from_run_context()
 
     work_pool = work_queue_1.work_pool

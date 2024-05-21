@@ -8,6 +8,7 @@ import pendulum
 import pytest
 from httpx import AsyncClient
 from pendulum.datetime import DateTime
+from pydantic_core import Url
 
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import (
@@ -38,7 +39,7 @@ def events_page_one() -> List[ReceivedEvent]:
         ReceivedEvent(
             occurred=pendulum.now("UTC"),
             event="first.page.material",
-            resource=Resource(__root__={"prefect.resource.id": "my.resource"}),
+            resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
             id=UUID(int=i),
         )
@@ -52,7 +53,7 @@ def events_page_two() -> List[ReceivedEvent]:
         ReceivedEvent(
             occurred=pendulum.now("UTC"),
             event="second.page.material",
-            resource=Resource(__root__={"prefect.resource.id": "my.resource"}),
+            resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
             id=UUID(int=i),
         )
@@ -66,7 +67,7 @@ def events_page_three() -> List[ReceivedEvent]:
         ReceivedEvent(
             occurred=pendulum.now("UTC"),
             event="second.page.material",
-            resource=Resource(__root__={"prefect.resource.id": "my.resource"}),
+            resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
             id=UUID(int=i),
         )
@@ -134,8 +135,8 @@ async def test_querying_for_events_returns_first_page(
 
     assert first_page.events == events_page_one
     assert first_page.total == 123
-    assert first_page.next_page == (
-        f"http://test/api/events/filter/next" f"?page-token={ENCODED_MOCK_PAGE_TOKEN}"
+    assert first_page.next_page == Url(
+        f"http://test/api/events/filter/next?page-token={ENCODED_MOCK_PAGE_TOKEN}"
     )
 
 
@@ -208,10 +209,12 @@ async def test_querying_for_subsequent_page_returns_it(
 
     second_page = EventPage.model_validate(response.json())
 
+    expected_token = base64.b64encode("THAT:NEXTNEXTTOKEN".encode()).decode()
+
     assert second_page.events == events_page_two
     assert second_page.total == 123
-    assert second_page.next_page == (
-        f"http://test/api/events/filter/next?page-token={base64.b64encode('THAT:NEXTNEXTTOKEN'.encode()).decode()}"
+    assert second_page.next_page == Url(
+        f"http://test/api/events/filter/next?page-token={expected_token}"
     )
 
 
@@ -282,11 +285,11 @@ async def test_events_api_returns_times_with_timezone_offsets(
     for event in response.json()["events"]:
         occurred = event["occurred"]
         assert isinstance(occurred, str)
-        assert occurred.endswith("+00:00")
+        assert occurred.endswith("+00:00") or occurred.endswith("Z")
 
         received = event["received"]
         assert isinstance(received, str)
-        assert received.endswith("+00:00")
+        assert received.endswith("+00:00") or occurred.endswith("Z")
 
 
 @pytest.fixture

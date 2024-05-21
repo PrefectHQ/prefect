@@ -82,11 +82,9 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
         filters: List[EventDataFilter] = [
             filter
             for filter in [
-                getattr(self, name)
-                for name, field in self.__fields__.items()
-                if issubclass(field.type_, EventDataFilter)
+                getattr(self, name) for name, field in self.model_fields.items()
             ]
-            if filter
+            if isinstance(filter, EventDataFilter)
         ]
         for filter in filters:
             filter._top_level_filter = self._top_level_filter

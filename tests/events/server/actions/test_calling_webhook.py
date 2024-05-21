@@ -6,10 +6,10 @@ from uuid import UUID, uuid4
 
 import orjson
 import pendulum
-import pydantic
 import pytest
 from httpx import Response
 from pendulum.datetime import DateTime
+from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.core import Block
@@ -35,7 +35,6 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows, work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
-from prefect.utilities.pydantic import parse_obj_as
 
 
 @pytest.fixture
@@ -401,9 +400,10 @@ async def test_migrating_to_templates():
     assert isinstance(action.payload, str)
     assert action.payload == '{\n  "message": "hello world"\n}'
 
+    actions_adapter = TypeAdapter(actions.ActionTypes)
+
     # The form it will be when read from the database
-    action = parse_obj_as(
-        actions.ActionTypes,
+    action = actions_adapter.validate_python(
         {
             "type": "call-webhook",
             "block_document_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -415,8 +415,7 @@ async def test_migrating_to_templates():
     assert action.payload == '{\n  "message": "hello world"\n}'
 
     # The form it will be when read from an API body
-    action = pydantic.parse_raw_as(
-        actions.ActionTypes,
+    action = actions_adapter.validate_json(
         """
         {
             "type" : "call-webhook",

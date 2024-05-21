@@ -6,7 +6,6 @@ format.
 This will be subject to consolidation and refactoring over the next few months.
 """
 
-import datetime
 import json
 import logging
 import re
@@ -34,7 +33,6 @@ LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
-    from prefect.events.schemas import DeploymentTrigger
     from prefect.utilities.callables import ParameterSchema
 
 
@@ -460,33 +458,6 @@ def validate_rrule_string(v: str) -> str:
             f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
         )
     return v
-
-
-### AUTOMATION SCHEMA VALIDATORS ###
-
-
-def validate_trigger_within(
-    value: datetime.timedelta, minimum: int = 0
-) -> datetime.timedelta:
-    """
-    Validate that the `within` field is greater than the minimum value.
-    """
-    if value.total_seconds() < minimum:
-        raise ValueError("The minimum `within` is 0 seconds")
-    return value
-
-
-def validate_automation_names(
-    field_value: List["DeploymentTrigger"], values: dict
-) -> List["DeploymentTrigger"]:
-    """
-    Ensure that each trigger has a name for its automation if none is provided.
-    """
-    for i, trigger in enumerate(field_value, start=1):
-        if trigger.name is None:
-            trigger.name = f"{values['name']}__automation_{i}"
-
-    return field_value
 
 
 ### INFRASTRUCTURE SCHEMA VALIDATORS ###

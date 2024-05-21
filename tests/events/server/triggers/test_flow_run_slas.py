@@ -212,7 +212,7 @@ async def test_only_the_stuck_flow_triggers(
     # Now it's been long enough for the SLA to fire, since it started running
     # at T=4 and now it's T=64
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=stuck_flow_runs_sla,
             trigger_states={TriggerState.Triggered},
@@ -296,7 +296,7 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
     # Now it's been long enough for the SLA to fire, since it started running
     # at T=4 and now it's T=64
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=stuck_flow_runs_sla_with_wildcard_expect,
             trigger_states={TriggerState.Triggered},
@@ -356,7 +356,7 @@ async def test_react_only_to_scheduled_flows_completing(
     assert expected_triggering_event.resource.id == "prefect.flow-run.FASTBOI-1"
     assert expected_triggering_event.event == "prefect.flow-run.completed"
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=only_scheduled_run_notifications,
             trigger_states={TriggerState.Triggered},

@@ -54,7 +54,6 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
-    validate_automation_names,
 )
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
@@ -235,7 +234,11 @@ class RunnerDeployment(BaseModel):
     @field_validator("triggers")
     def validate_automation_names(cls, field_value, values):
         """Ensure that each trigger has a name for its automation if none is provided."""
-        return validate_automation_names(field_value, values)
+        trigger: Union[DeploymentTriggerTypes, TriggerTypes]
+        for i, trigger in enumerate(field_value, start=1):
+            if trigger.name is None:
+                trigger.name = f"{values['name']}__automation_{i}"
+        return field_value
 
     @model_validator(mode="before")
     @classmethod

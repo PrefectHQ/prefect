@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
 from pydantic import Field, model_validator
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal, Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import StateType
@@ -193,16 +193,16 @@ class WorkQueueAction(Action):
         None, description="The identifier of the work queue to pause"
     )
 
-    @model_validator(mode="before")
-    def selected_work_queue_requires_id(cls, values):
-        wants_selected_work_queue = values.get("source") == "selected"
-        has_work_queue_id = bool(values.get("work_queue_id"))
+    @model_validator(mode="after")
+    def selected_work_queue_requires_id(self) -> Self:
+        wants_selected_work_queue = self.source == "selected"
+        has_work_queue_id = bool(self.work_queue_id)
         if wants_selected_work_queue != has_work_queue_id:
             raise ValueError(
                 "work_queue_id is "
                 + ("not allowed" if has_work_queue_id else "required")
             )
-        return values
+        return self
 
 
 class PauseWorkQueue(WorkQueueAction):
@@ -235,16 +235,16 @@ class AutomationAction(Action):
         None, description="The identifier of the automation to act on"
     )
 
-    @model_validator(mode="before")
-    def selected_automation_requires_id(cls, values):
-        wants_selected_automation = values.get("source") == "selected"
-        has_automation_id = bool(values.get("automation_id"))
+    @model_validator(mode="after")
+    def selected_automation_requires_id(self) -> Self:
+        wants_selected_automation = self.source == "selected"
+        has_automation_id = bool(self.automation_id)
         if wants_selected_automation != has_automation_id:
             raise ValueError(
                 "automation_id is "
                 + ("not allowed" if has_automation_id else "required")
             )
-        return values
+        return self
 
 
 class PauseAutomation(AutomationAction):

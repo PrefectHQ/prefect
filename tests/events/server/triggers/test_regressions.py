@@ -151,7 +151,7 @@ async def test_alerts_work_queue_unhealthy(
     )
 
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=unhealthy_work_queue_automation.trigger,
             trigger_states={TriggerState.Triggered},
@@ -627,7 +627,7 @@ async def test_rapid_fire_events(
     act.assert_has_awaits(
         [
             mock.call(
-                Firing.construct(
+                Firing.model_construct(
                     id=unittest.mock.ANY,
                     trigger=rapid_fire_automation.trigger,
                     trigger_states={TriggerState.Triggered},
