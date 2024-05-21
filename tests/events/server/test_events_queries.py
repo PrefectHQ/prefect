@@ -1395,11 +1395,11 @@ async def test_event_dates_always_have_timezones(
 
         occurred = event_dict["occurred"]
         assert isinstance(occurred, str)
-        assert occurred.endswith("+00:00")
+        assert occurred.endswith("+00:00") or occurred.endswith("Z")
 
         received = event_dict["received"]
         assert isinstance(received, str)
-        assert received.endswith("+00:00")
+        assert received.endswith("+00:00") or received.endswith("Z")
 
 
 @pytest.mark.parametrize(

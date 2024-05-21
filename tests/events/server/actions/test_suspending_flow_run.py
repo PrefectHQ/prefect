@@ -41,7 +41,7 @@ async def take_a_picture(session: AsyncSession) -> Deployment:
         ),
     )
     await session.commit()
-    return Deployment.from_orm(deployment)
+    return Deployment.model_validate(deployment, from_attributes=True)
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ async def super_long_exposure(
     )
     await session.commit()
 
-    return FlowRun.from_orm(super_long_exposure)
+    return FlowRun.model_validate(super_long_exposure, from_attributes=True)
 
 
 @pytest.fixture

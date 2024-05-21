@@ -45,13 +45,10 @@ def test_resource_root_is_required(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
         resource_class.model_validate(None)
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "none is not an allowed value",
-            "type": "type_error.none.not_allowed",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid dictionary"
+    assert error["type"] == "dict_type"
 
 
 @pytest.mark.parametrize(
@@ -61,13 +58,10 @@ def test_resource_root_is_a_dictionary(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
         resource_class.model_validate(11)
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "value is not a valid dict",
-            "type": "type_error.dict",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid dictionary"
+    assert error["type"] == "dict_type"
 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
@@ -79,13 +73,13 @@ def test_resource_requires_resource_id(resource_class: Type[Resource]) -> None:
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "Resources must include the prefect.resource.id label",
-            "type": "value_error",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert (
+        error["msg"]
+        == "Value error, Resources must include the prefect.resource.id label"
+    )
+    assert error["type"] == "value_error"
 
 
 def test_related_resources_require_role() -> None:
@@ -96,13 +90,13 @@ def test_related_resources_require_role() -> None:
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "Related Resources must include the prefect.resource.role label",
-            "type": "value_error",
-        },
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert (
+        error["msg"]
+        == "Value error, Related Resources must include the prefect.resource.role label"
+    )
+    assert error["type"] == "value_error"
 
 
 def test_related_resources_require_non_empty_role() -> None:
@@ -114,13 +108,10 @@ def test_related_resources_require_non_empty_role() -> None:
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "The prefect.resource.role label must be non-empty",
-            "type": "value_error",
-        },
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid string"
+    assert error["type"] == "string_type"
 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
@@ -135,13 +126,10 @@ def test_resource_requires_non_empty_resource_id(
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "The prefect.resource.id label must be non-empty",
-            "type": "value_error",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid string"
+    assert error["type"] == "string_type"
 
 
 def test_empty_resource_specification_allowed_and_includes_all_resources() -> None:
@@ -173,25 +161,11 @@ def test_resource_disallows_none_values(resource_class: Type[Resource]) -> None:
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__", "another.thing"),
-            "msg": "none is not an allowed value",
-            "type": "type_error.none.not_allowed",
-        },
-    ]
-
-
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
-def test_resource_coerces_other_values(resource_class: Type[Resource]) -> None:
-    resource = resource_class.model_validate(
-        {
-            "prefect.resource.id": "my.unique.resource",
-            "prefect.resource.role": "any-role",
-            "another.thing": 5,
-        }
-    )
-    assert resource["another.thing"] == "5"
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["loc"] == ("another.thing",)
+    assert error["msg"] == "Input should be a valid string"
+    assert error["type"] == "string_type"
 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])

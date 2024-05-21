@@ -3,6 +3,8 @@ import textwrap
 from datetime import timedelta
 from enum import Enum
 from typing import (
+    Any,
+    Dict,
     List,
     Literal,
     Optional,
@@ -18,11 +20,11 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.validators import validate_trigger_within
 from prefect.events.actions import ActionTypes, RunDeployment
+from prefect.types import NonNegativeDuration
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -161,8 +163,8 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
-        timedelta(0),
+    within: NonNegativeDuration = Field(
+        timedelta(seconds=0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -170,24 +172,33 @@ class EventTrigger(ResourceTrigger):
         ),
     )
 
-    @field_validator("within")
-    def enforce_minimum_within(cls, value: timedelta):
-        return validate_trigger_within(value)
+    @model_validator(mode="before")
+    @classmethod
+    def enforce_minimum_within_for_proactive_triggers(
+        cls, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if not isinstance(data, dict):
+            return data
 
-    @model_validator(mode="after")
-    def enforce_minimum_within_for_proactive_triggers(self):
-        posture: Optional[Posture] = self.posture
-        within: Optional[timedelta] = self.within
+        if "within" in data and data["within"] is None:
+            raise ValueError("`within` should be a valid timedelta")
+
+        posture: Optional[Posture] = data.get("posture")
+        within: Optional[timedelta] = data.get("within")
+
+        if isinstance(within, (int, float)):
+            data["within"] = within = timedelta(seconds=within)
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
-                self.within = timedelta(seconds=10.0)
+                data["within"] = timedelta(seconds=10.0)
             elif within < timedelta(seconds=10.0):
                 raise ValueError(
-                    "The minimum within for Proactive triggers is 10 seconds"
+                    "`within` for Proactive triggers must be greater than or equal to "
+                    "10 seconds"
                 )
 
-        return self
+        return data
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
@@ -327,14 +338,13 @@ class CompoundTrigger(CompositeTrigger):
     require: Union[int, Literal["any", "all"]]
 
     @model_validator(mode="after")
-    def validate_require(self):
-        require = self.require
-        if isinstance(require, int):
-            if require < 1:
-                raise ValueError("required must be at least 1")
-            if require > len(self.triggers):
+    def validate_require(self) -> Self:
+        if isinstance(self.require, int):
+            if self.require < 1:
+                raise ValueError("require must be at least 1")
+            if self.require > len(self.triggers):
                 raise ValueError(
-                    "required must be less than or equal to the number of triggers"
+                    "require must be less than or equal to the number of triggers"
                 )
 
         return self

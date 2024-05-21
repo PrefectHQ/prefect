@@ -68,7 +68,7 @@ async def hourly_garden_patrol(session: AsyncSession) -> Deployment:
 
     await session.commit()
 
-    return Deployment.from_orm(hourly_garden_patrol)
+    return Deployment.model_validate(hourly_garden_patrol, from_attributes=True)
 
 
 @pytest.fixture
@@ -140,8 +140,9 @@ async def test_pausing_deployment(
     hourly_garden_patrol: Deployment,
     session: AsyncSession,
 ):
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert not patrol.paused
 
@@ -150,8 +151,9 @@ async def test_pausing_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
 
     assert patrol.paused
@@ -242,8 +244,9 @@ async def test_resuming_deployment(
     patrol.paused = True
     await session.commit()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert patrol.paused
 
@@ -252,8 +255,9 @@ async def test_resuming_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
 
     assert not patrol.paused
@@ -312,8 +316,9 @@ async def test_pausing_inferred_deployment(
     hourly_garden_patrol: Deployment,
     session: AsyncSession,
 ):
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert not patrol.paused
 
@@ -322,8 +327,9 @@ async def test_pausing_inferred_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert patrol.paused
 
@@ -373,8 +379,9 @@ async def test_resuming_inferred_deployment(
     patrol.paused = True
     await session.commit()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
     assert patrol.paused
 
@@ -383,8 +390,9 @@ async def test_resuming_inferred_deployment(
 
     session.expunge_all()
 
-    patrol = Deployment.from_orm(
-        await deployments.read_deployment(session, hourly_garden_patrol.id)
+    patrol = Deployment.model_validate(
+        await deployments.read_deployment(session, hourly_garden_patrol.id),
+        from_attributes=True,
     )
 
     assert not patrol.paused

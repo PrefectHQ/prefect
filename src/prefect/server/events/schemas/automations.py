@@ -26,7 +26,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from prefect.logging import get_logger
 from prefect.server.events.actions import ActionTypes
@@ -194,20 +194,17 @@ class CompoundTrigger(CompositeTrigger):
     def ready_to_fire(self, firings: Sequence["Firing"]) -> bool:
         return len(firings) >= self.num_expected_firings
 
-    @model_validator(mode="before")
-    @classmethod
-    def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        require = values.get("require")
-
-        if isinstance(require, int):
-            if require < 1:
-                raise ValueError("required must be at least 1")
-            if require > len(values["triggers"]):
+    @model_validator(mode="after")
+    def validate_require(self) -> Self:
+        if isinstance(self.require, int):
+            if self.require < 1:
+                raise ValueError("require must be at least 1")
+            if self.require > len(self.triggers):
                 raise ValueError(
-                    "required must be less than or equal to the number of triggers"
+                    "require must be less than or equal to the number of triggers"
                 )
 
-        return values
+        return self
 
 
 class SequenceTrigger(CompositeTrigger):
@@ -319,19 +316,31 @@ class EventTrigger(ResourceTrigger):
 
     @model_validator(mode="before")
     @classmethod
-    def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
-        posture: Optional[Posture] = values.get("posture")
-        within: Optional[timedelta] = values.get("within")
+    def enforce_minimum_within_for_proactive_triggers(
+        cls, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if not isinstance(data, dict):
+            return data
+
+        if "within" in data and data["within"] is None:
+            raise ValueError("`within` should be a valid timedelta")
+
+        posture: Optional[Posture] = data.get("posture")
+        within: Optional[timedelta] = data.get("within")
+
+        if isinstance(within, (int, float)):
+            data["within"] = within = timedelta(seconds=within)
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
-                values["within"] = timedelta(seconds=10.0)
+                data["within"] = timedelta(seconds=10.0)
             elif within < timedelta(seconds=10.0):
                 raise ValueError(
-                    "The minimum within for Proactive triggers is 10 seconds"
+                    "`within` for Proactive triggers must be greater than or equal to "
+                    "10 seconds"
                 )
 
-        return values
+        return data
 
     def covers(self, event: ReceivedEvent):
         if not self.covers_resources(event.resource, event.related):
@@ -500,32 +509,26 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                 return trigger
         return None
 
-    @model_validator(mode="before")
-    def prevent_run_deployment_loops(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+    @model_validator(mode="after")
+    def prevent_run_deployment_loops(self) -> Self:
         """Detects potential infinite loops in automations with RunDeployment actions"""
         from prefect.server.events.actions import RunDeployment
 
-        if any(values.get(key) is None for key in ("enabled", "trigger", "actions")):
-            # This automation is invalid anyway, so don't proceed with validation
-            return values
-
-        enabled: bool = values["enabled"]
-        if not enabled:
+        if not self.enabled:
             # Disabled automations can't cause problems
-            return values
+            return self
 
-        trigger: Optional[TriggerTypes] = values["trigger"]
         if (
-            not trigger
-            or not isinstance(trigger, EventTrigger)
-            or trigger.posture != Posture.Reactive
+            not self.trigger
+            or not isinstance(self.trigger, EventTrigger)
+            or self.trigger.posture != Posture.Reactive
         ):
             # Only reactive automations can cause infinite amplification
-            return values
+            return self
 
-        if not any(e.startswith("prefect.flow-run.") for e in trigger.expect):
+        if not any(e.startswith("prefect.flow-run.") for e in self.trigger.expect):
             # Only flow run events can cause infinite amplification
-            return values
+            return self
 
         # Every flow run created by a Deployment goes through these states
         problematic_events = {
@@ -534,10 +537,10 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
             "prefect.flow-run.Running",
             "prefect.flow-run.*",
         }
-        if not problematic_events.intersection(trigger.expect):
-            return values
+        if not problematic_events.intersection(self.trigger.expect):
+            return self
 
-        actions = [a for a in values["actions"] if isinstance(a, RunDeployment)]
+        actions = [a for a in self.actions if isinstance(a, RunDeployment)]
         for action in actions:
             if action.source == "inferred":
                 # Inferred deployments for flow run state change events will always
@@ -556,9 +559,9 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                 # loops if there aren't enough filtering labels on the trigger's match
                 # or match_related.  While it's still possible to have infinite loops
                 # with additional filters, it's less likely.
-                if trigger.match.matches_every_resource_of_kind(
+                if self.trigger.match.matches_every_resource_of_kind(
                     "prefect.flow-run"
-                ) and trigger.match_related.matches_every_resource_of_kind(
+                ) and self.trigger.match_related.matches_every_resource_of_kind(
                     "prefect.flow-run"
                 ):
                     raise ValueError(
@@ -570,7 +573,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                         "you've selected."
                     )
 
-        return values
+        return self
 
 
 class Automation(ORMBaseModel, AutomationCore, extra="ignore"):

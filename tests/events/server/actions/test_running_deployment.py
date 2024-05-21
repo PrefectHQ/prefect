@@ -6,7 +6,6 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server import schemas
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (
@@ -58,8 +57,7 @@ async def test_action_can_omit_parameters():
 async def take_a_picture(session: AsyncSession) -> Deployment:
     work_pool = await workers.create_work_pool(
         session=session,
-        work_pool=WorkPoolCreate.construct(
-            _fields_set=schemas.actions.WorkPoolCreate.__fields_set__,
+        work_pool=WorkPoolCreate(
             name="wp-1",
             type="None",
             description="None",
@@ -87,7 +85,7 @@ async def take_a_picture(session: AsyncSession) -> Deployment:
     assert deployment
     await session.commit()
 
-    return Deployment.from_orm(deployment)
+    return Deployment.model_validate(deployment, from_attributes=True)
 
 
 @pytest.fixture

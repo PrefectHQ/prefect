@@ -64,10 +64,10 @@ async def test_read_automation_by_uuid(automation):
     assert model.description == "world"
     assert model.enabled is True
     assert model.trigger.match == ResourceSpecification(
-        __root__={"prefect.resource.name": "howdy!"}
+        {"prefect.resource.name": "howdy!"}
     )
     assert model.trigger.match_related == ResourceSpecification(
-        __root__={"prefect.resource.role": "something-cool"}
+        {"prefect.resource.role": "something-cool"}
     )
     assert model.trigger.after == {"this.one", "or.that.one"}
     assert model.trigger.expect == {"surely.this", "but.also.this"}
@@ -83,10 +83,10 @@ async def test_read_automation_by_uuid_string(automation):
     assert model.description == "world"
     assert model.enabled is True
     assert model.trigger.match == ResourceSpecification(
-        __root__={"prefect.resource.name": "howdy!"}
+        {"prefect.resource.name": "howdy!"}
     )
     assert model.trigger.match_related == ResourceSpecification(
-        __root__={"prefect.resource.role": "something-cool"}
+        {"prefect.resource.role": "something-cool"}
     )
     assert model.trigger.after == {"this.one", "or.that.one"}
     assert model.trigger.expect == {"surely.this", "but.also.this"}
@@ -102,10 +102,10 @@ async def test_read_automation_by_name(automation):
     assert model.description == "world"
     assert model.enabled is True
     assert model.trigger.match == ResourceSpecification(
-        __root__={"prefect.resource.name": "howdy!"}
+        {"prefect.resource.name": "howdy!"}
     )
     assert model.trigger.match_related == ResourceSpecification(
-        __root__={"prefect.resource.role": "something-cool"}
+        {"prefect.resource.role": "something-cool"}
     )
     assert model.trigger.after == {"this.one", "or.that.one"}
     assert model.trigger.expect == {"surely.this", "but.also.this"}

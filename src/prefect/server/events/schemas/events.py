@@ -10,7 +10,6 @@ from typing import (
     Sequence,
     Tuple,
     Union,
-    cast,
 )
 from uuid import UUID
 
@@ -24,6 +23,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import Self
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
@@ -39,36 +39,24 @@ logger = get_logger(__name__)
 class Resource(Labelled):
     """An observable business object of interest to the user"""
 
-    @model_validator(mode="before")
-    @classmethod
-    def enforce_maximum_labels(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        if len(labels) > PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value():
+    @model_validator(mode="after")
+    def enforce_maximum_labels(self) -> Self:
+        if len(self.root) > PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value():
             raise ValueError(
                 "The maximum number of labels per resource "
                 f"is {PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value()}"
             )
 
-        return values
+        return self
 
-    @model_validator(mode="before")
-    @classmethod
-    def requires_resource_id(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        labels = cast(Dict[str, str], labels)
-
-        if "prefect.resource.id" not in labels:
+    @model_validator(mode="after")
+    def requires_resource_id(self) -> Self:
+        if "prefect.resource.id" not in self.root:
             raise ValueError("Resources must include the prefect.resource.id label")
-        if not labels["prefect.resource.id"]:
+        if not self.root["prefect.resource.id"]:
             raise ValueError("The prefect.resource.id label must be non-empty")
 
-        return values
+        return self
 
     @property
     def id(self) -> str:
@@ -82,23 +70,16 @@ class Resource(Labelled):
 class RelatedResource(Resource):
     """A Resource with a specific role in an Event"""
 
-    @model_validator(mode="before")
-    @classmethod
-    def requires_resource_role(cls, values: Dict[str, Any]):
-        labels = values.get("__root__")
-        if not isinstance(labels, dict):
-            return values
-
-        labels = cast(Dict[str, str], labels)
-
-        if "prefect.resource.role" not in labels:
+    @model_validator(mode="after")
+    def requires_resource_role(self) -> Self:
+        if "prefect.resource.role" not in self.root:
             raise ValueError(
                 "Related Resources must include the prefect.resource.role label"
             )
-        if not labels["prefect.resource.role"]:
+        if not self.root["prefect.resource.role"]:
             raise ValueError("The prefect.resource.role label must be non-empty")
 
-        return values
+        return self
 
     @property
     def role(self) -> str:
@@ -205,7 +186,7 @@ class ReceivedEvent(Event):
 
     def as_database_resource_rows(self) -> List[Dict[str, Any]]:
         def without_id_and_role(resource: Resource) -> Dict[str, str]:
-            d: Dict[str, str] = resource.model_dump()["__root__"]
+            d: Dict[str, str] = resource.root.copy()
             d.pop("prefect.resource.id", None)
             d.pop("prefect.resource.role", None)
             return d

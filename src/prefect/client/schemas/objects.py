@@ -527,7 +527,7 @@ class FlowRun(ObjectBaseModel):
     )
 
     work_pool_id: Optional[UUID] = Field(
-        description="The work pool with which the queue is associated."
+        default=None, description="The work pool with which the queue is associated."
     )
     work_pool_name: Optional[str] = Field(
         default=None,
@@ -1045,7 +1045,7 @@ class Deployment(ObjectBaseModel):
         default=None,
         description="Optional information about the updater of this deployment.",
     )
-    work_queue_id: UUID = Field(
+    work_queue_id: Optional[UUID] = Field(
         default=None,
         description=(
             "The id of the work pool queue to which this deployment is assigned."

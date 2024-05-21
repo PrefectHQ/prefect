@@ -148,7 +148,7 @@ async def test_reactive_automation_triggers_can_trigger_immediately(
 ):
     await triggers.reactive_evaluation(daddy_long_legs_walked)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=arachnophobia.trigger,
             trigger_states={TriggerState.Triggered},
@@ -165,7 +165,7 @@ async def test_reactive_automation_triggers_can_trigger_immediately(
 
     await triggers.reactive_evaluation(daddy_long_legs_walked)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=arachnophobia.trigger,
             trigger_states={TriggerState.Triggered},
@@ -200,7 +200,7 @@ async def test_reactive_automation_triggers_only_on_expected_events(
 
     await triggers.reactive_evaluation(daddy_long_legs_walked)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=arachnophobia.trigger,
             trigger_states={TriggerState.Triggered},
@@ -230,7 +230,7 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
     woodchonk_walked.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=chonk_party.trigger,
             trigger_states={TriggerState.Triggered},
@@ -264,7 +264,7 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
     woodchonk_walked.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=chonk_party.trigger,
             trigger_states={TriggerState.Triggered},
@@ -321,7 +321,7 @@ async def test_reactive_automation_triggers_immediately_even_if_event_matches_af
     woodchonk_table_for_one.occurred += timedelta(seconds=500)
     await triggers.reactive_evaluation(woodchonk_table_for_one)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=chonk_lonely.trigger,
             trigger_states={TriggerState.Triggered},
@@ -381,7 +381,7 @@ async def test_reactive_automation_triggers_for_each_related_label(
     woodchonk_nibbled.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_nibbled)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
@@ -404,7 +404,7 @@ async def test_reactive_automation_triggers_for_each_related_label(
     woodchonk_gobbled.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_gobbled)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
@@ -450,7 +450,7 @@ async def test_proactive_trigger_fires_after_time_expires(
         start_of_test + timedelta(seconds=30),
     )
     act.assert_awaited_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=chonk_sadness.trigger,
             trigger_states={TriggerState.Triggered},
@@ -473,7 +473,7 @@ async def test_proactive_trigger_fires_after_time_expires(
         start_of_test + timedelta(seconds=60),
     )
     act.assert_awaited_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=chonk_sadness.trigger,
             trigger_states={TriggerState.Triggered},
@@ -668,7 +668,7 @@ async def test_follower_messages_are_processed_when_leaders_arrive(
 
     await triggers.reactive_evaluation(running)
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
@@ -746,7 +746,7 @@ async def test_old_follower_messages_are_processed_immediately(
     # Failed is the event we want, and the message is so late that we'll just need to
     # process it out of order
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
@@ -864,7 +864,7 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
         await triggers.periodic_evaluation(base_date + timedelta(minutes=20))
 
     act.assert_awaited_once_with(
-        Firing.construct(
+        Firing.model_construct(
             id=unittest.mock.ANY,
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
