@@ -17,7 +17,11 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
 )
-from prefect.client.schemas.objects import StateDetails, StateType
+from prefect.client.schemas.objects import (
+    MinimalDeploymentSchedule,
+    StateDetails,
+    StateType,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
@@ -164,7 +168,7 @@ class DeploymentCreate(ActionBaseModel):
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     is_schedule_active: Optional[bool] = Field(None)
     paused: Optional[bool] = Field(None)
-    schedules: List[DeploymentScheduleCreate] = Field(
+    schedules: List[Union[DeploymentScheduleCreate, MinimalDeploymentSchedule]] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )

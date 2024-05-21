@@ -267,7 +267,6 @@ class RunnerDeployment(BaseModel):
         Returns:
             The ID of the created deployment.
         """
-
         work_pool_name = work_pool_name or self.work_pool_name
 
         if image and not work_pool_name:

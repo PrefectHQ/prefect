@@ -90,6 +90,7 @@ from prefect.client.schemas.objects import (
     FlowRunNotificationPolicy,
     FlowRunPolicy,
     Log,
+    MinimalDeploymentSchedule,
     Parameter,
     QueueFilter,
     TaskRunPolicy,
@@ -1558,7 +1559,9 @@ class PrefectClient:
         name: str,
         version: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-        schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        schedules: Optional[
+            List[Union[DeploymentScheduleCreate, MinimalDeploymentSchedule]]
+        ] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1600,7 +1603,6 @@ class PrefectClient:
         Returns:
             the ID of the deployment in the backend
         """
-
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
