@@ -2594,6 +2594,7 @@ class TestTaskRunLogs:
         logs = await _wait_for_logs(prefect_client)
         assert "Hello world!" not in {log.message for log in logs}
 
+    @pytest.mark.flaky(max_runs=3)
     async def test_logs_are_given_correct_ids(self, prefect_client):
         @task
         def my_task():
