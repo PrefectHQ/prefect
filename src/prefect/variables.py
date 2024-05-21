@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas.actions import VariableCreate as VariableRequest
 from prefect.client.schemas.actions import VariableUpdate as VariableUpdateRequest
+from prefect.client.schemas.objects import Variable as VariableResponse
 from prefect.client.utilities import get_or_create_client
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -23,10 +23,10 @@ class Variable(VariableRequest):
     async def set(
         cls,
         name: str,
-        value: str,
+        value: Union[str, int, float, bool, None, List[Any], Dict[str, Any]],
         tags: Optional[List[str]] = None,
         overwrite: bool = False,
-    ) -> Optional[str]:
+    ) -> Optional[VariableResponse]:
         """
         Sets a new variable. If one exists with the same name, user must pass `overwrite=True`
         ```
@@ -65,7 +65,11 @@ class Variable(VariableRequest):
 
     @classmethod
     @sync_compatible
-    async def get(cls, name: str, default: Optional[str] = None) -> Optional[str]:
+    async def get(
+        cls,
+        name: str,
+        default: Union[str, int, float, bool, None, List[Any], Dict[str, Any]] = None,
+    ) -> Optional[VariableResponse]:
         """
         Get a variable by name. If doesn't exist return the default.
         ```
@@ -87,28 +91,3 @@ class Variable(VariableRequest):
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
         return variable if variable else default
-
-
-@deprecated_callable(start_date="Apr 2024")
-@sync_compatible
-async def get(name: str, default: Optional[str] = None) -> Optional[str]:
-    """
-    Get a variable by name. If doesn't exist return the default.
-    ```
-        from prefect import variables
-
-        @flow
-        def my_flow():
-            var = variables.get("my_var")
-    ```
-    or
-    ```
-        from prefect import variables
-
-        @flow
-        async def my_flow():
-            var = await variables.get("my_var")
-    ```
-    """
-    variable = await Variable.get(name)
-    return variable.value if variable else default
