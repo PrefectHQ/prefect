@@ -7,6 +7,7 @@ import pytest
 
 from prefect.client.schemas.objects import FlowRunInput
 from prefect.context import FlowRunContext
+from prefect.flows import flow
 from prefect.input import (
     RunInput,
     RunInputMetadata,
@@ -496,15 +497,20 @@ async def test_automatic_input_receive_multiple_values(flow_run):
     }
 
 
-def test_automatic_input_receive_works_sync(flow_run):
+async def test_automatic_input_receive_works_sync(flow_run):
     for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
-        send_input(city, flow_run_id=flow_run.id)
+        await send_input(city, flow_run_id=flow_run.id)
 
     received = []
-    for city in receive_input(
-        Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
-    ):
-        received.append(city)
+
+    @flow
+    def test_flow():
+        for city in receive_input(
+            Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
+        ):
+            received.append(city)
+
+    test_flow()
 
     assert len(received) == 3
     assert all(isinstance(city, tuple) for city in received)
@@ -575,11 +581,11 @@ async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator
             pass
 
 
-def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
+async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
     flow_run,
 ):
     with pytest.raises(TimeoutError):
-        for _ in receive_input(
+        async for _ in receive_input(
             int,
             flow_run_id=flow_run.id,
             timeout=0,
