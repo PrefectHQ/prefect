@@ -1219,7 +1219,6 @@ class Variable(ORMBaseModel):
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        strict=True,
     )
     tags: List[str] = Field(
         default_factory=list,

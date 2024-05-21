@@ -1048,7 +1048,6 @@ class VariableCreate(ActionBaseModel):
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        strict=True,
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -1089,7 +1088,6 @@ class VariableUpdate(ActionBaseModel):
         default=None,
         description="The value of the variable",
         examples=["my-value"],
-        strict=True,
     )
     tags: Optional[List[str]] = Field(
         default=None,
