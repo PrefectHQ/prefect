@@ -8,6 +8,7 @@ from prefect.client import PrefectClient
 from prefect.exceptions import FailedRun
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 from prefect.states import Completed, Failed
 from prefect.tasks import task
 from prefect.testing.utilities import assert_does_not_warn
@@ -147,6 +148,10 @@ async def test_resolves_futures_in_nested_collections(task_run):
     ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})
 
 
+@pytest.mark.skipif(
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+    reason="Not supported with new engine",
+)
 def test_raise_warning_futures_in_condition():
     @task
     def a_task():
