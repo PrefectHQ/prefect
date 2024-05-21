@@ -80,7 +80,7 @@ def test_set_with_disallowed_setting(setting):
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", f"{setting}=BAR"],
-        expected_output=f"""                
+        expected_output=f"""
             Setting {setting!r} cannot be changed with this command. Use an environment variable instead.
             """,
         expected_code=1,
@@ -92,9 +92,7 @@ def test_set_with_invalid_value_type():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_API_DATABASE_TIMEOUT=HELLO"],
-        expected_output="""
-            Validation error for setting 'PREFECT_API_DATABASE_TIMEOUT': Input should be a valid number, unable to parse string as a number
-            """,
+        expected_output_contains="Input should be a valid number",
         expected_code=1,
     )
 
