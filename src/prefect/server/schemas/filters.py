@@ -634,7 +634,7 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         default=None, description="A list of task run flow run ids to include"
     )
 
-    is_null_: bool = Field(
+    is_null_: Optional[bool] = Field(
         default=False, description="Filter for task runs with None as their flow run id"
     )
 
@@ -642,6 +642,8 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         filters = []
         if self.is_null_ is True:
             filters.append(orm_models.TaskRun.flow_run_id.is_(None))
+        elif self.is_null_ is False and self.any_ is None:
+            filters.append(orm_models.TaskRun.flow_run_id.is_not(None))
         else:
             if self.any_ is not None:
                 filters.append(orm_models.TaskRun.flow_run_id.in_(self.any_))
@@ -813,6 +815,27 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
         return filters
 
 
+class TaskRunFilterExpectedStartTime(PrefectFilterBaseModel):
+    """Filter by `TaskRun.expected_start_time`."""
+
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include task runs expected to start at or before this time",
+    )
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include task runs expected to start at or after this time",
+    )
+
+    def _get_filter_list(self) -> List:
+        filters = []
+        if self.before_ is not None:
+            filters.append(orm_models.TaskRun.expected_start_time <= self.before_)
+        if self.after_ is not None:
+            filters.append(orm_models.TaskRun.expected_start_time >= self.after_)
+        return filters
+
+
 class TaskRunFilter(PrefectOperatorFilterBaseModel):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
@@ -830,6 +853,9 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
     )
     start_time: Optional[TaskRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `TaskRun.start_time`"
+    )
+    expected_start_time: Optional[TaskRunFilterExpectedStartTime] = Field(
+        default=None, description="Filter criteria for `TaskRun.expected_start_time`"
     )
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
         default=None, description="Filter criteria for `TaskRun.subflow_run`"
@@ -851,6 +877,8 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.state.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
+        if self.expected_start_time is not None:
+            filters.append(self.expected_start_time.as_sql_filter())
         if self.subflow_runs is not None:
             filters.append(self.subflow_runs.as_sql_filter())
         if self.flow_run_id is not None:
