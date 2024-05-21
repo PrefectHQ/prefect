@@ -41,7 +41,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import ServerType
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -839,7 +839,7 @@ async def _run_multi_deploy(
 
 def _construct_schedules(
     deploy_config: Dict,
-) -> List[MinimalDeploymentSchedule]:
+) -> List[DeploymentScheduleCreate]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -867,7 +867,7 @@ def _construct_schedules(
 
 def _schedule_config_to_deployment_schedule(
     schedule_config: Dict,
-) -> MinimalDeploymentSchedule:
+) -> DeploymentScheduleCreate:
     cron = schedule_config.get("cron")
     interval = schedule_config.get("interval")
     anchor_date = schedule_config.get("anchor_date")
@@ -904,7 +904,7 @@ def _schedule_config_to_deployment_schedule(
             f"Unknown schedule type. Please provide a valid schedule. schedule={schedule_config}"
         )
 
-    return MinimalDeploymentSchedule(
+    return DeploymentScheduleCreate(
         schedule=schedule,
         active=schedule_active,
         max_active_runs=max_active_runs,
