@@ -244,15 +244,15 @@ def reconcile_schedules(cls, values: dict) -> dict:
     """
 
     from prefect.deployments.schedules import (
-        create_minimal_deployment_schedule,
-        normalize_to_minimal_deployment_schedules,
+        create_deployment_schedule_create,
+        normalize_to_deployment_schedule_create,
     )
 
     schedule = values.get("schedule", NotSet)
     schedules = values.get("schedules", NotSet)
 
     if schedules is not NotSet:
-        values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+        values["schedules"] = normalize_to_deployment_schedule_create(schedules)
     elif schedule is not NotSet:
         values["schedule"] = None
 
@@ -260,7 +260,7 @@ def reconcile_schedules(cls, values: dict) -> dict:
             values["schedules"] = []
         else:
             values["schedules"] = [
-                create_minimal_deployment_schedule(
+                create_deployment_schedule_create(
                     schedule=schedule, active=values.get("is_schedule_active")
                 )
             ]
@@ -277,17 +277,17 @@ def reconcile_schedules_runner(values: dict) -> dict:
     Similar to above, we reconcile the `schedule` and `schedules` fields in a deployment.
     """
     from prefect.deployments.schedules import (
-        create_minimal_deployment_schedule,
-        normalize_to_minimal_deployment_schedules,
+        create_deployment_schedule_create,
+        normalize_to_deployment_schedule_create,
     )
 
     schedule = values.get("schedule")
     schedules = values.get("schedules")
 
     if schedules is None and schedule is not None:
-        values["schedules"] = [create_minimal_deployment_schedule(schedule)]
+        values["schedules"] = [create_deployment_schedule_create(schedule)]
     elif schedules is not None and len(schedules) > 0:
-        values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+        values["schedules"] = normalize_to_deployment_schedule_create(schedules)
 
     return values
 
