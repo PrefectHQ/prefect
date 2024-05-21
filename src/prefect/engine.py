@@ -810,6 +810,7 @@ async def orchestrate_flow_run(
 
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
+
         try:
             with FlowRunContext(
                 **{

@@ -33,6 +33,7 @@ from pydantic import (
     SecretBytes,
     SecretStr,
     ValidationError,
+    model_serializer,
 )
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, get_args
@@ -1033,18 +1034,12 @@ class Block(BaseModel, ABC):
 
         await client.delete_block_document(block_document.id)
 
-    def _iter(self, *, include=None, exclude=None, **kwargs):
+    @model_serializer(mode="wrap")
+    def serialize(self, handler) -> Dict[str, Any]:
         # Injects the `block_type_slug` into serialized payloads for dispatch
-        for key_value in super()._iter(include=include, exclude=exclude, **kwargs):
-            yield key_value
-
-        # Respect inclusion and exclusion still
-        if include and "block_type_slug" not in include:
-            return
-        if exclude and "block_type_slug" in exclude:
-            return
-
-        yield "block_type_slug", self.get_block_type_slug()
+        v = handler(self)
+        v["block_type_slug"] = self.get_block_type_slug()
+        return v
 
     def __new__(cls: Type[Self], **kwargs) -> Self:
         """
