@@ -634,7 +634,7 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         default=None, description="A list of task run flow run ids to include"
     )
 
-    is_null_: bool = Field(
+    is_null_: Optional[bool] = Field(
         default=False, description="Filter for task runs with None as their flow run id"
     )
 
@@ -642,6 +642,8 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         filters = []
         if self.is_null_ is True:
             filters.append(orm_models.TaskRun.flow_run_id.is_(None))
+        elif self.is_null_ is False and self.any_ is None:
+            filters.append(orm_models.TaskRun.flow_run_id.is_not(None))
         else:
             if self.any_ is not None:
                 filters.append(orm_models.TaskRun.flow_run_id.in_(self.any_))
