@@ -290,6 +290,7 @@ def visit_collection(
             return visit_fn(expr)
 
     # Visit every expression
+    breakpoint()
     try:
         result = visit_expression(expr)
     except StopVisiting:
@@ -341,39 +342,42 @@ def visit_collection(
 
     elif isinstance(expr, pydantic.BaseModel):
         # NOTE: This implementation *does not* traverse private attributes
-        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
+        # Pydantic does not expose extras in `model_fields` so we use `model_fields_set`
         # as well to get all of the relevant attributes
         # Check for presence of attrs even if they're in the field set due to pydantic#4916
         model_fields = {
-            f for f in expr.__fields_set__.union(expr.__fields__) if hasattr(expr, f)
+            f
+            for f in expr.model_fields_set.union(expr.model_fields)
+            if hasattr(expr, f)
         }
         items = [visit_nested(getattr(expr, key)) for key in model_fields]
 
+    elif isinstance(expr, pydantic.BaseModel):
+        typ = cast(Type[pydantic.BaseModel], typ)
+        model_data = expr.model_dump()
+        model_fields = {
+            f
+            for f in expr.model_fields_set.union(expr.model_fields)
+            if hasattr(expr, f)
+        }
+        updated_data = {
+            key: visit_nested(model_data[key])
+            for key in model_fields
+            if key in model_data
+        }
+
+        breakpoint()
+
         if return_data:
-            # Collect fields with aliases so reconstruction can use the correct field name
-            aliases = {
-                key: value.alias
-                for key, value in expr.__fields__.items()
-                if value.has_alias
-            }
+            # Use construct to avoid validation and handle immutability
+            model_instance = typ.model_construct(**updated_data)
 
-            model_instance = typ(
-                **{
-                    aliases.get(key) or key: value
-                    for key, value in zip(model_fields, items)
-                }
-            )
-
-            # Private attributes are not included in `__fields_set__` but we do not want
-            # to drop them from the model so we restore them after constructing a new
-            # model
+            # Handle private attributes
             for attr in expr.__private_attributes__:
-                # Use `object.__setattr__` to avoid errors on immutable models
-                object.__setattr__(model_instance, attr, getattr(expr, attr))
+                if attr not in updated_data:
+                    setattr(model_instance, attr, getattr(expr, attr))
 
-            # Preserve data about which fields were explicitly set on the original model
-            object.__setattr__(model_instance, "__fields_set__", expr.__fields_set__)
-            result = model_instance
+            result = model_instance.model_copy(deep=True)
         else:
             result = None
 
