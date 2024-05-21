@@ -5,7 +5,7 @@ import time
 from asyncio import Event, sleep
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, call
 from uuid import UUID
 
@@ -16,6 +16,7 @@ import regex as re
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import (
@@ -2531,10 +2532,17 @@ class TestTaskWaitFor:
         assert await task_state.result() == 2
 
 
-async def _wait_for_logs(prefect_client: PrefectClient):
+async def _wait_for_logs(
+    prefect_client: PrefectClient, flow_run_id: Optional[UUID] = None
+):
     logs = []
+    log_filter = (
+        LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        if flow_run_id
+        else None
+    )
     for _ in range(5):
-        logs = await prefect_client.read_logs()
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         if logs:
             break
         await asyncio.sleep(1)
@@ -2608,7 +2616,7 @@ class TestTaskRunLogs:
         flow_run_id = task_state.state_details.flow_run_id
         task_run_id = task_state.state_details.task_run_id
 
-        logs = await _wait_for_logs(prefect_client)
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         assert logs, "There should be logs"
         assert all([log.flow_run_id == flow_run_id for log in logs]), str(
             [log for log in logs]
