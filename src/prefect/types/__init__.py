@@ -18,7 +18,6 @@ TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(timezone_set))]
 
 class Duration(timedelta):
     schema: ClassVar = core_schema.timedelta_schema(
-        ge=timedelta(seconds=0),
         serialization=core_schema.plain_serializer_function_ser_schema(
             timedelta.total_seconds, when_used="json-unless-none"
         ),
@@ -28,7 +27,17 @@ class Duration(timedelta):
     def __get_pydantic_core_schema__(
         cls, source: Type[Any], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
-        return cls.schema
+        # Allows us to parse stringified numbers into durations so that we can
+        # round-trip settings values to environment variables
+        def from_string(value: Any) -> timedelta:
+            if isinstance(value, str):
+                try:
+                    return timedelta(seconds=float(value))
+                except ValueError:
+                    return value
+            return value
+
+        return core_schema.no_info_before_validator_function(from_string, cls.schema)
 
 
 class NonNegativeDuration(Duration):
