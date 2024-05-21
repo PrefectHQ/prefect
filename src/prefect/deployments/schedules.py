@@ -45,7 +45,7 @@ def normalize_to_deployment_schedule_create(
             else:
                 raise ValueError(
                     "Invalid schedule provided. Must be a schedule object, a dict,"
-                    "or a DeploymentScheduleCreate"
+                    "or a `DeploymentScheduleCreate` object"
                 )
 
     return normalized
