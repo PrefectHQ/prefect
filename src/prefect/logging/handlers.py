@@ -123,8 +123,6 @@ class APILogHandler(logging.Handler):
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
-
-        If called in a synchronous context, will only block up to 5s before returning.
         """
 
         if not get_running_loop():

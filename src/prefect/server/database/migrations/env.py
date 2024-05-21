@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from prefect.server.database.configurations import SQLITE_BEGIN_MODE
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.utilities.database import get_dialect
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_async_from_worker_thread
 
 db_interface = provide_database_interface()
 config = context.config
@@ -157,7 +157,6 @@ def disable_sqlite_foreign_keys(context):
         context.execute("BEGIN IMMEDIATE")
 
 
-@sync_compatible
 async def apply_migrations() -> None:
     """
     Apply migrations to the database.
@@ -172,4 +171,9 @@ async def apply_migrations() -> None:
 if context.is_offline_mode():
     dry_run_migrations()
 else:
-    apply_migrations()
+    # Running `apply_migrations` via `asyncio.run` causes flakes in the tests
+    # like: `cache lookup failed for type 338396`. Using `run_async_from_worker_thread`
+    # does not cause this issue, but it is not clear why. The current working theory is
+    # that running `apply_migrations` in another thread gives the migrations enough
+    # isolation to avoid caching issues.
+    run_async_from_worker_thread(apply_migrations)
