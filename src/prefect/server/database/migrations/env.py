@@ -171,4 +171,9 @@ async def apply_migrations() -> None:
 if context.is_offline_mode():
     dry_run_migrations()
 else:
+    # Running `apply_migrations` via `asyncio.run` causes flakes in the tests
+    # like: `cache lookup failed for type 338396`. Using `run_async_from_worker_thread`
+    # does not cause this issue, but it is not clear why. The current working theory is
+    # that running `apply_migrations` in another thread gives the migrations enough
+    # isolation to avoid caching issues.
     run_async_from_worker_thread(apply_migrations)
