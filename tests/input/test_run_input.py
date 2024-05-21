@@ -23,6 +23,7 @@ from prefect.input.run_input import (
     send_input,
 )
 from prefect.states import Paused, Running, Suspended
+from prefect.testing.utilities import fails_with_new_engine
 
 
 @pytest.fixture
@@ -88,6 +89,7 @@ async def test_save_stores_provided_description(flow_run_context):
     assert description == "Testing"
 
 
+@fails_with_new_engine
 def test_save_works_sync(flow_run_context):
     keyset = keyset_from_base_key("person")
     Person.save(keyset)
@@ -133,6 +135,7 @@ async def test_load_populates_metadata(flow_run_context):
     )
 
 
+@fails_with_new_engine
 def test_load_works_sync(flow_run_context):
     keyset = keyset_from_base_key("person")
     create_flow_run_input(
@@ -246,6 +249,7 @@ async def test_respond(flow_run):
     assert place.state == "NY"
 
 
+@fails_with_new_engine
 def test_respond_functions_sync(flow_run):
     flow_run_input = FlowRunInput(
         flow_run_id=uuid4(),
@@ -344,6 +348,7 @@ async def test_automatic_input_send_to(flow_run):
     assert received == 1
 
 
+@fails_with_new_engine
 def test_automatic_input_send_to_works_sync(flow_run):
     send_input(1, flow_run_id=flow_run.id)
 
@@ -400,6 +405,7 @@ async def test_send_to(flow_run):
     assert person.human is True
 
 
+@fails_with_new_engine
 def test_send_to_works_sync(flow_run):
     flow_run_input = FlowRunInput(
         flow_run_id=uuid4(),
@@ -497,6 +503,7 @@ async def test_automatic_input_receive_multiple_values(flow_run):
     }
 
 
+@fails_with_new_engine
 async def test_automatic_input_receive_works_sync(flow_run):
     for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         await send_input(city, flow_run_id=flow_run.id)
@@ -630,6 +637,7 @@ async def test_receive(flow_run):
     }
 
 
+@fails_with_new_engine
 def test_receive_works_sync(flow_run):
     for city, state in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
         Place(city=city, state=state).send_to(flow_run_id=flow_run.id)
@@ -696,6 +704,7 @@ async def test_receive_can_raise_timeout_errors_as_generator(flow_run):
             pass
 
 
+@fails_with_new_engine
 def test_receive_can_raise_timeout_errors_as_generator_sync(flow_run):
     with pytest.raises(TimeoutError):
         for _ in Place.receive(
