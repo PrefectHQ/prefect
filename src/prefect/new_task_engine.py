@@ -357,14 +357,17 @@ class TaskRunEngine(Generic[P, R]):
             self.set_state(state)
 
     def handle_timeout(self, exc: TimeoutError) -> None:
-        message = f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
-        self.logger.error(message)
-        state = Failed(
-            data=exc,
-            message=message,
-            name="TimedOut",
-        )
-        self.set_state(state)
+        if not self.handle_retry(exc):
+            message = (
+                f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
+            )
+            self.logger.error(message)
+            state = Failed(
+                data=exc,
+                message=message,
+                name="TimedOut",
+            )
+            self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_sync(exception_to_crashed_state(exc))
