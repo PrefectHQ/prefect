@@ -35,8 +35,9 @@ def upgrade():
             {"json_value": json_value, "id": variable_id},
         )
 
-    op.drop_column("variable", "value")
-    op.alter_column("variable", "json_value", new_column_name="value")
+    with op.batch_alter_table("variable") as batch_op:
+        batch_op.drop_column("value")
+        batch_op.alter_column("json_value", new_column_name="value")
 
 
 def downgrade():
@@ -48,11 +49,12 @@ def downgrade():
     rows = result.fetchall()
 
     for variable_id, value in rows:
-        string_value = str(value)
+        string_value = json.loads(str(value))
         conn.execute(
             sa.text("UPDATE variable SET string_value = :string_value WHERE id = :id"),
             {"string_value": string_value, "id": variable_id},
         )
 
-    op.drop_column("variable", "value")
-    op.alter_column("variable", "string_value", new_column_name="value", nullable=False)
+    with op.batch_alter_table("variable") as batch_op:
+        batch_op.drop_column("value")
+        batch_op.alter_column("string_value", new_column_name="value", nullable=False)
