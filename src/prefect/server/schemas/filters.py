@@ -628,7 +628,7 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         default=None, description="A list of task run flow run ids to include"
     )
 
-    is_null_: bool = Field(
+    is_null_: Optional[bool] = Field(
         default=False, description="Filter for task runs with None as their flow run id"
     )
 
