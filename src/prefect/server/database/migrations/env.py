@@ -167,6 +167,8 @@ async def apply_migrations() -> None:
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
 
+    await engine.dispose()
+
 
 if context.is_offline_mode():
     dry_run_migrations()

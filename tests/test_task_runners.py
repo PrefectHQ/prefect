@@ -8,7 +8,7 @@ from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
 
 # these tests don't work with the new engine
 @pytest.fixture(autouse=True)
-def set_new_engine_setting(request):
+def set_new_engine_setting():
     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: False}):
         yield
 
