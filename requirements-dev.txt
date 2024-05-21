@@ -25,7 +25,7 @@ pytest-timeout
 pytest-xdist < 3.4.0 # 3.5.0 introduces some flakiness. Need to investigate and resolve.
 pytkdocs >= 0.14.2
 pyyaml
-requests<2.32.0  # `requests` renamed `get_connection` to `_get_connection`, which is a method docker-py monkeypatches. See https://github.com/docker/docker-py/issues/3256 Should be able to un-pin when docker-py hotfix is out.
+requests<2.33.0  # `requests` renamed `get_connection` to `_get_connection`, which is a method docker-py monkeypatches. See https://github.com/docker/docker-py/issues/3256 Should be able to un-pin when docker-py hotfix is out.
 setuptools
 vermin
 virtualenv
