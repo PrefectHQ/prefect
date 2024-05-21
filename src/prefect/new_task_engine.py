@@ -28,6 +28,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.events.schemas.events import Event
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
@@ -50,6 +51,7 @@ from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
+    emit_task_run_state_change_event,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -72,6 +74,7 @@ class TaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
     _task_name_set: bool = False
+    _last_event: Optional[Event] = None
 
     def __post_init__(self):
         if self.parameters is None:
@@ -274,6 +277,7 @@ class TaskRunEngine(Generic[P, R]):
             state = self.set_state(new_state)
 
     def set_state(self, state: State, force: bool = False) -> State:
+        last_state = self.state
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -293,6 +297,13 @@ class TaskRunEngine(Generic[P, R]):
         # that has an in-memory result attached to it; using the API state
         # could result in losing that reference
         self.task_run.state = new_state
+        # emit a state change event
+        self._last_event = emit_task_run_state_change_event(
+            task_run=self.task_run,
+            initial_state=last_state,
+            validated_state=self.task_run.state,
+            follows=self._last_event,
+        )
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -438,6 +449,12 @@ class TaskRunEngine(Generic[P, R]):
                     )
                 self.logger.info(
                     f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                )
+                # Emit an event to capture that the task run was in the `PENDING` state.
+                self._last_event = emit_task_run_state_change_event(
+                    task_run=self.task_run,
+                    initial_state=None,
+                    validated_state=self.task_run.state,
                 )
 
                 yield self
