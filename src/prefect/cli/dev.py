@@ -215,13 +215,16 @@ async def start(
         if not exclude_api:
             tg.start_soon(
                 partial(
-                    api,
+                    # CLI commands are wrapped in sync_compatible, but this
+                    # task group is async, so we need use the wrapped function
+                    # directly
+                    api.aio,
                     host=PREFECT_SERVER_API_HOST.value(),
                     port=PREFECT_SERVER_API_PORT.value(),
                 )
             )
         if not exclude_ui:
-            tg.start_soon(ui)
+            tg.start_soon(ui.aio)
 
 
 @dev_app.command()
