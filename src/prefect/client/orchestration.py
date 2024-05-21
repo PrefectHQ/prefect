@@ -29,9 +29,6 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect._internal.compatibility.deprecated import (
-    handle_deprecated_infra_overrides_parameter,
-)
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
@@ -1572,7 +1569,6 @@ class PrefectClient:
         path: Optional[str] = None,
         entrypoint: Optional[str] = None,
         infrastructure_document_id: Optional[UUID] = None,
-        infra_overrides: Optional[Dict[str, Any]] = None,  # for backwards compat
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
         is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
@@ -1604,7 +1600,6 @@ class PrefectClient:
         Returns:
             the ID of the deployment in the backend
         """
-        jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
 
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
@@ -1619,7 +1614,7 @@ class PrefectClient:
             entrypoint=entrypoint,
             manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
-            job_variables=jv,
+            job_variables=dict(job_variables or {}),
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
             paused=paused,
@@ -1636,7 +1631,7 @@ class PrefectClient:
         exclude = {
             field
             for field in ["work_pool_name", "work_queue_name"]
-            if field not in deployment_create.__fields_set__
+            if field not in deployment_create.model_fields_set
         }
 
         if deployment_create.is_schedule_active is None:

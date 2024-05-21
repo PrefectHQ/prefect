@@ -75,7 +75,10 @@ async def hosted_api_server(unused_tcp_port_factory):
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
-        env={**os.environ, **get_current_settings().to_environment_variables()},
+        env={
+            **os.environ,
+            **get_current_settings().to_environment_variables(exclude_unset=True),
+        },
     ) as process:
         api_url = f"http://localhost:{port}/api"
 

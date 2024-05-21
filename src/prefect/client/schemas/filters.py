@@ -175,8 +175,12 @@ class FlowRunFilterStateName(PrefectBaseModel):
 
 
 class FlowRunFilterState(PrefectBaseModel, OperatorMixin):
-    type: Optional[FlowRunFilterStateType]
-    name: Optional[FlowRunFilterStateName]
+    type: Optional[FlowRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `FlowRun` state type"
+    )
+    name: Optional[FlowRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `FlowRun` state name"
+    )
 
 
 class FlowRunFilterFlowVersion(PrefectBaseModel):
