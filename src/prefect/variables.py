@@ -4,6 +4,7 @@ from prefect.client.schemas.actions import VariableCreate as VariableRequest
 from prefect.client.schemas.actions import VariableUpdate as VariableUpdateRequest
 from prefect.client.schemas.objects import Variable as VariableResponse
 from prefect.client.utilities import get_or_create_client
+from prefect.exceptions import ObjectNotFound
 from prefect.utilities.asyncutils import sync_compatible
 
 
@@ -26,15 +27,17 @@ class Variable(VariableRequest):
         value: Union[str, int, float, bool, None, List[Any], Dict[str, Any]],
         tags: Optional[List[str]] = None,
         overwrite: bool = False,
-    ) -> Optional[VariableResponse]:
+    ):
         """
         Sets a new variable. If one exists with the same name, user must pass `overwrite=True`
+        Returns `True` if the variable was created or updated
+
         ```
             from prefect.variables import Variable
 
             @flow
             def my_flow():
-                var = Variable.set(name="my_var",value="test_value", tags=["hi", "there"], overwrite=True)
+                Variable.set(name="my_var",value="test_value", tags=["hi", "there"], overwrite=True)
         ```
         or
         ```
@@ -42,26 +45,21 @@ class Variable(VariableRequest):
 
             @flow
             async def my_flow():
-                var = await Variable.set(name="my_var",value="test_value", tags=["hi", "there"], overwrite=True)
+                await Variable.set(name="my_var",value="test_value", tags=["hi", "there"], overwrite=True)
         ```
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        var_dict = {"name": name, "value": value}
-        var_dict["tags"] = tags or []
+        var_dict = {"name": name, "value": value, "tags": tags or []}
         if variable:
             if not overwrite:
                 raise ValueError(
-                    "You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`."
+                    "You are attempting to set a variable with a name that is already in use. "
+                    "If you would like to overwrite it, pass `overwrite=True`."
                 )
-            var = VariableUpdateRequest(**var_dict)
-            await client.update_variable(variable=var)
-            variable = await client.read_variable_by_name(name)
+            await client.update_variable(variable=VariableUpdateRequest(**var_dict))
         else:
-            var = VariableRequest(**var_dict)
-            variable = await client.create_variable(variable=var)
-
-        return variable if variable else None
+            await client.create_variable(variable=VariableRequest(**var_dict))
 
     @classmethod
     @sync_compatible
@@ -69,9 +67,17 @@ class Variable(VariableRequest):
         cls,
         name: str,
         default: Union[str, int, float, bool, None, List[Any], Dict[str, Any]] = None,
-    ) -> Optional[VariableResponse]:
+        as_object: bool = False,
+    ) -> Union[
+        str, int, float, bool, None, List[Any], Dict[str, Any], VariableResponse
+    ]:
         """
-        Get a variable by name. If doesn't exist return the default.
+        Get a variable's value by name.
+
+        If the variable does not exist, return the default value.
+
+        If `as_object=True`, return the full variable object. `default` is ignored in this case.
+
         ```
             from prefect.variables import Variable
 
@@ -90,4 +96,36 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        return variable if variable else default
+        if as_object:
+            return variable
+
+        return variable.value if variable else default
+
+    @classmethod
+    @sync_compatible
+    async def unset(cls, name: str) -> bool:
+        """
+        Unset a variable by name.
+
+        ```
+            from prefect.variables import Variable
+
+            @flow
+            def my_flow():
+                Variable.unset("my_var")
+        ```
+        or
+        ```
+            from prefect.variables import Variable
+
+            @flow
+            async def my_flow():
+                await Variable.unset("my_var")
+        ```
+        """
+        client, _ = get_or_create_client()
+        try:
+            await client.delete_variable_by_name(name=name)
+            return True
+        except ObjectNotFound:
+            return False

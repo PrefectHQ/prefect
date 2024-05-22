@@ -1,86 +1,223 @@
 import pytest
 
-from prefect import flow, variables
+from prefect import flow
+from prefect.variables import Variable
 
 
 @pytest.fixture
 async def variable():
-    model = await variables.Variable.set(
-        name="my_variable", value="my-value", tags=["123", "456"]
-    )
+    await Variable.set(name="my_variable", value="my-value", tags=["123", "456"])
+    model = await Variable.get("my_variable", as_object=True)
     return model
 
 
-async def test_set_variable():
-    model = await variables.Variable.set(
-        name="my_new_variable", value="my_value", tags=["123", "456"]
-    )
-    assert model.name == "my_new_variable"
-    assert model.value == "my_value"
-    assert model.tags == ["123", "456"]
+def test_set(variable):
+    # confirm variable doesn't exist
+    variable_doesnt_exist = Variable.get("my_new_variable")
+    assert variable_doesnt_exist is None
 
+    # create new
+    Variable.set(name="my_new_variable", value="my_value", tags=["123", "456"])
+    created = Variable.get("my_new_variable", as_object=True)
+    assert created.value == "my_value"
+    assert created.tags == ["123", "456"]
 
-def test_variable_with_same_name_and_not_overwrite_errors(variable):
+    # try to overwrite
     with pytest.raises(
         ValueError,
-        match="You are attempting to save a variable with a name that is already in use. If you would like to overwrite the values that are saved, then call .set with `overwrite=True`.",
+        match="You are attempting to set a variable with a name that is already in use. "
+        "If you would like to overwrite it, pass `overwrite=True`.",
     ):
-        variables.Variable.set(name=variable.name, value="new_value", overwrite=False)
+        Variable.set(name="my_new_variable", value="other_value")
 
-
-async def test_variable_with_same_name_and_overwrite(variable):
-    new_value = "new_value"
-    new_tags = ["my", "new", "tags"]
-    overwritten_variable = await variables.Variable.set(
-        name=variable.name, value=new_value, tags=new_tags, overwrite=True
+    # actually overwrite
+    Variable.set(
+        name="my_new_variable",
+        value="other_value",
+        tags=["new", "tags"],
+        overwrite=True,
     )
-    assert overwritten_variable.value == new_value
-    assert overwritten_variable.tags == new_tags
+    updated = Variable.get("my_new_variable", as_object=True)
+    assert updated.value == "other_value"
+    assert updated.tags == ["new", "tags"]
+
+
+async def test_set_async(variable):
+    # confirm variable doesn't exist
+    variable_doesnt_exist = await Variable.get("my_new_variable")
+    assert variable_doesnt_exist is None
+
+    # create new
+    await Variable.set(name="my_new_variable", value="my_value", tags=["123", "456"])
+    created = await Variable.get("my_new_variable", as_object=True)
+    assert created.value == "my_value"
+    assert created.tags == ["123", "456"]
+
+    # try to overwrite
+    with pytest.raises(
+        ValueError,
+        match="You are attempting to set a variable with a name that is already in use. "
+        "If you would like to overwrite it, pass `overwrite=True`.",
+    ):
+        await Variable.set(name="my_new_variable", value="other_value")
+
+    # actually overwrite
+    await Variable.set(
+        name="my_new_variable",
+        value="other_value",
+        tags=["new", "tags"],
+        overwrite=True,
+    )
+    updated = await Variable.get("my_new_variable", as_object=True)
+    assert updated.value == "other_value"
+    assert updated.tags == ["new", "tags"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "string-value",
+        '"string-value"',
+        123,
+        12.3,
+        True,
+        False,
+        None,
+        {"key": "value"},
+        ["value1", "value2"],
+        {"key": ["value1", "value2"]},
+    ],
+)
+def test_json_types(value):
+    Variable.set("json_variable", value=value)
+    assert Variable.get("json_variable") == value
 
 
 def test_get(variable):
-    res = variables.Variable.get(variable.name)
-    assert res
-    assert res.id == variable.id
-    assert res.name == variable.name
-    assert res.value == variable.value
+    # get value
+    value = Variable.get(variable.name)
+    assert value == variable.value
 
-    res = variables.Variable.get("doesnt_exist")
-    assert res is None
+    # as_object=True returns the full variable object
+    obj = Variable.get(variable.name, as_object=True)
+    assert obj
+    assert obj.id == variable.id
+    assert obj.name == variable.name
+    assert obj.value == variable.value
+
+    # get value of a variable that doesn't exist
+    doesnt_exist = Variable.get("doesnt_exist")
+    assert doesnt_exist is None
+
+    # default is respected if it doesn't exist
+    doesnt_exist_default = Variable.get("doesnt_exist", 42)
+    assert doesnt_exist_default == 42
 
 
 async def test_get_async(variable):
-    res = await variables.Variable.get(variable.name)
-    assert res
-    assert res.id == variable.id
-    assert res.name == variable.name
-    assert res.value == variable.value
+    # get value
+    value = await Variable.get(variable.name)
+    assert value == variable.value
 
-    value = await variables.Variable.get("doesnt_exist")
-    assert value is None
+    # as_object=True returns the full variable object
+    obj = await Variable.get(variable.name, as_object=True)
+    assert obj
+    assert obj.id == variable.id
+    assert obj.name == variable.name
+    assert obj.value == variable.value
+
+    # get value of a variable that doesn't exist
+    doesnt_exist = await Variable.get("doesnt_exist")
+    assert doesnt_exist is None
+
+    # default is respected if it doesn't exist
+    doesnt_exist_default = await Variable.get("doesnt_exist", 42)
+    assert doesnt_exist_default == 42
+
+
+def test_unset(variable):
+    # unset a variable
+    unset = Variable.unset(variable.name)
+    assert unset
+
+    # confirm it's gone
+    doesnt_exist = Variable.get(variable.name)
+    assert doesnt_exist is None
+
+    # unset a variable that doesn't exist
+    unset_doesnt_exist = Variable.unset("doesnt_exist")
+    assert not unset_doesnt_exist
+
+
+async def test_unset_async(variable):
+    # unset a variable
+    unset = await Variable.unset(variable.name)
+    assert unset
+
+    # confirm it's gone
+    doesnt_exist = await Variable.get(variable.name)
+    assert doesnt_exist is None
+
+    # unset a variable that doesn't exist
+    unset_doesnt_exist = await Variable.unset("doesnt_exist")
+    assert not unset_doesnt_exist
 
 
 def test_get_in_sync_flow(variable):
     @flow
     def foo():
-        var = variables.Variable.get("my_variable")
+        var = Variable.get("my_variable")
         return var
 
-    res = foo()
-    assert res
-    assert res.id == variable.id
-    assert res.name == variable.name
-    assert res.value == variable.value
+    value = foo()
+    assert value == variable.value
 
 
 async def test_get_in_async_flow(variable):
     @flow
     async def foo():
-        var = await variables.Variable.get("my_variable")
+        var = await Variable.get("my_variable")
         return var
 
-    res = await foo()
-    assert res
-    assert res.id == variable.id
-    assert res.name == variable.name
-    assert res.value == variable.value
+    value = await foo()
+    assert value == variable.value
+
+
+def test_set_in_sync_flow():
+    @flow
+    def foo():
+        Variable.set("my_variable", value="my-value")
+
+    foo()
+    value = Variable.get("my_variable")
+    assert value
+
+
+async def test_set_in_async_flow():
+    @flow
+    async def foo():
+        await Variable.set("my_variable", value="my-value")
+
+    await foo()
+    value = await Variable.get("my_variable")
+    assert value
+
+
+def test_unset_in_sync_flow(variable):
+    @flow
+    def foo():
+        Variable.unset(variable.name)
+
+    foo()
+    value = Variable.get(variable.name)
+    assert value is None
+
+
+async def test_unset_in_async_flow(variable):
+    @flow
+    async def foo():
+        await Variable.unset(variable.name)
+
+    await foo()
+    value = await Variable.get(variable.name)
+    assert value is None
