@@ -77,8 +77,7 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
     if entrypoint:
         flow = load_flow_from_entrypoint(entrypoint)
     else:
-        async_client = get_client()
-        flow = run_sync(load_flow_from_flow_run(flow_run, client=async_client))
+        flow = run_sync(load_flow_from_flow_run(flow_run))
 
     return flow_run, flow
 
