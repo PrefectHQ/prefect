@@ -3711,14 +3711,14 @@ class SyncPrefectClient:
         flow_run_data = TaskRunUpdate(name=name)
         return self._client.patch(
             f"/flow_runs/{flow_run_id}",
-            json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
+            json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
     def set_task_run_name(self, task_run_id: UUID, name: str):
         task_run_data = TaskRunUpdate(name=name)
         return self._client.patch(
             f"/task_runs/{task_run_id}",
-            json=task_run_data.dict(json_compatible=True, exclude_unset=True),
+            json=task_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
     def create_task_run(
@@ -3898,3 +3898,25 @@ class SyncPrefectClient:
         return pydantic.TypeAdapter(List[prefect.states.State]).validate_python(
             response.json()
         )
+
+    def read_deployment(
+        self,
+        deployment_id: UUID,
+    ) -> DeploymentResponse:
+        """
+        Query the Prefect API for a deployment by id.
+
+        Args:
+            deployment_id: the deployment ID of interest
+
+        Returns:
+            a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
+        """
+        try:
+            response = self._client.get(f"/deployments/{deployment_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return DeploymentResponse.model_validate(response.json())

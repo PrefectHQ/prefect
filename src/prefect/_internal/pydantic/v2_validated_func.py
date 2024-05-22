@@ -1,8 +1,8 @@
 """
-This module contains an implementation of pydantic v1's ValidateFunction 
+This module contains an implementation of pydantic v1's ValidateFunction
 modified to validate function arguments and return a pydantic v2 model.
 
-Specifically it allows for us to validate v2 models used as flow/task 
+Specifically it allows for us to validate v2 models used as flow/task
 arguments.
 """
 
