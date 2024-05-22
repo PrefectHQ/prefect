@@ -1,8 +1,16 @@
 import pytest
 
 # Import the local 'tests' module to pickle to ray workers
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
+
+
+# these tests don't work with the new engine
+@pytest.fixture(autouse=True)
+def set_new_engine_setting():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: False}):
+        yield
 
 
 @pytest.fixture

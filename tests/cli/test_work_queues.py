@@ -5,10 +5,9 @@ import pytest
 import prefect.exceptions
 from prefect import flow
 from prefect.testing.cli import invoke_and_assert
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
-@sync_compatible
 async def read_queue(prefect_client, name, pool=None):
     return await prefect_client.read_work_queue_by_name(name=name, work_pool_name=pool)
 
@@ -45,18 +44,19 @@ class TestCreateWorkQueue:
             expected_code=0,
         )
 
-    def test_create_work_queue_with_pool(
+    async def test_create_work_queue_with_pool(
         self,
         prefect_client,
         work_pool,
     ):
         queue_name = "q-name"
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue create {queue_name} -p {work_pool.name}",
             expected_code=0,
         )
 
-        queue = read_queue(
+        queue = await read_queue(
             prefect_client,
             name=queue_name,
             pool=work_pool.name,
@@ -77,14 +77,15 @@ class TestCreateWorkQueue:
             in res.output
         )
 
-    def test_create_work_queue_with_priority(
+    async def test_create_work_queue_with_priority(
         self,
         prefect_client,
         work_pool,
     ):
         queue_name = "q-name"
         queue_priority = 1
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=(
                 f"work-queue create {queue_name} -p {work_pool.name} -q"
                 f" {queue_priority}"
@@ -92,7 +93,7 @@ class TestCreateWorkQueue:
             expected_code=0,
         )
 
-        queue = read_queue(
+        queue = await read_queue(
             prefect_client,
             name=queue_name,
             pool=work_pool.name,
@@ -101,14 +102,17 @@ class TestCreateWorkQueue:
         assert queue.name == queue_name
         assert queue.priority == queue_priority
 
-    def test_create_work_queue_without_pool_uses_default_pool(self, prefect_client):
+    async def test_create_work_queue_without_pool_uses_default_pool(
+        self, prefect_client
+    ):
         queue_name = "q-name"
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue create {queue_name}",
             expected_code=0,
         )
 
-        queue = read_queue(
+        queue = await read_queue(
             prefect_client,
             name=queue_name,
         )
@@ -128,25 +132,27 @@ class TestCreateWorkQueue:
 
 
 class TestSetConcurrencyLimit:
-    def test_set_concurrency_limit(self, prefect_client, work_queue):
+    async def test_set_concurrency_limit(self, prefect_client, work_queue):
         assert work_queue.concurrency_limit is None
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue set-concurrency-limit {work_queue.name} 5",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert q.concurrency_limit == 5
 
-    def test_set_concurrency_limit_by_id(self, prefect_client, work_queue):
+    async def test_set_concurrency_limit_by_id(self, prefect_client, work_queue):
         assert work_queue.concurrency_limit is None
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue set-concurrency-limit {work_queue.id} 5",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert q.concurrency_limit == 5
 
-    def test_set_concurrency_limit_with_pool_with_name(
+    async def test_set_concurrency_limit_with_pool_with_name(
         self,
         prefect_client,
         work_queue_1,
@@ -156,11 +162,12 @@ class TestSetConcurrencyLimit:
             f"work-queue set-concurrency-limit {work_queue_1.name} 5 "
             f"-p {work_queue_1.work_pool.name}"
         )
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=cmd,
             expected_code=0,
         )
-        q = read_queue(
+        q = await read_queue(
             prefect_client, work_queue_1.name, pool=work_queue_1.work_pool.name
         )
         assert q.concurrency_limit == 5
@@ -192,27 +199,31 @@ class TestSetConcurrencyLimit:
 
 
 class TestClearConcurrencyLimit:
-    def test_clear_concurrency_limit(self, prefect_client, work_queue):
-        invoke_and_assert(
-            command=f"work-queue set-concurrency-limit {work_queue.name} 5"
+    async def test_clear_concurrency_limit(self, prefect_client, work_queue):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"work-queue set-concurrency-limit {work_queue.name} 5",
         )
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue clear-concurrency-limit {work_queue.name}",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert q.concurrency_limit is None
 
-    def test_clear_concurrency_limit_by_id(self, prefect_client, work_queue):
-        invoke_and_assert(
-            command=f"work-queue set-concurrency-limit {work_queue.name} 5"
+    async def test_clear_concurrency_limit_by_id(self, prefect_client, work_queue):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"work-queue set-concurrency-limit {work_queue.name} 5",
         )
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue clear-concurrency-limit {work_queue.id}",
             expected_code=0,
         )
 
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert q.concurrency_limit is None
 
     async def test_clear_concurrency_limit_with_pool(
@@ -269,36 +280,39 @@ class TestClearConcurrencyLimit:
 
 
 class TestPauseWorkQueue:
-    def test_pause(self, prefect_client, work_queue):
+    async def test_pause(self, prefect_client, work_queue):
         assert not work_queue.is_paused
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue pause {work_queue.name} --pool default-agent-pool",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert q.is_paused
 
-    def test_pause_by_id(self, prefect_client, work_queue):
+    async def test_pause_by_id(self, prefect_client, work_queue):
         assert not work_queue.is_paused
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue pause {work_queue.id} --pool default-agent-pool",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert q.is_paused
 
-    def test_pause_with_pool(
+    async def test_pause_with_pool(
         self,
         prefect_client,
         work_queue_1,
     ):
         assert not work_queue_1.is_paused
         cmd = f"work-queue pause {work_queue_1.name} -p {work_queue_1.work_pool.name}"
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=cmd,
             expected_code=0,
         )
-        q = read_queue(
+        q = await read_queue(
             prefect_client,
             name=work_queue_1.name,
             pool=work_queue_1.work_pool.name,
@@ -336,55 +350,61 @@ class TestPauseWorkQueue:
             expected_code=1,
         )
 
-    def test_pause_without_specifying_pool_name_with_confirmation(
+    async def test_pause_without_specifying_pool_name_with_confirmation(
         self,
         prefect_client,
         work_queue,
     ):
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue pause {work_queue.name}",
             user_input="Y",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert q.is_paused
 
-    def test_pause_without_specifying_pool_name_with_abort(
+    async def test_pause_without_specifying_pool_name_with_abort(
         self,
         prefect_client,
         work_queue,
     ):
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue pause {work_queue.name}",
             user_input="N",
             expected_code=1,
             expected_output_contains="Work queue pause aborted!",
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert not q.is_paused
 
 
 class TestResumeWorkQueue:
-    def test_resume(self, prefect_client, work_queue):
-        invoke_and_assert(
-            command=f"work-queue pause {work_queue.name} --pool default-agent-pool"
+    async def test_resume(self, prefect_client, work_queue):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"work-queue pause {work_queue.name} --pool default-agent-pool",
         )
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue resume {work_queue.name}",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert not q.is_paused
 
-    def test_resume_by_id(self, prefect_client, work_queue):
-        invoke_and_assert(
-            command=f"work-queue pause {work_queue.name} --pool default-agent-pool"
+    async def test_resume_by_id(self, prefect_client, work_queue):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"work-queue pause {work_queue.name} --pool default-agent-pool",
         )
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue resume {work_queue.id}",
             expected_code=0,
         )
-        q = read_queue(prefect_client, work_queue.name)
+        q = await read_queue(prefect_client, work_queue.name)
         assert not q.is_paused
 
     async def test_resume_with_pool(
@@ -500,56 +520,61 @@ class TestInspectWorkQueue:
 
 
 class TestDelete:
-    def test_delete(self, prefect_client, work_queue):
-        invoke_and_assert(
+    async def test_delete(self, prefect_client, work_queue):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue delete {work_queue.name}",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
-            read_queue(prefect_client, work_queue.name)
+            await read_queue(prefect_client, work_queue.name)
 
-    def test_delete_by_id(self, prefect_client, work_queue):
-        invoke_and_assert(
+    async def test_delete_by_id(self, prefect_client, work_queue):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue delete {work_queue.id}",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
-            read_queue(prefect_client, work_queue.name)
+            await read_queue(prefect_client, work_queue.name)
 
-    def test_delete_with_pool(
+    async def test_delete_with_pool(
         self,
         prefect_client,
         work_queue_1,
     ):
         pool_name = work_queue_1.work_pool.name
         cmd = f"work-queue delete {work_queue_1.name} -p {pool_name}"
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=cmd,
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
-            read_queue(prefect_client, work_queue_1.name, pool=pool_name)
+            await read_queue(prefect_client, work_queue_1.name, pool=pool_name)
 
     # Tests all of the above, but with bad input
-    def test_delete_with_bad_pool(
+    async def test_delete_with_bad_pool(
         self,
         prefect_client,
         work_queue_1,
     ):
         pool_name = work_queue_1.work_pool.name
         cmd = f"work-queue delete {work_queue_1.name} -p {pool_name}bad"
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=cmd,
             expected_code=1,
         )
-        assert read_queue(prefect_client, work_queue_1.name, pool=pool_name)
+        assert await read_queue(prefect_client, work_queue_1.name, pool=pool_name)
 
-    def test_delete_with_bad_queue_name(self, prefect_client, work_queue):
-        invoke_and_assert(
+    async def test_delete_with_bad_queue_name(self, prefect_client, work_queue):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=f"work-queue delete {work_queue.name}bad",
             expected_code=1,
         )
-        assert read_queue(prefect_client, work_queue.name)
+        assert await read_queue(prefect_client, work_queue.name)
 
 
 class TestPreview:
@@ -650,7 +675,6 @@ class TestLS:
 
 
 class TestReadRuns:
-    @sync_compatible
     async def create_runs_in_queue(self, prefect_client, queue, count: int):
         foo = flow(lambda: None, name="foo")
         flow_id = await prefect_client.create_flow(foo)
@@ -663,20 +687,24 @@ class TestReadRuns:
         for _ in range(count):
             await prefect_client.create_flow_run_from_deployment(deployment_id)
 
-    def test_read_wq(self, prefect_client, work_queue):
+    async def test_read_wq(self, prefect_client, work_queue):
         n_runs = 3
-        self.create_runs_in_queue(prefect_client, work_queue, n_runs)
+        await self.create_runs_in_queue(prefect_client, work_queue, n_runs)
         cmd = f"work-queue read-runs {work_queue.name}"
-        result = invoke_and_assert(command=cmd, expected_code=0)
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert, command=cmd, expected_code=0
+        )
         assert f"Read {n_runs} runs for work queue" in result.output
 
-    def test_read_wq_with_pool(self, prefect_client, work_queue):
+    async def test_read_wq_with_pool(self, prefect_client, work_queue):
         n_runs = 3
-        self.create_runs_in_queue(prefect_client, work_queue, n_runs)
+        await self.create_runs_in_queue(prefect_client, work_queue, n_runs)
         cmd = (
             f"work-queue read-runs --pool {work_queue.work_pool.name} {work_queue.name}"
         )
-        result = invoke_and_assert(command=cmd, expected_code=0)
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert, command=cmd, expected_code=0
+        )
         assert f"Read {n_runs} runs for work queue" in result.output
 
     def test_read_missing_wq(self, work_queue):
