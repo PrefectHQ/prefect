@@ -94,9 +94,88 @@ def test_delete_variable_doesnt_exist():
     )
 
 
+def test_get_variable(variable):
+    invoke_and_assert(
+        ["variable", "get", variable.name],
+        expected_output_contains=variable.value,
+        expected_code=0,
+    )
+
+
+def test_get_variable_doesnt_exist(variable):
+    invoke_and_assert(
+        ["variable", "get", "doesnt_exist"],
+        expected_output_contains="Variable 'doesnt_exist' not found",
+        expected_code=1,
+    )
+
+
+def test_set_variable():
+    invoke_and_assert(
+        [
+            "variable",
+            "set",
+            "my_variable",
+            "my-value",
+            "--tag",
+            "tag1",
+            "--tag",
+            "tag2",
+        ],
+        expected_output_contains="Set variable 'my_variable'.",
+        expected_code=0,
+    )
+    invoke_and_assert(
+        ["variable", "inspect", "my_variable"],
+        expected_output_contains=[
+            "name='my_variable'",
+            "value='my-value'",
+            "tags=['tag1', 'tag2']",
+        ],
+        expected_code=0,
+    )
+
+
+def test_set_existing_variable_without_overwrite(variable):
+    invoke_and_assert(
+        ["variable", "set", variable.name, "new-value"],
+        expected_output_contains="already exists. Use `--overwrite` to update it.",
+        expected_code=1,
+    )
+
+
+def test_set_overwrite_variable(variable):
+    invoke_and_assert(
+        ["variable", "set", variable.name, "new-value", "--overwrite"],
+        expected_output_contains=f"Set variable {variable.name!r}",
+        expected_code=0,
+    )
+    invoke_and_assert(
+        ["variable", "get", variable.name],
+        expected_output_contains="new-value",
+        expected_code=0,
+    )
+
+
+def test_unset_variable_doesnt_exist():
+    invoke_and_assert(
+        ["variable", "unset", "doesnt_exist"],
+        expected_output_contains="Variable 'doesnt_exist' not found",
+        expected_code=1,
+    )
+
+
+def test_unset_variable(variable):
+    invoke_and_assert(
+        ["variable", "unset", variable.name],
+        expected_output_contains=f"Unset variable {variable.name!r}.",
+        expected_code=0,
+    )
+
+
 def test_delete_variable(variable):
     invoke_and_assert(
         ["variable", "delete", variable.name],
-        expected_output_contains=f"Deleted variable {variable.name!r}.",
+        expected_output_contains=f"Unset variable {variable.name!r}.",
         expected_code=0,
     )
