@@ -115,7 +115,10 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
         """
         token = RUN_ASYNC_FLAG.set(True)
         try:
-            result = await coroutine
+            if inspect.iscoroutine(coroutine):
+                result = await coroutine
+            else:
+                result = coroutine
         finally:
             RUN_ASYNC_FLAG.reset(token)
         return result

@@ -43,7 +43,6 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
-    field_validator,
     model_validator,
 )
 from rich.console import Console
@@ -231,14 +230,14 @@ class RunnerDeployment(BaseModel):
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
 
-    @field_validator("triggers")
-    def validate_automation_names(cls, field_value, values):
+    @model_validator(mode="after")
+    def validate_automation_names(self):
         """Ensure that each trigger has a name for its automation if none is provided."""
         trigger: Union[DeploymentTriggerTypes, TriggerTypes]
-        for i, trigger in enumerate(field_value, start=1):
+        for i, trigger in enumerate(self.triggers, start=1):
             if trigger.name is None:
-                trigger.name = f"{values['name']}__automation_{i}"
-        return field_value
+                trigger.name = f"{self.name}__automation_{i}"
+        return self
 
     @model_validator(mode="before")
     @classmethod

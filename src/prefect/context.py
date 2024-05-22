@@ -71,7 +71,10 @@ class ContextModel(BaseModel):
     # The context variable for storing data must be defined by the child class
     __var__: ContextVar
     _token: Optional[Token] = PrivateAttr(None)
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        extra="forbid",
+    )
 
     def __enter__(self):
         if self._token is not None:

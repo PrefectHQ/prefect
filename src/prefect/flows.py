@@ -39,7 +39,6 @@ from uuid import UUID
 
 import pydantic
 from fastapi.encoders import jsonable_encoder
-from pydantic import ValidationError as V2ValidationError
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from rich.console import Console
@@ -52,7 +51,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.client.utilities import inject_client
+from prefect.client.utilities import client_injector
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
 from prefect.deployments.steps.core import run_steps
@@ -593,10 +592,10 @@ class Flow(Generic[P, R]):
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
-            raise ParameterTypeError.from_validation_error(exc) from None
-        except V2ValidationError as exc:
-            # We capture the pydantic exception and raise our own because the pydantic
-            # exception is not picklable when using a cythonized pydantic installation
+            logger.error(
+                f"Parameter validation failed for flow {self.name!r}: {exc.errors()}"
+                f"\nParameters: {parameters}"
+            )
             raise ParameterTypeError.from_validation_error(exc) from None
 
         # Get the updated parameter dict with cast values from the model
@@ -1840,10 +1839,10 @@ async def serve(
     await runner.start()
 
 
-@inject_client
+@client_injector
 async def load_flow_from_flow_run(
-    flow_run: "FlowRun",
     client: "PrefectClient",
+    flow_run: "FlowRun",
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
 ) -> "Flow":
