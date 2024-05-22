@@ -132,6 +132,9 @@ def test_sync_result_does_not_raise_warning():
     def foo():
         return 1
 
-    state = foo(return_state=True)
-    result = state.result()
-    assert result == 1
+    @flow
+    def sync():
+        state = foo(return_state=True)
+        return state.result()
+
+    assert sync() == 1

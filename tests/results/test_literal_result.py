@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from prefect import flow
 from prefect.results import BaseResult, LiteralResult
 
 LITERAL_VALUES = [True, False, None]
@@ -15,8 +16,12 @@ async def test_result_literal_create_and_get(value):
 
 @pytest.mark.parametrize("value", LITERAL_VALUES)
 def test_result_literal_create_and_get_sync(value):
-    result = LiteralResult.create(value)
-    assert result.get() == value
+    @flow
+    def sync():
+        result = LiteralResult.create(value)
+        return result.get()
+
+    assert sync() == value
 
 
 @pytest.mark.parametrize("value", LITERAL_VALUES)

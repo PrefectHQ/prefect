@@ -333,14 +333,16 @@ class TestFlowVisualise:
             ),
         ],
     )
-    def test_visualize_graph_contents(self, test_flow, expected_nodes, monkeypatch):
+    async def test_visualize_graph_contents(
+        self, test_flow, expected_nodes, monkeypatch
+    ):
         mock_visualize = MagicMock(return_value=None)
         monkeypatch.setattr(
             "prefect.utilities.visualization.visualize_task_dependencies",
             mock_visualize,
         )
 
-        test_flow.visualize()
+        await test_flow.visualize()
         graph = mock_visualize.call_args[0][0]
 
         actual_nodes = set(graph.body)

@@ -19,6 +19,7 @@ process = subprocess.run(
     [
         "pytest",
         "--no-cov",
+        "--timeout=180",
         # TODO: These should be overridable
         "--benchmark-group-by=func",
         "--benchmark-columns=mean,stddev,min,max,rounds",

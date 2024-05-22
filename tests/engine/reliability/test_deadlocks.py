@@ -8,6 +8,7 @@ from tests.generic_tasks import (
 )
 
 from prefect import flow
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 
 
 @pytest.mark.skip(reason="This test takes multiple minutes")
@@ -45,7 +46,10 @@ def test_sleep_wait_for():
 async def test_async_task_as_dependency():
     @flow
     async def run():
-        multiplied = await async_multiply_by_two.submit(42)
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+            multiplied = await async_multiply_by_two(42)
+        else:
+            multiplied = await async_multiply_by_two.submit(42)
         add_one(multiplied)
 
     await run()

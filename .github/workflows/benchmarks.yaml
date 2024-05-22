@@ -29,7 +29,8 @@ jobs:
     name: Benchmark
     # Runs with ephemeral API and SQLite database right now
 
-    runs-on: ubuntu-latest
+    runs-on:
+      group: oss-larger-runners
     timeout-minutes: 20
 
     steps:
@@ -99,5 +100,6 @@ jobs:
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           python benches \
+          --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}

@@ -12,7 +12,6 @@ import textwrap
 import time
 from functools import partial
 from string import Template
-from typing import List
 
 import anyio
 import typer
@@ -205,12 +204,6 @@ async def api(
 async def start(
     exclude_api: bool = typer.Option(False, "--no-api"),
     exclude_ui: bool = typer.Option(False, "--no-ui"),
-    work_queues: List[str] = typer.Option(
-        ["default"],
-        "-q",
-        "--work-queue",
-        help="One or more work queue names for the dev agent to pull from.",
-    ),
 ):
     """
     Starts a hot-reloading development server with API, UI, and agent processes.
@@ -222,13 +215,16 @@ async def start(
         if not exclude_api:
             tg.start_soon(
                 partial(
-                    api,
+                    # CLI commands are wrapped in sync_compatible, but this
+                    # task group is async, so we need use the wrapped function
+                    # directly
+                    api.aio,
                     host=PREFECT_SERVER_API_HOST.value(),
                     port=PREFECT_SERVER_API_PORT.value(),
                 )
             )
         if not exclude_ui:
-            tg.start_soon(ui)
+            tg.start_soon(ui.aio)
 
 
 @dev_app.command()

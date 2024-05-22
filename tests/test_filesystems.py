@@ -52,11 +52,11 @@ class TestLocalFileSystem:
         assert path.endswith("test.txt")
         assert await fs.read_path("test.txt") == b"hello"
 
-    def test_read_write_roundtrip_sync(self, tmp_path):
+    async def test_read_write_roundtrip_sync(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
-        path: str = fs.write_path("test.txt", content=b"hello")
+        path: str = await fs.write_path("test.txt", content=b"hello")
         assert path.endswith("test.txt")
-        assert fs.read_path("test.txt") == b"hello"
+        assert await fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_creates(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
@@ -244,11 +244,11 @@ class TestRemoteFileSystem:
         assert path.endswith("test.txt")
         assert await fs.read_path("test.txt") == b"hello"
 
-    def test_read_write_roundtrip_sync(self):
+    async def test_read_write_roundtrip_sync(self):
         fs = RemoteFileSystem(basepath="memory://root")
-        path: str = fs.write_path("test.txt", content=b"hello")
+        path: str = await fs.write_path("test.txt", content=b"hello")
         assert path.endswith("test.txt")
-        assert fs.read_path("test.txt") == b"hello"
+        assert await fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_succeeds(self):
         fs = RemoteFileSystem(basepath="memory://root/")
