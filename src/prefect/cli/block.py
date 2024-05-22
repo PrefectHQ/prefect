@@ -375,9 +375,6 @@ async def blocktype_inspect(
     """
     Display details about a block type.
     """
-    print()
-    print(slug)
-    print()
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
