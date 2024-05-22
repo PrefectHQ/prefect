@@ -213,8 +213,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if self.sqlalchemy_max_overflow is not None:
                 kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
-            connect_args["statement_cache_size"] = 0
-
             engine = create_async_engine(
                 self.connection_url,
                 echo=self.echo,
