@@ -83,7 +83,6 @@ async def test_task_timeout_deadline_is_reset_on_retry():
     async def sleep_task():
         nonlocal run_count
         run_count += 1
-        print(run_count)
 
         # Task should timeout 2 times then succeed on the third run
         if run_count < 3:
