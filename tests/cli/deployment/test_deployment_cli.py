@@ -570,7 +570,7 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00+00:00'"],
+            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00Z'"],
         )
 
     @pytest.mark.parametrize(
