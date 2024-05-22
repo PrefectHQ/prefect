@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import re
@@ -11,7 +12,7 @@ import anyio.abc
 import kubernetes_asyncio
 import pendulum
 import pytest
-from kubernetes_asyncio.client import BatchV1Api, CoreV1Api
+from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (
     CoreV1Event,
@@ -109,7 +110,10 @@ def mock_job():
 def mock_core_client(monkeypatch, mock_cluster_config):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     mock.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
-
+    monkeypatch.setattr(
+        "prefect_kubernetes.worker.KubernetesWorker._get_configured_kubernetes_client",
+        MagicMock(spec=ApiClient),
+    )
     monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
     return mock
 
@@ -137,7 +141,7 @@ async def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
 
     for item in stream:
         # Simulate an asynchronous wait, e.g., waiting for API response or similar
-        # await asyncio.sleep(1)
+        await asyncio.sleep(1)
         yield item
 
 
@@ -1234,7 +1238,13 @@ class TestKubernetesWorker:
         mock_core_client,
         mock_watch,
     ):
-        mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+        async def mock_stream(*args, **kwargs):
+            async for event in _mock_pods_stream_that_returns_running_pod(
+                *args, **kwargs
+            ):
+                yield event
+
+        mock_watch.stream = mock_stream
         default_configuration.prepare_for_flow_run(flow_run)
         expected_manifest = default_configuration.job_manifest
 
