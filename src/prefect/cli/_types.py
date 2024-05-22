@@ -118,6 +118,7 @@ class PrefectTyper(typer.Typer):
 
     def command(
         self,
+        name: Optional[str] = None,
         *args,
         aliases: List[str] = None,
         deprecated: bool = False,
@@ -153,7 +154,9 @@ class PrefectTyper(typer.Typer):
                 fn = with_deprecated_message(self.deprecated_message)(fn)
 
             # register fn with its original name
-            command_decorator = super(PrefectTyper, self).command(*args, **kwargs)
+            command_decorator = super(PrefectTyper, self).command(
+                name=name, *args, **kwargs
+            )
             original_command = command_decorator(fn)
 
             # register fn for each alias, e.g. @marvin_app.command(aliases=["r"])
