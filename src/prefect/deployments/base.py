@@ -19,7 +19,7 @@ import anyio
 import yaml
 from ruamel.yaml import YAML
 
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
@@ -268,7 +268,7 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedules"):
         schedules = []
         for deployment_schedule in cast(
-            List[MinimalDeploymentSchedule], deployment["schedules"]
+            List[DeploymentScheduleCreate], deployment["schedules"]
         ):
             if isinstance(deployment_schedule.schedule, IntervalSchedule):
                 schedule_config = _interval_schedule_to_dict(
