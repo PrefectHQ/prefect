@@ -33,7 +33,6 @@ from pydantic import (
     SecretBytes,
     SecretStr,
     ValidationError,
-    model_serializer,
 )
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, get_args
@@ -59,6 +58,8 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
+    from pydantic.main import IncEx
+
     from prefect.client.orchestration import PrefectClient
 
 R = TypeVar("R")
@@ -1034,13 +1035,6 @@ class Block(BaseModel, ABC):
 
         await client.delete_block_document(block_document.id)
 
-    @model_serializer(mode="wrap")
-    def serialize(self, handler) -> Dict[str, Any]:
-        # Injects the `block_type_slug` into serialized payloads for dispatch
-        v = handler(self)
-        v["block_type_slug"] = self.get_block_type_slug()
-        return v
-
     def __new__(cls: Type[Self], **kwargs) -> Self:
         """
         Create an instance of the Block subclass type if a `block_type_slug` is
@@ -1091,3 +1085,16 @@ class Block(BaseModel, ABC):
         if "$defs" in schema:
             schema["definitions"] = schema.pop("$defs")
         return schema
+
+    def model_dump(
+        self, *, include: "IncEx" = None, exclude: "IncEx" = None, **kwargs
+    ) -> Dict[str, Any]:
+        v = super().model_dump(include=include, exclude=exclude, **kwargs)
+
+        if include is not None and "block_type_slug" not in include:
+            return v
+        if exclude is not None and "block_type_slug" in exclude:
+            return v
+
+        v["block_type_slug"] = self.get_block_type_slug()
+        return v
