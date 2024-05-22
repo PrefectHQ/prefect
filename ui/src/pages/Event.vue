@@ -1,5 +1,5 @@
 <template>
-  <p-layout-default v-if="event" class="workspace-event">
+  <p-layout-default v-if="event" class="event">
     <template #header>
       <PageHeading :crumbs="crumbs">
         <template #actions>

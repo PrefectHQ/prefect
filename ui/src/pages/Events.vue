@@ -1,11 +1,11 @@
 <template>
-  <p-layout-default v-if="startDate && endDate" class="workspace-events">
+  <p-layout-default v-if="startDate && endDate" class="events">
     <template #header>
       <PageHeading :crumbs="crumbs" />
     </template>
 
-    <div class="workspace-events__content">
-      <div class="workspace-events__filters">
+    <div class="events__content">
+      <div class="events__filters">
         <p-label label="Resource">
           <template #default="{ id }">
             <EventResourceCombobox :id v-model:selected="resources" multiple />
@@ -19,9 +19,9 @@
         </p-label>
       </div>
 
-      <div ref="chart" class="workspace-events__chart p-background" :class="classes.chart">
+      <div ref="chart" class="events__chart p-background" :class="classes.chart">
         <WorkspaceEventsLineChart v-model:start-date="startDate" v-model:end-date="endDate" :filter :zoom-options />
-        <div class="workspace-events__controls">
+        <div class="events__controls">
           <DateRangeSelect v-model="dateRange.range" :max="now" />
         </div>
       </div>
@@ -43,13 +43,13 @@
           </p-empty-results>
         </template>
 
-        <WorkspaceEventsTimeline class="workspace-events__timeline" :events :start-date :end-date />
+        <WorkspaceEventsTimeline class="events__timeline" :events :start-date :end-date />
 
         <p-pager
           v-if="events.length"
           v-model:page="page"
           v-model:pages="pages"
-          class="workspace-events__pager"
+          class="events__pager"
         />
       </template>
     </div>
@@ -141,7 +141,7 @@
   const { stuck } = usePositionStickyObserver(chart, stickyObserverOptions)
   const classes = computed(() => ({
     chart: {
-      'workspace-events__chart--stuck': stuck.value,
+      'events__chart--stuck': stuck.value,
     },
   }))
 
@@ -190,13 +190,13 @@
 </script>
 
 <style>
-.workspace-events__content { @apply
+.events__content { @apply
   grid
   gap-1
   grid-cols-1
 }
 
-.workspace-events__filters { @apply
+.events__filters { @apply
   flex
   flex-col
   gap-4
@@ -204,7 +204,7 @@
   mb-7
 }
 
-.workspace-events__chart { @apply
+.events__chart { @apply
   sticky
   top-0
   z-10
@@ -215,7 +215,7 @@
   rounded-t-default
 }
 
-.workspace-events__chart--stuck { @apply
+.events__chart--stuck { @apply
   bg-floating-sticky
   backdrop-blur-sm
   shadow-md
@@ -223,17 +223,17 @@
   rounded-b-default
 }
 
-.workspace-events__controls { @apply
+.events__controls { @apply
   flex
   justify-center
   p-3
 }
 
-.workspace-events__timeline { @apply
+.events__timeline { @apply
   mt-7
 }
 
-.workspace-events__pager { @apply
+.events__pager { @apply
   mt-4
 }
 </style>
