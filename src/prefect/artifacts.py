@@ -372,13 +372,18 @@ async def update_progress_artifact(
         description=description,
         progress=progress,
     )
+    update = (
+        ArtifactUpdate(
+            description=artifact.description,
+            data=await artifact.format(),
+        )
+        if description
+        else ArtifactUpdate(data=await artifact.format())
+    )
 
     await client.update_artifact(
         artifact_id=artifact_id,
-        artifact=ArtifactUpdate(
-            description=artifact.description,
-            data=await artifact.format(),
-        ),
+        artifact=update,
     )
 
     return artifact_id
