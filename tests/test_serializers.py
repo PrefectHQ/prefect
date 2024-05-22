@@ -77,7 +77,7 @@ class TestBaseSerializer:
 
     def test_serializers_do_not_allow_extra_fields(self):
         class Foo(Serializer):
-            type = "foo"
+            type: str = "foo"
 
             def dumps(self, obj):
                 pass
@@ -93,7 +93,7 @@ class TestBaseSerializer:
             serializer: Serializer
 
         class Bar(Serializer):
-            type = "bar"
+            type: str = "bar"
 
             def dumps(self, obj):
                 pass
@@ -109,7 +109,7 @@ class TestBaseSerializer:
             serializer: Serializer
 
         class Bar(Serializer):
-            type = "bar"
+            type: str = "bar"
 
             def dumps(self, obj):
                 pass
@@ -131,7 +131,7 @@ class TestBaseSerializer:
                 return value
 
         class Bar(Serializer):
-            type = "bar"
+            type: str = "bar"
 
             def dumps(self, obj):
                 pass

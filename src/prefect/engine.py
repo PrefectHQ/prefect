@@ -820,6 +820,7 @@ async def orchestrate_flow_run(
                         "flow": flow,
                         "client": client,
                         "parameters": parameters,
+                        "result_factory": partial_flow_run_context.result_factory,
                     },
                 }
             ) as flow_run_context:
@@ -1900,11 +1901,10 @@ async def orchestrate_task_run(
         flow_run = await client.read_flow_run(task_run.flow_run_id)
     logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
-    partial_task_run_context = TaskRunContext.construct(
+    partial_task_run_context = TaskRunContext.model_construct(
         task_run=task_run,
         task=task,
         client=client,
-        result_factory=result_factory,
         log_prints=log_prints,
     )
     task_introspection_start_time = time.perf_counter()
@@ -1942,7 +1942,9 @@ async def orchestrate_task_run(
     # The cache key uses a TaskRunContext that does not include a `timeout_context``
 
     task_run_context = TaskRunContext(
-        **partial_task_run_context.model_dump(), parameters=resolved_parameters
+        **partial_task_run_context.model_dump(),
+        parameters=resolved_parameters,
+        result_factory=result_factory,
     )
 
     cache_key = (

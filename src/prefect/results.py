@@ -477,6 +477,8 @@ class ResultFactory(BaseModel):
 
 @register_base_type
 class BaseResult(BaseModel, abc.ABC, Generic[R]):
+    model_config = ConfigDict(extra="forbid")
+
     type: str
     artifact_type: Optional[str] = None
     artifact_description: Optional[str] = None
@@ -517,8 +519,6 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         **kwargs: Any,
     ) -> "BaseResult[R]":
         ...
-
-    model_config = ConfigDict(extra="forbid")
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):
@@ -680,7 +680,6 @@ class PersistedResult(BaseResult):
             raise TypeError(
                 f"Expected type 'str' for result storage key; got value {key!r}"
             )
-
         await storage_block.write_path(key, content=blob.to_bytes())
 
         description = f"Result of type `{type(obj).__name__}`"
