@@ -432,7 +432,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     with a correct base_job_template when creating a new work pool"""
 
     class WorkerJobConfig(BaseJobConfiguration):
-        other: Optional[str] = Field(template="{{other}}")
+        other: Optional[str] = Field(template="{{ other }}")
 
     # Add a job configuration for the worker (currently used to create template
     # if not found on the worker pool)
@@ -449,7 +449,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         "variables": {
             "properties": {
                 "command": {
-                    "type": "string",
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
                     "title": "Command",
                     "description": (
                         "The command to use when starting a flow run. "
@@ -460,7 +461,9 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                 "env": {
                     "title": "Environment Variables",
                     "type": "object",
-                    "additionalProperties": {"type": "string"},
+                    "additionalProperties": {
+                        "anyOf": [{"type": "string"}, {"type": "null"}]
+                    },
                     "description": (
                         "Environment variables to set when starting a flow run."
                     ),
@@ -475,15 +478,20 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     ),
                 },
                 "name": {
-                    "type": "string",
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
                         "job configuration."
                     ),
                 },
-                "other": {"type": "string", "title": "Other"},
+                "other": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "title": "Other",
+                },
             },
+            "required": ["other"],
             "type": "object",
         },
     }
@@ -1146,8 +1154,9 @@ class TestWorkerProperties:
             "variables": {
                 "properties": {
                     "command": {
-                        "type": "string",
+                        "anyOf": [{"type": "string"}, {"type": "null"}],
                         "title": "Command",
+                        "default": None,
                         "description": (
                             "The command to use when starting a flow run. "
                             "In most cases, this should be left blank and the command "
@@ -1157,7 +1166,9 @@ class TestWorkerProperties:
                     "env": {
                         "title": "Environment Variables",
                         "type": "object",
-                        "additionalProperties": {"type": "string"},
+                        "additionalProperties": {
+                            "anyOf": [{"type": "string"}, {"type": "null"}]
+                        },
                         "description": (
                             "Environment variables to set when starting a flow run."
                         ),
@@ -1172,8 +1183,9 @@ class TestWorkerProperties:
                         ),
                     },
                     "name": {
-                        "type": "string",
+                        "anyOf": [{"type": "string"}, {"type": "null"}],
                         "title": "Name",
+                        "default": None,
                         "description": (
                             "Name given to infrastructure created by the worker using "
                             "this job configuration."
@@ -1269,7 +1281,8 @@ class TestWorkerProperties:
                     "properties": {
                         "command": {
                             "title": "Command",
-                            "type": "string",
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "default": None,
                             "description": (
                                 "The command to use when starting a flow run. "
                                 "In most cases, this should be left blank and the command "
@@ -1279,7 +1292,9 @@ class TestWorkerProperties:
                         "env": {
                             "title": "Environment Variables",
                             "type": "object",
-                            "additionalProperties": {"type": "string"},
+                            "additionalProperties": {
+                                "anyOf": [{"type": "string"}, {"type": "null"}]
+                            },
                             "description": (
                                 "Environment variables to set when starting a flow run."
                             ),
@@ -1294,7 +1309,8 @@ class TestWorkerProperties:
                         },
                         "name": {
                             "title": "Name",
-                            "type": "string",
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "default": None,
                             "description": (
                                 "Name given to infrastructure created by a worker."
                             ),
