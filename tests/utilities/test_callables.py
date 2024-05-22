@@ -21,6 +21,8 @@ class TestFunctionToSchema:
             "properties": {},
             "title": "Parameters",
             "type": "object",
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_pydantic_base_model_collisions(self):
@@ -69,6 +71,7 @@ class TestFunctionToSchema:
                 "validate",
                 "foo",
             ],
+            "definitions": {},
         }
 
     def test_function_with_one_required_argument(self):
@@ -81,6 +84,7 @@ class TestFunctionToSchema:
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_one_optional_argument(self):
@@ -91,7 +95,9 @@ class TestFunctionToSchema:
         assert schema.model_dump() == {
             "title": "Parameters",
             "type": "object",
-            "properties": {"x": {"title": "x", "default": 42, "position": 0}},
+            "properties": {"x": {"default": 42, "position": 0, "title": "x"}},
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_one_optional_annotated_argument(self):
@@ -103,8 +109,15 @@ class TestFunctionToSchema:
             "title": "Parameters",
             "type": "object",
             "properties": {
-                "x": {"title": "x", "default": 42, "type": "integer", "position": 0}
+                "x": {
+                    "default": 42,
+                    "position": 0,
+                    "title": "x",
+                    "type": "integer",
+                }
             },
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_two_arguments(self):
@@ -120,6 +133,7 @@ class TestFunctionToSchema:
                 "y": {"title": "y", "default": 5.0, "type": "number", "position": 1},
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_datetime_arguments(self):
@@ -657,6 +671,7 @@ class TestParseFlowDescriptionToSchema:
                 },
             },
             "required": ["x", "y"],
+            "definitions": {},
         }
 
 
