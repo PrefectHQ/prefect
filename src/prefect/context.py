@@ -48,7 +48,7 @@ from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
 from prefect.new_task_runners import TaskRunner
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_HOME, Profile, Settings, temporary_settings
+from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.asyncutils import run_sync
@@ -123,11 +123,11 @@ def hydrated_context(
                 )
                 stack.enter_context(task_run_context)
             # Set up tags context
-            if tags_context := serialized_context.get("tags"):
+            if tags_context := serialized_context.get("tags_context"):
                 stack.enter_context(tags(*tags_context["current_tags"]))
             # Set up settings context
-            if settings_context := serialized_context.get("settings"):
-                stack.enter_context(temporary_settings(**settings_context))
+            if settings_context := serialized_context.get("settings_context"):
+                stack.enter_context(SettingsContext(**settings_context))
         yield
 
 
