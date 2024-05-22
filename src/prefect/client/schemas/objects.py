@@ -14,7 +14,16 @@ from uuid import UUID
 
 import orjson
 import pendulum
-from pydantic.v1 import Field, HttpUrl, root_validator, validator
+from pydantic.v1 import (
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import (
@@ -1478,11 +1487,12 @@ class Variable(ObjectBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: Union[
+        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=...,
         description="The value of the variable",
         examples=["my_value"],
-        max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
