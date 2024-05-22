@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 from unittest.mock import MagicMock, call
 
 import anyio
@@ -38,8 +38,8 @@ from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
 
 
 class WorkerTestImpl(BaseWorker):
-    type = "test"
-    job_configuration = BaseJobConfiguration
+    type: str = "test"
+    job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
 
     async def run(self):
         pass
