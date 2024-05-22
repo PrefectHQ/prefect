@@ -12,7 +12,7 @@ from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
-from typing import List
+from typing import List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
@@ -1516,7 +1516,6 @@ class TestFlowParameterTypes:
 
 
 class TestSubflowTaskInputs:
-    @fails_with_new_engine
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):
         @task
         def child_task(x):
@@ -1530,7 +1529,11 @@ class TestSubflowTaskInputs:
         def parent_flow():
             task_future = child_task.submit(1)
             flow_state = child_flow(x=task_future, return_state=True)
-            task_state = task_future.wait()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                task_future.wait()
+                task_state = task_future.state
+            else:
+                task_state = task_future.wait()
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
@@ -1591,7 +1594,6 @@ class TestSubflowTaskInputs:
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_subflow_with_one_upstream_task_future_and_allow_failure(
         self, prefect_client
     ):
@@ -1607,6 +1609,9 @@ class TestSubflowTaskInputs:
         def parent_flow():
             future = child_task.submit()
             flow_state = child_flow(x=allow_failure(future), return_state=True)
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return quote((future.state, flow_state))
             return quote((future.wait(), flow_state))
 
         task_state, flow_state = parent_flow().unquote()
@@ -1668,6 +1673,24 @@ class TestSubflowTaskInputs:
         )
 
 
+# We flush the APILogHandler in a non-blocking manner, so we need to wait for the logs to be
+# written before we can read them to avoid flakiness.
+async def _wait_for_logs(
+    prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
+):
+    logs = []
+    for _ in range(5):
+        logs = await prefect_client.read_logs()
+        if logs:
+            if expected_num_logs is None:
+                break
+            else:
+                if len(logs) >= expected_num_logs:
+                    break
+        await asyncio.sleep(1)
+    return logs
+
+
 @pytest.mark.enable_api_log_handler
 class TestFlowRunLogs:
     async def test_user_logs_are_sent_to_orion(self, prefect_client):
@@ -1691,7 +1714,7 @@ class TestFlowRunLogs:
         await my_flow(1)
         await my_flow(2)
 
-        logs = await prefect_client.read_logs()
+        logs = await _wait_for_logs(prefect_client, expected_num_logs=6)
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
     async def test_exception_info_is_included_in_log(self, prefect_client):
@@ -2871,7 +2894,6 @@ class TestFlowHooksOnCancellation:
             def flow2():
                 pass
 
-    @fails_with_new_engine
     def test_on_cancellation_hooks_run_on_cancelled_state(self):
         my_mock = MagicMock()
 
@@ -2920,7 +2942,6 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         my_mock.assert_not_called()
 
-    @fails_with_new_engine
     def test_other_cancellation_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
 
@@ -2940,7 +2961,6 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled1"), call("cancelled3")]
 
-    @fails_with_new_engine
     def test_on_cancelled_hook_on_subflow_succeeds(self):
         my_mock = MagicMock()
 
@@ -2970,7 +2990,6 @@ class TestFlowHooksOnCancellation:
             (create_async_hook, create_async_hook),
         ],
     )
-    @fails_with_new_engine
     def test_on_cancellation_hooks_work_with_sync_and_async(self, hook1, hook2):
         my_mock = MagicMock()
         hook1_with_mock = hook1(my_mock)
@@ -2983,6 +3002,7 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
+    # runner handles running on cancellation hooks after sending SIGTERM
     @fails_with_new_engine
     async def test_on_cancellation_hook_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
@@ -3010,7 +3030,6 @@ class TestFlowHooksOnCancellation:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled")]
 
-    @fails_with_new_engine
     async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3025,7 +3044,7 @@ class TestFlowHooksOnCancellation:
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
-            await my_flow(return_state=True)
+            my_flow(return_state=True)
         my_mock.assert_not_called()
 
     def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
@@ -3103,7 +3122,6 @@ class TestFlowHooksOnCrashed:
             def flow2():
                 pass
 
-    @fails_with_new_engine
     def test_on_crashed_hooks_run_on_crashed_state(self):
         my_mock = MagicMock()
 
@@ -3154,7 +3172,6 @@ class TestFlowHooksOnCrashed:
         assert state.type == StateType.FAILED
         my_mock.assert_not_called()
 
-    @fails_with_new_engine
     def test_other_crashed_hooks_run_if_one_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3174,7 +3191,6 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed1"), call("crashed3")]
 
-    @fails_with_new_engine
     @pytest.mark.parametrize(
         "hook1, hook2",
         [
@@ -3196,7 +3212,6 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
-    @fails_with_new_engine
     def test_on_crashed_hook_on_subflow_succeeds(self):
         my_mock = MagicMock()
 
@@ -3217,6 +3232,7 @@ class TestFlowHooksOnCrashed:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
+    # runner handles running on crashed hooks by monitoring the process the flow is running in
     @fails_with_new_engine
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
@@ -3235,7 +3251,6 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
-    @fails_with_new_engine
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3337,7 +3352,6 @@ class TestFlowHooksOnRunning:
             def flow2():
                 pass
 
-    @fails_with_new_engine
     def test_on_running_hooks_run_on_running(self):
         my_mock = MagicMock()
 
@@ -3355,7 +3369,6 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
-    @fails_with_new_engine
     def test_on_running_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -3373,7 +3386,6 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
-    @fails_with_new_engine
     def test_other_running_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3394,7 +3406,6 @@ class TestFlowHooksOnRunning:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("running1"), call("running2")]
 
-    @fails_with_new_engine
     @pytest.mark.parametrize(
         "hook1, hook2",
         [

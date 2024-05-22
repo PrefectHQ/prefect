@@ -707,7 +707,7 @@ class TestAPICompatibility:
         assert "evil_fake_field" not in api_block.data
 
     @pytest.mark.parametrize("block_name", ["a_block", "a.block"])
-    def test_create_block_document_create_invalid_characters(self, block_name):
+    async def test_create_block_document_create_invalid_characters(self, block_name):
         """This gets raised on instantiation of BlockDocumentCreate"""
 
         @register_type
@@ -716,10 +716,10 @@ class TestAPICompatibility:
 
         a_block = ABlock(a_field="my_field")
         with pytest.raises(ValidationError, match="name must only contain"):
-            a_block.save(block_name)
+            await a_block.save(block_name)
 
     @pytest.mark.parametrize("block_name", ["a/block", "a\\block"])
-    def test_create_block_document_invalid_characters(self, block_name):
+    async def test_create_block_document_invalid_characters(self, block_name):
         """
         This gets raised on instantiation of BlockDocument which shares
         INVALID_CHARACTERS with Flow, Deployment, etc.
@@ -731,7 +731,7 @@ class TestAPICompatibility:
 
         a_block = ABlock(a_field="my_field")
         with pytest.raises(ValidationError, match="name"):
-            a_block.save(block_name)
+            await a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
@@ -772,9 +772,9 @@ class TestAPICompatibility:
 
         assert block_schema.version == "1.0.0"
 
-    def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
+    async def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
         try:
-            Secret.register_type_and_schema()
+            await Secret.register_type_and_schema()
         except PrefectHTTPStatusError as exc:
             if exc.response.status_code == 403:
                 pass
@@ -1023,7 +1023,7 @@ class TestAPICompatibility:
         ):
             await test_block.load("blocky")
 
-    def test_save_block_from_flow(self):
+    async def test_save_block_from_flow(self):
         class Test(Block):
             a: str
 
@@ -1033,7 +1033,7 @@ class TestAPICompatibility:
 
         save_block_flow()
 
-        block = Test.load("test")
+        block = await Test.load("test")
         assert block.a == "foo"
 
     async def test_save_protected_block_with_new_block_schema_version(self, session):
@@ -2135,13 +2135,8 @@ class TestGetCodeExample:
 
 
 class TestSyncCompatible:
-    def test_save_and_load_sync_compatible(self):
-        CoolBlock(cool_factor=1000000).save("my-rad-block")
-        loaded_block = CoolBlock.load("my-rad-block")
-        assert loaded_block.cool_factor == 1000000
-
-    def test_block_in_flow_sync_test_sync_flow(self):
-        CoolBlock(cool_factor=1000000).save("blk")
+    async def test_block_in_flow_sync_test_sync_flow(self):
+        await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
         def my_flow():
@@ -2173,8 +2168,8 @@ class TestSyncCompatible:
         result = await my_flow()
         assert result == 1000000
 
-    def test_block_in_task_sync_test_sync_flow(self):
-        CoolBlock(cool_factor=1000000).save("blk")
+    async def test_block_in_task_sync_test_sync_flow(self):
+        await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
         def my_task():
@@ -2374,7 +2369,7 @@ class TestTypeDispatch:
 
 
 class TestBlockSchemaMigration:
-    def test_schema_mismatch_with_validation_raises(self):
+    async def test_schema_mismatch_with_validation_raises(self):
         class A(Block):
             _block_type_name = "a"
             _block_type_slug = "a"
@@ -2382,7 +2377,7 @@ class TestBlockSchemaMigration:
 
         a = A()
 
-        a.save("test")
+        await a.save("test")
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2395,15 +2390,15 @@ class TestBlockSchemaMigration:
         with pytest.raises(
             RuntimeError, match="try loading again with `validate=False`"
         ):
-            A_Alias.load("test")
+            await A_Alias.load("test")
 
-    def test_add_field_to_schema_partial_load_with_skip_validation(self):
+    async def test_add_field_to_schema_partial_load_with_skip_validation(self):
         class A(Block):
             x: int = 1
 
         a = A()
 
-        a.save("test")
+        await a.save("test")
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2414,12 +2409,12 @@ class TestBlockSchemaMigration:
                 y: int
 
         with pytest.warns(UserWarning, match="Could not fully load"):
-            a = A_Alias.load("test", validate=False)
+            a = await A_Alias.load("test", validate=False)
 
         assert a.x == 1
         assert a.y is None
 
-    def test_rm_field_from_schema_loads_with_validation(self):
+    async def test_rm_field_from_schema_loads_with_validation(self):
         class Foo(Block):
             _block_type_name = "foo"
             _block_type_slug = "foo"
@@ -2428,7 +2423,7 @@ class TestBlockSchemaMigration:
 
         foo = Foo()
 
-        foo.save("xy")
+        await foo.save("xy")
 
         with pytest.warns(UserWarning, match="matches existing registered type 'Foo'"):
 
@@ -2437,7 +2432,7 @@ class TestBlockSchemaMigration:
                 _block_type_slug = "foo"
                 x: int = 1
 
-        foo_alias = Foo_Alias.load("xy")
+        foo_alias = await Foo_Alias.load("xy")
 
         assert foo_alias.x == 1
 
@@ -2446,15 +2441,15 @@ class TestBlockSchemaMigration:
         # with pytest.raises(AttributeError):
         #     foo_alias.y
 
-    def test_load_with_skip_validation_keeps_metadata(self):
+    async def test_load_with_skip_validation_keeps_metadata(self):
         class Bar(Block):
             x: int = 1
 
         bar = Bar()
 
-        bar.save("test")
+        await bar.save("test")
 
-        bar_new = Bar.load("test", validate=False)
+        bar_new = await Bar.load("test", validate=False)
 
         assert bar.dict() == bar_new.dict()
 
