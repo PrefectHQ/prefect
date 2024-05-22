@@ -1261,7 +1261,6 @@ class PrefectClient:
             await self._client.patch(
                 f"/block_documents/{block_document_id}",
                 json=block_document.model_dump_with_secrets(
-                    mode="json",
                     exclude_unset=True,
                     include={"data", "merge_existing_data", "block_schema_id"},
                 ),
@@ -1323,7 +1322,6 @@ class PrefectClient:
             await self._client.patch(
                 f"/block_types/{block_type_id}",
                 json=block_type.model_dump_with_secrets(
-                    mode="json",
                     exclude_unset=True,
                     include=BlockTypeUpdate.updatable_fields(),
                 ),

@@ -393,7 +393,8 @@ class TestAPILogHandler:
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
         assert (
-            log_dict["timestamp"] == pendulum.from_timestamp(record.created).isoformat()
+            log_dict["timestamp"]
+            == pendulum.from_timestamp(record.created).to_iso8601_string()
         )
 
     def test_sets_timestamp_from_time_if_missing_from_recrod(
@@ -415,7 +416,7 @@ class TestAPILogHandler:
 
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
-        assert log_dict["timestamp"] == pendulum.from_timestamp(now).isoformat()
+        assert log_dict["timestamp"] == pendulum.from_timestamp(now).to_iso8601_string()
 
     def test_does_not_send_logs_that_opt_out(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):

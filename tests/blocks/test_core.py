@@ -995,6 +995,9 @@ class TestAPICompatibility:
         await session.commit()
 
         block_instance = await E.load("outer-block-document")
+        assert isinstance(block_instance, E)
+        assert isinstance(block_instance.c, C)
+        assert isinstance(block_instance.d, D)
 
         assert block_instance._block_document_name == outer_block_document.name
         assert block_instance._block_document_id == outer_block_document.id
@@ -2335,15 +2338,15 @@ class TestTypeDispatch:
         expected = {"base", "block_type_slug", "a"}
 
         block = BaseBlock.model_validate(AChildBlock().model_dump())
-        assert block.__fields_set__ == expected
+        assert block.model_fields_set == expected
         assert block.a == 1
 
         block = BaseBlock.model_validate(AChildBlock(a=2).model_dump())
-        assert block.__fields_set__ == expected
+        assert block.model_fields_set == expected
         assert block.a == 2
 
-        block = block.copy()
-        assert block.__fields_set__ == expected
+        block = block.model_copy()
+        assert block.model_fields_set == expected
         assert block.a == 2
 
     def test_base_field_creates_child_instance_with_union(self):

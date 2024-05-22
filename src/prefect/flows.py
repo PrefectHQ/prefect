@@ -41,6 +41,7 @@ import pydantic
 from fastapi.encoders import jsonable_encoder
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
+from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
@@ -332,7 +333,7 @@ class Flow(Generic[P, R]):
             # is not picklable in some environments
             try:
                 ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
-            except pydantic.ConfigError as exc:
+            except ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
                     "Disable validation or change the argument names."
