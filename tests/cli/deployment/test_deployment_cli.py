@@ -487,43 +487,6 @@ class TestDeploymentSchedules:
             ],
         )
 
-    def test_pausing_and_resuming_schedules_with_pause_schedule(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "pause-schedule",
-                "rence-griffith/test-deployment",
-            ],
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=["'active': False"],
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "resume-schedule",
-                "rence-griffith/test-deployment",
-            ],
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=["'active': True"],
-        )
-
     def test_pausing_and_resuming_schedules_with_schedule_pause(
         self, flojo, flojo_deployment
     ):
@@ -567,15 +530,6 @@ class TestDeploymentSchedules:
             expected_output_contains=["'active': True"],
         )
 
-    def test_pause_schedule_deployment_not_found_raises(self, flojo):
-        invoke_and_assert(
-            ["deployment", "pause-schedule", "rence-griffith/test-deployment-2"],
-            expected_code=1,
-            expected_output_contains=[
-                "Deployment 'rence-griffith/test-deployment-2' not found!"
-            ],
-        )
-
     def test_schedule_pause_deployment_not_found_raises(self, flojo, flojo_deployment):
         invoke_and_assert(
             [
@@ -588,30 +542,6 @@ class TestDeploymentSchedules:
             expected_code=1,
             expected_output_contains=[
                 "Deployment 'rence-griffith/test-deployment-2' not found!"
-            ],
-        )
-
-    def test_pause_schedule_multiple_schedules_raises(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "schedule",
-                "create",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "1800",
-            ],
-            expected_code=0,
-            expected_output_contains="Created deployment schedule!",
-        )
-
-        invoke_and_assert(
-            ["deployment", "pause-schedule", "rence-griffith/test-deployment"],
-            expected_code=1,
-            expected_output_contains=[
-                "Deployment 'rence-griffith/test-deployment' has multiple schedules."
-                " Use `prefect deployment schedule pause <deployment_name>"
-                " <schedule_id>`"
             ],
         )
 
