@@ -5,8 +5,8 @@ import pytest
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
-from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
-from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterId
+from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
