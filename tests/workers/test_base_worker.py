@@ -913,12 +913,14 @@ async def test_job_configuration_from_template_overrides_with_block():
 
     block_id = await ArbitraryBlock(a=1, b="hello").save(name="arbitrary-block")
 
-    config = await ArbitraryJobConfiguration.from_template_and_values(
-        base_job_template=template,
-        values={
-            "var1": "woof!",
-            "arbitrary_block": {"$ref": {"block_document_id": block_id}},
-        },
+    config: ArbitraryJobConfiguration = (
+        await ArbitraryJobConfiguration.from_template_and_values(
+            base_job_template=template,
+            values={
+                "var1": "woof!",
+                "arbitrary_block": {"$ref": {"block_document_id": block_id}},
+            },
+        )
     )
 
     assert config.model_dump() == {
