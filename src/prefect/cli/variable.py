@@ -124,6 +124,18 @@ async def _set(
         Optional[List[str]], typer.Option(help="Tag to associate with the variable.")
     ] = None,
 ):
+    """
+    Set a variable.
+
+    If the variable already exists, use `--overwrite` to update it.
+
+    Arguments:
+        name: the name of the variable to set
+        value: the value of the variable to set
+        --overwrite: overwrite the variable if it already exists
+        --tag: tag to associate with the variable (you may pass multiple)
+    """
+
     async with get_client() as client:
         variable = await client.read_variable_by_name(name)
         var_dict = {"name": name, "value": parse_value(value), "tags": tag or []}
