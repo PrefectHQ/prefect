@@ -13,7 +13,7 @@ from prefect import Flow, flow, get_run_logger, task
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
 from prefect.engine import pause_flow_run, resume_flow_run, suspend_flow_run
@@ -27,6 +27,7 @@ from prefect.new_flow_engine import (
     run_flow_async,
     run_flow_sync,
 )
+from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
 
@@ -1133,7 +1134,7 @@ class TestSuspendFlowRun:
             await update_flow_run(
                 session,
                 flow_run_id,
-                FlowRun.construct(deployment_id=deployment.id),
+                ServerFlowRun.model_construct(deployment_id=deployment.id),
             )
             await session.commit()
 
@@ -1163,7 +1164,7 @@ class TestSuspendFlowRun:
             await update_flow_run(
                 session,
                 flow_run_id,
-                FlowRun.construct(deployment_id=deployment.id),
+                ServerFlowRun.model_construct(deployment_id=deployment.id),
             )
             await session.commit()
 
@@ -1220,7 +1221,7 @@ class TestSuspendFlowRun:
             await update_flow_run(
                 session,
                 context.flow_run.id,
-                FlowRun.construct(deployment_id=deployment.id),
+                ServerFlowRun.model_construct(deployment_id=deployment.id),
             )
             await session.commit()
 
@@ -1275,7 +1276,7 @@ class TestSuspendFlowRun:
                 await update_flow_run(
                     session,
                     context.flow_run.id,
-                    FlowRun.construct(deployment_id=deployment.id),
+                    ServerFlowRun.model_construct(deployment_id=deployment.id),
                 )
                 await session.commit()
 
@@ -1324,10 +1325,10 @@ class TestSuspendFlowRun:
                 # suspendable.
                 from prefect.server.models.flow_runs import update_flow_run
 
-                await update_flow_run(
+                assert await update_flow_run(
                     session,
                     context.flow_run.id,
-                    FlowRun.construct(deployment_id=deployment.id),
+                    ServerFlowRun.model_construct(deployment_id=deployment.id),
                 )
                 await session.commit()
 
