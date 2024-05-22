@@ -58,6 +58,7 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     _resolve_custom_flow_run_name,
+    capture_sigterm,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -445,6 +446,7 @@ class FlowRunEngine(Generic[P, R]):
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
             # wait for futures to complete
+            stack.enter_context(capture_sigterm())
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())

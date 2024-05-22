@@ -3030,8 +3030,6 @@ class TestFlowHooksOnCancellation:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled")]
 
-    # runner handles running on cancellation hooks after sending SIGTERM
-    @fails_with_new_engine
     async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3253,8 +3251,6 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
-    # runner handles running on crashed hooks by monitoring the process the flow is running in
-    @fails_with_new_engine
     async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):

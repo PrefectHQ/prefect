@@ -13,6 +13,7 @@ from prefect.concurrency.asyncio import (
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 
 
 async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
@@ -71,6 +72,10 @@ async def test_concurrency_can_be_used_within_a_flow(
     assert executed
 
 
+@pytest.mark.skipif(
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+    reason="New engine does not support calling async from sync",
+)
 def test_concurrency_mixed_sync_async(
     concurrency_limit: ConcurrencyLimitV2,
 ):
@@ -244,6 +249,10 @@ async def test_rate_limit_can_be_used_within_a_flow(
     assert executed
 
 
+@pytest.mark.skipif(
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+    reason="New engine does not support calling async from sync",
+)
 def test_rate_limit_mixed_sync_async(
     concurrency_limit_with_decay: ConcurrencyLimitV2,
 ):

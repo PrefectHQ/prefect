@@ -565,7 +565,7 @@ class Task(Generic[P, R]):
             elif (
                 flow_run_context
                 and parent_task_run_context.task_run.flow_run_id
-                == flow_run_context.flow_run.id
+                == getattr(flow_run_context.flow_run, "id", None)
             ):
                 task_inputs["__parents__"] = [
                     TaskRunResult(id=parent_task_run_context.task_run.id)
