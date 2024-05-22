@@ -2449,7 +2449,7 @@ if __name__ == "__main__":
                 run_flow_sync,
             )
 
-            flow_run, flow = run_sync(load_flow_and_flow_run)
+            flow_run, flow = load_flow_and_flow_run(flow_run_id=flow_run_id)
             # run the flow
             if flow.isasync:
                 run_sync(run_flow_async(flow, flow_run=flow_run))

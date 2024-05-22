@@ -911,23 +911,6 @@ class Flow(ObjectBaseModel):
     )
 
 
-class MinimalDeploymentSchedule(PrefectBaseModel):
-    schedule: SCHEDULE_TYPES = Field(
-        default=..., description="The schedule for the deployment."
-    )
-    active: bool = Field(
-        default=True, description="Whether or not the schedule is active."
-    )
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
-    catchup: bool = Field(
-        default=False,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
-    )
-
-
 class DeploymentSchedule(ObjectBaseModel):
     deployment_id: Optional[UUID] = Field(
         default=None,

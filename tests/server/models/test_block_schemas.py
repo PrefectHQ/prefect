@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.models.block_schemas import read_block_schema_by_checksum
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.utilities.collections import AutoEnum
@@ -496,7 +497,9 @@ class TestReadBlockSchemas:
         )
         before_read = (
             await session.execute(
-                sa.select(db.BlockSchema).where(db.BlockSchema.id == block_schema.id)
+                sa.select(orm_models.BlockSchema).where(
+                    orm_models.BlockSchema.id == block_schema.id
+                )
             )
         ).scalar()
         assert before_read.fields.get("block_schema_references") is None
@@ -506,7 +509,9 @@ class TestReadBlockSchemas:
         await session.commit()
         after_read = (
             await session.execute(
-                sa.select(db.BlockSchema).where(db.BlockSchema.id == block_schema.id)
+                sa.select(orm_models.BlockSchema).where(
+                    orm_models.BlockSchema.id == block_schema.id
+                )
             )
         ).scalar()
         assert after_read.fields.get("block_schema_references") is None

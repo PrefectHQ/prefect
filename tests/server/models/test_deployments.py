@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.schemas import filters
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
@@ -584,14 +585,16 @@ class TestDeleteDeployment:
 
 
 class TestScheduledRuns:
-    async def test_schedule_runs_inserts_in_db(self, flow, deployment, session, db):
+    async def test_schedule_runs_inserts_in_db(self, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
         assert len(scheduled_runs) == PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
         query_result = await session.execute(
-            sa.select(db.FlowRun).where(
-                db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED)
+            sa.select(orm_models.FlowRun).where(
+                orm_models.FlowRun.state.has(
+                    orm_models.FlowRunState.type == StateType.SCHEDULED
+                )
             )
         )
 
@@ -611,7 +614,7 @@ class TestScheduledRuns:
             actual_times.add(run.state.state_details.scheduled_time)
         assert actual_times == expected_times
 
-    async def test_schedule_runs_is_idempotent(self, flow, deployment, session, db):
+    async def test_schedule_runs_is_idempotent(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
@@ -625,9 +628,11 @@ class TestScheduledRuns:
 
         # only max runs runs were inserted
         query_result = await session.execute(
-            sa.select(db.FlowRun).where(
-                db.FlowRun.flow_id == flow.id,
-                db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED),
+            sa.select(orm_models.FlowRun).where(
+                orm_models.FlowRun.flow_id == flow.id,
+                orm_models.FlowRun.state.has(
+                    orm_models.FlowRunState.type == StateType.SCHEDULED
+                ),
             )
         )
 
@@ -912,7 +917,7 @@ class TestScheduledRuns:
         )
 
         # delete all runs
-        await session.execute(sa.delete(db.FlowRun))
+        await session.execute(sa.delete(orm_models.FlowRun))
 
         # schedule runs
         await models.deployments.schedule_runs(
@@ -920,7 +925,9 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(db.FlowRun.id)).where(db.FlowRun.state_id.is_(None))
+            sa.select(sa.func.count(orm_models.FlowRun.id)).where(
+                orm_models.FlowRun.state_id.is_(None)
+            )
         )
         # no runs with missing states
         assert result.scalar() == 0
@@ -931,7 +938,9 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(db.FlowRun.id)).where(db.FlowRun.state_id.is_(None))
+            sa.select(sa.func.count(orm_models.FlowRun.id)).where(
+                orm_models.FlowRun.state_id.is_(None)
+            )
         )
         # no runs with missing states
         assert result.scalar() == 0

@@ -55,14 +55,14 @@ from prefect._internal.schemas.validators import (
     reconcile_schedules_runner,
 )
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
 )
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
-    create_minimal_deployment_schedule,
+    create_deployment_schedule_create,
 )
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
@@ -159,7 +159,7 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedules: Optional[List[MinimalDeploymentSchedule]] = Field(
+    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
@@ -362,7 +362,7 @@ class RunnerDeployment(BaseModel):
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         schedules: Optional[FlexibleScheduleList] = None,
-    ) -> Union[List[MinimalDeploymentSchedule], FlexibleScheduleList]:
+    ) -> Union[List[DeploymentScheduleCreate], FlexibleScheduleList]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -420,7 +420,7 @@ class RunnerDeployment(BaseModel):
                 value = [value]
 
             return [
-                create_minimal_deployment_schedule(
+                create_deployment_schedule_create(
                     construct_schedule(
                         **{
                             schedule_type: v,
@@ -432,7 +432,7 @@ class RunnerDeployment(BaseModel):
                 for v in value
             ]
         else:
-            return [create_minimal_deployment_schedule(schedule)]
+            return [create_deployment_schedule_create(schedule)]
 
     def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)

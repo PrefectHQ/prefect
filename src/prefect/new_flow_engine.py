@@ -74,11 +74,11 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
     client = cast(SyncPrefectClient, get_client(sync_client=True))
 
     flow_run = client.read_flow_run(flow_run_id)
-    flow = (
-        load_flow_from_entrypoint(entrypoint)
-        if entrypoint
-        else run_sync(load_flow_from_flow_run(flow_run))
-    )
+    if entrypoint:
+        flow = load_flow_from_entrypoint(entrypoint)
+    else:
+        async_client = get_client()
+        flow = run_sync(load_flow_from_flow_run(flow_run, client=async_client))
 
     return flow_run, flow
 
@@ -356,11 +356,32 @@ class FlowRunEngine(Generic[P, R]):
         if not flow_run:
             raise ValueError("Task run is not set")
 
+        enable_cancellation_and_crashed_hooks = (
+            os.environ.get(
+                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
+            ).lower()
+            == "true"
+        )
+
         hooks = None
         if state.is_failed() and flow.on_failure:
             hooks = flow.on_failure
         elif state.is_completed() and flow.on_completion:
             hooks = flow.on_completion
+        elif (
+            enable_cancellation_and_crashed_hooks
+            and state.is_cancelling()
+            and flow.on_cancellation
+        ):
+            hooks = flow.on_cancellation
+        elif (
+            enable_cancellation_and_crashed_hooks
+            and state.is_crashed()
+            and flow.on_crashed
+        ):
+            hooks = flow.on_crashed
+        elif state.is_running() and flow.on_running:
+            hooks = flow.on_running
 
         for hook in hooks or []:
             hook_name = _get_hook_name(hook)
@@ -590,7 +611,7 @@ async def run_flow_async(
                     run.logger.exception("Encountered exception during execution:")
                     run.handle_exception(exc)
 
-        if run.state.is_final():
+        if run.state.is_final() or run.state.is_cancelling():
             for hook in run.get_hooks(run.state, as_async=True):
                 await hook()
         if return_type == "state":
@@ -637,7 +658,7 @@ def run_flow_sync(
                     run.logger.exception("Encountered exception during execution:")
                     run.handle_exception(exc)
 
-        if run.state.is_final():
+        if run.state.is_final() or run.state.is_cancelling():
             for hook in run.get_hooks(run.state):
                 hook()
         if return_type == "state":

@@ -216,8 +216,8 @@ class ParameterSchema(pydantic.BaseModel):
     title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"
     properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
-    required: List[str] = None
-    definitions: Optional[Dict[str, Any]] = None
+    required: List[str] = pydantic.Field(default_factory=list)
+    definitions: Dict[str, Any] = pydantic.Field(default_factory=dict)
 
     def model_dump_for_openapi(self) -> Dict[str, Any]:
         return self.model_dump(mode="python", exclude_none=True)

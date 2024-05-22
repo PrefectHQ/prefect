@@ -11,7 +11,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import construct_schedule
 from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
@@ -135,7 +135,7 @@ async def serve(
                 timezone=timezone,
                 anchor_date=interval_anchor,
             )
-            schedules = [MinimalDeploymentSchedule(schedule=schedule, active=True)]
+            schedules = [DeploymentScheduleCreate(schedule=schedule, active=True)]
 
         runner_deployment = RunnerDeployment.from_entrypoint(
             entrypoint=entrypoint,
