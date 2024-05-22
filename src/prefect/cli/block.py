@@ -74,8 +74,8 @@ def display_block_type(block_type):
 
 
 def display_block_schema_properties(block_schema_fields):
-    required = block_schema_fields["required"]
-    properties = block_schema_fields["properties"]
+    required = block_schema_fields.get("required", [])
+    properties = block_schema_fields.get("properties", {})
 
     block_schema_yaml_table = Table(
         title="Schema Properties",
@@ -375,6 +375,9 @@ async def blocktype_inspect(
     """
     Display details about a block type.
     """
+    print()
+    print(slug)
+    print()
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
