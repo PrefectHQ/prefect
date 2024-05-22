@@ -18,8 +18,11 @@ from rich.text import Text
 
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
-from prefect.client.schemas.actions import BlockDocumentCreate, WorkPoolCreate
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import (
+    BlockDocumentCreate,
+    DeploymentScheduleCreate,
+    WorkPoolCreate,
+)
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -364,7 +367,7 @@ def prompt_schedule_type(console):
     return selection["type"]
 
 
-def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
+def prompt_schedules(console) -> List[DeploymentScheduleCreate]:
     """
     Prompt the user to configure schedules for a deployment.
     """
@@ -401,7 +404,7 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
                     {"max_active_runs": max_active_runs, "catchup": catchup}
                 )
 
-            schedules.append(MinimalDeploymentSchedule(**minimal_schedule_kwargs))
+            schedules.append(DeploymentScheduleCreate(**minimal_schedule_kwargs))
 
             add_schedule = confirm(
                 "Would you like to add another schedule?", default=False

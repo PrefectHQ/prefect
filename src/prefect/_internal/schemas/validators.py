@@ -22,6 +22,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.collections import isiterable
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
@@ -207,6 +208,12 @@ def return_none_schedule(v: Optional[Union[str, dict]]) -> Optional[Union[str, d
     if isinstance(v, NoSchedule):
         return None
     return v
+
+
+def convert_to_strings(value: Union[Any, List[Any]]) -> Union[str, List[str]]:
+    if isiterable(value):
+        return [str(item) for item in value]
+    return str(value)
 
 
 ### SCHEDULE SCHEMA VALIDATORS ###

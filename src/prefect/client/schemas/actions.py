@@ -9,6 +9,7 @@ from pydantic_extra_types.pendulum_dt import DateTime
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
+    convert_to_strings,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     remove_old_deployment_fields,
@@ -159,6 +160,11 @@ class DeploymentCreate(ActionBaseModel):
     @classmethod
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
+
+    @field_validator("description", "tags", mode="before")
+    @classmethod
+    def convert_to_strings(cls, values):
+        return convert_to_strings(values)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
