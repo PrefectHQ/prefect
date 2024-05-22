@@ -108,8 +108,6 @@ class PrefectBaseModel(BaseModel):
         `unmask_secrets` is left as an escape for when the caller of this method wants to override
         the default behavior of including secrets in the output (as currently enabled in the client).
 
-        Accepts the standard Pydantic `model_dump` arguments, except for `mode` (which
-        is always "json"), `round_trip`, and `warnings` (the latter two are not supported).
 
         Usage docs: https://docs.pydantic.dev/2.6/concepts/serialization/#modelmodel_dump
 
@@ -123,19 +121,8 @@ class PrefectBaseModel(BaseModel):
                 value.
             exclude_none: Whether to exclude fields that have a value of `None`.
         """
-        if not unmask_secrets:
-            return self.model_dump(
-                mode="json",
-                include=include,
-                exclude=exclude,
-                by_alias=by_alias,
-                exclude_unset=exclude_unset,
-                exclude_defaults=exclude_defaults,
-                exclude_none=exclude_none,
-            )
-
         return {
-            field_name: default_secret_encoder(field_value)
+            field_name: default_secret_encoder(field_value, unmask_secrets)
             for field_name, field_value in self.model_dump(
                 mode="python",
                 include=include,

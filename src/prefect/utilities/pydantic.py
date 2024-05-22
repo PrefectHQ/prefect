@@ -363,20 +363,24 @@ def parse_obj_as(
     return parser(data)
 
 
-def default_secret_encoder(value: object):
+def default_secret_encoder(value: object, unmask_secrets: bool) -> object:
     """
     Default encoder for unmasking secrets in Pydantic models.
+
+    This should return jsonable values for all secret types, not actual json strings.
     """
 
     if hasattr(value, "get_secret_value"):
-        return cast(pydantic.Secret[object], value).get_secret_value()
+        secret = cast(pydantic.Secret[object], value)
+        return secret.get_secret_value() if unmask_secrets else secret._display()
     elif isinstance(value, BaseModel):
         return value.model_dump()
     elif isinstance(value, Mapping):  # dicts may contain secrets
-        return {key: default_secret_encoder(val) for key, val in value.items()}
+        return {
+            key: default_secret_encoder(val, unmask_secrets)
+            for key, val in value.items()
+        }
     elif isinstance(value, Sequence) and not isinstance(value, str):  # seqs may also
-        return [default_secret_encoder(val) for val in value]
-    elif isinstance(value, (str, bytes, type(None), int, float, bool)):
-        return value
+        return [default_secret_encoder(val, unmask_secrets) for val in value]
     else:
-        return str(value)
+        return value

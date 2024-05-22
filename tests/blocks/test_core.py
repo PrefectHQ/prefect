@@ -405,25 +405,28 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["x"], SecretStr)
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
-        json_blockdoc = json.loads(blockdoc.json())
-        assert json_blockdoc["data"] == {
-            "w": {
-                "Here's my shallow secret": "**********",
-                "deeper secrets": "**********",
-            },
-            "x": "**********",
-            "y": "**********",
-            "z": "z",
-        }
+        json_blockdoc = blockdoc.model_dump_with_secrets(unmask_secrets=False)
+        assert (
+            json_blockdoc["data"]
+            == {
+                "w": {
+                    "Here's my shallow secret": "**********",
+                    "deeper secrets": "**********",
+                },
+                "x": "**********",
+                "y": b"**********",  # in keeping with pydantic.SecretBytes, the obfuscation is also bytes
+                "z": "z",
+            }
+        )
 
-        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        json_blockdoc_with_secrets = blockdoc.model_dump_with_secrets()
         assert json_blockdoc_with_secrets["data"] == {
             "w": {
                 "Here's my shallow secret": "I don't like olives",
                 "deeper secrets": {"Here's my deeper secret": "I've never seen Lost"},
             },
             "x": "x",
-            "y": "y",
+            "y": b"y",
             "z": "z",
         }
 

@@ -22,6 +22,7 @@ import httpx
 import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
+from pydantic_core import from_json, to_json
 from starlette import status
 from typing_extensions import ParamSpec
 
@@ -1225,22 +1226,14 @@ class PrefectClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
-        if isinstance(block_document, BlockDocument):
-            block_document = BlockDocumentCreate.model_validate(
-                block_document.model_dump_with_secrets(
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                ),
-            )
+        data = block_document.model_dump_with_secrets(
+            exclude_unset=True,
+            exclude={"id", "block_schema", "block_type"},
+        )
 
         try:
             response = await self._client.post(
-                "/block_documents/",
-                json=block_document.model_dump_with_secrets(
-                    unmask_secrets=include_secrets,
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                ),
+                "/block_documents/", json=from_json(to_json(data))
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
