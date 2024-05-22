@@ -8,6 +8,7 @@ from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     ClassVar,
     Dict,
     FrozenSet,
@@ -33,6 +34,7 @@ from pydantic import (
     SecretBytes,
     SecretStr,
     ValidationError,
+    model_serializer,
 )
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, get_args
@@ -869,6 +871,18 @@ class Block(BaseModel, ABC):
     def is_block_class(block) -> bool:
         return _is_subclass(block, Block)
 
+    @staticmethod
+    def annotation_refers_to_block_class(annotation: Any) -> bool:
+        if Block.is_block_class(annotation):
+            return True
+
+        if get_origin(annotation) is Union:
+            for annotation in get_args(annotation):
+                if Block.is_block_class(annotation):
+                    return True
+
+        return False
+
     @classmethod
     @sync_compatible
     @inject_client
@@ -1081,20 +1095,94 @@ class Block(BaseModel, ABC):
         schema = super().model_json_schema(
             by_alias, ref_template, schema_generator, mode
         )
+
         # ensure backwards compatibility by copying $defs into definitions
         if "$defs" in schema:
             schema["definitions"] = schema.pop("$defs")
+
+        # we aren't expecting these additional fields in the schema
+        if "additionalProperties" in schema:
+            schema.pop("additionalProperties")
+
+        for _, definition in schema.get("definitions", {}).items():
+            if "additionalProperties" in definition:
+                definition.pop("additionalProperties")
+
         return schema
 
-    def model_dump(
-        self, *, include: "IncEx" = None, exclude: "IncEx" = None, **kwargs
-    ) -> Dict[str, Any]:
-        v = super().model_dump(include=include, exclude=exclude, **kwargs)
-
-        if include is not None and "block_type_slug" not in include:
-            return v
-        if exclude is not None and "block_type_slug" in exclude:
-            return v
-
-        v["block_type_slug"] = self.get_block_type_slug()
+    @model_serializer(mode="wrap")
+    def serialize(self, handler: Callable[[Self], Dict[str, Any]]) -> Dict[str, Any]:
+        v = handler(self)
+        v.update(
+            {
+                "block_type_slug": self.get_block_type_slug(),
+                "_block_document_id": self._block_document_id,
+                "_block_document_name": self._block_document_name,
+                "_is_anonymous": self._is_anonymous,
+            }
+        )
         return v
+
+    @classmethod
+    def model_validate(
+        cls: type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Self:
+        if isinstance(obj, dict):
+            extra_serializer_fields = {
+                "_block_document_id",
+                "_block_document_name",
+                "_is_anonymous",
+            }
+            for field in extra_serializer_fields:
+                obj.pop(field, None)
+
+        return super().model_validate(
+            obj, strict=strict, from_attributes=from_attributes, context=context
+        )
+
+    def model_dump(
+        self,
+        *,
+        mode: Union[Literal["json", "python"], str] = "python",
+        include: "IncEx" = None,
+        exclude: "IncEx" = None,
+        context: Optional[Dict[str, Any]] = None,
+        by_alias: bool = False,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        round_trip: bool = False,
+        warnings: Union[bool, Literal["none", "warn", "error"]] = True,
+        serialize_as_any: bool = False,
+    ) -> Dict[str, Any]:
+        d = super().model_dump(
+            mode=mode,
+            include=include,
+            exclude=exclude,
+            context=context,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+            serialize_as_any=serialize_as_any,
+        )
+
+        extra_serializer_fields = {
+            "block_type_slug",
+            "_block_document_id",
+            "_block_document_name",
+            "_is_anonymous",
+        }
+
+        for field in extra_serializer_fields:
+            if (include and field not in include) or (exclude and field in exclude):
+                d.pop(field)
+
+        return d

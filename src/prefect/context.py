@@ -112,7 +112,7 @@ class ContextModel(BaseModel):
             A new model instance.
         """
         # Remove the token on copy to avoid re-entrance errors
-        new = super().copy(**kwargs)
+        new = super().model_copy(**kwargs)
         new._token = None
         return new
 
@@ -262,7 +262,7 @@ class EngineContext(RunContext):
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
 
-    __var__ = ContextVar("flow_run")
+    __var__: ContextVar = ContextVar("flow_run")
 
 
 FlowRunContext = EngineContext  # for backwards compatibility

@@ -1,5 +1,4 @@
 import urllib
-from importlib import reload
 from typing import Type
 from unittest.mock import patch
 
@@ -7,7 +6,6 @@ import cloudpickle
 import pytest
 import respx
 
-import prefect
 from prefect.blocks.notifications import (
     PREFECT_NOTIFY_TYPE_DEFAULT,
     AppriseNotificationBlock,
@@ -20,22 +18,6 @@ from prefect.blocks.notifications import (
     TwilioSMS,
 )
 from prefect.testing.utilities import AsyncMock
-
-
-def reload_modules():
-    """
-    Reloads the prefect.blocks.notifications module so patches to modules it imports
-    will be visible to the blocks under test.
-    """
-    try:
-        reload(prefect.blocks.notifications)
-    except UserWarning:
-        # ignore the warning Prefect gives when reloading the notifications module
-        # because we reload prefect itself immediately afterward.
-        pass
-
-    reload(prefect)
-
 
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
 notification_classes = sorted(
@@ -51,8 +33,6 @@ class TestAppriseNotificationBlock:
 
     async def test_notify_async(self, block_class: Type[AppriseNotificationBlock]):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -71,8 +51,6 @@ class TestAppriseNotificationBlock:
 
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -88,7 +66,6 @@ class TestAppriseNotificationBlock:
             )
 
     def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
-        reload_modules()
         block = block_class(url="http://example.com/notification")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
@@ -98,8 +75,6 @@ class TestAppriseNotificationBlock:
 class TestMattermostWebhook:
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -121,8 +96,6 @@ class TestMattermostWebhook:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -140,8 +113,6 @@ class TestMattermostWebhook:
 
     def test_notify_with_multiple_channels(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -164,7 +135,6 @@ class TestMattermostWebhook:
             )
 
     def test_is_picklable(self):
-        reload_modules()
         block = MattermostWebhook(token="token", hostname="example.com")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
@@ -174,8 +144,6 @@ class TestMattermostWebhook:
 class TestDiscordWebhook:
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -196,8 +164,6 @@ class TestDiscordWebhook:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -216,7 +182,6 @@ class TestDiscordWebhook:
             )
 
     def test_is_picklable(self):
-        reload_modules()
         block = DiscordWebhook(webhook_id="123456", webhook_token="abc123EFG")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
@@ -228,8 +193,6 @@ class TestOpsgenieWebhook:
 
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -248,8 +211,6 @@ class TestOpsgenieWebhook:
 
     def _test_notify_sync(self, targets="", params=None, **kwargs):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             if params is None:
                 params = "region=us&priority=normal&batch=no"
 
@@ -304,8 +265,6 @@ class TestOpsgenieWebhook:
 class TestPagerDutyWebhook:
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -325,8 +284,6 @@ class TestPagerDutyWebhook:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -357,8 +314,6 @@ class TestTwilioSMS:
 
     async def test_twilio_notify_async(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             client_instance_mock = AppriseMock.return_value
             client_instance_mock.async_notify = AsyncMock()
 
@@ -382,8 +337,6 @@ class TestTwilioSMS:
 
     def test_twilio_notify_sync(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             client_instance_mock = AppriseMock.return_value
             client_instance_mock.async_notify = AsyncMock()
 
@@ -588,7 +541,6 @@ class TestCustomWebhook:
             }
 
     def test_is_picklable(self):
-        reload_modules()
         block = CustomWebhookNotificationBlock(
             name="test name",
             url="https://example.com/",
@@ -635,8 +587,6 @@ class TestSendgridEmail:
 
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -666,8 +616,6 @@ class TestSendgridEmail:
 
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            reload_modules()
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -693,7 +641,6 @@ class TestSendgridEmail:
             )
 
     def test_is_picklable(self):
-        reload_modules()
         block = SendgridEmail(
             api_key="test-api-key",
             sender_email="test@gmail.com",
