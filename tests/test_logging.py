@@ -561,10 +561,7 @@ class TestAPILogHandler:
         with temporary_settings(
             updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
         ):
-            # NOTE: We use `raises` instead of `warns` because pytest will otherwise
-            #       capture the warning call and skip checking that we use it correctly
-            #       See https://github.com/pytest-dev/pytest/issues/9288
-            with pytest.raises(
+            with pytest.warns(
                 UserWarning,
                 match=(
                     "Logger 'tests.test_logging' attempted to send logs to the API"
