@@ -322,7 +322,7 @@ When you pass a type such as `str` into `receive_input`, Prefect creates a `RunI
 
 If, instead, you pass a `BaseModel`, Prefect upgrades your `BaseModel` to a `RunInput` class, and the variable your flow sees &mdash; in this case, `name_input` &mdash; is a `RunInput` instance that behaves like a `BaseModel`. If you pass in a `RunInput` class, no upgrade is needed and you'll get a `RunInput` instance.
 
-A more basic approach is to pass types such as `str` into `receive_input` . If you need access to the generated `RunInput` that contains the received value, pass `with_metadata=True` to `receive_input`:
+A simpler approach is to pass types such as `str` into `receive_input` . If you need access to the generated `RunInput` that contains the received value, pass `with_metadata=True` to `receive_input`:
 
 ```python
 from prefect import flow

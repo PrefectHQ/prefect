@@ -66,8 +66,6 @@ from enum import Enum
 
 from pydantic import VERSION as PYDANTIC_VERSION
 
-from prefect.infrastructure.base import InfrastructureResult
-
 if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import BaseModel, Field
 else:
@@ -130,7 +128,7 @@ class ACRManagedIdentity(BaseModel):
     )
 
 
-class AzureContainerInstanceJobResult(InfrastructureResult):
+class AzureContainerInstanceJobResult:
     """
     The result of an `AzureContainerInstanceJob` run.
     """

@@ -96,7 +96,7 @@ class TestRunDeployment:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.job_variables == job_vars
 
-    def test_returns_flow_run_on_timeout(
+    async def test_returns_flow_run_on_timeout(
         self,
         test_deployment,
         use_hosted_api_server,
@@ -122,7 +122,7 @@ class TestRunDeployment:
                 )
             )
 
-            flow_run = run_deployment(
+            flow_run = await run_deployment(
                 f"foo/{deployment.name}", timeout=1, poll_interval=0
             )
             assert len(flow_polls.calls) > 0
@@ -162,7 +162,7 @@ class TestRunDeployment:
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
 
-    def test_polls_indefinitely(
+    async def test_polls_indefinitely(
         self,
         test_deployment,
         use_hosted_api_server,
@@ -197,16 +197,18 @@ class TestRunDeployment:
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
             ).mock(side_effect=side_effects)
 
-            run_deployment(f"foo/{deployment.name}", timeout=None, poll_interval=0)
+            await run_deployment(
+                f"foo/{deployment.name}", timeout=None, poll_interval=0
+            )
             assert len(flow_polls.calls) == 100
 
-    def test_schedules_immediately_by_default(
+    async def test_schedules_immediately_by_default(
         self, test_deployment, use_hosted_api_server
     ):
         deployment = test_deployment
 
         scheduled_time = pendulum.now("UTC")
-        flow_run = run_deployment(
+        flow_run = await run_deployment(
             f"foo/{deployment.name}",
             timeout=0,
             poll_interval=0,
@@ -214,13 +216,13 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
-    def test_accepts_custom_scheduled_time(
+    async def test_accepts_custom_scheduled_time(
         self, test_deployment, use_hosted_api_server
     ):
         deployment = test_deployment
 
         scheduled_time = pendulum.now("UTC") + pendulum.Duration(minutes=5)
-        flow_run = run_deployment(
+        flow_run = await run_deployment(
             f"foo/{deployment.name}",
             scheduled_time=scheduled_time,
             timeout=0,
@@ -229,10 +231,10 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
-    def test_custom_flow_run_names(self, test_deployment, use_hosted_api_server):
+    async def test_custom_flow_run_names(self, test_deployment, use_hosted_api_server):
         deployment = test_deployment
 
-        flow_run = run_deployment(
+        flow_run = await run_deployment(
             f"foo/{deployment.name}",
             flow_run_name="a custom flow run name",
             timeout=0,
@@ -241,10 +243,10 @@ class TestRunDeployment:
 
         assert flow_run.name == "a custom flow run name"
 
-    def test_accepts_tags(self, test_deployment):
+    async def test_accepts_tags(self, test_deployment):
         deployment = test_deployment
 
-        flow_run = run_deployment(
+        flow_run = await run_deployment(
             f"foo/{deployment.name}",
             tags=["I", "love", "prefect"],
             timeout=0,
@@ -253,17 +255,17 @@ class TestRunDeployment:
 
         assert sorted(flow_run.tags) == ["I", "love", "prefect"]
 
-    def test_accepts_idempotency_key(self, test_deployment):
+    async def test_accepts_idempotency_key(self, test_deployment):
         deployment = test_deployment
 
-        flow_run_a = run_deployment(
+        flow_run_a = await run_deployment(
             f"foo/{deployment.name}",
             idempotency_key="12345",
             timeout=0,
             poll_interval=0,
         )
 
-        flow_run_b = run_deployment(
+        flow_run_b = await run_deployment(
             f"foo/{deployment.name}",
             idempotency_key="12345",
             timeout=0,

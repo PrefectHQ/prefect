@@ -1,6 +1,6 @@
 import uuid
 from concurrent.futures import Future
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 from uuid import UUID
 
 import pytest
@@ -23,12 +23,12 @@ async def my_test_async_task(param1, param2):
 
 
 @task
-def context_matters():
+def context_matters(param1=None, param2=None):
     return TagsContext.get().current_tags
 
 
 @task
-async def context_matters_async():
+async def context_matters_async(param1=None, param2=None):
     return TagsContext.get().current_tags
 
 
@@ -105,3 +105,70 @@ class TestThreadPoolTaskRunner:
                 assert isinstance(future.wrapped_future, Future)
 
                 assert future.result() == {"tag1", "tag2"}
+
+    def test_map_sync_task(self):
+        with ThreadPoolTaskRunner() as runner:
+            parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+            futures = runner.map(my_test_task, parameters)
+            assert isinstance(futures, Iterable)
+            assert all(isinstance(future, PrefectFuture) for future in futures)
+            assert all(isinstance(future.task_run_id, UUID) for future in futures)
+            assert all(isinstance(future.wrapped_future, Future) for future in futures)
+
+            results = [future.result() for future in futures]
+            assert results == [(1, 4), (2, 5), (3, 6)]
+
+    def test_map_async_task(self):
+        with ThreadPoolTaskRunner() as runner:
+            parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+            futures = runner.map(my_test_async_task, parameters)
+            assert isinstance(futures, Iterable)
+            assert all(isinstance(future, PrefectFuture) for future in futures)
+            assert all(isinstance(future.task_run_id, UUID) for future in futures)
+            assert all(isinstance(future.wrapped_future, Future) for future in futures)
+
+            results = [future.result() for future in futures]
+            assert results == [(1, 4), (2, 5), (3, 6)]
+
+    def test_map_sync_task_with_context(self):
+        with tags("tag1", "tag2"):
+            with ThreadPoolTaskRunner() as runner:
+                parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+                futures = runner.map(context_matters, parameters)
+                assert isinstance(futures, Iterable)
+                assert all(isinstance(future, PrefectFuture) for future in futures)
+                assert all(isinstance(future.task_run_id, UUID) for future in futures)
+                assert all(
+                    isinstance(future.wrapped_future, Future) for future in futures
+                )
+
+                results = [future.result() for future in futures]
+                assert results == [{"tag1", "tag2"}] * 3
+
+    def test_map_async_task_with_context(self):
+        with tags("tag1", "tag2"):
+            with ThreadPoolTaskRunner() as runner:
+                parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+                futures = runner.map(context_matters_async, parameters)
+                assert isinstance(futures, Iterable)
+                assert all(isinstance(future, PrefectFuture) for future in futures)
+                assert all(isinstance(future.task_run_id, UUID) for future in futures)
+                assert all(
+                    isinstance(future.wrapped_future, Future) for future in futures
+                )
+
+                results = [future.result() for future in futures]
+                assert results == [{"tag1", "tag2"}] * 3
+
+    def test_map_with_future_resolved_to_list(self):
+        with ThreadPoolTaskRunner() as runner:
+            future = MockFuture(data=[1, 2, 3])
+            parameters = {"param1": future, "param2": future}
+            futures = runner.map(my_test_task, parameters)
+            assert isinstance(futures, Iterable)
+            assert all(isinstance(future, PrefectFuture) for future in futures)
+            assert all(isinstance(future.task_run_id, UUID) for future in futures)
+            assert all(isinstance(future.wrapped_future, Future) for future in futures)
+
+            results = [future.result() for future in futures]
+            assert results == [(1, 1), (2, 2), (3, 3)]

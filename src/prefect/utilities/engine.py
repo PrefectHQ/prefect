@@ -823,3 +823,43 @@ def resolve_to_final_result(expr, context):
     if inspect.isawaitable(_result):
         _result = run_sync(_result)
     return _result
+
+
+def resolve_inputs_sync(
+    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> Dict[str, Any]:
+    """
+    Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
+    data.
+
+    Returns:
+        A copy of the parameters with resolved data
+
+    Raises:
+        UpstreamTaskError: If any of the upstream states are not `COMPLETED`
+    """
+
+    if not parameters:
+        return {}
+
+    resolved_parameters = {}
+    for parameter, value in parameters.items():
+        try:
+            resolved_parameters[parameter] = visit_collection(
+                value,
+                visit_fn=resolve_to_final_result,
+                return_data=return_data,
+                max_depth=max_depth,
+                remove_annotations=True,
+                context={},
+            )
+        except UpstreamTaskError:
+            raise
+        except Exception as exc:
+            raise PrefectException(
+                f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                " parameter type is not supported, consider using the `quote`"
+                " annotation to skip resolution of inputs."
+            ) from exc
+
+    return resolved_parameters

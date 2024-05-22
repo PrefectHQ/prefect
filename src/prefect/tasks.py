@@ -41,7 +41,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.futures import PrefectFuture
-from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.logging.loggers import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
@@ -58,11 +58,6 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
-from prefect.utilities.visualization import (
-    VisualizationUnsupportedError,
-    get_task_viz_tracker,
-    track_viz_task,
-)
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
@@ -526,9 +521,9 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> TaskRun:
+        from prefect.engine import NUM_CHARS_DYNAMIC_KEY
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
-            _resolve_custom_task_run_name,
             collect_task_run_inputs_sync,
         )
 
@@ -539,15 +534,16 @@ class Task(Generic[P, R]):
         if parameters is None:
             parameters = {}
 
-        try:
-            task_run_name = _resolve_custom_task_run_name(self, parameters)
-        except TypeError:
-            task_run_name = None
-
         if flow_run_context:
             dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
         else:
             dynamic_key = uuid4().hex
+
+        task_run_name = (
+            f"{self.name}-{dynamic_key}"
+            if flow_run_context and flow_run_context.flow_run
+            else f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
+        )
 
         # collect task inputs
         task_inputs = {
@@ -601,13 +597,6 @@ class Task(Generic[P, R]):
         if inspect.isawaitable(task_run):
             task_run = await task_run
 
-        if flow_run_context and flow_run_context.flow_run:
-            get_run_logger(flow_run_context).debug(
-                f"Created task run {task_run.name!r} for task {self.name!r}"
-            )
-        else:
-            logger.debug(f"Created task run {task_run.name!r} for task {self.name!r}")
-
         return task_run
 
     @overload
@@ -651,6 +640,10 @@ class Task(Generic[P, R]):
         from prefect.engine import enter_task_run_engine
         from prefect.task_engine import submit_autonomous_task_run_to_engine
         from prefect.task_runners import SequentialTaskRunner
+        from prefect.utilities.visualization import (
+            get_task_viz_tracker,
+            track_viz_task,
+        )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -847,6 +840,10 @@ class Task(Generic[P, R]):
         """
 
         from prefect.engine import create_autonomous_task_run, enter_task_run_engine
+        from prefect.utilities.visualization import (
+            VisualizationUnsupportedError,
+            get_task_viz_tracker,
+        )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -1046,11 +1043,16 @@ class Task(Generic[P, R]):
         """
 
         from prefect.engine import begin_task_map, enter_task_run_engine
+        from prefect.utilities.visualization import (
+            VisualizationUnsupportedError,
+            get_task_viz_tracker,
+        )
 
         # Convert the call args/kwargs to a parameter dict; do not apply defaults
         # since they should not be mapped over
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
+        flow_run_context = FlowRunContext.get()
 
         task_viz_tracker = get_task_viz_tracker()
         if task_viz_tracker:
@@ -1058,10 +1060,7 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
-            and not FlowRunContext.get()
-        ):
+        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
             map_call = create_call(
                 begin_task_map,
                 task=self,
@@ -1076,6 +1075,21 @@ class Task(Generic[P, R]):
                 return from_async.wait_for_call_in_loop_thread(map_call)
             else:
                 return from_sync.wait_for_call_in_loop_thread(map_call)
+
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context:
+            from prefect.new_task_runners import TaskRunner
+
+            task_runner = flow_run_context.task_runner
+            assert isinstance(task_runner, TaskRunner)
+            futures = task_runner.map(self, parameters, wait_for)
+            if return_state:
+                states = []
+                for future in futures:
+                    future.wait()
+                    states.append(future.state)
+                return states
+            else:
+                return futures
 
         return enter_task_run_engine(
             self,
