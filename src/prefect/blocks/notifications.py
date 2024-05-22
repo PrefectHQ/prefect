@@ -370,7 +370,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
         examples=['["tag1", "tag2"]'],
     )
 
-    priority: Optional[str] = Field(
+    priority: Optional[int] = Field(
         default=3,
         description=(
             "The priority to associate with the message. It is on a scale between 1"

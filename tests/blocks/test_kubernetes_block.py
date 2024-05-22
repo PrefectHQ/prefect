@@ -1,5 +1,4 @@
 import base64
-import re
 from pathlib import Path
 from typing import Dict
 
@@ -89,13 +88,7 @@ async def test_instantiation_from_str():
 
 
 async def test_instantiation_from_invalid_str():
-    with pytest.raises(
-        pydantic.ValidationError,
-        match=re.escape(
-            "1 validation error for KubernetesClusterConfig\nconfig\n  value is not a"
-            " valid dict (type=type_error.dict)"
-        ),
-    ):
+    with pytest.raises(pydantic.ValidationError, match=r"type=dict_type"):
         KubernetesClusterConfig(config="foo", context_name="docker-desktop")
 
 
