@@ -189,7 +189,6 @@ if TYPE_CHECKING:
 else:
     kubernetes_asyncio = lazy_import("kubernetes_asyncio")
 
-
 MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1
 RETRY_MIN_DELAY_JITTER_SECONDS = 0
