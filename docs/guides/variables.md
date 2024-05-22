@@ -62,34 +62,39 @@ You can access any variable through the Python SDK with the `Variable.get()` met
 ```python
 from prefect.variables import Variable
 
-# get/set/unset a variable from a synchronous context
+# set a variable
 Variable.set(name="the_answer", value="42")
+
+# get a variable
 answer = Variable.get("the_answer")
 print(answer) # 42
+
+# unset a variable
 Variable.unset("the_answer")
-
-# get/set/unset a variable from a asynchronous context
-await Variable.set(name="the_answer", value="42")
-answer = await Variable.get("the_answer")
-print(answer) # 42
-await Variable.unset("the_answer")
-
 
 # get a variable that doesn't exist
 answer = Variable.get("not_the_answer")
 print(answer) # None
 
-
 # getting a variable that doesn't exist with a default value
 answer = Variable.get("not_the_answer", default="42")
 print(answer) # 42
-
 
 # overwrite an existing variable
 Variable.set(name="the_answer", value="43", overwrite=True)
 answer = Variable.get("the_answer")
 print(answer) #43
 ```
+
+All standard methods are also available as async methods:
+
+```python
+await Variable.set(name="the_answer", value="42")
+answer = await Variable.get("the_answer")
+print(answer) # 42
+await Variable.unset("the_answer")
+```
+
 
 ### In `prefect.yaml` deployment steps
 
