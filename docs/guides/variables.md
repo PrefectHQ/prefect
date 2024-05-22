@@ -26,7 +26,7 @@ Create, read, edit, and delete variables through the Prefect UI, API, and CLI. N
 - Only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
 - Be unique
 
-Values must have less than or equal to 5000 characters.
+Values must have less than or equal to 5000 characters when serialized.
 
 Optionally, you can add tags to the variable.
 
@@ -44,7 +44,12 @@ You can create and delete variables through the REST API. You can also set and g
 
 ### Through the CLI
 
-List, inspect, and delete variables in the CLI with the `prefect variable ls`, `prefect variable inspect <name>`, and `prefect variable delete <name>` commands, respectively.
+- `prefect variable set` creates or updates a variable.
+- `prefect variable get` retrieves a variable's value.
+- `prefect variable unset` deletes a variable.
+- `prefect variable ls` lists all variables.
+- `prefect variable inspect` shows a variable's details.
+
 
 ## Accessing variables
 
@@ -57,36 +62,33 @@ You can access any variable through the Python SDK with the `Variable.get()` met
 ```python
 from prefect.variables import Variable
 
-# setting the variable
-variable = Variable.set(name="the_answer", value="42")
+# get/set/unset a variable from a synchronous context
+Variable.set(name="the_answer", value="42")
+answer = Variable.get("the_answer")
+print(answer) # 42
+Variable.unset("the_answer")
 
-# getting from a synchronous context
-answer = Variable.get('the_answer')
-print(answer.value)
-# 42
+# get/set/unset a variable from a asynchronous context
+await Variable.set(name="the_answer", value="42")
+answer = await Variable.get("the_answer")
+print(answer) # 42
+await Variable.unset("the_answer")
 
-# getting from an asynchronous context
-answer = await Variable.get('the_answer')
-print(answer.value)
-# 42
 
-# getting without a default value
-answer = Variable.get('not_the_answer')
-print(answer.value)
-# None
+# get a variable that doesn't exist
+answer = Variable.get("not_the_answer")
+print(answer) # None
 
-# getting with a default value
-answer = Variable.get('not_the_answer', default='42')
-print(answer.value)
-# 42
 
-# using `overwrite=True`
-answer = Variable.get('the_answer')
-print(answer.value)
-#42
-answer = Variable.set(name="the_answer", value="43", overwrite=True)
-print(answer.value)
-#43
+# getting a variable that doesn't exist with a default value
+answer = Variable.get("not_the_answer", default="42")
+print(answer) # 42
+
+
+# overwrite an existing variable
+Variable.set(name="the_answer", value="43", overwrite=True)
+answer = Variable.get("the_answer")
+print(answer) #43
 ```
 
 ### In `prefect.yaml` deployment steps
