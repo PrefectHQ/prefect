@@ -146,7 +146,7 @@ def test_deprecated_field():
     ):
         Foo(y=10)
 
-    assert Foo.__fields__["y"].field_info.extra.get("deprecated") is True
+    assert Foo.model_fields["y"].json_schema_extra["deprecated"] is True
 
 
 def test_deprecated_field_when():
@@ -168,6 +168,8 @@ def test_deprecated_field_when():
         ),
     ):
         Foo(x=10)
+
+    assert Foo.model_fields["x"].json_schema_extra["deprecated"] is True
 
 
 def test_deprecated_class():

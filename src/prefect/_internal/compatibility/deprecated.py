@@ -232,7 +232,8 @@ def deprecated_field(
 
             field = __pydantic_self__.__fields__.get(name)
             if field is not None:
-                field.field_info.extra["deprecated"] = True
+                field.json_schema_extra = field.json_schema_extra or {}
+                field.json_schema_extra["deprecated"] = True
 
         # Patch the model's init method
         model_cls.__init__ = __init__
