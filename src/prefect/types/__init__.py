@@ -1,4 +1,5 @@
-from typing import Annotated, Any, Callable, ClassVar, Type
+from typing import Annotated, Any, Callable, ClassVar, Type, TypeVar, Union
+import pydantic
 from typing_extensions import Self
 
 from pydantic import BeforeValidator, Field, GetCoreSchemaHandler

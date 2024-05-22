@@ -1,4 +1,5 @@
 import importlib
+import json
 import os
 from contextlib import contextmanager
 from typing import Any, Dict, Generator, List, Type, Union
@@ -7,31 +8,13 @@ from uuid import uuid4
 import pendulum
 import pydantic
 import pytest
+from pydantic import Secret, SecretBytes, SecretStr
 
 from prefect.server.utilities.schemas import (
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
 )
-
-
-class NestedFunModel(pydantic.BaseModel):
-    loser: str = pydantic.Field("drake")
-    nested_secret_str: pydantic.SecretStr
-    nested_secret_bytes: pydantic.SecretBytes
-    nested_secret_int: pydantic.Secret[int]
-    all_my_enemies_secrets: List[pydantic.SecretStr]
-
-
-class FunSecretModel(PrefectBaseModel):
-    winner: str = pydantic.Field("kendrick")
-    secret_str: pydantic.SecretStr
-    secret_str_manual: pydantic.Secret[str]
-    secret_bytes: pydantic.SecretBytes
-    secret_bytes_manual: pydantic.Secret[bytes]
-    secret_int: pydantic.Secret[int]
-    nested_model: NestedFunModel
-    normal_dictionary: Dict[str, Union[str, Dict[str, Any]]]
 
 
 @contextmanager
@@ -198,81 +181,232 @@ class TestEqualityExcludedFields:
         assert Y(val=1) != X(val=1)
 
 
+class NestedFunModel(PrefectBaseModel):
+    loser: str = pydantic.Field("drake")
+    nested_secret_str: SecretStr
+    nested_secret_bytes: SecretBytes
+    nested_secret_int: Secret[int]
+    all_my_enemies_secrets: List[SecretStr]
+
+
+class FunSecretModel(PrefectBaseModel):
+    winner: str = pydantic.Field("kendrick")
+    secret_str: SecretStr
+    secret_str_manual: Secret[str]
+    secret_bytes: SecretBytes
+    secret_bytes_manual: Secret[bytes]
+    secret_int: Secret[int]
+    nested_model: NestedFunModel
+    normal_dictionary: Dict[str, Union[str, Dict[str, Any]]]
+
+
 class TestDumpSecrets:
-    @pytest.fixture
-    def test_secret_data(self):
-        return dict(
-            secret_str="oooOo very secret",
-            secret_str_manual="even more secret",
-            secret_bytes=b"dudes be byting my style",
-            secret_bytes_manual=b"sneak dissing",
-            secret_int=31415,
-            nested_model=dict(
-                nested_secret_str="call me a bird the way im nesting",
-                nested_secret_bytes=b"nesting like a bird",
-                nested_secret_int=54321,
-                all_my_enemies_secrets=[
-                    "culture vulture",
-                    "not really a secret",
-                    "but still",
-                    "you know",
-                ],
-            ),
-            normal_dictionary=dict(
-                keys="do not",
-                matter="at all",
-                because={
-                    "they": "are not",
-                    "typed": "on the model",
-                    "so": ["they", "can be", "anything"],
-                },
-            ),
+    SECRET_DATA = {
+        "secret_str": "oooOo very secret",
+        "secret_str_manual": "even more secret",
+        "secret_bytes": b"dudes be byting my style",
+        "secret_bytes_manual": b"sneak dissing",
+        "secret_int": 31415,
+        "nested_model": {
+            "nested_secret_str": "call me a bird the way im nesting",
+            "nested_secret_bytes": b"nesting like a bird",
+            "nested_secret_int": 54321,
+            "all_my_enemies_secrets": [
+                "culture vulture",
+                "not really a secret",
+                "but still",
+                "you know",
+            ],
+        },
+        "normal_dictionary": {
+            "keys": "do not",
+            "matter": "at all",
+            "because": {
+                "they": "are not",
+                "typed": "on the model",
+                "so": ["they", "can be", "anything"],
+            },
+        },
+    }
+
+    OBSCURED_DATA = {
+        "winner": "kendrick",
+        "secret_str": "**********",
+        "secret_str_manual": "**********",
+        "secret_bytes": b"**********",
+        "secret_bytes_manual": "**********",
+        "secret_int": "**********",
+        "nested_model": {
+            "loser": "drake",
+            "nested_secret_str": "**********",
+            "nested_secret_bytes": b"**********",
+            "nested_secret_int": "**********",
+            "all_my_enemies_secrets": [
+                "**********",
+                "**********",
+                "**********",
+                "**********",
+            ],
+        },
+        "normal_dictionary": {
+            "keys": "do not",
+            "matter": "at all",
+            "because": {
+                "they": "are not",
+                "typed": "on the model",
+                "so": ["they", "can be", "anything"],
+            },
+        },
+    }
+    REVEALED_DATA = {
+        "winner": "kendrick",
+        "secret_str": "oooOo very secret",
+        "secret_str_manual": "even more secret",
+        "secret_bytes": b"dudes be byting my style",
+        "secret_bytes_manual": b"sneak dissing",
+        "secret_int": 31415,
+        "nested_model": {
+            "loser": "drake",
+            "nested_secret_str": "call me a bird the way im nesting",
+            "nested_secret_bytes": b"nesting like a bird",
+            "nested_secret_int": 54321,
+            "all_my_enemies_secrets": [
+                "culture vulture",
+                "not really a secret",
+                "but still",
+                "you know",
+            ],
+        },
+        "normal_dictionary": {
+            "keys": "do not",
+            "matter": "at all",
+            "because": {
+                "they": "are not",
+                "typed": "on the model",
+                "so": ["they", "can be", "anything"],
+            },
+        },
+    }
+
+    @pytest.mark.parametrize(
+        "include_secrets, expectation",
+        [
+            (None, OBSCURED_DATA),
+            (False, OBSCURED_DATA),
+            (True, REVEALED_DATA),
+        ],
+    )
+    def test_model_dump_with_mode_python_handles_secrets(
+        self,
+        include_secrets: bool,
+        expectation: dict[str, Any],
+    ):
+        model = FunSecretModel.model_validate(self.SECRET_DATA)
+        context = (
+            {"include_secrets": include_secrets}
+            if include_secrets is not None
+            else None
         )
+        assert model.model_dump(mode="python", context=context) == expectation
 
-    def test_model_dump_with_secrets_left_obscured(self, test_secret_data):
-        model = FunSecretModel.model_validate(test_secret_data)
-        assert model.model_dump_with_secrets(unmask_secrets=False) == {
-            "winner": "kendrick",
-            "secret_str": "**********",
-            "secret_str_manual": "**********",
-            "secret_bytes": "**********",
-            "secret_bytes_manual": "**********",
-            "secret_int": "**********",
-            "nested_model": {
-                "loser": "drake",
-                "nested_secret_str": "**********",
-                "nested_secret_bytes": "**********",
-                "nested_secret_int": "**********",
-                "all_my_enemies_secrets": [
-                    "**********",
-                    "**********",
-                    "**********",
-                    "**********",
-                ],
+    OBSCURED_DATA_ALL_STRINGS = {
+        "winner": "kendrick",
+        "secret_str": "**********",
+        "secret_str_manual": "**********",
+        "secret_bytes": "**********",
+        "secret_bytes_manual": "**********",
+        "secret_int": "**********",
+        "nested_model": {
+            "loser": "drake",
+            "nested_secret_str": "**********",
+            "nested_secret_bytes": "**********",
+            "nested_secret_int": "**********",
+            "all_my_enemies_secrets": [
+                "**********",
+                "**********",
+                "**********",
+                "**********",
+            ],
+        },
+        "normal_dictionary": {
+            "keys": "do not",
+            "matter": "at all",
+            "because": {
+                "they": "are not",
+                "typed": "on the model",
+                "so": ["they", "can be", "anything"],
             },
-            "normal_dictionary": test_secret_data["normal_dictionary"],
-        }
+        },
+    }
+    REVEALED_DATA_ALL_STRINGS = {
+        "winner": "kendrick",
+        "secret_str": "oooOo very secret",
+        "secret_str_manual": "even more secret",
+        "secret_bytes": "dudes be byting my style",
+        "secret_bytes_manual": "sneak dissing",
+        "secret_int": 31415,
+        "nested_model": {
+            "loser": "drake",
+            "nested_secret_str": "call me a bird the way im nesting",
+            "nested_secret_bytes": "nesting like a bird",
+            "nested_secret_int": 54321,
+            "all_my_enemies_secrets": [
+                "culture vulture",
+                "not really a secret",
+                "but still",
+                "you know",
+            ],
+        },
+        "normal_dictionary": {
+            "keys": "do not",
+            "matter": "at all",
+            "because": {
+                "they": "are not",
+                "typed": "on the model",
+                "so": ["they", "can be", "anything"],
+            },
+        },
+    }
 
-    def test_model_dump_with_secrets_revealed(self, test_secret_data):
-        model = FunSecretModel.model_validate(test_secret_data)
-        assert model.model_dump_with_secrets() == {
-            "winner": "kendrick",
-            "secret_str": "oooOo very secret",
-            "secret_str_manual": "even more secret",
-            "secret_bytes": b"dudes be byting my style",
-            "secret_bytes_manual": b"sneak dissing",
-            "secret_int": 31415,
-            "nested_model": {
-                "loser": "drake",
-                "nested_secret_str": "call me a bird the way im nesting",
-                "nested_secret_bytes": b"nesting like a bird",
-                "nested_secret_int": 54321,
-                "all_my_enemies_secrets": [
-                    "culture vulture",
-                    "not really a secret",
-                    "but still",
-                    "you know",
-                ],
-            },
-            "normal_dictionary": test_secret_data["normal_dictionary"],
-        }
+    @pytest.mark.parametrize(
+        "include_secrets, expectation",
+        [
+            (None, OBSCURED_DATA_ALL_STRINGS),
+            (False, OBSCURED_DATA_ALL_STRINGS),
+            (True, REVEALED_DATA_ALL_STRINGS),
+        ],
+    )
+    def test_model_dump_with_mode_json_handles_secrets(
+        self,
+        include_secrets: bool,
+        expectation: dict[str, Any],
+    ):
+        model = FunSecretModel.model_validate(self.SECRET_DATA)
+        context = (
+            {"include_secrets": include_secrets}
+            if include_secrets is not None
+            else None
+        )
+        assert model.model_dump(mode="json", context=context) == expectation
+
+    @pytest.mark.parametrize(
+        "include_secrets, expectation",
+        [
+            # going to JSON will stringify all bytes, so these use the _ALL_STRINGS
+            (None, OBSCURED_DATA_ALL_STRINGS),
+            (False, OBSCURED_DATA_ALL_STRINGS),
+            (True, REVEALED_DATA_ALL_STRINGS),
+        ],
+    )
+    def test_model_dump_json_handles_secrets(
+        self,
+        include_secrets: bool,
+        expectation: dict[str, Any],
+    ):
+        model = FunSecretModel.model_validate(self.SECRET_DATA)
+        context = (
+            {"include_secrets": include_secrets}
+            if include_secrets is not None
+            else None
+        )
+        assert json.loads(model.model_dump_json(context=context)) == expectation
