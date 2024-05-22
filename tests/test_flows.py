@@ -1004,7 +1004,7 @@ class TestSubflowCalls:
 
         parent_state = parent("foo", return_state=True)
 
-        with pytest.raises(ParameterTypeError):
+        with pytest.raises(ParameterTypeError, match="invalid parameters"):
             await parent_state.result()
 
         child_state = await parent_state.result(raise_on_failure=False)
@@ -1012,7 +1012,6 @@ class TestSubflowCalls:
             child_state.state_details.flow_run_id
         )
         assert flow_run.state.is_failed()
-        assert "invalid parameters" in flow_run.state.message
 
     async def test_subflow_with_invalid_parameters_fails_parent(self):
         child_state = None
@@ -3986,7 +3985,7 @@ class TestLoadFlowFromFlowRun:
             deployment_id=deployment_id
         )
 
-        result = await load_flow_from_flow_run(flow_run, client=prefect_client)
+        result = await load_flow_from_flow_run(flow_run)
 
         assert result == pretend_flow
         load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")
