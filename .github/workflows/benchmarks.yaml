@@ -6,6 +6,7 @@ env:
 on:
   pull_request:
     paths:
+      - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - requirements.txt
@@ -28,7 +29,8 @@ jobs:
     name: Benchmark
     # Runs with ephemeral API and SQLite database right now
 
-    runs-on: ubuntu-latest
+    runs-on:
+      group: oss-larger-runners
     timeout-minutes: 20
 
     steps:
@@ -79,11 +81,25 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run benchmarks
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
         # Includes comparison to previous benchmarks if available
-        run: >
-          uniquename=${{ github.head_ref || 'main' }}-${{ github.sha }}
+        run: |
+          if [[ -z "$HEAD_REF" ]]; then
+            # HEAD_REF is unset or empty, use 'main' with the SHA
+            uniquename="main-$GITHUB_SHA"
+          else
+            # HEAD_REF is set, use the branch name directly
+            uniquename="$HEAD_REF"
+          fi
+
+          # Allow alphanumeric, underscores, and dashes, and replace other
+          # characters with an underscore
+          sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
-          python benches
-          --benchmark-save="${uniquename//\//_}"
-          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
+          python benches \
+          --timeout=180 \
+          --benchmark-save="${sanitized_uniquename}" \
+          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}

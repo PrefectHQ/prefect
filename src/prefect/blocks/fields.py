@@ -1,22 +1,11 @@
 from typing import TYPE_CHECKING, Any, Dict
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from pydantic.v1 import SecretField
+from pydantic.v1.utils import update_not_none
+from pydantic.v1.validators import dict_validator
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretField
-    from pydantic.v1.utils import update_not_none
-    from pydantic.v1.validators import dict_validator
-
-    if TYPE_CHECKING:
-        from pydantic.v1.typing import CallableGenerator
-
-else:
-    from pydantic import SecretField
-    from pydantic.utils import update_not_none
-    from pydantic.validators import dict_validator
-
-    if TYPE_CHECKING:
-        from pydantic.typing import CallableGenerator
+if TYPE_CHECKING:
+    from pydantic.v1.typing import CallableGenerator
 
 
 class SecretDict(SecretField):

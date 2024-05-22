@@ -3,8 +3,8 @@ import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosInstance } from 'axios'
 import { InjectionKey } from 'vue'
 import { AdminApi } from '@/services/adminApi'
+import { AutomationsApi } from '@/services/automationsApi'
 import { CsrfTokenApi, setupCsrfInterceptor } from '@/services/csrfTokenApi'
-
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function createPrefectApi(config: PrefectConfig) {
@@ -15,10 +15,12 @@ export function createPrefectApi(config: PrefectConfig) {
   }
 
   const workspaceApi = createApi(config, axiosInstanceSetupHook)
+
   return {
     ...workspaceApi,
     csrf: csrfTokenApi,
     admin: createActions(new AdminApi(config, axiosInstanceSetupHook)),
+    automations: createActions(new AutomationsApi(config, axiosInstanceSetupHook)),
   }
 }
 

@@ -4,11 +4,15 @@ import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/r
 import { BASE_URL } from '@/utilities/meta'
 
 const workspaceRoutes = createWorkspaceRouteRecords({
+  automation: () => import('@/pages/Automation.vue'),
+  automations: () => import('@/pages/Automations.vue'),
+  automationCreate: () => import('@/pages/AutomationCreate.vue'),
+  automationEdit: () => import('@/pages/AutomationEdit.vue'),
   artifact: () => import('@/pages/Artifact.vue'),
   artifactKey: () => import('@/pages/ArtifactKey.vue'),
   artifacts: () => import('@/pages/Artifacts.vue'),
   dashboard: () => import('@/pages/Dashboard.vue'),
-  flowRuns: () => import('@/pages/FlowRuns.vue'),
+  runs: () => import('@/pages/Runs.vue'),
   flowRun: () => import('@/pages/FlowRun.vue'),
   taskRun: () => import('@/pages/TaskRun.vue'),
   flows: () => import('@/pages/Flows.vue'),

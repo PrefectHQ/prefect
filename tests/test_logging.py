@@ -22,9 +22,7 @@ from prefect import flow, task
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
-from prefect.infrastructure import Process
 from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
@@ -179,44 +177,6 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
         setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
-
-
-@pytest.mark.skip(reason="Will address with other infra compatibility improvements.")
-@pytest.mark.enable_api_log_handler
-async def test_flow_run_respects_extra_loggers(prefect_client, logger_test_deployment):
-    """
-    Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
-    intended. This avoids side-effects of modifying the loggers in this test run without
-    confusing mocking.
-    """
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        logger_test_deployment
-    )
-
-    assert (
-        await Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
-        .prepare_for_flow_run(flow_run)
-        .run()
-    )
-
-    state = (await prefect_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state, prefect_client)
-    api_logs = await prefect_client.read_logs()
-    api_log_messages = [log.message for log in api_logs]
-
-    extra_logger = logging.getLogger("prefect.extra")
-
-    # Configures 'foo' to match 'prefect.extra'
-    assert settings["foo"]["handlers"] == [
-        handler.name for handler in extra_logger.handlers
-    ]
-    assert settings["foo"]["level"] == extra_logger.level
-    assert "Hello from foo" in api_log_messages
-
-    # Does not configure 'bar'
-    assert settings["bar"]["handlers"] == []
-    assert settings["bar"]["level"] == logging.NOTSET
-    assert "Hello from bar" not in api_log_messages
 
 
 @pytest.mark.parametrize("name", ["default", None, ""])
@@ -996,7 +956,7 @@ async def test_run_logger_in_flow(prefect_client):
     def test_flow():
         return get_run_logger()
 
-    state = test_flow._run()
+    state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
@@ -1012,7 +972,7 @@ async def test_run_logger_extra_data(prefect_client):
     def test_flow():
         return get_run_logger(foo="test", flow_name="bar")
 
-    state = test_flow._run()
+    state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
@@ -1031,9 +991,9 @@ async def test_run_logger_in_nested_flow(prefect_client):
 
     @flow
     def test_flow():
-        return child_flow._run()
+        return child_flow(return_state=True)
 
-    child_state = await test_flow._run().result()
+    child_state = await test_flow(return_state=True).result()
     flow_run = await prefect_client.read_flow_run(child_state.state_details.flow_run_id)
     logger = await child_state.result()
     assert logger.name == "prefect.flow_runs"
@@ -1051,9 +1011,9 @@ async def test_run_logger_in_task(prefect_client):
 
     @flow
     def test_flow():
-        return test_task._run()
+        return test_task(return_state=True)
 
-    flow_state = test_flow._run()
+    flow_state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(flow_state.state_details.flow_run_id)
     task_state = await flow_state.result()
     task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)

@@ -40,7 +40,7 @@ async def clear_cached_filesystems():
 
 
 # model defined outside of the test function to avoid pickling issues
-# on pydantic v1 / python 3.8, see https://github.com/cloudpipe/cloudpickle/issues/408
+# on pydantic v1 / Python 3.8, see https://github.com/cloudpipe/cloudpickle/issues/408
 class BreakfastSpot(BaseModel):
     name: str
     location: str
@@ -183,8 +183,8 @@ class TestServe:
             ):
                 await serve(foo_task)
 
-    def test_serve_basic_sync_task(self, foo_task, mock_task_server_start):
-        serve(foo_task)
+    async def test_serve_basic_sync_task(self, foo_task, mock_task_server_start):
+        await serve(foo_task)
         mock_task_server_start.assert_called_once()
 
         task_run = foo_task.submit(42)

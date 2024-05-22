@@ -1,48 +1,38 @@
 # prefect-ray
 
-<p align="center">
-    <!--- Insert a cover image here -->
-    <!--- <br> -->
-    <a href="https://pypi.python.org/pypi/prefect-ray/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect-ray?color=26272B&labelColor=090422"></a>
-    <a href="https://pepy.tech/badge/prefect-ray/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect-ray?color=26272B&labelColor=090422" /></a>
-</p>
-
-## Welcome!
-Visit the full docs [here](https://PrefectHQ.github.io/prefect-ray) to see additional examples and the API reference.
-
-`prefect-ray` contains Prefect integrations with the [Ray](https://www.ray.io/) execution framework, a flexible distributed computing framework for Python.
-
-Provides a `RayTaskRunner` that enables Prefect flows to run tasks execute tasks in parallel using Ray.
+[Ray](https://docs.ray.io/en/latest/index.html) can run the tasks in your flow in parallel by distributing them over multiple machines.
+The `prefect-ray` integration makes it easy speed up your flow runs by integrating Ray into your code.
 
 ## Getting Started
 
-### Python setup
+### Prerequisites
 
-Requires an installation of Python 3.8 or newer.
+- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
 
-We recommend using a Python virtual environment manager such as pipenv, conda, or virtualenv.
+### Install prefect-ray
 
-These tasks are designed to work with Prefect 2.0+. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-### Installation
-
-Install `prefect-ray` with `pip`:
-
+<div class="terminal">
 ```bash
 pip install prefect-ray
 ```
+</div>
 
-Users running Apple Silicon (such as M1 macs) should check out the Ray docs [here](https://docs.ray.io/en/master/ray-overview/installation.html#m1-mac-apple-silicon-support) for more details.
+!!! warning "Ray environment limitations"
+    While we're excited about parallel task execution via Ray, there are a few limitations with Ray you should be aware of:
+
+    - Support for Python 3.11 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
+    - Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
+    - Ray's Windows support is currently in beta.
+
+    See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
 
 ## Running tasks on Ray
 
-The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/concepts/task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution. 
+The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/concepts/task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution.
 
 By default, a temporary Ray instance is created for the duration of the flow run.
 
-For example, this flow counts to 3 in parallel.
+For example, this flow counts to three in parallel.
 
 ```python
 import time
@@ -124,11 +114,12 @@ Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray
 
 When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance. To resolve these issues, we recommend taking the following steps when working with a remote Ray cluster:
 
-1. By default, Prefect will not persist any data to the filesystem of the remote ray worker. However, if you want to take advantage of Prefect's caching ability, you will need to configure a remote result storage to persist results across task runs. 
+1. By default, Prefect will not persist any data to the filesystem of the remote ray worker. However, if you want to take advantage of Prefect's caching ability, you will need to configure a remote result storage to persist results across task runs.
 
 We recommend using the [Prefect UI to configure a storage block](https://docs.prefect.io/concepts/blocks/) to use for remote results storage.
 
 Here's an example of a flow that uses caching and remote result storage:
+
 ```python
 from typing import List
 
@@ -164,19 +155,28 @@ if __name__ == "__main__":
 ```
 
 2. If you get an error stating that the module 'prefect' cannot be found, ensure `prefect` is installed on the remote cluster, with:
+
+<div class="terminal">
 ```bash
 pip install prefect
 ```
+</div>
 
-3. If you get an error with a message similar to "File system created with scheme 's3' could not be created", ensure the required Python modules are installed on **both local and remote machines**. The required prerequisite modules can be found in the [Prefect documentation](https://docs.prefect.io/guides/deployment/storage-guide). For example, if using S3 for the remote storage:
+3. If you get an error with a message similar to "File system created with scheme 's3' could not be created", ensure the required Python modules are installed on **both local and remote machines**. The required prerequisite modules can be found in the [Prefect documentation](https://docs.prefect.io/guides/deployment/storage-guide). For example, if using S3 for storage:
+
+<div class="terminal">
 ```bash
 pip install s3fs
 ```
+</div>
 
 4. If you are seeing timeout or other connection errors, double check the address provided to the `RayTaskRunner`. The address should look similar to: `address='ray://<head_node_ip_address>:10001'`:
+
+<div class="terminal">
 ```bash
 RayTaskRunner(address="ray://1.23.199.255:10001")
 ```
+</div>
 
 ## Specifying remote options
 
@@ -200,3 +200,9 @@ def my_flow():
     with remote_options(num_cpus=4, num_gpus=2):
         process.submit(42)
 ```
+
+## Resources
+
+Refer to the prefect-ray API documentation linked in the sidebar to explore all the capabilities of the prefect-ray library.
+
+For assistance using Dask, consult the [Ray documentation](https://docs.ray.io/en/latest/index.html).

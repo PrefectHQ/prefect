@@ -489,7 +489,7 @@ class KubernetesWorkerVariables(BaseVariables):
         default=None,
         description="The image reference of a container image to use for created jobs. "
         "If not set, the latest Prefect image will be used.",
-        example="docker.io/prefecthq/prefect:2-latest",
+        example="docker.io/prefecthq/prefect:3-latest",
     )
     service_account_name: Optional[str] = Field(
         default=None,

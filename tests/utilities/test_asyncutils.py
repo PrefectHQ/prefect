@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import threading
 import time
 import uuid
@@ -10,6 +11,11 @@ import anyio
 import pytest
 
 from prefect.context import ContextModel
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+    temporary_settings,
+)
 from prefect.utilities.asyncutils import (
     GatherIncomplete,
     LazySemaphore,
@@ -269,6 +275,10 @@ SYNC_COMPAT_TEST_CASES = [
 ]
 
 
+@pytest.mark.skipif(
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+    reason="Not supported with new engine",
+)
 @pytest.mark.parametrize("fn", SYNC_COMPAT_TEST_CASES)
 def test_sync_compatible_call_from_sync(fn):
     assert fn(1, y=2) == 6
@@ -277,6 +287,12 @@ def test_sync_compatible_call_from_sync(fn):
 @pytest.mark.parametrize("fn", SYNC_COMPAT_TEST_CASES)
 async def test_sync_compatible_call_from_async(fn):
     assert await fn(1, y=2) == 6
+
+
+@pytest.mark.parametrize("fn", SYNC_COMPAT_TEST_CASES)
+def test_sync_compatible_is_disabled_by_flag(fn):
+    with temporary_settings({PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT: True}):
+        assert inspect.isawaitable(fn(1, y=2))
 
 
 async def test_sync_compatible_call_from_sync_in_async_thread():
@@ -311,6 +327,10 @@ async def test_sync_compatible_call_with_taskgroup():
     assert results == [3, 3]
 
 
+@pytest.mark.skipif(
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+    reason="Not supported with new engine",
+)
 @pytest.mark.parametrize("fn", SYNC_COMPAT_TEST_CASES)
 async def test_sync_compatible_call_from_worker(fn):
     def run_fn():

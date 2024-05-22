@@ -1,32 +1,35 @@
-from typing import List, Optional, Sequence, Union, get_args
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union, get_args
 
 from prefect.client.schemas.objects import MinimalDeploymentSchedule
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
 
-try:
-    from prefect.server.schemas.schedules import SCHEDULE_TYPES as SERVER_SCHEDULE_TYPES
+if TYPE_CHECKING:
+    from prefect.client.schemas.schedules import SCHEDULE_TYPES
 
-    SERVER_SCHEDULE_TYPES = get_args(SERVER_SCHEDULE_TYPES)
-except ImportError:
-    # `prefect-client` does not have access to the server schemas.
-    SERVER_SCHEDULE_TYPES = ()
-
-FlexibleScheduleList = Sequence[Union[MinimalDeploymentSchedule, dict, SCHEDULE_TYPES]]
+FlexibleScheduleList = Sequence[
+    Union[MinimalDeploymentSchedule, dict, "SCHEDULE_TYPES"]
+]
 
 
 def create_minimal_deployment_schedule(
-    schedule: SCHEDULE_TYPES,
+    schedule: "SCHEDULE_TYPES",
     active: Optional[bool] = True,
+    max_active_runs: Optional[int] = None,
+    catchup: bool = False,
 ) -> MinimalDeploymentSchedule:
+    """Create a MinimalDeploymentSchedule object from common schedule parameters."""
     return MinimalDeploymentSchedule(
         schedule=schedule,
         active=active if active is not None else True,
+        max_active_runs=max_active_runs,
+        catchup=catchup,
     )
 
 
 def normalize_to_minimal_deployment_schedules(
-    schedules: Optional[FlexibleScheduleList],
+    schedules: Optional["FlexibleScheduleList"],
 ) -> List[MinimalDeploymentSchedule]:
+    from prefect.client.schemas.schedules import SCHEDULE_TYPES
+
     normalized = []
     if schedules is not None:
         for obj in schedules:
@@ -36,7 +39,7 @@ def normalize_to_minimal_deployment_schedules(
                 normalized.append(create_minimal_deployment_schedule(**obj))
             elif isinstance(obj, MinimalDeploymentSchedule):
                 normalized.append(obj)
-            elif isinstance(obj, SERVER_SCHEDULE_TYPES):
+            elif _is_server_schema(obj):
                 raise ValueError(
                     "Server schema schedules are not supported. Please use "
                     "the schedule objects from `prefect.client.schemas.schedules`"
@@ -48,3 +51,7 @@ def normalize_to_minimal_deployment_schedules(
                 )
 
     return normalized
+
+
+def _is_server_schema(obj: Any):
+    return obj.__class__.__module__.startswith("prefect.server.schemas")

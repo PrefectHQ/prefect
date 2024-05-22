@@ -76,9 +76,6 @@ class ThreadShield:
 
 
 class CancelledError(asyncio.CancelledError):
-    # In Python 3.7, `asyncio.CancelledError` is identical to `concurrent.futures.CancelledError`
-    # but in 3.8+ it is a separate class that inherits from `BaseException` instead
-    # See https://bugs.python.org/issue32528
     # We want our `CancelledError` to be treated as a `BaseException` and defining it
     # here simplifies downstream logic that needs to know "which" cancelled error to
     # handle.
@@ -581,6 +578,8 @@ def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseExcep
 
     This will not interrupt long-running system calls like `sleep` or `wait`.
     """
+    if not thread.ident:
+        raise ValueError("Thread is not started.")
     ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(
         ctypes.c_long(thread.ident), ctypes.py_object(exc_type)
     )

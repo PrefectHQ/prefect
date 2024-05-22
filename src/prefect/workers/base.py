@@ -7,14 +7,7 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import return_v_or_none
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
 
 import prefect
 from prefect._internal.compatibility.experimental import (
@@ -22,6 +15,7 @@ from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
     experiment_enabled,
 )
+from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
@@ -836,14 +830,18 @@ class BaseWorker(abc.ABC):
         was created from a deployment with a storage block.
         """
         if flow_run.deployment_id:
+            assert (
+                self._client and self._client._started
+            ), "Client must be started to check flow run deployment."
             deployment = await self._client.read_deployment(flow_run.deployment_id)
             if deployment.storage_document_id:
                 raise ValueError(
                     f"Flow run {flow_run.id!r} was created from deployment"
                     f" {deployment.name!r} which is configured with a storage block."
-                    " Please use an"
-                    " agent to execute this flow run."
+                    " Please use an agent to execute this flow run."
                 )
+
+            #
 
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
@@ -894,7 +892,7 @@ class BaseWorker(abc.ABC):
         self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
-        self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
+        self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
     ) -> Union[BaseWorkerResult, Exception]:
         run_logger = self.get_flow_run_logger(flow_run)
 

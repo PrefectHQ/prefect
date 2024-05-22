@@ -14,20 +14,21 @@ from uuid import UUID
 
 import orjson
 import pendulum
+from pydantic.v1 import (
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
+from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
 )
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import NonNegativeInteger, PositiveInteger
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, root_validator, validator
-else:
-    from pydantic import Field, HttpUrl, root_validator, validator
-
-from typing_extensions import Literal
-
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect._internal.schemas.validators import (
@@ -35,7 +36,6 @@ from prefect._internal.schemas.validators import (
     get_or_create_state_name,
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_with_banned_characters,
     set_run_policy_deprecated_fields,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
@@ -46,12 +46,13 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
+from prefect.types import Name, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import AutoEnum, listrepr
 from prefect.utilities.names import generate_slug
 
 if TYPE_CHECKING:
-    from prefect.deprecated.data_documents import DataDocument
     from prefect.results import BaseResult
+
 
 R = TypeVar("R")
 
@@ -120,20 +121,20 @@ class WorkQueueStatus(AutoEnum):
 
 
 class StateDetails(PrefectBaseModel):
-    flow_run_id: UUID = None
-    task_run_id: UUID = None
+    flow_run_id: Optional[UUID] = None
+    task_run_id: Optional[UUID] = None
     # for task runs that represent subflows, the subflow's run ID
-    child_flow_run_id: UUID = None
+    child_flow_run_id: Optional[UUID] = None
     scheduled_time: DateTimeTZ = None
-    cache_key: str = None
+    cache_key: Optional[str] = None
     cache_expiration: DateTimeTZ = None
     untrackable_result: bool = False
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
-    pause_key: str = None
+    pause_key: Optional[str] = None
     run_input_keyset: Optional[Dict[str, str]] = None
-    refresh_cache: bool = None
-    retriable: bool = None
+    refresh_cache: Optional[bool] = None
+    retriable: Optional[bool] = None
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
 
@@ -148,7 +149,7 @@ class State(ObjectBaseModel, Generic[R]):
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
+    data: Union["BaseResult[R]", Any] = Field(
         default=None,
     )
 
@@ -160,7 +161,9 @@ class State(ObjectBaseModel, Generic[R]):
     def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
-    def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
+    def result(
+        self, raise_on_failure: bool = True, fetch: Optional[bool] = None
+    ) -> Union[R, Exception]:
         """
         Retrieve the result attached to this state.
 
@@ -330,12 +333,7 @@ class State(ObjectBaseModel, Generic[R]):
 
         `MyCompletedState(message="my message", type=COMPLETED, result=...)`
         """
-        from prefect.deprecated.data_documents import DataDocument
-
-        if isinstance(self.data, DataDocument):
-            result = self.data.decode()
-        else:
-            result = self.data
+        result = self.data
 
         display = dict(
             message=repr(self.message),
@@ -687,7 +685,9 @@ class TaskRun(ObjectBaseModel):
     task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
         default_factory=dict,
         description=(
-            "Tracks the source of inputs to a task run. Used for internal bookkeeping."
+            "Tracks the source of inputs to a task run. Used for internal bookkeeping. "
+            "Note the special __parents__ key, used to indicate a parent/child "
+            "relationship that may or may not include an input or wait_for semantic."
         ),
     )
     state_type: Optional[StateType] = Field(
@@ -802,7 +802,7 @@ class Workspace(PrefectBaseModel):
 class BlockType(ObjectBaseModel):
     """An ORM representation of a block type"""
 
-    name: str = Field(default=..., description="A block type's name")
+    name: Name = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
     logo_url: Optional[HttpUrl] = Field(
         default=None, description="Web URL for the block type's logo"
@@ -821,10 +821,6 @@ class BlockType(ObjectBaseModel):
     is_protected: bool = Field(
         default=False, description="Protected block types cannot be modified via API."
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class BlockSchema(ObjectBaseModel):
@@ -851,7 +847,7 @@ class BlockSchema(ObjectBaseModel):
 class BlockDocument(ObjectBaseModel):
     """An ORM representation of a block document."""
 
-    name: Optional[str] = Field(
+    name: Optional[Name] = Field(
         default=None,
         description=(
             "The block document's name. Not required for anonymous block documents."
@@ -880,12 +876,6 @@ class BlockDocument(ObjectBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        # the BlockDocumentCreate subclass allows name=None
-        # and will inherit this validator
-        return raise_on_name_with_banned_characters(v)
-
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
@@ -894,7 +884,7 @@ class BlockDocument(ObjectBaseModel):
 class Flow(ObjectBaseModel):
     """An ORM representation of flow data."""
 
-    name: str = Field(
+    name: Name = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
@@ -903,10 +893,6 @@ class Flow(ObjectBaseModel):
         examples=[["tag-1", "tag-2"]],
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class MinimalDeploymentSchedule(PrefectBaseModel):
     schedule: SCHEDULE_TYPES = Field(
@@ -914,6 +900,14 @@ class MinimalDeploymentSchedule(PrefectBaseModel):
     )
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
+    )
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+    catchup: bool = Field(
+        default=False,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
 
@@ -928,12 +922,24 @@ class DeploymentSchedule(ObjectBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
+    max_active_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of active runs for the schedule.",
+    )
+    max_scheduled_runs: Optional[PositiveInteger] = Field(
+        default=None,
+        description="The maximum number of scheduled runs for the schedule.",
+    )
+    catchup: bool = Field(
+        default=False,
+        description="Whether or not a worker should catch up on Late runs for the schedule.",
+    )
 
 
 class Deployment(DeprecatedInfraOverridesField, ObjectBaseModel):
     """An ORM representation of deployment data."""
 
-    name: str = Field(default=..., description="The name of the deployment.")
+    name: Name = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
@@ -1034,10 +1040,6 @@ class Deployment(DeprecatedInfraOverridesField, ObjectBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class ConcurrencyLimit(ObjectBaseModel):
@@ -1182,7 +1184,7 @@ class QueueFilter(PrefectBaseModel):
 class WorkQueue(ObjectBaseModel):
     """An ORM representation of a work queue"""
 
-    name: str = Field(default=..., description="The name of the work queue.")
+    name: Name = Field(default=..., description="The name of the work queue.")
     description: Optional[str] = Field(
         default="", description="An optional description for the work queue."
     )
@@ -1214,10 +1216,6 @@ class WorkQueue(ObjectBaseModel):
     status: Optional[WorkQueueStatus] = Field(
         default=None, description="The queue status."
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1338,7 +1336,7 @@ class Agent(ObjectBaseModel):
 class WorkPool(ObjectBaseModel):
     """An ORM representation of a work pool"""
 
-    name: str = Field(
+    name: Name = Field(
         description="The name of the work pool.",
     )
     description: Optional[str] = Field(
@@ -1372,10 +1370,6 @@ class WorkPool(ObjectBaseModel):
     @property
     def is_managed_pool(self) -> bool:
         return self.type.endswith(":managed")
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):
@@ -1493,11 +1487,12 @@ class Variable(ObjectBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: Union[
+        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=...,
         description="The value of the variable",
         examples=["my_value"],
-        max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,

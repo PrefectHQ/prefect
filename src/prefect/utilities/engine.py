@@ -1,10 +1,12 @@
 import asyncio
 import contextlib
+import inspect
 import os
 import signal
 import time
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -23,7 +25,6 @@ import prefect
 import prefect.context
 import prefect.plugins
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import (
     StateType,
@@ -47,6 +48,7 @@ from prefect.logging.loggers import (
     get_logger,
     task_run_logger,
 )
+from prefect.new_futures import PrefectFuture as NewPrefectFuture
 from prefect.results import BaseResult
 from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,
@@ -60,9 +62,13 @@ from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.asyncutils import (
     gather,
+    run_sync,
 )
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
 API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
@@ -116,8 +122,51 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     return inputs
 
 
+def collect_task_run_inputs_sync(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
+    """
+    This function recurses through an expression to generate a set of any discernible
+    task run inputs it finds in the data structure. It produces a set of all inputs
+    found.
+
+    Examples:
+        >>> task_inputs = {
+        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
+        >>> }
+    """
+    # TODO: This function needs to be updated to detect parameters and constants
+
+    inputs = set()
+    futures: Set[NewPrefectFuture] = set()
+
+    def add_futures_and_states_to_inputs(obj):
+        if isinstance(obj, NewPrefectFuture):
+            futures.add(obj)
+        elif is_state(obj):
+            if obj.state_details.task_run_id:
+                inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
+        # Expressions inside quotes should not be traversed
+        elif isinstance(obj, quote):
+            raise StopVisiting
+        else:
+            state = get_state_for_result(obj)
+            if state and state.state_details.task_run_id:
+                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
+
+    visit_collection(
+        expr,
+        visit_fn=add_futures_and_states_to_inputs,
+        return_data=False,
+        max_depth=max_depth,
+    )
+
+    for future in futures:
+        inputs.add(TaskRunResult(id=future.task_run_id))
+
+    return inputs
+
+
 async def wait_for_task_runs_and_report_crashes(
-    task_run_futures: Iterable[PrefectFuture], client: PrefectClient
+    task_run_futures: Iterable[PrefectFuture], client: "PrefectClient"
 ) -> Literal[True]:
     crash_exceptions = []
 
@@ -309,7 +358,7 @@ async def resolve_inputs(
 
 
 async def propose_state(
-    client: PrefectClient,
+    client: "PrefectClient",
     state: State[object],
     force: bool = False,
     task_run_id: Optional[UUID] = None,
@@ -380,6 +429,109 @@ async def propose_state(
     elif flow_run_id:
         set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
         response = await set_state_and_handle_waits(set_state)
+    else:
+        raise ValueError(
+            "Neither flow run id or task run id were provided. At least one must "
+            "be given."
+        )
+
+    # Parse the response to return the new state
+    if response.status == SetStateStatus.ACCEPT:
+        # Update the state with the details if provided
+        state.id = response.state.id
+        state.timestamp = response.state.timestamp
+        if response.state.state_details:
+            state.state_details = response.state.state_details
+        return state
+
+    elif response.status == SetStateStatus.ABORT:
+        raise prefect.exceptions.Abort(response.details.reason)
+
+    elif response.status == SetStateStatus.REJECT:
+        if response.state.is_paused():
+            raise Pause(response.details.reason, state=response.state)
+        return response.state
+
+    else:
+        raise ValueError(
+            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+        )
+
+
+def propose_state_sync(
+    client: "SyncPrefectClient",
+    state: State[object],
+    force: bool = False,
+    task_run_id: Optional[UUID] = None,
+    flow_run_id: Optional[UUID] = None,
+) -> State[object]:
+    """
+    Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
+
+    If the proposed state is accepted, the provided `state` will be augmented with
+     details and returned.
+
+    If the proposed state is rejected, a new state returned by the Prefect API will be
+    returned.
+
+    If the proposed state results in a WAIT instruction from the Prefect API, the
+    function will sleep and attempt to propose the state again.
+
+    If the proposed state results in an ABORT instruction from the Prefect API, an
+    error will be raised.
+
+    Args:
+        state: a new state for the task or flow run
+        task_run_id: an optional task run id, used when proposing task run states
+        flow_run_id: an optional flow run id, used when proposing flow run states
+
+    Returns:
+        a [State model][prefect.client.schemas.objects.State] representation of the
+            flow or task run state
+
+    Raises:
+        ValueError: if neither task_run_id or flow_run_id is provided
+        prefect.exceptions.Abort: if an ABORT instruction is received from
+            the Prefect API
+    """
+
+    # Determine if working with a task run or flow run
+    if not task_run_id and not flow_run_id:
+        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+
+    # Handle task and sub-flow tracing
+    if state.is_final():
+        if isinstance(state.data, BaseResult) and state.data.has_cached_object():
+            # Avoid fetching the result unless it is cached, otherwise we defeat
+            # the purpose of disabling `cache_result_in_memory`
+            result = state.result(raise_on_failure=False, fetch=True)
+            if inspect.isawaitable(result):
+                result = run_sync(result)
+        else:
+            result = state.data
+
+        link_state_to_result(state, result)
+
+    # Handle repeated WAITs in a loop instead of recursively, to avoid
+    # reaching max recursion depth in extreme cases.
+    def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+        response = set_state_func()
+        while response.status == SetStateStatus.WAIT:
+            engine_logger.debug(
+                f"Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            time.sleep(response.details.delay_seconds)
+            response = set_state_func()
+        return response
+
+    # Attempt to set the state
+    if task_run_id:
+        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+        response = set_state_and_handle_waits(set_state)
+    elif flow_run_id:
+        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+        response = set_state_and_handle_waits(set_state)
     else:
         raise ValueError(
             "Neither flow run id or task run id were provided. At least one must "
@@ -559,7 +711,7 @@ def _get_hook_name(hook: Callable) -> str:
     )
 
 
-async def check_api_reachable(client: PrefectClient, fail_message: str):
+async def check_api_reachable(client: "PrefectClient", fail_message: str):
     # Do not perform a healthcheck if it exists and is not expired
     api_url = str(client.api_url)
     if api_url in API_HEALTHCHECKS:
@@ -629,3 +781,85 @@ def emit_task_run_state_change_event(
         },
         follows=follows,
     )
+
+
+def resolve_to_final_result(expr, context):
+    """
+    Resolve any `PrefectFuture`, or `State` types nested in parameters into
+    data. Designed to be use with `visit_collection`.
+    """
+    state = None
+
+    # Expressions inside quotes should not be modified
+    if isinstance(context.get("annotation"), quote):
+        raise StopVisiting()
+
+    if isinstance(expr, NewPrefectFuture):
+        expr.wait()
+        state = expr.state
+    elif is_state(expr):
+        state = expr
+    else:
+        return expr
+
+    assert state
+
+    # Do not allow uncompleted upstreams except failures when `allow_failure` has
+    # been used
+    if not state.is_completed() and not (
+        # TODO: Note that the contextual annotation here is only at the current level
+        #       if `allow_failure` is used then another annotation is used, this will
+        #       incorrectly evaluate to false — to resolve this, we must track all
+        #       annotations wrapping the current expression but this is not yet
+        #       implemented.
+        isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+    ):
+        raise UpstreamTaskError(
+            f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
+            " 'COMPLETED' state."
+        )
+
+    _result = state.result(raise_on_failure=False, fetch=True)
+    if inspect.isawaitable(_result):
+        _result = run_sync(_result)
+    return _result
+
+
+def resolve_inputs_sync(
+    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> Dict[str, Any]:
+    """
+    Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
+    data.
+
+    Returns:
+        A copy of the parameters with resolved data
+
+    Raises:
+        UpstreamTaskError: If any of the upstream states are not `COMPLETED`
+    """
+
+    if not parameters:
+        return {}
+
+    resolved_parameters = {}
+    for parameter, value in parameters.items():
+        try:
+            resolved_parameters[parameter] = visit_collection(
+                value,
+                visit_fn=resolve_to_final_result,
+                return_data=return_data,
+                max_depth=max_depth,
+                remove_annotations=True,
+                context={},
+            )
+        except UpstreamTaskError:
+            raise
+        except Exception as exc:
+            raise PrefectException(
+                f"Failed to resolve inputs in parameter {parameter!r}. If your"
+                " parameter type is not supported, consider using the `quote`"
+                " annotation to skip resolution of inputs."
+            ) from exc
+
+    return resolved_parameters

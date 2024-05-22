@@ -66,35 +66,19 @@ from typing import (
 from urllib.parse import urlparse
 
 import toml
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import validate_settings
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-else:
-    from pydantic import (
-        BaseModel,
-        BaseSettings,
-        Field,
-        create_model,
-        fields,
-        root_validator,
-        validator,
-    )
-
+from pydantic.v1 import (
+    BaseModel,
+    BaseSettings,
+    Field,
+    create_model,
+    fields,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -111,6 +95,8 @@ REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
     "PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT",
+    "PREFECT_EXPERIMENTAL_ENABLE_EVENTS",
+    "PREFECT_EXPERIMENTAL_EVENTS",
     "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
     "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
     "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
@@ -1226,6 +1212,16 @@ PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS = Setting(float, default=15)
 """The number of seconds to wait between each iteration of the Foreman loop which checks
 for offline workers and updates work pool status."""
 
+
+PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE = Setting(int, default=3)
+"The number of heartbeats that must be missed before a worker is marked as offline."
+
+PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS = Setting(
+    int, default=30
+)
+"""The number of seconds to use for online/offline evaluation if a worker's heartbeat
+interval is not set."""
+
 PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS = Setting(
     int, default=60
 )
@@ -1444,13 +1440,6 @@ Whether or not to enable flow run input.
 
 # Prefect Events feature flags
 
-PREFECT_EXPERIMENTAL_EVENTS = Setting(bool, default=False)
-"""
-Whether to enable Prefect's server-side event features. Note that Prefect Cloud clients
-will always emit events during flow and task runs regardless of this setting.
-"""
-
-
 PREFECT_RUNNER_PROCESS_LIMIT = Setting(int, default=5)
 """
 Maximum number of processes a runner will execute in parallel.
@@ -1484,6 +1473,11 @@ The log level of the runner's webserver.
 PREFECT_RUNNER_SERVER_ENABLE = Setting(bool, default=False)
 """
 Whether or not to enable the runner's webserver.
+"""
+
+PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS = Setting(int, default=50)
+"""
+The maximum number of scheduled runs to create for a deployment.
 """
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
@@ -1594,11 +1588,17 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE = Setting(bool, default=True)
 """
 Whether or not to enable experimental new engine.
 """
 
+PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
+"""
+Whether or not to disable the sync_compatible decorator utility.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY = Setting(bool, default=False)
 
 # Defaults -----------------------------------------------------------------------------
 
@@ -1713,6 +1713,11 @@ PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, 
 The maximum number of seconds between flushes of the event persister.
 """
 
+PREFECT_EVENTS_RETENTION_PERIOD = Setting(timedelta, default=timedelta(days=7))
+"""
+The amount of time to retain events in the database.
+"""
+
 PREFECT_API_EVENTS_STREAM_OUT_ENABLED = Setting(bool, default=True)
 """
 Whether or not to allow streaming events out of via websockets.
@@ -1724,6 +1729,7 @@ PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
 """
 How long to cache related resource data for emitting server-side vents
 """
+
 
 # Deprecated settings ------------------------------------------------------------------
 

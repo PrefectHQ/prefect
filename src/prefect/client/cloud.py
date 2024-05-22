@@ -3,19 +3,12 @@ from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic.v1 as pydantic
 from prefect._vendor.starlette import status
 
 import prefect.context
 import prefect.settings
-from prefect.client.base import PrefectHttpxClient
+from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas import Workspace
 from prefect.exceptions import PrefectException
 from prefect.settings import (
@@ -72,7 +65,9 @@ class CloudClient:
         httpx_settings.setdefault("base_url", host)
         if not PREFECT_UNIT_TEST_MODE.value():
             httpx_settings.setdefault("follow_redirects", True)
-        self._client = PrefectHttpxClient(**httpx_settings, enable_csrf_support=False)
+        self._client = PrefectHttpxAsyncClient(
+            **httpx_settings, enable_csrf_support=False
+        )
 
     async def api_healthcheck(self):
         """

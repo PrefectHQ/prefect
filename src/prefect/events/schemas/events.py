@@ -15,13 +15,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator  # type: ignore
+from pydantic.v1 import Field, root_validator, validator
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.fields import DateTimeTZ
@@ -192,15 +186,22 @@ class ReceivedEvent(Event):
 
 def matches(expected: str, value: Optional[str]) -> bool:
     """Returns true if the given value matches the expected string, which may
-    include wildcards"""
+    include a a negation prefix ("!this-value") or a wildcard suffix
+    ("any-value-starting-with*")"""
     if value is None:
         return False
 
-    # TODO: handle wildcards/globs better than this
-    if expected.endswith("*"):
-        return value.startswith(expected[:-1])
+    positive = True
+    if expected.startswith("!"):
+        expected = expected[1:]
+        positive = False
 
-    return value == expected
+    if expected.endswith("*"):
+        match = value.startswith(expected[:-1])
+    else:
+        match = value == expected
+
+    return match if positive else not match
 
 
 class ResourceSpecification(PrefectBaseModel):

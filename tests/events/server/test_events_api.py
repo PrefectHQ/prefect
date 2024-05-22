@@ -116,17 +116,6 @@ def last_events_page(
         yield query_next_page
 
 
-async def test_returns_404_when_events_are_disabled(
-    client: AsyncClient, events_disabled: None
-):
-    response = await client.post(
-        "http://test/api/events/filter",
-        json={"filter": {}},
-    )
-
-    assert response.status_code == 404, response.content
-
-
 async def test_querying_for_events_returns_first_page(
     client: AsyncClient,
     filter: EventFilter,

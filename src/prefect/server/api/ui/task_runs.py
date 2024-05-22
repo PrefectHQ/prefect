@@ -5,13 +5,7 @@ from typing import List, Optional, cast
 import pendulum
 import sqlalchemy as sa
 from prefect._vendor.fastapi import Depends, HTTPException, status
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic.v1 import Field
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
@@ -200,7 +194,6 @@ async def read_task_run_counts_by_state(
     async with db.session_context(begin_transaction=False) as session:
         return await models.task_runs.count_task_runs_by_state(
             session=session,
-            db=db,
             flow_filter=flows,
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,

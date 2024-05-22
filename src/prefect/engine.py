@@ -136,7 +136,6 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -147,7 +146,7 @@ from prefect.exceptions import (
     PausedRun,
     UpstreamTaskError,
 )
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.input import keyset_from_paused_state
 from prefect.input.run_input import run_input_subclass_from_type
@@ -163,6 +162,7 @@ from prefect.logging.loggers import (
 from prefect.results import ResultFactory, UnknownResult
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -189,6 +189,7 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     is_async_fn,
+    run_sync,
     sync_compatible,
 )
 from prefect.utilities.callables import (
@@ -2433,7 +2434,21 @@ if __name__ == "__main__":
         exit(1)
 
     try:
-        enter_flow_run_engine_from_subprocess(flow_run_id)
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
+            from prefect.new_flow_engine import (
+                load_flow_and_flow_run,
+                run_flow_async,
+                run_flow_sync,
+            )
+
+            flow_run, flow = load_flow_and_flow_run(flow_run_id=flow_run_id)
+            # run the flow
+            if flow.isasync:
+                run_sync(run_flow_async(flow, flow_run=flow_run))
+            else:
+                run_flow_sync(flow, flow_run=flow_run)
+        else:
+            enter_flow_run_engine_from_subprocess(flow_run_id)
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator:"
