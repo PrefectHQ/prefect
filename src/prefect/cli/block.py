@@ -8,6 +8,7 @@ from types import ModuleType
 from typing import List, Optional, Type
 
 import typer
+import yaml
 from rich.table import Table
 
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -70,6 +71,31 @@ def display_block_type(block_type):
     )
 
     return block_type_table
+
+
+def display_block_schema_properties(block_schema_fields):
+    required = block_schema_fields["required"]
+    properties = block_schema_fields["properties"]
+
+    block_schema_yaml_table = Table(
+        title="Schema Properties",
+        show_header=False,
+        show_footer=False,
+        show_lines=True,
+        expand=True,
+    )
+    block_schema_yaml_table.add_column(style="cyan")
+    block_schema_yaml_table.add_column()
+
+    for property_name, property_schema in properties.items():
+        if property_name in required:
+            property_schema["required"] = True
+
+        block_schema_yaml_table.add_row(
+            property_name, yaml.dump(property_schema, default_flow_style=False)
+        )
+
+    return block_schema_yaml_table
 
 
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
@@ -356,6 +382,15 @@ async def blocktype_inspect(
             exit_with_error(f"Block type {slug!r} not found!")
 
         app.console.print(display_block_type(block_type))
+
+        try:
+            latest_schema = await client.get_most_recent_block_schema_for_block_type(
+                block_type.id
+            )
+        except Exception:
+            exit_with_error(f"Failed to fetch latest schema for the {slug} block type")
+
+        app.console.print(display_block_schema_properties(latest_schema.fields))
 
 
 @blocktypes_app.command("delete")
