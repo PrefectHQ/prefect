@@ -110,6 +110,8 @@ def mock_job():
 def mock_core_client(monkeypatch, mock_cluster_config):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     mock.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
+    mock.return_value.read_namespace_pod_log.return_value=["test log"]
+    
     monkeypatch.setattr(
         "prefect_kubernetes.worker.KubernetesWorker._get_configured_kubernetes_client",
         MagicMock(spec=ApiClient),
@@ -117,12 +119,28 @@ def mock_core_client(monkeypatch, mock_cluster_config):
     monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
     return mock
 
+@pytest.fixture
+def mock_batch_client(monkeypatch, mock_job):
+    mock = MagicMock(spec=BatchV1Api,return_value=AsyncMock())
+
+    mock.return_value.create_namespaced_job.return_value = mock_job
+    monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
+    return mock
+
+
+@pytest.fixture
+def mock_batch_client(monkeypatch, mock_job):
+    mock = MagicMock(spec=BatchV1Api,return_value=AsyncMock())
+
+    mock.return_value.create_namespaced_job.return_value = mock_job
+    monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
+    return mock
 
 @pytest.fixture
 def mock_batch_client(monkeypatch, mock_job):
     mock = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
 
-    mock.create_namespaced_job.return_value = mock_job
+    mock.return_value.create_namespaced_job.return_value = mock_job
     monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
     return mock
 
@@ -1250,12 +1268,12 @@ class TestKubernetesWorker:
 
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run=flow_run, configuration=default_configuration)
-            mock_core_client.list_namespaced_pod.assert_called_with(
+            mock_core_client.return_value.list_namespaced_pod.assert_called_with(
                 namespace=default_configuration.namespace,
                 label_selector="job-name=mock-job",
             )
 
-            mock_batch_client.create_namespaced_job.assert_called_with(
+            mock_batch_client.return_value.create_namespaced_job.assert_called_with(
                 "default",
                 expected_manifest,
             )

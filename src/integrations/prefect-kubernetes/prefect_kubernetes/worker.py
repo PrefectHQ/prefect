@@ -980,28 +980,28 @@ class KubernetesWorker(BaseWorker):
                 _preload_content=False,
                 container="prefect-job",
             )
-            try:
-                while True:
-                    line = await logs.content.readline()
-                    if not line:
-                        break
-                    print(line.decode("utf-8"), end="")
+            # try:
+            #     while True:
+            #         line = await logs.content.readline()
+            #         if not line:
+            #             break
+            #         print(line.decode("utf-8"), end="")
 
-                    # Check if we have passed the deadline and should stop streaming
-                    # logs
-                    remaining_time = deadline - time.monotonic() if deadline else None
-                    if deadline and remaining_time <= 0:
-                        break
+            #         # Check if we have passed the deadline and should stop streaming
+            #         # logs
+            #         remaining_time = deadline - time.monotonic() if deadline else None
+            #         if deadline and remaining_time <= 0:
+            #             break
 
-            except Exception:
-                logger.warning(
-                    (
-                        "Error occurred while streaming logs - "
-                        "Job will continue to run but logs will "
-                        "no longer be streamed to stdout."
-                    ),
-                    exc_info=True,
-                )
+            # except Exception:
+            #     logger.warning(
+            #         (
+            #             "Error occurred while streaming logs - "
+            #             "Job will continue to run but logs will "
+            #             "no longer be streamed to stdout."
+            #         ),
+            #         exc_info=True,
+            #     )
 
         batch_client = BatchV1Api(client)
         # Check if the job is completed before beginning a watch
