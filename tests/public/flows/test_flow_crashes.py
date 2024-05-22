@@ -19,7 +19,9 @@ import pytest
 import prefect
 import prefect.context
 import prefect.exceptions
+import prefect.new_flow_engine
 from prefect.client.schemas import FlowRun
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 from prefect.testing.utilities import AsyncMock
 
 
@@ -55,6 +57,10 @@ async def test_anyio_cancellation_crashes_flow(prefect_client):
     )
 
 
+@pytest.mark.skipif(
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+    reason="Not able to support in the new engine. This was only possible with the internal concurrency utils.",
+)
 async def test_anyio_cancellation_crashes_flow_with_timeout_configured(prefect_client):
     """
     Our timeout cancellation mechanisms for async flows can overlap with AnyIO
@@ -254,6 +260,10 @@ async def test_sigterm_crashes_flow(prefect_client, mock_sigterm_handler):
     mock.assert_called_once_with(signal.SIGTERM, ANY)
 
 
+@pytest.mark.skipif(
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+    reason="Relies explicitly on the old engine's subprocess handling. Consider rewriting for the new engine.",
+)
 def test_sigterm_crashes_deployed_flow(
     prefect_client, mock_sigterm_handler, monkeypatch, flow_run
 ):
@@ -271,7 +281,6 @@ def test_sigterm_crashes_deployed_flow(
     monkeypatch.setattr(
         "prefect.engine.load_flow_from_flow_run", AsyncMock(return_value=my_flow)
     )
-
     # The signal should be reraised as an exception
     with pytest.raises(prefect.exceptions.TerminationSignal):
         enter_flow_run_engine_from_subprocess(flow_run.id)

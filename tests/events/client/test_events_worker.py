@@ -74,7 +74,7 @@ async def test_includes_related_resources_from_run_context(
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     db_flow = await prefect_client.read_flow(flow_run.flow_id)
 
-    asserting_events_worker.drain()
+    await asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert len(asserting_events_worker._client.events) == 1
