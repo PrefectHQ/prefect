@@ -103,7 +103,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -142,12 +141,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            (
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--no-schedule",
-            ),
             ("deployment", "schedule", "clear", "-y", "rence-griffith/test-deployment"),
         ],
     )
@@ -183,33 +176,9 @@ class TestDeploymentSchedules:
             expected_code=0,
         )
 
-    def test_set_schedule_with_no_schedule_and_schedule_options_raises(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "424242",
-                "--no-schedule",
-            ],
-            expected_code=1,
-            expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
-                " must be provided"
-            ),
-        )
-
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                (
-                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
-                    " `--no-schedule` must be provided"
-                ),
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
@@ -235,13 +204,6 @@ class TestDeploymentSchedules:
         "commands,error",
         [
             [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                (
-                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
-                    " `--no-schedule` must be provided"
-                ),
-            ],
-            [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
             ],
@@ -257,7 +219,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -288,7 +249,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -320,7 +280,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -353,7 +312,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -389,7 +347,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -417,7 +374,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -438,7 +394,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -458,7 +413,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -490,7 +444,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -518,7 +471,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment-2"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment-2"),
         ],
     )
@@ -666,7 +618,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -696,10 +647,6 @@ class TestDeploymentSchedules:
         "commands,error",
         [
             [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                "An anchor date can only be provided with an interval schedule",
-            ],
-            [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "An anchor date can only be provided with an interval schedule",
             ],
@@ -723,10 +670,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                "The anchor date must be a valid date string.",
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "The anchor date must be a valid date string.",
