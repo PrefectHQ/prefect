@@ -65,7 +65,6 @@ async def _get_work_queue_id_from_name_or_id(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def create(
     name: str = typer.Argument(..., help="The unique name to assign this work queue"),
     limit: int = typer.Option(
@@ -165,7 +164,6 @@ async def create(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue"),
     limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
@@ -210,7 +208,6 @@ async def set_concurrency_limit(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue to clear"),
     pool: Optional[str] = typer.Option(
@@ -250,7 +247,6 @@ async def clear_concurrency_limit(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def pause(
     name: str = typer.Argument(..., help="The name or ID of the work queue to pause"),
     pool: Optional[str] = typer.Option(
@@ -295,7 +291,6 @@ async def pause(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def resume(
     name: str = typer.Argument(..., help="The name or ID of the work queue to resume"),
     pool: Optional[str] = typer.Option(
@@ -334,7 +329,6 @@ async def resume(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def inspect(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to inspect"
@@ -372,7 +366,6 @@ async def inspect(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def ls(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Display more information."
@@ -511,7 +504,6 @@ async def ls(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def preview(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to preview"
@@ -599,7 +591,6 @@ async def preview(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def delete(
     name: str = typer.Argument(..., help="The name or ID of the work queue to delete"),
     pool: Optional[str] = typer.Option(
@@ -636,7 +627,6 @@ async def delete(
 
 
 @work_app.command("read-runs")
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def read_wq_runs(
     name: str = typer.Argument(..., help="The name or ID of the work queue to poll"),
     pool: Optional[str] = typer.Option(
