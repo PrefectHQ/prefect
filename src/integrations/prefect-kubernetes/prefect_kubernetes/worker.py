@@ -146,7 +146,7 @@ if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import Field, validator
 else:
     from pydantic import Field, validator
-
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 import kubernetes_asyncio
 from kubernetes_asyncio.client import (
     ApiClient,
@@ -158,11 +158,12 @@ from kubernetes_asyncio.client import (
 )
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
-from kubernetes_asyncio.config import (
-    ConfigException,
-    load_incluster_config,
-    load_kube_config,
-)
+# from kubernetes_asyncio.config import (
+#     ConfigException,
+#     load_incluster_config,
+#     load_kube_config,
+# )
+from kubernetes_asyncio import config
 from typing_extensions import Literal
 
 from prefect.client.schemas import FlowRun
@@ -178,11 +179,12 @@ if TYPE_CHECKING:
     from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
     from kubernetes_asyncio.client.exceptions import ApiException
     from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
-    from kubernetes_asyncio.config import (
-        ConfigException,
-        load_incluster_config,
-        load_kube_config,
-    )
+    # from kubernetes_asyncio.config import (
+    #     ConfigException,
+    #     load_incluster_config,
+    #     load_kube_config,
+    # )
+    from kubernetes_asyncio import config
 
     from prefect.client.schemas import FlowRun
 
@@ -596,7 +598,7 @@ class KubernetesWorker(BaseWorker):
                 final state of the flow run
         """
         logger = self.get_flow_run_logger(flow_run)
-
+     
         async with self._get_configured_kubernetes_client(configuration) as client:
             logger.info("Creating Kubernetes job...")
 
@@ -645,7 +647,7 @@ class KubernetesWorker(BaseWorker):
         """Deletes any secrets created during the worker's operation."""
         for key, configuration in self._created_secrets.items():
             async with self._get_configured_kubernetes_client(configuration) as client:
-                v1 = client.CoreV1Api(client)
+                v1 = CoreV1Api(client)
                 result = await v1.delete_namespaced_secret(
                     name=key[0],
                     namespace=key[1],
@@ -711,24 +713,25 @@ class KubernetesWorker(BaseWorker):
         Returns a configured Kubernetes client.
         """
         client = None
+        
         if configuration.cluster_config:
             config_dict = configuration.cluster_config.config
             context = configuration.cluster_config.context_name
 
             # Use Configuration to load configuration from a dictionary
-            config = Configuration()
-            await load_kube_config(
-                config_dict=config_dict, context=context, client_configuration=config
+            client_configuration = Configuration()
+            await config.load_kube_config(
+                config_dict=config_dict, context=context, client_configuration=client_configuration
             )
-            client = ApiClient(configuration=config)
+            client = ApiClient(configuration=client_configuration)
         else:
             # Try to load in-cluster configuration
             try:
-                await load_incluster_config()
+                await config.load_incluster_config()
                 client = ApiClient()
-            except ConfigException:
+            except config.ConfigException:
                 # If in-cluster config fails, load the local kubeconfig
-                await load_kube_config()
+                await config.load_kube_config()
                 client = ApiClient()
 
         yield client
@@ -774,15 +777,15 @@ class KubernetesWorker(BaseWorker):
                 "env"
             ] = manifest_env
 
-    # @retry(
-    #     stop=stop_after_attempt(MAX_ATTEMPTS),
-    #     wait=wait_fixed(RETRY_MIN_DELAY_SECONDS)
-    #     + wait_random(
-    #         RETRY_MIN_DELAY_JITTER_SECONDS,
-    #         RETRY_MAX_DELAY_JITTER_SECONDS,
-    #     ),
-    #     reraise=True,
-    # )
+    @retry(
+        stop=stop_after_attempt(MAX_ATTEMPTS),
+        wait=wait_fixed(RETRY_MIN_DELAY_SECONDS)
+        + wait_random(
+            RETRY_MIN_DELAY_JITTER_SECONDS,
+            RETRY_MAX_DELAY_JITTER_SECONDS,
+        ),
+        reraise=True,
+    )
     async def _create_job(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
     ) -> "V1Job":
@@ -980,28 +983,28 @@ class KubernetesWorker(BaseWorker):
                 _preload_content=False,
                 container="prefect-job",
             )
-            # try:
-            #     while True:
-            #         line = await logs.content.readline()
-            #         if not line:
-            #             break
-            #         print(line.decode("utf-8"), end="")
+            try:
+                while True:
+                    line = await logs.content.readline()
+                    if not line:
+                        break
+                    print(line.decode("utf-8"), end="")
 
-            #         # Check if we have passed the deadline and should stop streaming
-            #         # logs
-            #         remaining_time = deadline - time.monotonic() if deadline else None
-            #         if deadline and remaining_time <= 0:
-            #             break
+                    # Check if we have passed the deadline and should stop streaming
+                    # logs
+                    remaining_time = deadline - time.monotonic() if deadline else None
+                    if deadline and remaining_time <= 0:
+                        break
 
-            # except Exception:
-            #     logger.warning(
-            #         (
-            #             "Error occurred while streaming logs - "
-            #             "Job will continue to run but logs will "
-            #             "no longer be streamed to stdout."
-            #         ),
-            #         exc_info=True,
-            #     )
+            except Exception:
+                logger.warning(
+                    (
+                        "Error occurred while streaming logs - "
+                        "Job will continue to run but logs will "
+                        "no longer be streamed to stdout."
+                    ),
+                    exc_info=True,
+                )
 
         batch_client = BatchV1Api(client)
         # Check if the job is completed before beginning a watch
