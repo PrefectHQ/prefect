@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Any
 from uuid import uuid4
 
 import pendulum
@@ -316,6 +317,45 @@ async def test_run_deployment_parameter_validation_handles_workspace_variables(
             }
         },
     )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "string-value",
+        '"string-value"',
+        123,
+        12.3,
+        True,
+        False,
+        None,
+        {"key": "value"},
+        ["value1", "value2"],
+        {"key": ["value1", "value2"]},
+    ],
+)
+async def test_run_deployment_handles_json_workspace_variables(
+    snap_that_naughty_woodchuck: TriggeredAction,
+    session: AsyncSession,
+    value: Any,
+):
+    await variables.create_variable(
+        session, VariableCreate(name="my_workspace_var", value=value)
+    )
+    await session.commit()
+
+    action = snap_that_naughty_woodchuck.action
+    assert action
+    assert isinstance(action, actions.RunDeployment)
+
+    action.parameters = {
+        "my_param": {
+            "__prefect_kind": "workspace_variable",
+            "variable_name": "my_workspace_var",
+        }
+    }
+
+    await action.act(snap_that_naughty_woodchuck)
 
 
 async def test_run_deployment_parameter_validation_handles_top_level_hydration_error(

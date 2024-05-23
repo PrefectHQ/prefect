@@ -11,10 +11,6 @@ import orjson
 from pydantic.v1 import (
     Field,
     HttpUrl,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
-    StrictStr,
     root_validator,
     validator,
 )
@@ -38,6 +34,7 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
 )
+from prefect.server.schemas.core import STRICT_VARIABLE_TYPES
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
@@ -1042,9 +1039,7 @@ class VariableCreate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Union[
-        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
-    ] = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
@@ -1082,9 +1077,7 @@ class VariableUpdate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Union[
-        StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
-    ] = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],

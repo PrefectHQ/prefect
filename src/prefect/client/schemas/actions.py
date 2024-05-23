@@ -6,10 +6,6 @@ import jsonschema
 import orjson
 from pydantic.v1 import (
     Field,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
-    StrictStr,
     root_validator,
     validator,
 )
@@ -28,7 +24,11 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
 )
-from prefect.client.schemas.objects import StateDetails, StateType
+from prefect.client.schemas.objects import (
+    STRICT_VARIABLE_TYPES,
+    StateDetails,
+    StateType,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
@@ -717,9 +717,7 @@ class VariableCreate(ActionBaseModel):
         examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Union[
-        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
-    ] = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
@@ -753,9 +751,7 @@ class VariableUpdate(ActionBaseModel):
         examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Union[
-        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
-    ] = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
