@@ -318,7 +318,9 @@ class TestHydrateWithWorkspaceVariablePrefectKind:
             ),
         ],
     )
-    def test_hydrate_with_null_prefect_kind(self, input_object, expected_output, ctx):
+    def test_hydrate_with_workspace_variable_prefect_kind(
+        self, input_object, expected_output, ctx
+    ):
         hydrated_value = hydrate(input_object, ctx)
         assert hydrated_value == expected_output
 
