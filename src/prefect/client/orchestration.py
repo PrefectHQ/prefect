@@ -2221,8 +2221,14 @@ class PrefectClient:
         Returns:
             a Task Run model representation of the task run
         """
-        response = await self._client.get(f"/task_runs/{task_run_id}")
-        return TaskRun.parse_obj(response.json())
+        try:
+            response = await self._client.get(f"/task_runs/{task_run_id}")
+            return TaskRun.parse_obj(response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_task_runs(
         self,
@@ -3715,6 +3721,20 @@ class SyncPrefectClient:
 
         return OrchestrationResult.parse_obj(response.json())
 
+    def set_flow_run_name(self, flow_run_id: UUID, name: str):
+        flow_run_data = TaskRunUpdate(name=name)
+        return self._client.patch(
+            f"/flow_runs/{flow_run_id}",
+            json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
+        )
+
+    def set_task_run_name(self, task_run_id: UUID, name: str):
+        task_run_data = TaskRunUpdate(name=name)
+        return self._client.patch(
+            f"/task_runs/{task_run_id}",
+            json=task_run_data.dict(json_compatible=True, exclude_unset=True),
+        )
+
     def create_task_run(
         self,
         task: "TaskObject[P, R]",
@@ -3793,8 +3813,14 @@ class SyncPrefectClient:
         Returns:
             a Task Run model representation of the task run
         """
-        response = self._client.get(f"/task_runs/{task_run_id}")
-        return TaskRun.parse_obj(response.json())
+        try:
+            response = self._client.get(f"/task_runs/{task_run_id}")
+            return TaskRun.parse_obj(response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     def read_task_runs(
         self,

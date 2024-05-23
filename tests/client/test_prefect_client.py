@@ -565,9 +565,7 @@ async def test_create_then_read_flow(prefect_client):
     assert lookup.name == foo.name
 
 
-async def test_create_then_read_deployment(
-    prefect_client, infrastructure_document_id, storage_document_id
-):
+async def test_create_then_read_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
         pass
@@ -585,7 +583,6 @@ async def test_create_then_read_deployment(
         schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
@@ -603,12 +600,11 @@ async def test_create_then_read_deployment(
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
-    assert lookup.infrastructure_document_id == infrastructure_document_id
     assert lookup.parameter_openapi_schema == {}
 
 
 async def test_create_then_read_deployment_using_deprecated_infra_overrides_instead_of_job_variables(
-    prefect_client, infrastructure_document_id, storage_document_id
+    prefect_client, storage_document_id
 ):
     @flow
     def foo():
@@ -627,7 +623,6 @@ async def test_create_then_read_deployment_using_deprecated_infra_overrides_inst
         schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
         infra_overrides={"foo": "bar"},
@@ -646,9 +641,7 @@ async def test_create_then_read_deployment_using_deprecated_infra_overrides_inst
     assert lookup.job_variables == {"foo": "bar"}
 
 
-async def test_updating_deployment(
-    prefect_client, infrastructure_document_id, storage_document_id
-):
+async def test_updating_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
         pass
@@ -664,7 +657,6 @@ async def test_updating_deployment(
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
@@ -685,7 +677,7 @@ async def test_updating_deployment(
 
 
 async def test_updating_deployment_and_removing_schedule(
-    prefect_client, infrastructure_document_id, storage_document_id
+    prefect_client, storage_document_id
 ):
     @flow
     def foo():
@@ -702,7 +694,6 @@ async def test_updating_deployment_and_removing_schedule(
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        infrastructure_document_id=infrastructure_document_id,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
@@ -1137,7 +1128,7 @@ async def test_delete_task_run(prefect_client):
     )
 
     await prefect_client.delete_task_run(task_run.id)
-    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="Not Found"):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
         await prefect_client.read_task_run(task_run.id)
 
 
@@ -1606,7 +1597,7 @@ class TestClientAPIKey:
 
 class TestClientWorkQueues:
     @pytest.fixture
-    async def deployment(self, prefect_client, infrastructure_document_id):
+    async def deployment(self, prefect_client):
         foo = flow(lambda: None, name="foo")
         flow_id = await prefect_client.create_flow(foo)
         schedule = IntervalSchedule(
@@ -1620,7 +1611,6 @@ class TestClientWorkQueues:
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",
-            infrastructure_document_id=infrastructure_document_id,
         )
         return deployment_id
 
@@ -2000,6 +1990,33 @@ class TestVariables:
             results.append(res.json())
         return pydantic.parse_obj_as(List[Variable], results)
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_create_variable(self, prefect_client, value):
+        created_variable = await prefect_client.create_variable(
+            variable=VariableCreate(name="my_variable", value=value)
+        )
+        assert created_variable
+        assert created_variable.name == "my_variable"
+        assert created_variable.value == value
+
+        res = await prefect_client.read_variable_by_name(created_variable.name)
+        assert res.name == created_variable.name
+        assert res.value == value
+
     async def test_read_variable_by_name(self, prefect_client, variable):
         res = await prefect_client.read_variable_by_name(variable.name)
         assert res.name == variable.name
@@ -2303,7 +2320,7 @@ async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client)
 
 class TestPrefectClientDeploymentSchedules:
     @pytest.fixture
-    async def deployment(self, prefect_client, infrastructure_document_id):
+    async def deployment(self, prefect_client):
         foo = flow(lambda: None, name="foo")
         flow_id = await prefect_client.create_flow(foo)
         schedule = IntervalSchedule(
@@ -2317,7 +2334,6 @@ class TestPrefectClientDeploymentSchedules:
             schedule=schedule,
             parameters={"foo": "bar"},
             work_queue_name="wq",
-            infrastructure_document_id=infrastructure_document_id,
         )
         deployment = await prefect_client.read_deployment(deployment_id)
         return deployment

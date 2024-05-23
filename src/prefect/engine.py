@@ -136,7 +136,6 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -147,7 +146,7 @@ from prefect.exceptions import (
     PausedRun,
     UpstreamTaskError,
 )
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.input import keyset_from_paused_state
 from prefect.input.run_input import run_input_subclass_from_type
@@ -2442,7 +2441,7 @@ if __name__ == "__main__":
                 run_flow_sync,
             )
 
-            flow_run, flow = run_sync(load_flow_and_flow_run)
+            flow_run, flow = load_flow_and_flow_run(flow_run_id=flow_run_id)
             # run the flow
             if flow.isasync:
                 run_sync(run_flow_async(flow, flow_run=flow_run))

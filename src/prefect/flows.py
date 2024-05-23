@@ -7,8 +7,10 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 import datetime
 import inspect
+import json
 import os
 import re
+import sys
 import tempfile
 import warnings
 from functools import partial, update_wrapper
@@ -36,7 +38,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic.v1 as pydantic
-from prefect._vendor.fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError as V2ValidationError
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
@@ -45,12 +46,15 @@ from typing_extensions import Literal, ParamSpec, Self
 
 from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.schemas.objects import FlowRun, MinimalDeploymentSchedule
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.utilities import inject_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments.runner import DeploymentImage, EntrypointType, deploy
+from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     InvalidNameError,
@@ -59,9 +63,11 @@ from prefect.exceptions import (
     ParameterTypeError,
     UnspecifiedFlowError,
 )
-from prefect.filesystems import ReadableDeploymentStorage
+from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
+from prefect.logging.loggers import flow_run_logger
+from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.runner.storage import (
     BlockStorageAdapter,
@@ -80,7 +86,11 @@ from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import is_async_fn, sync_compatible
+from prefect.utilities.asyncutils import (
+    is_async_fn,
+    run_sync_in_worker_thread,
+    sync_compatible,
+)
 from prefect.utilities.callables import (
     get_call_parameters,
     parameter_schema,
@@ -88,19 +98,9 @@ from prefect.utilities.callables import (
     raise_for_reserved_arguments,
 )
 from prefect.utilities.collections import listrepr
+from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object
-from prefect.utilities.visualization import (
-    FlowVisualizationError,
-    GraphvizExecutableNotFoundError,
-    GraphvizImportError,
-    TaskVizTracker,
-    VisualizationUnsupportedError,
-    build_task_dependencies,
-    get_task_viz_tracker,
-    track_viz_task,
-    visualize_task_dependencies,
-)
 
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
@@ -116,7 +116,9 @@ F = TypeVar("F", bound="Flow")  # The type of the flow
 logger = get_logger("flows")
 
 if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
     from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+    from prefect.flows import FlowRun
 
 
 @PrefectObjectRegistry.register_instances
@@ -187,7 +189,7 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner, None] = None,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -276,7 +278,12 @@ class Flow(Generic[P, R]):
                 )
         self.flow_run_name = flow_run_name
 
-        task_runner = task_runner or ConcurrentTaskRunner()
+        default_task_runner = (
+            ThreadPoolTaskRunner()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
+            else ConcurrentTaskRunner()
+        )
+        task_runner = task_runner or default_task_runner
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
@@ -542,6 +549,8 @@ class Flow(Generic[P, R]):
         converting everything directly to a string. This maintains basic types like
         integers during API roundtrips.
         """
+        from prefect._vendor.fastapi.encoders import jsonable_encoder
+
         serialized_parameters = {}
         for key, value in parameters.items():
             try:
@@ -1185,6 +1194,10 @@ class Flow(Generic[P, R]):
             >>>     my_flow("foo")
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
+        from prefect.utilities.visualization import (
+            get_task_viz_tracker,
+            track_viz_task,
+        )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -1219,51 +1232,6 @@ class Flow(Generic[P, R]):
             return_type=return_type,
         )
 
-    @overload
-    def _run(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
-        ...
-
-    @overload
-    def _run(
-        self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
-        ...
-
-    @overload
-    def _run(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
-        ...
-
-    def _run(
-        self,
-        *args: "P.args",
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        **kwargs: "P.kwargs",
-    ):
-        """
-        Run the flow and return its final state.
-
-        Examples:
-
-            Run a flow and get the returned result
-
-            >>> state = my_flow._run("marvin")
-            >>> state.result()
-           "goodbye marvin"
-        """
-        from prefect.engine import enter_flow_run_engine_from_flow_call
-
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.fn, args, kwargs)
-
-        return enter_flow_run_engine_from_flow_call(
-            self,
-            parameters,
-            wait_for=wait_for,
-            return_type="state",
-        )
-
     @sync_compatible
     async def visualize(self, *args, **kwargs):
         """
@@ -1275,6 +1243,16 @@ class Flow(Generic[P, R]):
             - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
             - FlowVisualizationError: If the flow can't be visualized for any other reason.
         """
+        from prefect.utilities.visualization import (
+            FlowVisualizationError,
+            GraphvizExecutableNotFoundError,
+            GraphvizImportError,
+            TaskVizTracker,
+            VisualizationUnsupportedError,
+            build_task_dependencies,
+            visualize_task_dependencies,
+        )
+
         if not PREFECT_UNIT_TEST_MODE:
             warnings.warn(
                 "`flow.visualize()` will execute code inside of your flow that is not"
@@ -1327,7 +1305,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
-    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
+    task_runner: Optional[BaseTaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -1359,7 +1337,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = None,
     retry_delay_seconds: Union[int, float] = None,
-    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
+    task_runner: Optional[BaseTaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -1796,3 +1774,84 @@ async def serve(
         )
 
     await runner.start()
+
+
+@inject_client
+async def load_flow_from_flow_run(
+    flow_run: "FlowRun",
+    client: "PrefectClient",
+    ignore_storage: bool = False,
+    storage_base_path: Optional[str] = None,
+) -> "Flow":
+    """
+    Load a flow from the location/script provided in a deployment's storage document.
+
+    If `ignore_storage=True` is provided, no pull from remote storage occurs.  This flag
+    is largely for testing, and assumes the flow is already available locally.
+    """
+    deployment = await client.read_deployment(flow_run.deployment_id)
+
+    if deployment.entrypoint is None:
+        raise ValueError(
+            f"Deployment {deployment.id} does not have an entrypoint and can not be run."
+        )
+
+    run_logger = flow_run_logger(flow_run)
+
+    runner_storage_base_path = storage_base_path or os.environ.get(
+        "PREFECT__STORAGE_BASE_PATH"
+    )
+
+    # If there's no colon, assume it's a module path
+    if ":" not in deployment.entrypoint:
+        run_logger.debug(
+            f"Importing flow code from module path {deployment.entrypoint}"
+        )
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, deployment.entrypoint
+        )
+        return flow
+
+    if not ignore_storage and not deployment.pull_steps:
+        sys.path.insert(0, ".")
+        if deployment.storage_document_id:
+            storage_document = await client.read_block_document(
+                deployment.storage_document_id
+            )
+            storage_block = Block._from_block_document(storage_document)
+        else:
+            basepath = deployment.path or Path(deployment.manifest_path).parent
+            if runner_storage_base_path:
+                basepath = str(basepath).replace(
+                    "$STORAGE_BASE_PATH", runner_storage_base_path
+                )
+            storage_block = LocalFileSystem(basepath=basepath)
+
+        from_path = (
+            str(deployment.path).replace("$STORAGE_BASE_PATH", runner_storage_base_path)
+            if runner_storage_base_path and deployment.path
+            else deployment.path
+        )
+        run_logger.info(f"Downloading flow code from storage at {from_path!r}")
+        await storage_block.get_directory(from_path=from_path, local_path=".")
+
+    if deployment.pull_steps:
+        run_logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        output = await run_steps(deployment.pull_steps)
+        if output.get("directory"):
+            run_logger.debug(f"Changing working directory to {output['directory']!r}")
+            os.chdir(output["directory"])
+
+    import_path = relative_path_to_current_platform(deployment.entrypoint)
+    # for backwards compat
+    if deployment.manifest_path:
+        with open(deployment.manifest_path, "r") as f:
+            import_path = json.load(f)["import_path"]
+            import_path = (
+                Path(deployment.manifest_path).parent / import_path
+            ).absolute()
+    run_logger.debug(f"Importing flow code from '{import_path}'")
+
+    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
+
+    return flow

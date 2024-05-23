@@ -873,10 +873,6 @@ class TestWorkerSignalForwarding:
             f" Output:\n{out}"
         )
 
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
     async def test_sigint_sends_sigterm_then_sigkill(self, worker_process):
         worker_process.send_signal(signal.SIGINT)
         await anyio.sleep(0.1)  # some time needed for the recursive signal handler
@@ -885,17 +881,23 @@ class TestWorkerSignalForwarding:
         worker_process.out.seek(0)
         out = worker_process.out.read().decode()
 
-        assert (
-            # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-            "Sending SIGKILL" in out
-            # or SIGKILL came too late, and the main PID is already closing
-            or "KeyboardInterrupt" in out
-            or "Worker 'test-worker' stopped!" in out
-            or "Aborted." in out
-        ), (
-            "When sending two SIGINT shortly after each other, the main process should"
-            f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
-        )
+        if sys.platform != "win32":
+            assert (
+                # either the main PID is still waiting for shutdown, so forwards the SIGKILL
+                "Sending SIGKILL" in out
+                # or SIGKILL came too late, and the main PID is already closing
+                or "KeyboardInterrupt" in out
+                or "Worker 'test-worker' stopped!" in out
+                or "Aborted." in out
+            ), (
+                "When sending two SIGINT shortly after each other, the main process should"
+                f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
+            )
+        else:
+            assert "Sending CTRL_BREAK_EVENT" in out, (
+                "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to"
+                f" the worker subprocess. Output:\n{out}"
+            )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -919,19 +921,4 @@ class TestWorkerSignalForwarding:
         ), (
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
-        )
-
-    @pytest.mark.skipif(
-        sys.platform != "win32",
-        reason="CTRL_BREAK_EVENT is only defined in Windows",
-    )
-    async def test_sends_ctrl_break_win32(self, worker_process):
-        worker_process.send_signal(signal.SIGINT)
-        await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
-
-        assert "Sending CTRL_BREAK_EVENT" in out, (
-            "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to"
-            f" the worker subprocess. Output:\n{out}"
         )

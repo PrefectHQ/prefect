@@ -1,42 +1,24 @@
 from contextlib import contextmanager
-from contextvars import ContextVar, Token
+from contextvars import ContextVar
 from typing import (
-    TYPE_CHECKING,
     Any,
-    ContextManager,
     Dict,
-    Generator,
     List,
     Optional,
-    Set,
-    Tuple,
     Type,
     TypeVar,
-    Union,
 )
 from uuid import UUID
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr
+    from pydantic.v1 import Field
 else:
-    from pydantic import BaseModel, Field, PrivateAttr
+    from pydantic import Field
 
-import prefect.logging
-import prefect.logging.configuration
-import prefect.settings
-from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas import FlowRun, TaskRun
 from prefect.context import ContextModel, TaskRunContext
-from prefect.events.worker import EventsWorker
-from prefect.exceptions import MissingContextError
-from prefect.futures import PrefectFuture
-from prefect.results import ResultFactory
-from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.tasks import Task
-
 
 T = TypeVar("T")
 
@@ -49,6 +31,7 @@ class Transaction(ContextModel):
     key: str = None
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
+    rolled_back: bool = False
     __var__ = ContextVar("transaction")
 
     def __enter__(self):
@@ -73,17 +56,17 @@ class Transaction(ContextModel):
         # merge that state data with the parent for correct rollback behavior
         parent = self.get_active()
         if parent:
-            parent.tasks.extend(self.tasks)
-            parent.state.update(self.state)
+            if self.rolled_back:
+                parent.rollback()
+            else:
+                parent.tasks.extend(self.tasks)
+                parent.state.update(self.state)
 
     def rollback(self) -> None:
         for tsk in reversed(self.tasks):
             for hook in tsk.on_rollback_hooks:
-                try:
-                    hook(tsk)
-                except Exception as exc:
-                    # set state to failed?!?
-                    pass
+                hook(tsk)
+        self.rolled_back = True
 
     def add_task(self, task: Task, task_run_id: UUID) -> None:
         self.tasks.append(task)
@@ -121,3 +104,9 @@ class Transaction(ContextModel):
 
 def get_transaction() -> Transaction:
     return Transaction.get_active()
+
+
+@contextmanager
+def transaction() -> Transaction:
+    with Transaction() as txn:
+        return txn

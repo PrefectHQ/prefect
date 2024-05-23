@@ -595,7 +595,7 @@ class TestCloudRunWorker:
             def raise_exception(*args, **kwargs):
                 raise Exception("This is an intentional exception")
 
-            monkeypatch.setattr("prefect_gcp.cloud_run.Job.get", raise_exception)
+            monkeypatch.setattr("prefect_gcp.utilities.Job.get", raise_exception)
 
             with pytest.raises(Exception):
                 await cloud_run_worker.run(flow_run, cloud_run_worker_job_config)
@@ -657,7 +657,7 @@ class TestCloudRunWorker:
             def raise_exception(*args, **kwargs):
                 raise Exception("This is an intentional exception")
 
-            monkeypatch.setattr("prefect_gcp.cloud_run.Execution.get", raise_exception)
+            monkeypatch.setattr("prefect_gcp.utilities.Execution.get", raise_exception)
 
             with pytest.raises(Exception):
                 await cloud_run_worker.run(flow_run, cloud_run_worker_job_config)

@@ -61,6 +61,7 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TASK_INTROSPECTION_WARN_THRESHOLD,
@@ -94,6 +95,13 @@ from prefect.utilities.engine import (
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+
+
+# this is the old engine
+@pytest.fixture(autouse=True)
+def set_new_engine_setting():
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: False}):
+        yield
 
 
 @pytest.fixture
@@ -2544,7 +2552,7 @@ class TestTaskRunCrashes:
 
         @flow
         async def my_flow():
-            await my_task._run()
+            await my_task(return_state=True)
 
         # Note exception should not be re-raised
         state = await begin_flow_run(
@@ -2743,7 +2751,7 @@ class TestDynamicKeyHandling:
             subflow()
             my_task()
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
 
         task_runs = await prefect_client.read_task_runs()
         parent_task_runs = [

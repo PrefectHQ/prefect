@@ -1,4 +1,3 @@
-import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
@@ -17,6 +16,7 @@ from prefect.server.events.schemas.automations import (
     AutomationUpdate,
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
+from prefect.utilities.asyncutils import run_sync
 
 
 @asynccontextmanager
@@ -42,7 +42,7 @@ async def read_automations_for_workspace(
     query = query.order_by(db.Automation.sort_expression(sort))
 
     if automation_filter:
-        query = query.where(automation_filter.as_sql_filter(db))
+        query = query.where(automation_filter.as_sql_filter())
     if limit is not None:
         query = query.limit(limit)
     if offset is not None:
@@ -101,14 +101,14 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 
     from prefect.server.events.triggers import automation_changed
 
-    loop = asyncio.get_event_loop()
     sync_session = session.sync_session
 
     def change_notification(session, **kwargs):
-        asyncio.run_coroutine_threadsafe(
-            automation_changed(automation.id, f"automation__{event}"),
-            loop=loop,
-        )
+        try:
+            run_sync(automation_changed(automation.id, f"automation__{event}"))
+        except Exception:
+            # On exception, do not re-raise, just move on
+            pass
 
     sa.event.listen(sync_session, "after_commit", change_notification, once=True)
 
@@ -325,7 +325,7 @@ async def read_automations_related_to_resource(
         )
 
     if automation_filter:
-        query = query.where(automation_filter.as_sql_filter(db))
+        query = query.where(automation_filter.as_sql_filter())
 
     result = await session.execute(query)
     return [Automation.from_orm(a) for a in result.scalars().all()]

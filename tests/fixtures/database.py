@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import gc
+import logging
 import uuid
 import warnings
 from contextlib import asynccontextmanager
@@ -15,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
-from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.database.configurations import ENGINES, TRACKER
 from prefect.server.database.dependencies import (
     PrefectDBInterface,
@@ -78,7 +79,10 @@ async def database_engine(db: PrefectDBInterface):
         else:
             continue
 
-        await driver_connection.close()
+        try:
+            await driver_connection.close()
+        except Exception:
+            logging.exception("Exception closed while closing connection.")
 
     # Finally, free up all references to connections and clean up proactively so that
     # we don't have any lingering connections after this.  This should prevent
@@ -125,10 +129,10 @@ async def clear_db(db, request):
         for attempt in range(max_retries):
             try:
                 async with db.session_context(begin_transaction=True) as session:
-                    await session.execute(db.Agent.__table__.delete())
-                    await session.execute(db.WorkPool.__table__.delete())
+                    await session.execute(orm_models.Agent.__table__.delete())
+                    await session.execute(orm_models.WorkPool.__table__.delete())
 
-                    for table in reversed(db.Base.metadata.sorted_tables):
+                    for table in reversed(orm_models.Base.metadata.sorted_tables):
                         await session.execute(table.delete())
                     break
             except InterfaceError:
@@ -408,25 +412,10 @@ async def storage_document_id(prefect_client, tmpdir):
 
 
 @pytest.fixture
-async def infrastructure_document_id(prefect_client):
-    return await Process(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=prefect_client
-    )
-
-
-@pytest.fixture
-async def infrastructure_document_id_2(prefect_client):
-    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
-        is_anonymous=True, client=prefect_client
-    )
-
-
-@pytest.fixture
 async def deployment(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
 ):
@@ -451,7 +440,6 @@ async def deployment(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
@@ -466,7 +454,6 @@ async def deployment_with_version(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
 ):
@@ -491,7 +478,6 @@ async def deployment_with_version(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
@@ -507,7 +493,6 @@ async def deployment_2(
     session,
     flow,
     flow_function,
-    infrastructure_document_id_2,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
 ):
@@ -532,7 +517,6 @@ async def deployment_2(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id_2,
             work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
@@ -547,7 +531,6 @@ async def deployment_in_default_work_pool(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue,  # not attached to a work pool
 ):
@@ -569,7 +552,6 @@ async def deployment_in_default_work_pool(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name=work_queue.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue.id,
@@ -584,7 +566,6 @@ async def deployment_in_non_default_work_pool(
     session,
     flow,
     flow_function,
-    infrastructure_document_id,
     storage_document_id,
     work_queue_1,
 ):
@@ -604,7 +585,6 @@ async def deployment_in_non_default_work_pool(
             storage_document_id=storage_document_id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
@@ -1155,9 +1135,7 @@ async def worker_deployment_wq1(
 
 
 @pytest.fixture
-async def worker_deployment_infra_wq1(
-    session, flow, flow_function, work_queue_1, infrastructure_document_id
-):
+async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1):
     def hello(name: str):
         pass
 
@@ -1175,7 +1153,6 @@ async def worker_deployment_infra_wq1(
             entrypoint="/file.py:flow",
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
-            infrastructure_document_id=infrastructure_document_id,
         ),
     )
     await session.commit()
