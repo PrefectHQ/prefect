@@ -9,7 +9,7 @@ import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from contextvars import copy_context
+from contextvars import ContextVar, copy_context
 from functools import partial, wraps
 from threading import Thread
 from typing import (
@@ -23,6 +23,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 from uuid import UUID, uuid4
 
@@ -44,6 +45,8 @@ A = TypeVar("A", Async, Sync, covariant=True)
 EVENT_LOOP_GC_REFS = {}
 
 PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
+
+RUN_ASYNC_FLAG = ContextVar("run_async", default=False)
 
 logger = get_logger()
 
@@ -103,7 +106,20 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
         run_sync(my_async_function(1))
         ```
     """
+
     # ensure context variables are properly copied to the async frame
+    async def context_local_wrapper():
+        """
+        Wrapper that is submitted using copy_context().run to ensure
+        the RUN_ASYNC_FLAG mutations are tightly scoped to this coroutine's frame.
+        """
+        token = RUN_ASYNC_FLAG.set(True)
+        try:
+            result = await coroutine
+        finally:
+            RUN_ASYNC_FLAG.reset(token)
+        return result
+
     context = copy_context()
     try:
         loop = asyncio.get_running_loop()
@@ -112,10 +128,11 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
 
     if loop and loop.is_running():
         with ThreadPoolExecutor() as executor:
-            future = executor.submit(context.run, asyncio.run, coroutine)
-            return future.result()
+            future = executor.submit(context.run, asyncio.run, context_local_wrapper())
+            result = cast(T, future.result())
     else:
-        return context.run(asyncio.run, coroutine)
+        result = context.run(asyncio.run, context_local_wrapper())
+    return result
 
 
 async def run_sync_in_worker_thread(
@@ -244,7 +261,7 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(async_fn: T) -> T:
+def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
     Converts an async function into a dual async and sync function.
 
@@ -265,6 +282,45 @@ def sync_compatible(async_fn: T) -> T:
         from prefect._internal.concurrency.calls import get_current_call, logger
         from prefect._internal.concurrency.event_loop import get_running_loop
         from prefect._internal.concurrency.threads import get_global_loop
+        from prefect.context import MissingContextError, get_run_context
+        from prefect.settings import (
+            PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
+            PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
+        )
+
+        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT:
+            return async_fn(*args, **kwargs)
+
+        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+            is_async = True
+            try:
+                run_ctx = get_run_context()
+                parent_obj = getattr(run_ctx, "task", None)
+                if not parent_obj:
+                    parent_obj = getattr(run_ctx, "flow", None)
+                is_async = getattr(parent_obj, "isasync", True)
+            except MissingContextError:
+                pass
+
+            async def ctx_call():
+                """
+                Wrapper that is submitted using copy_context().run to ensure
+                mutations of RUN_ASYNC_FLAG are tightly scoped to this coroutine's frame.
+                """
+                token = RUN_ASYNC_FLAG.set(True)
+                try:
+                    result = await async_fn(*args, **kwargs)
+                finally:
+                    RUN_ASYNC_FLAG.reset(token)
+                return result
+
+            if force_sync:
+                return run_sync(ctx_call())
+            elif RUN_ASYNC_FLAG.get() or is_async:
+                context = copy_context()
+                return context.run(ctx_call)
+            else:
+                return run_sync(ctx_call())
 
         global_thread_portal = get_global_loop()
         current_thread = threading.current_thread()

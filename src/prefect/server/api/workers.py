@@ -3,8 +3,9 @@ Routes for interacting with work queue objects.
 """
 
 from typing import TYPE_CHECKING, List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import pendulum
 import sqlalchemy as sa
 from prefect._vendor.fastapi import (
     BackgroundTasks,
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.deployments import mark_deployments_ready
@@ -26,6 +28,7 @@ from prefect.server.models.work_queues import (
     emit_work_queue_status_event,
     mark_work_queues_ready,
 )
+from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
@@ -155,18 +158,11 @@ class WorkerLookups:
 async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.responses.WorkPoolResponse:
+) -> schemas.core.WorkPool:
     """
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
     """
-
-    if not work_pool.name.lower().strip("' \""):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Work pool name cannot be empty.",
-        )
-
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -175,10 +171,21 @@ async def create_work_pool(
 
     try:
         async with db.session_context(begin_transaction=True) as session:
+            await validate_job_variable_defaults_for_work_pool(
+                session, work_pool.name, work_pool.base_job_template
+            )
             model = await models.workers.create_work_pool(
                 session=session, work_pool=work_pool
             )
-            return await schemas.responses.WorkPoolResponse.from_orm(model, session)
+
+            await emit_work_pool_status_event(
+                event_id=uuid4(),
+                occurred=pendulum.now("UTC"),
+                pre_update_work_pool=None,
+                work_pool=model,
+            )
+
+            return schemas.core.WorkPool.from_orm(model)
 
     except sa.exc.IntegrityError:
         raise HTTPException(
@@ -192,7 +199,7 @@ async def read_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.responses.WorkPoolResponse:
+) -> schemas.core.WorkPool:
     """
     Read a work pool by name
     """
@@ -204,7 +211,7 @@ async def read_work_pool(
         orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id
         )
-        return await schemas.responses.WorkPoolResponse.from_orm(orm_work_pool, session)
+        return schemas.core.WorkPool.from_orm(orm_work_pool)
 
 
 @router.post("/filter")
@@ -214,7 +221,7 @@ async def read_work_pools(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.WorkPoolResponse]:
+) -> List[schemas.core.WorkPool]:
     """
     Read multiple work pools
     """
@@ -225,10 +232,7 @@ async def read_work_pools(
             offset=offset,
             limit=limit,
         )
-        return [
-            await schemas.responses.WorkPoolResponse.from_orm(w, session)
-            for w in orm_work_pools
-        ]
+        return [schemas.core.WorkPool.from_orm(w) for w in orm_work_pools]
 
 
 @router.post("/count")
@@ -277,6 +281,7 @@ async def update_work_pool(
             session=session,
             work_pool_id=work_pool_id,
             work_pool=work_pool,
+            emit_status_change=emit_work_pool_status_event,
         )
 
 
@@ -562,16 +567,32 @@ async def worker_heartbeat(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
-            session=session, work_pool_name=work_pool_name
+        work_pool = await models.workers.read_work_pool_by_name(
+            session=session,
+            work_pool_name=work_pool_name,
         )
+        if not work_pool:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Work pool "{work_pool_name}" not found.',
+            )
 
         await models.workers.worker_heartbeat(
             session=session,
-            work_pool_id=work_pool_id,
+            work_pool_id=work_pool.id,
             worker_name=name,
             heartbeat_interval_seconds=heartbeat_interval_seconds,
         )
+
+        if work_pool.status == schemas.statuses.WorkPoolStatus.NOT_READY:
+            await models.workers.update_work_pool(
+                session=session,
+                work_pool_id=work_pool.id,
+                work_pool=schemas.internal.InternalWorkPoolUpdate(
+                    status=schemas.statuses.WorkPoolStatus.READY
+                ),
+                emit_status_change=emit_work_pool_status_event,
+            )
 
 
 @router.post("/{work_pool_name}/workers/filter")

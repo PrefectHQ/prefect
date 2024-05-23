@@ -1,17 +1,27 @@
 from uuid import uuid4
 
-import jsonschema
 import numpy as np
 import pytest
+
+from prefect.pydantic import HAS_PYDANTIC_V2
+
+if HAS_PYDANTIC_V2:
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
 
 from prefect.server.schemas.actions import (
     BlockTypeUpdate,
     DeploymentCreate,
+    DeploymentScheduleCreate,
+    DeploymentScheduleUpdate,
     DeploymentUpdate,
     FlowRunCreate,
     WorkPoolCreate,
     WorkPoolUpdate,
 )
+from prefect.server.schemas.schedules import CronSchedule
+from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 
 
 @pytest.mark.parametrize(
@@ -85,8 +95,11 @@ class TestDeploymentCreate:
         for key in kwargs.keys():
             assert getattr(deployment_create, key, 0) == 0
 
-    def test_check_valid_configuration_removes_required_if_defaults_exist(self):
-        # This should fail because my-field is required but has no default
+    def test_check_valid_configuration_ignores_required_fields(self):
+        """
+        Deployment actions ignore required fields because we don't know
+        what the final set of job variables will look like until a flow runs.
+        """
         deployment_create = DeploymentCreate(
             name="test-deployment",
             flow_id=uuid4(),
@@ -105,11 +118,10 @@ class TestDeploymentCreate:
                 },
             }
         }
-        with pytest.raises(jsonschema.ValidationError) as excinfo:
-            deployment_create.check_valid_configuration(base_job_template)
-        assert excinfo.value.message == "'my-field' is a required property"
+        # This should pass despite my-field being required
+        deployment_create.check_valid_configuration(base_job_template)
 
-        # This should pass because the value has a default
+        # A field with a default value should also pass
         base_job_template = {
             "variables": {
                 "type": "object",
@@ -188,8 +200,11 @@ class TestDeploymentUpdate:
         for key in kwargs.keys():
             assert getattr(deployment_update, key, 0) == 0
 
-    def test_check_valid_configuration_removes_required_if_defaults_exist(self):
-        # This should fail because my-field is required but has no default
+    def test_check_valid_configuration_ignores_required_fields(self):
+        """
+        Deployment actions ignore required fields because we don't know
+        what the final set of job variables will look like until a flow runs.
+        """
         deployment_update = DeploymentUpdate(
             job_variables={},
         )
@@ -206,9 +221,8 @@ class TestDeploymentUpdate:
                 },
             }
         }
-        with pytest.raises(jsonschema.ValidationError) as excinfo:
-            deployment_update.check_valid_configuration(base_job_template)
-        assert excinfo.value.message == "'my-field' is a required property"
+        # This should pass even though my-field is required
+        deployment_update.check_valid_configuration(base_job_template)
 
         # This should pass because the value has a default
         base_job_template = {
@@ -374,3 +388,67 @@ class TestWorkPoolUpdate:
         are provided in variables."""
         wp = WorkPoolUpdate(base_job_template=template)
         assert wp
+
+
+class TestDeploymentScheduleValidation:
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "max_scheduled_runs,expected_error_substr",
+        [
+            (
+                420000,
+                f"be less than or equal to {PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()}",
+            ),
+        ],
+    )
+    def test_deployment_schedule_validation_error(
+        self, schema_type, max_scheduled_runs, expected_error_substr
+    ):
+        with pytest.raises(ValueError, match=expected_error_substr):
+            schema_type(
+                schedule=CronSchedule(cron="0 0 * * *"),
+                max_active_runs=1,
+                max_scheduled_runs=max_scheduled_runs,
+                catchup=False,
+            )
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "max_scheduled_runs",
+        [-1, 0],
+    )
+    def test_deployment_schedule_validation_error_invalid_max_scheduled_runs(
+        self, schema_type, max_scheduled_runs
+    ):
+        with pytest.raises(ValidationError):
+            schema_type(
+                schedule=CronSchedule(cron="0 0 * * *"),
+                max_active_runs=1,
+                max_scheduled_runs=max_scheduled_runs,
+                catchup=False,
+            )
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "max_scheduled_runs",
+        [1, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()],
+    )
+    def test_deployment_schedule_validation_success(
+        self, schema_type, max_scheduled_runs
+    ):
+        schedule = schema_type(
+            schedule=CronSchedule(cron="0 0 * * *"),
+            max_active_runs=1,
+            max_scheduled_runs=max_scheduled_runs,
+            catchup=False,
+        )
+        assert schedule.max_scheduled_runs == max_scheduled_runs

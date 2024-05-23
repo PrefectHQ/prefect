@@ -3,14 +3,19 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from prefect.infrastructure import KubernetesClusterConfig
+from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.models import deployments
 
 
+class MockKubernetesClusterConfig(Block):
+    context_name: str
+    config: Dict[str, Any]
+
+
 @pytest.fixture
 async def k8s_credentials():
-    block = KubernetesClusterConfig(context_name="default", config={})
+    block = MockKubernetesClusterConfig(context_name="default", config={})
     await block.save("k8s-credentials")
     return block
 
@@ -104,7 +109,7 @@ class TestInfraOverrides:
             f"/deployments/{deployment.id}/create_flow_run",
             json={"job_variables": {"x": 1}},
         )
-        assert response.status_code == 409
+        assert response.status_code == 422
         assert (
             response.json()["detail"]
             == "Error creating flow run: Validation failed. Failure reason: 'expected_variable_1' is a required property"
@@ -146,7 +151,7 @@ class TestInfraOverrides:
                 "job_variables": {"expected_variable_1": 1, "expected_variable_2": 2}
             },
         )
-        assert response.status_code == 409
+        assert response.status_code == 422
         assert (
             response.json()["detail"]
             == "Error creating flow run: Validation failed for field 'expected_variable_2'. Failure reason: 2 is not of type 'string'"
@@ -324,7 +329,7 @@ class TestInfraOverrides:
         )
 
         # verify the flow run failed due to a missing required variable
-        assert response.status_code == 409
+        assert response.status_code == 422
         assert response.json()["detail"] == (
             "Error creating flow run: Validation failed. Failure reason: 'expected_variable_1' is a required property"
         )
@@ -543,7 +548,7 @@ class TestInfraOverridesUpdates:
         )
 
         # verify that the update failed
-        assert response.status_code == 409
+        assert response.status_code == 422
         assert (
             response.json()["detail"]
             == "Error updating flow run: Validation failed for field 'expected_variable_1'. Failure reason: 'this_should_be_an_int' is not of type 'integer'"

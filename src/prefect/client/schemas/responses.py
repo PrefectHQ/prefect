@@ -2,17 +2,11 @@ import datetime
 from typing import Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic.v1 import Field
 from typing_extensions import Literal
 
 import prefect.client.schemas.objects as objects
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -429,3 +423,22 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     id: UUID
     name: str
     limit: int
+
+
+class GlobalConcurrencyLimitResponse(ObjectBaseModel):
+    """
+    A response object for global concurrency limits.
+    """
+
+    active: bool = Field(
+        default=True, description="Whether the global concurrency limit is active."
+    )
+    name: str = Field(
+        default=..., description="The name of the global concurrency limit."
+    )
+    limit: int = Field(default=..., description="The concurrency limit.")
+    active_slots: int = Field(default=..., description="The number of active slots.")
+    slot_decay_per_second: float = Field(
+        default=2.0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )

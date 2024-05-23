@@ -31,50 +31,6 @@ from prefect._vendor.fastapi.security.base import SecurityBase
 from prefect._vendor.fastapi.security.oauth2 import OAuth2, SecurityScopes
 from prefect._vendor.fastapi.security.open_id_connect_url import OpenIdConnect
 from prefect._vendor.fastapi.utils import create_response_field, get_path_param_names
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, create_model
-    from pydantic.v1.error_wrappers import ErrorWrapper
-    from pydantic.v1.errors import MissingError
-    from pydantic.v1.fields import (
-        SHAPE_FROZENSET,
-        SHAPE_LIST,
-        SHAPE_SEQUENCE,
-        SHAPE_SET,
-        SHAPE_SINGLETON,
-        SHAPE_TUPLE,
-        SHAPE_TUPLE_ELLIPSIS,
-        FieldInfo,
-        ModelField,
-        Required,
-        Undefined,
-    )
-    from pydantic.v1.schema import get_annotation_from_field_info
-    from pydantic.v1.typing import evaluate_forwardref, get_args, get_origin
-    from pydantic.v1.utils import lenient_issubclass
-else:
-    from pydantic import BaseModel, create_model
-    from pydantic.error_wrappers import ErrorWrapper
-    from pydantic.errors import MissingError
-    from pydantic.fields import (
-        SHAPE_FROZENSET,
-        SHAPE_LIST,
-        SHAPE_SEQUENCE,
-        SHAPE_SET,
-        SHAPE_SINGLETON,
-        SHAPE_TUPLE,
-        SHAPE_TUPLE_ELLIPSIS,
-        FieldInfo,
-        ModelField,
-        Required,
-        Undefined,
-    )
-    from pydantic.schema import get_annotation_from_field_info
-    from pydantic.typing import evaluate_forwardref, get_args, get_origin
-    from pydantic.utils import lenient_issubclass
-
 from prefect._vendor.starlette.background import BackgroundTasks
 from prefect._vendor.starlette.concurrency import run_in_threadpool
 from prefect._vendor.starlette.datastructures import (
@@ -86,6 +42,25 @@ from prefect._vendor.starlette.datastructures import (
 from prefect._vendor.starlette.requests import HTTPConnection, Request
 from prefect._vendor.starlette.responses import Response
 from prefect._vendor.starlette.websockets import WebSocket
+from pydantic.v1 import BaseModel, create_model
+from pydantic.v1.error_wrappers import ErrorWrapper
+from pydantic.v1.errors import MissingError
+from pydantic.v1.fields import (
+    SHAPE_FROZENSET,
+    SHAPE_LIST,
+    SHAPE_SEQUENCE,
+    SHAPE_SET,
+    SHAPE_SINGLETON,
+    SHAPE_TUPLE,
+    SHAPE_TUPLE_ELLIPSIS,
+    FieldInfo,
+    ModelField,
+    Required,
+    Undefined,
+)
+from pydantic.v1.schema import get_annotation_from_field_info
+from pydantic.v1.typing import evaluate_forwardref, get_args, get_origin
+from pydantic.v1.utils import lenient_issubclass
 from typing_extensions import Annotated
 
 sequence_shapes = {

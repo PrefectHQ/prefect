@@ -190,9 +190,9 @@ def test_root_flow_custom_serializer_by_instance():
     assert result_factory.storage_block_id is None
 
 
-def test_root_flow_custom_storage_by_slug(tmp_path):
+async def test_root_flow_custom_storage_by_slug(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow(result_storage="local-file-system/test")
     def foo():
@@ -205,9 +205,9 @@ def test_root_flow_custom_storage_by_slug(tmp_path):
     assert result_factory.storage_block_id == storage_id
 
 
-def test_root_flow_custom_storage_by_instance_presaved(tmp_path):
+async def test_root_flow_custom_storage_by_instance_presaved(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow(result_storage=storage)
     def foo():
@@ -440,9 +440,9 @@ def test_child_flow_inherits_custom_serializer():
     assert child_factory.storage_block_id is None
 
 
-def test_child_flow_inherits_custom_storage(tmp_path):
+async def test_child_flow_inherits_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow(result_storage="local-file-system/test")
     def foo():
@@ -476,9 +476,9 @@ def test_child_flow_custom_serializer():
     assert child_factory.storage_block_id is None
 
 
-def test_child_flow_custom_storage(tmp_path):
+async def test_child_flow_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow()
     def foo():
@@ -707,9 +707,9 @@ def test_task_inherits_custom_serializer():
     assert task_factory.storage_block_id is None
 
 
-def test_task_inherits_custom_storage(tmp_path):
+async def test_task_inherits_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow(result_storage="local-file-system/test")
     def foo():
@@ -743,9 +743,9 @@ def test_task_custom_serializer():
     assert task_factory.storage_block_id is None
 
 
-def test_task_custom_storage(tmp_path):
+async def test_task_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path)
-    storage_id = storage.save("test")
+    storage_id = await storage.save("test")
 
     @flow()
     def foo():

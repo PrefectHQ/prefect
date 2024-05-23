@@ -68,10 +68,10 @@ async def read_logs(
     Returns:
         List[db.Log]: the matching logs
     """
-    query = select(db.Log).order_by(sort.as_sql_sort(db)).offset(offset).limit(limit)
+    query = select(db.Log).order_by(sort.as_sql_sort()).offset(offset).limit(limit)
 
     if log_filter:
-        query = query.where(log_filter.as_sql_filter(db))
+        query = query.where(log_filter.as_sql_filter())
 
     result = await session.execute(query)
     return result.scalars().unique().all()

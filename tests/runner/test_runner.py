@@ -45,6 +45,7 @@ from prefect.settings import (
 )
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import parse_image_tag
+from prefect.utilities.filesystem import tmpchdir
 
 
 @flow(version="test")
@@ -140,9 +141,11 @@ def temp_storage() -> Generator[MockStorage, Any, None]:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield MockStorage(base_path=Path(temp_dir))
 
-    flows_path = Path.cwd() / "flows.py"
-    if flows_path.exists():
-        os.unlink(Path.cwd() / "flows.py")
+
+@pytest.fixture
+def in_temporary_runner_directory(tmp_path: Path):
+    with tmpchdir(tmp_path):
+        yield
 
 
 class TestInit:
@@ -403,6 +406,7 @@ class TestRunner:
         self,
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
+        in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
         runner = Runner(query_seconds=2)
@@ -475,6 +479,7 @@ class TestRunner:
         self,
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
+        in_temporary_runner_directory: None,
         temp_storage: MockStorage,
     ):
         runner = Runner()
@@ -929,7 +934,7 @@ class TestRunnerDeployment:
             RunnerDeployment.from_flow(da_flow, __file__)
 
         # muck up __module__ so that it looks like it was defined interactively
-        da_flow.__module__ = "__main__"
+        da_flow.__module__ = "__not_a_real_module__"
 
         with pytest.raises(
             ValueError,
@@ -1219,8 +1224,8 @@ class TestRunnerDeployment:
         with pytest.raises(
             DeploymentApplyError,
             match=re.escape(
-                "Error creating deployment: <ValidationError: \"'blork' is not one of"
-                " ['IfNotPresent', 'Always', 'Never']\">"
+                "Error creating deployment: Validation failed for field 'image_pull_policy'. Failure reason: 'blork' is not one of"
+                " ['IfNotPresent', 'Always', 'Never']"
             ),
         ):
             await deployment.apply()
@@ -1912,8 +1917,8 @@ class TestDeploy:
         with pytest.raises(
             DeploymentApplyError,
             match=re.escape(
-                "Error creating deployment: <ValidationError: \"'blork' is not one of"
-                " ['IfNotPresent', 'Always', 'Never']\">"
+                "Error creating deployment: Validation failed for field 'image_pull_policy'. Failure reason: 'blork' is not one of"
+                " ['IfNotPresent', 'Always', 'Never']"
             ),
         ):
             await deploy(

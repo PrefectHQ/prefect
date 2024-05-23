@@ -213,6 +213,90 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_with_specified_work_queues_paused(monkeypatch, process_work_pool):
+    mock_worker = MagicMock()
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+
+    invoke_and_assert(
+        command=[
+            "work-queue",
+            "pause",
+            "default",
+            "--pool",
+            process_work_pool.name,
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Work queue 'default' in work pool {process_work_pool.name!r} paused"
+        ],
+    )
+
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            process_work_pool.name,
+            "--work-queue",
+            "default",
+            "--run-once",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Specified work queue(s) in the work pool {process_work_pool.name!r} are currently paused.",
+        ],
+    )
+
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name=process_work_pool.name,
+        work_queues=["default"],
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_with_all_work_queues_paused(monkeypatch, process_work_pool):
+    mock_worker = MagicMock()
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+
+    invoke_and_assert(
+        command=[
+            "work-queue",
+            "pause",
+            "default",
+            "--pool",
+            process_work_pool.name,
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Work queue 'default' in work pool {process_work_pool.name!r} paused"
+        ],
+    )
+
+    invoke_and_assert(
+        command=["worker", "start", "-p", process_work_pool.name, "--run-once"],
+        expected_code=0,
+        expected_output_contains=[
+            f"All work queues in the work pool {process_work_pool.name!r} are currently paused.",
+        ],
+    )
+
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name=process_work_pool.name,
+        work_queues=None,
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker = MagicMock()
     monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
@@ -789,10 +873,6 @@ class TestWorkerSignalForwarding:
             f" Output:\n{out}"
         )
 
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
     async def test_sigint_sends_sigterm_then_sigkill(self, worker_process):
         worker_process.send_signal(signal.SIGINT)
         await anyio.sleep(0.1)  # some time needed for the recursive signal handler
@@ -801,17 +881,23 @@ class TestWorkerSignalForwarding:
         worker_process.out.seek(0)
         out = worker_process.out.read().decode()
 
-        assert (
-            # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-            "Sending SIGKILL" in out
-            # or SIGKILL came too late, and the main PID is already closing
-            or "KeyboardInterrupt" in out
-            or "Worker 'test-worker' stopped!" in out
-            or "Aborted." in out
-        ), (
-            "When sending two SIGINT shortly after each other, the main process should"
-            f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
-        )
+        if sys.platform != "win32":
+            assert (
+                # either the main PID is still waiting for shutdown, so forwards the SIGKILL
+                "Sending SIGKILL" in out
+                # or SIGKILL came too late, and the main PID is already closing
+                or "KeyboardInterrupt" in out
+                or "Worker 'test-worker' stopped!" in out
+                or "Aborted." in out
+            ), (
+                "When sending two SIGINT shortly after each other, the main process should"
+                f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
+            )
+        else:
+            assert "Sending CTRL_BREAK_EVENT" in out, (
+                "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to"
+                f" the worker subprocess. Output:\n{out}"
+            )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -835,19 +921,4 @@ class TestWorkerSignalForwarding:
         ), (
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
-        )
-
-    @pytest.mark.skipif(
-        sys.platform != "win32",
-        reason="CTRL_BREAK_EVENT is only defined in Windows",
-    )
-    async def test_sends_ctrl_break_win32(self, worker_process):
-        worker_process.send_signal(signal.SIGINT)
-        await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
-
-        assert "Sending CTRL_BREAK_EVENT" in out, (
-            "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to"
-            f" the worker subprocess. Output:\n{out}"
         )

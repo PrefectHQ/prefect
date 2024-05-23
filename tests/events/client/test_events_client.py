@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 from websockets.exceptions import ConnectionClosed
 
-from prefect.client.base import PrefectHttpxClient
+from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.events import Event, get_events_client
 from prefect.events.clients import (
     PrefectCloudEventsClient,
@@ -15,28 +15,9 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 from prefect.testing.fixtures import Puppeteer, Recorder
-
-
-@pytest.fixture
-def no_viable_settings(events_disabled):
-    with temporary_settings(
-        {
-            PREFECT_API_URL: "https://locally/api",
-            PREFECT_API_KEY: None,
-            PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: False,
-        }
-    ):
-        yield
-
-
-async def test_raises_when_no_viable_client(no_viable_settings):
-    with pytest.raises(RuntimeError, match="does not support events"):
-        get_events_client()
 
 
 @pytest.fixture
@@ -46,7 +27,6 @@ def ephemeral_settings():
             PREFECT_API_URL: None,
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: True,
         }
     ):
         yield
@@ -63,7 +43,6 @@ def server_settings():
             PREFECT_API_URL: "https://locally/api",
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: True,
         }
     ):
         yield
@@ -80,7 +59,6 @@ def cloud_settings():
             PREFECT_API_URL: "https://cloudy/api/accounts/1/workspaces/2",
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
             PREFECT_API_KEY: "howdy-doody",
-            PREFECT_EXPERIMENTAL_EVENTS: False,
         }
     ):
         yield
@@ -94,13 +72,15 @@ async def test_ephemeral_events_client_can_emit(
     example_event_1: Event, monkeypatch: pytest.MonkeyPatch, ephemeral_settings
 ):
     mock_http_client = mock.MagicMock(
-        spec=PrefectHttpxClient, name="PrefectHttpxClient"
+        spec=PrefectHttpxAsyncClient, name="PrefectHttpxAsyncClient"
     )
     mock_http_client.return_value.__aenter__ = mock.AsyncMock(
         return_value=mock_http_client
     )
     mock_http_client.return_value.post = mock.AsyncMock()
-    monkeypatch.setattr("prefect.events.clients.PrefectHttpxClient", mock_http_client)
+    monkeypatch.setattr(
+        "prefect.events.clients.PrefectHttpxAsyncClient", mock_http_client
+    )
 
     assert not PREFECT_API_URL.value()
     assert not PREFECT_API_KEY.value()
