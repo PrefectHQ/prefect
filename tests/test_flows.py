@@ -54,7 +54,6 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_FLOW_DEFAULT_RETRIES,
     temporary_settings,
 )
@@ -79,14 +78,6 @@ from prefect.utilities.hashing import file_hash
 
 # Give an ample amount of sleep time in order to test flow timeouts
 SLEEP_TIME = 10
-
-
-@pytest.fixture(
-    autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
-)
-def set_new_engine_setting(request):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
-        yield
 
 
 @pytest.fixture
@@ -1346,10 +1337,7 @@ class TestFlowTimeouts:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                upstream_sleepers = sleep_task.map([0.5, 1.0])
-            else:
-                upstream_sleepers = await sleep_task.map([0.5, 1.0])
+            upstream_sleepers = sleep_task.map([0.5, 1.0])
             await downstream_flow(wait_for=upstream_sleepers)
 
         state = await my_flow(return_state=True)
@@ -1528,11 +1516,8 @@ class TestSubflowTaskInputs:
         def parent_flow():
             task_future = child_task.submit(1)
             flow_state = child_flow(x=task_future, return_state=True)
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                task_future.wait()
-                task_state = task_future.state
-            else:
-                task_state = task_future.wait()
+            task_future.wait()
+            task_state = task_future.state
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
@@ -1608,10 +1593,8 @@ class TestSubflowTaskInputs:
         def parent_flow():
             future = child_task.submit()
             flow_state = child_flow(x=allow_failure(future), return_state=True)
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return quote((future.state, flow_state))
-            return quote((future.wait(), flow_state))
+            future.wait()
+            return quote((future.state, flow_state))
 
         task_state, flow_state = parent_flow().unquote()
         assert isinstance(await flow_state.result(), ValueError)

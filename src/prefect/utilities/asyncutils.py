@@ -278,81 +278,43 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
 
     @wraps(async_fn)
     def coroutine_wrapper(*args, **kwargs):
-        from prefect._internal.concurrency.api import create_call, from_sync
-        from prefect._internal.concurrency.calls import get_current_call, logger
-        from prefect._internal.concurrency.event_loop import get_running_loop
-        from prefect._internal.concurrency.threads import get_global_loop
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
-            PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
         )
 
         if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT:
             return async_fn(*args, **kwargs)
 
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            is_async = True
+        is_async = True
+        try:
+            run_ctx = get_run_context()
+            parent_obj = getattr(run_ctx, "task", None)
+            if not parent_obj:
+                parent_obj = getattr(run_ctx, "flow", None)
+            is_async = getattr(parent_obj, "isasync", True)
+        except MissingContextError:
+            pass
+
+        async def ctx_call():
+            """
+            Wrapper that is submitted using copy_context().run to ensure
+            mutations of RUN_ASYNC_FLAG are tightly scoped to this coroutine's frame.
+            """
+            token = RUN_ASYNC_FLAG.set(True)
             try:
-                run_ctx = get_run_context()
-                parent_obj = getattr(run_ctx, "task", None)
-                if not parent_obj:
-                    parent_obj = getattr(run_ctx, "flow", None)
-                is_async = getattr(parent_obj, "isasync", True)
-            except MissingContextError:
-                pass
+                result = await async_fn(*args, **kwargs)
+            finally:
+                RUN_ASYNC_FLAG.reset(token)
+            return result
 
-            async def ctx_call():
-                """
-                Wrapper that is submitted using copy_context().run to ensure
-                mutations of RUN_ASYNC_FLAG are tightly scoped to this coroutine's frame.
-                """
-                token = RUN_ASYNC_FLAG.set(True)
-                try:
-                    result = await async_fn(*args, **kwargs)
-                finally:
-                    RUN_ASYNC_FLAG.reset(token)
-                return result
-
-            if force_sync:
-                return run_sync(ctx_call())
-            elif RUN_ASYNC_FLAG.get() or is_async:
-                context = copy_context()
-                return context.run(ctx_call)
-            else:
-                return run_sync(ctx_call())
-
-        global_thread_portal = get_global_loop()
-        current_thread = threading.current_thread()
-        current_call = get_current_call()
-        current_loop = get_running_loop()
-
-        if current_thread.ident == global_thread_portal.thread.ident:
-            logger.debug(f"{async_fn} --> return coroutine for internal await")
-            # In the prefect async context; return the coro for us to await
-            return async_fn(*args, **kwargs)
-        elif in_async_main_thread() and (
-            not current_call or is_async_fn(current_call.fn)
-        ):
-            # In the main async context; return the coro for them to await
-            logger.debug(f"{async_fn} --> return coroutine for user await")
-            return async_fn(*args, **kwargs)
-        elif in_async_worker_thread():
-            # In a sync context but we can access the event loop thread; send the async
-            # call to the parent
-            return run_async_from_worker_thread(async_fn, *args, **kwargs)
-        elif current_loop is not None:
-            logger.debug(f"{async_fn} --> run async in global loop portal")
-            # An event loop is already present but we are in a sync context, run the
-            # call in Prefect's event loop thread
-            return from_sync.call_soon_in_loop_thread(
-                create_call(async_fn, *args, **kwargs)
-            ).result()
+        if force_sync:
+            return run_sync(ctx_call())
+        elif RUN_ASYNC_FLAG.get() or is_async:
+            context = copy_context()
+            return context.run(ctx_call)
         else:
-            logger.debug(f"{async_fn} --> run async in new loop")
-            # Run in a new event loop, but use a `Call` for nested context detection
-            call = create_call(async_fn, *args, **kwargs)
-            return call()
+            return run_sync(ctx_call())
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
