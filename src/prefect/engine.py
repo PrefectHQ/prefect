@@ -136,7 +136,6 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -147,7 +146,7 @@ from prefect.exceptions import (
     PausedRun,
     UpstreamTaskError,
 )
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.input import keyset_from_paused_state
 from prefect.input.run_input import run_input_subclass_from_type
@@ -2273,10 +2272,10 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
-    if state.is_failed() and task.on_failure:
-        hooks = task.on_failure
-    elif state.is_completed() and task.on_completion:
-        hooks = task.on_completion
+    if state.is_failed() and task.on_failure_hooks:
+        hooks = task.on_failure_hooks
+    elif state.is_completed() and task.on_completion_hooks:
+        hooks = task.on_completion_hooks
 
     if hooks:
         logger = task_run_logger(task_run)
@@ -2354,22 +2353,24 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         == "true"
     )
 
-    if state.is_running() and flow.on_running:
-        hooks = flow.on_running
-    elif state.is_failed() and flow.on_failure:
-        hooks = flow.on_failure
-    elif state.is_completed() and flow.on_completion:
-        hooks = flow.on_completion
+    if state.is_running() and flow.on_running_hooks:
+        hooks = flow.on_running_hooks
+    elif state.is_failed() and flow.on_failure_hooks:
+        hooks = flow.on_failure_hooks
+    elif state.is_completed() and flow.on_completion_hooks:
+        hooks = flow.on_completion_hooks
     elif (
         enable_cancellation_and_crashed_hooks
         and state.is_cancelling()
-        and flow.on_cancellation
+        and flow.on_cancellation_hooks
     ):
-        hooks = flow.on_cancellation
+        hooks = flow.on_cancellation_hooks
     elif (
-        enable_cancellation_and_crashed_hooks and state.is_crashed() and flow.on_crashed
+        enable_cancellation_and_crashed_hooks
+        and state.is_crashed()
+        and flow.on_crashed_hooks
     ):
-        hooks = flow.on_crashed
+        hooks = flow.on_crashed_hooks
 
     if hooks:
         logger = flow_run_logger(flow_run)
@@ -2442,7 +2443,7 @@ if __name__ == "__main__":
                 run_flow_sync,
             )
 
-            flow_run, flow = run_sync(load_flow_and_flow_run)
+            flow_run, flow = load_flow_and_flow_run(flow_run_id=flow_run_id)
             # run the flow
             if flow.isasync:
                 run_sync(run_flow_async(flow, flow_run=flow_run))

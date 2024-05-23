@@ -3,15 +3,8 @@ from typing import Optional
 from uuid import UUID
 
 import pendulum
+from pydantic.v1 import BaseModel, Field
 from typing_extensions import TypeAlias
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field
-else:
-    from pydantic import BaseModel, Field
-
 
 # Rather than subclassing pendulum.DateTime to add our pydantic-specific validation,
 # which will lead to a lot of funky typing issues, we'll just monkeypatch the pydantic

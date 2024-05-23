@@ -7,15 +7,18 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+from pydantic.v1 import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
 from typing_extensions import Literal, Self
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.types import PositiveInteger
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, HttpUrl, root_validator, validator
 
 import prefect.server.database
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
@@ -23,7 +26,6 @@ from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_with_banned_characters,
     set_run_policy_deprecated_fields,
     validate_cache_key_length,
     validate_default_queue_id_not_none,
@@ -42,7 +44,7 @@ from prefect.server.utilities.schemas.bases import (
 )
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeInteger
+from prefect.types import Name, NameOrEmpty, NonNegativeInteger, PositiveInteger
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
@@ -72,7 +74,7 @@ MAX_VARIABLE_VALUE_LENGTH = 5000
 class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
 
-    name: str = Field(
+    name: Name = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
@@ -80,10 +82,6 @@ class Flow(ORMBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class FlowRunPolicy(PrefectBaseModel):
@@ -525,7 +523,7 @@ class DeploymentSchedule(ORMBaseModel):
 class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
     """An ORM representation of deployment data."""
 
-    name: str = Field(default=..., description="The name of the deployment.")
+    name: NameOrEmpty = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
@@ -630,10 +628,6 @@ class Deployment(DeprecatedInfraOverridesField, ORMBaseModel):
     class Config:
         allow_population_by_field_name = True
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class ConcurrencyLimit(ORMBaseModel):
     """An ORM representation of a concurrency limit."""
@@ -654,7 +648,7 @@ class ConcurrencyLimitV2(ORMBaseModel):
     active: bool = Field(
         default=True, description="Whether the concurrency limit is active."
     )
-    name: str = Field(default=..., description="The name of the concurrency limit.")
+    name: Name = Field(default=..., description="The name of the concurrency limit.")
     limit: int = Field(default=..., description="The concurrency limit.")
     active_slots: int = Field(default=0, description="The number of active slots.")
     denied_slots: int = Field(default=0, description="The number of denied slots.")
@@ -666,15 +660,11 @@ class ConcurrencyLimitV2(ORMBaseModel):
         default=2.0, description="The average amount of time a slot is occupied."
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class BlockType(ORMBaseModel):
     """An ORM representation of a block type"""
 
-    name: str = Field(default=..., description="A block type's name")
+    name: Name = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
     logo_url: Optional[HttpUrl] = Field(
         default=None, description="Web URL for the block type's logo"
@@ -693,10 +683,6 @@ class BlockType(ORMBaseModel):
     is_protected: bool = Field(
         default=False, description="Protected block types cannot be modified via API."
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class BlockSchema(ORMBaseModel):
@@ -743,7 +729,7 @@ class BlockSchemaReference(ORMBaseModel):
 class BlockDocument(ORMBaseModel):
     """An ORM representation of a block document."""
 
-    name: Optional[str] = Field(
+    name: Optional[Name] = Field(
         default=None,
         description=(
             "The block document's name. Not required for anonymous block documents."
@@ -773,12 +759,6 @@ class BlockDocument(ORMBaseModel):
             " Prefect automatically)"
         ),
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        # the BlockDocumentCreate subclass allows name=None
-        # and will inherit this validator
-        return raise_on_name_with_banned_characters(v)
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
@@ -921,7 +901,7 @@ class QueueFilter(PrefectBaseModel):
 class WorkQueue(ORMBaseModel):
     """An ORM representation of a work queue"""
 
-    name: str = Field(default=..., description="The name of the work queue.")
+    name: Name = Field(default=..., description="The name of the work queue.")
     description: Optional[str] = Field(
         default="", description="An optional description for the work queue."
     )
@@ -949,10 +929,6 @@ class WorkQueue(ORMBaseModel):
     last_polled: Optional[DateTimeTZ] = Field(
         default=None, description="The last time an agent polled this queue for work."
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1073,7 +1049,7 @@ class Agent(ORMBaseModel):
 class WorkPool(ORMBaseModel):
     """An ORM representation of a work pool"""
 
-    name: str = Field(
+    name: Name = Field(
         description="The name of the work pool.",
     )
     description: Optional[str] = Field(
@@ -1099,10 +1075,6 @@ class WorkPool(ORMBaseModel):
     default_queue_id: UUID = Field(
         None, description="The id of the pool's default queue."
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
     @validator("default_queue_id", always=True)
     def helpful_error_for_missing_default_queue_id(cls, v):
@@ -1241,11 +1213,12 @@ class Variable(ORMBaseModel):
         examples=["my-variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: Union[
+        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,

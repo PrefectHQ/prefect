@@ -166,14 +166,6 @@ prefect dev api
 ```
 </div>
 
-Start a Prefect worker that reloads on code changes:
-
-<div class="terminal">
-```bash
-prefect dev agent
-```
-</div>
-
 ### UI development
 
 Developing the Prefect UI requires that [npm](https://github.com/npm/cli) is installed.

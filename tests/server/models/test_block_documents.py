@@ -15,6 +15,7 @@ else:
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.utilities.names import obfuscate, obfuscate_string
 
@@ -229,7 +230,7 @@ class TestCreateBlockDocument:
         )
 
         before_count = await session.execute(
-            sa.select(sa.func.count()).select_from(db.BlockDocument)
+            sa.select(sa.func.count()).select_from(orm_models.BlockDocument)
         )
         await models.block_documents.create_block_document(
             session=session, block_document=block_document
@@ -243,7 +244,7 @@ class TestCreateBlockDocument:
         await session.rollback()
 
         after_count = await session.execute(
-            sa.select(sa.func.count()).select_from(db.BlockDocument)
+            sa.select(sa.func.count()).select_from(orm_models.BlockDocument)
         )
 
         # only one block created

@@ -7,21 +7,25 @@ from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID, uuid4
 
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, HttpUrl, root_validator, validator
-else:
-    from pydantic import Field, HttpUrl, root_validator, validator
+import orjson
+from pydantic.v1 import (
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
 
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
-    raise_on_name_with_banned_characters,
     remove_old_deployment_fields,
     set_default_scheduled_time,
     set_deployment_schedules,
@@ -39,7 +43,13 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
+from prefect.types import (
+    Name,
+    NonEmptyishName,
+    NonNegativeFloat,
+    NonNegativeInteger,
+    PositiveInteger,
+)
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
@@ -91,7 +101,7 @@ class ActionBaseModel(PrefectBaseModel):
 class FlowCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow."""
 
-    name: str = Field(
+    name: Name = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
     tags: List[str] = Field(
@@ -99,10 +109,6 @@ class FlowCreate(ActionBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class FlowUpdate(ActionBaseModel):
@@ -113,10 +119,6 @@ class FlowUpdate(ActionBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class DeploymentScheduleCreate(ActionBaseModel):
@@ -421,6 +423,10 @@ class StateCreate(ActionBaseModel):
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
+    id: Optional[UUID] = Field(
+        default=None,
+        description="The ID to assign to the task run. If not provided, a random UUID will be generated.",
+    )
     # TaskRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
         default=None, description="The state of the task run to create"
@@ -630,7 +636,7 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether the concurrency limit is active."
     )
-    name: str = Field(default=..., description="The name of the concurrency limit.")
+    name: Name = Field(default=..., description="The name of the concurrency limit.")
     limit: NonNegativeInteger = Field(default=..., description="The concurrency limit.")
     active_slots: NonNegativeInteger = Field(
         default=0, description="The number of active slots."
@@ -643,30 +649,22 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
         description="The decay rate for active slots when used as a rate limit.",
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class ConcurrencyLimitV2Update(ActionBaseModel):
     """Data used by the Prefect REST API to update a v2 concurrency limit."""
 
     active: Optional[bool] = Field(None)
-    name: Optional[str] = Field(None)
+    name: Optional[Name] = Field(None)
     limit: Optional[NonNegativeInteger] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     denied_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
-    name: str = Field(default=..., description="A block type's name")
+    name: Name = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
     logo_url: Optional[HttpUrl] = Field(
         default=None, description="Web URL for the block type's logo"
@@ -686,10 +684,6 @@ class BlockTypeCreate(ActionBaseModel):
     # validators
     _validate_slug_format = validator("slug", allow_reuse=True)(
         validate_block_type_slug
-    )
-
-    _validate_name_characters = validator("name", check_fields=False)(
-        raise_on_name_with_banned_characters
     )
 
 
@@ -835,7 +829,7 @@ def validate_base_job_template(v):
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = Field(..., description="The name of the work pool.")
+    name: NonEmptyishName = Field(..., description="The name of the work pool.")
     description: Optional[str] = Field(None, description="The work pool description.")
     type: str = Field(description="The work pool type.", default="prefect-agent")
     base_job_template: Dict[str, Any] = Field(
@@ -853,10 +847,6 @@ class WorkPoolCreate(ActionBaseModel):
         validate_base_job_template
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
@@ -870,15 +860,11 @@ class WorkPoolUpdate(ActionBaseModel):
         validate_base_job_template
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work queue."""
 
-    name: str = Field(default=..., description="The name of the work queue.")
+    name: Name = Field(default=..., description="The name of the work queue.")
     description: Optional[str] = Field(
         default="", description="An optional description for the work queue."
     )
@@ -902,10 +888,6 @@ class WorkQueueCreate(ActionBaseModel):
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
 
 
 class WorkQueueUpdate(ActionBaseModel):
@@ -1060,11 +1042,12 @@ class VariableCreate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: Union[
+        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -1074,6 +1057,20 @@ class VariableCreate(ActionBaseModel):
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+
+    @validator("value")
+    def validate_value(cls, v):
+        try:
+            json_string = orjson.dumps(v)
+        except orjson.JSONDecodeError:
+            raise ValueError("Variable value must be serializable to JSON.")
+
+        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
+            raise ValueError(
+                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+            )
+
+        return v
 
 
 class VariableUpdate(ActionBaseModel):
@@ -1085,17 +1082,32 @@ class VariableUpdate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Optional[str] = Field(
+    value: Union[
+        StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+    ] = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(
         default=None,
         description="A list of variable tags",
         examples=[["tag-1", "tag-2"]],
     )
+
+    @validator("value")
+    def validate_value(cls, v):
+        try:
+            json_string = orjson.dumps(v)
+        except orjson.JSONDecodeError:
+            raise ValueError("Variable value must be serializable to JSON.")
+
+        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
+            raise ValueError(
+                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+            )
+
+        return v
 
     # validators
     _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)

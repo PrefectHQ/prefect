@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models
+from prefect.server.database import orm_models
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import filters, states
@@ -52,11 +53,12 @@ class CancellationCleanup(LoopService):
     async def clean_up_cancelled_flow_run_task_runs(self, db):
         while True:
             cancelled_flow_query = (
-                sa.select(db.FlowRun)
+                sa.select(orm_models.FlowRun)
                 .where(
-                    db.FlowRun.state_type == states.StateType.CANCELLED,
-                    db.FlowRun.end_time.is_not(None),
-                    db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
+                    orm_models.FlowRun.state_type == states.StateType.CANCELLED,
+                    orm_models.FlowRun.end_time.is_not(None),
+                    orm_models.FlowRun.end_time
+                    >= (pendulum.now("UTC").subtract(days=1)),
                 )
                 .limit(self.batch_size)
             )
@@ -76,19 +78,19 @@ class CancellationCleanup(LoopService):
         high_water_mark = UUID(int=0)
         while True:
             subflow_query = (
-                sa.select(db.FlowRun)
+                sa.select(orm_models.FlowRun)
                 .where(
                     or_(
-                        db.FlowRun.state_type == states.StateType.PENDING,
-                        db.FlowRun.state_type == states.StateType.SCHEDULED,
-                        db.FlowRun.state_type == states.StateType.RUNNING,
-                        db.FlowRun.state_type == states.StateType.PAUSED,
-                        db.FlowRun.state_type == states.StateType.CANCELLING,
-                        db.FlowRun.id > high_water_mark,
+                        orm_models.FlowRun.state_type == states.StateType.PENDING,
+                        orm_models.FlowRun.state_type == states.StateType.SCHEDULED,
+                        orm_models.FlowRun.state_type == states.StateType.RUNNING,
+                        orm_models.FlowRun.state_type == states.StateType.PAUSED,
+                        orm_models.FlowRun.state_type == states.StateType.CANCELLING,
+                        orm_models.FlowRun.id > high_water_mark,
                     ),
-                    db.FlowRun.parent_task_run_id.is_not(None),
+                    orm_models.FlowRun.parent_task_run_id.is_not(None),
                 )
-                .order_by(db.FlowRun.id)
+                .order_by(orm_models.FlowRun.id)
                 .limit(self.batch_size)
             )
 
@@ -105,7 +107,7 @@ class CancellationCleanup(LoopService):
                 break
 
     async def _cancel_child_runs(
-        self, db: PrefectDBInterface, flow_run: PrefectDBInterface.FlowRun
+        self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
     ) -> None:
         async with db.session_context() as session:
             child_task_runs = await models.task_runs.read_task_runs(
@@ -129,7 +131,7 @@ class CancellationCleanup(LoopService):
                 )
 
     async def _cancel_subflow(
-        self, db: PrefectDBInterface, flow_run: PrefectDBInterface.FlowRun
+        self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
     ) -> None:
         if not flow_run.parent_task_run_id:
             return False

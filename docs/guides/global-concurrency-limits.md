@@ -9,18 +9,27 @@ search:
 
 # Global Concurrency Limits and Rate Limits
 
-Global concurrency limits allow you to manage execution efficiently, controlling how many tasks, flows, or other operations can run simultaneously. They are ideal when optimizing resource usage, preventing bottlenecks, and customizing task execution are priorities.
+Global concurrency limits allow you to manage execution efficiently, controlling how many tasks, flows, or other operations can run simultaneously. They are ideal for optimizing resource usage, preventing bottlenecks, and customizing task execution.
 
 !!! tip "Clarification on use of the term 'tasks'"
-    In the context of global concurrency and rate limits, "tasks" refers not specifically to Prefect tasks, but to concurrent units of work in general, such as those managed by an event loop or `TaskGroup` in asynchronous programming. These general "tasks" could include Prefect tasks when they are part of an asynchronous execution environment.
+    In the context of global concurrency and rate limits, "tasks" refers not specifically to Prefect tasks, but to concurrent units of work in general — such as those managed by an event loop or `TaskGroup` in asynchronous programming. These general "tasks" could include Prefect tasks when they are part of an asynchronous execution environment.
 
 Rate Limits ensure system stability by governing the frequency of requests or operations. They are suitable for preventing overuse, ensuring fairness, and handling errors gracefully.
 
 When selecting between Concurrency and Rate Limits, consider your primary goal. Choose Concurrency Limits for resource optimization and task management. Choose Rate Limits to maintain system stability and fair access to services.
 
-The core difference between a rate limit and a concurrency limit is the way in which slots are released. With a rate limit, slots are released at a controlled rate, controlled by `slot_decay_per_second` whereas with a concurrency limit, slots are released when the concurrency manager is exited.
+The core difference between a rate limit and a concurrency limit is the way slots are released. With a rate limit, slots are released at a controlled rate, controlled by `slot_decay_per_second`. With a concurrency limit, slots are released when the concurrency manager is exited.
 
-## Managing Global concurrency limits and rate limits
+## Manage Global concurrency limits and rate limits
+
+Create, read, edit, and delete concurrency limits through the Prefect UI.
+
+When creating a concurrency limit, you can specify the following parameters:
+
+- **Name**: The name of the concurrency limit. This name is also how you'll reference the concurrency limit in your code. Special characters, such as `/`, `%`, `&`, `>`, `<`, are not allowed.
+- **Concurrency Limit**: The maximum number of slots that can be occupied on this concurrency limit.
+- **Slot Decay Per Second**: Controls the rate at which slots are released when the concurrency limit is used as a rate limit. This value must be configured when using the `rate_limit` function.
+- **Active**: Whether or not the concurrency limit is in an active state.
 
 ### Active vs inactive limits
 
@@ -31,15 +40,15 @@ Global concurrency limits can be in either an `active` or `inactive` state.
 
 ### Slot decay
 
-Global concurrency limits can be configured with slot decay. This is used when the concurrency limit is used as a rate limit, and it governs the pace at which slots are released or become available for reuse after being occupied. These slots effectively represent the concurrency capacity within a specific concurrency limit. The concept is best understood as the rate at which these slots "decay" or refresh.
+You can configure global concurrency limits with slot decay. Use this when you want a rate limit. It will govern the pace at which slots are released or become available for reuse after being occupied. These slots  represent the concurrency capacity within a specific concurrency limit. This is the rate at which these slots "decay" or refresh.
 
-To configure slot decay, you can set the `slot_decay_per_second` parameter when defining or adjusting a concurrency limit.
+To configure slot decay, set the `slot_decay_per_second` parameter when defining or adjusting a concurrency limit.
 
 For practical use, consider the following:
 
 - *Higher values*: Setting `slot_decay_per_second` to a higher value, such as 5.0, results in slots becoming available relatively quickly. In this scenario, a slot that was occupied by a task will free up after just `0.2` (`1.0 / 5.0`) seconds.
 
-- *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, like 0.1, causes slots to become available more slowly. In this scenario it would take `10` (`1.0 / 0.1`) seconds for a slot to become available again after occupancy
+- *Lower values*: Conversely, setting `slot_decay_per_second` to a lower value, like 0.1, causes slots to become available more slowly. In this scenario it would take `10` (`1.0 / 0.1`) seconds for a slot to become available again after occupancy.
 
 Slot decay provides fine-grained control over the availability of slots, enabling you to optimize the rate of your workflow based on your specific requirements.
 
@@ -92,10 +101,10 @@ See all available commands and options by running `prefect gcl --help`.
 
 ## Using the `concurrency` context manager
 
-The `concurrency`context manager allows control over the maximum number of concurrent operations. You can select either the synchronous (`sync`) or asynchronous (`async`) version, depending on your use case. Here's how to use it:
+The `concurrency`context manager allows control over the maximum number of concurrent operations. Select either the synchronous (`sync`) or asynchronous (`async`) version, depending on your use case. Here's how to use it:
 
 !!! tip "Concurrency limits are implicitly created"
-    When using the `concurrency` context manager, the concurrency limit you use will be created, in an inactive state, if it does not already exist.
+    When using the `concurrency` context manager, the concurrency limit you use is created in an inactive state (if it does not already exist).
 
 **Sync**
 
@@ -153,7 +162,7 @@ if __name__ == "__main__":
 The Rate Limit feature provides control over the frequency of requests or operations, ensuring responsible usage and system stability. Depending on your requirements, you can utilize `rate_limit` to govern both synchronous (sync) and asynchronous (async) operations. Here's how to make the most of it:
 
 !!! tip "Slot decay"
-    When using the `rate_limit` function the concurrency limit you use must have a slot decay configured.
+    When using the `rate_limit` function, the concurrency limit you use must have a slot decay configured.
 
 **Sync**
 
@@ -207,9 +216,9 @@ if __name__ == "__main__":
 2. It defines a `make_http_request` task. Inside this task, the `rate_limit` function is used to ensure that the requests are made at a controlled pace.
 3. A flow named `my_flow` is defined. Within this flow the `make_http_request` task is submitted 10 times.
 
-## Using `concurrency` and `rate_limit` outside of a flow
+## Use `concurrency` and `rate_limit` outside of a flow
 
-`concurreny` and `rate_limit` can be used outside of a flow to control concurrency and rate limits for any operation.
+You can use`concurrency` and `rate_limit` outside of a flow to control concurrency and rate limits for any operation.
 
 ```python
 import asyncio
@@ -232,7 +241,7 @@ if __name__ == "__main__":
 
 ### Throttling task submission
 
-Throttling task submission to avoid overloading resources, to comply with external rate limits, or ensure a steady, controlled flow of work.
+Throttling task submission helps avoid overloading resources, complying with external rate limits, or ensuring a steady, controlled flow of work.
 
 In this scenario the `rate_limit` function is used to throttle the submission of tasks. The rate limit acts as a bottleneck, ensuring that tasks are submitted at a controlled rate, governed by the `slot_decay_per_second` setting on the associated concurrency limit.
 
@@ -257,11 +266,11 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-### Managing database connections
+### Manage database connections
 
-Managing the maximum number of concurrent database connections to avoid exhausting database resources.
+Manage the maximum number of concurrent database connections to avoid exhausting database resources.
 
-In this scenario we've setup a concurrency limit named `database` and given it a maximum concurrency limit that matches the maximum number of database connections we want to allow. We then use the `concurrency` context manager to control the number of database connections allowed at any one time.
+In this scenario we set up a concurrency limit named `database`. We gave it a maximum concurrency limit that matches the maximum number of database connections we want to allow. We then use the `concurrency` context manager to control the number of database connections allowed at any one time.
 
 ```python
 from prefect import flow, task, concurrency
@@ -293,9 +302,9 @@ if __name__ == "__main__":
 
 ### Parallel data processing
 
-Limiting the maximum number of parallel processing tasks.
+Limit the maximum number of parallel processing tasks.
 
-In this scenario we want to limit the number of `process_data` tasks to five at any one time. We do this by using the `concurrency` context manager to request five slots on the `data-processing` concurrency limit. This will block until five slots are free and then submit five more tasks, ensuring that we never exceed the maximum number of parallel processing tasks.
+In this scenario you want to limit the number of `process_data` tasks to five at any one time. You do this by using the `concurrency` context manager to request five slots on the `data-processing` concurrency limit. This will block until five slots are free and then submit five more tasks, ensuring that we never exceed the maximum number of parallel processing tasks.
 
 ```python
 import asyncio

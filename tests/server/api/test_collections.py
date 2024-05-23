@@ -41,6 +41,15 @@ class TestReadCollectionViews:
             },
         }
 
+    @pytest.fixture
+    def mock_worker_response(self):
+        return {
+            "prefect": {
+                "prefect-agent": {},
+                "process": {},
+            }
+        }
+
     @respx.mock
     @pytest.fixture
     def mock_get_view(
@@ -48,7 +57,7 @@ class TestReadCollectionViews:
         respx_mock,
         mock_flow_response,
         mock_block_response,
-        mock_collection_response,
+        mock_worker_response,
     ):
         respx_mock.get(self.collection_view_url("flow")).mock(
             return_value=Response(200, json=mock_flow_response)
@@ -57,7 +66,7 @@ class TestReadCollectionViews:
             return_value=Response(200, json=mock_block_response)
         )
         respx_mock.get(self.collection_view_url("worker")).mock(
-            return_value=Response(404, json=mock_collection_response)
+            return_value=Response(200, json=mock_worker_response)
         )
 
         return respx_mock
@@ -131,3 +140,11 @@ class TestReadCollectionViews:
         assert res.status_code == 200
         # check for expected key to ensure it isn't an error
         assert isinstance(res.json()["prefect"], dict)
+
+    async def test_prefect_agent_excluded_from_worker_metadata(
+        self, client, mock_get_view
+    ):
+        res = await client.get("/collections/views/aggregate-worker-metadata")
+
+        assert res.status_code == 200
+        assert "prefect-agent" not in res.json()["prefect"]

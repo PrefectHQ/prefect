@@ -1,5 +1,121 @@
 # Prefect Release Notes
 
+## Release 2.19.0
+
+### Support for major infrastructure and distributed task integrations
+As `prefect-dask` and other integrations have been added to the `prefect` codebase, this release adds these integrations as `extra` requirements of the `prefect` package, making it easier to install support for everything in your Prefect stack.
+
+```bash
+pip install prefect[dask]
+```
+
+We loved this community contribution so much, we did it for all our first-party integrations.
+
+```bash
+pip install prefect[aws,kubernetes,dask,dbt,sqlalchemy,slack]
+```
+
+You can see the full list of Prefect's `extra` requirements in [our `setup.py`](https://github.com/PrefectHQ/prefect/blob/main/setup.py#L43).
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13289
+- https://github.com/PrefectHQ/prefect/pull/13310
+- https://github.com/PrefectHQ/prefect/pull/13320
+
+### Support for timeout seconds in global concurrency context manager
+You may want to fail immediately if a global concurrency slot is unavailable. Rather than block and wait, you can now specify a `timeout_seconds` argument in the global concurrency context manager and catch a `TimeoutError` if a slot is not available within the specified time.
+
+```python
+@flow
+def fail_immediately_flow():
+    try:
+        with concurrency("there-can-be-only-one", occupy=1, timeout_seconds=0.1):
+            do_something_resource_intensive()
+    except TimeoutError:
+        return Cancelled(message="Another flow run is already running")
+```
+
+See the following pull request for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13262
+
+### Manage global concurrency limits via the CLI
+Global concurrency limits let you control how many operations can run simultaneously-- now you can create, read, edit, and delete global concurrency limits via the Prefect CLI!
+
+To create a new concurrency limit, use the `prefect gcl create` command. You must specify a `--limit` argument, and can optionally specify a `--slot-decay-per-second` and `--disable` argument.
+
+```bash
+prefect gcl create my-concurrency-limit --limit 5 --slot-decay-per-second 1.0
+```
+
+You can inspect the details of a concurrency limit using the `prefect gcl inspect` command:
+
+```bash
+prefect gcl inspect my-concurrency-limit
+```
+
+To update a concurrency limit, use the `prefect gcl update` command. You can update the `--limit`, `--slot-decay-per-second`, `--enable`, and `--disable` arguments:
+
+```bash
+prefect gcl update my-concurrency-limit --limit 10
+```
+
+See all available commands and options by running `prefect gcl --help` or read our [docs](/docs/guides/global-concurrency-limits.md#managing-global-concurrency-limits-and-rate-limits).
+
+For implementation details, see the following pull requests:
+- https://github.com/PrefectHQ/prefect/pull/13194
+- https://github.com/PrefectHQ/prefect/pull/13196
+- https://github.com/PrefectHQ/prefect/pull/13214
+- https://github.com/PrefectHQ/prefect/pull/13218
+- https://github.com/PrefectHQ/prefect/pull/13233
+- https://github.com/PrefectHQ/prefect/pull/13238
+
+### Enhancements
+- Remove registry conflict warning — https://github.com/PrefectHQ/prefect/pull/13155
+- Remove top-level Artifacts tab from Prefect UI:
+    - https://github.com/PrefectHQ/prefect/pull/13226
+    - https://github.com/PrefectHQ/prefect/pull/13261
+
+### Fixes
+- Fix work pool base job template generation for `ECSTask` block — https://github.com/PrefectHQ/prefect/pull/13256
+- Fix selecting correct files when using ignore file in `GcsBucket`'s `put_directory` — https://github.com/PrefectHQ/prefect/pull/13290
+- Add `Resuming` flow runs to `BypassCancellingFlowRunsWithNoInfra` orchestration policy — https://github.com/PrefectHQ/prefect/pull/13299
+- Fix `apprise 1.8.0` imports — https://github.com/PrefectHQ/prefect/pull/13311
+- Remove `dataclass` from custom constrained types - https://github.com/PrefectHQ/prefect/pull/13257
+
+### Experimental
+#### Engine
+- Add crash detection for flow runs — https://github.com/PrefectHQ/prefect/pull/13266
+- Consolidate run creation logic on Task — https://github.com/PrefectHQ/prefect/pull/13271
+- Skip timeout context if not needed — https://github.com/PrefectHQ/prefect/pull/13306
+- Add parent task tracking — https://github.com/PrefectHQ/prefect/pull/12915
+- Syncify task engine — https://github.com/PrefectHQ/prefect/pull/13234
+- Syncify flow engine — https://github.com/PrefectHQ/prefect/pull/13246
+- Use Prefect-specific `TestClient` for sync calls — https://github.com/PrefectHQ/prefect/pull/13265
+- Add new sync compatibility setting — https://github.com/PrefectHQ/prefect/pull/13224
+
+#### Deployment Schedule Behavior
+- Add new fields to `DeploymentSchedule` schemas — https://github.com/PrefectHQ/prefect/pull/13204
+- Allow both `active` and `schedule` parameters in `update_deployment_schedule` method — https://github.com/PrefectHQ/prefect/pull/13259
+- Update JSON schema validation for job varariables — https://github.com/PrefectHQ/prefect/pull/13182
+
+### Documentation
+- Update block concept page to reflect product updates — https://github.com/PrefectHQ/prefect/pull/13193
+- Update example repo links to `prefecthq` repos — https://github.com/PrefectHQ/prefect/pull/13258
+- Update storage guide — https://github.com/PrefectHQ/prefect/pull/13294
+- Update integration libraries — https://github.com/PrefectHQ/prefect/pull/13277
+- Update `Hosting a Prefect server instance` page — https://github.com/PrefectHQ/prefect/pull/13225
+- Simplify `prefect-aws` and `prefect-dbt` docs index pages — https://github.com/PrefectHQ/prefect/pull/13232
+- Expand discussion of resolution order for cloud-provider service auth — https://github.com/PrefectHQ/prefect/pull/13239
+- Fix repo url typo in storage guide — https://github.com/PrefectHQ/prefect/pull/13304
+
+### Integrations
+- Add pre-built Prefect DBT tasks — https://github.com/PrefectHQ/prefect/pull/12964
+
+### Contributors
+- @Andrew-S-Rosen
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.18.3...2.19.0
+
 ## Release 2.18.3
 
 ### Experimental
@@ -180,7 +296,7 @@ using the flow entrypoint instead. - https://github.com/PrefectHQ/prefect/pull/1
 - Fix type-hinting for self-validating fields — https://github.com/PrefectHQ/prefect/pull/12710
 - Fix types NonNegativeDuration / PositiveDuration — https://github.com/PrefectHQ/prefect/pull/12711
 
- 
+
 #### Events and Automations
 - Implement the `run-deployment` automation action — https://github.com/PrefectHQ/prefect/pull/12677
 - Implement the `send-notification` action — https://github.com/PrefectHQ/prefect/pull/12693
@@ -227,7 +343,7 @@ using the flow entrypoint instead. - https://github.com/PrefectHQ/prefect/pull/1
 * @hboehmer-IW made their first contribution in https://github.com/PrefectHQ/prefect/pull/12721
 * @avriiil made their first contribution in https://github.com/PrefectHQ/prefect/pull/12748
 * @takashimakazuki made their first contribution in https://github.com/PrefectHQ/prefect/pull/12761
-  
+
 ### Integrations
 - Add support for a capacity provider — https://github.com/PrefectHQ/prefect-aws/pull/407
 - Improve error handling for task creation — https://github.com/PrefectHQ/prefect-aws/pull/406
@@ -276,7 +392,7 @@ print(answer.value)
 Refer to the [docs](https://docs.prefect.io/latest/guides/variables/#accessing-variables) for more information and see the PR for implementation details: https://github.com/PrefectHQ/prefect/pull/12596
 
 ### Enhancements
-- Allow flows inside tasks 
+- Allow flows inside tasks
     — https://github.com/PrefectHQ/prefect/pull/12559
     — https://github.com/PrefectHQ/prefect/pull/12607
 - Add `User-Agent` header containing the running Prefect version — https://github.com/PrefectHQ/prefect/pull/12601
@@ -484,7 +600,7 @@ It is now easier to bulk select and delete flow runs through the UI. Listings of
 ![image](https://github.com/PrefectHQ/prefect/assets/42048900/2431caf4-c1be-4afd-bcff-3c24fa94dc64)
 
 See the following pull request for implementation details:
-- https://github.com/PrefectHQ/prefect/pull/12356 
+- https://github.com/PrefectHQ/prefect/pull/12356
 - https://github.com/PrefectHQ/prefect-ui-library/pull/2227
 - https://github.com/PrefectHQ/prefect/pull/12285
 
@@ -519,7 +635,7 @@ Additionally, the flow run graph UI enhancements for visualizing state changes a
 - Add upstream dependencies guide to docs — https://github.com/PrefectHQ/prefect/pull/12351
 - Update documentation on event and metric automation triggers — https://github.com/PrefectHQ/prefect/pull/12366
 - Add documentation on compound and sequence automation triggers — https://github.com/PrefectHQ/prefect/pull/12374
-- Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376 
+- Add CSRF settings to common settings section in docs — https://github.com/PrefectHQ/prefect/pull/12376
 
 ### Uncategorized
 - Pin `BuildKit` to 0.12.5 to fix issue with test image build — https://github.com/PrefectHQ/prefect/pull/12343
@@ -3481,7 +3597,7 @@ This release resolves bugs preventing UI form inputs from being rendered and par
 
 ### Prefect no longer supports Python 3.7
 
-Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this release drops Python 3.7 support. Prefect now requires Python 3.8 or later.
+Python 3.7 reached end-of-life on 27 Jun 2023. Consistent with our warning, this release drops Python 3.7 support. Prefect now requires Python 3.9 or later.
 
 ### Enhancements
 
@@ -3595,7 +3711,7 @@ See the following pull requests for implementation details:
 
 ### Documentation
 
-- Adjust docs to reflect Prefect requires Python 3.8 — <https://github.com/PrefectHQ/prefect/pull/9853>
+- Adjust docs to reflect Prefect requires Python 3.9 — <https://github.com/PrefectHQ/prefect/pull/9853>
 - Add custom `pull` step examples to deployment management docs — <https://github.com/PrefectHQ/prefect/pull/10073>
 - Add troubleshooting guide to docs — <https://github.com/PrefectHQ/prefect/pull/10079>
 - Add information on finding Prefect Cloud account id and workspace id — <https://github.com/PrefectHQ/prefect/pull/10103>
@@ -5504,7 +5620,7 @@ In 2.7.8, we announced that we were publishing development Docker images, includ
 You can try one of the new images by including the `--platform` specifier, e.g.:
 
 ```bash
-docker run --platform linux/arm64 --pull always prefecthq/prefect:2-latest prefect version
+docker run --platform linux/arm64 --pull always prefecthq/prefect:3-latest prefect version
 ```
 
 We will be publishing images for the following architectures:
