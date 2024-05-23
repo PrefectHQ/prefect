@@ -9,6 +9,8 @@ from uuid import UUID, uuid4
 import pytest
 from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import Secret as PydanticSecret
+from pydantic_core import to_json
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -2562,3 +2564,67 @@ class TestDeleteBlock:
                 f"Unable to find block document named {new_block_name}"
                 in exception.value
             )
+
+
+class SecretBlock(Block):
+    u: PydanticSecret[str]
+    v: PydanticSecret[bytes]
+    w: SecretDict
+    x: SecretStr
+    y: SecretBytes
+    z: list[Union[str, int, float]]
+
+
+class TestDumpSecrets:
+    @pytest.fixture
+    def secret_data(self) -> bytes:
+        return to_json(
+            {
+                "u": "u",
+                "v": b"v",
+                "w": {"secret": "w"},
+                "x": "x",
+                "y": b"y",
+                "z": ["z", 1, 2.0],
+            }
+        )
+
+    def test_dump_obscured_secrets_mode_json(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump(mode="json") == {
+            "u": "**********",
+            "v": "**********",
+            "w": "**********",
+            "x": "**********",
+            "y": "**********",
+            "z": ["z", 1, 2.0],
+        }
+
+    def test_dump_python_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump(context={"include_secrets": True}) == {
+            "u": "u",
+            "v": b"v",
+            "w": {"secret": "w"},
+            "x": "x",
+            "y": b"y",
+            "z": ["z", 1, 2.0],
+        }
+
+    def test_dump_jsonable_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump(context={"include_secrets": True}, mode="json") == {
+            "u": "u",
+            "v": "v",
+            "w": {"secret": "w"},
+            "x": "x",
+            "y": "y",
+            "z": ["z", 1, 2.0],
+        }
+
+    def test_dump_json_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert (
+            block.model_dump_json(context={"include_secrets": True})
+            == secret_data.decode()
+        )

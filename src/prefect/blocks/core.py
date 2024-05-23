@@ -4,6 +4,7 @@ import inspect
 import sys
 import warnings
 from abc import ABC
+from functools import partial
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
@@ -18,6 +19,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
     get_origin,
 )
 from uuid import UUID, uuid4
@@ -31,8 +33,10 @@ from pydantic import (
     ConfigDict,
     HttpUrl,
     PrivateAttr,
+    Secret,
     SecretBytes,
     SecretStr,
+    SerializationInfo,
     ValidationError,
     model_serializer,
 )
@@ -53,7 +57,7 @@ from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.collections import listrepr, remove_nested_keys
+from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
@@ -245,6 +249,14 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
                         refs[name] = type_._to_block_schema_reference_dict()
 
 
+def _unmask_secret(value: object, context: dict[str, Any]) -> object:
+    if hasattr(value, "get_secret_value"):
+        return cast(Secret[object], value).get_secret_value()
+    elif isinstance(value, BaseModel):
+        return value.model_dump(context=context)
+    return value
+
+
 @register_base_type
 class Block(BaseModel, ABC):
     """
@@ -322,6 +334,32 @@ class Block(BaseModel, ABC):
         if cls.__name__ == "Block":
             return None  # The base class is abstract
         return block_schema_to_key(cls._to_block_schema())
+
+    @model_serializer(mode="wrap")
+    def ser_model(self, handler: Callable, info: SerializationInfo) -> Any:
+        if (ctx := info.context) and ctx.get("include_secrets") is True:
+            redacted_jsonable_self: dict[str, Any] = handler(self)
+            redacted_jsonable_self.update(
+                {
+                    field_name: visit_collection(
+                        expr=getattr(self, field_name),
+                        visit_fn=partial(_unmask_secret, context=ctx),
+                        return_data=True,
+                    )
+                    for field_name in self.model_fields
+                }
+            )
+            return redacted_jsonable_self
+        jsonable_self = handler(self)
+        jsonable_self.update(
+            {
+                "block_type_slug": self.get_block_type_slug(),
+                "_block_document_id": self._block_document_id,
+                "_block_document_name": self._block_document_name,
+                "_is_anonymous": self._is_anonymous,
+            }
+        )
+        return jsonable_self
 
     @classmethod
     def get_block_type_name(cls):
@@ -1109,19 +1147,6 @@ class Block(BaseModel, ABC):
                 definition.pop("additionalProperties")
 
         return schema
-
-    @model_serializer(mode="wrap")
-    def serialize(self, handler: Callable[[Self], Dict[str, Any]]) -> Dict[str, Any]:
-        v = handler(self)
-        v.update(
-            {
-                "block_type_slug": self.get_block_type_slug(),
-                "_block_document_id": self._block_document_id,
-                "_block_document_name": self._block_document_name,
-                "_is_anonymous": self._is_anonymous,
-            }
-        )
-        return v
 
     @classmethod
     def model_validate(
