@@ -339,10 +339,10 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert flow_with_options.cache_result_in_memory is True
-        assert flow_with_options.on_completion == [success_hook]
-        assert flow_with_options.on_failure == [failure_hook]
-        assert flow_with_options.on_cancellation == [cancellation_hook]
-        assert flow_with_options.on_crashed == [crash_hook]
+        assert flow_with_options.on_completion_hooks == [success_hook]
+        assert flow_with_options.on_failure_hooks == [failure_hook]
+        assert flow_with_options.on_cancellation_hooks == [cancellation_hook]
+        assert flow_with_options.on_crashed_hooks == [crash_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
         storage = LocalFileSystem(basepath=tmp_path)
