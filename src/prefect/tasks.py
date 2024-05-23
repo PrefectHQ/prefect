@@ -646,8 +646,6 @@ class Task(Generic[P, R]):
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
         """
-        from prefect.task_engine import submit_autonomous_task_run_to_engine
-        from prefect.task_runners import SequentialTaskRunner
         from prefect.utilities.visualization import (
             get_task_viz_tracker,
             track_viz_task,
@@ -672,21 +670,6 @@ class Task(Generic[P, R]):
             wait_for=wait_for,
             return_type=return_type,
         )
-
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
-            and not FlowRunContext.get()
-        ):
-            from prefect import get_client
-
-            return submit_autonomous_task_run_to_engine(
-                task=self,
-                task_run=None,
-                task_runner=SequentialTaskRunner(),
-                parameters=parameters,
-                return_type=return_type,
-                client=get_client(),
-            )
 
     @overload
     def submit(
