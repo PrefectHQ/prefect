@@ -12,10 +12,12 @@ import anyio.abc
 import pendulum
 import pytest
 from pydantic import BaseModel
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
 from prefect import flow
+from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
@@ -24,7 +26,6 @@ from prefect.server.schemas.actions import (
     DeploymentUpdate,
     WorkPoolCreate,
 )
-from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
     ProcessJobConfiguration,
@@ -56,8 +57,8 @@ async def flow_run(prefect_client: PrefectClient):
     flow_run = await prefect_client.create_flow_run(
         flow=example_process_worker_flow,
         state=State(
-            type=StateType.SCHEDULED,
-            state_details=StateDetails(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
                 scheduled_time=pendulum.now("utc").subtract(minutes=5)
             ),
         ),
@@ -71,8 +72,8 @@ async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment_id=deployment.id,
         state=State(
-            type=StateType.SCHEDULED,
-            state_details=StateDetails(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
                 scheduled_time=pendulum.now("utc").subtract(minutes=5)
             ),
         ),
@@ -109,7 +110,7 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
         id: UUID = uuid.uuid4()
         job_variables: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
-        updated: pendulum.DateTime = pendulum.now("utc")
+        updated: DateTime = pendulum.now("utc")
 
     class MockFlow(BaseModel):
         id: UUID = uuid.uuid4()
