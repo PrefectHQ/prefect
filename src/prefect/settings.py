@@ -88,9 +88,9 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
-#When we remove the experimental settings we also want to add them to the set of REMOVED_EXPERIMENTAL_FLAGS.
-#The reason for this is removing the settings entirely causes the CLI to crash for anyone who has them in one or more of their profiles. 
-#Adding them to REMOVED_EXPERIMENTAL_FLAGS will make it so that the user is warned about it and they have time to take action.
+# When we remove the experimental settings we also want to add them to the set of REMOVED_EXPERIMENTAL_FLAGS.
+# The reason for this is removing the settings entirely causes the CLI to crash for anyone who has them in one or more of their profiles.
+# Adding them to REMOVED_EXPERIMENTAL_FLAGS will make it so that the user is warned about it and they have time to take action.
 REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",

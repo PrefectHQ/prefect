@@ -14,7 +14,6 @@ from rich.table import Table
 from prefect import get_client
 from prefect._internal.compatibility.experimental import (
     experiment_enabled,
-    experimental_parameter,
 )
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
