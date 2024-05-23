@@ -16,6 +16,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultFactory
 from prefect.server.api.task_runs import TaskQueue
+from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
@@ -191,18 +192,15 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     task_run: TaskRun = foo_task_with_result_storage.submit(42)
     assert task_run.state.is_scheduled()
 
-    enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
-
-    # The server-side task run through API-like serialization for comparison
-    enqueued = TaskRun.model_validate(enqueued.model_dump(mode="json"))
+    enqueued: ServerTaskRun = await TaskQueue.for_key(task_run.task_key).get()
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
     # after orchestration in a way that differs by microseconds, or the
     # created/updated dates are populated.
 
-    assert task_run.state.created is None
-    assert enqueued.state.created is not None
+    assert task_run.state and task_run.state.created is not None
+    assert enqueued.state and enqueued.state.created is not None
     task_run.state.created = enqueued.state.created
 
     assert task_run.state.updated is None
