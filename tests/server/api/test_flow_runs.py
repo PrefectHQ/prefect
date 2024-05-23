@@ -1339,7 +1339,7 @@ class TestResumeFlowrun:
         assert flow_run_input
         assert orjson.loads(flow_run_input.value) == {"approved": True}
 
-    async def test_resume_flow_run_waiting_for_input_with_hydrated_input(
+    async def test_resume_flow_run_waiting_for_input_with_json_hydrated_input(
         self,
         session,
         client,
@@ -1362,6 +1362,72 @@ class TestResumeFlowrun:
 
         assert flow_run_input
         assert orjson.loads(flow_run_input.value) == {"how_many": "3"}
+        assert response.json()["state"]["id"] != str(
+            paused_flow_run_waiting_for_input_with_default.state_id
+        )
+
+    async def test_resume_flow_run_waiting_for_input_with_jinja_hydrated_input(
+        self,
+        session,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {
+                    "how_many": {"__prefect_kind": "jinja", "template": "{{ 2 + 2 }}"}
+                }
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input_with_default.id,
+            key="paused-1-response",
+        )
+
+        assert flow_run_input
+        assert orjson.loads(flow_run_input.value) == {"how_many": "4"}
+        assert response.json()["state"]["id"] != str(
+            paused_flow_run_waiting_for_input_with_default.state_id
+        )
+
+    async def test_resume_flow_run_waiting_for_input_with_workspace_variable_hydrated_input(
+        self,
+        session,
+        client,
+        paused_flow_run_waiting_for_input_with_default,
+    ):
+        await models.variables.create_variable(
+            session,
+            schemas.actions.VariableCreate(name="my_variable", value="my_value"),
+        )
+
+        response = await client.post(
+            f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
+            json={
+                "run_input": {
+                    "how_many": {
+                        "__prefect_kind": "workspace_variable",
+                        "variable_name": "my_variable",
+                    }
+                }
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["status"] == "ACCEPT"
+
+        flow_run_input = await models.flow_run_input.read_flow_run_input(
+            session=session,
+            flow_run_id=paused_flow_run_waiting_for_input_with_default.id,
+            key="paused-1-response",
+        )
+
+        assert flow_run_input
+        assert orjson.loads(flow_run_input.value) == {"how_many": "my_value"}
         assert response.json()["state"]["id"] != str(
             paused_flow_run_waiting_for_input_with_default.state_id
         )

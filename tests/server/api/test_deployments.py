@@ -1476,7 +1476,7 @@ class TestUpdateDeployment:
 
         assert response.status_code == 204
 
-    async def test_update_deployment_hydrates_parameters(
+    async def test_update_deployment_hydrates_json_kind_parameters(
         self,
         deployment_with_parameter_schema,
         client,
@@ -1495,6 +1495,51 @@ class TestUpdateDeployment:
             f"/deployments/{deployment_with_parameter_schema.id}"
         )
         assert response.json()["parameters"] == {"x": "str_of_json"}
+
+    async def test_update_deployment_hydrates_jinja_kind_parameters(
+        self,
+        deployment,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "jinja", "template": "{{ 1 + 2 }}"}
+                }
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.json()["parameters"] == {"x": "3"}
+
+    async def test_update_deployment_hydrates_workspace_variable_kind_parameters(
+        self,
+        deployment,
+        client,
+        session,
+    ):
+        await models.variables.create_variable(
+            session,
+            schemas.actions.VariableCreate(name="my_variable", value="my_value"),
+        )
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={
+                "parameters": {
+                    "x": {
+                        "__prefect_kind": "workspace_variable",
+                        "variable_name": "my_variable",
+                    }
+                }
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.json()["parameters"] == {"x": "my_value"}
 
     async def test_update_deployment_with_schedule_populates_schedules(
         self,
