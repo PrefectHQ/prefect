@@ -1,7 +1,6 @@
 from uuid import uuid4
 
-from distributed import Client as DistributedClient
-from distributed import Future as DistributedFuture
+from distributed import Client, Future
 
 from prefect.context import serialize_context
 from prefect.new_task_engine import run_task
@@ -10,12 +9,7 @@ from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import collect_task_run_inputs_sync
 
 
-def collect_dependencies(parameters):
-    def create_task_run_inputs(expr):
-        pass
-
-
-class PrefectDistributedClient(DistributedClient):
+class PrefectDistributedClient(Client):
     def submit(
         self,
         func,
@@ -42,7 +36,7 @@ class PrefectDistributedClient(DistributedClient):
                 # the DaskTaskRunner.
                 parameters = get_call_parameters(func, args, kwargs)
             dependencies = {
-                k: collect_task_run_inputs_sync(v, future_cls=DistributedFuture)
+                k: collect_task_run_inputs_sync(v, future_cls=Future)
                 for k, v in parameters.items()
             }
 
