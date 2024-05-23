@@ -58,6 +58,7 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     _resolve_custom_flow_run_name,
+    capture_sigterm,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -363,24 +364,24 @@ class FlowRunEngine(Generic[P, R]):
         )
 
         hooks = None
-        if state.is_failed() and flow.on_failure:
-            hooks = flow.on_failure
-        elif state.is_completed() and flow.on_completion:
-            hooks = flow.on_completion
+        if state.is_failed() and flow.on_failure_hooks:
+            hooks = flow.on_failure_hooks
+        elif state.is_completed() and flow.on_completion_hooks:
+            hooks = flow.on_completion_hooks
         elif (
             enable_cancellation_and_crashed_hooks
             and state.is_cancelling()
-            and flow.on_cancellation
+            and flow.on_cancellation_hooks
         ):
-            hooks = flow.on_cancellation
+            hooks = flow.on_cancellation_hooks
         elif (
             enable_cancellation_and_crashed_hooks
             and state.is_crashed()
-            and flow.on_crashed
+            and flow.on_crashed_hooks
         ):
-            hooks = flow.on_crashed
-        elif state.is_running() and flow.on_running:
-            hooks = flow.on_running
+            hooks = flow.on_crashed_hooks
+        elif state.is_running() and flow.on_running_hooks:
+            hooks = flow.on_running_hooks
 
         for hook in hooks or []:
             hook_name = _get_hook_name(hook)
@@ -445,6 +446,7 @@ class FlowRunEngine(Generic[P, R]):
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
             # wait for futures to complete
+            stack.enter_context(capture_sigterm())
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())

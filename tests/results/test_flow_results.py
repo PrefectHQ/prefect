@@ -401,7 +401,7 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_state_result_is_respected(persist_result, return_state):
+async def test_flow_state_result_is_respected(persist_result, return_state):
     @flow(persist_result=persist_result)
     def my_flow():
         return return_state
@@ -418,7 +418,7 @@ def test_flow_state_result_is_respected(persist_result, return_state):
     ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
 
     if return_state.data:
-        assert state.result(raise_on_failure=False) == return_state.data
+        assert await state.result(raise_on_failure=False) == return_state.data
 
 
 @pytest.mark.parametrize(
@@ -430,7 +430,9 @@ def test_flow_state_result_is_respected(persist_result, return_state):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_server_state_schema_result_is_respected(persist_result, return_state):
+async def test_flow_server_state_schema_result_is_respected(
+    persist_result, return_state
+):
     # Tests for backwards compatibility with server-side state return values
     @flow(persist_result=persist_result)
     def my_flow():
@@ -451,7 +453,7 @@ def test_flow_server_state_schema_result_is_respected(persist_result, return_sta
 
     if return_state.data:
         with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
-            assert state.result(raise_on_failure=False) == return_state.data
+            assert await state.result(raise_on_failure=False) == return_state.data
 
 
 async def test_root_flow_default_remote_storage(tmp_path: Path):
