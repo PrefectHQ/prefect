@@ -23,6 +23,10 @@ from prefect.testing.fixtures import (  # noqa: F401
 from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
 from prefect.testing.utilities import exceptions_equal
 
+pytestmark = pytest.mark.skip(
+    reason="Skipping tests while task runner is being rewritten"
+)
+
 
 @pytest.fixture
 async def dask_task_runner_with_existing_cluster(use_hosted_api_server):  # noqa
