@@ -44,7 +44,6 @@ from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
@@ -647,9 +646,6 @@ class Task(Generic[P, R]):
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
         """
-        from prefect.engine import enter_task_run_engine
-        from prefect.task_engine import submit_autonomous_task_run_to_engine
-        from prefect.task_runners import SequentialTaskRunner
         from prefect.utilities.visualization import (
             get_task_viz_tracker,
             track_viz_task,
@@ -666,38 +662,13 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_task_engine import run_task
+        from prefect.new_task_engine import run_task
 
-            return run_task(
-                task=self,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-            )
-
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value()
-            and not FlowRunContext.get()
-        ):
-            from prefect import get_client
-
-            return submit_autonomous_task_run_to_engine(
-                task=self,
-                task_run=None,
-                task_runner=SequentialTaskRunner(),
-                parameters=parameters,
-                return_type=return_type,
-                client=get_client(),
-            )
-
-        return enter_task_run_engine(
-            self,
+        return run_task(
+            task=self,
             parameters=parameters,
             wait_for=wait_for,
-            task_runner=SequentialTaskRunner(),
             return_type=return_type,
-            mapped=False,
         )
 
     @overload
@@ -849,7 +820,7 @@ class Task(Generic[P, R]):
 
         """
 
-        from prefect.engine import create_autonomous_task_run, enter_task_run_engine
+        from prefect.engine import create_autonomous_task_run
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -857,7 +828,6 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
-        return_type = "state" if return_state else "future"
         flow_run_context = FlowRunContext.get()
 
         task_viz_tracker = get_task_viz_tracker()
@@ -878,24 +848,13 @@ class Task(Generic[P, R]):
                 return from_sync.wait_for_call_in_loop_thread(
                     create_autonomous_task_run_call
                 )
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context:
-            task_runner = flow_run_context.task_runner
-            future = task_runner.submit(self, parameters, wait_for)
-            if return_state:
-                future.wait()
-                return future.state
-            else:
-                return future
-
+        task_runner = flow_run_context.task_runner
+        future = task_runner.submit(self, parameters, wait_for)
+        if return_state:
+            future.wait()
+            return future.state
         else:
-            return enter_task_run_engine(
-                self,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-                task_runner=None,  # Use the flow's task runner
-                mapped=False,
-            )
+            return future
 
     @overload
     def map(
@@ -1052,7 +1011,7 @@ class Task(Generic[P, R]):
             [[11, 21], [12, 22], [13, 23]]
         """
 
-        from prefect.engine import begin_task_map, enter_task_run_engine
+        from prefect.engine import begin_task_map
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -1086,29 +1045,19 @@ class Task(Generic[P, R]):
             else:
                 return from_sync.wait_for_call_in_loop_thread(map_call)
 
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE and flow_run_context:
-            from prefect.new_task_runners import TaskRunner
+        from prefect.new_task_runners import TaskRunner
 
-            task_runner = flow_run_context.task_runner
-            assert isinstance(task_runner, TaskRunner)
-            futures = task_runner.map(self, parameters, wait_for)
-            if return_state:
-                states = []
-                for future in futures:
-                    future.wait()
-                    states.append(future.state)
-                return states
-            else:
-                return futures
-
-        return enter_task_run_engine(
-            self,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type=return_type,
-            task_runner=None,
-            mapped=True,
-        )
+        task_runner = flow_run_context.task_runner
+        assert isinstance(task_runner, TaskRunner)
+        futures = task_runner.map(self, parameters, wait_for)
+        if return_state:
+            states = []
+            for future in futures:
+                future.wait()
+                states.append(future.state)
+            return states
+        else:
+            return futures
 
     def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to
