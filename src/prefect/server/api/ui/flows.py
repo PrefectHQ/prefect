@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -129,7 +129,7 @@ def _get_sqlite_next_runs_query(flow_ids: List[UUID]):
 async def next_runs_by_flow(
     flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> Dict[UUID, SimpleNextFlowRun | None]:
+) -> Dict[UUID, Optional[SimpleNextFlowRun]]:
     """
     Get the next flow run by flow id.
     """
