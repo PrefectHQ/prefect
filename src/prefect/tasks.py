@@ -231,8 +231,6 @@ class Task(Generic[P, R]):
         hook_names = ["on_completion", "on_failure"]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
-                if not hooks:
-                    raise ValueError(f"Empty list passed for '{hook_name}'")
                 try:
                     hooks = list(hooks)
                 except TypeError:
@@ -240,8 +238,8 @@ class Task(Generic[P, R]):
                         f"Expected iterable for '{hook_name}'; got"
                         f" {type(hooks).__name__} instead. Please provide a list of"
                         f" hooks to '{hook_name}':\n\n"
-                        f"@flow({hook_name}=[hook1, hook2])\ndef"
-                        " my_flow():\n\tpass"
+                        f"@task({hook_name}=[hook1, hook2])\ndef"
+                        " my_task():\n\tpass"
                     )
 
                 for hook in hooks:
@@ -250,8 +248,8 @@ class Task(Generic[P, R]):
                             f"Expected callables in '{hook_name}'; got"
                             f" {type(hook).__name__} instead. Please provide a list of"
                             f" hooks to '{hook_name}':\n\n"
-                            f"@flow({hook_name}=[hook1, hook2])\ndef"
-                            " my_flow():\n\tpass"
+                            f"@task({hook_name}=[hook1, hook2])\ndef"
+                            " my_task():\n\tpass"
                         )
 
         if not callable(fn):
@@ -331,8 +329,8 @@ class Task(Generic[P, R]):
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
-        self.on_completion = on_completion
-        self.on_failure = on_failure
+        self.on_completion_hooks = on_completion or []
+        self.on_failure_hooks = on_failure or []
 
         # retry_condition_fn must be a callable or None. If it is neither, raise a TypeError
         if retry_condition_fn is not None and not (callable(retry_condition_fn)):
@@ -503,11 +501,23 @@ class Task(Generic[P, R]):
             refresh_cache=(
                 refresh_cache if refresh_cache is not NotSet else self.refresh_cache
             ),
-            on_completion=on_completion or self.on_completion,
-            on_failure=on_failure or self.on_failure,
+            on_completion=on_completion or self.on_completion_hooks,
+            on_failure=on_failure or self.on_failure_hooks,
             retry_condition_fn=retry_condition_fn or self.retry_condition_fn,
             viz_return_value=viz_return_value or self.viz_return_value,
         )
+
+    def on_completion(
+        self, fn: Callable[["Task", TaskRun, State], None]
+    ) -> Callable[["Task", TaskRun, State], None]:
+        self.on_completion_hooks.append(fn)
+        return fn
+
+    def on_failure(
+        self, fn: Callable[["Task", TaskRun, State], None]
+    ) -> Callable[["Task", TaskRun, State], None]:
+        self.on_failure_hooks.append(fn)
+        return fn
 
     async def create_run(
         self,

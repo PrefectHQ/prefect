@@ -338,10 +338,10 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert flow_with_options.cache_result_in_memory is True
-        assert flow_with_options.on_completion == [success_hook]
-        assert flow_with_options.on_failure == [failure_hook]
-        assert flow_with_options.on_cancellation == [cancellation_hook]
-        assert flow_with_options.on_crashed == [crash_hook]
+        assert flow_with_options.on_completion_hooks == [success_hook]
+        assert flow_with_options.on_failure_hooks == [failure_hook]
+        assert flow_with_options.on_cancellation_hooks == [cancellation_hook]
+        assert flow_with_options.on_crashed_hooks == [crash_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
         storage = LocalFileSystem(basepath=tmp_path)
@@ -2542,13 +2542,6 @@ class TestFlowHooksOnCompletion:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
-
-            @flow(on_completion=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -2579,6 +2572,25 @@ class TestFlowHooksOnCompletion:
             @flow(on_completion=[completion_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            pass
+
+        @my_flow.on_completion
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        @my_flow.on_completion
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        state = my_flow(return_state=True)
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
@@ -2675,13 +2687,6 @@ class TestFlowHooksOnFailure:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
-
-            @flow(on_failure=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -2712,6 +2717,25 @@ class TestFlowHooksOnFailure:
             @flow(on_failure=[failure_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            raise Exception("oops")
+
+        @my_flow.on_failure
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        @my_flow.on_failure
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        state = my_flow(return_state=True)
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1"), call("failed2")]
 
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
@@ -2808,13 +2832,6 @@ class TestFlowHooksOnCancellation:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_cancellation'"):
-
-            @flow(on_cancellation=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -2845,6 +2862,24 @@ class TestFlowHooksOnCancellation:
             @flow(on_cancellation=[cancellation_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_cancellation_hooks_run_on_cancelled_state(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            return State(type=StateType.CANCELLING)
+
+        @my_flow.on_cancellation
+        def cancelled_hook1(flow, flow_run, state):
+            my_mock("cancelled_hook1")
+
+        @my_flow.on_cancellation
+        def cancelled_hook2(flow, flow_run, state):
+            my_mock("cancelled_hook2")
+
+        my_flow(return_state=True)
+        assert my_mock.mock_calls == [call("cancelled_hook1"), call("cancelled_hook2")]
 
     def test_on_cancellation_hooks_run_on_cancelled_state(self):
         my_mock = MagicMock()
@@ -3036,13 +3071,6 @@ class TestFlowHooksOnCrashed:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_crashed'"):
-
-            @flow(on_crashed=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -3073,6 +3101,24 @@ class TestFlowHooksOnCrashed:
             @flow(on_crashed=[crashed_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_crashed_hooks_run_on_crashed_state(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        @my_flow.on_crashed
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        @my_flow.on_crashed
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        my_flow(return_state=True)
+        assert my_mock.mock_calls == [call("crashed_hook1"), call("crashed_hook2")]
 
     def test_on_crashed_hooks_run_on_crashed_state(self):
         my_mock = MagicMock()
@@ -3266,13 +3312,6 @@ class TestFlowHooksOnRunning:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_running'"):
-
-            @flow(on_running=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -3303,6 +3342,25 @@ class TestFlowHooksOnRunning:
             @flow(on_running=[running_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            pass
+
+        @my_flow.on_running
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        @my_flow.on_running
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        state = my_flow(return_state=True)
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
 
     def test_on_running_hooks_run_on_running(self):
         my_mock = MagicMock()
