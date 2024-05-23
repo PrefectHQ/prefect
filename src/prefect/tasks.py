@@ -612,7 +612,8 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T: ...
+    ) -> T:
+        ...
 
     @overload
     def __call__(
@@ -620,7 +621,8 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]: ...
+    ) -> State[T]:
+        ...
 
     def __call__(
         self,
@@ -701,14 +703,16 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[PrefectFuture[T, Async]]: ...
+    ) -> Awaitable[PrefectFuture[T, Async]]:
+        ...
 
     @overload
     def submit(
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[T, Sync]: ...
+    ) -> PrefectFuture[T, Sync]:
+        ...
 
     @overload
     def submit(
@@ -716,21 +720,24 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]: ...
+    ) -> State[T]:
+        ...
 
     @overload
     def submit(
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> TaskRun: ...
+    ) -> TaskRun:
+        ...
 
     @overload
     def submit(
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[TaskRun]: ...
+    ) -> Awaitable[TaskRun]:
+        ...
 
     def submit(
         self,
@@ -893,14 +900,16 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[List[PrefectFuture[T, Async]]]: ...
+    ) -> Awaitable[List[PrefectFuture[T, Async]]]:
+        ...
 
     @overload
     def map(
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[T, Sync]]: ...
+    ) -> List[PrefectFuture[T, Sync]]:
+        ...
 
     @overload
     def map(
@@ -908,7 +917,8 @@ class Task(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> List[State[T]]: ...
+    ) -> List[State[T]]:
+        ...
 
     def map(
         self,
@@ -1118,7 +1128,8 @@ class Task(Generic[P, R]):
 
 
 @overload
-def task(__fn: Callable[P, R]) -> Task[P, R]: ...
+def task(__fn: Callable[P, R]) -> Task[P, R]:
+    ...
 
 
 @overload
@@ -1151,7 +1162,8 @@ def task(
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]: ...
+) -> Callable[[Callable[P, R]], Task[P, R]]:
+    ...
 
 
 def task(
