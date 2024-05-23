@@ -143,7 +143,7 @@ async def next_runs_by_flow(
         results = await session.execute(query)
 
         results_by_flow_id = {
-            UUID(result.flow_id): SimpleNextFlowRun(
+            UUID(str(result.flow_id)): SimpleNextFlowRun(
                 id=result.id,
                 flow_id=result.flow_id,
                 name=result.name,
