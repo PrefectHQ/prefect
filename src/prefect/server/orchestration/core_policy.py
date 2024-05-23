@@ -483,7 +483,7 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
         self,
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: TaskOrchestrationContext,
     ) -> None:
         if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
             # Only if task scheduling is enabled
@@ -498,7 +498,7 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
             return
 
         task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
-        queue = TaskQueue.for_key(task_run.task_key)
+        queue: TaskQueue = TaskQueue.for_key(task_run.task_key)
 
         if validated_state.name == "AwaitingRetry":
             await queue.retry(task_run)
@@ -556,7 +556,7 @@ class CopyScheduledTime(BaseOrchestrationRule):
 
 class WaitForScheduledTime(BaseOrchestrationRule):
     """
-    Prevents transitions to running states from happening to early.
+    Prevents transitions to running states from happening too early.
 
     This rule enforces that all scheduled states will only start with the machine clock
     used by the Prefect REST API instance. This rule will identify transitions from scheduled
@@ -666,9 +666,12 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         if not (
-            proposed_state.is_running()
-            or proposed_state.is_scheduled()
-            or proposed_state.is_final()
+            proposed_state
+            and (
+                proposed_state.is_running()
+                or proposed_state.is_scheduled()
+                or proposed_state.is_final()
+            )
         ):
             await self.reject_transition(
                 state=None,

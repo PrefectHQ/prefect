@@ -119,7 +119,10 @@ class BaseJobConfiguration(BaseModel):
     @classmethod
     @inject_client
     async def from_template_and_values(
-        cls, base_job_template: dict, values: dict, client: "PrefectClient" = None
+        cls,
+        base_job_template: dict,
+        values: dict,
+        client: Optional["PrefectClient"] = None,
     ):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
