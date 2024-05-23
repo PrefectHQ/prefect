@@ -1524,6 +1524,7 @@ class TestUpdateDeployment:
             session,
             schemas.actions.VariableCreate(name="my_variable", value="my_value"),
         )
+        await session.commit()
 
         response = await client.patch(
             f"/deployments/{deployment.id}",
@@ -2904,6 +2905,7 @@ class TestCreateFlowRunFromDeployment:
             session,
             schemas.actions.VariableCreate(name="my_variable", value="my_value"),
         )
+        await session.commit()
 
         response = await client.post(
             f"/deployments/{deployment.id}/create_flow_run",

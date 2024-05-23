@@ -1405,6 +1405,7 @@ class TestResumeFlowrun:
             session,
             schemas.actions.VariableCreate(name="my_variable", value="my_value"),
         )
+        await session.commit()
 
         response = await client.post(
             f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
