@@ -70,6 +70,17 @@ def async_foo_task():
 
 
 @pytest.fixture
+def bar_task():
+    @task
+    def bar(x: int) -> int:
+        y = x + 1
+        print(x, y)
+        return y
+
+    return bar
+
+
+@pytest.fixture
 def mock_task_server_start(monkeypatch):
     monkeypatch.setattr(
         "prefect.task_server.TaskServer.start", mock_start := AsyncMock()
@@ -419,6 +430,27 @@ class TestTaskServerTaskResults:
         assert await new_updated_task_run.state.result() == 1
 
         assert count == 1
+
+    async def test_task_run_via_task_server_with_task_dependency(
+        self, prefect_client, foo_task, bar_task
+    ):
+        foo = foo_task.with_options(persist_result=True)
+        bar = bar_task.with_options(persist_result=True)
+
+        task_server = TaskServer(foo, bar)
+
+        foo_task_run = foo.submit(42)
+        bar_task_run = bar.submit(foo_task_run)
+
+        await task_server.execute_task_run(foo_task_run)
+        updated_task_run = await prefect_client.read_task_run(foo_task_run.id)
+        assert updated_task_run.state.is_completed()
+        assert await updated_task_run.state.result() == 42
+
+        await task_server.execute_task_run(bar_task_run)
+        updated_bar_task_run = await prefect_client.read_task_run(bar_task_run.id)
+        assert updated_bar_task_run.state.is_completed()
+        assert await updated_bar_task_run.state.result() == 43
 
 
 class TestTaskServerTaskTags:

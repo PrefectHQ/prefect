@@ -1906,7 +1906,7 @@ async def orchestrate_task_run(
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_inputs(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_inputs({"wait_for": wait_for}, return_data=False)
+        print(await resolve_inputs({"wait_for": wait_for}, return_data=False))
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
