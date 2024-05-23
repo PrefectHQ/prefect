@@ -27,14 +27,17 @@ from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.context import FlowRunContext, TaskRunContext
+from prefect.context import FlowRunContext, TaskRunContext, hydrated_context
 from prefect.events.schemas.events import Event
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TASKS_REFRESH_CACHE
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_TASKS_REFRESH_CACHE,
+)
 from prefect.states import (
     Failed,
     Paused,
@@ -70,6 +73,7 @@ class TaskRunEngine(Generic[P, R]):
     task_run: Optional[TaskRun] = None
     retries: int = 0
     wait_for: Optional[Iterable[PrefectFuture]] = None
+    context: Optional[Dict[str, Any]] = None
     _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
@@ -388,10 +392,8 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Task run is not set")
 
         self.task_run = client.read_task_run(self.task_run.id)
-        log_prints = should_log_prints(self.task)
-
         with ExitStack() as stack:
-            if log_prints:
+            if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
             stack.enter_context(
                 TaskRunContext(
@@ -437,56 +439,59 @@ class TaskRunEngine(Generic[P, R]):
         with get_client(sync_client=True) as client:
             self._client = client
             self._is_started = True
-            try:
-                if not self.task_run:
-                    self.task_run = run_sync(
-                        self.task.create_run(
-                            id=task_run_id,
-                            client=client,
-                            parameters=self.parameters,
-                            flow_run_context=FlowRunContext.get(),
-                            parent_task_run_context=TaskRunContext.get(),
-                            wait_for=self.wait_for,
-                            extra_task_inputs=dependencies,
+            with hydrated_context(self.context, client=client):
+                try:
+                    if not self.task_run:
+                        self.task_run = run_sync(
+                            self.task.create_run(
+                                id=task_run_id,
+                                client=client,
+                                parameters=self.parameters,
+                                flow_run_context=FlowRunContext.get(),
+                                parent_task_run_context=TaskRunContext.get(),
+                                wait_for=self.wait_for,
+                                extra_task_inputs=dependencies,
+                            )
                         )
+                    self.logger.info(
+                        f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                     )
-                self.logger.info(
-                    f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                )
-                # Emit an event to capture that the task run was in the `PENDING` state.
-                self._last_event = emit_task_run_state_change_event(
-                    task_run=self.task_run,
-                    initial_state=None,
-                    validated_state=self.task_run.state,
-                )
+                    # Emit an event to capture that the task run was in the `PENDING` state.
+                    self._last_event = emit_task_run_state_change_event(
+                        task_run=self.task_run,
+                        initial_state=None,
+                        validated_state=self.task_run.state,
+                    )
 
-                yield self
-            except Exception:
-                # regular exceptions are caught and re-raised to the user
-                raise
-            except (Pause, Abort):
-                # Do not capture internal signals as crashes
-                raise
-            except BaseException as exc:
-                # BaseExceptions are caught and handled as crashes
-                self.handle_crash(exc)
-                raise
-            finally:
-                # If debugging, use the more complete `repr` than the usual `str` description
-                display_state = (
-                    repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
-                )
-                self.logger.log(
-                    level=logging.INFO if self.state.is_completed() else logging.ERROR,
-                    msg=f"Finished in state {display_state}",
-                )
+                    yield self
+                except Exception:
+                    # regular exceptions are caught and re-raised to the user
+                    raise
+                except (Pause, Abort):
+                    # Do not capture internal signals as crashes
+                    raise
+                except BaseException as exc:
+                    # BaseExceptions are caught and handled as crashes
+                    self.handle_crash(exc)
+                    raise
+                finally:
+                    # If debugging, use the more complete `repr` than the usual `str` description
+                    display_state = (
+                        repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+                    )
+                    self.logger.log(
+                        level=logging.INFO
+                        if self.state.is_completed()
+                        else logging.ERROR,
+                        msg=f"Finished in state {display_state}",
+                    )
 
-                maybe_awaitable = APILogHandler.flush()
-                if inspect.isawaitable(maybe_awaitable):
-                    run_sync(maybe_awaitable)
+                    maybe_awaitable = APILogHandler.flush()
+                    if inspect.isawaitable(maybe_awaitable):
+                        run_sync(maybe_awaitable)
 
-                self._is_started = False
-                self._client = None
+                    self._is_started = False
+                    self._client = None
 
     def is_running(self) -> bool:
         if getattr(self, "task_run", None) is None:
@@ -502,11 +507,15 @@ def run_task_sync(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
-        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
     )
-
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
@@ -551,6 +560,7 @@ async def run_task_async(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     """
     Runs a task against the API.
@@ -558,9 +568,12 @@ async def run_task_async(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
     engine = TaskRunEngine[P, R](
-        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
     )
-
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
@@ -598,14 +611,34 @@ async def run_task_async(
 
 
 def run_task(
-    task: Task[P, R],
+    task: Task[P, Union[R, Coroutine[Any, Any, R]]],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-) -> Union[R, State, None]:
+    context: Optional[Dict[str, Any]] = None,
+) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]:
+    """
+    Runs the provided task.
+
+    Args:
+        task: The task to run
+        task_run_id: The ID of the task run; if not provided, a new task run
+            will be created
+        task_run: The task run object; if not provided, a new task run
+            will be created
+        parameters: The parameters to pass to the task
+        wait_for: A list of futures to wait for before running the task
+        return_type: The return type to return; either "state" or "result"
+        dependencies: A dictionary of task run inputs to use for dependency tracking
+        context: A dictionary containing the context to use for the task run; only
+            required if the task is running on in a remote environment
+
+    Returns:
+        The result of the task run
+    """
     kwargs = dict(
         task=task,
         task_run_id=task_run_id,
@@ -614,6 +647,7 @@ def run_task(
         wait_for=wait_for,
         return_type=return_type,
         dependencies=dependencies,
+        context=context,
     )
     if task.isasync:
         return run_task_async(**kwargs)
