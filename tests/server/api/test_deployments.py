@@ -2894,7 +2894,7 @@ class TestCreateFlowRunFromDeployment:
         res = response.json()
         assert res["parameters"] == {"param": "3"}
 
-    async def test_create_flow_workspace_variable_prefect_kind(
+    async def test_create_flow_run_workspace_variable_prefect_kind(
         self,
         deployment,
         client,
@@ -2916,6 +2916,8 @@ class TestCreateFlowRunFromDeployment:
                 }
             },
         )
+        print("ASDMFASKDMFALSJDFASDf")
+        print(response.content)
         assert response.status_code == 201
         res = response.json()
         assert res["parameters"] == {"param": "my_value"}
