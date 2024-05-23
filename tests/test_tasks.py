@@ -3623,20 +3623,36 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected iterable for 'on_completion'; got function instead. Please"
                 " provide a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=completion_hook)
-            def flow1():
+            @task(on_completion=completion_hook)
+            def task1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
+    def test_decorated_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
 
-            @flow(on_completion=[])
-            def flow2():
-                pass
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_completion
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        @my_task.on_completion
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
     def test_noncallable_hook_raises(self):
         with pytest.raises(
@@ -3644,12 +3660,12 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
                 " a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=["test"])
-            def flow1():
+            @task(on_completion=["test"])
+            def task1():
                 pass
 
     def test_callable_noncallable_hook_raises(self):
@@ -3661,12 +3677,12 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
                 " a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=[completion_hook, "test"])
-            def flow2():
+            @task(on_completion=[completion_hook, "test"])
+            def task2():
                 pass
 
     def test_on_completion_hooks_run_on_completed(self):
@@ -3785,13 +3801,6 @@ class TestTaskHooksOnFailure:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
-
-            @flow(on_failure=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -3822,6 +3831,34 @@ class TestTaskHooksOnFailure:
             @flow(on_failure=[failure_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        @task
+        def my_task():
+            raise Exception("oops")
+
+        @my_task.on_failure
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        @my_task.on_failure
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
+                future.wait()
+                return future.state
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
 
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
