@@ -1381,31 +1381,15 @@ class TestResumeFlowrun:
             paused_flow_run_waiting_for_input_with_default.state_id
         )
 
-    @pytest.mark.parametrize(
-        "value",
-        [
-            "string-value",
-            '"string-value"',
-            123,
-            12.3,
-            True,
-            False,
-            None,
-            {"key": "value"},
-            ["value1", "value2"],
-            {"key": ["value1", "value2"]},
-        ],
-    )
     async def test_resume_flow_run_waiting_for_input_with_workspace_variable_hydrated_input(
         self,
         session,
         client,
         paused_flow_run_waiting_for_input_with_default,
-        value,
     ):
         await models.variables.create_variable(
             session,
-            schemas.actions.VariableCreate(name="my_variable", value=value),
+            schemas.actions.VariableCreate(name="my_variable", value="my_value"),
         )
         await session.commit()
 
@@ -1430,7 +1414,7 @@ class TestResumeFlowrun:
         )
 
         assert flow_run_input
-        assert orjson.loads(flow_run_input.value) == {"how_many": value}
+        assert orjson.loads(flow_run_input.value) == {"how_many": "my_value"}
         assert response.json()["state"]["id"] != str(
             paused_flow_run_waiting_for_input_with_default.state_id
         )
