@@ -28,7 +28,6 @@ from typing import (
     TypeVar,
     Union,
 )
-from uuid import uuid4
 
 import anyio
 import anyio._backends._asyncio
@@ -328,16 +327,6 @@ class EngineContext(RunContext):
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
-
-    def get_dynamic_key_for_task_run(self, task: "Task"):
-        if self.detached:
-            return uuid4()
-        elif task.task_key not in self.task_run_dynamic_keys:
-            self.task_run_dynamic_keys[task.task_key] = 0
-        else:
-            self.task_run_dynamic_keys[task.task_key] += 1
-
-        return self.task_run_dynamic_keys[task.task_key]
 
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)

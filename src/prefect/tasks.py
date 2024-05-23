@@ -523,6 +523,7 @@ class Task(Generic[P, R]):
     ) -> TaskRun:
         from prefect.engine import NUM_CHARS_DYNAMIC_KEY
         from prefect.utilities.engine import (
+            _dynamic_key_for_task_run,
             collect_task_run_inputs_sync,
         )
 
@@ -534,7 +535,7 @@ class Task(Generic[P, R]):
             parameters = {}
 
         if flow_run_context:
-            dynamic_key = flow_run_context.get_dynamic_key_for_task_run(self)
+            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
         else:
             dynamic_key = uuid4().hex
 
