@@ -721,7 +721,7 @@ class PersistedResultBlob(BaseModel):
     prefect_version: str = Field(default=prefect.__version__)
 
     def to_bytes(self) -> bytes:
-        return self.model_dump_json().encode()
+        return self.model_dump_json(serialize_as_any=True).encode()
 
 
 class UnknownResult(BaseResult):
