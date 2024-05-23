@@ -305,7 +305,9 @@ class RunnerDeployment(BaseModel):
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
                 infrastructure_document_id=None,
-                parameter_openapi_schema=self._parameter_openapi_schema.model_dump(),
+                parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+                    exclude_unset=True
+                ),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
