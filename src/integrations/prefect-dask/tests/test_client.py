@@ -1,4 +1,5 @@
 import prefect_dask.client
+import pytest
 
 from prefect.client.orchestration import get_client
 from prefect.flows import flow
@@ -10,6 +11,7 @@ from prefect.testing.fixtures import (  # noqa: F401
 
 
 class TestSubmit:
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_with_task(self):
         @task
         def test_task():
@@ -30,6 +32,7 @@ class TestSubmit:
         assert len(task_runs) == 1
         assert task_runs[0].flow_run_id == flow_runs[0].id
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_with_function(self):
         def func():
             return 42
