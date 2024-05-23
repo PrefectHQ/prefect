@@ -1536,7 +1536,7 @@ class TestUpdateDeployment:
                 }
             },
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, str(response.content)
 
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.json()["parameters"] == {"x": "my_value"}
@@ -2916,9 +2916,7 @@ class TestCreateFlowRunFromDeployment:
                 }
             },
         )
-        print("ASDMFASKDMFALSJDFASDf")
-        print(response.content)
-        assert response.status_code == 201
+        assert response.status_code == 201, str(response.content)
         res = response.json()
         assert res["parameters"] == {"param": "my_value"}
 

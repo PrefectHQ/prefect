@@ -1417,7 +1417,7 @@ class TestResumeFlowrun:
                 }
             },
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, str(response.content)
         assert response.json()["status"] == "ACCEPT"
 
         flow_run_input = await models.flow_run_input.read_flow_run_input(
