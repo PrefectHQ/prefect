@@ -68,7 +68,7 @@ def _get_postgres_next_runs_query(flow_ids: List[UUID]):
         FROM (
             SELECT DISTINCT flow_id FROM flow_run
             WHERE flow_id IN :flow_ids
-            AND state_type = 'SCHEDULED'l
+            AND state_type = 'SCHEDULED'
             ) AS unique_flows
         CROSS JOIN LATERAL (
             SELECT *
