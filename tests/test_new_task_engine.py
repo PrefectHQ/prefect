@@ -6,23 +6,32 @@ from typing import List
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 
 from prefect import Task, flow, get_run_logger, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
-from prefect.context import TaskRunContext, get_run_context
+from prefect.context import (
+    EngineContext,
+    FlowRunContext,
+    TaskRunContext,
+    get_run_context,
+)
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task_async, run_task_sync
+from prefect.new_task_runners import ThreadPoolTaskRunner
+from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
-from prefect.states import State
+from prefect.states import Running, State
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
+from prefect.utilities.engine import propose_state
 
 
 @pytest.fixture(autouse=True)
@@ -77,6 +86,38 @@ class TestRunTask:
         task_run = sync_prefect_client.read_task_run(task_run_id)
         assert task_run.id == task_run_id
 
+    async def test_with_provided_context(self, prefect_client):
+        @flow
+        def f():
+            pass
+
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(f)
+        await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
+        result_factory = await ResultFactory.from_flow(f)
+        async with anyio.create_task_group() as task_group:
+            flow_run_context = EngineContext(
+                flow=f,
+                flow_run=flow_run,
+                client=prefect_client,
+                task_runner=test_task_runner,
+                result_factory=result_factory,
+                background_tasks=task_group,
+                parameters={"x": "y"},
+            )
+
+        @task
+        def foo():
+            return FlowRunContext.get().flow_run.id
+
+        context = {"flow_run_context": flow_run_context.serialize()}
+
+        result = run_task_sync(foo, context=context)
+
+        assert result == flow_run.id
+
+
+class TestTaskRunsAsync:
     async def test_run_task_async_with_client_provided_uuid(
         self, prefect_client: PrefectClient
     ):
@@ -91,8 +132,36 @@ class TestRunTask:
         task_run = await prefect_client.read_task_run(task_run_id)
         assert task_run.id == task_run_id
 
+    async def test_with_provided_context(self, prefect_client):
+        @flow
+        def f():
+            pass
 
-class TestTaskRunsAsync:
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(f)
+        await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
+        result_factory = await ResultFactory.from_flow(f)
+        async with anyio.create_task_group() as task_group:
+            flow_run_context = EngineContext(
+                flow=f,
+                flow_run=flow_run,
+                client=prefect_client,
+                task_runner=test_task_runner,
+                result_factory=result_factory,
+                background_tasks=task_group,
+                parameters={"x": "y"},
+            )
+
+        @task
+        async def foo():
+            return FlowRunContext.get().flow_run.id
+
+        context = {"flow_run_context": flow_run_context.serialize()}
+
+        result = await run_task_async(foo, context=context)
+
+        assert result == flow_run.id
+
     async def test_basic(self):
         @task
         async def foo():
