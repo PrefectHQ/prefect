@@ -24,7 +24,6 @@ from prefect.new_task_engine import TaskRunEngine, run_task_async, run_task_sync
 from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
@@ -34,19 +33,9 @@ from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 
 
-@pytest.fixture(autouse=True)
-def set_new_engine_setting():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: True}):
-        yield
-
-
 @task
 async def foo():
     return 42
-
-
-async def test_setting_is_set():
-    assert PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value() is True
 
 
 class TestTaskRunEngine:

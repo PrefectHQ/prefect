@@ -29,34 +29,6 @@ _WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
 )
 
 
-def get_waiter_for_thread(
-    thread: threading.Thread, parent_call: Optional[Call] = None
-) -> Optional["Waiter"]:
-    """
-    Get the current waiter for a thread and an optional parent call.
-
-    To avoid assigning outer callbacks to inner waiters in the case of nested calls,
-    the parent call is used to determine which waiter to return. If a parent call is
-    not provided, we return the most recently created waiter (last in the stack).
-
-    see https://github.com/PrefectHQ/prefect/issues/12036
-
-    Returns `None` if no active waiter is found for the thread.
-    """
-
-    waiters: "Optional[deque[Waiter]]" = _WAITERS_BY_THREAD.get(thread)
-
-    if waiters and (active_waiters := [w for w in waiters if not w.call_is_done()]):
-        if parent_call and (
-            matching_waiter := next(
-                (w for w in active_waiters if w._call == parent_call), None
-            )
-        ):  # if exists an active waiter responsible for the parent call, return it
-            return matching_waiter
-        else:  # otherwise, return the most recently created waiter
-            return active_waiters[-1]
-
-
 def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
     """
     Add a waiter for a thread.

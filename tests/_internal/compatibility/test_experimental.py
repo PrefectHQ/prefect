@@ -364,7 +364,6 @@ def test_enabled_experiments_with_opt_in():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "new_engine",
     }
 
 
@@ -379,5 +378,4 @@ def test_enabled_experiments_without_opt_in():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "new_engine",
     }
