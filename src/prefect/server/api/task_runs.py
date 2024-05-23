@@ -77,7 +77,7 @@ async def create_task_run(
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
 
-    new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(model)
+    new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.model_validate(model)
 
     return new_task_run
 

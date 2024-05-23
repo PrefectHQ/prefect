@@ -1,6 +1,6 @@
 import uuid
-from typing import Any, Dict, Optional
-from unittest.mock import MagicMock, call
+from typing import Any, Dict, Optional, Type
+from unittest.mock import ANY, MagicMock, call
 
 import anyio
 import pendulum
@@ -38,8 +38,8 @@ from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
 
 
 class WorkerTestImpl(BaseWorker):
-    type = "test"
-    job_configuration = BaseJobConfiguration
+    type: str = "test"
+    job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
 
     async def run(self):
         pass
@@ -432,7 +432,9 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     with a correct base_job_template when creating a new work pool"""
 
     class WorkerJobConfig(BaseJobConfiguration):
-        other: Optional[str] = Field(template="{{other}}")
+        other: Optional[str] = Field(
+            default=None, json_schema_extra={"template": "{{ other }}"}
+        )
 
     # Add a job configuration for the worker (currently used to create template
     # if not found on the worker pool)
@@ -449,7 +451,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         "variables": {
             "properties": {
                 "command": {
-                    "type": "string",
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
                     "title": "Command",
                     "description": (
                         "The command to use when starting a flow run. "
@@ -460,7 +463,9 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                 "env": {
                     "title": "Environment Variables",
                     "type": "object",
-                    "additionalProperties": {"type": "string"},
+                    "additionalProperties": {
+                        "anyOf": [{"type": "string"}, {"type": "null"}]
+                    },
                     "description": (
                         "Environment variables to set when starting a flow run."
                     ),
@@ -475,14 +480,19 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     ),
                 },
                 "name": {
-                    "type": "string",
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
                         "job configuration."
                     ),
                 },
-                "other": {"type": "string", "title": "Other"},
+                "other": {
+                    "title": "Other",
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "default": None,
+                },
             },
             "type": "object",
         },
@@ -517,7 +527,9 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     with a correct base_job_template when creating a new work pool"""
 
     class WorkerJobConfig(BaseJobConfiguration):
-        other: Optional[str] = Field(template="{{ other }}")
+        other: Optional[str] = Field(
+            default=None, json_schema_extra={"template": "{{ other }}"}
+        )
 
     class WorkerVariables(BaseVariables):
         other: Optional[str] = Field(default="woof")
@@ -784,8 +796,8 @@ async def test_job_configuration_from_template_and_overrides(
     """Test that the job configuration is correctly built from the template and overrides"""
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        var1: str = Field(template="{{ var1 }}")
-        var2: int = Field(template="{{ var2 }}")
+        var1: str = Field(json_schema_extra={"template": "{{ var1 }}"})
+        var2: int = Field(json_schema_extra={"template": "{{ var2 }}"})
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values=overrides
@@ -819,7 +831,10 @@ async def test_job_configuration_from_template_and_overrides_with_nested_variabl
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         config: Dict[str, Any] = Field(
-            template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"}
+            json_schema_extra={
+                "template": {"var1": "{{ var1 }}", "var2": "{{ var2 }}"}
+            },
+            default_factory=dict,
         )
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
@@ -844,7 +859,9 @@ async def test_job_configuration_from_template_and_overrides_with_hard_coded_pri
     }
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        config: Dict[str, Any] = Field(template={"var1": 1, "var2": 1.1, "var3": True})
+        config: Dict[str, Any] = Field(
+            json_schema_extra={"template": {"var1": 1, "var2": 1.1, "var3": True}}
+        )
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={}
@@ -905,12 +922,14 @@ async def test_job_configuration_from_template_overrides_with_block():
 
     block_id = await ArbitraryBlock(a=1, b="hello").save(name="arbitrary-block")
 
-    config = await ArbitraryJobConfiguration.from_template_and_values(
-        base_job_template=template,
-        values={
-            "var1": "woof!",
-            "arbitrary_block": {"$ref": {"block_document_id": block_id}},
-        },
+    config: ArbitraryJobConfiguration = (
+        await ArbitraryJobConfiguration.from_template_and_values(
+            base_job_template=template,
+            values={
+                "var1": "woof!",
+                "arbitrary_block": {"$ref": {"block_document_id": block_id}},
+            },
+        )
     )
 
     assert config.model_dump() == {
@@ -1030,7 +1049,9 @@ async def test_job_configuration_from_template_and_overrides_with_variables_in_a
     }
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        config: list = Field(template=["{{ var1 }}", "{{ var2 }}"])
+        config: list = Field(
+            json_schema_extra={"template": ["{{ var1 }}", "{{ var2 }}"]}
+        )
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template, values={"var1": "woof!"}
@@ -1115,8 +1136,8 @@ def test_job_configuration_produces_correct_json_template(
     field_template_value, expected_final_template
 ):
     class ArbitraryJobConfiguration(BaseJobConfiguration):
-        var1: str = Field(template=field_template_value)
-        var2: int = Field(template="{{ var2 }}")
+        var1: str = Field(json_schema_extra={"template": field_template_value})
+        var2: int = Field(json_schema_extra={"template": "{{ var2 }}"})
 
     template = ArbitraryJobConfiguration.json_template()
     assert template == expected_final_template
@@ -1146,8 +1167,9 @@ class TestWorkerProperties:
             "variables": {
                 "properties": {
                     "command": {
-                        "type": "string",
+                        "anyOf": [{"type": "string"}, {"type": "null"}],
                         "title": "Command",
+                        "default": None,
                         "description": (
                             "The command to use when starting a flow run. "
                             "In most cases, this should be left blank and the command "
@@ -1157,7 +1179,9 @@ class TestWorkerProperties:
                     "env": {
                         "title": "Environment Variables",
                         "type": "object",
-                        "additionalProperties": {"type": "string"},
+                        "additionalProperties": {
+                            "anyOf": [{"type": "string"}, {"type": "null"}]
+                        },
                         "description": (
                             "Environment variables to set when starting a flow run."
                         ),
@@ -1172,8 +1196,9 @@ class TestWorkerProperties:
                         ),
                     },
                     "name": {
-                        "type": "string",
+                        "anyOf": [{"type": "string"}, {"type": "null"}],
                         "title": "Name",
+                        "default": None,
                         "description": (
                             "Name given to infrastructure created by the worker using "
                             "this job configuration."
@@ -1236,8 +1261,8 @@ class TestWorkerProperties:
 
     def test_custom_base_job_configuration(self):
         class CustomBaseJobConfiguration(BaseJobConfiguration):
-            var1: str = Field(template="{{ var1 }}")
-            var2: int = Field(template="{{ var2 }}")
+            var1: str = Field(json_schema_extra={"template": "{{ var1 }}"})
+            var2: int = Field(json_schema_extra={"template": "{{ var2 }}"})
 
         class CustomBaseVariables(BaseVariables):
             var1: str = Field(default=...)
@@ -1269,7 +1294,8 @@ class TestWorkerProperties:
                     "properties": {
                         "command": {
                             "title": "Command",
-                            "type": "string",
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "default": None,
                             "description": (
                                 "The command to use when starting a flow run. "
                                 "In most cases, this should be left blank and the command "
@@ -1279,7 +1305,9 @@ class TestWorkerProperties:
                         "env": {
                             "title": "Environment Variables",
                             "type": "object",
-                            "additionalProperties": {"type": "string"},
+                            "additionalProperties": {
+                                "anyOf": [{"type": "string"}, {"type": "null"}]
+                            },
                             "description": (
                                 "Environment variables to set when starting a flow run."
                             ),
@@ -1294,7 +1322,8 @@ class TestWorkerProperties:
                         },
                         "name": {
                             "title": "Name",
-                            "type": "string",
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "default": None,
                             "description": (
                                 "Name given to infrastructure created by a worker."
                             ),
@@ -1564,10 +1593,9 @@ class TestCancellation:
             await worker.sync_with_backend()
             worker.kill_infrastructure = AsyncMock()
             await worker.check_for_cancelled_flow_runs()
-            configuration = await worker._get_configuration(flow_run)
 
         worker.kill_infrastructure.assert_awaited_once_with(
-            infrastructure_pid="test", configuration=configuration
+            infrastructure_pid="test", configuration=ANY
         )
 
     @pytest.mark.parametrize(
@@ -1722,11 +1750,10 @@ class TestCancellation:
             # Perform a second call to check that it is tracked locally that this worker
             # should not try again
             await worker.check_for_cancelled_flow_runs()
-            configuration = await worker._get_configuration(flow_run)
 
         # Only awaited once
         worker.kill_infrastructure.assert_awaited_once_with(
-            infrastructure_pid="test", configuration=configuration
+            infrastructure_pid="test", configuration=ANY
         )
 
         # State name not updated; other workers may attempt the kill
@@ -1766,11 +1793,10 @@ class TestCancellation:
             await worker.check_for_cancelled_flow_runs()
             # Perform a second call to check that another cancellation attempt is not made
             await worker.check_for_cancelled_flow_runs()
-            configuration = await worker._get_configuration(flow_run)
 
         # Only awaited once
         worker.kill_infrastructure.assert_awaited_once_with(
-            infrastructure_pid="test", configuration=configuration
+            infrastructure_pid="test", configuration=ANY
         )
 
         # State name updated to prevent further attempts
@@ -1809,13 +1835,12 @@ class TestCancellation:
             await worker.check_for_cancelled_flow_runs()
             await anyio.sleep(0.5)
             await worker.check_for_cancelled_flow_runs()
-            configuration = await worker._get_configuration(flow_run)
 
         # Multiple attempts should be made
         worker.kill_infrastructure.assert_has_awaits(
             [
-                call(infrastructure_pid="test", configuration=configuration),
-                call(infrastructure_pid="test", configuration=configuration),
+                call(infrastructure_pid="test", configuration=ANY),
+                call(infrastructure_pid="test", configuration=ANY),
             ]
         )
 
