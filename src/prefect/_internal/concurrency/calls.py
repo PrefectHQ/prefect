@@ -49,12 +49,6 @@ current_call: contextvars.ContextVar["weakref.ref[Call]"] = (  # novm
 _ASYNC_TASK_REFS = set()
 
 
-def get_current_call() -> Optional["Call"]:
-    call_ref = current_call.get(None)
-    if call_ref:
-        return call_ref()
-
-
 @contextlib.contextmanager
 def set_current_call(call: "Call"):
     token = current_call.set(weakref.ref(call))

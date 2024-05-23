@@ -4,7 +4,6 @@ import anyio
 import pytest
 
 import prefect
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 
 # The sleep time should be much longer than the declared flow timeouts in the tests
 # below in order to give them all time for the mechanics to work.  If the timeouts do
@@ -108,8 +107,7 @@ async def test_sync_subflow_timeout_in_async_flow():
         await subflow_state.result()
 
 
-@pytest.mark.skipif(
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+@pytest.mark.skip(
     reason="Not supported by new engine",
 )
 def test_async_subflow_timeout_in_sync_flow():

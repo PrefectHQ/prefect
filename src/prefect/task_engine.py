@@ -15,10 +15,10 @@ from prefect.context import EngineContext
 from prefect.engine import (
     begin_task_map,
     get_task_call_return_value,
-    wait_for_task_runs_and_report_crashes,
 )
 from prefect.results import ResultFactory
 from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.engine import wait_for_task_runs_and_report_crashes
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient

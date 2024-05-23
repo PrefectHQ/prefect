@@ -5,7 +5,6 @@ import anyio
 import pytest
 
 import prefect
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
 
 # GitHub Actions sets the CI environment variable — the runners are much slower there
 # so the sleep time needs to be larger to account for overhead
@@ -42,8 +41,7 @@ async def test_sync_task_timeout_in_async_flow():
         await task_state.result()
 
 
-@pytest.mark.skipif(
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value(),
+@pytest.mark.skip(
     reason="Not supported by new engine",
 )
 def test_async_task_timeout_in_sync_flow():
