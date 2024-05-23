@@ -109,8 +109,9 @@ def mock_job():
 @pytest.fixture
 def mock_core_client(monkeypatch, mock_cluster_config):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
-    mock.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
-    mock.return_value.read_namespace_pod_log.return_value=["test log"]
+    mock.return_value.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
+    
+    mock.return_value.read_namespaced_pod_log.return_value.content.readline = AsyncMock(return_value=None)
     
     monkeypatch.setattr(
         "prefect_kubernetes.worker.KubernetesWorker._get_configured_kubernetes_client",
@@ -127,22 +128,6 @@ def mock_batch_client(monkeypatch, mock_job):
     monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
     return mock
 
-
-@pytest.fixture
-def mock_batch_client(monkeypatch, mock_job):
-    mock = MagicMock(spec=BatchV1Api,return_value=AsyncMock())
-
-    mock.return_value.create_namespaced_job.return_value = mock_job
-    monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
-    return mock
-
-@pytest.fixture
-def mock_batch_client(monkeypatch, mock_job):
-    mock = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
-
-    mock.return_value.create_namespaced_job.return_value = mock_job
-    monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
-    return mock
 
 
 async def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
