@@ -2621,6 +2621,25 @@ class TestFlowHooksOnCompletion:
             def flow2():
                 pass
 
+    def test_decorated_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            pass
+
+        @my_flow.on_completion
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        @my_flow.on_completion
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        state = my_flow(return_state=True)
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
 
@@ -2747,6 +2766,25 @@ class TestFlowHooksOnFailure:
             def flow2():
                 pass
 
+    def test_decorated_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            raise Exception("oops")
+
+        @my_flow.on_failure
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        @my_flow.on_failure
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        state = my_flow(return_state=True)
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -2872,6 +2910,24 @@ class TestFlowHooksOnCancellation:
             @flow(on_cancellation=[cancellation_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_cancellation_hooks_run_on_cancelled_state(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            return State(type=StateType.CANCELLING)
+
+        @my_flow.on_cancellation
+        def cancelled_hook1(flow, flow_run, state):
+            my_mock("cancelled_hook1")
+
+        @my_flow.on_cancellation
+        def cancelled_hook2(flow, flow_run, state):
+            my_mock("cancelled_hook2")
+
+        my_flow(return_state=True)
+        assert my_mock.mock_calls == [call("cancelled_hook1"), call("cancelled_hook2")]
 
     def test_on_cancellation_hooks_run_on_cancelled_state(self):
         my_mock = MagicMock()
@@ -3093,6 +3149,24 @@ class TestFlowHooksOnCrashed:
             @flow(on_crashed=[crashed_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_crashed_hooks_run_on_crashed_state(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            return State(type=StateType.CRASHED)
+
+        @my_flow.on_crashed
+        def crashed_hook1(flow, flow_run, state):
+            my_mock("crashed_hook1")
+
+        @my_flow.on_crashed
+        def crashed_hook2(flow, flow_run, state):
+            my_mock("crashed_hook2")
+
+        my_flow(return_state=True)
+        assert my_mock.mock_calls == [call("crashed_hook1"), call("crashed_hook2")]
 
     def test_on_crashed_hooks_run_on_crashed_state(self):
         my_mock = MagicMock()
@@ -3316,6 +3390,25 @@ class TestFlowHooksOnRunning:
             @flow(on_running=[running_hook, "test"])
             def flow2():
                 pass
+
+    def test_decorated_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        @flow
+        def my_flow():
+            pass
+
+        @my_flow.on_running
+        def running1(flow, flow_run, state):
+            my_mock("running1")
+
+        @my_flow.on_running
+        def running2(flow, flow_run, state):
+            my_mock("running2")
+
+        state = my_flow(return_state=True)
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
 
     def test_on_running_hooks_run_on_running(self):
         my_mock = MagicMock()

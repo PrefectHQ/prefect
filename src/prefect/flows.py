@@ -339,11 +339,11 @@ class Flow(Generic[P, R]):
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
-        self.on_completion_hooks = on_completion
-        self.on_failure_hooks = on_failure
-        self.on_cancellation_hooks = on_cancellation
-        self.on_crashed_hooks = on_crashed
-        self.on_running_hooks = on_running
+        self.on_completion_hooks = on_completion or []
+        self.on_failure_hooks = on_failure or []
+        self.on_cancellation_hooks = on_cancellation or []
+        self.on_crashed_hooks = on_crashed or []
+        self.on_running_hooks = on_running or []
 
         # Used for flows loaded from remote storage
         self._storage: Optional[RunnerStorage] = None
@@ -705,6 +705,36 @@ class Flow(Generic[P, R]):
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
             )
+
+    def on_completion(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_completion_hooks.append(fn)
+        return fn
+
+    def on_cancellation(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_cancellation_hooks.append(fn)
+        return fn
+
+    def on_crashed(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_crashed_hooks.append(fn)
+        return fn
+
+    def on_running(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_running_hooks.append(fn)
+        return fn
+
+    def on_failure(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_failure_hooks.append(fn)
+        return fn
 
     @sync_compatible
     async def serve(
