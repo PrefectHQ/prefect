@@ -6,7 +6,6 @@ import abc
 import asyncio
 import concurrent.futures
 import contextlib
-import threading
 from typing import (
     Awaitable,
     Callable,
@@ -19,7 +18,6 @@ from typing import (
 
 from typing_extensions import ParamSpec
 
-from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import (
     WorkerThread,
     get_global_loop,
@@ -29,7 +27,6 @@ from prefect._internal.concurrency.waiters import (
     AsyncWaiter,
     Call,
     SyncWaiter,
-    get_waiter_for_thread,
 )
 
 P = ParamSpec("P")
@@ -164,22 +161,6 @@ class from_async(_base):
         return call.result()
 
     @staticmethod
-    def call_soon_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]],
-        thread: threading.Thread,
-        timeout: Optional[float] = None,
-    ) -> Call[T]:
-        call = _cast_to_call(__call)
-        parent_call = get_current_call()
-        waiter = get_waiter_for_thread(thread, parent_call)
-        if waiter is None:
-            raise RuntimeError(f"No waiter found for thread {thread}.")
-
-        call.set_timeout(timeout)
-        waiter.submit(call)
-        return call
-
-    @staticmethod
     def call_in_new_thread(
         __call: Union[Callable[[], T], Call[T]], timeout: Optional[float] = None
     ) -> Awaitable[T]:
@@ -230,21 +211,6 @@ class from_sync(_base):
         _base.call_soon_in_new_thread(call, timeout=timeout)
         waiter.wait()
         return call.result()
-
-    @staticmethod
-    def call_soon_in_waiting_thread(
-        __call: Union[Callable[[], T], Call[T]],
-        thread: threading.Thread,
-        timeout: Optional[float] = None,
-    ) -> Call[T]:
-        call = _cast_to_call(__call)
-        waiter = get_waiter_for_thread(thread)
-        if waiter is None:
-            raise RuntimeError(f"No waiter found for thread {thread}.")
-
-        call.set_timeout(timeout)
-        waiter.submit(call)
-        return call
 
     @staticmethod
     def call_in_new_thread(
