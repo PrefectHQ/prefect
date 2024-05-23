@@ -42,6 +42,7 @@ from prefect.new_futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import (
+    Completed,
     Failed,
     Paused,
     Pending,

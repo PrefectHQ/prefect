@@ -109,4 +109,4 @@ def get_transaction() -> Transaction:
 @contextmanager
 def transaction() -> Transaction:
     with Transaction() as txn:
-        return txn
+        yield txn

@@ -184,6 +184,7 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        on_rollback: An optional list of callables to run when the task rolls back.
         retry_condition_fn: An optional callable run when a task run returns a Failed state. Should
             return `True` if the task should continue to its retry policy (e.g. `retries=3`), and `False` if the task
             should end as failed. Defaults to `None`, indicating the task should always continue
@@ -225,6 +226,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_rollback: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
@@ -335,6 +337,7 @@ class Task(Generic[P, R]):
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         self.on_completion = on_completion
         self.on_failure = on_failure
+        self.on_rollback_hooks = on_rollback
 
         # retry_condition_fn must be a callable or None. If it is neither, raise a TypeError
         if retry_condition_fn is not None and not (callable(retry_condition_fn)):
