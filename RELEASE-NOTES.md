@@ -3,7 +3,7 @@
 # Release 2.19.2
 
 ### Fixes
-- Ensure deployments API endpoints hydrate workspace variables — https://github.com/PrefectHQ/prefect/pull/13540
+- Ensure `/deployments` endpoints hydrate workspace variables — https://github.com/PrefectHQ/prefect/pull/13540
 - Fix integer value display on Variables page of the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/2454
 - Fix "Run a deployment" automation action parameter display input configuration — https://github.com/PrefectHQ/prefect-ui-library/pull/2458
 - Pin `requests` dependency to `<2.32.0` in `requirements-dev.txt` - https://github.com/PrefectHQ/prefect/pull/13538
