@@ -2590,13 +2590,6 @@ class TestFlowHooksOnCompletion:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
-
-            @flow(on_completion=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -2723,13 +2716,6 @@ class TestFlowHooksOnFailure:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
-
-            @flow(on_failure=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -2854,13 +2840,6 @@ class TestFlowHooksOnCancellation:
 
             @flow(on_cancellation=cancellation_hook)
             def flow1():
-                pass
-
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_cancellation'"):
-
-            @flow(on_cancellation=[])
-            def flow2():
                 pass
 
     def test_noncallable_hook_raises(self):
@@ -3084,13 +3063,6 @@ class TestFlowHooksOnCrashed:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_crashed'"):
-
-            @flow(on_crashed=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -3312,13 +3284,6 @@ class TestFlowHooksOnRunning:
 
             @flow(on_running=running_hook)
             def flow1():
-                pass
-
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_running'"):
-
-            @flow(on_running=[])
-            def flow2():
                 pass
 
     def test_noncallable_hook_raises(self):

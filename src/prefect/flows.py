@@ -238,8 +238,6 @@ class Flow(Generic[P, R]):
         ]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
-                if not hooks:
-                    raise ValueError(f"Empty list passed for '{hook_name}'")
                 try:
                     hooks = list(hooks)
                 except TypeError:
@@ -341,11 +339,11 @@ class Flow(Generic[P, R]):
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
-        self.on_completion = on_completion
-        self.on_failure = on_failure
-        self.on_cancellation = on_cancellation
-        self.on_crashed = on_crashed
-        self.on_running = on_running
+        self.on_completion_hooks = on_completion
+        self.on_failure_hooks = on_failure
+        self.on_cancellation_hooks = on_cancellation
+        self.on_crashed_hooks = on_crashed
+        self.on_running_hooks = on_running
 
         # Used for flows loaded from remote storage
         self._storage: Optional[RunnerStorage] = None
@@ -478,11 +476,11 @@ class Flow(Generic[P, R]):
                 else self.cache_result_in_memory
             ),
             log_prints=log_prints if log_prints is not NotSet else self.log_prints,
-            on_completion=on_completion or self.on_completion,
-            on_failure=on_failure or self.on_failure,
-            on_cancellation=on_cancellation or self.on_cancellation,
-            on_crashed=on_crashed or self.on_crashed,
-            on_running=on_running or self.on_running,
+            on_completion=on_completion or self.on_completion_hooks,
+            on_failure=on_failure or self.on_failure_hooks,
+            on_cancellation=on_cancellation or self.on_cancellation_hooks,
+            on_crashed=on_crashed or self.on_crashed_hooks,
+            on_running=on_running or self.on_running_hooks,
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint
