@@ -2272,10 +2272,10 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
     catch and log any errors that occur.
     """
     hooks = None
-    if state.is_failed() and task.on_failure:
-        hooks = task.on_failure
-    elif state.is_completed() and task.on_completion:
-        hooks = task.on_completion
+    if state.is_failed() and task.on_failure_hooks:
+        hooks = task.on_failure_hooks
+    elif state.is_completed() and task.on_completion_hooks:
+        hooks = task.on_completion_hooks
 
     if hooks:
         logger = task_run_logger(task_run)

@@ -125,10 +125,10 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Task run is not set")
 
         hooks = None
-        if state.is_failed() and task.on_failure:
-            hooks = task.on_failure
-        elif state.is_completed() and task.on_completion:
-            hooks = task.on_completion
+        if state.is_failed() and task.on_failure_hooks:
+            hooks = task.on_failure_hooks
+        elif state.is_completed() and task.on_completion_hooks:
+            hooks = task.on_completion_hooks
 
         for hook in hooks or []:
             hook_name = _get_hook_name(hook)
