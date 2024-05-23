@@ -746,9 +746,12 @@ class TestBlockStorageAdapter:
         assert storage1 == storage2
 
     async def test_eq_method_different_block(self, test_block: Block):
+        class FakeDeploymentStorage(ReadableDeploymentStorage):
+            def get_directory(self, *args, **kwargs):
+                pass
+
         storage1 = BlockStorageAdapter(block=test_block)
-        different_block = MagicMock(spec=ReadableDeploymentStorage)
-        storage2 = BlockStorageAdapter(block=different_block)
+        storage2 = BlockStorageAdapter(block=FakeDeploymentStorage())
         assert storage1 != storage2
 
     async def test_eq_method_different_type(self, test_block: Block):
