@@ -2834,7 +2834,7 @@ class TestCreateFlowRunFromDeployment:
         assert "Validation failed for field 'person'" in response.text
         assert "Failure reason: 'name' is a required property" in response.text
 
-    async def test_schemas_v2_basic_parameters(
+    async def test_create_flow_run_basic_parameters(
         self,
         deployment,
         client,
@@ -2847,7 +2847,7 @@ class TestCreateFlowRunFromDeployment:
         res = response.json()
         assert res["parameters"] == {"param1": 1, "param2": 2}
 
-    async def test_schemas_v2_none_prefect_kind(
+    async def test_create_flow_run_none_prefect_kind(
         self,
         deployment,
         client,
@@ -2860,7 +2860,7 @@ class TestCreateFlowRunFromDeployment:
         res = response.json()
         assert res["parameters"] == {"param": 5}
 
-    async def test_schemas_v2_json_prefect_kind(
+    async def test_create_flow_run_json_prefect_kind(
         self,
         deployment,
         client,
@@ -2877,7 +2877,7 @@ class TestCreateFlowRunFromDeployment:
         assert response.status_code == 201
         assert response.json()["parameters"]["x"] == "str_of_json"
 
-    async def test_schemas_v2_jinja_prefect_kind(
+    async def test_create_flow_run_jinja_prefect_kind(
         self,
         deployment,
         client,
@@ -2894,7 +2894,7 @@ class TestCreateFlowRunFromDeployment:
         res = response.json()
         assert res["parameters"] == {"param": "3"}
 
-    async def test_schemas_v2_workspace_variable_prefect_kind(
+    async def test_create_flow_workspace_variable_prefect_kind(
         self,
         deployment,
         client,
