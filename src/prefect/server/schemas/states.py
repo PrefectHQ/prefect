@@ -208,6 +208,7 @@ class State(StateBaseModel):
                 "updated": pendulum.now("utc"),
                 "timestamp": pendulum.now("utc"),
             },
+            deep=True,
             **kwargs,
         )
 
