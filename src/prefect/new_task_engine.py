@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -27,13 +27,19 @@ from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.context import FlowRunContext, TaskRunContext
+from prefect.context import FlowRunContext, TaskRunContext, hydrated_context
+from prefect.events.schemas.events import Event
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
-from prefect.logging.loggers import get_logger, task_run_logger
-from prefect.new_futures import PrefectFuture, resolve_futures_to_states
+from prefect.logging.handlers import APILogHandler
+from prefect.logging.loggers import get_logger, patch_print, task_run_logger
+from prefect.new_futures import PrefectFuture
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_TASKS_REFRESH_CACHE,
+)
 from prefect.states import (
+    Failed,
     Paused,
     Pending,
     Retrying,
@@ -48,6 +54,7 @@ from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
+    emit_task_run_state_change_event,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -66,8 +73,12 @@ class TaskRunEngine(Generic[P, R]):
     task_run: Optional[TaskRun] = None
     retries: int = 0
     wait_for: Optional[Iterable[PrefectFuture]] = None
+    context: Optional[Dict[str, Any]] = None
+    _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _client: Optional[SyncPrefectClient] = None
+    _task_name_set: bool = False
+    _last_event: Optional[Event] = None
 
     def __post_init__(self):
         if self.parameters is None:
@@ -92,9 +103,23 @@ class TaskRunEngine(Generic[P, R]):
         ] = self.task.retry_condition_fn
         if not self.task_run:
             raise ValueError("Task run is not set")
-        return not retry_condition or retry_condition(
-            self.task, self.task_run, self.state
-        )
+        try:
+            self.logger.debug(
+                f"Running `retry_condition_fn` check {retry_condition!r} for task"
+                f" {self.task.name!r}"
+            )
+            return not retry_condition or retry_condition(
+                self.task, self.task_run, self.state
+            )
+        except Exception:
+            self.logger.error(
+                (
+                    "An error was encountered while running `retry_condition_fn` check"
+                    f" '{retry_condition!r}' for task {self.task.name!r}"
+                ),
+                exc_info=True,
+            )
+            return False
 
     def get_hooks(self, state: State, as_async: bool = False) -> Iterable[Callable]:
         task = self.task
@@ -104,10 +129,10 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Task run is not set")
 
         hooks = None
-        if state.is_failed() and task.on_failure:
-            hooks = task.on_failure
-        elif state.is_completed() and task.on_completion:
-            hooks = task.on_completion
+        if state.is_failed() and task.on_failure_hooks:
+            hooks = task.on_failure_hooks
+        elif state.is_completed() and task.on_completion_hooks:
+            hooks = task.on_completion_hooks
 
         for hook in hooks or []:
             hook_name = _get_hook_name(hook)
@@ -150,8 +175,8 @@ class TaskRunEngine(Generic[P, R]):
     def _compute_state_details(
         self, include_cache_expiration: bool = False
     ) -> StateDetails:
-        ## setup cache metadata
         task_run_context = TaskRunContext.get()
+        ## setup cache metadata
         cache_key = (
             self.task.cache_key_fn(
                 task_run_context,
@@ -176,6 +201,7 @@ class TaskRunEngine(Generic[P, R]):
             )
         else:
             cache_expiration = None
+
         return StateDetails(
             cache_key=cache_key,
             refresh_cache=refresh_cache,
@@ -221,7 +247,7 @@ class TaskRunEngine(Generic[P, R]):
             context={},
         )
 
-    def begin_run(self, wait_for: Optional[Iterable[PrefectFuture]] = None):
+    def begin_run(self):
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
@@ -236,10 +262,10 @@ class TaskRunEngine(Generic[P, R]):
                 force=self.state.is_pending(),
             )
             return
-        else:
-            state_details = self._compute_state_details()
-            new_state = Running(state_details=state_details)
-            state = self.set_state(new_state)
+
+        state_details = self._compute_state_details()
+        new_state = Running(state_details=state_details)
+        state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
         backoff_count = 0
@@ -255,6 +281,7 @@ class TaskRunEngine(Generic[P, R]):
             state = self.set_state(new_state)
 
     def set_state(self, state: State, force: bool = False) -> State:
+        last_state = self.state
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -274,6 +301,13 @@ class TaskRunEngine(Generic[P, R]):
         # that has an in-memory result attached to it; using the API state
         # could result in losing that reference
         self.task_run.state = new_state
+        # emit a state change event
+        self._last_event = emit_task_run_state_change_event(
+            task_run=self.task_run,
+            initial_state=last_state,
+            validated_state=self.task_run.state,
+            follows=self._last_event,
+        )
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -290,7 +324,7 @@ class TaskRunEngine(Generic[P, R]):
             raise ValueError("Result factory is not set")
         terminal_state = run_sync(
             return_value_to_state(
-                resolve_futures_to_states(result),
+                result,
                 result_factory=result_factory,
             )
         )
@@ -326,6 +360,19 @@ class TaskRunEngine(Generic[P, R]):
             )
             self.set_state(state)
 
+    def handle_timeout(self, exc: TimeoutError) -> None:
+        if not self.handle_retry(exc):
+            message = (
+                f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
+            )
+            self.logger.error(message)
+            state = Failed(
+                data=exc,
+                message=message,
+                name="TimedOut",
+            )
+            self.set_state(state)
+
     def handle_crash(self, exc: BaseException) -> None:
         state = run_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
@@ -334,28 +381,50 @@ class TaskRunEngine(Generic[P, R]):
 
     @contextmanager
     def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+        from prefect.utilities.engine import (
+            _resolve_custom_task_run_name,
+            should_log_prints,
+        )
+
         if client is None:
             client = self.client
         if not self.task_run:
             raise ValueError("Task run is not set")
 
         self.task_run = client.read_task_run(self.task_run.id)
-
-        with TaskRunContext(
-            task=self.task,
-            log_prints=self.task.log_prints or False,
-            task_run=self.task_run,
-            parameters=self.parameters,
-            result_factory=run_sync(ResultFactory.from_autonomous_task(self.task)),  # type: ignore
-            client=client,
-        ):
+        with ExitStack() as stack:
+            if log_prints := should_log_prints(self.task):
+                stack.enter_context(patch_print())
+            stack.enter_context(
+                TaskRunContext(
+                    task=self.task,
+                    log_prints=log_prints,
+                    task_run=self.task_run,
+                    parameters=self.parameters,
+                    result_factory=run_sync(
+                        ResultFactory.from_autonomous_task(self.task)
+                    ),  # type: ignore
+                    client=client,
+                )
+            )
             # set the logger to the task run logger
-            current_logger = self.logger
-            try:
-                self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
-                yield
-            finally:
-                self.logger = current_logger
+            self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+
+            # update the task run name if necessary
+            if not self._task_name_set and self.task.task_run_name:
+                task_run_name = _resolve_custom_task_run_name(
+                    task=self.task, parameters=self.parameters
+                )
+                self.client.set_task_run_name(
+                    task_run_id=self.task_run.id, name=task_run_name
+                )
+                self.logger.extra["task_run_name"] = task_run_name
+                self.logger.debug(
+                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+                )
+                self.task_run.name = task_run_name
+                self._task_name_set = True
+            yield
 
     @contextmanager
     def start(
@@ -366,37 +435,63 @@ class TaskRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
+
         with get_client(sync_client=True) as client:
             self._client = client
             self._is_started = True
-            try:
-                if not self.task_run:
-                    self.task_run = run_sync(
-                        self.task.create_run(
-                            id=task_run_id,
-                            client=client,
-                            parameters=self.parameters,
-                            flow_run_context=FlowRunContext.get(),
-                            parent_task_run_context=TaskRunContext.get(),
-                            wait_for=self.wait_for,
-                            extra_task_inputs=dependencies,
+            with hydrated_context(self.context, client=client):
+                try:
+                    if not self.task_run:
+                        self.task_run = run_sync(
+                            self.task.create_run(
+                                id=task_run_id,
+                                client=client,
+                                parameters=self.parameters,
+                                flow_run_context=FlowRunContext.get(),
+                                parent_task_run_context=TaskRunContext.get(),
+                                wait_for=self.wait_for,
+                                extra_task_inputs=dependencies,
+                            )
                         )
+                    self.logger.info(
+                        f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                    )
+                    # Emit an event to capture that the task run was in the `PENDING` state.
+                    self._last_event = emit_task_run_state_change_event(
+                        task_run=self.task_run,
+                        initial_state=None,
+                        validated_state=self.task_run.state,
                     )
 
-                yield self
-            except Exception:
-                # regular exceptions are caught and re-raised to the user
-                raise
-            except (Pause, Abort):
-                # Do not capture internal signals as crashes
-                raise
-            except BaseException as exc:
-                # BaseExceptions are caught and handled as crashes
-                self.handle_crash(exc)
-                raise
-            finally:
-                self._is_started = False
-                self._client = None
+                    yield self
+                except Exception:
+                    # regular exceptions are caught and re-raised to the user
+                    raise
+                except (Pause, Abort):
+                    # Do not capture internal signals as crashes
+                    raise
+                except BaseException as exc:
+                    # BaseExceptions are caught and handled as crashes
+                    self.handle_crash(exc)
+                    raise
+                finally:
+                    # If debugging, use the more complete `repr` than the usual `str` description
+                    display_state = (
+                        repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
+                    )
+                    self.logger.log(
+                        level=logging.INFO
+                        if self.state.is_completed()
+                        else logging.ERROR,
+                        msg=f"Finished in state {display_state}",
+                    )
+
+                    maybe_awaitable = APILogHandler.flush()
+                    if inspect.isawaitable(maybe_awaitable):
+                        run_sync(maybe_awaitable)
+
+                    self._is_started = False
+                    self._client = None
 
     def is_running(self) -> bool:
         if getattr(self, "task_run", None) is None:
@@ -412,38 +507,49 @@ def run_task_sync(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = TaskRunEngine[P, R](
-        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
     )
-
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
-        run.begin_run()
+        with run.enter_run_context():
+            run.begin_run()
 
-        while run.is_running():
-            with run.enter_run_context():
-                try:
-                    # This is where the task is actually run.
-                    with timeout(seconds=run.task.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, run.parameters or {}
-                        )
-                        result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
+            while run.is_running():
+                # enter run context on each loop iteration to ensure the context
+                # contains the latest task run metadata
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            run.logger.debug(
+                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                            )
+                            result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
-                    # If the task run is successful, finalize it.
-                    run.handle_success(result)
+                        # If the task run is successful, finalize it.
+                        run.handle_success(result)
+                    except TimeoutError as exc:
+                        run.handle_timeout(exc)
+                    except Exception as exc:
+                        run.handle_exception(exc)
 
-                except Exception as exc:
-                    run.handle_exception(exc)
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state):
+                    hook()
 
-        if run.state.is_final():
-            for hook in run.get_hooks(run.state):
-                hook()
-
-        if return_type == "state":
-            return run.state
-        return run.result()
+            if return_type == "state":
+                return run.state
+            return run.result()
 
 
 async def run_task_async(
@@ -454,6 +560,7 @@ async def run_task_async(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     """
     Runs a task against the API.
@@ -461,46 +568,77 @@ async def run_task_async(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
     engine = TaskRunEngine[P, R](
-        task=task, parameters=parameters, task_run=task_run, wait_for=wait_for
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
     )
-
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
-        run.begin_run()
+        with run.enter_run_context():
+            run.begin_run()
 
-        while run.is_running():
-            with run.enter_run_context():
-                try:
-                    # This is where the task is actually run.
-                    with timeout_async(seconds=run.task.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, run.parameters or {}
-                        )
-                        result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
+            while run.is_running():
+                # enter run context on each loop iteration to ensure the context
+                # contains the latest task run metadata
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout_async(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            run.logger.debug(
+                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                            )
+                            result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
 
-                    # If the task run is successful, finalize it.
-                    run.handle_success(result)
-                except Exception as exc:
-                    run.handle_exception(exc)
+                        # If the task run is successful, finalize it.
+                        run.handle_success(result)
+                    except TimeoutError as exc:
+                        run.handle_timeout(exc)
+                    except Exception as exc:
+                        run.handle_exception(exc)
 
-        if run.state.is_final():
-            for hook in run.get_hooks(run.state, as_async=True):
-                await hook()
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state, as_async=True):
+                    await hook()
 
-        if return_type == "state":
-            return run.state
-        return run.result()
+            if return_type == "state":
+                return run.state
+            return run.result()
 
 
 def run_task(
-    task: Task[P, R],
+    task: Task[P, Union[R, Coroutine[Any, Any, R]]],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-) -> Union[R, State, None]:
+    context: Optional[Dict[str, Any]] = None,
+) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]:
+    """
+    Runs the provided task.
+
+    Args:
+        task: The task to run
+        task_run_id: The ID of the task run; if not provided, a new task run
+            will be created
+        task_run: The task run object; if not provided, a new task run
+            will be created
+        parameters: The parameters to pass to the task
+        wait_for: A list of futures to wait for before running the task
+        return_type: The return type to return; either "state" or "result"
+        dependencies: A dictionary of task run inputs to use for dependency tracking
+        context: A dictionary containing the context to use for the task run; only
+            required if the task is running on in a remote environment
+
+    Returns:
+        The result of the task run
+    """
     kwargs = dict(
         task=task,
         task_run_id=task_run_id,
@@ -509,6 +647,7 @@ def run_task(
         wait_for=wait_for,
         return_type=return_type,
         dependencies=dependencies,
+        context=context,
     )
     if task.isasync:
         return run_task_async(**kwargs)

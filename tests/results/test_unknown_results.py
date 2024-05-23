@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from prefect import flow
 from prefect.results import BaseResult, UnknownResult
 
 INVALID_VALUES = [True, False, "hey"]
@@ -14,8 +15,12 @@ async def test_unknown_result_invalid_values(value):
 
 
 def test_unknown_result_create_and_get_sync():
-    result = UnknownResult.create()
-    assert result.get() is None
+    @flow
+    def sync():
+        result = UnknownResult.create()
+        return result.get()
+
+    assert sync() is None
 
 
 async def test_unknown_result_create_and_get_async():
@@ -24,8 +29,12 @@ async def test_unknown_result_create_and_get_async():
 
 
 def test_unknown_result_create_and_get_with_explicit_value():
-    result = UnknownResult.create(obj=None)
-    assert result.get() is None
+    @flow
+    def sync():
+        result = UnknownResult.create(obj=None)
+        return result.get()
+
+    assert sync() is None
 
 
 async def test_result_unknown_json_roundtrip():
