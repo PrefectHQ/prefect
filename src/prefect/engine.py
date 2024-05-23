@@ -2353,22 +2353,24 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         == "true"
     )
 
-    if state.is_running() and flow.on_running:
-        hooks = flow.on_running
-    elif state.is_failed() and flow.on_failure:
-        hooks = flow.on_failure
-    elif state.is_completed() and flow.on_completion:
-        hooks = flow.on_completion
+    if state.is_running() and flow.on_running_hooks:
+        hooks = flow.on_running_hooks
+    elif state.is_failed() and flow.on_failure_hooks:
+        hooks = flow.on_failure_hooks
+    elif state.is_completed() and flow.on_completion_hooks:
+        hooks = flow.on_completion_hooks
     elif (
         enable_cancellation_and_crashed_hooks
         and state.is_cancelling()
-        and flow.on_cancellation
+        and flow.on_cancellation_hooks
     ):
-        hooks = flow.on_cancellation
+        hooks = flow.on_cancellation_hooks
     elif (
-        enable_cancellation_and_crashed_hooks and state.is_crashed() and flow.on_crashed
+        enable_cancellation_and_crashed_hooks
+        and state.is_crashed()
+        and flow.on_crashed_hooks
     ):
-        hooks = flow.on_crashed
+        hooks = flow.on_crashed_hooks
 
     if hooks:
         logger = flow_run_logger(flow_run)

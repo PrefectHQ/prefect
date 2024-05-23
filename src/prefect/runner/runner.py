@@ -1133,7 +1133,7 @@ class Runner:
             flow = await load_flow_from_flow_run(
                 flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
             )
-            hooks = flow.on_cancellation or []
+            hooks = flow.on_cancellation_hooks or []
 
             await _run_hooks(hooks, flow_run, flow, state)
 
@@ -1149,7 +1149,7 @@ class Runner:
             flow = await load_flow_from_flow_run(
                 flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
             )
-            hooks = flow.on_crashed or []
+            hooks = flow.on_crashed_hooks or []
 
             await _run_hooks(hooks, flow_run, flow, state)
 
