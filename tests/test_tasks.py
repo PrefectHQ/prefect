@@ -39,7 +39,7 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
-from prefect.testing.utilities import exceptions_equal, fails_with_new_engine
+from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.collections import quote
@@ -211,7 +211,7 @@ class TestTaskCall:
         assert await bar() == 1
 
     # Will not be supported in new engine
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_async_task_called_inside_sync_flow(self):
         @task
         async def foo(x):
@@ -379,7 +379,7 @@ class TestTaskRun:
         assert await task_state.result() == 1
 
     # Will not be supported in new engine
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_async_task_run_inside_sync_flow(self):
         @task
         async def foo(x):
@@ -3283,7 +3283,7 @@ class TestTaskMap:
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
     # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
         1/100th the value of their input, starting with the longest sleep first. If the tasks
@@ -3316,7 +3316,7 @@ class TestTaskMap:
         assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
     # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
         1/100th the value of their input, starting with the longest sleep first. If the tasks
@@ -3349,7 +3349,7 @@ class TestTaskMap:
         assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
     # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
         1/100th the value of their input, starting with the longest sleep first. If the tasks

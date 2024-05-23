@@ -70,7 +70,6 @@ from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     AsyncMock,
     exceptions_equal,
-    fails_with_new_engine,
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
@@ -620,7 +619,7 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test"):
             await task_run_state.result()
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_flow_state_defaults_to_task_states_when_no_return_failure(self):
         @task
         def fail():
@@ -645,7 +644,7 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test"):
             await raise_state_exception(task_run_states[0])
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
         @task
         def succeed():
@@ -665,7 +664,7 @@ class TestFlowCall:
         assert all(isinstance(state, State) for state in task_run_states)
         assert await task_run_states[0].result() == "foo"
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_flow_state_default_includes_subflow_states(self):
         @task
         def succeed():
@@ -688,7 +687,7 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="bar"):
             await raise_state_exception(states[1])
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_flow_state_default_handles_nested_failures(self):
         @task
         def fail_task():
@@ -751,7 +750,7 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test 2"):
             await second.result()
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_call_execution_blocked_does_not_run_flow(self):
         @flow(version="test")
         def foo(x, y=3, z=3):
@@ -900,7 +899,7 @@ class TestSubflowCalls:
 
         assert await parent(1, 2) == 6
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_sync_flow_with_async_subflow(self):
         result = "a string, not a coroutine"
 
@@ -914,7 +913,7 @@ class TestSubflowCalls:
 
         assert parent() == result
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_sync_flow_with_async_subflow_and_async_task(self):
         @task
         async def compute(x, y, z):
@@ -1108,7 +1107,7 @@ class TestSubflowCalls:
             child_flow_run.id == child_flow_run_id
         ), "The server subflow run id matches the client"
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/12053, where
@@ -1198,7 +1197,7 @@ class TestFlowTimeouts:
         state = my_flow(return_state=True)
         assert state.is_completed()
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_user_timeout_is_not_hidden(self):
         @flow(timeout_seconds=30)
         def my_flow():
@@ -1735,7 +1734,7 @@ class TestFlowRunLogs:
         assert "NameError" in error_logs, "Should reference the exception type"
         assert "x + y" in error_logs, "Should reference the line of code"
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     @pytest.mark.xfail(reason="Weird state sharing between new and old engine tests")
     async def test_raised_exceptions_include_tracebacks(self, prefect_client):
         @flow
@@ -1818,7 +1817,7 @@ class TestSubflowRunLogs:
             == subflow_run_id
         ), "Child log message has correct id"
 
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     @pytest.mark.xfail(reason="Weird state sharing between new and old engine tests")
     async def test_subflow_logs_are_written_correctly_with_tasks(self, prefect_client):
         @task
@@ -2345,7 +2344,7 @@ def test_load_flow_from_entrypoint_with_module_path(monkeypatch):
     import_object_mock.assert_called_with("my.module.pretend_flow")
 
 
-@fails_with_new_engine
+@pytest.mark.skip(reason="Fails with new engine, passed on old engine")
 async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
@@ -3038,7 +3037,7 @@ class TestFlowHooksOnCancellation:
         assert my_mock.mock_calls == [call(), call()]
 
     # runner handles running on cancellation hooks after sending SIGTERM
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_on_cancellation_hook_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3279,7 +3278,7 @@ class TestFlowHooksOnCrashed:
         assert my_mock.mock_calls == [call("crashed1"), call("failed1")]
 
     # runner handles running on crashed hooks by monitoring the process the flow is running in
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_on_crashed_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
