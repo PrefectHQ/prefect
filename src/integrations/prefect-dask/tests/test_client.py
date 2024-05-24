@@ -1,5 +1,5 @@
-import prefect_dask.client
 import pytest
+from prefect_dask.client import PrefectDistributedClient
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
@@ -29,7 +29,7 @@ class TestSubmit:
         def test_flow():
             nonlocal flow_run_id
             flow_run_id = FlowRunContext.get().flow_run.id
-            with prefect_dask.client.PrefectDistributedClient() as client:
+            with PrefectDistributedClient() as client:
                 future = client.submit(test_task)
                 return future.result()
 
@@ -46,7 +46,7 @@ class TestSubmit:
         def func():
             return 42
 
-        with prefect_dask.client.PrefectDistributedClient() as client:
+        with PrefectDistributedClient() as client:
             future = client.submit(func)
             assert future.result() == 42
 
@@ -63,7 +63,7 @@ class TestMap:
         def test_flow():
             nonlocal flow_run_id
             flow_run_id = FlowRunContext.get().flow_run.id
-            with prefect_dask.client.PrefectDistributedClient() as client:
+            with PrefectDistributedClient() as client:
                 futures = client.map(test_task, [1, 2, 3])
                 return [future.result() for future in futures]
 
@@ -80,6 +80,6 @@ class TestMap:
         def func(x):
             return x
 
-        with prefect_dask.client.PrefectDistributedClient() as client:
+        with PrefectDistributedClient() as client:
             futures = client.map(func, [1, 2, 3])
             assert [future.result() for future in futures] == [1, 2, 3]
