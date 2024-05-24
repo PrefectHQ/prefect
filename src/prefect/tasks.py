@@ -1128,6 +1128,16 @@ class Task(Generic[P, R]):
             create_autonomous_task_run,
             create_task_run,
         )
+        from prefect.utilities.visualization import (
+            VisualizationUnsupportedError,
+            get_task_viz_tracker,
+        )
+
+        task_viz_tracker = get_task_viz_tracker()
+        if task_viz_tracker:
+            raise VisualizationUnsupportedError(
+                "`task.apply_async()` is not currently supported by `flow.visualize()`"
+            )
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)

@@ -272,7 +272,7 @@ async def test_stuck_pending_tasks_are_reenqueued(
     server = TaskServer(foo_task_with_result_storage)
     with pytest.raises(ValueError):
         with mock.patch(
-            "prefect.task_server.submit_autonomous_task_run_to_engine",
+            "prefect.task_server.run_task_sync",
             side_effect=ValueError("woops"),
         ):
             await server.execute_task_run(task_run)
