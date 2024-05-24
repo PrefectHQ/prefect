@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import warnings
-from contextlib import AsyncExitStack, nullcontext
+from contextlib import AsyncExitStack
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -159,9 +159,7 @@ class ServerType(AutoEnum):
 
 
 def get_client(
-    httpx_settings: Optional[Dict[str, Any]] = None,
-    sync_client: bool = False,
-    load_from_run_context: bool = True,
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: bool = False
 ) -> Union["PrefectClient", "SyncPrefectClient"]:
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
@@ -180,8 +178,6 @@ def get_client(
         client.hello()
     ```
     """
-    from prefect.context import FlowRunContext, TaskRunContext
-
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
 
@@ -191,30 +187,13 @@ def get_client(
 
         api = create_app(ctx.settings, ephemeral=True)
 
-    fr_context = FlowRunContext.get()
-    tr_context = TaskRunContext.get()
-
     if sync_client:
-        # try to load the client from the parent context, if it exists
-        if load_from_run_context:
-            if tr_context and isinstance(tr_context.client, SyncPrefectClient):
-                return nullcontext(tr_context.client)
-            elif fr_context and isinstance(fr_context.client, SyncPrefectClient):
-                return nullcontext(fr_context.client)
-        # if not found, create a new client
         return SyncPrefectClient(
             api,
             api_key=PREFECT_API_KEY.value(),
             httpx_settings=httpx_settings,
         )
     else:
-        # try to load the client from the parent context, if it exists
-        if load_from_run_context:
-            if tr_context and isinstance(tr_context.client, PrefectClient):
-                return nullcontext(tr_context.client)
-            elif fr_context and isinstance(fr_context.client, PrefectClient):
-                return nullcontext(fr_context.client)
-        # if not found, create a new client
         return PrefectClient(
             api,
             api_key=PREFECT_API_KEY.value(),
@@ -681,8 +660,8 @@ class PrefectClient:
             ),
         )
 
-        flow_run_create_json = flow_run_create.json()
-        response = await self._client.post("/flow_runs/", data=flow_run_create_json)
+        flow_run_create_json = flow_run_create.dict(json_compatible=True)
+        response = await self._client.post("/flow_runs/", json=flow_run_create_json)
         flow_run = FlowRun.parse_obj(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
@@ -3614,8 +3593,8 @@ class SyncPrefectClient:
             ),
         )
 
-        flow_run_create_json = flow_run_create.json()
-        response = self._client.post("/flow_runs/", data=flow_run_create_json)
+        flow_run_create_json = flow_run_create.dict(json_compatible=True)
+        response = self._client.post("/flow_runs/", json=flow_run_create_json)
         flow_run = FlowRun.parse_obj(response.json())
 
         # Restore the parameters to the local objects to retain expectations about

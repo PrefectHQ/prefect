@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import time
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -30,7 +30,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext, TagsContext
+from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.logging.handlers import APILogHandler
@@ -486,8 +486,17 @@ class FlowRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a flow run if needed.
         """
+        # try to load the client from the run contexts
+        fr_context = FlowRunContext.get()
+        tr_context = TaskRunContext.get()
+        if fr_context and isinstance(fr_context.client, SyncPrefectClient):
+            client_context = nullcontext(fr_context.client)
+        elif tr_context and isinstance(tr_context.client, SyncPrefectClient):
+            client_context = nullcontext(tr_context.client)
+        else:
+            client_context = get_client(sync_client=True)
 
-        with get_client(sync_client=True) as client:
+        with client_context as client:
             self._client = client
             self._is_started = True
 

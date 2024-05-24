@@ -1,7 +1,7 @@
 import inspect
 import logging
 import time
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -436,7 +436,17 @@ class TaskRunEngine(Generic[P, R]):
         Enters a client context and creates a task run if needed.
         """
 
-        with get_client(sync_client=True) as client:
+        # try to load the client from the run contexts
+        fr_context = FlowRunContext.get()
+        tr_context = TaskRunContext.get()
+        if fr_context and isinstance(fr_context.client, SyncPrefectClient):
+            client_context = nullcontext(fr_context.client)
+        elif tr_context and isinstance(tr_context.client, SyncPrefectClient):
+            client_context = nullcontext(tr_context.client)
+        else:
+            client_context = get_client(sync_client=True)
+
+        with client_context as client:
             self._client = client
             self._is_started = True
             with hydrated_context(self.context, client=client):
