@@ -15,8 +15,8 @@ from prefect.testing.fixtures import (  # noqa: F401
 )
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
 class TestSubmit:
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_with_task(self):
         flow_run_id = None
 
@@ -41,6 +41,7 @@ class TestSubmit:
         )
         assert len(task_runs) == 1
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_with_function(self):
         def func():
             return 42
@@ -50,8 +51,8 @@ class TestSubmit:
             assert future.result() == 42
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
 class TestMap:
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_with_task(self):
         flow_run_id = None
 
@@ -76,6 +77,7 @@ class TestMap:
         )
         assert len(task_runs) == 3
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_with_function(self):
         def func(x):
             return x
