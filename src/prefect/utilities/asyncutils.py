@@ -4,6 +4,7 @@ Utilities for interoperability with async functions and workers from various con
 
 import asyncio
 import inspect
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -25,6 +26,8 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.from_thread
+import anyio.to_thread
 import sniffio
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
@@ -43,6 +46,9 @@ EVENT_LOOP_GC_REFS = {}
 PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
 RUN_ASYNC_FLAG = ContextVar("run_async", default=False)
+
+# Thread-local storage to keep track of worker thread state
+_thread_local = threading.local()
 
 logger = get_logger()
 
@@ -136,7 +142,7 @@ async def run_sync_in_worker_thread(
 ) -> T:
     """
     Runs a sync function in a new worker thread so that the main thread's event loop
-    is not blocked
+    is not blocked.
 
     Unlike the anyio function, this defaults to a cancellable thread and does not allow
     passing arguments to the anyio function so users can pass kwargs to their function.
@@ -145,9 +151,15 @@ async def run_sync_in_worker_thread(
     thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    return await anyio.to_thread.run_sync(
-        call, cancellable=True, limiter=get_thread_limiter()
+    result = await anyio.to_thread.run_sync(
+        call_with_mark, call, cancellable=True, limiter=get_thread_limiter()
     )
+    return result
+
+
+def call_with_mark(call):
+    mark_as_worker_thread()
+    return call()
 
 
 def run_async_from_worker_thread(
@@ -165,13 +177,12 @@ def run_async_in_new_loop(__fn: Callable[..., Awaitable[T]], *args: Any, **kwarg
     return anyio.run(partial(__fn, *args, **kwargs))
 
 
+def mark_as_worker_thread():
+    _thread_local.is_worker_thread = True
+
+
 def in_async_worker_thread() -> bool:
-    try:
-        anyio.from_thread.threadlocals.current_async_module
-    except AttributeError:
-        return False
-    else:
-        return True
+    return getattr(_thread_local, "is_worker_thread", False)
 
 
 def in_async_main_thread() -> bool:
