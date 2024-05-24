@@ -198,7 +198,10 @@ async def exception_to_failed_state(
     #       excluded from messages for now
     message = existing_message + format_exception(exc)
 
-    return Failed(data=data, message=message, **kwargs)
+    state = Failed(data=data, message=message, **kwargs)
+    state.state_details.retriable = False
+
+    return state
 
 
 async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:

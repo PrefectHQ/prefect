@@ -1404,7 +1404,8 @@ async def _check_task_failure_retriable(
 
 
 async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
-    """Create a task run in the API for an autonomous task submission and store
+    """
+    Create a task run in the API for an autonomous task submission and store
     the provided parameters using the existing result storage mechanism.
     """
     async with get_client() as client:
