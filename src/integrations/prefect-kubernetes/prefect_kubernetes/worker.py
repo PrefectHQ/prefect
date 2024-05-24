@@ -992,7 +992,7 @@ class KubernetesWorker(BaseWorker):
             )
 
             try:
-                async for log in logs.stream():
+                async for log in logs.content:
                     print(log.decode().rstrip())
 
                     # Check if we have passed the deadline and should stop streaming

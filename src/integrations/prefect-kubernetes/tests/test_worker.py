@@ -2284,7 +2284,7 @@ class TestKubernetesWorker:
 
         assert result.status_code == 1
 
-        mock_watch.return_value.stream.assert_has_calls(
+        mock_watch.stream.assert_has_calls(
             [
                 mock.call(
                     func=mock_core_client.return_value.list_namespaced_pod,
