@@ -73,6 +73,7 @@ from pydantic import (
     create_model,
     field_validator,
     fields,
+    model_validator,
 )
 from pydantic_settings import BaseSettings
 from typing_extensions import Literal
@@ -1782,20 +1783,20 @@ class Settings(SettingsFieldsMixin):
         logging._checkLevel(value)
         return value
 
-    # @model_validator(mode="before")
-    # @classmethod
-    # def post_root_validators(cls, values):
-    #     """
-    #     Add root validation functions for settings here.
-    #     """
-    #     # TODO: We could probably register these dynamically but this is the simpler
-    #     #       approach for now. We can explore more interesting validation features
-    #     #       in the future.
-    #     values = max_log_size_smaller_than_batch_size(values)
-    #     values = warn_on_database_password_value_without_usage(values)
-    #     if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
-    #         values = warn_on_misconfigured_api_url(values)
-    #     return values
+    @model_validator(mode="after")
+    def emit_warnings(self):
+        """
+        Add root validation functions for settings here.
+        """
+        # TODO: We could probably register these dynamically but this is the simpler
+        #       approach for now. We can explore more interesting validation features
+        #       in the future.
+        values = self.model_dump()
+        values = max_log_size_smaller_than_batch_size(values)
+        values = warn_on_database_password_value_without_usage(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
+        return self
 
     def copy_with_update(
         self,
