@@ -19,7 +19,7 @@ import prefect
 from prefect import flow
 from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas import State, StateDetails, StateType
+from prefect.client.schemas import State
 from prefect.exceptions import InfrastructureNotAvailable
 from prefect.server import models
 from prefect.server.schemas.actions import (
