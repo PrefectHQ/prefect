@@ -186,7 +186,7 @@ class TestCreateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestReadVariable:
@@ -582,7 +582,7 @@ class TestUpdateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestUpdateVariableByName:
@@ -712,7 +712,7 @@ class TestUpdateVariableByName:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestDeleteVariable:

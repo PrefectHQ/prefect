@@ -1048,7 +1048,8 @@ class VariableCreate(ActionBaseModel):
 
         if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
             raise ValueError(
-                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+                f"value must have at most {schemas.core.MAX_VARIABLE_VALUE_LENGTH} "
+                "characters when serialized."
             )
 
         return v
@@ -1084,7 +1085,8 @@ class VariableUpdate(ActionBaseModel):
 
         if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
             raise ValueError(
-                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+                f"value must have at most {schemas.core.MAX_VARIABLE_VALUE_LENGTH} "
+                "characters when serialized."
             )
 
         return v

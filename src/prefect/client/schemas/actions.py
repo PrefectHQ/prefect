@@ -762,7 +762,8 @@ class VariableCreate(ActionBaseModel):
 
         if len(json_string) > objects.MAX_VARIABLE_VALUE_LENGTH:
             raise ValueError(
-                f"value must less than {objects.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+                f"value must have at most {objects.MAX_VARIABLE_VALUE_LENGTH} "
+                "characters when serialized."
             )
 
         return v
@@ -798,7 +799,8 @@ class VariableUpdate(ActionBaseModel):
 
         if len(json_string) > objects.MAX_VARIABLE_VALUE_LENGTH:
             raise ValueError(
-                f"value must less than {objects.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
+                f"value must have at most {objects.MAX_VARIABLE_VALUE_LENGTH} "
+                "characters when serialized."
             )
 
         return v
