@@ -617,7 +617,7 @@ async def load_automations(db: PrefectDBInterface, session: AsyncSession):
 
     result = await session.execute(query)
     for automation in result.scalars().all():
-        load_automation(Automation.model_validate(automation), from_attributes=True)
+        load_automation(Automation.model_validate(automation, from_attributes=True))
 
     logger.debug(
         "Loaded %s automations with %s triggers", len(automations_by_id), len(triggers)

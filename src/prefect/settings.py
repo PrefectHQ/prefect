@@ -65,6 +65,7 @@ from typing import (
 )
 from urllib.parse import urlparse
 
+import pydantic
 import toml
 from pydantic import (
     BaseModel,
@@ -1844,7 +1845,11 @@ class Settings(SettingsFieldsMixin):
         )
         # Ensure that settings that have not been marked as "set" before are still so
         # after we have updated their value above
-        settings.__fields_set__.intersection_update(self.__fields_set__)
+        with warnings.catch_warnings():
+            warnings.simplefilter(
+                "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+            )
+            settings.__fields_set__.intersection_update(self.__fields_set__)
         return settings
 
     def hash_key(self) -> str:

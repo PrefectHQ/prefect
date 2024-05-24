@@ -35,7 +35,7 @@ async def create_agent(
 
     """
 
-    model = orm_models.Agent(**agent.dict())
+    model = orm_models.Agent(**agent.model_dump())
     session.add(model)
     await session.flush()
 

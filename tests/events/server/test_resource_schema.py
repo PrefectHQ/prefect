@@ -270,7 +270,7 @@ def test_resources_export_to_simple_dicts(resource_class: Type[Resource]) -> Non
             "goodbye": "moon",
         }
     )
-    assert json.loads(resource.json()) == {
+    assert json.loads(resource.model_dump_json()) == {
         "prefect.resource.id": "my.unique.resource",
         "prefect.resource.role": "any-role",
         "hello": "world",

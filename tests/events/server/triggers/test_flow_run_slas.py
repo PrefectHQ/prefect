@@ -1,6 +1,5 @@
-import unittest.mock
 from datetime import timedelta
-from typing import List, Union, cast
+from typing import Callable, List, Union, cast
 from unittest import mock
 from uuid import uuid4
 
@@ -185,6 +184,7 @@ async def test_only_the_stuck_flow_triggers(
     stuck_flow_runs_sla: EventTrigger,
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: pendulum.DateTime,
 ):
     for event in received_events:
@@ -211,9 +211,8 @@ async def test_only_the_stuck_flow_triggers(
 
     # Now it's been long enough for the SLA to fire, since it started running
     # at T=4 and now it's T=64
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=stuck_flow_runs_sla,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
@@ -221,7 +220,7 @@ async def test_only_the_stuck_flow_triggers(
             triggering_labels={"prefect.resource.id": "prefect.flow-run.SLOWBOI"},
             # The triggering event is the last event, because the `posture` is `Proactive`
             triggering_event=last_event,
-        )
+        ),
     )
 
 
@@ -265,6 +264,7 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
     stuck_flow_runs_sla_with_wildcard_expect: EventTrigger,
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: pendulum.DateTime,
 ):
     """Regression test for observed failures to trigger proactive automations when
@@ -295,9 +295,8 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
 
     # Now it's been long enough for the SLA to fire, since it started running
     # at T=4 and now it's T=64
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=stuck_flow_runs_sla_with_wildcard_expect,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
@@ -306,7 +305,7 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
             # The triggering event is the last event, because the `posture` is `Proactive`
             triggering_event=last_event,
             triggering_value=None,
-        )
+        ),
     )
 
 
@@ -346,6 +345,7 @@ async def test_react_only_to_scheduled_flows_completing(
     only_scheduled_run_notifications: EventTrigger,
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: pendulum.DateTime,
 ):
     for event in received_events:
@@ -355,15 +355,14 @@ async def test_react_only_to_scheduled_flows_completing(
     expected_triggering_event = received_events[6]
     assert expected_triggering_event.resource.id == "prefect.flow-run.FASTBOI-1"
     assert expected_triggering_event.event == "prefect.flow-run.completed"
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=only_scheduled_run_notifications,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={"prefect.resource.id": "prefect.flow-run.FASTBOI-1"},
             triggering_event=expected_triggering_event,
-        )
+        ),
     )
 
 

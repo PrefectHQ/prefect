@@ -289,7 +289,7 @@ class RunContext(ContextModel):
     client: Union[PrefectClient, SyncPrefectClient]
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={"start_time", "input_keyset"},
             exclude_unset=True,
         )
@@ -352,7 +352,7 @@ class EngineContext(RunContext):
     __var__: ContextVar = ContextVar("flow_run")
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={
                 "flow_run",
                 "flow",
@@ -389,7 +389,7 @@ class TaskRunContext(RunContext):
     __var__ = ContextVar("task_run")
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={
                 "task_run",
                 "task",

@@ -53,8 +53,8 @@ def test_stream_events_in(
 ):
     websocket: WebSocketTestSession
     with test_client.websocket_connect("/api/events/in") as websocket:
-        websocket.send_text(event1.json())
-        websocket.send_text(event2.json())
+        websocket.send_text(event1.model_dump_json())
+        websocket.send_text(event2.model_dump_json())
 
     server_events = [
         event1.receive(received=frozen_time),

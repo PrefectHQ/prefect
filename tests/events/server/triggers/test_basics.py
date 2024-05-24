@@ -1,6 +1,6 @@
 import unittest.mock
 from datetime import timedelta
-from typing import List, Optional
+from typing import Callable, List, Optional, Union
 from unittest import mock
 from uuid import uuid4
 
@@ -144,18 +144,18 @@ async def test_reactive_automation_triggers_can_trigger_immediately(
     arachnophobia: Automation,
     daddy_long_legs_walked: ReceivedEvent,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     await triggers.reactive_evaluation(daddy_long_legs_walked)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=arachnophobia.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=daddy_long_legs_walked,
-        )
+        ),
     )
 
     act.reset_mock()
@@ -164,15 +164,14 @@ async def test_reactive_automation_triggers_can_trigger_immediately(
     daddy_long_legs_walked.occurred += timedelta(seconds=10, microseconds=1)
 
     await triggers.reactive_evaluation(daddy_long_legs_walked)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=arachnophobia.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=daddy_long_legs_walked,
-        )
+        ),
     )
 
 
@@ -181,6 +180,7 @@ async def test_reactive_automation_triggers_only_on_expected_events(
     arachnophobia: Automation,
     daddy_long_legs_walked: ReceivedEvent,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2776, where
@@ -199,15 +199,14 @@ async def test_reactive_automation_triggers_only_on_expected_events(
     daddy_long_legs_walked.event = "animal.walked"
 
     await triggers.reactive_evaluation(daddy_long_legs_walked)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=arachnophobia.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=daddy_long_legs_walked,
-        )
+        ),
     )
 
 
@@ -216,6 +215,7 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
     chonk_party: Automation,
     woodchonk_walked: ReceivedEvent,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     await triggers.reactive_evaluation(woodchonk_walked)
@@ -229,15 +229,14 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
 
     woodchonk_walked.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_walked)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=chonk_party.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=woodchonk_walked,
-        )
+        ),
     )
     act.reset_mock()
 
@@ -263,15 +262,14 @@ async def test_reactive_automation_triggers_as_soon_as_it_can(
 
     woodchonk_walked.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_walked)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=chonk_party.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=woodchonk_walked,
-        )
+        ),
     )
 
 
@@ -279,6 +277,7 @@ async def test_reactive_automation_does_not_trigger_if_threshold_not_met(
     effective_automations,
     woodchonk_walked: ReceivedEvent,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
 ):
     await triggers.reactive_evaluation(woodchonk_walked)
     act.assert_not_awaited()
@@ -299,6 +298,7 @@ async def test_reactive_automation_triggers_immediately_even_if_event_matches_af
     woodchonk_table_for_one: ReceivedEvent,
     chonk_lonely: Automation,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/3091"""
@@ -320,15 +320,14 @@ async def test_reactive_automation_triggers_immediately_even_if_event_matches_af
     # actually receive expected events. We should trigger after seeing 3 of them.
     woodchonk_table_for_one.occurred += timedelta(seconds=500)
     await triggers.reactive_evaluation(woodchonk_table_for_one)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=chonk_lonely.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
             triggering_event=woodchonk_table_for_one,
-        )
+        ),
     )
 
 
@@ -339,6 +338,7 @@ async def test_reactive_automation_triggers_for_each_related_label(
     woodchonk_nibbled: ReceivedEvent,
     woodchonk_gobbled: ReceivedEvent,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     """Test that we can create an automation that is tracked separate for each value
@@ -380,9 +380,8 @@ async def test_reactive_automation_triggers_for_each_related_label(
     woodchonk_nibbled.id = uuid4()
     woodchonk_nibbled.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_nibbled)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
@@ -391,7 +390,7 @@ async def test_reactive_automation_triggers_for_each_related_label(
                 "related:meal:species": "fulva",
             },
             triggering_event=woodchonk_nibbled,
-        )
+        ),
     )
     act.reset_mock()
 
@@ -403,9 +402,8 @@ async def test_reactive_automation_triggers_for_each_related_label(
     woodchonk_gobbled.id = uuid4()
     woodchonk_gobbled.occurred += timedelta(seconds=1)
     await triggers.reactive_evaluation(woodchonk_gobbled)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
@@ -414,7 +412,7 @@ async def test_reactive_automation_triggers_for_each_related_label(
                 "related:meal:species": "cucullaria",
             },
             triggering_event=woodchonk_gobbled,
-        )
+        ),
     )
 
 
@@ -423,6 +421,7 @@ async def test_proactive_trigger_fires_after_time_expires(
     chonk_sadness: Automation,
     start_of_test: DateTime,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     async def run_proactive_evaluation(automations: List[Automation], as_of: DateTime):
@@ -449,14 +448,14 @@ async def test_proactive_trigger_fires_after_time_expires(
         effective_automations,
         start_of_test + timedelta(seconds=30),
     )
-    act.assert_awaited_with(
-        Firing.model_construct(
+    assert_acted_with(
+        Firing(
             id=unittest.mock.ANY,
             trigger=chonk_sadness.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
-        )
+        ),
     )
     act.reset_mock()
 
@@ -472,14 +471,13 @@ async def test_proactive_trigger_fires_after_time_expires(
         effective_automations,
         start_of_test + timedelta(seconds=60),
     )
-    act.assert_awaited_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=chonk_sadness.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={},
-        )
+        ),
     )
 
 
@@ -489,6 +487,7 @@ async def test_reactive_triggers_clean_up_after_themselves_if_they_do_fire(
     automations_session: AsyncSession,
     start_of_test: DateTime,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2935, where
     expired buckets were left in the DB by Reactive automations"""
@@ -606,6 +605,7 @@ async def test_follower_messages_are_processed_when_leaders_arrive(
     automations_session: AsyncSession,
     start_of_test: DateTime,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     automation = await automations.create_automation(
@@ -667,15 +667,14 @@ async def test_follower_messages_are_processed_when_leaders_arrive(
     assert await triggers.get_followers(running) == [failed]
 
     await triggers.reactive_evaluation(running)
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             triggering_event=failed,  # we reacted due to the Failed event, not Running
-        )
+        ),
     )
 
     # The follower should have been removed
@@ -688,6 +687,7 @@ async def test_old_follower_messages_are_processed_immediately(
     automations_session: AsyncSession,
     start_of_test: DateTime,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
 ):
     automation = await automations.create_automation(
@@ -745,15 +745,14 @@ async def test_old_follower_messages_are_processed_immediately(
     await triggers.reactive_evaluation(failed)
     # Failed is the event we want, and the message is so late that we'll just need to
     # process it out of order
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
             triggering_labels={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             triggering_event=failed,
-        )
+        ),
     )
 
     await triggers.reactive_evaluation(running)
@@ -765,6 +764,7 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
     automations_session: AsyncSession,
     start_of_test: DateTime,
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
 ):
     automation = await automations.create_automation(
         automations_session,
@@ -863,15 +863,14 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
         the_future.return_value = base_date + timedelta(minutes=20)
         await triggers.periodic_evaluation(base_date + timedelta(minutes=20))
 
-    act.assert_awaited_once_with(
-        Firing.model_construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=automation.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=the_future.return_value,
             triggering_labels={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             triggering_event=failed,
-        )
+        ),
     )
 
     # The followers should have been removed

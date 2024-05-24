@@ -2344,7 +2344,7 @@ class TestTypeDispatch:
         await block.save("test")
         new_block = await block.load("test")
         assert_blocks_equal(block, new_block)
-        assert new_block.__fields_set__
+        assert new_block.model_fields_set
 
     def test_created_block_fields_set(self):
         expected = {"base", "block_type_slug", "a"}

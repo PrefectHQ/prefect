@@ -105,7 +105,7 @@ async def create_work_pool(
     work_pool = await server_models.workers.create_work_pool(
         session=session,
         work_pool=server_schemas.actions.WorkPoolCreate.model_construct(
-            _fields_set=server_schemas.actions.WorkPoolCreate.__fields_set__,
+            _fields_set=server_schemas.actions.WorkPoolCreate.model_fields_set,
             name="wp-1",
             type=type,
             description="None",
