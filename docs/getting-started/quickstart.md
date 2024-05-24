@@ -22,7 +22,7 @@ Let's get started!
 
 Here's a basic script that fetches statistics about the [main Prefect GitHub repository](https://github.com/PrefectHQ/prefect).
 
-```python
+```python title="my_gh_workflow.py"
 import httpx
 
 def get_repo_info():
