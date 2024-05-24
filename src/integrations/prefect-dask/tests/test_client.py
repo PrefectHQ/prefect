@@ -17,7 +17,6 @@ from prefect.testing.fixtures import (  # noqa: F401
 pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
 
 
-@pytest.mark.usefixtures("use_hosted_api_server")
 class TestSubmit:
     async def test_with_task(self):
         flow_run_id = None
