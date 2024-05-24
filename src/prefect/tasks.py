@@ -67,6 +67,8 @@ T = TypeVar("T")  # Generic type var for capturing the inner return type of asyn
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
+NUM_CHARS_DYNAMIC_KEY = 8
+
 logger = get_logger("tasks")
 
 
@@ -519,49 +521,6 @@ class Task(Generic[P, R]):
         self.on_failure_hooks.append(fn)
         return fn
 
-    async def create_autonomous_run(
-        self,
-        client: Union["PrefectClient", "SyncPrefectClient"],
-        id: Optional[UUID] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-    ) -> TaskRun:
-        """
-        Create a task run in the API for an autonomous task submission and store
-        the provided parameters using result storage.
-        """
-        from prefect.engine import NUM_CHARS_DYNAMIC_KEY
-
-        state = Scheduled()
-
-        if parameters:
-            parameters_id = uuid4()
-            state.state_details.task_parameters_id = parameters_id
-
-            # TODO: Improve use of result storage for parameter storage / reference
-            self.persist_result = True
-
-            factory = await ResultFactory.from_autonomous_task(self, client=client)
-            await factory.store_parameters(parameters_id, parameters)
-
-        dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
-        task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
-        t: Task = self  # Make mypy happy for create_task_run call
-
-        task_run = client.create_task_run(
-            task=t,
-            name=task_run_name,
-            id=id,
-            flow_run_id=None,
-            dynamic_key=dynamic_key,
-            state=state,
-        )
-        if inspect.isawaitable(task_run):
-            task_run = await task_run
-
-        logger.debug(f"Submitted run of task {self.name!r} for execution")
-
-        return task_run
-
     async def create_run(
         self,
         client: Union["PrefectClient", "SyncPrefectClient"],
@@ -584,11 +543,28 @@ class Task(Generic[P, R]):
         if parameters is None:
             parameters = {}
 
-        if not flow_run_context:
-            return await self.create_autonomous_run(client, id, parameters)
+        is_autonomous_task = not flow_run_context
 
-        dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
-        task_run_name = f"{self.name}-{dynamic_key}"
+        if is_autonomous_task:
+            dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
+            task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
+            state = Scheduled()
+        else:
+            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
+            task_run_name = f"{self.name}-{dynamic_key}"
+            state = Pending()
+
+        # store parameters for autonomous tasks so that task servers
+        # can retrieve them at runtime
+        if is_autonomous_task and parameters:
+            parameters_id = uuid4()
+            state.state_details.task_parameters_id = parameters_id
+
+            # TODO: Improve use of result storage for parameter storage / reference
+            self.persist_result = True
+
+            factory = await ResultFactory.from_autonomous_task(self, client=client)
+            await factory.store_parameters(parameters_id, parameters)
 
         # collect task inputs
         task_inputs = {
@@ -634,7 +610,7 @@ class Task(Generic[P, R]):
             ),
             dynamic_key=str(dynamic_key),
             id=id,
-            state=Pending(),
+            state=state,
             task_inputs=task_inputs,
             extra_tags=TagsContext.get().current_tags,
         )
