@@ -2,7 +2,7 @@ import abc
 import json
 import warnings
 from textwrap import dedent
-from typing import Dict, Type, Union
+from typing import Dict, List, Type, Union
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
@@ -2582,7 +2582,7 @@ class SecretBlock(Block):
     w: SecretDict
     x: SecretStr
     y: SecretBytes
-    z: list[Union[str, int, float]]
+    z: List[Union[str, int, float]]
 
 
 class TestDumpSecrets:

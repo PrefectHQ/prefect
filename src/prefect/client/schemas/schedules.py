@@ -17,7 +17,6 @@ from prefect._internal.schemas.validators import (
     default_timezone,
     validate_cron_string,
     validate_rrule_string,
-    validate_rrule_timezone,
 )
 from prefect.types import PositiveDuration
 
@@ -143,7 +142,9 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: Optional[str] = Field(
+        default="UTC", examples=["America/New_York"], validate_default=True
+    )
 
     @field_validator("rrule")
     @classmethod
@@ -255,7 +256,24 @@ class RRuleSchedule(PrefectBaseModel):
 
     @field_validator("timezone")
     def valid_timezone(cls, v):
-        return validate_rrule_timezone(v)
+        """
+        Validate that the provided timezone is a valid IANA timezone.
+
+        Unfortunately this list is slightly different from the list of valid
+        timezones in pendulum that we use for cron and interval timezone validation.
+        """
+        from prefect._internal.pytz import HAS_PYTZ
+
+        if HAS_PYTZ:
+            import pytz
+        else:
+            from prefect._internal import pytz
+
+        if v and v not in pytz.all_timezones_set:
+            raise ValueError(f'Invalid timezone: "{v}"')
+        elif v is None:
+            return "UTC"
+        return v
 
 
 class NoSchedule(PrefectBaseModel):

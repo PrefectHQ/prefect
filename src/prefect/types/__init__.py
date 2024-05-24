@@ -98,8 +98,8 @@ NonEmptyishName = Annotated[
 VariableValue = Union[
     StrictStr,
     StrictInt,
-    StrictFloat,
     StrictBool,
+    StrictFloat,
     None,
     Dict[str, Any],
     List[Any],
