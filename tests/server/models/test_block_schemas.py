@@ -90,7 +90,6 @@ class TestCreateBlockSchema:
         )
         assert nested_block_schema is not None
         assert nested_block_schema.fields == {
-            "additionalProperties": True,
             "block_schema_references": {},
             "block_type_slug": "y",
             "properties": {
@@ -147,7 +146,6 @@ class TestCreateBlockSchema:
         )
         assert nested_block_schema is not None
         assert nested_block_schema.fields == {
-            "additionalProperties": True,
             "block_schema_references": {},
             "block_type_slug": "a",
             "properties": {
@@ -208,7 +206,6 @@ class TestCreateBlockSchema:
         )
         assert nested_block_schema_a is not None
         assert nested_block_schema_a.fields == {
-            "additionalProperties": True,
             "block_schema_references": {},
             "block_type_slug": "a",
             "properties": {

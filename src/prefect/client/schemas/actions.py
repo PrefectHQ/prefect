@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
+import orjson
 from pydantic import Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 
@@ -18,7 +19,11 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
 )
-from prefect.client.schemas.objects import StateDetails, StateType
+from prefect.client.schemas.objects import (
+    STRICT_VARIABLE_TYPES,
+    StateDetails,
+    StateType,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
@@ -740,13 +745,28 @@ class VariableCreate(ActionBaseModel):
         examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=objects.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)
+
+    @field_validator("value", mode="after")
+    @classmethod
+    def validate_value(cls, v):
+        try:
+            json_string = orjson.dumps(v)
+        except orjson.JSONDecodeError:
+            raise ValueError("Variable value must be serializable to JSON.")
+
+        if len(json_string) > objects.MAX_VARIABLE_VALUE_LENGTH:
+            raise ValueError(
+                f"value must have at most {objects.MAX_VARIABLE_VALUE_LENGTH} "
+                "characters when serialized."
+            )
+
+        return v
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)
@@ -761,13 +781,29 @@ class VariableUpdate(ActionBaseModel):
         examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Optional[str] = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)
+
+    @field_validator("value", mode="after")
+    @classmethod
+    def validate_value(cls, v):
+        try:
+            json_string = orjson.dumps(v)
+        except orjson.JSONDecodeError:
+            raise ValueError("Variable value must be serializable to JSON.")
+
+        if len(json_string) > objects.MAX_VARIABLE_VALUE_LENGTH:
+            raise ValueError(
+                f"value must have at most {objects.MAX_VARIABLE_VALUE_LENGTH} "
+                "characters when serialized."
+            )
+
+        return v
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)

@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import Any, List
 
 import pytest
 from httpx import AsyncClient
@@ -13,7 +13,6 @@ from prefect.server.schemas.filters import (
     VariableFilterId,
     VariableFilterName,
     VariableFilterTags,
-    VariableFilterValue,
 )
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -75,6 +74,41 @@ class TestCreateVariable:
         assert res["tags"] == variable.tags
 
     @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_create_variable_json_types(
+        self,
+        client: AsyncClient,
+        value: Any,
+    ):
+        response = await client.post(
+            "/variables/",
+            json={"name": "my_variable", "value": value},
+        )
+
+        assert response
+        assert response.status_code == 201
+
+        res = response.json()
+        assert res["id"]
+        assert res["created"]
+        assert res["updated"]
+
+        assert res["value"] == value
+
+    @pytest.mark.parametrize(
         "variable_name", ["MY_VARIABLE", "my variable", "my-variable", "!@#$%"]
     )
     async def test_name_constraints(
@@ -133,7 +167,9 @@ class TestCreateVariable:
         self,
         client: AsyncClient,
     ):
-        max_length = 5000
+        max_length = (
+            5000 - 2
+        )  # 2 characters are reserved for the quotes when serializing
 
         res = await client.post(
             "/variables/",
@@ -150,7 +186,7 @@ class TestCreateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestReadVariable:
@@ -259,39 +295,6 @@ class TestReadVariables:
         res = parse_obj_as(List[core.Variable], res.json())
         assert len(res) == 2
         assert {v.id for v in res} == {v.id for v in variables if "variable1" in v.name}
-
-    async def test_filter_value(
-        self,
-        client: AsyncClient,
-        variables,
-    ):
-        # any filter
-        res = await client.post(
-            "/variables/filter",
-            json=dict(
-                variables=VariableFilter(
-                    value=VariableFilterValue(any_=["value1"])
-                ).model_dump(mode="json")
-            ),
-        )
-        assert res.status_code == 200
-        res = parse_obj_as(List[core.Variable], res.json())
-        assert len(res) == 1
-        assert {v.id for v in res} == {v.id for v in variables if v.value == "value1"}
-
-        # like filter
-        res = await client.post(
-            "/variables/filter",
-            json=dict(
-                variables=VariableFilter(
-                    value=VariableFilterValue(like_="value1%")
-                ).model_dump(mode="json")
-            ),
-        )
-        assert res.status_code == 200
-        res = parse_obj_as(List[core.Variable], res.json())
-        assert len(res) == 2
-        assert {v.id for v in res} == {v.id for v in variables if "value1" in v.value}
 
     async def test_filter_id(
         self,
@@ -416,35 +419,6 @@ class TestCountVariables:
         assert res.status_code == 200
         assert res.json() == 2
 
-    async def test_filter_value(
-        self,
-        client: AsyncClient,
-        variables,
-    ):
-        # any filter
-        res = await client.post(
-            "/variables/count",
-            json=dict(
-                variables=VariableFilter(
-                    value=VariableFilterValue(any_=["value1"])
-                ).model_dump(mode="json")
-            ),
-        )
-        assert res.status_code == 200
-        assert res.json() == 1
-
-        # like filter
-        res = await client.post(
-            "/variables/count",
-            json=dict(
-                variables=VariableFilter(
-                    value=VariableFilterValue(like_="value1%")
-                ).model_dump(mode="json")
-            ),
-        )
-        assert res.status_code == 200
-        assert res.json() == 2
-
     async def test_filter_id(
         self,
         client: AsyncClient,
@@ -504,6 +478,40 @@ class TestUpdateVariable:
         assert res.value == update.value
         assert res.tags == update.tags
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_update_variable_json_types(
+        self,
+        client: AsyncClient,
+        variable,
+        value: Any,
+    ):
+        response = await client.patch(
+            f"/variables/{variable.id}",
+            json={"value": value},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/variables/{variable.id}",
+        )
+        assert response.status_code == 200
+        res = response.json()
+        assert res["value"] == value
+
     async def test_does_not_exist(
         self,
         client: AsyncClient,
@@ -557,7 +565,9 @@ class TestUpdateVariable:
         client: AsyncClient,
         variable,
     ):
-        max_length = 5000
+        max_length = (
+            5000 - 2
+        )  # 2 characters are reserved for the quotes when serializing
 
         res = await client.patch(
             f"/variables/{variable.id}", json={"value": "v" * max_length}
@@ -572,7 +582,7 @@ class TestUpdateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestUpdateVariableByName:
@@ -598,6 +608,40 @@ class TestUpdateVariableByName:
         assert res.name == update.name
         assert res.value == update.value
         assert res.tags == update.tags
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_update_variable_json_types(
+        self,
+        client: AsyncClient,
+        variable,
+        value: Any,
+    ):
+        response = await client.patch(
+            f"/variables/name/{variable.name}",
+            json={"value": value},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/variables/{variable.id}",
+        )
+        assert response.status_code == 200
+        res = response.json()
+        assert res["value"] == value
 
     async def test_does_not_exist(
         self,
@@ -651,7 +695,9 @@ class TestUpdateVariableByName:
         client: AsyncClient,
         variable,
     ):
-        max_length = 5000
+        max_length = (
+            5000 - 2
+        )  # 2 characters are reserved for the quotes when serializing
 
         res = await client.patch(
             f"/variables/name/{variable.name}", json={"value": "v" * max_length}
@@ -666,7 +712,7 @@ class TestUpdateVariableByName:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
 
 
 class TestDeleteVariable:

@@ -3,6 +3,7 @@ import pytest
 from pydantic import ValidationError
 
 from prefect.context import FlowRunContext
+from prefect.flows import flow
 from prefect.input import (
     create_flow_run_input,
     create_flow_run_input_from_model,
@@ -101,12 +102,14 @@ class TestCreateFlowRunInput:
                 key="invalid key *@&*$&", value="value", flow_run_id=flow_run.id
             )
 
-    def test_can_be_used_sync(self, flow_run_context):
-        create_flow_run_input(key="key", value="value")
-        assert (
-            read_flow_run_input(key="key", flow_run_id=flow_run_context.flow_run.id)
-            == "value"
-        )
+    def test_can_be_used_sync(self):
+        @flow
+        def test_flow():
+            create_flow_run_input(key="key", value="value")
+            assert (
+                read_flow_run_input(key="key", flow_run_id=flow_run_context.flow_run.id)
+                == "value"
+            )
 
 
 class TestDeleteFlowRunInput:

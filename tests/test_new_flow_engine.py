@@ -28,23 +28,12 @@ from prefect.new_flow_engine import (
     run_flow_sync,
 )
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE, temporary_settings
 from prefect.utilities.callables import get_call_parameters
-
-
-@pytest.fixture(autouse=True)
-def set_new_engine_setting():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: True}):
-        yield
 
 
 @flow
 async def foo():
     return 42
-
-
-async def test_setting_is_set():
-    assert PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value() is True
 
 
 class TestFlowRunEngine:
