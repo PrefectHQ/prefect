@@ -20,7 +20,10 @@ from prefect._internal.schemas.validators import (
     validate_schedule_max_scheduled_runs,
     validate_variable_name,
 )
-from prefect.client.schemas.objects import StateDetails, StateType
+from prefect.client.schemas.objects import (
+    StateDetails,
+    StateType,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (

@@ -81,6 +81,13 @@ def non_emptyish(value: str) -> str:
     return value
 
 
+NonEmptyishName = Annotated[
+    str,
+    Field(pattern=WITHOUT_BANNED_CHARACTERS),
+    BeforeValidator(non_emptyish),
+]
+
+
 MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
@@ -91,18 +98,15 @@ def check_variable_value(value: VariableType) -> VariableType:
                 f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
             )
 
+        # TODO: replicate StrictXXX types with pydantic's Field
+        # strict typing to use inside a pydantic object, to avoid
+        # casting values to undesired types (e.g. 123 -> "123")
         if not isinstance(value, (str, float, bool, int, dict, list)):
             raise ValueError(
                 f"Variable type must be one of str, float, bool, int, dict, or list, not {type(value)}"
             )
     return value
 
-
-NonEmptyishName = Annotated[
-    str,
-    Field(pattern=WITHOUT_BANNED_CHARACTERS),
-    BeforeValidator(non_emptyish),
-]
 
 StrictVariableType = Annotated[VariableType, BeforeValidator(check_variable_value)]
 
