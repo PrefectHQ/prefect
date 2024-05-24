@@ -1228,7 +1228,7 @@ class ArtifactCollection(ORMBaseModel):
 # strict typing to use inside a pydantic object, to avoid
 # casting values to undesired types (e.g. 123 -> "123")
 STRICT_VARIABLE_TYPES: TypeAlias = Union[
-    StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+    StrictStr, StrictInt, StrictBool, StrictFloat, None, Dict[str, Any], List[Any]
 ]
 VARIABLE_TYPES: TypeAlias = Union[
     str, int, float, bool, None, Dict[str, Any], List[Any]
