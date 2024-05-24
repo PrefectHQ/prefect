@@ -82,6 +82,8 @@ class KubernetesEventsReplicator:
         last_event = None
 
         core_client = kubernetes_asyncio.client.CoreV1Api(api_client=self._client)
+
+        print(self._watch)
         async for event in self._watch.stream(
             func=core_client.list_namespaced_pod,
             namespace=self._namespace,
@@ -102,6 +104,7 @@ class KubernetesEventsReplicator:
         last_event: Optional[Event] = None,
     ) -> Event:
         """Emit a Prefect event for a Kubernetes pod event."""
+        print(pod_event)
         pod_event_type = pod_event["type"]
         pod: "V1Pod" = pod_event["object"]
         pod_phase = pod.status.phase

@@ -119,7 +119,7 @@ from typing import (
     Tuple,
     Union,
 )
-
+from asyncio import get_running_loop
 import anyio.abc
 from pydantic import VERSION as PYDANTIC_VERSION
 
@@ -598,7 +598,7 @@ class KubernetesWorker(BaseWorker):
                 final state of the flow run
         """
         logger = self.get_flow_run_logger(flow_run)
-     
+
         async with self._get_configured_kubernetes_client(configuration) as client:
             logger.info("Creating Kubernetes job...")
 
@@ -957,6 +957,8 @@ class KubernetesWorker(BaseWorker):
 
         Return the final status code of the first container.
         """
+        
+        
         logger.debug(f"Job {job_name!r}: Monitoring job...")
 
         job = await self._get_job(logger, job_name, configuration, client)
@@ -966,10 +968,12 @@ class KubernetesWorker(BaseWorker):
         pod = await self._get_job_pod(logger, job_name, configuration, client)
         if not pod:
             return -1
-
+        
+        
+        loop = get_running_loop()
         # Calculate the deadline before streaming output
         deadline = (
-            (time.monotonic() + configuration.job_watch_timeout_seconds)
+            (loop.time() + configuration.job_watch_timeout_seconds)
             if configuration.job_watch_timeout_seconds is not None
             else None
         )
@@ -983,16 +987,20 @@ class KubernetesWorker(BaseWorker):
                 _preload_content=False,
                 container="prefect-job",
             )
+            
             try:
+                
                 while True:
                     line = await logs.content.readline()
                     if not line:
                         break
                     print(line.decode("utf-8"), end="")
-
+                    
                     # Check if we have passed the deadline and should stop streaming
                     # logs
-                    remaining_time = deadline - time.monotonic() if deadline else None
+                  
+                    remaining_time = deadline - loop.time() if deadline else None
+                    print("remaining time",remaining_time)
                     if deadline and remaining_time <= 0:
                         break
 
@@ -1015,7 +1023,7 @@ class KubernetesWorker(BaseWorker):
 
         while not completed:
             remaining_time = (
-                math.ceil(deadline - time.monotonic()) if deadline else None
+                math.ceil(deadline - loop.time()) if deadline else None
             )
             if deadline and remaining_time <= 0:
                 logger.error(
@@ -1128,7 +1136,7 @@ class KubernetesWorker(BaseWorker):
     ) -> Optional["V1Pod"]:
         """Get the first running pod for a job."""
         from kubernetes_asyncio.client.models import V1Pod
-
+        
         watch = kubernetes_asyncio.watch.Watch()
         logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
@@ -1148,7 +1156,7 @@ class KubernetesWorker(BaseWorker):
                 logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
 
             if phase != "Pending":
-                watch.stop()
+                await watch.stop()
                 return pod
 
             last_phase = phase

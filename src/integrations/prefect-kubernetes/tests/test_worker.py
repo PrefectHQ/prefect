@@ -67,13 +67,13 @@ def enable_workers():
 @pytest.fixture
 def mock_watch(monkeypatch):
     mock = MagicMock(return_value=AsyncMock())
-    async def mock_stream(*args, **kwargs):
-            async for event in _mock_pods_stream_that_returns_running_pod(
-                *args, **kwargs
-            ):
-                yield event
+    # async def mock_stream(*args, **kwargs):
+    #         async for event in _mock_pods_stream_that_returns_running_pod(
+    #             *args, **kwargs
+    #         ):
+    #             yield event
 
-    mock.return_value.stream = mock_stream
+    # mock.return_value.stream
     monkeypatch.setattr("kubernetes_asyncio.watch.Watch", mock)
     return mock
 
@@ -93,16 +93,18 @@ def mock_cluster_config(monkeypatch):
 
 
 @pytest.fixture
-def mock_anyio_sleep_monotonic(monkeypatch):
+def mock_anyio_sleep_monotonic(monkeypatch,event_loop):
+    
     def mock_monotonic():
+        
         return mock_sleep.current_time
 
-    def mock_sleep(duration):
+    async def mock_sleep(duration):
         mock_sleep.current_time += duration
 
     mock_sleep.current_time = monotonic()
     monkeypatch.setattr("time.monotonic", mock_monotonic)
-    monkeypatch.setattr("anyio.sleep", mock_sleep)
+    monkeypatch.setattr("asyncio.sleep", mock_sleep)
 
 
 @pytest.fixture
@@ -2218,8 +2220,6 @@ class TestKubernetesWorker:
         # The job should not be completed to start
         mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
 
-     
-
         default_configuration.pod_watch_timeout_seconds = 42
         default_configuration.job_watch_timeout_seconds = 0
 
@@ -2239,14 +2239,31 @@ class TestKubernetesWorker:
         # The job should not be completed to start
         mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
 
+        async def mock_stream(*args, **kwargs):
+            if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+                job_pod.status.phase = "Running"
+                yield {"object": job_pod, "type": "MODIFIED"}
+
+            if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+
+                # Yield the completed job
+                job.status.completion_time = True
+                job.status.failed = 0
+                job.spec.backoff_limit = 6
+                yield {"object": job, "type": "ADDED"}
+
         async def mock_log_stream(*args, **kwargs):
-            anyio.sleep(500)
+            asyncio.sleep(50)
             return AsyncMock()
+     
 
         mock_core_client.return_value.read_namespaced_pod_log = mock_log_stream
-
-
-        default_configuration.job_watch_timeout_seconds = 1000
+        # mock_watch.return_value.stream.__aiter__.return_value = mock_stream
+        mock_watch.return_value.stream = mock_stream
+        
+        default_configuration.job_watch_timeout_seconds = 100
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             result = await k8s_worker.run(flow_run, default_configuration)
 
@@ -2298,13 +2315,13 @@ class TestKubernetesWorker:
                 )
                 yield {"object": job}
 
-        def mock_log_stream(*args, **kwargs):
+        async def mock_log_stream(*args, **kwargs):
             for i in range(10):
                 sleep(0.25)
                 yield f"test {i}".encode()
 
         mock_core_client.return_value.read_namespaced_pod_log.return_value.stream = mock_log_stream
-        mock_watch.return_value.stream.side_effect = mock_stream
+        mock_watch.return_value.stream = mock_stream
 
         default_configuration.job_watch_timeout_seconds = 1
 
