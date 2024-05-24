@@ -131,16 +131,19 @@ class Transaction(ContextModel):
         if self.rolled_back or self.committed:
             return False
 
-        for tsk in reversed(self.tasks):
-            for hook in tsk.on_rollback_hooks:
-                hook(self)
+        try:
+            for tsk in reversed(self.tasks):
+                for hook in tsk.on_rollback_hooks:
+                    hook(self)
 
-        self.rolled_back = True
+            self.rolled_back = True
 
-        for child in reversed(self.children):
-            child.rollback()
+            for child in reversed(self.children):
+                child.rollback()
 
-        return True
+            return True
+        except Exception:
+            return False
 
     def add_task(self, task: Task, task_run_id: UUID) -> None:
         self.tasks.append(task)

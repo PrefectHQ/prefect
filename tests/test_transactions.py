@@ -21,21 +21,31 @@ def test_equality():
     assert txn1 != txn3
 
 
-def test_get_transaction():
-    assert get_transaction() is None
-    with Transaction() as txn:
-        assert get_transaction() == txn
-    assert get_transaction() is None
+class TestGetTxn:
+    def test_get_transaction(self):
+        assert get_transaction() is None
+        with Transaction() as txn:
+            assert get_transaction() == txn
+        assert get_transaction() is None
 
+    def test_nested_get_transaction(self):
+        assert get_transaction() is None
+        with Transaction(record=Record("outer")) as outer:
+            assert get_transaction() == outer
+            with Transaction(record=Record("inner")) as inner:
+                assert get_transaction() == inner
+            assert get_transaction() == outer
+        assert get_transaction() is None
 
-def test_nested_get_transaction():
-    assert get_transaction() is None
-    with Transaction(record=Record("outer")) as outer:
-        assert get_transaction() == outer
-        with Transaction(record=Record("inner")) as inner:
-            assert get_transaction() == inner
-        assert get_transaction() == outer
-    assert get_transaction() is None
+    def test_txn_resets_even_with_error(self):
+        assert get_transaction() is None
+
+        with pytest.raises(ValueError, match="foo"):
+            with Transaction() as txn:
+                assert get_transaction() == txn
+                raise ValueError("foo")
+
+        assert get_transaction() is None
 
 
 class TestGetParent:
@@ -149,7 +159,7 @@ class TestRollBacks:
             pass
 
         @my_task.on_rollback
-        def rollback(**kwargs):
+        def rollback(txn):
             data["called"] = True
 
         with Transaction() as txn:
@@ -179,16 +189,16 @@ class TestRollBacks:
             pass
 
         @outer_task.on_rollback
-        def rollback(**kwargs):
-            data["outer"] = get_transaction().record.key
+        def rollback(txn):
+            data["outer"] = txn.record.key
 
         @task
         def inner_task():
             pass
 
         @inner_task.on_rollback
-        def inner_rollback(**kwargs):
-            data["inner"] = get_transaction().record.key
+        def inner_rollback(txn):
+            data["inner"] = txn.record.key
 
         with Transaction(record=Record("outer")) as txn:
             txn.add_task(outer_task, None)
@@ -198,3 +208,16 @@ class TestRollBacks:
 
         assert data["inner"] == "inner"
         assert data["outer"] == "outer"
+
+    def test_failed_rollback_resets_txn(self):
+        class BadTxn(Transaction):
+            def rollback(self, **kwargs):
+                raise ValueError("foo")
+
+        assert get_transaction() is None
+
+        with Transaction(record=Record("outer")) as txn:
+            txn.add_child(BadTxn())
+            assert txn.rollback() is False  # rollback failed
+
+        assert get_transaction() is None

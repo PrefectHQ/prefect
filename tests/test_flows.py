@@ -4045,7 +4045,7 @@ class TestTransactions:
             pass
 
         @task1.on_rollback
-        def rollback(**kwargs):
+        def rollback(txn):
             data1["called"] = True
 
         @task
@@ -4053,7 +4053,7 @@ class TestTransactions:
             raise prefect.exceptions.RollBack()
 
         @task2.on_rollback
-        def rollback2(**kwargs):
+        def rollback2(txn):
             data2["called"] = True
 
         @flow
@@ -4075,7 +4075,7 @@ class TestTransactions:
             pass
 
         @task1.on_commit
-        def rollback(**kwargs):
+        def rollback(txn):
             data["called"] = True
 
         @task
