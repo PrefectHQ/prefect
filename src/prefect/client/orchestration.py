@@ -2082,9 +2082,13 @@ class PrefectClient:
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
+        flow_run_id = (
+            flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
+        )
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
         state_create.state_details.transition_id = uuid4()
+        print(repr(state_create))
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",

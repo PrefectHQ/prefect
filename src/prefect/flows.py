@@ -561,9 +561,14 @@ class Flow(Generic[P, R]):
         """
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
-        has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
-            isinstance(o, V1BaseModel) for o in kwargs.values()
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+            )
+            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
+                isinstance(o, V1BaseModel) for o in kwargs.values()
+            )
+
         has_v2_types = any(is_v2_type(o) for o in args) or any(
             is_v2_type(o) for o in kwargs.values()
         )
@@ -600,8 +605,8 @@ class Flow(Generic[P, R]):
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {
             k: v
-            for k, v in model._iter()
-            if k in model.__fields_set__ or model.__fields__[k].default_factory
+            for k, v in dict(model).items()
+            if k in model.model_fields_set or model.model_fields[k].default_factory
         }
         return cast_parameters
 
