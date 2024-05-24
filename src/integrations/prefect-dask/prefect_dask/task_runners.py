@@ -103,7 +103,8 @@ class PrefectDaskFuture(PrefectFuture[distributed.Future]):
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
-        except distributed.TimeoutError:
+        except Exception:
+            # either the task failed or the timeout was reached
             return
         if isinstance(result, State):
             self._final_state = result
@@ -220,11 +221,6 @@ class DaskTaskRunner(TaskRunner):
                 raise ValueError(
                     "Cannot specify `cluster` and `cluster_class`/`cluster_kwargs`"
                 )
-            if not cluster.asynchronous:
-                raise ValueError(
-                    "The cluster must have `asynchronous=True` to be "
-                    "used with `DaskTaskRunner`."
-                )
         else:
             if isinstance(cluster_class, str):
                 cluster_class = from_qualified_name(cluster_class)
@@ -266,6 +262,21 @@ class DaskTaskRunner(TaskRunner):
 
         super().__init__()
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if an instance has the same settings as this task runner.
+        """
+        if isinstance(other, DaskTaskRunner):
+            return (
+                self.address == other.address
+                and self.cluster_class == other.cluster_class
+                and self.cluster_kwargs == other.cluster_kwargs
+                and self.adapt_kwargs == other.adapt_kwargs
+                and self.client_kwargs == other.client_kwargs
+            )
+        else:
+            return False
+
     def duplicate(self):
         """
         Create a new instance of the task runner with the same settings.
@@ -295,7 +306,11 @@ class DaskTaskRunner(TaskRunner):
         parameters = self._optimize_futures(parameters)
 
         future = self._client.submit(
-            task, parameters=parameters, wait_for=wait_for, dependencies=dependencies
+            task,
+            parameters=parameters,
+            wait_for=wait_for,
+            dependencies=dependencies,
+            return_type="state",
         )
         return PrefectDaskFuture(wrapped_future=future, task_run_id=future.task_run_id)
 
@@ -437,12 +452,12 @@ class DaskTaskRunner(TaskRunner):
             )
 
             if self.adapt_kwargs:
-                self._cluster.adapt(**self.adapt_kwargs)
+                maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
+                if inspect.isawaitable(maybe_coro):
+                    run_sync(maybe_coro)
 
         self._client = exit_stack.enter_context(
-            PrefectDistributedClient(
-                self._connect_to, asynchronous=True, **self.client_kwargs
-            )
+            PrefectDistributedClient(self._connect_to, **self.client_kwargs)
         )
 
         if self._client.dashboard_link:
