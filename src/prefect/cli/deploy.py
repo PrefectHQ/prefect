@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from yaml.error import YAMLError
+from zoneinfo import ZoneInfo
 
 import prefect
 from prefect._internal.compatibility.deprecated import (
@@ -63,6 +64,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.types import TimeZone
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
@@ -287,7 +289,7 @@ async def deploy(
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
     ),
-    timezone: str = typer.Option(
+    timezone: Union[TimeZone, ZoneInfo] = typer.Option(
         None,
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",

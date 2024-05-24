@@ -12,6 +12,7 @@ import pytz
 from croniter import croniter
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
+from zoneinfo import ZoneInfo
 
 from prefect._internal.schemas.validators import (
     default_anchor_date,
@@ -77,8 +78,9 @@ class IntervalSchedule(PrefectBaseModel):
         default_factory=lambda: pendulum.now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: ZoneInfo = Field(default="UTC", examples=["America/New_York"])
 
+    # do we need this anymore?
     @model_validator(mode="after")
     def validate_timezone(self):
         self.timezone = default_timezone(self.timezone, self.model_dump())
@@ -211,7 +213,7 @@ class CronSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
-    timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
+    timezone: ZoneInfo = Field(default="UTC", examples=["America/New_York"])
     day_or: bool = Field(
         default=True,
         description=(
@@ -365,7 +367,7 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
+    timezone: TimeZone = "UTC"
 
     @field_validator("rrule")
     @classmethod

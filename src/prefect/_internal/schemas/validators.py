@@ -391,19 +391,16 @@ def default_timezone(v: Optional[str], values: Optional[dict] = None) -> str:
     values = values or {}
     timezones = get_valid_timezones(v)
 
-    if v is not None:
-        return validate_timezone(v, timezones)
-
     # anchor schedules
-    elif v is None and values and values.get("anchor_date"):
+    if values and values.get("anchor_date"):
         tz = getattr(values["anchor_date"].tz, "name", None) or "UTC"
         if tz in timezones:
             return tz
-        # sometimes anchor dates have "timezones" that are UTC offsets
-        # like "-04:00". This happens when parsing ISO8601 strings.
-        # In this case we, the correct inferred localization is "UTC".
-        else:
-            return "UTC"
+    # sometimes anchor dates have "timezones" that are UTC offsets
+    # like "-04:00". This happens when parsing ISO8601 strings.
+    # In this case we, the correct inferred localization is "UTC".
+    else:
+        return "UTC"
 
     # cron schedules
     return v

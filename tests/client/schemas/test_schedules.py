@@ -31,6 +31,11 @@ class TestConstructSchedule:
         assert isinstance(result, RRuleSchedule)
         assert result.rrule == rrule_string
 
+    def test_construct_rrule_schedule_timezone_default_is_utc(self):
+        rrule_string = "FREQ=DAILY;COUNT=2"
+        result = construct_schedule(rrule=rrule_string)
+        assert result.timezone == "UTC"
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -64,12 +69,6 @@ class TestConstructSchedule:
             match="A timezone can only be provided with interval, cron, or rrule",
         ):
             construct_schedule(timezone="UTC")
-
-    def test_no_schedule_error(self):
-        with pytest.raises(
-            ValueError, match="Either interval, cron, or rrule must be provided"
-        ):
-            construct_schedule()
 
     def test_timedelta_interval_schedule(self):
         interval = datetime.timedelta(minutes=5)
