@@ -24,7 +24,7 @@ from pydantic.v1 import (
     root_validator,
     validator,
 )
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 
 from prefect._internal.compatibility.deprecated import (
     DeprecatedInfraOverridesField,
@@ -1480,6 +1480,16 @@ class ArtifactCollection(ObjectBaseModel):
     )
 
 
+# strict typing to use inside a pydantic object, to avoid
+# casting values to undesired types (e.g. 123 -> "123")
+STRICT_VARIABLE_TYPES: TypeAlias = Union[
+    StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+]
+VARIABLE_TYPES: TypeAlias = Union[
+    str, int, float, bool, None, Dict[str, Any], List[Any]
+]
+
+
 class Variable(ObjectBaseModel):
     name: str = Field(
         default=...,
@@ -1487,9 +1497,7 @@ class Variable(ObjectBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Union[
-        StrictStr, StrictFloat, StrictBool, StrictInt, None, Dict[str, Any], List[Any]
-    ] = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=...,
         description="The value of the variable",
         examples=["my_value"],
