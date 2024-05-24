@@ -152,7 +152,7 @@ async def run_sync_in_worker_thread(
     """
     call = partial(__fn, *args, **kwargs)
     result = await anyio.to_thread.run_sync(
-        call_with_mark, call, cancellable=True, limiter=get_thread_limiter()
+        call_with_mark, call, abandon_on_cancel=True, limiter=get_thread_limiter()
     )
     return result
 
