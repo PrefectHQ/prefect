@@ -579,11 +579,15 @@ class Flow(Generic[P, R]):
             )
         else:
             validated_fn = V2ValidatedFunction(
-                self.fn, config={"arbitrary_types_allowed": True}
+                self.fn, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
             )
 
         try:
-            model = validated_fn.init_model_instance(*args, **kwargs)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+                )
+                model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation

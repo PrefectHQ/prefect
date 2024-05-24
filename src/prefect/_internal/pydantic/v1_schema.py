@@ -1,19 +1,26 @@
 import inspect
 import typing
+import warnings
 
+import pydantic
 from pydantic.v1 import BaseModel as V1BaseModel
 
 
 def is_v1_model(v) -> bool:
-    if isinstance(v, V1BaseModel):
-        return True
-    try:
-        if inspect.isclass(v) and issubclass(v, V1BaseModel):
-            return True
-    except TypeError:
-        pass
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+        )
 
-    return False
+        if isinstance(v, V1BaseModel):
+            return True
+        try:
+            if inspect.isclass(v) and issubclass(v, V1BaseModel):
+                return True
+        except TypeError:
+            pass
+
+        return False
 
 
 def is_v1_type(v) -> bool:

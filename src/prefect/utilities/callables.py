@@ -310,15 +310,19 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
 
-    class ModelConfig:
-        arbitrary_types_allowed = True
-
     if not has_v1_type_as_param(signature):
         create_schema = create_v2_schema
         process_params = process_v2_params
+
+        config = pydantic.ConfigDict(arbitrary_types_allowed=True)
     else:
         create_schema = create_v1_schema
         process_params = process_v1_params
+
+        class ModelConfig:
+            arbitrary_types_allowed = True
+
+        config = ModelConfig
 
     for position, param in enumerate(signature.parameters.values()):
         name, type_, field = process_params(
@@ -327,16 +331,14 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
         try:
-            create_schema(
-                "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
-            )
+            create_schema("CheckParameter", model_cfg=config, **{name: (type_, field)})
         except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)
 
     # Generate the final model and schema
-    schema = create_schema("Parameters", model_cfg=ModelConfig, **model_fields)
+    schema = create_schema("Parameters", model_cfg=config, **model_fields)
     return ParameterSchema(**schema)
 
 
