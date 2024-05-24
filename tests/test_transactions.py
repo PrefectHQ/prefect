@@ -1,3 +1,5 @@
+import pytest
+
 from prefect.records import Record
 from prefect.tasks import task
 from prefect.transactions import Transaction, get_transaction
@@ -61,6 +63,19 @@ class TestCommit:
             assert inner.committed is True
         assert outer.committed is True
 
+    def test_txns_dont_commit_on_exception(self):
+        with pytest.raises(ValueError, match="foo"):
+            with Transaction() as txn:
+                raise ValueError("foo")
+
+        assert txn.committed is False
+
+    def test_txns_dont_commit_on_rollback(self):
+        with Transaction() as txn:
+            txn.rollback()
+
+        assert txn.committed is False
+
     def test_txns_dont_auto_commit_with_parent(self):
         outer_rec, inner_rec = Record("outer"), Record("inner")
         with Transaction(record=outer_rec, auto_commit=False) as outer:
@@ -80,6 +95,13 @@ class TestRollBacks:
             assert txn.rolled_back is False
             txn.rollback()
             assert txn.rolled_back is True
+
+    def test_txns_rollback_on_exception(self):
+        with pytest.raises(ValueError, match="foo"):
+            with Transaction() as txn:
+                raise ValueError("foo")
+
+        assert txn.rolled_back is True
 
     def test_rollback_flag_gates_rollback(self):
         data = {}

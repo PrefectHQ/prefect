@@ -4066,3 +4066,28 @@ class TestTransactions:
 
         assert data1["called"] is True
         assert data2["called"] is True
+
+    def test_commit_isnt_called_on_rollback(self):
+        data = {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_commit
+        def rollback(**kwargs):
+            data["called"] = True
+
+        @task
+        def task2():
+            raise prefect.exceptions.RollBack()
+
+        @flow
+        def main():
+            with transaction(None, auto_commit=False):
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        assert data == {}

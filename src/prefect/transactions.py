@@ -63,6 +63,8 @@ class Transaction(ContextModel):
             )
         if exc_type:
             self.rollback()
+            self.reset()
+            raise exc_val
 
         parent = self.get_parent()
         if self.auto_commit is True or parent is None:
@@ -73,12 +75,15 @@ class Transaction(ContextModel):
             # need to do this before releasing active on this transaction
             parent.add_child(self)
 
-        self.__var__.reset(self._token)
-        self._token = None
+        self.reset()
 
         # do this below reset so that get_transaction() returns the relevant txn
         if parent and self.rolled_back:
             parent.rollback()
+
+    def reset(self) -> None:
+        self.__var__.reset(self._token)
+        self._token = None
 
     def add_child(self, transaction: "Transaction") -> None:
         self.children.append(transaction)
@@ -92,6 +97,9 @@ class Transaction(ContextModel):
         return parent
 
     def commit(self) -> None:
+        if self.rolled_back:
+            return
+
         for child in self.children:
             child.commit()
 
@@ -149,6 +157,6 @@ def get_transaction() -> Transaction:
 
 
 @contextmanager
-def transaction(record: Record) -> Transaction:
-    with Transaction(record=record) as txn:
+def transaction(record: Record, auto_commit: bool = True) -> Transaction:
+    with Transaction(record=record, auto_commit=auto_commit) as txn:
         yield txn
