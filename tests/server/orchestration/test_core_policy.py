@@ -1226,7 +1226,7 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().model_dump()
+            initial_state_data=result_type.model_construct().model_dump()
             if result_type
             else None,
         )
@@ -1273,7 +1273,7 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().model_dump()
+            initial_state_data=result_type.model_construct().model_dump()
             if result_type
             else None,
         )
@@ -3151,7 +3151,7 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().model_dump()
+            initial_state_data=result_type.model_construct().model_dump()
             if result_type
             else None,
         )
@@ -3184,7 +3184,7 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().model_dump()
+            initial_state_data=result_type.model_construct().model_dump()
             if result_type
             else None,
         )

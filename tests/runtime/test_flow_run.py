@@ -116,7 +116,9 @@ class TestID:
         assert flow_run.id == "foo"
 
     async def test_id_can_be_retrieved_from_task_run_context(self):
-        with TaskRunContext.construct(task_run=TaskRun.construct(flow_run_id="foo")):
+        with TaskRunContext.model_construct(
+            task_run=TaskRun.model_construct(flow_run_id="foo")
+        ):
             assert flow_run.id == "foo"
 
 
@@ -160,8 +162,8 @@ class TestRunCount:
     async def test_run_count_returns_run_count_when_present_dynamically(self):
         assert flow_run.run_count == 0
 
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(id="foo", run_count=10)
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(id="foo", run_count=10)
         ):
             assert flow_run.run_count == 10
 
@@ -214,7 +216,9 @@ class TestName:
     async def test_name_returns_name_when_present_dynamically(self):
         assert flow_run.name is None
 
-        with FlowRunContext.construct(flow_run=FlowRun.construct(name="foo")):
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(name="foo")
+        ):
             assert flow_run.name == "foo"
 
         assert flow_run.name is None
@@ -240,8 +244,8 @@ class TestFlowName:
     async def test_flow_name_returns_flow_name_when_present_dynamically(self):
         assert flow_run.flow_name is None
 
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(), flow=Flow(fn=lambda: None, name="foo")
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(), flow=Flow(fn=lambda: None, name="foo")
         ):
             assert flow_run.flow_name == "foo"
 
@@ -268,8 +272,9 @@ class TestParameters:
         assert flow_run.parameters == {}
 
     async def test_parameters_from_context(self):
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(id="foo"), parameters={"x": "foo", "y": "bar"}
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(id="foo"),
+            parameters={"x": "foo", "y": "bar"},
         ):
             assert flow_run.parameters == {"x": "foo", "y": "bar"}
 
@@ -323,8 +328,8 @@ class TestParentFlowRunId:
     ):
         assert flow_run.parent_flow_run_id is None
 
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(parent_task_run_id=None),
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(parent_task_run_id=None),
             flow=Flow(fn=lambda: None, name="foo"),
         ):
             assert flow_run.parent_flow_run_id is None
@@ -341,8 +346,8 @@ class TestParentFlowRunId:
             task=foo, dynamic_key="1", flow_run_id=parent_flow_run.id
         )
 
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(parent_task_run_id=parent_task_run.id),
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(parent_task_run_id=parent_task_run.id),
             flow=Flow(fn=lambda: None, name="foo3"),
         ):
             assert (
@@ -417,8 +422,8 @@ class TestParentDeploymentId:
         parent_task_run_no_deployment = await prefect_client.create_task_run(
             task=foo, dynamic_key="1", flow_run_id=parent_flow_run_no_deployment.id
         )
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(
                 parent_task_run_id=parent_task_run_no_deployment.id
             ),
             flow=Flow(fn=lambda: None, name="child-flow-no-deployment"),
@@ -438,8 +443,8 @@ class TestParentDeploymentId:
         parent_task_run_with_deployment = await prefect_client.create_task_run(
             task=foo, dynamic_key="1", flow_run_id=parent_flow_run_with_deployment.id
         )
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(
                 parent_task_run_id=parent_task_run_with_deployment.id
             ),
             flow=Flow(fn=lambda: None, name="child-flow-with-parent-deployment"),
@@ -447,8 +452,8 @@ class TestParentDeploymentId:
             assert flow_run.parent_deployment_id == parent_flow_deployment_id
 
         # No parent flow run
-        with FlowRunContext.construct(
-            flow_run=FlowRun.construct(parent_task_run_id=None),
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(parent_task_run_id=None),
             flow=Flow(fn=lambda: None, name="child-flow-no-parent-task-run"),
         ):
             assert flow_run.parent_deployment_id is None
@@ -543,7 +548,9 @@ class TestURL:
         test_id = "12345"
         expected_url = f"{base_url_value}/flow-runs/flow-run/{test_id}"
 
-        with FlowRunContext.construct(flow_run=FlowRun.construct(id=test_id)):
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(id=test_id)
+        ):
             assert getattr(flow_run, url_type) == expected_url
 
         assert not getattr(flow_run, url_type)
