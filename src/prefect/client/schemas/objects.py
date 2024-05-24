@@ -44,7 +44,13 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
-from prefect.types import Name, NonNegativeInteger, PositiveInteger, StrictVariableType
+from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
+    Name,
+    NonNegativeInteger,
+    PositiveInteger,
+    StrictVariableType,
+)
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
@@ -71,7 +77,6 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_state_timestamp",
     "flow_run_state_message",
 ]
-MAX_VARIABLE_NAME_LENGTH = 255
 
 
 class StateType(AutoEnum):

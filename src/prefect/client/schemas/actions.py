@@ -27,6 +27,7 @@ from prefect.client.schemas.objects import (
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
@@ -722,7 +723,7 @@ class VariableCreate(ActionBaseModel):
         default=...,
         description="The name of the variable",
         examples=["my_variable"],
-        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
     value: StrictVariableType = Field(
         default=...,
@@ -742,7 +743,7 @@ class VariableUpdate(ActionBaseModel):
         default=None,
         description="The name of the variable",
         examples=["my_variable"],
-        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
     value: StrictVariableType = Field(
         default=None,

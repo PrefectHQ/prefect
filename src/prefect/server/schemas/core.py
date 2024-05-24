@@ -40,6 +40,7 @@ from prefect.server.utilities.schemas.bases import (
 )
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
     Name,
     NameOrEmpty,
     NonEmptyishName,
@@ -68,9 +69,6 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
 ]
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
-
-MAX_VARIABLE_NAME_LENGTH = 255
-MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
 class Flow(ORMBaseModel):

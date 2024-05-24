@@ -3,10 +3,21 @@ from typing import Annotated, Any, ClassVar, Dict, List, Type, Union
 import pydantic
 from typing_extensions import Self
 
-from pydantic import BeforeValidator, Field, GetCoreSchemaHandler
+from pydantic import (
+    BeforeValidator,
+    Field,
+    GetCoreSchemaHandler,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+)
 from datetime import timedelta
 from zoneinfo import available_timezones
 from pydantic_core import core_schema
+
+MAX_VARIABLE_NAME_LENGTH = 255
+MAX_VARIABLE_VALUE_LENGTH = 5000
 
 timezone_set = available_timezones()
 
@@ -88,23 +99,24 @@ NonEmptyishName = Annotated[
 ]
 
 
-MAX_VARIABLE_VALUE_LENGTH = 5000
+# order of types => order of attempts to cast
+# e.g. True is cast to 1.0 if the order is [float, bool]
+VariableType = Union[
+    StrictStr,
+    StrictInt,
+    StrictBool,
+    StrictFloat,
+    None,
+    Dict[str, Any],
+    List[Any],
+]
 
 
-def check_variable_value(value: VariableType) -> VariableType:
-    if value is not None:
-        if len(str(value)) > MAX_VARIABLE_VALUE_LENGTH:
-            raise ValueError(
-                f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
-            )
-
-        # TODO: replicate StrictXXX types with pydantic's Field
-        # strict typing to use inside a pydantic object, to avoid
-        # casting values to undesired types (e.g. 123 -> "123")
-        if not isinstance(value, (str, float, bool, int, dict, list)):
-            raise ValueError(
-                f"Variable type must be one of str, float, bool, int, dict, or list, not {type(value)}"
-            )
+def check_variable_value(value: object) -> object:
+    if value is not None and len(str(value)) > MAX_VARIABLE_VALUE_LENGTH:
+        raise ValueError(
+            f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
+        )
     return value
 
 

@@ -14,6 +14,7 @@ from prefect.server.schemas.filters import (
     VariableFilterName,
     VariableFilterTags,
 )
+from prefect.types import MAX_VARIABLE_NAME_LENGTH, MAX_VARIABLE_VALUE_LENGTH
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -167,9 +168,7 @@ class TestCreateVariable:
         self,
         client: AsyncClient,
     ):
-        max_length = (
-            5000 - 2
-        )  # 2 characters are reserved for the quotes when serializing
+        max_length = MAX_VARIABLE_VALUE_LENGTH
 
         res = await client.post(
             "/variables/",
@@ -178,9 +177,11 @@ class TestCreateVariable:
         assert res
         assert res.status_code == 201
 
+        max_length_plus1 = max_length + 1
+
         res = await client.post(
             "/variables/",
-            json={"name": "name", "value": "v" * max_length * 2},
+            json={"name": "name", "value": "v" * max_length_plus1},
         )
         assert res
         assert res.status_code == 422
@@ -544,15 +545,13 @@ class TestUpdateVariable:
         client: AsyncClient,
         variable,
     ):
-        max_length = 255
-
         res = await client.patch(
-            f"/variables/{variable.id}", json={"name": "v" * max_length}
+            f"/variables/{variable.id}", json={"name": "v" * MAX_VARIABLE_NAME_LENGTH}
         )
         assert res
         assert res.status_code == 204
 
-        max_length_plus1 = max_length + 1
+        max_length_plus1 = MAX_VARIABLE_NAME_LENGTH + 1
 
         res = await client.patch(
             f"/variables/{variable.id}", json={"name": "v" * max_length_plus1}
@@ -566,18 +565,16 @@ class TestUpdateVariable:
         client: AsyncClient,
         variable,
     ):
-        max_length = (
-            5000 - 2
-        )  # 2 characters are reserved for the quotes when serializing
-
         res = await client.patch(
-            f"/variables/{variable.id}", json={"value": "v" * max_length}
+            f"/variables/{variable.id}", json={"value": "v" * MAX_VARIABLE_VALUE_LENGTH}
         )
         assert res
         assert res.status_code == 204
 
+        max_length_plus1 = MAX_VARIABLE_VALUE_LENGTH + 1
+
         res = await client.patch(
-            f"/variables/{variable.id}", json={"value": "v" * max_length * 2}
+            f"/variables/{variable.id}", json={"value": "v" * max_length_plus1}
         )
         assert res
         assert res.status_code == 422
@@ -675,7 +672,7 @@ class TestUpdateVariableByName:
         client: AsyncClient,
         variable,
     ):
-        max_length = 255
+        max_length = MAX_VARIABLE_NAME_LENGTH
 
         res = await client.patch(
             f"/variables/name/{variable.name}", json={"name": "v" * max_length}
@@ -697,9 +694,7 @@ class TestUpdateVariableByName:
         client: AsyncClient,
         variable,
     ):
-        max_length = (
-            5000 - 2
-        )  # 2 characters are reserved for the quotes when serializing
+        max_length = MAX_VARIABLE_VALUE_LENGTH
 
         res = await client.patch(
             f"/variables/name/{variable.name}", json={"value": "v" * max_length}
@@ -707,8 +702,10 @@ class TestUpdateVariableByName:
         assert res
         assert res.status_code == 204
 
+        max_length_plus1 = MAX_VARIABLE_VALUE_LENGTH + 1
+
         res = await client.patch(
-            f"/variables/name/{variable.name}", json={"value": "v" * max_length * 2}
+            f"/variables/name/{variable.name}", json={"value": "v" * max_length_plus1}
         )
         assert res
         assert res.status_code == 422

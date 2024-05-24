@@ -1,8 +1,8 @@
 import json
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, Optional
 
 import jinja2
-from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt, StrictStr
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
@@ -11,20 +11,13 @@ from prefect.server.utilities.user_templates import (
     render_user_template_sync,
     validate_user_template,
 )
+from prefect.types import StrictVariableType
 
 
 class HydrationContext(BaseModel):
     workspace_variables: Dict[
         str,
-        Union[
-            StrictStr,
-            StrictInt,
-            StrictFloat,
-            StrictBool,
-            None,
-            Dict[str, Any],
-            List[Any],
-        ],
+        StrictVariableType,
     ] = Field(default_factory=dict)
     render_workspace_variables: bool = Field(default=False)
     raise_on_error: bool = Field(default=False)
