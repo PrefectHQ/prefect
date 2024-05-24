@@ -1683,7 +1683,8 @@ class TestFlowRunLogs:
 
         my_flow()
 
-        await asyncio.sleep(2)  # Allow logs chance to flush
+        await _wait_for_logs(prefect_client, expected_num_logs=3)
+
         logs = await prefect_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
@@ -1709,8 +1710,8 @@ class TestFlowRunLogs:
                 logger.error("There was an issue", exc_info=True)
 
         my_flow()
+        await _wait_for_logs(prefect_client, expected_num_logs=3)
 
-        await asyncio.sleep(2)  # Allow logs chance to flush
         logs = await prefect_client.read_logs()
         error_logs = "\n".join([log.message for log in logs if log.level == 40])
         assert "Traceback" in error_logs
@@ -1787,7 +1788,7 @@ class TestSubflowRunLogs:
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = (await state.result()).state_details.flow_run_id
 
-        await asyncio.sleep(2)  # Allow logs chance to flush
+        await _wait_for_logs(prefect_client, expected_num_logs=3)
 
         logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
