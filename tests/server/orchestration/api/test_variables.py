@@ -168,7 +168,7 @@ class TestCreateVariable:
         self,
         client: AsyncClient,
     ):
-        max_length = MAX_VARIABLE_VALUE_LENGTH
+        max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
 
         res = await client.post(
             "/variables/",
@@ -565,13 +565,15 @@ class TestUpdateVariable:
         client: AsyncClient,
         variable,
     ):
+        max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
+
         res = await client.patch(
-            f"/variables/{variable.id}", json={"value": "v" * MAX_VARIABLE_VALUE_LENGTH}
+            f"/variables/{variable.id}", json={"value": "v" * max_length}
         )
         assert res
         assert res.status_code == 204
 
-        max_length_plus1 = MAX_VARIABLE_VALUE_LENGTH + 1
+        max_length_plus1 = max_length + 1
 
         res = await client.patch(
             f"/variables/{variable.id}", json={"value": "v" * max_length_plus1}
@@ -694,7 +696,7 @@ class TestUpdateVariableByName:
         client: AsyncClient,
         variable,
     ):
-        max_length = MAX_VARIABLE_VALUE_LENGTH
+        max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
 
         res = await client.patch(
             f"/variables/name/{variable.name}", json={"value": "v" * max_length}

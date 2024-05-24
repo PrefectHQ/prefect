@@ -1,5 +1,6 @@
 from ast import TypeAlias
 from typing import Annotated, Any, ClassVar, Dict, List, Type, Union
+import orjson
 import pydantic
 from typing_extensions import Self
 
@@ -110,7 +111,7 @@ VariableValue = Union[
 
 
 def check_variable_value(value: object) -> object:
-    if value is not None and len(str(value)) > MAX_VARIABLE_VALUE_LENGTH:
+    if value is not None and len(orjson.dumps(value)) > MAX_VARIABLE_VALUE_LENGTH:
         raise ValueError(
             f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
         )
