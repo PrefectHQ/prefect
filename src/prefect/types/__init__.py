@@ -111,7 +111,12 @@ VariableValue = Union[
 
 
 def check_variable_value(value: object) -> object:
-    if value is not None and len(orjson.dumps(value)) > MAX_VARIABLE_VALUE_LENGTH:
+    try:
+        json_string = orjson.dumps(value)
+    except orjson.JSONEncodeError:
+        raise ValueError("Variable value must be serializable to JSON")
+
+    if value is not None and len(json_string) > MAX_VARIABLE_VALUE_LENGTH:
         raise ValueError(
             f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
         )
