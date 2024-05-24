@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional, Sequence, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
 import pendulum
@@ -17,6 +17,9 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.utilities.asyncutils import run_sync
+
+if TYPE_CHECKING:
+    from prefect.server.database import orm_models
 
 
 @asynccontextmanager
@@ -50,7 +53,10 @@ async def read_automations_for_workspace(
 
     result = await session.execute(query)
 
-    return [Automation.from_orm(a) for a in result.scalars().all()]
+    return [
+        Automation.model_validate(a, from_attributes=True)
+        for a in result.scalars().all()
+    ]
 
 
 @db_injector
@@ -74,10 +80,10 @@ async def read_automation(
     result = await session.execute(
         sa.select(db.Automation).where(db.Automation.id == automation_id)
     )
-    automation: db.Automation | None = result.scalars().first()
+    automation: Optional[orm_models.Automation] = result.scalars().first()
     if not automation:
         return None
-    return Automation.from_orm(automation)
+    return Automation.model_validate(automation, from_attributes=True)
 
 
 @db_injector
@@ -89,10 +95,10 @@ async def read_automation_by_id(
             db.Automation.id == automation_id,
         )
     )
-    automation: db.Automation | None = result.scalars().first()
+    automation: Optional[orm_models.Automation] = result.scalars().first()
     if not automation:
         return None
-    return Automation.from_orm(automation)
+    return Automation.model_validate(automation, from_attributes=True)
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
@@ -120,7 +126,7 @@ async def create_automation(
     new_automation = db.Automation(**automation.model_dump())
     session.add(new_automation)
     await session.flush()
-    automation = Automation.from_orm(new_automation)
+    automation = Automation.model_validate(new_automation, from_attributes=True)
 
     await _sync_automation_related_resources(session, new_automation.id, automation)
 
@@ -328,7 +334,10 @@ async def read_automations_related_to_resource(
         query = query.where(automation_filter.as_sql_filter())
 
     result = await session.execute(query)
-    return [Automation.from_orm(a) for a in result.scalars().all()]
+    return [
+        Automation.model_validate(a, from_attributes=True)
+        for a in result.scalars().all()
+    ]
 
 
 @db_injector

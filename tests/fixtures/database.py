@@ -1201,4 +1201,4 @@ async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)

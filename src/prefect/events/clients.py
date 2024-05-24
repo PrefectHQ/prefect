@@ -114,7 +114,7 @@ class AssertingEventsClient(EventsClient):
     """A Prefect Events client that records all events sent to it for inspection during
     tests."""
 
-    last: ClassVar["AssertingEventsClient | None"] = None
+    last: ClassVar["Optional[AssertingEventsClient]"] = None
     all: ClassVar[List["AssertingEventsClient"]] = []
 
     args: Tuple

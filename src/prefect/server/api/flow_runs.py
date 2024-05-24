@@ -84,7 +84,9 @@ async def create_flow_run(
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
 
-        return schemas.responses.FlowRunResponse.from_orm(model)
+        return schemas.responses.FlowRunResponse.model_validate(
+            model, from_attributes=True
+        )
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -284,7 +286,9 @@ async def read_flow_run(
         )
         if not flow_run:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
-        return schemas.responses.FlowRunResponse.from_orm(flow_run)
+        return schemas.responses.FlowRunResponse.model_validate(
+            flow_run, from_attributes=True
+        )
 
 
 @router.get("/{id}/graph")
@@ -509,7 +513,9 @@ async def read_flow_runs(
         # In particular, the FastAPI encoder is very slow for large, nested objects.
         # See: https://github.com/tiangolo/fastapi/issues/1224
         encoded = [
-            schemas.responses.FlowRunResponse.from_orm(fr).model_dump(mode="json")
+            schemas.responses.FlowRunResponse.model_validate(
+                fr, from_attributes=True
+            ).model_dump(mode="json")
             for fr in db_flow_runs
         ]
         return ORJSONResponse(content=encoded)

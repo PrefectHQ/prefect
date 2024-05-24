@@ -385,7 +385,9 @@ class BaseQueryComponents(ABC):
             schemas.responses.WorkerFlowRunResponse(
                 work_pool_id=r.run_work_pool_id,
                 work_queue_id=r.run_work_queue_id,
-                flow_run=schemas.core.FlowRun.from_orm(r.FlowRun),
+                flow_run=schemas.core.FlowRun.model_validate(
+                    r.FlowRun, from_attributes=True
+                ),
             )
             for r in result
         ]

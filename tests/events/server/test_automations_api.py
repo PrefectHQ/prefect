@@ -409,12 +409,12 @@ async def existing_disabled_invalid_automation(
     assert existing.created
 
     # it should be valid while it's disabled
-    Automation.from_orm(existing)
+    Automation.model_validate(existing, from_attributes=True)
 
     # But not while it's enabled
     existing.enabled = True
     with pytest.raises(pydantic.ValidationError):
-        Automation.from_orm(existing)
+        Automation.model_validate(existing, from_attributes=True)
 
     return existing
 

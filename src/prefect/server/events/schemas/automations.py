@@ -582,8 +582,17 @@ class Automation(ORMBaseModel, AutomationCore, extra="ignore"):
         self.trigger._set_parent(self)
 
     @classmethod
-    def from_orm(cls: Type["Automation"], obj: Any) -> "Automation":
-        automation = super().from_orm(obj)
+    def model_validate(
+        cls: type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[dict[str, Any]] = None,
+    ) -> Self:
+        automation = super().model_validate(
+            obj, strict=strict, from_attributes=from_attributes, context=context
+        )
         automation.trigger._set_parent(automation)
         return automation
 

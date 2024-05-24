@@ -48,7 +48,7 @@ async def patrols_queue(
         work_queue=WorkQueueCreate(name="Patrols"),
     )
     await session.commit()
-    return WorkQueue.from_orm(patrols_queue)
+    return WorkQueue.model_validate(patrols_queue, from_attributes=True)
 
 
 @pytest.fixture

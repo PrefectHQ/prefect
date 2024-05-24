@@ -192,7 +192,7 @@ async def test_flow_run_state_change_events_capture_order_on_short_gaps(
 
     from_db = await flow_run_states.read_flow_run_state(session, pending_state.id)
     assert from_db
-    pending_state = State.from_orm(from_db)
+    pending_state = State.model_validate(from_db, from_attributes=True)
 
     # Now process the Pending->Running transition and confirm it sends an event
     running_state: State = State(type=StateType.RUNNING)
@@ -250,7 +250,7 @@ async def test_flow_run_state_change_events_do_not_capture_order_on_long_gaps(
 
     from_db = await flow_run_states.read_flow_run_state(session, pending_state.id)
     assert from_db
-    pending_state = State.from_orm(from_db)
+    pending_state = State.model_validate(from_db, from_attributes=True)
 
     # Now process the Pending->Running transition and confirm it sends an event
     running_state: State = State(type=StateType.RUNNING)

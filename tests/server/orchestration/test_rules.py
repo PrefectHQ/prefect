@@ -1874,7 +1874,9 @@ class TestNullRejection:
             await ctx.validate_proposed_state()
 
         assert ctx.proposed_state is None
-        assert ctx.validated_state == states.State.from_orm(intial_state)
+        assert ctx.validated_state == states.State.model_validate(
+            intial_state, from_attributes=True
+        )
         assert ctx.response_status == schemas.responses.SetStateStatus.REJECT
 
     async def test_rules_that_reject_state_with_null_do_not_fizzle_themselves(

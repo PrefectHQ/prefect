@@ -217,8 +217,8 @@ async def read_account_events_page(
 
 def generate_next_page_link(
     request: Request,
-    page_token: "str | None",
-) -> "str | None":
+    page_token: Optional[str],
+) -> Optional[str]:
     if not page_token:
         return None
 
