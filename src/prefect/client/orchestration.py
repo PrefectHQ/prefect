@@ -660,8 +660,8 @@ class PrefectClient:
             ),
         )
 
-        flow_run_create_json = flow_run_create.dict(json_compatible=True)
-        response = await self._client.post("/flow_runs/", json=flow_run_create_json)
+        flow_run_create_json = flow_run_create.json()
+        response = await self._client.post("/flow_runs/", data=flow_run_create_json)
         flow_run = FlowRun.parse_obj(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
@@ -3593,8 +3593,8 @@ class SyncPrefectClient:
             ),
         )
 
-        flow_run_create_json = flow_run_create.dict(json_compatible=True)
-        response = self._client.post("/flow_runs/", json=flow_run_create_json)
+        flow_run_create_json = flow_run_create.json()
+        response = self._client.post("/flow_runs/", data=flow_run_create_json)
         flow_run = FlowRun.parse_obj(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
