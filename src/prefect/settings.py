@@ -1587,11 +1587,6 @@ PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
 Whether or not to enable experimental work queue status in-place of work queue health.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE = Setting(bool, default=True)
-"""
-Whether or not to enable experimental new engine.
-"""
-
 PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT = Setting(bool, default=False)
 """
 Whether or not to disable the sync_compatible decorator utility.

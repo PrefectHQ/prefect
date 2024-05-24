@@ -1401,7 +1401,7 @@ class TestUpdateDeployment:
 
         assert response.status_code == 204
 
-    async def test_update_deployment_hydrates_parameters(
+    async def test_update_deployment_hydrates_json_kind_parameters(
         self,
         deployment_with_parameter_schema,
         client,
@@ -1420,6 +1420,68 @@ class TestUpdateDeployment:
             f"/deployments/{deployment_with_parameter_schema.id}"
         )
         assert response.json()["parameters"] == {"x": "str_of_json"}
+
+    async def test_update_deployment_hydrates_jinja_kind_parameters(
+        self,
+        deployment,
+        client,
+    ):
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={
+                "parameters": {
+                    "x": {"__prefect_kind": "jinja", "template": "{{ 1 + 2 }}"}
+                }
+            },
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.json()["parameters"] == {"x": "3"}
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_update_deployment_hydrates_workspace_variable_kind_parameters(
+        self,
+        deployment,
+        client,
+        session,
+        value,
+    ):
+        await models.variables.create_variable(
+            session,
+            schemas.actions.VariableCreate(name="my_variable", value=value),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={
+                "parameters": {
+                    "x": {
+                        "__prefect_kind": "workspace_variable",
+                        "variable_name": "my_variable",
+                    }
+                }
+            },
+        )
+        assert response.status_code == 204, str(response.content)
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.json()["parameters"] == {"x": value}
 
     async def test_update_deployment_with_schedule_populates_schedules(
         self,
@@ -2707,13 +2769,39 @@ class TestCreateFlowRunFromDeployment:
         assert "Validation failed for field 'person'" in response.text
         assert "Failure reason: 'name' is a required property" in response.text
 
-    async def test_create_flow_run_from_deployment_hydrates_parameters(
+    async def test_create_flow_run_basic_parameters(
         self,
-        deployment_with_parameter_schema,
+        deployment,
         client,
     ):
         response = await client.post(
-            f"/deployments/{deployment_with_parameter_schema.id}/create_flow_run",
+            f"/deployments/{deployment.id}/create_flow_run",
+            json={"parameters": {"param1": 1, "param2": 2}},
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["parameters"] == {"param1": 1, "param2": 2}
+
+    async def test_create_flow_run_none_prefect_kind(
+        self,
+        deployment,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run",
+            json={"parameters": {"param": {"__prefect_kind": "none", "value": 5}}},
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["parameters"] == {"param": 5}
+
+    async def test_create_flow_run_json_prefect_kind(
+        self,
+        deployment,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run",
             json={
                 "parameters": {
                     "x": {"__prefect_kind": "json", "value": '"str_of_json"'}
@@ -2723,6 +2811,66 @@ class TestCreateFlowRunFromDeployment:
 
         assert response.status_code == 201
         assert response.json()["parameters"]["x"] == "str_of_json"
+
+    async def test_create_flow_run_jinja_prefect_kind(
+        self,
+        deployment,
+        client,
+    ):
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "param": {"__prefect_kind": "jinja", "template": "{{ 1 + 2 }}"}
+                }
+            },
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["parameters"] == {"param": "3"}
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_update_deployment_hydrates_workspace_variable_kind_parameters(
+        self,
+        deployment,
+        client,
+        session,
+        value,
+    ):
+        await models.variables.create_variable(
+            session,
+            schemas.actions.VariableCreate(name="my_variable", value=value),
+        )
+        await session.commit()
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/create_flow_run",
+            json={
+                "parameters": {
+                    "param": {
+                        "__prefect_kind": "workspace_variable",
+                        "variable_name": "my_variable",
+                    }
+                }
+            },
+        )
+        assert response.status_code == 201, str(response.content)
+        res = response.json()
+        assert res["parameters"] == {"param": value}
 
     async def test_create_flow_run_from_deployment_hydration_error(
         self,

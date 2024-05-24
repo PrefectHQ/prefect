@@ -1,6 +1,6 @@
 import copy
 from datetime import timedelta
-from typing import Dict, Generator, List, Literal
+from typing import Any, Dict, Generator, List, Literal
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -932,6 +932,34 @@ async def test_workspace_variables_may_be_accessed_as_a_dict(
     action = DemoAction(template="{{ variables['hello'] }}")
     (rendered,) = await action.render(woodchonk_triggered)
     assert rendered == "world!"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "string-value",
+        '"string-value"',
+        123,
+        12.3,
+        True,
+        False,
+        None,
+        {"key": "value"},
+        ["value1", "value2"],
+        {"key": ["value1", "value2"]},
+    ],
+)
+async def test_json_workspace_variables(
+    session: AsyncSession,
+    woodchonk_triggered: TriggeredAction,
+    value: Any,
+):
+    await variables.create_variable(session, VariableCreate(name="my_var", value=value))
+    await session.commit()
+
+    action = DemoAction(template="{{ variables['my_var'] }} {{ variables.my_var }}")
+    (rendered,) = await action.render(woodchonk_triggered)
+    assert rendered == f"{value} {value}"
 
 
 async def test_environment_is_immutable(woodchonk_triggered: TriggeredAction):
