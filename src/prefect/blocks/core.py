@@ -649,7 +649,7 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _from_block_document(cls, block_document: BlockDocument):
+    def _from_block_document(cls, block_document: BlockDocument) -> Self:
         """
         Instantiates a block from a given block document. The corresponding block class
         will be looked up in the block registry based on the corresponding block schema
@@ -1158,7 +1158,7 @@ class Block(BaseModel, ABC):
                 "_block_document_id",
                 "_block_document_name",
                 "_is_anonymous",
-            }
+            }.intersection(obj.keys())
             for field in extra_serializer_fields:
                 obj.pop(field, None)
 
