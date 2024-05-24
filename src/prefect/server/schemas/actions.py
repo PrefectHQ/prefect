@@ -7,7 +7,6 @@ from copy import deepcopy
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-import orjson
 import pendulum
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
@@ -28,16 +27,17 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
 )
-from prefect.server.schemas.core import STRICT_VARIABLE_TYPES
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
     NonNegativeInteger,
     PositiveInteger,
+    StrictVariableValue,
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
@@ -1022,9 +1022,9 @@ class VariableCreate(ActionBaseModel):
         default=...,
         description="The name of the variable",
         examples=["my-variable"],
-        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: STRICT_VARIABLE_TYPES = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
@@ -1038,22 +1038,6 @@ class VariableCreate(ActionBaseModel):
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)
 
-    @field_validator("value", mode="after")
-    @classmethod
-    def validate_value(cls, v):
-        try:
-            json_string = orjson.dumps(v)
-        except orjson.JSONDecodeError:
-            raise ValueError("Variable value must be serializable to JSON.")
-
-        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
-            raise ValueError(
-                f"value must have at most {schemas.core.MAX_VARIABLE_VALUE_LENGTH} "
-                "characters when serialized."
-            )
-
-        return v
-
 
 class VariableUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a Variable."""
@@ -1062,9 +1046,9 @@ class VariableUpdate(ActionBaseModel):
         default=None,
         description="The name of the variable",
         examples=["my-variable"],
-        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: STRICT_VARIABLE_TYPES = Field(
+    value: StrictVariableValue = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
@@ -1074,22 +1058,6 @@ class VariableUpdate(ActionBaseModel):
         description="A list of variable tags",
         examples=[["tag-1", "tag-2"]],
     )
-
-    @field_validator("value", mode="after")
-    @classmethod
-    def validate_value(cls, v):
-        try:
-            json_string = orjson.dumps(v)
-        except orjson.JSONDecodeError:
-            raise ValueError("Variable value must be serializable to JSON.")
-
-        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
-            raise ValueError(
-                f"value must have at most {schemas.core.MAX_VARIABLE_VALUE_LENGTH} "
-                "characters when serialized."
-            )
-
-        return v
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)

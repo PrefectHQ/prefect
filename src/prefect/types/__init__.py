@@ -1,18 +1,30 @@
-from typing import Annotated, Any, Callable, ClassVar, Type
+from ast import TypeAlias
+from typing import Annotated, Any, ClassVar, Dict, List, Type, Union
+import orjson
+import pydantic
 from typing_extensions import Self
 
-from pydantic import BeforeValidator, Field, GetCoreSchemaHandler
+from pydantic import (
+    BeforeValidator,
+    Field,
+    GetCoreSchemaHandler,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+)
 from datetime import timedelta
 from zoneinfo import available_timezones
 from pydantic_core import core_schema
 
-timezone_set = available_timezones()
+MAX_VARIABLE_NAME_LENGTH = 255
+MAX_VARIABLE_VALUE_LENGTH = 5000
 
+timezone_set = available_timezones()
 
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
-
 TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(timezone_set))]
 
 
@@ -87,6 +99,37 @@ NonEmptyishName = Annotated[
 ]
 
 
+VariableValue = Union[
+    StrictStr,
+    StrictInt,
+    StrictFloat,
+    StrictBool,
+    None,
+    Dict[str, Any],
+    List[Any],
+]
+
+
+def check_variable_value(value: object) -> object:
+    try:
+        json_string = orjson.dumps(value)
+    except orjson.JSONEncodeError:
+        raise ValueError("Variable value must be serializable to JSON")
+
+    if value is not None and len(json_string) > MAX_VARIABLE_VALUE_LENGTH:
+        raise ValueError(
+            f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
+        )
+    return value
+
+
+StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_value)]
+
+
+class SecretDict(pydantic.Secret[Dict[str, Any]]):
+    pass
+
+
 __all__ = [
     "NonNegativeInteger",
     "PositiveInteger",
@@ -96,4 +139,5 @@ __all__ = [
     "Name",
     "NameOrEmpty",
     "NonEmptyishName",
+    "SecretDict",
 ]

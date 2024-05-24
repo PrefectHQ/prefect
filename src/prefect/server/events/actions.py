@@ -54,7 +54,6 @@ from prefect.server.events.schemas.events import Event, RelatedResource, Resourc
 from prefect.server.events.schemas.labelling import LabelDiver
 from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import (
-    VARIABLE_TYPES,
     BlockDocument,
     ConcurrencyLimitV2,
     Flow,
@@ -80,6 +79,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
+from prefect.types import StrictVariableValue
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -302,7 +302,7 @@ def _id_of_first_resource_of_kind(event: "Event", expected_kind: str) -> Optiona
     return None
 
 
-WorkspaceVariables: TypeAlias = Dict[str, VARIABLE_TYPES]
+WorkspaceVariables: TypeAlias = Dict[str, StrictVariableValue]
 TemplateContextObject: TypeAlias = Union[PrefectBaseModel, WorkspaceVariables, None]
 
 
@@ -797,7 +797,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         variable_names = [
             p.variable_name for p in placeholders if isinstance(p, WorkspaceVariable)
         ]
-        workspace_variables: Dict[str, VARIABLE_TYPES] = {}
+        workspace_variables: Dict[str, StrictVariableValue] = {}
         if variable_names:
             async with await self.orchestration_client(triggered_action) as client:
                 workspace_variables = await client.read_workspace_variables(

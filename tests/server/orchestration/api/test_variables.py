@@ -14,6 +14,7 @@ from prefect.server.schemas.filters import (
     VariableFilterName,
     VariableFilterTags,
 )
+from prefect.types import MAX_VARIABLE_NAME_LENGTH, MAX_VARIABLE_VALUE_LENGTH
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -167,9 +168,7 @@ class TestCreateVariable:
         self,
         client: AsyncClient,
     ):
-        max_length = (
-            5000 - 2
-        )  # 2 characters are reserved for the quotes when serializing
+        max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
 
         res = await client.post(
             "/variables/",
@@ -186,7 +185,10 @@ class TestCreateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
+        assert (
+            "Variable value must be less than"
+            in res.json()["exception_detail"][0]["msg"]
+        )
 
 
 class TestReadVariable:
@@ -543,15 +545,13 @@ class TestUpdateVariable:
         client: AsyncClient,
         variable,
     ):
-        max_length = 255
-
         res = await client.patch(
-            f"/variables/{variable.id}", json={"name": "v" * max_length}
+            f"/variables/{variable.id}", json={"name": "v" * MAX_VARIABLE_NAME_LENGTH}
         )
         assert res
         assert res.status_code == 204
 
-        max_length_plus1 = max_length + 1
+        max_length_plus1 = MAX_VARIABLE_NAME_LENGTH + 1
 
         res = await client.patch(
             f"/variables/{variable.id}", json={"name": "v" * max_length_plus1}
@@ -565,9 +565,7 @@ class TestUpdateVariable:
         client: AsyncClient,
         variable,
     ):
-        max_length = (
-            5000 - 2
-        )  # 2 characters are reserved for the quotes when serializing
+        max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
 
         res = await client.patch(
             f"/variables/{variable.id}", json={"value": "v" * max_length}
@@ -582,7 +580,10 @@ class TestUpdateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
+        assert (
+            "Variable value must be less than"
+            in res.json()["exception_detail"][0]["msg"]
+        )
 
 
 class TestUpdateVariableByName:
@@ -673,7 +674,7 @@ class TestUpdateVariableByName:
         client: AsyncClient,
         variable,
     ):
-        max_length = 255
+        max_length = MAX_VARIABLE_NAME_LENGTH
 
         res = await client.patch(
             f"/variables/name/{variable.name}", json={"name": "v" * max_length}
@@ -695,9 +696,7 @@ class TestUpdateVariableByName:
         client: AsyncClient,
         variable,
     ):
-        max_length = (
-            5000 - 2
-        )  # 2 characters are reserved for the quotes when serializing
+        max_length = MAX_VARIABLE_VALUE_LENGTH - 2  # 2 characters for quotes
 
         res = await client.patch(
             f"/variables/name/{variable.name}", json={"value": "v" * max_length}
@@ -705,14 +704,17 @@ class TestUpdateVariableByName:
         assert res
         assert res.status_code == 204
 
-        max_length_plus1 = max_length + 1
+        max_length_plus1 = MAX_VARIABLE_VALUE_LENGTH + 1
 
         res = await client.patch(
             f"/variables/name/{variable.name}", json={"value": "v" * max_length_plus1}
         )
         assert res
         assert res.status_code == 422
-        assert "value must have at most" in res.json()["exception_detail"][0]["msg"]
+        assert (
+            "Variable value must be less than"
+            in res.json()["exception_detail"][0]["msg"]
+        )
 
 
 class TestDeleteVariable:

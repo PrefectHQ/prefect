@@ -794,7 +794,8 @@ async def test_task_custom_storage_by_instance_unsaved(prefect_client, tmp_path)
         task_factory.storage_block_id
     )
     assert_blocks_equal(
-        LocalFileSystem._from_block_document(storage_block_document), storage
+        LocalFileSystem._from_block_document(storage_block_document),
+        storage,
     )
 
     # Other settings should not be changed
