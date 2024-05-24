@@ -24,7 +24,6 @@ Here's a basic script that fetches statistics about the [main Prefect GitHub rep
 
 ```python title="my_gh_workflow.py"
 import httpx   # an HTTP client library and dependency of Prefect
-from prefect import flow, task
 
 
 def get_repo_info(repo_owner: str, repo_name: str):
