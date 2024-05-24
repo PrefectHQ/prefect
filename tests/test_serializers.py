@@ -124,7 +124,7 @@ class TestBaseSerializer:
         class Foo(BaseModel):
             serializer: Serializer
 
-            @field_validator("serializer")
+            @field_validator("serializer", mode="before")
             def cast_type_to_dict(cls, value):
                 if isinstance(value, str):
                     return {"type": value}
