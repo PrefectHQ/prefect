@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
 from prefect import flow
+from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State, StateDetails, StateType
 from prefect.exceptions import InfrastructureNotAvailable
@@ -56,8 +57,8 @@ async def flow_run(prefect_client: PrefectClient):
     flow_run = await prefect_client.create_flow_run(
         flow=example_process_worker_flow,
         state=State(
-            type=StateType.SCHEDULED,
-            state_details=StateDetails(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
                 scheduled_time=pendulum.now("utc").subtract(minutes=5)
             ),
         ),
@@ -71,8 +72,8 @@ async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment_id=deployment.id,
         state=State(
-            type=StateType.SCHEDULED,
-            state_details=StateDetails(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
                 scheduled_time=pendulum.now("utc").subtract(minutes=5)
             ),
         ),

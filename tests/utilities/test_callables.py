@@ -17,10 +17,12 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "properties": {},
             "title": "Parameters",
             "type": "object",
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_pydantic_base_model_collisions(self):
@@ -40,7 +42,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -69,6 +71,7 @@ class TestFunctionToSchema:
                 "validate",
                 "foo",
             ],
+            "definitions": {},
         }
 
     def test_function_with_one_required_argument(self):
@@ -76,11 +79,12 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_one_optional_argument(self):
@@ -88,10 +92,12 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
-            "properties": {"x": {"title": "x", "default": 42, "position": 0}},
+            "properties": {"x": {"default": 42, "position": 0, "title": "x"}},
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_one_optional_annotated_argument(self):
@@ -99,12 +105,19 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
-                "x": {"title": "x", "default": 42, "type": "integer", "position": 0}
+                "x": {
+                    "default": 42,
+                    "position": 0,
+                    "title": "x",
+                    "type": "integer",
+                }
             },
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_two_arguments(self):
@@ -112,7 +125,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -120,6 +133,7 @@ class TestFunctionToSchema:
                 "y": {"title": "y", "default": 5.0, "type": "number", "position": 1},
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_datetime_arguments(self):
@@ -157,8 +171,9 @@ class TestFunctionToSchema:
                 },
             },
             "required": ["x"],
+            "definitions": {},
         }
-        assert schema.model_dump() == expected_schema
+        assert schema.model_dump_for_openapi() == expected_schema
 
     def test_function_with_enum_argument(self):
         class Color(Enum):
@@ -182,6 +197,7 @@ class TestFunctionToSchema:
                     "title": "x",
                 }
             },
+            "required": [],
             "definitions": {
                 "Color": {
                     "enum": ["RED", "GREEN", "BLUE"],
@@ -191,7 +207,7 @@ class TestFunctionToSchema:
             },
         }
 
-        assert schema.model_dump() == expected_schema
+        assert schema.model_dump_for_openapi() == expected_schema
 
     def test_function_with_generic_arguments(self):
         def f(
@@ -236,9 +252,10 @@ class TestFunctionToSchema:
                 },
             },
             "required": ["a", "b", "c", "d", "e"],
+            "definitions": {},
         }
 
-        assert schema.model_dump() == expected_schema
+        assert schema.model_dump_for_openapi() == expected_schema
 
     def test_function_with_user_defined_type(self):
         class Foo:
@@ -248,7 +265,8 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
+            "definitions": {},
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
@@ -264,7 +282,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "definitions": {
                 "Foo": {
                     "properties": {
@@ -301,7 +319,7 @@ class TestFunctionToSchema:
             ...
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -312,6 +330,7 @@ class TestFunctionToSchema:
                     "title": "foo",
                 }
             },
+            "required": [],
             "definitions": {
                 "Foo": {
                     "properties": {"bar": {"title": "Bar", "type": "string"}},
@@ -379,7 +398,7 @@ class TestFunctionToSchema:
         enum_schema.pop("description")
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -436,7 +455,7 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -449,6 +468,7 @@ class TestFunctionToSchema:
                 },
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_v1_secretstr_from_compat_module(self):
@@ -458,19 +478,17 @@ class TestFunctionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {
                     "title": "x",
                     "position": 0,
-                    "format": "password",
-                    "type": "string",
-                    "writeOnly": True,
                 },
             },
             "required": ["x"],
+            "definitions": {},
         }
 
 
@@ -490,10 +508,12 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = callables.parameter_schema(method)
-            assert schema.model_dump() == {
+            assert schema.model_dump_for_openapi() == {
                 "properties": {},
                 "title": "Parameters",
                 "type": "object",
+                "required": [],
+                "definitions": {},
             }
 
     def test_methods_with_enum_arguments(self):
@@ -528,6 +548,7 @@ class TestMethodToSchema:
                         "title": "color",
                     }
                 },
+                "required": [],
                 "definitions": {
                     "Color": {
                         "enum": ["RED", "GREEN", "BLUE"],
@@ -537,7 +558,7 @@ class TestMethodToSchema:
                 },
             }
 
-            assert schema.model_dump() == expected_schema
+            assert schema.model_dump_for_openapi() == expected_schema
 
     def test_methods_with_complex_arguments(self):
         class Foo:
@@ -578,8 +599,9 @@ class TestMethodToSchema:
                     },
                 },
                 "required": ["x"],
+                "definitions": {},
             }
-            assert schema.model_dump() == expected_schema
+            assert schema.model_dump_for_openapi() == expected_schema
 
 
 class TestParseFlowDescriptionToSchema:
@@ -592,13 +614,14 @@ class TestParseFlowDescriptionToSchema:
             """
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "description": "required argument x", "position": 0}
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_flow_without_docstring(self):
@@ -606,11 +629,12 @@ class TestParseFlowDescriptionToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_flow_without_args_docstring(self):
@@ -618,11 +642,12 @@ class TestParseFlowDescriptionToSchema:
             """Function f."""
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_flow_with_complex_args_docstring(self):
@@ -641,7 +666,7 @@ class TestParseFlowDescriptionToSchema:
             """
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -657,6 +682,7 @@ class TestParseFlowDescriptionToSchema:
                 },
             },
             "required": ["x", "y"],
+            "definitions": {},
         }
 
 
