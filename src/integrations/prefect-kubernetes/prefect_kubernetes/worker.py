@@ -108,6 +108,7 @@ import math
 import os
 import shlex
 import time
+from asyncio import get_running_loop
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
@@ -119,7 +120,7 @@ from typing import (
     Tuple,
     Union,
 )
-from asyncio import get_running_loop
+
 import anyio.abc
 from pydantic import VERSION as PYDANTIC_VERSION
 
@@ -146,8 +147,14 @@ if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import Field, validator
 else:
     from pydantic import Field, validator
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 import kubernetes_asyncio
+
+# from kubernetes_asyncio.config import (
+#     ConfigException,
+#     load_incluster_config,
+#     load_kube_config,
+# )
+from kubernetes_asyncio import config
 from kubernetes_asyncio.client import (
     ApiClient,
     BatchV1Api,
@@ -158,12 +165,7 @@ from kubernetes_asyncio.client import (
 )
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
-# from kubernetes_asyncio.config import (
-#     ConfigException,
-#     load_incluster_config,
-#     load_kube_config,
-# )
-from kubernetes_asyncio import config
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal
 
 from prefect.client.schemas import FlowRun
@@ -176,15 +178,16 @@ from prefect_kubernetes.utilities import (
 
 if TYPE_CHECKING:
     import kubernetes_asyncio
-    from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
-    from kubernetes_asyncio.client.exceptions import ApiException
-    from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
+
     # from kubernetes_asyncio.config import (
     #     ConfigException,
     #     load_incluster_config,
     #     load_kube_config,
     # )
     from kubernetes_asyncio import config
+    from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job, V1Pod
+    from kubernetes_asyncio.client.exceptions import ApiException
+    from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
 
     from prefect.client.schemas import FlowRun
 
@@ -713,7 +716,7 @@ class KubernetesWorker(BaseWorker):
         Returns a configured Kubernetes client.
         """
         client = None
-        
+
         if configuration.cluster_config:
             config_dict = configuration.cluster_config.config
             context = configuration.cluster_config.context_name
@@ -721,7 +724,9 @@ class KubernetesWorker(BaseWorker):
             # Use Configuration to load configuration from a dictionary
             client_configuration = Configuration()
             await config.load_kube_config(
-                config_dict=config_dict, context=context, client_configuration=client_configuration
+                config_dict=config_dict,
+                context=context,
+                client_configuration=client_configuration,
             )
             client = ApiClient(configuration=client_configuration)
         else:
@@ -957,8 +962,7 @@ class KubernetesWorker(BaseWorker):
 
         Return the final status code of the first container.
         """
-        
-        
+
         logger.debug(f"Job {job_name!r}: Monitoring job...")
 
         job = await self._get_job(logger, job_name, configuration, client)
@@ -968,8 +972,7 @@ class KubernetesWorker(BaseWorker):
         pod = await self._get_job_pod(logger, job_name, configuration, client)
         if not pod:
             return -1
-        
-        
+
         loop = get_running_loop()
         # Calculate the deadline before streaming output
         deadline = (
@@ -987,20 +990,14 @@ class KubernetesWorker(BaseWorker):
                 _preload_content=False,
                 container="prefect-job",
             )
-            
+
             try:
-                
-                while True:
-                    line = await logs.content.readline()
-                    if not line:
-                        break
-                    print(line.decode("utf-8"), end="")
-                    
+                async for log in logs.stream():
+                    print(log.decode().rstrip())
+
                     # Check if we have passed the deadline and should stop streaming
                     # logs
-                  
-                    remaining_time = deadline - loop.time() if deadline else None
-                    print("remaining time",remaining_time)
+                    remaining_time = deadline - time.monotonic() if deadline else None
                     if deadline and remaining_time <= 0:
                         break
 
@@ -1022,9 +1019,7 @@ class KubernetesWorker(BaseWorker):
         completed = job.status.completion_time is not None
 
         while not completed:
-            remaining_time = (
-                math.ceil(deadline - loop.time()) if deadline else None
-            )
+            remaining_time = math.ceil(deadline - loop.time()) if deadline else None
             if deadline and remaining_time <= 0:
                 logger.error(
                     f"Job {job_name!r}: Job did not complete within "
@@ -1136,7 +1131,7 @@ class KubernetesWorker(BaseWorker):
     ) -> Optional["V1Pod"]:
         """Get the first running pod for a job."""
         from kubernetes_asyncio.client.models import V1Pod
-        
+
         watch = kubernetes_asyncio.watch.Watch()
         logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None

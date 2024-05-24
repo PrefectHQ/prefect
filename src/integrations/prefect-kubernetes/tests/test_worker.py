@@ -88,15 +88,15 @@ def mock_cluster_config(monkeypatch):
         {"context": {"cluster": FAKE_CLUSTER}},
     )
     monkeypatch.setattr("prefect_kubernetes.worker.config", mock)
-    monkeypatch.setattr("prefect_kubernetes.worker.config.ConfigException", ConfigException)
+    monkeypatch.setattr(
+        "prefect_kubernetes.worker.config.ConfigException", ConfigException
+    )
     return mock
 
 
 @pytest.fixture
-def mock_anyio_sleep_monotonic(monkeypatch,event_loop):
-    
+def mock_anyio_sleep_monotonic(monkeypatch, event_loop):
     def mock_monotonic():
-        
         return mock_sleep.current_time
 
     async def mock_sleep(duration):
@@ -110,7 +110,7 @@ def mock_anyio_sleep_monotonic(monkeypatch,event_loop):
 @pytest.fixture
 def mock_job():
     mock = AsyncMock(spec=kubernetes_asyncio.client.V1Job)
-    
+
     mock.metadata.name = "mock-job"
     mock.metadata.namespace = "mock-namespace"
     return mock
@@ -120,25 +120,27 @@ def mock_job():
 def mock_core_client(monkeypatch, mock_cluster_config):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     mock.return_value.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
-    
-    mock.return_value.read_namespaced_pod_log.return_value.content.readline = AsyncMock(return_value=None)
-    
+
+    mock.return_value.read_namespaced_pod_log.return_value.content.readline = AsyncMock(
+        return_value=None
+    )
+
     monkeypatch.setattr(
         "prefect_kubernetes.worker.KubernetesWorker._get_configured_kubernetes_client",
         MagicMock(spec=ApiClient),
     )
     monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
-    monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api",mock)
+    monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock)
     return mock
+
 
 @pytest.fixture
 def mock_batch_client(monkeypatch, mock_job):
-    mock = MagicMock(spec=BatchV1Api,return_value=AsyncMock())
+    mock = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
 
     mock.return_value.create_namespaced_job.return_value = mock_job
     monkeypatch.setattr("prefect_kubernetes.worker.BatchV1Api", mock)
     return mock
-
 
 
 async def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
@@ -1252,7 +1254,6 @@ class TestKubernetesWorker:
         mock_core_client,
         mock_watch,
     ):
-        
         default_configuration.prepare_for_flow_run(flow_run)
         expected_manifest = default_configuration.job_manifest
 
@@ -1373,15 +1374,14 @@ class TestKubernetesWorker:
         job_name,
         clean_name,
     ):
-        
         default_configuration.name = job_name
         default_configuration.prepare_for_flow_run(flow_run)
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run=flow_run, configuration=default_configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            call_name = mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
-                "metadata"
-            ]["generateName"]
+            call_name = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]["metadata"]["generateName"]
             assert call_name == clean_name
 
     async def test_uses_image_variable(
@@ -1391,20 +1391,17 @@ class TestKubernetesWorker:
         mock_watch,
         mock_batch_client,
     ):
-       
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
         )
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            image = mock_batch_client.return_value.create_namespaced_job.call_args[0][1]["spec"][
-                "template"
-            ]["spec"]["containers"][0]["image"]
+            image = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                1
+            ]["spec"]["template"]["spec"]["containers"][0]["image"]
             assert image == "foo"
 
-    
     async def test_can_store_api_key_in_secret(
         self,
         flow_run,
@@ -1413,8 +1410,9 @@ class TestKubernetesWorker:
         mock_batch_client,
         enable_store_api_key_in_secret,
     ):
-        
-        mock_core_client.return_value.read_namespaced_secret.side_effect = ApiException(status=404)
+        mock_core_client.return_value.read_namespaced_secret.side_effect = ApiException(
+            status=404
+        )
 
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
@@ -1424,9 +1422,9 @@ class TestKubernetesWorker:
                 configuration.prepare_for_flow_run(flow_run=flow_run)
                 await k8s_worker.run(flow_run, configuration)
                 mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][1]["spec"][
-                    "template"
-                ]["spec"]["containers"][0]["env"]
+                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                    1
+                ]["spec"]["template"]["spec"]["containers"][0]["env"]
                 assert {
                     "name": "PREFECT_API_KEY",
                     "valueFrom": {
@@ -1474,26 +1472,28 @@ class TestKubernetesWorker:
         )
         with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                mock_core_client.return_value.read_namespaced_secret.return_value = V1Secret(
-                    api_version="v1",
-                    kind="Secret",
-                    metadata=V1ObjectMeta(
-                        name=f"prefect-{_slugify_name(k8s_worker.name)}-api-key",
-                        namespace=configuration.namespace,
-                    ),
-                    data={
-                        "value": base64.b64encode("fake".encode("utf-8")).decode(
-                            "utf-8"
-                        )
-                    },
+                mock_core_client.return_value.read_namespaced_secret.return_value = (
+                    V1Secret(
+                        api_version="v1",
+                        kind="Secret",
+                        metadata=V1ObjectMeta(
+                            name=f"prefect-{_slugify_name(k8s_worker.name)}-api-key",
+                            namespace=configuration.namespace,
+                        ),
+                        data={
+                            "value": base64.b64encode("fake".encode("utf-8")).decode(
+                                "utf-8"
+                            )
+                        },
+                    )
                 )
 
                 configuration.prepare_for_flow_run(flow_run=flow_run)
                 await k8s_worker.run(flow_run, configuration)
                 mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][1]["spec"][
-                    "template"
-                ]["spec"]["containers"][0]["env"]
+                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                    1
+                ]["spec"]["template"]["spec"]["containers"][0]["env"]
                 assert {
                     "name": "PREFECT_API_KEY",
                     "valueFrom": {
@@ -1606,7 +1606,10 @@ class TestKubernetesWorker:
             ):
                 await k8s_worker.run(flow_run, configuration)
 
-        assert mock_batch_client.return_value.create_namespaced_job.call_count == MAX_ATTEMPTS
+        assert (
+            mock_batch_client.return_value.create_namespaced_job.call_count
+            == MAX_ATTEMPTS
+        )
 
     async def test_create_job_failure_no_reason(
         self,
@@ -1730,9 +1733,9 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            image = mock_batch_client.return_value.create_namespaced_job.call_args[0][1]["spec"][
-                "template"
-            ]["spec"]["containers"][0]["image"]
+            image = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                1
+            ]["spec"]["template"]["spec"]["containers"][0]["image"]
             assert image == "test"
 
     async def test_uses_labels_setting(
@@ -1742,7 +1745,6 @@ class TestKubernetesWorker:
         mock_watch,
         mock_batch_client,
     ):
-        
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(),
             {"labels": {"foo": "foo", "bar": "bar"}},
@@ -1751,9 +1753,9 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            labels = mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
-                "metadata"
-            ]["labels"]
+            labels = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                1
+            ]["metadata"]["labels"]
             assert labels["foo"] == "foo"
             assert labels["bar"] == "bar"
 
@@ -1774,7 +1776,9 @@ class TestKubernetesWorker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
 
-            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[0][1]
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
             pod = manifest["spec"]["template"]["spec"]
             env = pod["containers"][0]["env"]
             assert env == [
@@ -1803,7 +1807,9 @@ class TestKubernetesWorker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
 
-            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[0][1]
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
             pod = manifest["spec"]["template"]["spec"]
             env = pod["containers"][0]["env"]
             env_names = {variable["name"] for variable in env}
@@ -1868,9 +1874,9 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            labels = mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
-                "metadata"
-            ]["labels"]
+            labels = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                1
+            ]["metadata"]["labels"]
             assert labels[expected] == "foo"
 
     @pytest.mark.parametrize(
@@ -1917,9 +1923,9 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            labels = mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
-                "metadata"
-            ]["labels"]
+            labels = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                1
+            ]["metadata"]["labels"]
             assert labels["foo"] == expected
 
     async def test_uses_namespace_setting(
@@ -1938,9 +1944,9 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            namespace = mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
-                "metadata"
-            ]["namespace"]
+            namespace = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]["metadata"]["namespace"]
             assert namespace == "foo"
 
     async def test_allows_namespace_setting_from_manifest(
@@ -1959,9 +1965,9 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            namespace = mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
-                "metadata"
-            ]["namespace"]
+            namespace = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]["metadata"]["namespace"]
             assert namespace == "test"
 
     async def test_uses_service_account_name_setting(
@@ -1980,9 +1986,11 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            service_account_name = mock_batch_client.return_value.create_namespaced_job.call_args[0][
-                1
-            ]["spec"]["template"]["spec"]["serviceAccountName"]
+            service_account_name = (
+                mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
+                    "spec"
+                ]["template"]["spec"]["serviceAccountName"]
+            )
             assert service_account_name == "foo"
 
     async def test_uses_finished_job_ttl_setting(
@@ -2001,9 +2009,11 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            finished_job_ttl = mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
-                "spec"
-            ]["ttlSecondsAfterFinished"]
+            finished_job_ttl = (
+                mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
+                    "spec"
+                ]["ttlSecondsAfterFinished"]
+            )
             assert finished_job_ttl == 123
 
     async def test_uses_specified_image_pull_policy(
@@ -2021,9 +2031,11 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, configuration)
             mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-            call_image_pull_policy = mock_batch_client.return_value.create_namespaced_job.call_args[
-                0
-            ][1]["spec"]["template"]["spec"]["containers"][0].get("imagePullPolicy")
+            call_image_pull_policy = (
+                mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
+                    "spec"
+                ]["template"]["spec"]["containers"][0].get("imagePullPolicy")
+            )
             assert call_image_pull_policy == "IfNotPresent"
 
     async def test_defaults_to_incluster_config(
@@ -2038,7 +2050,6 @@ class TestKubernetesWorker:
         mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-           
             await k8s_worker.run(flow_run, default_configuration)
 
             print(mock_cluster_config.mock_calls)
@@ -2049,13 +2060,12 @@ class TestKubernetesWorker:
         self,
         flow_run,
         default_configuration,
-        
         mock_watch,
         mock_cluster_config,
         mock_batch_client,
     ):
         mock_watch.stream = _mock_pods_stream_that_returns_running_pod
-        
+
         mock_cluster_config.load_incluster_config.side_effect = ConfigException()
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
@@ -2072,7 +2082,9 @@ class TestKubernetesWorker:
         default_configuration: KubernetesWorkerJobConfiguration,
         flow_run,
     ):
-        mock_watch.return_value.stream = Mock(side_effect=_mock_pods_stream_that_returns_running_pod)
+        mock_watch.return_value.stream = Mock(
+            side_effect=_mock_pods_stream_that_returns_running_pod
+        )
 
         # The job should not be completed to start
         mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
@@ -2198,9 +2210,13 @@ class TestKubernetesWorker:
         mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
 
         mock_logs = MagicMock()
-        mock_logs.return_value.stream = MagicMock(side_effect=RuntimeError("something went wrong"))
+        mock_logs.return_value.stream = MagicMock(
+            side_effect=RuntimeError("something went wrong")
+        )
 
-        mock_core_client.return_value.read_namespaced_pod_log = AsyncMock(return_value=mock_logs)
+        mock_core_client.return_value.read_namespaced_pod_log = AsyncMock(
+            return_value=mock_logs
+        )
 
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             with caplog.at_level("WARNING"):
@@ -2257,12 +2273,11 @@ class TestKubernetesWorker:
         async def mock_log_stream(*args, **kwargs):
             asyncio.sleep(50)
             return AsyncMock()
-     
 
         mock_core_client.return_value.read_namespaced_pod_log = mock_log_stream
         # mock_watch.return_value.stream.__aiter__.return_value = mock_stream
         mock_watch.return_value.stream = mock_stream
-        
+
         default_configuration.job_watch_timeout_seconds = 100
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             result = await k8s_worker.run(flow_run, default_configuration)
@@ -2320,7 +2335,9 @@ class TestKubernetesWorker:
                 sleep(0.25)
                 yield f"test {i}".encode()
 
-        mock_core_client.return_value.read_namespaced_pod_log.return_value.stream = mock_log_stream
+        mock_core_client.return_value.read_namespaced_pod_log.return_value.stream = (
+            mock_log_stream
+        )
         mock_watch.return_value.stream = mock_stream
 
         default_configuration.job_watch_timeout_seconds = 1
@@ -2788,88 +2805,90 @@ class TestKubernetesWorker:
 
     @pytest.fixture
     def mock_events(self, mock_core_client):
-        mock_core_client.return_value.list_namespaced_event.return_value = CoreV1EventList(
-            metadata=V1ListMeta(resource_version="1"),
-            items=[
-                CoreV1Event(
-                    metadata=V1ObjectMeta(),
-                    involved_object=V1ObjectReference(
-                        api_version="batch/v1",
-                        kind="Job",
-                        namespace="default",
-                        name="mock-job",
+        mock_core_client.return_value.list_namespaced_event.return_value = (
+            CoreV1EventList(
+                metadata=V1ListMeta(resource_version="1"),
+                items=[
+                    CoreV1Event(
+                        metadata=V1ObjectMeta(),
+                        involved_object=V1ObjectReference(
+                            api_version="batch/v1",
+                            kind="Job",
+                            namespace="default",
+                            name="mock-job",
+                        ),
+                        reason="StuffBlewUp",
+                        count=2,
+                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        message="Whew, that was baaaaad",
                     ),
-                    reason="StuffBlewUp",
-                    count=2,
-                    last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
-                    message="Whew, that was baaaaad",
-                ),
-                CoreV1Event(
-                    metadata=V1ObjectMeta(),
-                    involved_object=V1ObjectReference(
-                        api_version="batch/v1",
-                        kind="Job",
-                        namespace="default",
-                        name="this-aint-me",  # not my flow run ID
+                    CoreV1Event(
+                        metadata=V1ObjectMeta(),
+                        involved_object=V1ObjectReference(
+                            api_version="batch/v1",
+                            kind="Job",
+                            namespace="default",
+                            name="this-aint-me",  # not my flow run ID
+                        ),
+                        reason="NahChief",
+                        count=2,
+                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        message="You do not want to know about this one",
                     ),
-                    reason="NahChief",
-                    count=2,
-                    last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
-                    message="You do not want to know about this one",
-                ),
-                CoreV1Event(
-                    metadata=V1ObjectMeta(),
-                    involved_object=V1ObjectReference(
-                        api_version="v1",
-                        kind="Pod",
-                        namespace="default",
-                        name="my-pod",
+                    CoreV1Event(
+                        metadata=V1ObjectMeta(),
+                        involved_object=V1ObjectReference(
+                            api_version="v1",
+                            kind="Pod",
+                            namespace="default",
+                            name="my-pod",
+                        ),
+                        reason="ImageWhatImage",
+                        count=1,
+                        event_time=pendulum.parse("2022-01-02T03:04:05Z"),
+                        message="I don't see no image",
                     ),
-                    reason="ImageWhatImage",
-                    count=1,
-                    event_time=pendulum.parse("2022-01-02T03:04:05Z"),
-                    message="I don't see no image",
-                ),
-                CoreV1Event(
-                    metadata=V1ObjectMeta(),
-                    involved_object=V1ObjectReference(
-                        api_version="v1",
-                        kind="Pod",
-                        namespace="default",
-                        name="my-pod",
+                    CoreV1Event(
+                        metadata=V1ObjectMeta(),
+                        involved_object=V1ObjectReference(
+                            api_version="v1",
+                            kind="Pod",
+                            namespace="default",
+                            name="my-pod",
+                        ),
+                        reason="GoodLuck",
+                        count=1,
+                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        message="You ain't getting no more RAM",
                     ),
-                    reason="GoodLuck",
-                    count=1,
-                    last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
-                    message="You ain't getting no more RAM",
-                ),
-                CoreV1Event(
-                    metadata=V1ObjectMeta(),
-                    involved_object=V1ObjectReference(
-                        api_version="v1",
-                        kind="Pod",
-                        namespace="default",
-                        name="somebody-else",  # not my pod
+                    CoreV1Event(
+                        metadata=V1ObjectMeta(),
+                        involved_object=V1ObjectReference(
+                            api_version="v1",
+                            kind="Pod",
+                            namespace="default",
+                            name="somebody-else",  # not my pod
+                        ),
+                        reason="NotMeDude",
+                        count=1,
+                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        message="You ain't getting no more RAM",
                     ),
-                    reason="NotMeDude",
-                    count=1,
-                    last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
-                    message="You ain't getting no more RAM",
-                ),
-                CoreV1Event(
-                    metadata=V1ObjectMeta(),
-                    involved_object=V1ObjectReference(
-                        api_version="batch/v1",
-                        kind="Job",
-                        namespace="default",
-                        name="mock-job",
+                    CoreV1Event(
+                        metadata=V1ObjectMeta(),
+                        involved_object=V1ObjectReference(
+                            api_version="batch/v1",
+                            kind="Job",
+                            namespace="default",
+                            name="mock-job",
+                        ),
+                        reason="StuffBlewUp",
+                        count=2,
+                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        message="I mean really really bad",
                     ),
-                    reason="StuffBlewUp",
-                    count=2,
-                    last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
-                    message="I mean really really bad",
-                ),
-            ],
+                ],
+            )
         )
 
     async def test_explains_what_might_have_gone_wrong_in_scheduling_the_pod(
