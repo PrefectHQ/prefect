@@ -227,7 +227,12 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.pagerduty import NotifyPagerDuty
+        try:
+            # Try importing for apprise>=1.18.0
+            from apprise.plugins.pagerduty import NotifyPagerDuty
+        except ImportError:
+            # Fallback for versions apprise<1.18.0
+            from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
 
         url = SecretStr(
             NotifyPagerDuty(
@@ -295,8 +300,12 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.twilio import NotifyTwilio
-
+        try:
+            # Try importing for apprise>=1.18.0
+            from apprise.plugins.twilio import NotifyTwilio
+        except ImportError:
+            # Fallback for versions apprise<1.18.0
+            from apprise.plugins.NotifyTwilio import NotifyTwilio
         url = SecretStr(
             NotifyTwilio(
                 account_sid=self.account_sid,
@@ -393,7 +402,12 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.opsgenie import NotifyOpsgenie
+        try:
+            # Try importing for apprise>=1.18.0
+            from apprise.plugins.opsgenie import NotifyOpsgenie
+        except ImportError:
+            # Fallback for versions apprise<1.18.0
+            from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
 
         targets = []
         if self.target_user:
@@ -481,7 +495,12 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.mattermost import NotifyMattermost
+        try:
+            # Try importing for apprise>=1.18.0
+            from apprise.plugins.mattermost import NotifyMattermost
+        except ImportError:
+            # Fallback for versions apprise<1.18.0
+            from apprise.plugins.NotifyMattermost import NotifyMattermost
 
         url = SecretStr(
             NotifyMattermost(
@@ -574,7 +593,12 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.discord import NotifyDiscord
+        try:
+            # Try importing for apprise>=1.18.0
+            from apprise.plugins.discord import NotifyDiscord
+        except ImportError:
+            # Fallback for versions apprise<1.18.0
+            from apprise.plugins.NotifyDiscord import NotifyDiscord
 
         url = SecretStr(
             NotifyDiscord(
@@ -764,7 +788,12 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise.plugins.sendgrid import NotifySendGrid
+        try:
+            # Try importing for apprise>=1.18.0
+            from apprise.plugins.sendgrid import NotifySendGrid
+        except ImportError:
+            # Fallback for versions apprise<1.18.0
+            from apprise.plugins.NotifySendGrid import NotifySendGrid
 
         url = SecretStr(
             NotifySendGrid(
