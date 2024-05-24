@@ -39,6 +39,11 @@ class PrefectDistributedClient(Client):
                 k: collect_task_run_inputs_sync(v, future_cls=Future)
                 for k, v in parameters.items()
             }
+            if passed_dependencies := kwargs.get("dependencies"):
+                dependencies = {
+                    k: v.union(passed_dependencies.get(k, set()))
+                    for k, v in dependencies.items()
+                }
 
             future = super().submit(
                 run_task,
