@@ -378,27 +378,6 @@ def get_valid_timezones(v: Optional[str]) -> Tuple[str, ...]:
         return pendulum.tz.timezones
 
 
-def validate_rrule_timezone(v: str) -> str:
-    """
-    Validate that the provided timezone is a valid IANA timezone.
-
-    Unfortunately this list is slightly different from the list of valid
-    timezones in pendulum that we use for cron and interval timezone validation.
-    """
-    from prefect._internal.pytz import HAS_PYTZ
-
-    if HAS_PYTZ:
-        import pytz
-    else:
-        from prefect._internal import pytz
-
-    if v and v not in pytz.all_timezones_set:
-        raise ValueError(f'Invalid timezone: "{v}"')
-    elif v is None:
-        return "UTC"
-    return v
-
-
 def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
     if v and v not in timezones:
         raise ValueError(
