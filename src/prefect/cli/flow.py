@@ -18,6 +18,7 @@ from prefect.deployments.runner import RunnerDeployment
 from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
+from prefect.types import TimeZone
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
 app.add_typer(flow_app, aliases=["flows"])
@@ -108,7 +109,7 @@ async def serve(
         "--rrule",
         help="An RRule that will be used to set a schedule for the created deployment.",
     ),
-    timezone: Optional[str] = typer.Option(
+    timezone: Optional[TimeZone] = typer.Option(
         None,
         "--timezone",
         help="Timezone to used scheduling flow runs e.g. 'America/New_York'",

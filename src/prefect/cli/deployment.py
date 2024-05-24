@@ -38,6 +38,7 @@ from prefect.exceptions import (
 from prefect.flow_runs import wait_for_flow_run
 from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
+from prefect.types import TimeZone
 from prefect.utilities.collections import listrepr
 
 if TYPE_CHECKING:
@@ -323,7 +324,7 @@ async def create_schedule(
         "--day_or",
         help="Control how croniter handles `day` and `day_of_week` entries",
     ),
-    timezone: Optional[str] = typer.Option(
+    timezone: Optional[TimeZone] = typer.Option(
         None,
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
@@ -400,7 +401,9 @@ async def create_schedule(
                 # override timezone if specified via CLI argument
                 schedule.timezone = timezone
         except json.JSONDecodeError:
-            schedule = RRuleSchedule(rrule=rrule_string, timezone=timezone)
+            # if user hasn't specified a timezone, default to UTC
+            rrule_timezone = timezone or "UTC"
+            schedule = RRuleSchedule(rrule=rrule_string, timezone=rrule_timezone)
 
     if schedule is None:
         return exit_with_success(
