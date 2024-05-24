@@ -88,18 +88,20 @@ def hydrated_context(
     serialized_context: Optional[Dict[str, Any]] = None,
     client: Union[PrefectClient, SyncPrefectClient, None] = None,
 ):
-    if not client:
-        client = get_client(sync_client=True)
     with ExitStack() as stack:
         if serialized_context:
+            # Set up settings context
+            if settings_context := serialized_context.get("settings_context"):
+                stack.enter_context(SettingsContext(**settings_context))
             # Set up parent flow run context
             # TODO: This task group isn't necessary in the new engine. Remove the background tasks
             # attribute from FlowRunContext.
-            try:
-                task_group = anyio.create_task_group()
-            except AsyncLibraryNotFoundError:
-                task_group = anyio._backends._asyncio.TaskGroup()
+            client = client or get_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
+                try:
+                    task_group = anyio.create_task_group()
+                except AsyncLibraryNotFoundError:
+                    task_group = anyio._backends._asyncio.TaskGroup()
                 flow = flow_run_context["flow"]
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
@@ -124,9 +126,6 @@ def hydrated_context(
             # Set up tags context
             if tags_context := serialized_context.get("tags_context"):
                 stack.enter_context(tags(*tags_context["current_tags"]))
-            # Set up settings context
-            if settings_context := serialized_context.get("settings_context"):
-                stack.enter_context(SettingsContext(**settings_context))
         yield
 
 
