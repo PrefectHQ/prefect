@@ -1,13 +1,10 @@
-from ast import TypeAlias
 from typing import Annotated, Any, ClassVar, Dict, List, Type, Union
 import orjson
 import pydantic
-from typing_extensions import Self
 
 from pydantic import (
     BeforeValidator,
     Field,
-    GetCoreSchemaHandler,
     StrictBool,
     StrictFloat,
     StrictInt,
