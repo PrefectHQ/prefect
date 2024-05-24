@@ -183,6 +183,7 @@ class Task(Generic[P, R]):
             execution with matching cache key is used.
         on_failure: An optional list of callables to run when the task enters a failed state.
         on_completion: An optional list of callables to run when the task enters a completed state.
+        on_commit: An optional list of callables to run when the task's idempotency record is committed.
         on_rollback: An optional list of callables to run when the task rolls back.
         retry_condition_fn: An optional callable run when a task run returns a Failed state. Should
             return `True` if the task should continue to its retry policy (e.g. `retries=3`), and `False` if the task
@@ -226,6 +227,7 @@ class Task(Generic[P, R]):
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_rollback: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_commit: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
@@ -333,6 +335,7 @@ class Task(Generic[P, R]):
         self.cache_result_in_memory = cache_result_in_memory
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         self.on_rollback_hooks = on_rollback or []
+        self.on_commit_hooks = on_commit or []
         self.on_completion_hooks = on_completion or []
         self.on_failure_hooks = on_failure or []
 
@@ -521,6 +524,12 @@ class Task(Generic[P, R]):
         self, fn: Callable[["Task", TaskRun, State], None]
     ) -> Callable[["Task", TaskRun, State], None]:
         self.on_failure_hooks.append(fn)
+        return fn
+
+    def on_commit(
+        self, fn: Callable[["Task", TaskRun, State], None]
+    ) -> Callable[["Task", TaskRun, State], None]:
+        self.on_commit_hooks.append(fn)
         return fn
 
     def on_rollback(

@@ -27,6 +27,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.new_futures import PrefectFuture as NewPrefectFuture
+from prefect.records import Record
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -4212,3 +4213,20 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "RolledBack"
         assert data["called"] is True
+
+    def test_commit_hook_is_called_on_commit(self):
+        data = {}
+
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_commit
+        def commit(record):
+            data["record"] = record
+
+        state = my_task(return_state=True)
+
+        assert state.is_completed()
+        assert state.name == "Completed"
+        assert isinstance(data["record"], Record)

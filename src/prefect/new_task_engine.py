@@ -39,6 +39,7 @@ from prefect.exceptions import (
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
+from prefect.records import Record
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
@@ -541,7 +542,7 @@ def run_task_sync(
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
-            with transaction() as txn:
+            with transaction(record=Record()) as txn:
                 txn.add_task(run.task, run.task_run.id)
                 run.begin_run()
 

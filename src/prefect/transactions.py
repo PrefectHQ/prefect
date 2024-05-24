@@ -32,6 +32,7 @@ class Transaction(ContextModel):
     record: Record = None
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
+    committed: bool = False
     rolled_back: bool = False
     __var__ = ContextVar("transaction")
 
@@ -44,12 +45,15 @@ class Transaction(ContextModel):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
-            self.rollback()
         if not self._token:
             raise RuntimeError(
                 "Asymmetric use of context. Context exit called without an enter."
             )
+        if exc_type:
+            self.rollback()
+        else:
+            self.commit()
+
         self.__var__.reset(self._token)
         self._token = None
 
@@ -59,7 +63,7 @@ class Transaction(ContextModel):
         if parent:
             if self.rolled_back:
                 parent.rollback()
-            else:
+            elif not self.committed:
                 parent.tasks.extend(self.tasks)
                 parent.state.update(self.state)
 
@@ -114,6 +118,6 @@ def get_transaction() -> Transaction:
 
 
 @contextmanager
-def transaction() -> Transaction:
-    with Transaction() as txn:
+def transaction(record: Record) -> Transaction:
+    with Transaction(record=record) as txn:
         yield txn
