@@ -70,7 +70,7 @@ class IntervalSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string.
     """
 
-    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    model_config = ConfigDict(extra="forbid")
 
     interval: PositiveDuration
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
@@ -208,7 +208,7 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: TimeZone = Field(default="UTC", examples=["America/New_York"])
@@ -362,7 +362,7 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    model_config = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: TimeZone = Field(default="UTC", examples=["America/New_York"])

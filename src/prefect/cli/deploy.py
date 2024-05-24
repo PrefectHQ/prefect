@@ -849,7 +849,6 @@ def _construct_schedules(
     Returns:
         A list of schedule objects
     """
-
     schedule_configs = deploy_config.get("schedules", NotSet)
 
     if schedule_configs is not NotSet:

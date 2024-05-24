@@ -388,7 +388,7 @@ def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
     return v
 
 
-def default_timezone(v: Optional[TimeZone], values: Optional[dict] = None) -> str:
+def default_timezone(v: TimeZone, values: Optional[dict] = None) -> str:
     values = values or {}
     timezones = get_valid_timezones(v)
 

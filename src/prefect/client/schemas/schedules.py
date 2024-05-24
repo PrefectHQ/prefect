@@ -277,7 +277,6 @@ def construct_schedule(
         rrule: An rrule schedule of when to execute runs of this flow.
         timezone: A timezone to use for the schedule. Defaults to UTC.
     """
-
     num_schedules = sum(1 for entry in (interval, cron, rrule) if entry is not None)
     if num_schedules > 1:
         raise ValueError("Only one of interval, cron, or rrule can be provided.")
