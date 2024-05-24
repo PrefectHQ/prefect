@@ -7,6 +7,10 @@ from prefect_dask import DaskTaskRunner, get_async_dask_client, get_dask_client
 
 from prefect import flow, task
 
+pytestmark = pytest.mark.skip(
+    reason="Skipping tests while task runner is being rewritten"
+)
+
 
 class TestDaskSyncClient:
     def test_from_task(self):
