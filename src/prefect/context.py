@@ -166,7 +166,9 @@ class ContextModel(BaseModel):
         """Get the current context instance"""
         return cls.__var__.get(None)
 
-    def copy(self, **kwargs):
+    def model_copy(
+        self: Self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
+    ):
         """
         Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
@@ -180,8 +182,8 @@ class ContextModel(BaseModel):
         Returns:
             A new model instance.
         """
+        new = super().model_copy(update=update, deep=deep)
         # Remove the token on copy to avoid re-entrance errors
-        new = super().model_copy(**kwargs)
         new._token = None
         return new
 
@@ -189,9 +191,7 @@ class ContextModel(BaseModel):
         """
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
-        return self.dict(
-            exclude_unset=True,
-        )
+        return self.model_dump(exclude_unset=True)
 
 
 class PrefectObjectRegistry(ContextModel):

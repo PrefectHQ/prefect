@@ -208,7 +208,7 @@ class FlowRunState(Base):
     )
 
     def as_state(self) -> schemas.states.State:
-        return schemas.states.State.from_orm(self)
+        return schemas.states.State.model_validate(self, from_attributes=True)
 
     __table_args__ = (
         sa.Index(
@@ -282,7 +282,7 @@ class TaskRunState(Base):
     )
 
     def as_state(self) -> schemas.states.State:
-        return schemas.states.State.from_orm(self)
+        return schemas.states.State.model_validate(self, from_attributes=True)
 
     __table_args__ = (
         sa.Index(

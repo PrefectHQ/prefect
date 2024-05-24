@@ -104,7 +104,7 @@ async def create_work_pool(
 ):
     work_pool = await server_models.workers.create_work_pool(
         session=session,
-        work_pool=server_schemas.actions.WorkPoolCreate.construct(
+        work_pool=server_schemas.actions.WorkPoolCreate.model_construct(
             _fields_set=server_schemas.actions.WorkPoolCreate.__fields_set__,
             name="wp-1",
             type=type,
@@ -409,12 +409,12 @@ async def existing_disabled_invalid_automation(
     assert existing.created
 
     # it should be valid while it's disabled
-    Automation.from_orm(existing)
+    Automation.model_validate(existing, from_attributes=True)
 
     # But not while it's enabled
     existing.enabled = True
     with pytest.raises(pydantic.ValidationError):
-        Automation.from_orm(existing)
+        Automation.model_validate(existing, from_attributes=True)
 
     return existing
 

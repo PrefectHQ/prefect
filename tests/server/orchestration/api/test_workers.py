@@ -43,7 +43,7 @@ def patch_events_client(monkeypatch: pytest.MonkeyPatch) -> None:
 async def invalid_work_pool(session):
     work_pool = await models.workers.create_work_pool(
         session=session,
-        work_pool=schemas.actions.WorkPoolCreate.construct(
+        work_pool=schemas.actions.WorkPoolCreate.model_construct(
             _fields_set=schemas.actions.WorkPoolCreate.__fields_set__,
             name="wp-1",
             type="invalid",

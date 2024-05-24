@@ -1,4 +1,5 @@
 import datetime
+import warnings
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -314,11 +315,8 @@ class State(ObjectBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def copy(
-        self,
-        *,
-        update: Optional[Dict[str, Any]] = None,
-        **kwargs,
+    def model_copy(
+        self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
     ):
         """
         Copying API models should return an object that could be inserted into the
@@ -326,13 +324,13 @@ class State(ObjectBaseModel, Generic[R]):
         """
         update = update or {}
         update.setdefault("timestamp", self.model_fields["timestamp"].get_default())
-        return super().model_copy(update=update, **kwargs)
+        return super().model_copy(update=update, deep=deep)
 
     def fresh_copy(self, **kwargs) -> Self:
         """
         Return a fresh copy of the state with a new ID.
         """
-        return self.copy(
+        return self.model_copy(
             update={
                 "id": uuid4(),
                 "created": pendulum.now("utc"),
@@ -616,11 +614,16 @@ class TaskRunPolicy(PrefectBaseModel):
         If deprecated fields are provided, populate the corresponding new fields
         to preserve orchestration behavior.
         """
-        if not self.retries and self.max_retries != 0:
-            self.retries = self.max_retries
+        # We have marked these fields as deprecated, so we need to filter out the
+        # deprecation warnings _we're_ generating here
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
 
-        if not self.retry_delay and self.retry_delay_seconds != 0:
-            self.retry_delay = self.retry_delay_seconds
+            if not self.retries and self.max_retries != 0:
+                self.retries = self.max_retries
+
+            if not self.retry_delay and self.retry_delay_seconds != 0:
+                self.retry_delay = self.retry_delay_seconds
 
         return self
 
