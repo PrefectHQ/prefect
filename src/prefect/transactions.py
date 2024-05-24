@@ -62,6 +62,12 @@ class Transaction(ContextModel):
                 parent.tasks.extend(self.tasks)
                 parent.state.update(self.state)
 
+    def commit(self) -> None:
+        for tsk in self.tasks:
+            for hook in tsk.on_commit_hooks:
+                hook(record) #tbd
+        self.committed = True
+
     def rollback(self) -> None:
         for tsk in reversed(self.tasks):
             for hook in tsk.on_rollback_hooks:
