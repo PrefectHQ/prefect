@@ -1,4 +1,5 @@
 import datetime
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -608,11 +609,16 @@ class TaskRunPolicy(PrefectBaseModel):
         If deprecated fields are provided, populate the corresponding new fields
         to preserve orchestration behavior.
         """
-        if not self.retries and self.max_retries != 0:
-            self.retries = self.max_retries
+        # We have marked these fields as deprecated, so we need to filter out the
+        # deprecation warnings _we're_ generating here
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
 
-        if not self.retry_delay and self.retry_delay_seconds != 0:
-            self.retry_delay = self.retry_delay_seconds
+            if not self.retries and self.max_retries != 0:
+                self.retries = self.max_retries
+
+            if not self.retry_delay and self.retry_delay_seconds != 0:
+                self.retry_delay = self.retry_delay_seconds
 
         return self
 

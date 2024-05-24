@@ -57,7 +57,9 @@ class TestUpdateWorkQueue:
             from_attributes=True,
         )
         assert updated_queue.id == work_queue.id
-        assert updated_queue.filter.tags == ["updated", "tags"]
+
+        with pytest.warns(DeprecationWarning):
+            assert updated_queue.filter.tags == ["updated", "tags"]
 
 
 class TestGetRunsInWorkQueue:
