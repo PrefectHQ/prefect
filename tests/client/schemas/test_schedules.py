@@ -85,7 +85,7 @@ class TestConstructSchedule:
         )
 
     def test_string_anchor_date(self):
-        anchor = "2023-01-01T00:00:00Z"
+        anchor = "2023-01-01T00:00:00+00:00"
         result = construct_schedule(interval=300, anchor_date=anchor)
         assert result == IntervalSchedule(
             interval=datetime.timedelta(seconds=300),
