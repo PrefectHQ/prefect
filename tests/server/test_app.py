@@ -44,7 +44,6 @@ def test_app_exposes_ui_settings():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "new_engine",
     }
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),
@@ -72,7 +71,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "new_engine",
     }
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),
