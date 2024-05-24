@@ -91,7 +91,7 @@ async def my_async_flow():
     print(answer) # 42
 ```
 
-While inside a `flow` or `task`, they should be invoked synchronously or asynchronously depending on if the current 
+While inside a `flow` or `task`, they should be invoked synchronously or asynchronously depending on whether the current context is synchronous or asynchronous.
 context is synchronous or asynchronous.
 #### In a synchronous context:
 ```python
