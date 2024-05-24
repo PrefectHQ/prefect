@@ -65,7 +65,7 @@ class Transaction(ContextModel):
     def rollback(self) -> None:
         for tsk in reversed(self.tasks):
             for hook in tsk.on_rollback_hooks:
-                hook(tsk)
+                hook()
         self.rolled_back = True
 
     def add_task(self, task: Task, task_run_id: UUID) -> None:

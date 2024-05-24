@@ -542,6 +542,7 @@ def run_task_sync(
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
             with transaction() as txn:
+                txn.add_task(run.task, run.task_run.id)
                 run.begin_run()
 
                 while run.is_running():
@@ -562,7 +563,7 @@ def run_task_sync(
                             # If the task run is successful, finalize it.
                             run.handle_success(result)
                         except RollBack as exc:
-                            run.handle_rollback(exc, txn=txn)
+                            run.handle_rollback(exc, transaction=txn)
                         except TimeoutError as exc:
                             run.handle_timeout(exc)
                         except Exception as exc:

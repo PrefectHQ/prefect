@@ -332,7 +332,7 @@ class Task(Generic[P, R]):
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
-        self.on_rollback_hooks = on_rollback
+        self.on_rollback_hooks = on_rollback or []
         self.on_completion_hooks = on_completion or []
         self.on_failure_hooks = on_failure or []
 
@@ -521,6 +521,12 @@ class Task(Generic[P, R]):
         self, fn: Callable[["Task", TaskRun, State], None]
     ) -> Callable[["Task", TaskRun, State], None]:
         self.on_failure_hooks.append(fn)
+        return fn
+
+    def on_rollback(
+        self, fn: Callable[["Task", TaskRun, State], None]
+    ) -> Callable[["Task", TaskRun, State], None]:
+        self.on_rollback_hooks.append(fn)
         return fn
 
     async def create_run(
