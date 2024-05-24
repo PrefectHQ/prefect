@@ -18,6 +18,7 @@ else:
     from pydantic import Field
 
 from prefect.context import ContextModel, TaskRunContext
+from prefect.records import Record
 from prefect.tasks import Task
 
 T = TypeVar("T")
@@ -28,7 +29,7 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    key: str = None
+    record: Record = None
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
     rolled_back: bool = False
@@ -65,7 +66,7 @@ class Transaction(ContextModel):
     def commit(self) -> None:
         for tsk in self.tasks:
             for hook in tsk.on_commit_hooks:
-                hook(record) #tbd
+                hook(self.record)
         self.committed = True
 
     def rollback(self) -> None:

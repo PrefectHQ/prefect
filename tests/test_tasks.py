@@ -4194,6 +4194,7 @@ class TestNestedTasks:
         result = await outer_task()
         assert result == 42
 
+
 class TestTransactions:
     def test_rollback_hook_is_called_on_rollback(self):
         data = {}
