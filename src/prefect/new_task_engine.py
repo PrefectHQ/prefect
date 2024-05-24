@@ -435,11 +435,10 @@ class TaskRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
-
-        with get_client(sync_client=True) as client:
-            self._client = client
-            self._is_started = True
-            with hydrated_context(self.context, client=client):
+        with hydrated_context(self.context):
+            with get_client(sync_client=True) as client:
+                self._client = client
+                self._is_started = True
                 try:
                     if not self.task_run:
                         self.task_run = run_sync(

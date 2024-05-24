@@ -122,7 +122,9 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     return inputs
 
 
-def collect_task_run_inputs_sync(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
+def collect_task_run_inputs_sync(
+    expr: Any, future_cls: Any = NewPrefectFuture, max_depth: int = -1
+) -> Set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -136,11 +138,10 @@ def collect_task_run_inputs_sync(expr: Any, max_depth: int = -1) -> Set[TaskRunI
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
-    futures: Set[NewPrefectFuture] = set()
 
     def add_futures_and_states_to_inputs(obj):
-        if isinstance(obj, NewPrefectFuture):
-            futures.add(obj)
+        if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
+            inputs.add(TaskRunResult(id=obj.task_run_id))
         elif is_state(obj):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
@@ -158,9 +159,6 @@ def collect_task_run_inputs_sync(expr: Any, max_depth: int = -1) -> Set[TaskRunI
         return_data=False,
         max_depth=max_depth,
     )
-
-    for future in futures:
-        inputs.add(TaskRunResult(id=future.task_run_id))
 
     return inputs
 
