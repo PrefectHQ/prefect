@@ -1,14 +1,25 @@
 import datetime
 import os
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, Optional, Set, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+)
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+)
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
-
-from prefect.utilities.pydantic import default_secret_encoder
 
 if TYPE_CHECKING:
     from pydantic.main import IncEx
@@ -149,69 +160,12 @@ class PrefectBaseModel(BaseModel):
             exclude_unset=exclude_unset,
             exclude_defaults=exclude_defaults,
             exclude_none=exclude_none,
+            context={"for_orm": True},
         )
         for k, v in self:
             if k in deep and isinstance(v, BaseModel):
                 deep[k] = v
         return deep
-
-    def model_dump_with_secrets(
-        self,
-        *,
-        unmask_secrets: bool = True,
-        include: "IncEx" = None,
-        exclude: "IncEx" = None,
-        by_alias: bool = False,
-        exclude_unset: bool = False,
-        exclude_defaults: bool = False,
-        exclude_none: bool = False,
-    ) -> Dict[str, Any]:
-        """
-        Prefect extension to `BaseModel.model_dump`.  Generate a Python dictionary
-        representation of the model, calling `.get_secret_value()` on any fields that
-        have that method defined.
-
-        `unmask_secrets` is left as an escape for when the caller of this method wants to override
-        the default behavior of including secrets in the output (as currently enabled in the client).
-
-        Accepts the standard Pydantic `model_dump` arguments, except for `mode` (which
-        is always "json"), `round_trip`, and `warnings` (the latter two are not supported).
-
-        Usage docs: https://docs.pydantic.dev/2.6/concepts/serialization/#modelmodel_dump
-
-        Args:
-            unmask_secrets: Whether to include secrets in the output.
-            include: A list of fields to include in the output.
-            exclude: A list of fields to exclude from the output.
-            by_alias: Whether to use the field's alias in the dictionary key if defined.
-            exclude_unset: Whether to exclude fields that have not been explicitly set.
-            exclude_defaults: Whether to exclude fields that are set to their default
-                value.
-            exclude_none: Whether to exclude fields that have a value of `None`.
-        """
-        if not unmask_secrets:
-            return self.model_dump(
-                mode="json",
-                include=include,
-                exclude=exclude,
-                by_alias=by_alias,
-                exclude_unset=exclude_unset,
-                exclude_defaults=exclude_defaults,
-                exclude_none=exclude_none,
-            )
-
-        return {
-            field_name: default_secret_encoder(field_value)
-            for field_name, field_value in self.model_dump(
-                mode="python",
-                include=include,
-                exclude=exclude,
-                by_alias=by_alias,
-                exclude_unset=exclude_unset,
-                exclude_defaults=exclude_defaults,
-                exclude_none=exclude_none,
-            ).items()
-        }
 
 
 class IDBaseModel(PrefectBaseModel):

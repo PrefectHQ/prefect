@@ -141,7 +141,7 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: TimeZone = "UTC"
+    timezone: Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("rrule")
     @classmethod

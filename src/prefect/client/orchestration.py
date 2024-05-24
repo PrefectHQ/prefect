@@ -1225,21 +1225,14 @@ class PrefectClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
-        if isinstance(block_document, BlockDocument):
-            block_document = BlockDocumentCreate.model_validate(
-                block_document.model_dump_with_secrets(
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                ),
-            )
-
         try:
             response = await self._client.post(
                 "/block_documents/",
-                json=block_document.model_dump_with_secrets(
-                    unmask_secrets=include_secrets,
+                json=block_document.model_dump(
+                    mode="json",
                     exclude_unset=True,
                     exclude={"id", "block_schema", "block_type"},
+                    context={"include_secrets": include_secrets},
                 ),
             )
         except httpx.HTTPStatusError as e:
@@ -1260,7 +1253,8 @@ class PrefectClient:
         try:
             await self._client.patch(
                 f"/block_documents/{block_document_id}",
-                json=block_document.model_dump_with_secrets(
+                json=block_document.model_dump(
+                    mode="json",
                     exclude_unset=True,
                     include={"data", "merge_existing_data", "block_schema_id"},
                 ),
@@ -1321,7 +1315,8 @@ class PrefectClient:
         try:
             await self._client.patch(
                 f"/block_types/{block_type_id}",
-                json=block_type.model_dump_with_secrets(
+                json=block_type.model_dump(
+                    mode="json",
                     exclude_unset=True,
                     include=BlockTypeUpdate.updatable_fields(),
                 ),

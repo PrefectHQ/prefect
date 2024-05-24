@@ -1,16 +1,17 @@
 from datetime import timedelta
-from typing import List
+from typing import Any, Dict, List
 
 import pendulum
 import pytest
 import sqlalchemy as sa
-from fastapi import Response, status
+from fastapi import status
+from httpx import Response
 from packaging import version
+from pydantic import TypeAdapter
 
 from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.states import StateType
-from prefect.utilities.pydantic import parse_obj_as
 
 dt = pendulum.datetime(2021, 7, 1)
 
@@ -24,19 +25,27 @@ def assert_datetime_dictionaries_equal(a, b):
             assert v == dictionary_b[k]
 
 
-def parse_response(response: Response, include=None):
+def validate_response(response: Response, include=None) -> List[Dict[str, Any]]:
     assert response.status_code == status.HTTP_200_OK
-    parsed = parse_obj_as(List[responses.HistoryResponse], response.json())
+    parsed = TypeAdapter(List[responses.HistoryResponse]).validate_python(
+        response.json()
+    )
 
     # for each interval...
     for p in parsed:
         # sort states arrays for comparison
         p.states = sorted(p.states, key=lambda s: s.state_name)
-        # grab only requested fields in the states aggregation, to make comparison simple
-        if include:
-            p.states = [dict(**s.model_dump(include=set(include))) for s in p.states]
 
-    return parsed
+    dumped = [p.model_dump() for p in parsed]
+
+    # grab only requested fields in the states aggregation, to make comparison simple
+    if include:
+        for p in dumped:
+            p["states"] = [
+                {k: v for k, v in s.items() if k in include} for s in p["states"]
+            ]
+
+    return dumped
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -239,12 +248,16 @@ async def test_history(
         ),
     )
 
-    parsed = parse_response(response)
-    assert len(parsed) == expected_bins
-    assert min([r.interval_start for r in parsed]) == start
-    assert parsed[0].interval_end - parsed[0].interval_start == interval
+    response_histories = validate_response(response)
+
+    assert len(response_histories) == expected_bins
+    assert min([r["interval_start"] for r in response_histories]) == start
     assert (
-        max([r.interval_start for r in parsed])
+        response_histories[0]["interval_end"] - response_histories[0]["interval_start"]
+        == interval
+    )
+    assert (
+        max([r["interval_start"] for r in response_histories])
         == start + (expected_bins - 1) * interval
     )
 
@@ -280,18 +293,22 @@ async def test_daily_bins_flow_runs(client):
         ),
     )
 
-    parsed = parse_response(
-        response, include={"state_name", "state_type", "count_runs"}
+    response_histories = validate_response(
+        response, include={"state_type", "state_name", "count_runs"}
     )
 
     assert_datetime_dictionaries_equal(
-        [p.model_dump() for p in parsed],
+        response_histories,
         [
             dict(
                 interval_start=dt.subtract(days=5),
                 interval_end=dt.subtract(days=4),
                 states=[
-                    dict(state_name="Failed", state_type=StateType.FAILED, count_runs=1)
+                    dict(
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=1,
+                    )
                 ],
             ),
             dict(
@@ -299,7 +316,9 @@ async def test_daily_bins_flow_runs(client):
                 interval_end=dt.subtract(days=3),
                 states=[
                     dict(
-                        state_name="Failed", state_type=StateType.FAILED, count_runs=1
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=1,
                     ),
                 ],
             ),
@@ -324,7 +343,9 @@ async def test_daily_bins_flow_runs(client):
                         count_runs=2,
                     ),
                     dict(
-                        state_name="Running", state_type=StateType.RUNNING, count_runs=4
+                        state_name="Running",
+                        state_type=StateType.RUNNING,
+                        count_runs=4,
                     ),
                 ],
             ),
@@ -338,7 +359,9 @@ async def test_daily_bins_flow_runs(client):
                         count_runs=2,
                     ),
                     dict(
-                        state_name="Running", state_type=StateType.RUNNING, count_runs=4
+                        state_name="Running",
+                        state_type=StateType.RUNNING,
+                        count_runs=4,
                     ),
                     dict(
                         state_name="Scheduled",
@@ -357,7 +380,9 @@ async def test_daily_bins_flow_runs(client):
                         count_runs=1,
                     ),
                     dict(
-                        state_name="Running", state_type=StateType.RUNNING, count_runs=2
+                        state_name="Running",
+                        state_type=StateType.RUNNING,
+                        count_runs=2,
                     ),
                     dict(
                         state_name="Scheduled",
@@ -380,12 +405,12 @@ async def test_weekly_bins_flow_runs(client):
         ),
     )
 
-    parsed = parse_response(
+    response_histories = validate_response(
         response, include={"state_type", "state_name", "count_runs"}
     )
 
     assert_datetime_dictionaries_equal(
-        [p.model_dump() for p in parsed],
+        response_histories,
         [
             dict(
                 interval_start=dt.subtract(days=16),
@@ -397,7 +422,9 @@ async def test_weekly_bins_flow_runs(client):
                         count_runs=6,
                     ),
                     dict(
-                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=4,
                     ),
                 ],
             ),
@@ -411,7 +438,9 @@ async def test_weekly_bins_flow_runs(client):
                         count_runs=10,
                     ),
                     dict(
-                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=4,
                     ),
                 ],
             ),
@@ -456,19 +485,21 @@ async def test_weekly_bins_with_filters_flow_runs(client):
         ),
     )
 
-    parsed = parse_response(
+    response_histories = validate_response(
         response, include={"state_type", "state_name", "count_runs"}
     )
 
     assert_datetime_dictionaries_equal(
-        [p.model_dump() for p in parsed],
+        response_histories,
         [
             dict(
                 interval_start=dt.subtract(days=16),
                 interval_end=dt.subtract(days=9),
                 states=[
                     dict(
-                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=4,
                     ),
                 ],
             ),
@@ -477,7 +508,9 @@ async def test_weekly_bins_with_filters_flow_runs(client):
                 interval_end=dt.subtract(days=2),
                 states=[
                     dict(
-                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=4,
                     ),
                 ],
             ),
@@ -512,13 +545,13 @@ async def test_weekly_bins_with_filters_work_pools(client, work_pool):
         ),
     )
 
-    parsed = parse_response(
+    response_histories = validate_response(
         response, include={"state_type", "state_name", "count_runs"}
     )
 
     # Only completed runs are associated with the work pool
     assert_datetime_dictionaries_equal(
-        [p.model_dump() for p in parsed],
+        response_histories,
         [
             dict(
                 interval_start=dt.subtract(days=5),
@@ -589,13 +622,13 @@ async def test_weekly_bins_with_filters_work_queues(client, work_queue):
         ),
     )
 
-    parsed = parse_response(
+    response_histories = validate_response(
         response, include={"state_type", "state_name", "count_runs"}
     )
 
     # Only completed runs are associated with the work queue
     assert_datetime_dictionaries_equal(
-        [p.model_dump() for p in parsed],
+        response_histories,
         [
             dict(
                 interval_start=dt.subtract(days=5),
@@ -665,12 +698,12 @@ async def test_5_minute_bins_task_runs(client):
         ),
     )
 
-    parsed = parse_response(
+    response_histories = validate_response(
         response, include={"state_type", "state_name", "count_runs"}
     )
 
     assert_datetime_dictionaries_equal(
-        [p.model_dump() for p in parsed],
+        response_histories,
         [
             dict(
                 interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
@@ -698,7 +731,9 @@ async def test_5_minute_bins_task_runs(client):
                         count_runs=5,
                     ),
                     dict(
-                        state_name="Failed", state_type=StateType.FAILED, count_runs=3
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=3,
                     ),
                 ],
             ),
@@ -707,10 +742,14 @@ async def test_5_minute_bins_task_runs(client):
                 interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
                 states=[
                     dict(
-                        state_name="Failed", state_type=StateType.FAILED, count_runs=5
+                        state_name="Failed",
+                        state_type=StateType.FAILED,
+                        count_runs=5,
                     ),
                     dict(
-                        state_name="Running", state_type=StateType.RUNNING, count_runs=1
+                        state_name="Running",
+                        state_type=StateType.RUNNING,
+                        count_runs=1,
                     ),
                 ],
             ),
@@ -729,12 +768,12 @@ async def test_5_minute_bins_task_runs_with_filter(client):
         ),
     )
 
-    parsed = parse_response(
+    response_histories = validate_response(
         response, include={"state_type", "state_name", "count_runs"}
     )
 
     assert_datetime_dictionaries_equal(
-        [p.model_dump() for p in parsed],
+        response_histories,
         [
             dict(
                 interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
@@ -768,7 +807,9 @@ async def test_5_minute_bins_task_runs_with_filter(client):
                 interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
                 states=[
                     dict(
-                        state_name="Running", state_type=StateType.RUNNING, count_runs=1
+                        state_name="Running",
+                        state_type=StateType.RUNNING,
+                        count_runs=1,
                     ),
                 ],
             ),
@@ -789,7 +830,9 @@ async def test_last_bin_contains_end_date(client, route):
     )
 
     assert response.status_code == status.HTTP_200_OK
-    parsed = parse_obj_as(List[responses.HistoryResponse], response.json())
+    parsed = TypeAdapter(List[responses.HistoryResponse]).validate_python(
+        response.json()
+    )
     assert len(parsed) == 2
     assert parsed[0].interval_start == dt
     assert parsed[0].interval_end == dt.add(days=1)
@@ -872,39 +915,39 @@ async def test_flow_run_lateness(client, session):
             flows=dict(id=dict(any_=[str(f.id)])),
         ),
     )
-    parsed = parse_response(response)
-    interval = parsed[0]
+    response_histories = validate_response(response)
+    interval = response_histories[0]
 
-    assert interval.interval_start == dt.subtract(days=1)
-    assert interval.interval_end == dt.add(days=1)
+    assert interval["interval_start"] == dt.subtract(days=1)
+    assert interval["interval_end"] == dt.add(days=1)
 
     # -------------------------------- COMPLETED
 
-    assert interval.states[0].state_type == StateType.COMPLETED
-    assert interval.states[0].count_runs == 1
-    assert interval.states[0].sum_estimated_run_time == timedelta(
+    assert interval["states"][0]["state_type"] == StateType.COMPLETED
+    assert interval["states"][0]["count_runs"] == 1
+    assert interval["states"][0]["sum_estimated_run_time"] == timedelta(
         minutes=39, seconds=57
     )
-    assert interval.states[0].sum_estimated_lateness == timedelta(seconds=3)
+    assert interval["states"][0]["sum_estimated_lateness"] == timedelta(seconds=3)
 
     # -------------------------------- RUNNING
 
-    assert interval.states[1].state_type == StateType.RUNNING
-    assert interval.states[1].count_runs == 1
+    assert interval["states"][1]["state_type"] == StateType.RUNNING
+    assert interval["states"][1]["count_runs"] == 1
 
     expected_run_time = pendulum.now("UTC") - dt.subtract(minutes=5)
     assert (
         expected_run_time - timedelta(seconds=2)
-        < interval.states[1].sum_estimated_run_time
+        < interval["states"][1]["sum_estimated_run_time"]
         < expected_run_time
     )
-    assert interval.states[1].sum_estimated_lateness == timedelta(seconds=600)
+    assert interval["states"][1]["sum_estimated_lateness"] == timedelta(seconds=600)
 
     # -------------------------------- SCHEDULED
 
-    assert interval.states[2].state_type == StateType.SCHEDULED
-    assert interval.states[2].count_runs == 2
-    assert interval.states[2].sum_estimated_run_time == timedelta(0)
+    assert interval["states"][2]["state_type"] == StateType.SCHEDULED
+    assert interval["states"][2]["count_runs"] == 2
+    assert interval["states"][2]["sum_estimated_run_time"] == timedelta(0)
 
     expected_lateness = (request_time - dt.subtract(minutes=1)) + (
         request_time - dt.subtract(seconds=25)
@@ -918,7 +961,7 @@ async def test_flow_run_lateness(client, session):
             (
                 expected_lateness
                 - timedelta(seconds=2)
-                - interval.states[2].sum_estimated_lateness
+                - interval["states"][2]["sum_estimated_lateness"]
             ).total_seconds()
         )
         < 2.5

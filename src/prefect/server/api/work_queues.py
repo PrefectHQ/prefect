@@ -56,7 +56,9 @@ async def create_work_queue(
             detail="A work queue with this name already exists.",
         )
 
-    return schemas.responses.WorkQueueResponse.from_orm(model)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        model, from_attributes=True
+    )
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -97,7 +99,9 @@ async def read_work_queue_by_name(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
-    return schemas.responses.WorkQueueResponse.from_orm(work_queue)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        work_queue, from_attributes=True
+    )
 
 
 @router.get("/{id}")
@@ -116,7 +120,9 @@ async def read_work_queue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
-    return schemas.responses.WorkQueueResponse.from_orm(work_queue)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        work_queue, from_attributes=True
+    )
 
 
 @router.post("/{id}/get_runs")
@@ -210,7 +216,10 @@ async def read_work_queues(
             session=session, offset=offset, limit=limit, work_queue_filter=work_queues
         )
 
-    return [schemas.responses.WorkQueueResponse.from_orm(wq) for wq in wqs]
+    return [
+        schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
+        for wq in wqs
+    ]
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)

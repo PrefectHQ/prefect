@@ -137,8 +137,8 @@ async def work_pool(session: AsyncSession):
 
     wp = await models.workers.create_work_pool(
         session=session,
-        work_pool=WorkPoolCreate.construct(
-            _fields_set=WorkPoolCreate.__fields_set__,
+        work_pool=WorkPoolCreate.model_construct(
+            _fields_set=WorkPoolCreate.model_fields_set,
             name="test-worker-pool",
             type="test",
             description="None",
@@ -157,8 +157,8 @@ async def work_pool_with_default_env(session: AsyncSession):
     }
     wp = await models.workers.create_work_pool(
         session=session,
-        work_pool=WorkPoolCreate.construct(
-            _fields_set=WorkPoolCreate.__fields_set__,
+        work_pool=WorkPoolCreate.model_construct(
+            _fields_set=WorkPoolCreate.model_fields_set,
             name="wp-1",
             type="test",
             description="None",

@@ -1,6 +1,6 @@
 from base64 import b64decode, b64encode
 import json
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 from prefect.server.events.counting import TimeUnit
 from prefect.server.events.schemas.events import EventCount
 
@@ -18,7 +18,7 @@ class InvalidTokenError(ValueError):
 
 def to_page_token(
     filter: "EventFilter", count: int, page_size: int, current_offset: int
-) -> "str | None":
+) -> Optional[str]:
     if current_offset + page_size >= count:
         return None
 

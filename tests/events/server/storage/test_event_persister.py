@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import timedelta
-from typing import TYPE_CHECKING, AsyncGenerator, Sequence
+from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
 
 import pendulum
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 @db_injector
-async def get_event(db: PrefectDBInterface, id: UUID) -> "ReceivedEvent | None":
+async def get_event(db: PrefectDBInterface, id: UUID) -> Optional[ReceivedEvent]:
     async with await db.session() as session:
         result = await session.execute(
             sa.text("SELECT * FROM events WHERE id = :id"),
@@ -312,7 +312,7 @@ async def test_trims_messages_periodically(
     await write_events(
         session,
         [
-            event.copy(
+            event.model_copy(
                 update={
                     "id": uuid4(),
                     "occurred": pendulum.now("UTC") - timedelta(days=i),

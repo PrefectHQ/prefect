@@ -15,7 +15,6 @@ from prefect.serializers import (
     PickleSerializer,
     Serializer,
 )
-from prefect.server.schemas import states as server_states
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_HOME,
@@ -419,41 +418,6 @@ async def test_flow_state_result_is_respected(persist_result, return_state):
 
     if return_state.data:
         assert await state.result(raise_on_failure=False) == return_state.data
-
-
-@pytest.mark.parametrize(
-    "return_state",
-    [
-        server_states.Completed(data="test"),
-        server_states.Cancelled(),
-        server_states.Failed(),
-    ],
-)
-@pytest.mark.parametrize("persist_result", [True, False])
-async def test_flow_server_state_schema_result_is_respected(
-    persist_result, return_state
-):
-    # Tests for backwards compatibility with server-side state return values
-    @flow(persist_result=persist_result)
-    def my_flow():
-        return return_state
-
-    with pytest.warns(DeprecationWarning, match="Use `prefect.states.State` instead"):
-        state = my_flow(return_state=True)
-
-    assert state.type == return_state.type
-
-    # id, timestamp, and state details must be excluded as they are copied from
-    # the API version of the state and will not match the state created for
-    # this test. Data must be excluded as it will have been updated to a
-    # result.
-    assert state.dict(
-        exclude={"id", "timestamp", "state_details", "data"}
-    ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
-
-    if return_state.data:
-        with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
-            assert await state.result(raise_on_failure=False) == return_state.data
 
 
 async def test_root_flow_default_remote_storage(tmp_path: Path):

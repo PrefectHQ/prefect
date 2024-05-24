@@ -133,16 +133,16 @@ class OrchestrationContext(PrefectBaseModel):
             A mutation-safe copy of the `OrchestrationContext`
         """
 
-        safe_copy = self.copy()
+        safe_copy = self.model_copy()
 
         safe_copy.initial_state = (
-            self.initial_state.copy() if self.initial_state else None
+            self.initial_state.model_copy() if self.initial_state else None
         )
         safe_copy.proposed_state = (
-            self.proposed_state.copy() if self.proposed_state else None
+            self.proposed_state.model_copy() if self.proposed_state else None
         )
         safe_copy.validated_state = (
-            self.validated_state.copy() if self.validated_state else None
+            self.validated_state.model_copy() if self.validated_state else None
         )
         safe_copy.parameters = self.parameters.copy()
         return safe_copy

@@ -73,6 +73,7 @@ from pydantic import (
     create_model,
     field_validator,
     fields,
+    model_validator,
 )
 from pydantic_settings import BaseSettings
 from typing_extensions import Literal
@@ -1525,7 +1526,7 @@ The maximum number of retries to queue for submission.
 """
 
 PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
-    PositiveDuration,
+    NonNegativeDuration,
     default=timedelta(seconds=30),
 )
 """
@@ -1730,10 +1731,9 @@ for __name, __setting in SETTING_VARIABLES.items():
 
 # Dynamically create a pydantic model that includes all of our settings
 
-SettingsFieldsMixin = create_model(
+SettingsFieldsMixin: Type[BaseSettings] = create_model(
     "SettingsFieldsMixin",
-    # Inheriting from `BaseSettings` provides environment variable loading
-    __base__=BaseSettings,
+    __base__=BaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
     **{
         setting.name: (setting.type, setting.field)
         for setting in SETTING_VARIABLES.values()
@@ -1782,20 +1782,20 @@ class Settings(SettingsFieldsMixin):
         logging._checkLevel(value)
         return value
 
-    # @model_validator(mode="before")
-    # @classmethod
-    # def post_root_validators(cls, values):
-    #     """
-    #     Add root validation functions for settings here.
-    #     """
-    #     # TODO: We could probably register these dynamically but this is the simpler
-    #     #       approach for now. We can explore more interesting validation features
-    #     #       in the future.
-    #     values = max_log_size_smaller_than_batch_size(values)
-    #     values = warn_on_database_password_value_without_usage(values)
-    #     if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
-    #         values = warn_on_misconfigured_api_url(values)
-    #     return values
+    @model_validator(mode="after")
+    def emit_warnings(self):
+        """
+        Add root validation functions for settings here.
+        """
+        # TODO: We could probably register these dynamically but this is the simpler
+        #       approach for now. We can explore more interesting validation features
+        #       in the future.
+        values = self.model_dump()
+        values = max_log_size_smaller_than_batch_size(values)
+        values = warn_on_database_password_value_without_usage(values)
+        if not values["PREFECT_SILENCE_API_URL_MISCONFIGURATION"]:
+            values = warn_on_misconfigured_api_url(values)
+        return self
 
     def copy_with_update(
         self,
@@ -1833,7 +1833,7 @@ class Settings(SettingsFieldsMixin):
         """
         Returns a copy of this settings object with secret setting values obfuscated.
         """
-        settings = self.copy(
+        settings = self.model_copy(
             update={
                 setting.name: obfuscate(self.value_of(setting))
                 for setting in SETTING_VARIABLES.values()

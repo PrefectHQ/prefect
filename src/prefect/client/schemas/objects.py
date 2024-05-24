@@ -1,4 +1,6 @@
 import datetime
+import warnings
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -18,15 +20,13 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
-    StrictStr,
+    SerializationInfo,
     field_validator,
+    model_serializer,
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Literal, Self, TypeAlias
+from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -35,6 +35,7 @@ from prefect._internal.schemas.validators import (
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     set_run_policy_deprecated_fields,
+    validate_block_document_name,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
     validate_message_template_variables,
@@ -44,9 +45,16 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
-from prefect.types import Name, NonNegativeInteger, PositiveInteger
-from prefect.utilities.collections import AutoEnum, listrepr
+from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
+    Name,
+    NonNegativeInteger,
+    PositiveInteger,
+    StrictVariableValue,
+)
+from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
+from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
     from prefect.results import BaseResult
@@ -70,8 +78,6 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_state_timestamp",
     "flow_run_state_message",
 ]
-MAX_VARIABLE_NAME_LENGTH = 255
-MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
 class StateType(AutoEnum):
@@ -309,11 +315,8 @@ class State(ObjectBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def copy(
-        self,
-        *,
-        update: Optional[Dict[str, Any]] = None,
-        **kwargs,
+    def model_copy(
+        self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
     ):
         """
         Copying API models should return an object that could be inserted into the
@@ -321,13 +324,13 @@ class State(ObjectBaseModel, Generic[R]):
         """
         update = update or {}
         update.setdefault("timestamp", self.model_fields["timestamp"].get_default())
-        return super().model_copy(update=update, **kwargs)
+        return super().model_copy(update=update, deep=deep)
 
     def fresh_copy(self, **kwargs) -> Self:
         """
         Return a fresh copy of the state with a new ID.
         """
-        return self.copy(
+        return self.model_copy(
             update={
                 "id": uuid4(),
                 "created": pendulum.now("utc"),
@@ -611,11 +614,16 @@ class TaskRunPolicy(PrefectBaseModel):
         If deprecated fields are provided, populate the corresponding new fields
         to preserve orchestration behavior.
         """
-        if not self.retries and self.max_retries != 0:
-            self.retries = self.max_retries
+        # We have marked these fields as deprecated, so we need to filter out the
+        # deprecation warnings _we're_ generating here
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
 
-        if not self.retry_delay and self.retry_delay_seconds != 0:
-            self.retry_delay = self.retry_delay_seconds
+            if not self.retries and self.max_retries != 0:
+                self.retries = self.max_retries
+
+            if not self.retry_delay and self.retry_delay_seconds != 0:
+                self.retry_delay = self.retry_delay_seconds
 
         return self
 
@@ -897,9 +905,20 @@ class BlockDocument(ObjectBaseModel):
         ),
     )
 
+    _validate_name_format = field_validator("name")(validate_block_document_name)
+
     @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
+
+    @model_serializer(mode="wrap")
+    def serialize_data(self, handler, info: SerializationInfo):
+        self.data = visit_collection(
+            self.data,
+            visit_fn=partial(handle_secret_render, context=info.context or {}),
+            return_data=True,
+        )
+        return handler(self)
 
 
 class Flow(ObjectBaseModel):
@@ -1487,16 +1506,6 @@ class ArtifactCollection(ObjectBaseModel):
     )
 
 
-# strict typing to use inside a pydantic object, to avoid
-# casting values to undesired types (e.g. 123 -> "123")
-STRICT_VARIABLE_TYPES: TypeAlias = Union[
-    StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
-]
-VARIABLE_TYPES: TypeAlias = Union[
-    str, int, float, bool, None, Dict[str, Any], List[Any]
-]
-
-
 class Variable(ObjectBaseModel):
     name: str = Field(
         default=...,
@@ -1504,7 +1513,7 @@ class Variable(ObjectBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: STRICT_VARIABLE_TYPES = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my_value"],

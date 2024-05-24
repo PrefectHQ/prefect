@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import os
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncGenerator, Iterable, Tuple
 from unittest import mock
@@ -189,29 +190,31 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
 async def test_scheduled_tasks_are_enqueued_server_side(
     foo_task_with_result_storage: Task,
 ):
-    task_run: TaskRun = foo_task_with_result_storage.submit(42)
-    assert task_run.state.is_scheduled()
+    client_run: TaskRun = foo_task_with_result_storage.submit(42)
+    assert client_run.state.is_scheduled()
 
-    enqueued: ServerTaskRun = await TaskQueue.for_key(task_run.task_key).get()
+    enqueued_run: ServerTaskRun = await TaskQueue.for_key(client_run.task_key).get()
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
     # after orchestration in a way that differs by microseconds, or the
     # created/updated dates are populated.
 
-    assert task_run.state and task_run.state.created is not None
-    assert enqueued.state and enqueued.state.created is not None
-    task_run.state.created = enqueued.state.created
+    assert client_run.estimated_start_time_delta is not None
+    assert enqueued_run.estimated_start_time_delta is not None
+    assert (
+        client_run.estimated_start_time_delta - enqueued_run.estimated_start_time_delta
+        < timedelta(seconds=10)
+    )
+    client_run.estimated_start_time_delta = enqueued_run.estimated_start_time_delta
 
-    assert task_run.state.updated is None
-    assert enqueued.state.updated is not None
-    task_run.state.updated = enqueued.state.updated
+    enqueued_run_dict = enqueued_run.model_dump()
+    client_run_dict = client_run.model_dump()
 
-    assert task_run.estimated_start_time_delta is not None
-    assert enqueued.estimated_start_time_delta is not None
-    task_run.estimated_start_time_delta = enqueued.estimated_start_time_delta
+    client_run_dict["state"].pop("created")
+    client_run_dict["state"].pop("updated")
 
-    assert enqueued.model_dump() == task_run.model_dump()
+    assert enqueued_run_dict == client_run_dict
 
 
 @pytest.fixture

@@ -795,7 +795,10 @@ async def create_deployment_schedules(
     session.add_all(models)
     await session.flush()
 
-    return [schemas.core.DeploymentSchedule.from_orm(m) for m in models]
+    return [
+        schemas.core.DeploymentSchedule.model_validate(m, from_attributes=True)
+        for m in models
+    ]
 
 
 async def read_deployment_schedules(
@@ -827,7 +830,10 @@ async def read_deployment_schedules(
 
     result = await session.execute(query)
 
-    return [schemas.core.DeploymentSchedule.from_orm(s) for s in result.scalars().all()]
+    return [
+        schemas.core.DeploymentSchedule.model_validate(s, from_attributes=True)
+        for s in result.scalars().all()
+    ]
 
 
 async def update_deployment_schedule(

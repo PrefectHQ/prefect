@@ -3,7 +3,7 @@ Full schemas of Prefect REST API objects.
 """
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
@@ -11,17 +11,12 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
-    StrictStr,
     field_validator,
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Literal, Self, TypeAlias
+from typing_extensions import Literal, Self
 
-import prefect.server.database
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     list_length_50_or_less,
@@ -44,17 +39,20 @@ from prefect.server.utilities.schemas.bases import (
 )
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
     Name,
     NameOrEmpty,
     NonEmptyishName,
     NonNegativeInteger,
     PositiveInteger,
+    StrictVariableValue,
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
 if TYPE_CHECKING:
-    from prefect.server.database.orm_models import ORMWorkPool
+    from prefect.server.database import orm_models
+
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
@@ -71,9 +69,6 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
 ]
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
-
-MAX_VARIABLE_NAME_LENGTH = 255
-MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
 class Flow(ORMBaseModel):
@@ -776,7 +771,7 @@ class BlockDocument(ORMBaseModel):
     async def from_orm_model(
         cls: type[Self],
         session,
-        orm_block_document: "prefect.server.database.orm_models.ORMBlockDocument",
+        orm_block_document: "orm_models.ORMBlockDocument",
         include_secrets: bool = False,
     ) -> Self:
         data = await orm_block_document.decrypt_data(session=session)
@@ -1089,10 +1084,20 @@ class WorkPool(ORMBaseModel):
         return validate_default_queue_id_not_none(v)
 
     @classmethod
-    def from_orm(cls, work_pool: "ORMWorkPool") -> Self:
-        parsed: WorkPool = super().model_validate(work_pool)
-        if work_pool.type == "prefect-agent":
-            parsed.status = None
+    def model_validate(
+        cls: Type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[dict[str, Any]] = None,
+    ) -> Self:
+        parsed: WorkPool = super().model_validate(
+            obj, strict=strict, from_attributes=from_attributes, context=context
+        )
+        if from_attributes:
+            if obj.type == "prefect-agent":
+                parsed.status = None
         return parsed
 
 
@@ -1215,16 +1220,6 @@ class ArtifactCollection(ORMBaseModel):
     )
 
 
-# strict typing to use inside a pydantic object, to avoid
-# casting values to undesired types (e.g. 123 -> "123")
-STRICT_VARIABLE_TYPES: TypeAlias = Union[
-    StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
-]
-VARIABLE_TYPES: TypeAlias = Union[
-    str, int, float, bool, None, Dict[str, Any], List[Any]
-]
-
-
 class Variable(ORMBaseModel):
     name: str = Field(
         default=...,
@@ -1232,7 +1227,7 @@ class Variable(ORMBaseModel):
         examples=["my-variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: STRICT_VARIABLE_TYPES = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],

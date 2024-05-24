@@ -1,19 +1,27 @@
-from typing import Annotated, Any, Callable, ClassVar, Type
-from typing_extensions import Self
+from typing import Annotated, Any, ClassVar, Dict, List, Type, Union
+import orjson
+import pydantic
 
-from pydantic import BeforeValidator, Field, GetCoreSchemaHandler
+from pydantic import (
+    BeforeValidator,
+    Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+)
 from datetime import timedelta
 from zoneinfo import available_timezones
 from pydantic_core import core_schema
 
+MAX_VARIABLE_NAME_LENGTH = 255
+MAX_VARIABLE_VALUE_LENGTH = 5000
 
 timezone_set = available_timezones()
-
 
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
-
 TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(timezone_set))]
 
 
@@ -26,19 +34,20 @@ class Duration(timedelta):
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source: Type[Any], handler: GetCoreSchemaHandler
+        cls, source: Type[Any], handler: Any
     ) -> core_schema.CoreSchema:
-        # Allows us to parse stringified numbers into durations so that we can
-        # round-trip settings values to environment variables
-        def from_string(value: Any) -> timedelta:
-            if isinstance(value, str):
+        # Allows us to parse numeric and string representations of durations
+        def parse_duration(value: Any) -> timedelta:
+            if isinstance(value, (float, int)):
+                return timedelta(seconds=value)
+            elif isinstance(value, str):
                 try:
                     return timedelta(seconds=float(value))
                 except ValueError:
-                    return value
+                    return value  # type: ignore
             return value
 
-        return core_schema.no_info_before_validator_function(from_string, cls.schema)
+        return core_schema.no_info_before_validator_function(parse_duration, cls.schema)
 
 
 class NonNegativeDuration(Duration):
@@ -73,9 +82,8 @@ NameOrEmpty = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS_EMPTY_OK)]
 
 
 def non_emptyish(value: str) -> str:
-    if isinstance(value, str):
-        if not value.strip("' \""):
-            raise ValueError("name cannot be an empty string")
+    if not value.strip("' \""):
+        raise ValueError("name cannot be an empty string")
 
     return value
 
@@ -87,6 +95,37 @@ NonEmptyishName = Annotated[
 ]
 
 
+VariableValue = Union[
+    StrictStr,
+    StrictInt,
+    StrictBool,
+    StrictFloat,
+    None,
+    Dict[str, Any],
+    List[Any],
+]
+
+
+def check_variable_value(value: object) -> object:
+    try:
+        json_string = orjson.dumps(value)
+    except orjson.JSONEncodeError:
+        raise ValueError("Variable value must be serializable to JSON")
+
+    if value is not None and len(json_string) > MAX_VARIABLE_VALUE_LENGTH:
+        raise ValueError(
+            f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
+        )
+    return value
+
+
+StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_value)]
+
+
+class SecretDict(pydantic.Secret[Dict[str, Any]]):
+    pass
+
+
 __all__ = [
     "NonNegativeInteger",
     "PositiveInteger",
@@ -96,4 +135,5 @@ __all__ = [
     "Name",
     "NameOrEmpty",
     "NonEmptyishName",
+    "SecretDict",
 ]

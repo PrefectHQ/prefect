@@ -6,12 +6,12 @@ import pytest
 from pydantic import Field
 
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.infrastructure.provisioners.container_instance import (
     ContainerInstancePushProvisioner,
 )
+from prefect.types import SecretDict
 
 
 @pytest.fixture

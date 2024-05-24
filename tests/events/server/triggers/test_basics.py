@@ -304,7 +304,7 @@ async def test_reactive_automation_triggers_immediately_even_if_event_matches_af
     """Regression test for https://github.com/PrefectHQ/nebula/issues/3091"""
 
     # First, we need an event that trivially matches the "after" criteria
-    trivial_after_match_event = woodchonk_table_for_one.copy(
+    trivial_after_match_event = woodchonk_table_for_one.model_copy(
         update={"event": "animal.eat"}
     )
 

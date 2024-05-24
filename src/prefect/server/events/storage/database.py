@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Tuple
 
 import pydantic
 import sqlalchemy as sa
@@ -43,11 +43,11 @@ async def query_events(
     session: AsyncSession,
     filter: EventFilter,
     page_size: int = INTERACTIVE_PAGE_SIZE,
-) -> Tuple[List[ReceivedEvent], int, "str | None"]:
+) -> Tuple[List[ReceivedEvent], int, Optional[str]]:
     assert isinstance(session, AsyncSession)
     count = await raw_count_events(session, filter)
     page = await read_events(session, filter, limit=page_size, offset=0)
-    events = [ReceivedEvent.from_orm(e) for e in page]
+    events = [ReceivedEvent.model_validate(e, from_attributes=True) for e in page]
     page_token = to_page_token(filter, count, page_size, 0)
     return events, count, page_token
 
@@ -55,11 +55,11 @@ async def query_events(
 async def query_next_page(
     session: AsyncSession,
     page_token: str,
-) -> Tuple[List[ReceivedEvent], int, "str | None"]:
+) -> Tuple[List[ReceivedEvent], int, Optional[str]]:
     assert isinstance(session, AsyncSession)
     filter, count, page_size, offset = from_page_token(page_token)
     page = await read_events(session, filter, limit=page_size, offset=offset)
-    events = [ReceivedEvent.from_orm(e) for e in page]
+    events = [ReceivedEvent.model_validate(e, from_attributes=True) for e in page]
     next_token = to_page_token(filter, count, page_size, offset)
     return events, count, next_token
 
@@ -126,8 +126,8 @@ async def read_events(
     db: PrefectDBInterface,
     session: AsyncSession,
     events_filter: EventFilter,
-    limit: "int | None" = None,
-    offset: "int | None" = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ) -> Sequence["ORMEvent"]:
     """
     Read events from the Postgres database.

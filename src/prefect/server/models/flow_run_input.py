@@ -19,7 +19,7 @@ async def create_flow_run_input(
     session.add(model)
     await session.flush()
 
-    return schemas.core.FlowRunInput.from_orm(model)
+    return schemas.core.FlowRunInput.model_validate(model, from_attributes=True)
 
 
 @inject_db
@@ -46,7 +46,8 @@ async def filter_flow_run_input(
 
     result = await session.execute(query)
     return [
-        schemas.core.FlowRunInput.from_orm(model) for model in result.scalars().all()
+        schemas.core.FlowRunInput.model_validate(model, from_attributes=True)
+        for model in result.scalars().all()
     ]
 
 
@@ -67,7 +68,7 @@ async def read_flow_run_input(
     result = await session.execute(query)
     model = result.scalar()
     if model:
-        return schemas.core.FlowRunInput.from_orm(model)
+        return schemas.core.FlowRunInput.model_validate(model, from_attributes=True)
 
     return None
 

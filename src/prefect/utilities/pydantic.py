@@ -4,9 +4,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
-    Mapping,
     Optional,
-    Sequence,
     Type,
     TypeVar,
     cast,
@@ -14,9 +12,14 @@ from typing import (
     overload,
 )
 
-import pydantic
 from jsonpatch import JsonPatch as JsonPatchBase
-from pydantic import BaseModel, GetJsonSchemaHandler, TypeAdapter, ValidationError
+from pydantic import (
+    BaseModel,
+    GetJsonSchemaHandler,
+    Secret,
+    TypeAdapter,
+    ValidationError,
+)
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema, to_jsonable_python
 from typing_extensions import Literal
@@ -363,20 +366,13 @@ def parse_obj_as(
     return parser(data)
 
 
-def default_secret_encoder(value: object):
-    """
-    Default encoder for unmasking secrets in Pydantic models.
-    """
-
+def handle_secret_render(value: object, context: dict[str, Any]) -> object:
     if hasattr(value, "get_secret_value"):
-        return cast(pydantic.Secret[object], value).get_secret_value()
+        return (
+            cast(Secret[object], value).get_secret_value()
+            if context.get("include_secrets", False)
+            else "**********"
+        )
     elif isinstance(value, BaseModel):
-        return value.model_dump()
-    elif isinstance(value, Mapping):  # dicts may contain secrets
-        return {key: default_secret_encoder(val) for key, val in value.items()}
-    elif isinstance(value, Sequence) and not isinstance(value, str):  # seqs may also
-        return [default_secret_encoder(val) for val in value]
-    elif isinstance(value, (str, bytes, type(None), int, float, bool)):
-        return value
-    else:
-        return str(value)
+        return value.model_dump(context=context)
+    return value

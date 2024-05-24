@@ -20,7 +20,9 @@ class DemoModel(pydantic.BaseModel):
 
 @pytest.fixture
 def flow_run_context(flow_run, prefect_client):
-    with FlowRunContext.construct(flow_run=flow_run, client=prefect_client) as context:
+    with FlowRunContext.model_construct(
+        flow_run=flow_run, client=prefect_client
+    ) as context:
         yield context
 
 

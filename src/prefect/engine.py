@@ -818,7 +818,7 @@ async def submit_task_run(
                 task, client=flow_run_context.client
             ),
             log_prints=should_log_prints(task),
-            settings=prefect.context.SettingsContext.get().copy(),
+            settings=prefect.context.SettingsContext.get().model_copy(),
         ),
     )
 
@@ -1168,7 +1168,7 @@ async def orchestrate_task_run(
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
-        with task_run_context.copy(
+        with task_run_context.model_copy(
             update={"task_run": task_run, "start_time": pendulum.now("UTC")}
         ):
             try:

@@ -9,19 +9,20 @@ from uuid import UUID, uuid4
 import pytest
 from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import Secret as PydanticSecret
+from pydantic_core import to_json
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
-from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
 from prefect.client import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION, BlockDocument
-from prefect.testing.utilities import AsyncMock
+from prefect.testing.utilities import AsyncMock, assert_blocks_equal
+from prefect.types import SecretDict
 from prefect.utilities.dispatch import lookup_type, register_type
-from prefect.utilities.names import obfuscate_string
 
 
 class CoolBlock(Block):
@@ -405,18 +406,25 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["x"], SecretStr)
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
-        json_blockdoc = json.loads(blockdoc.json())
+        json_blockdoc = blockdoc.model_dump(mode="json")
         assert json_blockdoc["data"] == {
-            "w": {
-                "Here's my shallow secret": "**********",
-                "deeper secrets": "**********",
-            },
+            "w": "**********",
             "x": "**********",
             "y": "**********",
             "z": "z",
         }
 
-        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        blockdoc_with_secrets = block._to_block_document(
+            name="name",
+            block_type_id=block_type_id,
+            block_schema_id=block_schema_id,
+            include_secrets=True,
+        )
+
+        json_blockdoc_with_secrets = blockdoc_with_secrets.model_dump(
+            context={"include_secrets": True}, mode="json"
+        )
+
         assert json_blockdoc_with_secrets["data"] == {
             "w": {
                 "Here's my shallow secret": "I don't like olives",
@@ -447,7 +455,7 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["a"], SecretStr)
         assert isinstance(blockdoc.data["child"]["a"], SecretStr)
 
-        json_blockdoc = json.loads(blockdoc.json())
+        json_blockdoc = json.loads(blockdoc.model_dump_json())
         assert json_blockdoc["data"] == {
             "a": "**********",
             "b": "b",
@@ -455,12 +463,21 @@ class TestAPICompatibility:
             "child": {
                 "a": "**********",
                 "b": "b",
-                "c": {"secret": "**********"},
+                "c": "**********",
                 "block_type_slug": "child",
             },
         }
 
-        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        blockdoc_with_secrets = block._to_block_document(
+            name="name",
+            block_type_id=block_type_id,
+            block_schema_id=block_schema_id,
+            include_secrets=True,
+        )
+
+        json_blockdoc_with_secrets = blockdoc_with_secrets.model_dump(
+            mode="json", context={"include_secrets": True}
+        )
         assert json_blockdoc_with_secrets["data"] == {
             "a": "a",
             "b": "b",
@@ -681,7 +698,7 @@ class TestAPICompatibility:
         block_schema_id = uuid4()
         block_type_id = uuid4()
         api_block = BlockyMcBlock(fizz="buzz")._to_block_document(
-            name="super important config",
+            name="super-important-config",
             block_schema_id=block_schema_id,
             block_type_id=block_type_id,
         )
@@ -704,7 +721,7 @@ class TestAPICompatibility:
 
         my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
         api_block = my_block._to_block_document(
-            name="a corrupted api block",
+            name="a-corrupted-api-block",
             block_schema_id=uuid4(),
             block_type_id=block_type_x.id,
         )
@@ -1515,9 +1532,9 @@ class TestSaveBlock:
         await new_outer_block.save("outer-block-no-references")
 
         loaded_outer_block = await OuterBlock.load("outer-block-no-references")
-        assert loaded_outer_block == new_outer_block
+        assert_blocks_equal(loaded_outer_block, new_outer_block)
         assert isinstance(loaded_outer_block.contents, InnerBlock)
-        assert loaded_outer_block.contents == new_inner_block
+        assert_blocks_equal(loaded_outer_block.contents, new_inner_block)
         assert loaded_outer_block.contents._block_document_id is None
         assert loaded_outer_block.contents._block_document_name is None
 
@@ -1539,9 +1556,9 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "w": {"secret": obfuscate_string("value")},
-            "x": obfuscate_string("x"),
-            "y": obfuscate_string("x"),
+            "w": {"secret": "********"},
+            "x": "********",
+            "y": "********",
             "z": "z",
         }
 
@@ -1584,12 +1601,12 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": obfuscate_string("a"),
+            "a": "********",
             "b": "b",
             "child": {
-                "a": obfuscate_string("a"),
+                "a": "********",
                 "b": "b",
-                "c": {"secret": obfuscate_string("value")},
+                "c": {"secret": "********"},
                 "block_type_slug": "child",
             },
         }
@@ -1643,12 +1660,12 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": obfuscate_string("a"),
+            "a": "********",
             "b": "b",
             "child": {
-                "a": obfuscate_string("a"),
+                "a": "********",
                 "b": "b",
-                "c": {"secret": obfuscate_string("value")},
+                "c": {"secret": "********"},
             },
         }
 
@@ -1787,8 +1804,8 @@ class TestToBlockType:
         block_type = test_block._to_block_type()
 
         assert block_type.name == test_block.__name__
-        assert block_type.logo_url == test_block._logo_url
-        assert block_type.documentation_url == test_block._documentation_url
+        assert str(block_type.logo_url) == str(test_block._logo_url)
+        assert str(block_type.documentation_url) == str(test_block._documentation_url)
 
     def test_to_block_type_override_block_type_name(self):
         class Pyramid(Block):
@@ -2274,10 +2291,10 @@ class TestTypeDispatch:
         assert type(block) == BChildBlock
 
     def test_base_parse_creates_child_instance_from_json(self):
-        block = BaseBlock.parse_raw(AChildBlock().json())
+        block = BaseBlock.model_validate_json(AChildBlock().model_dump_json())
         assert type(block) == AChildBlock
 
-        block = BaseBlock.parse_raw(BChildBlock().json())
+        block = BaseBlock.model_validate_json(BChildBlock().model_dump_json())
         assert type(block) == BChildBlock
 
     def test_base_parse_retains_default_attributes(self):
@@ -2326,7 +2343,7 @@ class TestTypeDispatch:
         block = BaseBlock.model_validate(AChildBlock().model_dump())
         await block.save("test")
         new_block = await block.load("test")
-        assert block == new_block
+        assert_blocks_equal(block, new_block)
         assert new_block.__fields_set__
 
     def test_created_block_fields_set(self):
@@ -2557,3 +2574,92 @@ class TestDeleteBlock:
                 f"Unable to find block document named {new_block_name}"
                 in exception.value
             )
+
+
+class SecretBlock(Block):
+    u: PydanticSecret[str]
+    v: PydanticSecret[bytes]
+    w: SecretDict
+    x: SecretStr
+    y: SecretBytes
+    z: list[Union[str, int, float]]
+
+
+class TestDumpSecrets:
+    @pytest.fixture
+    def secret_data(self) -> bytes:
+        return to_json(
+            {
+                "u": "u",
+                "v": b"v",
+                "w": {"secret": "w"},
+                "x": "x",
+                "y": b"y",
+                "z": ["z", 1, 2.0],
+            }
+        )
+
+    def test_dump_obscured_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump() == {
+            "block_type_slug": "secretblock",
+            "u": PydanticSecret[str]("u"),
+            "v": PydanticSecret[bytes](b"v"),
+            "w": SecretDict({"secret": "w"}),
+            "x": SecretStr("x"),
+            "y": SecretBytes(b"y"),
+            "z": ["z", 1, 2.0],
+        }
+
+    def test_dump_obscured_secrets_mode_json(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump(mode="json") == {
+            "block_type_slug": "secretblock",
+            "u": "**********",
+            "v": "**********",
+            "w": "**********",
+            "x": "**********",
+            "y": "**********",
+            "z": ["z", 1, 2.0],
+        }
+
+    def test_dump_python_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump(context={"include_secrets": True}) == {
+            "block_type_slug": "secretblock",
+            "u": "u",
+            "v": b"v",
+            "w": {"secret": "w"},
+            "x": "x",
+            "y": b"y",
+            "z": ["z", 1, 2.0],
+        }
+
+    def test_dump_jsonable_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump(context={"include_secrets": True}, mode="json") == {
+            "block_type_slug": "secretblock",
+            "u": "u",
+            "v": "v",
+            "w": {"secret": "w"},
+            "x": "x",
+            "y": "y",
+            "z": ["z", 1, 2.0],
+        }
+
+    def test_dump_json_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert (
+            block.model_dump_json(context={"include_secrets": True})
+            == to_json(
+                {
+                    "u": "u",
+                    "v": "v",
+                    "w": {"secret": "w"},
+                    "x": "x",
+                    "y": "y",
+                    "z": ["z", 1, 2.0],
+                    "block_type_slug": "secretblock",
+                }
+            ).decode()
+        )
