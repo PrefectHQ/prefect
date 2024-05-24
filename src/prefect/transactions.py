@@ -182,7 +182,7 @@ def get_transaction() -> Transaction:
 
 @contextmanager
 def transaction(
-    record: Record, commit_mode: CommitMode = CommitMode.LAZY
+    record: Record = None, commit_mode: CommitMode = CommitMode.LAZY
 ) -> Transaction:
     with Transaction(record=record, commit_mode=commit_mode) as txn:
         yield txn
