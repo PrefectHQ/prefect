@@ -45,7 +45,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import Callable, Dict, Iterable, List, Optional, Set, Union, cast
 from uuid import UUID, uuid4
 
 import anyio
@@ -57,7 +57,7 @@ from prefect._internal.concurrency.api import (
     from_async,
     from_sync,
 )
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -172,7 +172,7 @@ class Runner:
         self._limiter: Optional[anyio.CapacityLimiter] = anyio.CapacityLimiter(
             self.limit
         )
-        self._client = get_client()
+        self._client = cast(PrefectClient, get_client())
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
@@ -1147,7 +1147,7 @@ class Runner:
         """
         if state.is_crashed():
             flow = await load_flow_from_flow_run(
-                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+                flow_run, storage_base_path=str(self._tmp_dir)
             )
             hooks = flow.on_crashed_hooks or []
 
@@ -1155,7 +1155,7 @@ class Runner:
 
     async def __aenter__(self):
         self._logger.debug("Starting runner...")
-        self._client = get_client()
+        self._client = cast(PrefectClient, get_client())
         self._tmp_dir.mkdir(parents=True)
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
