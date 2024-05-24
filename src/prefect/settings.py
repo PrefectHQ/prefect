@@ -88,6 +88,9 @@ T = TypeVar("T")
 
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
+# When we remove the experimental settings we also want to add them to the set of REMOVED_EXPERIMENTAL_FLAGS.
+# The reason for this is removing the settings entirely causes the CLI to crash for anyone who has them in one or more of their profiles.
+# Adding them to REMOVED_EXPERIMENTAL_FLAGS will make it so that the user is warned about it and they have time to take action.
 REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_SCHEDULING_UI",
     "PREFECT_EXPERIMENTAL_ENABLE_ENHANCED_DEPLOYMENT_PARAMETERS",
@@ -97,6 +100,7 @@ REMOVED_EXPERIMENTAL_FLAGS = {
     "PREFECT_EXPERIMENTAL_WARN_EVENTS_CLIENT",
     "PREFECT_EXPERIMENTAL_ENABLE_FLOW_RUN_INFRA_OVERRIDES",
     "PREFECT_EXPERIMENTAL_WARN_FLOW_RUN_INFRA_OVERRIDES",
+    "PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS",
 }
 
 
@@ -1385,16 +1389,6 @@ Whether or not to enable artifacts on the flow run graph.
 PREFECT_EXPERIMENTAL_ENABLE_STATES_ON_FLOW_RUN_GRAPH = Setting(bool, default=True)
 """
 Whether or not to enable flow run states on the flow run graph.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect work pools.
-"""
-
-PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect work pools are used.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
