@@ -1,4 +1,5 @@
 from prefect.records import Record
+from prefect.tasks import task
 from prefect.transactions import Transaction, get_transaction
 
 
@@ -33,12 +34,70 @@ def test_nested_get_transaction():
     assert get_transaction() is None
 
 
+class TestGetParent:
+    def test_get_parent(self):
+        with Transaction() as txn:
+            assert txn.get_parent() is None
+
+    def test_get_parent_with_parent(self):
+        with Transaction(record=Record("outer")) as outer:
+            assert outer.get_parent() is None
+            with Transaction(record=Record("inner")) as inner:
+                assert inner.get_parent() == outer
+            assert outer.get_parent() is None
+
+
+class TestCommit:
+    def test_txns_auto_commit(self):
+        with Transaction() as txn:
+            assert txn.committed is False
+        assert txn.committed is True
+
+        outer_rec, inner_rec = Record("outer"), Record("inner")
+        with Transaction(record=outer_rec) as outer:
+            assert outer.committed is False
+            with Transaction(record=inner_rec) as inner:
+                pass
+            assert inner.committed is True
+        assert outer.committed is True
+
+    def test_txns_dont_auto_commit_with_parent(self):
+        outer_rec, inner_rec = Record("outer"), Record("inner")
+        with Transaction(record=outer_rec, auto_commit=False) as outer:
+            assert outer.committed is False
+            with Transaction(record=inner_rec) as inner:
+                pass
+
+            assert inner.committed is False
+
+        assert outer.committed is True
+        assert inner.committed is True
+
+
 class TestRollBacks:
     def test_rollback_flag_is_set(self):
         with Transaction() as txn:
             assert txn.rolled_back is False
             txn.rollback()
             assert txn.rolled_back is True
+
+    def test_rollback_flag_gates_rollback(self):
+        data = {}
+
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_rollback
+        def rollback(**kwargs):
+            data["called"] = True
+
+        with Transaction() as txn:
+            txn.add_task(my_task, None)
+            txn.rolled_back = True
+            txn.rollback()
+
+        assert data.get("called") is None
 
     def test_rollback_flag_propagates_up(self):
         with Transaction(record=Record("outer")) as outer:
@@ -51,3 +110,31 @@ class TestRollBacks:
                     assert nested.rolled_back is True
                 assert inner.rolled_back is True
             assert outer.rolled_back is True
+
+    def test_nested_rollbacks_have_accurate_active_txn(self):
+        data = {}
+
+        @task
+        def outer_task():
+            pass
+
+        @outer_task.on_rollback
+        def rollback(**kwargs):
+            data["outer"] = get_transaction().record.key
+
+        @task
+        def inner_task():
+            pass
+
+        @inner_task.on_rollback
+        def inner_rollback(**kwargs):
+            data["inner"] = get_transaction().record.key
+
+        with Transaction(record=Record("outer")) as txn:
+            txn.add_task(outer_task, None)
+            with Transaction(record=Record("inner")) as inner:
+                inner.add_task(inner_task, None)
+                inner.rollback()
+
+        assert data["inner"] == "inner"
+        assert data["outer"] == "outer"

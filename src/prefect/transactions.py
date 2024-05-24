@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from typing import (
     Any,
     Dict,
@@ -32,6 +32,8 @@ class Transaction(ContextModel):
     record: Record = None
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
+    children: List["Transaction"] = Field(default_factory=list)
+    auto_commit: Optional[bool] = None
     committed: bool = False
     rolled_back: bool = False
     __var__ = ContextVar("transaction")
@@ -41,6 +43,16 @@ class Transaction(ContextModel):
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
             )
+        # set default auto-commit behavior
+        if self.auto_commit is None:
+            parent = get_transaction()
+
+            # either inherit from parent or set a default of True
+            if parent:
+                self.auto_commit = parent.auto_commit
+            else:
+                self.auto_commit = True
+
         self._token = self.__var__.set(self)
         return self
 
@@ -51,33 +63,52 @@ class Transaction(ContextModel):
             )
         if exc_type:
             self.rollback()
-        else:
+
+        parent = self.get_parent()
+        if self.auto_commit is True or parent is None:
             self.commit()
+        elif parent:
+            # if exiting a nested transaction with un-committed tasks,
+            # merge that state data with the parent for correct rollback behavior
+            # need to do this before releasing active on this transaction
+            parent.add_child(self)
 
         self.__var__.reset(self._token)
         self._token = None
 
-        # if exiting a nested transaction with un-committed tasks,
-        # merge that state data with the parent for correct rollback behavior
-        parent = self.get_active()
-        if parent:
-            if self.rolled_back:
-                parent.rollback()
-            elif not self.committed:
-                parent.tasks.extend(self.tasks)
-                parent.state.update(self.state)
+        # do this below reset so that get_transaction() returns the relevant txn
+        if parent and self.rolled_back:
+            parent.rollback()
+
+    def add_child(self, transaction: "Transaction") -> None:
+        self.children.append(transaction)
+
+    def get_parent(self) -> Optional["Transaction"]:
+        prev_var = getattr(self._token, "old_value")
+        if prev_var != Token.MISSING:
+            parent = prev_var
+        else:
+            parent = None
+        return parent
 
     def commit(self) -> None:
+        for child in self.children:
+            child.commit()
+
         for tsk in self.tasks:
             for hook in tsk.on_commit_hooks:
                 hook(self.record)
+
         self.committed = True
 
-    def rollback(self) -> None:
+    def rollback(self) -> bool:
+        if self.rolled_back:
+            return False
         for tsk in reversed(self.tasks):
             for hook in tsk.on_rollback_hooks:
                 hook()
         self.rolled_back = True
+        return True
 
     def add_task(self, task: Task, task_run_id: UUID) -> None:
         self.tasks.append(task)
