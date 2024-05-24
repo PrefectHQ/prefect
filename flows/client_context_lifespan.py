@@ -46,7 +46,7 @@ def client_context_lifespan_is_robust_to_threaded_concurrency():
     threads = [
         threading.Thread(
             target=anyio.run,
-            args=(enter_client, prefect.context.SettingsContext.get().copy()),
+            args=(enter_client, prefect.context.SettingsContext.get().model_copy()),
         )
         for _ in range(100)
     ]
@@ -101,7 +101,7 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
             target=anyio.run,
             args=(
                 enter_client_many_times,
-                prefect.context.SettingsContext.get().copy(),
+                prefect.context.SettingsContext.get().model_copy(),
             ),
         )
         for _ in range(100)

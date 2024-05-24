@@ -1731,10 +1731,9 @@ for __name, __setting in SETTING_VARIABLES.items():
 
 # Dynamically create a pydantic model that includes all of our settings
 
-SettingsFieldsMixin = create_model(
+SettingsFieldsMixin: Type[BaseSettings] = create_model(
     "SettingsFieldsMixin",
-    # Inheriting from `BaseSettings` provides environment variable loading
-    __base__=BaseSettings,
+    __base__=BaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
     **{
         setting.name: (setting.type, setting.field)
         for setting in SETTING_VARIABLES.values()
