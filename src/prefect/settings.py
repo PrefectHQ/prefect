@@ -1526,7 +1526,7 @@ The maximum number of retries to queue for submission.
 """
 
 PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
-    PositiveDuration,
+    NonNegativeDuration,
     default=timedelta(seconds=30),
 )
 """

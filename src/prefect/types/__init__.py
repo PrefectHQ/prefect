@@ -36,19 +36,20 @@ class Duration(timedelta):
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source: Type[Any], handler: GetCoreSchemaHandler
+        cls, source: Type[Any], handler: Any
     ) -> core_schema.CoreSchema:
-        # Allows us to parse stringified numbers into durations so that we can
-        # round-trip settings values to environment variables
-        def from_string(value: Any) -> timedelta:
-            if isinstance(value, str):
+        # Allows us to parse numeric and string representations of durations
+        def parse_duration(value: Any) -> timedelta:
+            if isinstance(value, (float, int)):
+                return timedelta(seconds=value)
+            elif isinstance(value, str):
                 try:
                     return timedelta(seconds=float(value))
                 except ValueError:
                     return value
             return value
 
-        return core_schema.no_info_before_validator_function(from_string, cls.schema)
+        return core_schema.no_info_before_validator_function(parse_duration, cls.schema)
 
 
 class NonNegativeDuration(Duration):
