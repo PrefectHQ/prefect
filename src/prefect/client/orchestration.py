@@ -1225,14 +1225,6 @@ class PrefectClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
-        if isinstance(block_document, BlockDocument):
-            block_document = BlockDocumentCreate.model_validate(
-                block_document.model_dump(
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                ),
-            )
-
         try:
             response = await self._client.post(
                 "/block_documents/",

@@ -6,8 +6,8 @@ from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
-from prefect.blocks.fields import SecretDict
 from prefect.logging import LogEavesdropper
+from prefect.types import SecretDict
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.templating import apply_values, find_placeholders
 

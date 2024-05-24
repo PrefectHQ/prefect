@@ -1,4 +1,5 @@
 import datetime
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -18,7 +19,9 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    SerializationInfo,
     field_validator,
+    model_serializer,
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
@@ -31,6 +34,7 @@ from prefect._internal.schemas.validators import (
     list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     set_run_policy_deprecated_fields,
+    validate_block_document_name,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
     validate_message_template_variables,
@@ -40,9 +44,10 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
-from prefect.types import Name, NonNegativeInteger, PositiveInteger
-from prefect.utilities.collections import AutoEnum, listrepr
+from prefect.types import Name, NonNegativeInteger, PositiveInteger, StrictVariableType
+from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
+from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
     from prefect.results import BaseResult
@@ -67,7 +72,6 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_state_message",
 ]
 MAX_VARIABLE_NAME_LENGTH = 255
-MAX_VARIABLE_VALUE_LENGTH = 5000
 
 
 class StateType(AutoEnum):
@@ -893,9 +897,20 @@ class BlockDocument(ObjectBaseModel):
         ),
     )
 
+    _validate_name_format = field_validator("name")(validate_block_document_name)
+
     @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
+
+    @model_serializer(mode="wrap")
+    def serialize_data(self, handler, info: SerializationInfo):
+        self.data = visit_collection(
+            self.data,
+            visit_fn=partial(handle_secret_render, context=info.context or {}),
+            return_data=True,
+        )
+        return handler(self)
 
 
 class Flow(ObjectBaseModel):
@@ -1490,11 +1505,10 @@ class Variable(ObjectBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: StrictVariableType = Field(
         default=...,
         description="The value of the variable",
         examples=["my_value"],
-        max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,

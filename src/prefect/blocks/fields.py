@@ -1,7 +1,3 @@
-from typing import Any, Dict
+from prefect.types import SecretDict
 
-from pydantic import Secret
-
-
-class SecretDict(Secret[Dict[str, Any]]):
-    pass
+__all__ = ["SecretDict"]

@@ -10,13 +10,15 @@ import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
-    raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_alphanumeric_underscores_only,
     remove_old_deployment_fields,
     return_none_schedule,
+    validate_artifact_key,
+    validate_block_document_name,
+    validate_block_type_slug,
     validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
+    validate_variable_name,
 )
 from prefect.client.schemas.objects import StateDetails, StateType
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -27,6 +29,7 @@ from prefect.types import (
     NonNegativeFloat,
     NonNegativeInteger,
     PositiveInteger,
+    StrictVariableType,
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
@@ -35,28 +38,6 @@ if TYPE_CHECKING:
     from prefect.results import BaseResult
 
 R = TypeVar("R")
-
-
-def validate_block_type_slug(value):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
-    return value
-
-
-def validate_block_document_name(value):
-    if value is not None:
-        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
-    return value
-
-
-def validate_artifact_key(value):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
-    return value
-
-
-def validate_variable_name(value):
-    if value is not None:
-        raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
-    return value
 
 
 class StateCreate(ActionBaseModel):
@@ -514,7 +495,7 @@ class BlockSchemaCreate(ActionBaseModel):
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[str] = Field(
+    name: Optional[Name] = Field(
         default=None, description="The name of the block document"
     )
     data: Dict[str, Any] = Field(
@@ -740,11 +721,10 @@ class VariableCreate(ActionBaseModel):
         examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: StrictVariableType = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=objects.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)
 
@@ -761,11 +741,10 @@ class VariableUpdate(ActionBaseModel):
         examples=["my_variable"],
         max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Optional[str] = Field(
+    value: StrictVariableType = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)
 

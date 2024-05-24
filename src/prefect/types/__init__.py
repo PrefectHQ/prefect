@@ -1,4 +1,5 @@
-from typing import Annotated, Any, Callable, ClassVar, Type, TypeVar, Union
+from ast import TypeAlias
+from typing import Annotated, Any, ClassVar, Dict, List, Type, Union
 import pydantic
 from typing_extensions import Self
 
@@ -9,11 +10,11 @@ from pydantic_core import core_schema
 
 timezone_set = available_timezones()
 
+VariableType = Union[str, float, bool, int, None, Dict[str, Any], List[Any]]
 
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
-
 TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(timezone_set))]
 
 
@@ -80,11 +81,34 @@ def non_emptyish(value: str) -> str:
     return value
 
 
+MAX_VARIABLE_VALUE_LENGTH = 5000
+
+
+def check_variable_value(value: VariableType) -> VariableType:
+    if value is not None:
+        if len(str(value)) > MAX_VARIABLE_VALUE_LENGTH:
+            raise ValueError(
+                f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
+            )
+
+        if not isinstance(value, (str, float, bool, int, dict, list)):
+            raise ValueError(
+                f"Variable type must be one of str, float, bool, int, dict, or list, not {type(value)}"
+            )
+    return value
+
+
 NonEmptyishName = Annotated[
     str,
     Field(pattern=WITHOUT_BANNED_CHARACTERS),
     BeforeValidator(non_emptyish),
 ]
+
+StrictVariableType = Annotated[VariableType, BeforeValidator(check_variable_value)]
+
+
+class SecretDict(pydantic.Secret[Dict[str, Any]]):
+    pass
 
 
 __all__ = [
@@ -96,4 +120,5 @@ __all__ = [
     "Name",
     "NameOrEmpty",
     "NonEmptyishName",
+    "SecretDict",
 ]

@@ -12,19 +12,19 @@ import anyio.abc
 import pendulum
 import pytest
 from pydantic import BaseModel
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas import State
+from prefect.client.schemas import State, StateDetails, StateType
 from prefect.exceptions import InfrastructureNotAvailable
 from prefect.server import models
 from prefect.server.schemas.actions import (
     DeploymentUpdate,
     WorkPoolCreate,
 )
-from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
     ProcessJobConfiguration,
@@ -109,7 +109,7 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
         id: UUID = uuid.uuid4()
         job_variables: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
-        updated: pendulum.DateTime = pendulum.now("utc")
+        updated: DateTime = pendulum.now("utc")
 
     class MockFlow(BaseModel):
         id: UUID = uuid.uuid4()
@@ -136,8 +136,8 @@ async def work_pool(session: AsyncSession):
 
     wp = await models.workers.create_work_pool(
         session=session,
-        work_pool=WorkPoolCreate.construct(
-            _fields_set=WorkPoolCreate.__fields_set__,
+        work_pool=WorkPoolCreate.model_construct(
+            _fields_set=WorkPoolCreate.model_fields_set,
             name="test-worker-pool",
             type="test",
             description="None",
@@ -156,8 +156,8 @@ async def work_pool_with_default_env(session: AsyncSession):
     }
     wp = await models.workers.create_work_pool(
         session=session,
-        work_pool=WorkPoolCreate.construct(
-            _fields_set=WorkPoolCreate.__fields_set__,
+        work_pool=WorkPoolCreate.model_construct(
+            _fields_set=WorkPoolCreate.model_fields_set,
             name="wp-1",
             type="test",
             description="None",

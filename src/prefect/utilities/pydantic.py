@@ -16,6 +16,7 @@ from jsonpatch import JsonPatch as JsonPatchBase
 from pydantic import (
     BaseModel,
     GetJsonSchemaHandler,
+    Secret,
     TypeAdapter,
     ValidationError,
 )
@@ -363,3 +364,15 @@ def parse_obj_as(
     parser: Callable[[Any], T] = getattr(adapter, f"validate_{mode}")
 
     return parser(data)
+
+
+def handle_secret_render(value: object, context: dict[str, Any]) -> object:
+    if hasattr(value, "get_secret_value"):
+        return (
+            cast(Secret[object], value).get_secret_value()
+            if context.get("include_secrets", False)
+            else "**********"
+        )
+    elif isinstance(value, BaseModel):
+        return value.model_dump(context=context)
+    return value

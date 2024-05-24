@@ -944,3 +944,31 @@ def validate_command(v: str) -> Path:
     if v:
         return relative_path_to_current_platform(v)
     return v
+
+
+### UNCATEGORIZED VALIDATORS ###
+
+# the above categories seem to be getting a bit unwieldy, so this is a temporary
+# catch-all for validators until we organize these into files
+
+
+def validate_block_document_name(value):
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
+    return value
+
+
+def validate_artifact_key(value):
+    raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
+    return value
+
+
+def validate_variable_name(value):
+    if value is not None:
+        raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
+    return value
+
+
+def validate_block_type_slug(value):
+    raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
+    return value

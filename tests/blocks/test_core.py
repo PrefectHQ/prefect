@@ -14,16 +14,15 @@ from pydantic_core import to_json
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
-from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
 from prefect.client import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION, BlockDocument
-from prefect.testing.utilities import AsyncMock
+from prefect.testing.utilities import AsyncMock, assert_blocks_equal
+from prefect.types import SecretDict
 from prefect.utilities.dispatch import lookup_type, register_type
-from prefect.utilities.names import obfuscate_string
 
 
 class CoolBlock(Block):
@@ -407,18 +406,25 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["x"], SecretStr)
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
-        json_blockdoc = json.loads(blockdoc.json())
+        json_blockdoc = blockdoc.model_dump(mode="json")
         assert json_blockdoc["data"] == {
-            "w": {
-                "Here's my shallow secret": "**********",
-                "deeper secrets": "**********",
-            },
+            "w": "**********",
             "x": "**********",
             "y": "**********",
             "z": "z",
         }
 
-        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        blockdoc_with_secrets = block._to_block_document(
+            name="name",
+            block_type_id=block_type_id,
+            block_schema_id=block_schema_id,
+            include_secrets=True,
+        )
+
+        json_blockdoc_with_secrets = blockdoc_with_secrets.model_dump(
+            context={"include_secrets": True}, mode="json"
+        )
+
         assert json_blockdoc_with_secrets["data"] == {
             "w": {
                 "Here's my shallow secret": "I don't like olives",
@@ -449,7 +455,7 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["a"], SecretStr)
         assert isinstance(blockdoc.data["child"]["a"], SecretStr)
 
-        json_blockdoc = json.loads(blockdoc.json())
+        json_blockdoc = json.loads(blockdoc.model_dump_json())
         assert json_blockdoc["data"] == {
             "a": "**********",
             "b": "b",
@@ -457,12 +463,21 @@ class TestAPICompatibility:
             "child": {
                 "a": "**********",
                 "b": "b",
-                "c": {"secret": "**********"},
+                "c": "**********",
                 "block_type_slug": "child",
             },
         }
 
-        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        blockdoc_with_secrets = block._to_block_document(
+            name="name",
+            block_type_id=block_type_id,
+            block_schema_id=block_schema_id,
+            include_secrets=True,
+        )
+
+        json_blockdoc_with_secrets = blockdoc_with_secrets.model_dump(
+            mode="json", context={"include_secrets": True}
+        )
         assert json_blockdoc_with_secrets["data"] == {
             "a": "a",
             "b": "b",
@@ -683,7 +698,7 @@ class TestAPICompatibility:
         block_schema_id = uuid4()
         block_type_id = uuid4()
         api_block = BlockyMcBlock(fizz="buzz")._to_block_document(
-            name="super important config",
+            name="super-important-config",
             block_schema_id=block_schema_id,
             block_type_id=block_type_id,
         )
@@ -706,7 +721,7 @@ class TestAPICompatibility:
 
         my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
         api_block = my_block._to_block_document(
-            name="a corrupted api block",
+            name="a-corrupted-api-block",
             block_schema_id=uuid4(),
             block_type_id=block_type_x.id,
         )
@@ -715,7 +730,7 @@ class TestAPICompatibility:
         assert "evil_fake_field" not in api_block.data
 
     @pytest.mark.parametrize("block_name", ["a_block", "a.block"])
-    def test_create_block_document_create_invalid_characters(self, block_name):
+    async def test_create_block_document_create_invalid_characters(self, block_name):
         """This gets raised on instantiation of BlockDocumentCreate"""
 
         @register_type
@@ -723,11 +738,11 @@ class TestAPICompatibility:
             a_field: str
 
         a_block = ABlock(a_field="my_field")
-        with pytest.raises(ValidationError):
-            a_block.save(block_name)
+        with pytest.raises(ValidationError, match="name must only contain"):
+            await a_block.save(block_name)
 
     @pytest.mark.parametrize("block_name", ["a/block", "a\\block"])
-    def test_create_block_document_invalid_characters(self, block_name):
+    async def test_create_block_document_invalid_characters(self, block_name):
         """
         This gets raised on instantiation of BlockDocument which shares
         INVALID_CHARACTERS with Flow, Deployment, etc.
@@ -738,8 +753,8 @@ class TestAPICompatibility:
             a_field: str
 
         a_block = ABlock(a_field="my_field")
-        with pytest.raises(ValidationError):
-            a_block.save(block_name)
+        with pytest.raises(ValidationError, match="name"):
+            await a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
@@ -780,9 +795,9 @@ class TestAPICompatibility:
 
         assert block_schema.version == "1.0.0"
 
-    def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
+    async def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
         try:
-            Secret.register_type_and_schema()
+            await Secret.register_type_and_schema()
         except PrefectHTTPStatusError as exc:
             if exc.response.status_code == 403:
                 pass
@@ -1034,7 +1049,7 @@ class TestAPICompatibility:
         ):
             await test_block.load("blocky")
 
-    def test_save_block_from_flow(self):
+    async def test_save_block_from_flow(self):
         class Test(Block):
             a: str
 
@@ -1044,7 +1059,7 @@ class TestAPICompatibility:
 
         save_block_flow()
 
-        block = Test.load("test")
+        block = await Test.load("test")
         assert block.a == "foo"
 
     async def test_save_protected_block_with_new_block_schema_version(self, session):
@@ -1517,9 +1532,9 @@ class TestSaveBlock:
         await new_outer_block.save("outer-block-no-references")
 
         loaded_outer_block = await OuterBlock.load("outer-block-no-references")
-        assert loaded_outer_block == new_outer_block
+        assert_blocks_equal(loaded_outer_block, new_outer_block)
         assert isinstance(loaded_outer_block.contents, InnerBlock)
-        assert loaded_outer_block.contents == new_inner_block
+        assert_blocks_equal(loaded_outer_block.contents, new_inner_block)
         assert loaded_outer_block.contents._block_document_id is None
         assert loaded_outer_block.contents._block_document_name is None
 
@@ -1541,9 +1556,9 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "w": {"secret": obfuscate_string("value")},
-            "x": obfuscate_string("x"),
-            "y": obfuscate_string("x"),
+            "w": {"secret": "********"},
+            "x": "********",
+            "y": "********",
             "z": "z",
         }
 
@@ -1586,12 +1601,12 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": obfuscate_string("a"),
+            "a": "********",
             "b": "b",
             "child": {
-                "a": obfuscate_string("a"),
+                "a": "********",
                 "b": "b",
-                "c": {"secret": obfuscate_string("value")},
+                "c": {"secret": "********"},
                 "block_type_slug": "child",
             },
         }
@@ -1645,12 +1660,12 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": obfuscate_string("a"),
+            "a": "********",
             "b": "b",
             "child": {
-                "a": obfuscate_string("a"),
+                "a": "********",
                 "b": "b",
-                "c": {"secret": obfuscate_string("value")},
+                "c": {"secret": "********"},
             },
         }
 
@@ -1789,8 +1804,8 @@ class TestToBlockType:
         block_type = test_block._to_block_type()
 
         assert block_type.name == test_block.__name__
-        assert block_type.logo_url == test_block._logo_url
-        assert block_type.documentation_url == test_block._documentation_url
+        assert str(block_type.logo_url) == str(test_block._logo_url)
+        assert str(block_type.documentation_url) == str(test_block._documentation_url)
 
     def test_to_block_type_override_block_type_name(self):
         class Pyramid(Block):
@@ -2146,13 +2161,8 @@ class TestGetCodeExample:
 
 
 class TestSyncCompatible:
-    def test_save_and_load_sync_compatible(self):
-        CoolBlock(cool_factor=1000000).save("my-rad-block")
-        loaded_block = CoolBlock.load("my-rad-block")
-        assert loaded_block.cool_factor == 1000000
-
-    def test_block_in_flow_sync_test_sync_flow(self):
-        CoolBlock(cool_factor=1000000).save("blk")
+    async def test_block_in_flow_sync_test_sync_flow(self):
+        await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
         def my_flow():
@@ -2184,8 +2194,8 @@ class TestSyncCompatible:
         result = await my_flow()
         assert result == 1000000
 
-    def test_block_in_task_sync_test_sync_flow(self):
-        CoolBlock(cool_factor=1000000).save("blk")
+    async def test_block_in_task_sync_test_sync_flow(self):
+        await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
         def my_task():
@@ -2281,10 +2291,10 @@ class TestTypeDispatch:
         assert type(block) == BChildBlock
 
     def test_base_parse_creates_child_instance_from_json(self):
-        block = BaseBlock.parse_raw(AChildBlock().json())
+        block = BaseBlock.model_validate_json(AChildBlock().model_dump_json())
         assert type(block) == AChildBlock
 
-        block = BaseBlock.parse_raw(BChildBlock().json())
+        block = BaseBlock.model_validate_json(BChildBlock().model_dump_json())
         assert type(block) == BChildBlock
 
     def test_base_parse_retains_default_attributes(self):
@@ -2333,7 +2343,7 @@ class TestTypeDispatch:
         block = BaseBlock.model_validate(AChildBlock().model_dump())
         await block.save("test")
         new_block = await block.load("test")
-        assert block == new_block
+        assert_blocks_equal(block, new_block)
         assert new_block.__fields_set__
 
     def test_created_block_fields_set(self):
@@ -2387,7 +2397,7 @@ class TestTypeDispatch:
 
 
 class TestBlockSchemaMigration:
-    def test_schema_mismatch_with_validation_raises(self):
+    async def test_schema_mismatch_with_validation_raises(self):
         class A(Block):
             _block_type_name = "a"
             _block_type_slug = "a"
@@ -2395,7 +2405,7 @@ class TestBlockSchemaMigration:
 
         a = A()
 
-        a.save("test")
+        await a.save("test")
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2408,15 +2418,15 @@ class TestBlockSchemaMigration:
         with pytest.raises(
             RuntimeError, match="try loading again with `validate=False`"
         ):
-            A_Alias.load("test")
+            await A_Alias.load("test")
 
-    def test_add_field_to_schema_partial_load_with_skip_validation(self):
+    async def test_add_field_to_schema_partial_load_with_skip_validation(self):
         class A(Block):
             x: int = 1
 
         a = A()
 
-        a.save("test")
+        await a.save("test")
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2427,12 +2437,12 @@ class TestBlockSchemaMigration:
                 y: int
 
         with pytest.warns(UserWarning, match="Could not fully load"):
-            a = A_Alias.load("test", validate=False)
+            a = await A_Alias.load("test", validate=False)
 
         assert a.x == 1
         assert a.y is None
 
-    def test_rm_field_from_schema_loads_with_validation(self):
+    async def test_rm_field_from_schema_loads_with_validation(self):
         class Foo(Block):
             _block_type_name = "foo"
             _block_type_slug = "foo"
@@ -2441,7 +2451,7 @@ class TestBlockSchemaMigration:
 
         foo = Foo()
 
-        foo.save("xy")
+        await foo.save("xy")
 
         with pytest.warns(UserWarning, match="matches existing registered type 'Foo'"):
 
@@ -2450,7 +2460,7 @@ class TestBlockSchemaMigration:
                 _block_type_slug = "foo"
                 x: int = 1
 
-        foo_alias = Foo_Alias.load("xy")
+        foo_alias = await Foo_Alias.load("xy")
 
         assert foo_alias.x == 1
 
@@ -2459,15 +2469,15 @@ class TestBlockSchemaMigration:
         # with pytest.raises(AttributeError):
         #     foo_alias.y
 
-    def test_load_with_skip_validation_keeps_metadata(self):
+    async def test_load_with_skip_validation_keeps_metadata(self):
         class Bar(Block):
             x: int = 1
 
         bar = Bar()
 
-        bar.save("test")
+        await bar.save("test")
 
-        bar_new = Bar.load("test", validate=False)
+        bar_new = await Bar.load("test", validate=False)
 
         assert bar.model_dump() == bar_new.model_dump()
 
@@ -2589,9 +2599,22 @@ class TestDumpSecrets:
             }
         )
 
+    def test_dump_obscured_secrets(self, secret_data):
+        block = SecretBlock.model_validate_json(secret_data)
+        assert block.model_dump() == {
+            "block_type_slug": "secretblock",
+            "u": PydanticSecret[str]("u"),
+            "v": PydanticSecret[bytes](b"v"),
+            "w": SecretDict({"secret": "w"}),
+            "x": SecretStr("x"),
+            "y": SecretBytes(b"y"),
+            "z": ["z", 1, 2.0],
+        }
+
     def test_dump_obscured_secrets_mode_json(self, secret_data):
         block = SecretBlock.model_validate_json(secret_data)
         assert block.model_dump(mode="json") == {
+            "block_type_slug": "secretblock",
             "u": "**********",
             "v": "**********",
             "w": "**********",
@@ -2603,6 +2626,7 @@ class TestDumpSecrets:
     def test_dump_python_secrets(self, secret_data):
         block = SecretBlock.model_validate_json(secret_data)
         assert block.model_dump(context={"include_secrets": True}) == {
+            "block_type_slug": "secretblock",
             "u": "u",
             "v": b"v",
             "w": {"secret": "w"},
@@ -2614,6 +2638,7 @@ class TestDumpSecrets:
     def test_dump_jsonable_secrets(self, secret_data):
         block = SecretBlock.model_validate_json(secret_data)
         assert block.model_dump(context={"include_secrets": True}, mode="json") == {
+            "block_type_slug": "secretblock",
             "u": "u",
             "v": "v",
             "w": {"secret": "w"},
@@ -2626,5 +2651,15 @@ class TestDumpSecrets:
         block = SecretBlock.model_validate_json(secret_data)
         assert (
             block.model_dump_json(context={"include_secrets": True})
-            == secret_data.decode()
+            == to_json(
+                {
+                    "u": "u",
+                    "v": "v",
+                    "w": {"secret": "w"},
+                    "x": "x",
+                    "y": "y",
+                    "z": ["z", 1, 2.0],
+                    "block_type_slug": "secretblock",
+                }
+            ).decode()
         )

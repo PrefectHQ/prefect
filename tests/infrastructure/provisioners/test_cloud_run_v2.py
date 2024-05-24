@@ -9,7 +9,6 @@ from anyio import run_process
 from pydantic import Field
 
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.infrastructure.provisioners.cloud_run import CloudRunPushProvisioner
 from prefect.settings import (
@@ -17,6 +16,7 @@ from prefect.settings import (
     load_current_profile,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.types import SecretDict
 
 default_cloud_run_v2_push_base_job_template = {
     "job_configuration": {

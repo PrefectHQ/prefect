@@ -7,10 +7,10 @@ import sqlalchemy as sa
 from pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
 from prefect.server.schemas.actions import BlockDocumentCreate
+from prefect.types import SecretDict
 from prefect.utilities.names import obfuscate, obfuscate_string
 
 

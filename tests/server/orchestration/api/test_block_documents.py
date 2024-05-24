@@ -7,10 +7,10 @@ from pydantic import SecretBytes, SecretStr
 from starlette import status
 
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.server.schemas.core import BlockDocument
+from prefect.types import SecretDict
 from prefect.utilities.names import obfuscate_string
 from prefect.utilities.pydantic import parse_obj_as
 

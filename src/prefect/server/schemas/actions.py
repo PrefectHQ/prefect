@@ -36,6 +36,7 @@ from prefect.types import (
     NonNegativeFloat,
     NonNegativeInteger,
     PositiveInteger,
+    StrictVariableType,
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
@@ -1022,11 +1023,10 @@ class VariableCreate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: StrictVariableType = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -1047,11 +1047,10 @@ class VariableUpdate(ActionBaseModel):
         examples=["my-variable"],
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Optional[str] = Field(
+    value: StrictVariableType = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=schemas.core.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(
         default=None,

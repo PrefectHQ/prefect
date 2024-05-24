@@ -19,7 +19,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast,
     get_origin,
 )
 from uuid import UUID, uuid4
@@ -33,7 +32,6 @@ from pydantic import (
     ConfigDict,
     HttpUrl,
     PrivateAttr,
-    Secret,
     SecretBytes,
     SecretStr,
     SerializationInfo,
@@ -45,7 +43,6 @@ from typing_extensions import Literal, ParamSpec, Self, get_args
 
 import prefect
 import prefect.exceptions
-from prefect.blocks.fields import SecretDict
 from prefect.client.schemas import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -56,11 +53,13 @@ from prefect.client.schemas import (
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
+from prefect.types import SecretDict
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.pydantic import handle_secret_render
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
@@ -249,14 +248,6 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
                         refs[name] = type_._to_block_schema_reference_dict()
 
 
-def _unmask_secret(value: object, context: dict[str, Any]) -> object:
-    if hasattr(value, "get_secret_value"):
-        return cast(Secret[object], value).get_secret_value()
-    elif isinstance(value, BaseModel):
-        return value.model_dump(context=context)
-    return value
-
-
 @register_base_type
 class Block(BaseModel, ABC):
     """
@@ -277,7 +268,6 @@ class Block(BaseModel, ABC):
 
     model_config = ConfigDict(
         extra="allow",
-        json_encoders={SecretDict: lambda v: v.model_dump()},
         json_schema_extra=schema_extra,
     )
 
@@ -337,28 +327,27 @@ class Block(BaseModel, ABC):
 
     @model_serializer(mode="wrap")
     def ser_model(self, handler: Callable, info: SerializationInfo) -> Any:
+        jsonable_self = handler(self)
         if (ctx := info.context) and ctx.get("include_secrets") is True:
-            redacted_jsonable_self: dict[str, Any] = handler(self)
-            redacted_jsonable_self.update(
+            jsonable_self.update(
                 {
                     field_name: visit_collection(
                         expr=getattr(self, field_name),
-                        visit_fn=partial(_unmask_secret, context=ctx),
+                        visit_fn=partial(handle_secret_render, context=ctx),
                         return_data=True,
                     )
                     for field_name in self.model_fields
                 }
             )
-            return redacted_jsonable_self
-        jsonable_self = handler(self)
-        jsonable_self.update(
-            {
-                "block_type_slug": self.get_block_type_slug(),
-                "_block_document_id": self._block_document_id,
-                "_block_document_name": self._block_document_name,
-                "_is_anonymous": self._is_anonymous,
+        if extra_fields := {
+            "block_type_slug": self.get_block_type_slug(),
+            "_block_document_id": self._block_document_id,
+            "_block_document_name": self._block_document_name,
+            "_is_anonymous": self._is_anonymous,
+        }:
+            jsonable_self |= {
+                key: value for key, value in extra_fields.items() if value is not None
             }
-        )
         return jsonable_self
 
     @classmethod
@@ -453,6 +442,7 @@ class Block(BaseModel, ABC):
         block_schema_id: Optional[UUID] = None,
         block_type_id: Optional[UUID] = None,
         is_anonymous: Optional[bool] = None,
+        include_secrets: bool = False,
     ) -> BlockDocument:
         """
         Creates the corresponding block document based on the data stored in a block.
@@ -493,7 +483,11 @@ class Block(BaseModel, ABC):
         data_keys = self.model_json_schema(by_alias=False)["properties"].keys()
 
         # `block_document_data`` must return the aliased version for it to show in the UI
-        block_document_data = self.model_dump(by_alias=True, include=data_keys)
+        block_document_data = self.model_dump(
+            by_alias=True,
+            include=data_keys,
+            context={"include_secrets": include_secrets},
+        )
 
         # Iterate through and find blocks that already have saved block documents to
         # create references to those saved block documents.
@@ -1037,7 +1031,9 @@ class Block(BaseModel, ABC):
                     block_document_id = existing_block_document.id
                 await client.update_block_document(
                     block_document_id=block_document_id,
-                    block_document=self._to_block_document(name=name),
+                    block_document=self._to_block_document(
+                        name=name, include_secrets=True
+                    ),
                 )
                 block_document = await client.read_block_document(
                     block_document_id=block_document_id
@@ -1204,7 +1200,7 @@ class Block(BaseModel, ABC):
             "_block_document_id",
             "_block_document_name",
             "_is_anonymous",
-        }
+        }.intersection(d.keys())
 
         for field in extra_serializer_fields:
             if (include and field not in include) or (exclude and field in exclude):
