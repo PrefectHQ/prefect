@@ -56,7 +56,7 @@ In addition to the UI and API, you can reference variables in code and in certai
 
 ### In Python code
 
-You can interact with Variables via the Python SDK utilizing the `get`, `set`, and `unset` methods. 
+You can interact with variables via the Python SDK utilizing the `get`, `set`, and `unset` methods. 
 
 Outside of a `flow` or `task`, these methods are always invoked asynchronously.
 
