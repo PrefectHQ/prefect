@@ -42,13 +42,13 @@ from prefect.context import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.results import ResultSerializer, ResultStorage
+from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
-from prefect.states import Pending, State
+from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
 from prefect.utilities.callables import (
@@ -62,7 +62,6 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.context import TaskRunContext
     from prefect.task_runners import BaseTaskRunner
-
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -520,6 +519,49 @@ class Task(Generic[P, R]):
         self.on_failure_hooks.append(fn)
         return fn
 
+    async def create_autonomous_run(
+        self,
+        client: Union["PrefectClient", "SyncPrefectClient"],
+        id: Optional[UUID] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> TaskRun:
+        """
+        Create a task run in the API for an autonomous task submission and store
+        the provided parameters using result storage.
+        """
+        from prefect.engine import NUM_CHARS_DYNAMIC_KEY
+
+        state = Scheduled()
+
+        if parameters:
+            parameters_id = uuid4()
+            state.state_details.task_parameters_id = parameters_id
+
+            # TODO: Improve use of result storage for parameter storage / reference
+            self.persist_result = True
+
+            factory = await ResultFactory.from_autonomous_task(self, client=client)
+            await factory.store_parameters(parameters_id, parameters)
+
+        dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
+        task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
+        t: Task = self  # Make mypy happy for create_task_run call
+
+        task_run = client.create_task_run(
+            task=t,
+            name=task_run_name,
+            id=id,
+            flow_run_id=None,
+            dynamic_key=dynamic_key,
+            state=state,
+        )
+        if inspect.isawaitable(task_run):
+            task_run = await task_run
+
+        logger.debug(f"Submitted run of task {self.name!r} for execution")
+
+        return task_run
+
     async def create_run(
         self,
         client: Union["PrefectClient", "SyncPrefectClient"],
@@ -530,7 +572,6 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> TaskRun:
-        from prefect.engine import NUM_CHARS_DYNAMIC_KEY
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
             collect_task_run_inputs_sync,
@@ -543,16 +584,11 @@ class Task(Generic[P, R]):
         if parameters is None:
             parameters = {}
 
-        if flow_run_context:
-            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
-        else:
-            dynamic_key = uuid4().hex
+        if not flow_run_context:
+            return await self.create_autonomous_run(client, id, parameters)
 
-        task_run_name = (
-            f"{self.name}-{dynamic_key}"
-            if flow_run_context and flow_run_context.flow_run
-            else f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"  # autonomous task run
-        )
+        dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
+        task_run_name = f"{self.name}-{dynamic_key}"
 
         # collect task inputs
         task_inputs = {

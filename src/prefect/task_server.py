@@ -14,7 +14,6 @@ from prefect import Task, get_client
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
-from prefect.engine import emit_task_run_state_change_event, propose_state
 from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
 from prefect.new_task_engine import run_task_async, run_task_sync
@@ -26,6 +25,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
