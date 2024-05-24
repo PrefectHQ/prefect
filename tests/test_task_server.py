@@ -92,13 +92,6 @@ def mock_task_server_start(monkeypatch):
 
 
 @pytest.fixture
-def task_task_runner_mock():
-    task_runner = MagicMock()
-    task_runner.start = MagicMock()
-    return task_runner
-
-
-@pytest.fixture
 def mock_create_subscription(monkeypatch):
     monkeypatch.setattr(
         "prefect.task_server.TaskServer._subscribe_to_task_scheduling",
@@ -115,20 +108,6 @@ async def test_task_server_basic_context_management():
     assert task_server.started is False
     with pytest.raises(RuntimeError, match="client has been closed"):
         await task_server._client.hello()
-
-
-@pytest.mark.usefixtures("mock_create_subscription")
-async def test_task_server_uses_same_task_runner_for_all_tasks(
-    task_task_runner_mock, foo_task
-):
-    task_server = TaskServer(foo_task, task_runner=task_task_runner_mock)
-
-    await task_server.start()
-
-    foo_task.apply_async(x=42)
-    foo_task.apply_async(x=43)
-
-    task_task_runner_mock.start.assert_called_once()
 
 
 async def test_handle_sigterm(mock_create_subscription):
@@ -434,15 +413,29 @@ class TestTaskServerTaskResults:
 
         assert count == 1
 
-    async def test_task_run_via_task_server_with_task_dependency_crashes(
+    async def test_task_run_via_task_server_ignores_task_dependency(
         self, prefect_client, foo_task, bar_task
     ):
+        """
+        A regression test for #13512
+        """
         foo = foo_task.with_options(persist_result=True)
         bar = bar_task.with_options(persist_result=True)
 
         task_server = TaskServer(foo, bar)
 
         foo_task_run = foo.apply_async(42)
+
+        # Passing a TaskRun object as a dependency to another task run like this would
+        # normally fail because we would discover the state (`TaskRun.state`), find it was
+        # Pending, and then bail because the task wasn't complete. However, autonomous
+        # tasks don't keep track of dependencies, so instead `bar` should receive the
+        # TaskRun object as an argument.
+        #
+        # Ideally, though, we could wait for the TaskRun to complete in the same way that
+        # we can when tasks receive PrefectFuture objects for runs that a task runner in
+        # a flow is managing. For now, though, while we decide what else we want to do
+        # in this situation, we'll pass objects through directly as arguments.
         bar_task_run = await bar.apply_async(foo_task_run)
 
         await task_server.execute_task_run(foo_task_run)
