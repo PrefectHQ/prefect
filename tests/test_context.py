@@ -66,7 +66,7 @@ def test_single_context_object_cannot_be_entered_multiple_times():
 def test_copied_context_object_can_be_reentered():
     context = ExampleContext(x=1)
     with context:
-        with context.copy():
+        with context.model_copy():
             assert ExampleContext.get().x == 1
 
 

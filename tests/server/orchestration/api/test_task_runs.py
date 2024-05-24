@@ -6,6 +6,7 @@ import pytest
 from starlette import status
 
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
 
@@ -466,10 +467,12 @@ class TestSetTaskRunState:
         api_response = OrchestrationResult.model_validate(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
-    async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
+    async def test_failed_becomes_awaiting_retry(
+        self, task_run: TaskRun, client, session
+    ):
         # set max retries to 1
         # copy to trigger ORM updates
-        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy = task_run.empirical_policy.model_copy()
         task_run.empirical_policy.retries = 1
         await session.flush()
 
@@ -499,7 +502,7 @@ class TestSetTaskRunState:
     ):
         # set max retries to 1
         # copy to trigger ORM updates
-        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy = task_run.empirical_policy.model_copy()
         task_run.empirical_policy.retries = 1
         await session.flush()
 

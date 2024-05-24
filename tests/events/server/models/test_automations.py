@@ -237,7 +237,7 @@ async def existing_automation(
     )
     automations_session.add(automation)
     await automations_session.flush()
-    return Automation.from_orm(automation)
+    return Automation.model_validate(automation, from_attributes=True)
 
 
 async def test_updating_automation_that_exists(

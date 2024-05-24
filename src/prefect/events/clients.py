@@ -114,7 +114,7 @@ class AssertingEventsClient(EventsClient):
     """A Prefect Events client that records all events sent to it for inspection during
     tests."""
 
-    last: ClassVar["AssertingEventsClient | None"] = None
+    last: ClassVar["Optional[AssertingEventsClient]"] = None
     all: ClassVar[List["AssertingEventsClient"]] = []
 
     args: Tuple
@@ -301,7 +301,7 @@ class PrefectEventsClient(EventsClient):
                     await self._reconnect()
                     assert self._websocket
 
-                await self._websocket.send(event.json())
+                await self._websocket.send(event.model_dump_json())
                 await self._checkpoint(event)
 
                 return

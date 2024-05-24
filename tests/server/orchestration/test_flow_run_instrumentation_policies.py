@@ -192,7 +192,7 @@ async def test_flow_run_state_change_events_capture_order_on_short_gaps(
 
     from_db = await flow_run_states.read_flow_run_state(session, pending_state.id)
     assert from_db
-    pending_state = State.from_orm(from_db)
+    pending_state = State.model_validate(from_db, from_attributes=True)
 
     # Now process the Pending->Running transition and confirm it sends an event
     running_state: State = State(type=StateType.RUNNING)
@@ -250,7 +250,7 @@ async def test_flow_run_state_change_events_do_not_capture_order_on_long_gaps(
 
     from_db = await flow_run_states.read_flow_run_state(session, pending_state.id)
     assert from_db
-    pending_state = State.from_orm(from_db)
+    pending_state = State.model_validate(from_db, from_attributes=True)
 
     # Now process the Pending->Running transition and confirm it sends an event
     running_state: State = State(type=StateType.RUNNING)
@@ -629,7 +629,7 @@ async def test_still_instruments_rejected_state_transitions(
         TO_STATES = ALL_ORCHESTRATION_STATES
 
         async def before_transition(self, initial_state, proposed_state, context):
-            new_state = proposed_state.copy()
+            new_state = proposed_state.model_copy()
             new_state.name = "Cancelled Fussily"
             new_state.type = StateType.CANCELLED
             await self.reject_transition(new_state, reason="I am fussy")

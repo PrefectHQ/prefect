@@ -185,7 +185,7 @@ async def create_work_pool(
                 work_pool=model,
             )
 
-            return schemas.core.WorkPool.from_orm(model)
+            return schemas.core.WorkPool.model_validate(model, from_attributes=True)
 
     except sa.exc.IntegrityError:
         raise HTTPException(
@@ -211,7 +211,7 @@ async def read_work_pool(
         orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id
         )
-        return schemas.core.WorkPool.from_orm(orm_work_pool)
+        return schemas.core.WorkPool.model_validate(orm_work_pool, from_attributes=True)
 
 
 @router.post("/filter")
@@ -232,7 +232,10 @@ async def read_work_pools(
             offset=offset,
             limit=limit,
         )
-        return [schemas.core.WorkPool.from_orm(w) for w in orm_work_pools]
+        return [
+            schemas.core.WorkPool.model_validate(w, from_attributes=True)
+            for w in orm_work_pools
+        ]
 
 
 @router.post("/count")
@@ -430,7 +433,9 @@ async def create_work_queue(
             ),
         )
 
-    return schemas.responses.WorkQueueResponse.from_orm(model)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        model, from_attributes=True
+    )
 
 
 @router.get("/{work_pool_name}/queues/{name}")
@@ -457,7 +462,9 @@ async def read_work_queue(
             session=session, work_queue_id=work_queue_id
         )
 
-    return schemas.responses.WorkQueueResponse.from_orm(model)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        model, from_attributes=True
+    )
 
 
 @router.post("/{work_pool_name}/queues/filter")
@@ -485,7 +492,10 @@ async def read_work_queues(
             offset=offset,
         )
 
-    return [schemas.responses.WorkQueueResponse.from_orm(wq) for wq in wqs]
+    return [
+        schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
+        for wq in wqs
+    ]
 
 
 @router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)

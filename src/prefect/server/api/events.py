@@ -217,8 +217,8 @@ async def read_account_events_page(
 
 def generate_next_page_link(
     request: Request,
-    page_token: "str | None",
-) -> "str | None":
+    page_token: Optional[str],
+) -> Optional[str]:
     if not page_token:
         return None
 
@@ -266,7 +266,7 @@ async def handle_event_count_request(
         countable,
         time_unit,
         time_interval,
-        filter.json(),
+        filter.model_dump_json(),
     )
 
     try:

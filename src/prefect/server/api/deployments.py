@@ -175,7 +175,9 @@ async def create_deployment(
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
 
-        return schemas.responses.DeploymentResponse.from_orm(model)
+        return schemas.responses.DeploymentResponse.model_validate(
+            model, from_attributes=True
+        )
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -321,7 +323,9 @@ async def read_deployment_by_name(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        return schemas.responses.DeploymentResponse.from_orm(deployment)
+        return schemas.responses.DeploymentResponse.model_validate(
+            deployment, from_attributes=True
+        )
 
 
 @router.get("/{id}")
@@ -340,7 +344,9 @@ async def read_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        return schemas.responses.DeploymentResponse.from_orm(deployment)
+        return schemas.responses.DeploymentResponse.model_validate(
+            deployment, from_attributes=True
+        )
 
 
 @router.post("/filter")
@@ -375,7 +381,9 @@ async def read_deployments(
             work_queue_filter=work_pool_queues,
         )
         return [
-            schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
+            schemas.responses.DeploymentResponse.model_validate(
+                deployment, from_attributes=True
+            )
             for deployment in response
         ]
 
@@ -416,7 +424,9 @@ async def get_scheduled_flow_runs_for_deployments(
         )
 
         flow_run_responses = [
-            schemas.responses.FlowRunResponse.from_orm(orm_flow_run=orm_flow_run)
+            schemas.responses.FlowRunResponse.model_validate(
+                orm_flow_run, from_attributes=True
+            )
             for orm_flow_run in orm_flow_runs
         ]
 
@@ -707,7 +717,9 @@ async def create_flow_run_from_deployment(
         )
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
-        return schemas.responses.FlowRunResponse.from_orm(model)
+        return schemas.responses.FlowRunResponse.model_validate(
+            model, from_attributes=True
+        )
 
 
 # DEPRECATED

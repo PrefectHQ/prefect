@@ -337,7 +337,7 @@ async def act(firing: Firing):
 
     async with messaging.create_actions_publisher() as publisher:
         for action in actions:
-            await publisher.publish_data(action.json().encode(), {})
+            await publisher.publish_data(action.model_dump_json().encode(), {})
 
 
 __events_clock_lock: Optional[asyncio.Lock] = None
@@ -617,7 +617,7 @@ async def load_automations(db: PrefectDBInterface, session: AsyncSession):
 
     result = await session.execute(query)
     for automation in result.scalars().all():
-        load_automation(Automation.from_orm(automation))
+        load_automation(Automation.model_validate(automation), from_attributes=True)
 
     logger.debug(
         "Loaded %s automations with %s triggers", len(automations_by_id), len(triggers)

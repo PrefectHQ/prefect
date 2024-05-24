@@ -1392,8 +1392,8 @@ async def test_composite_firings_are_available_in_templates(
     Child 2: {{ firings[2].trigger.id }}
     """
 
-    first_child = tell_me_about_the_culprit.trigger.copy(update={"id": uuid4()})
-    second_child = tell_me_about_the_culprit.trigger.copy(update={"id": uuid4()})
+    first_child = tell_me_about_the_culprit.trigger.model_copy(update={"id": uuid4()})
+    second_child = tell_me_about_the_culprit.trigger.model_copy(update={"id": uuid4()})
 
     triggered_action = TriggeredAction(
         automation=tell_me_about_the_culprit,
@@ -1449,8 +1449,8 @@ async def test_composite_triggering_events_are_available_in_templates(
     Event 2: {{ events[1].id }}
     """
 
-    first_event = picture_taken.copy(update={"id": uuid4()})
-    second_event = picture_taken.copy(update={"id": uuid4()})
+    first_event = picture_taken.model_copy(update={"id": uuid4()})
+    second_event = picture_taken.model_copy(update={"id": uuid4()})
 
     triggered_action = TriggeredAction(
         automation=tell_me_about_the_culprit,

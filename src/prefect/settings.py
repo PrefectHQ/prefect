@@ -1833,7 +1833,7 @@ class Settings(SettingsFieldsMixin):
         """
         Returns a copy of this settings object with secret setting values obfuscated.
         """
-        settings = self.copy(
+        settings = self.model_copy(
             update={
                 setting.name: obfuscate(self.value_of(setting))
                 for setting in SETTING_VARIABLES.values()

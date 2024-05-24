@@ -68,7 +68,7 @@ class TestCreateLogs:
 
         for i, log in enumerate(logs):
             assert (
-                Log.from_orm(log).model_dump(
+                Log.model_validate(log, from_attributes=True).model_dump(
                     mode="json", exclude={"created", "id", "updated"}
                 )
                 == log_data[i]
@@ -85,7 +85,7 @@ class TestCreateLogs:
         assert len(logs) == 1
 
         assert (
-            Log.from_orm(logs[0]).model_dump(
+            Log.model_validate(logs[0], from_attributes=True).model_dump(
                 mode="json", exclude={"created", "id", "updated"}
             )
             == log_data[1]
