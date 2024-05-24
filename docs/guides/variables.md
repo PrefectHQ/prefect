@@ -58,9 +58,7 @@ In addition to the UI and API, you can reference variables in code and in certai
 
 You can interact with Variables via the Python SDK utilizing the `get`, `set`, and `unset` methods. 
 
-Note that these methods are invoked either synchronously or asynchronously, depending on the context in which they are called. 
-Outside of a `flow` or `task`, these methods are always asynchronous.
-
+Outside of a `flow` or `task`, these methods are always invoked asynchronously.
 
 #### In an asynchronous context:
 ```python
@@ -93,6 +91,8 @@ async def my_async_flow():
     print(answer) # 42
 ```
 
+While inside a `flow` or `task`, they should be invoked synchronously or asynchronously depending on if the current 
+context is synchronous or asynchronous.
 #### In a synchronous context:
 ```python
 from prefect import flow
