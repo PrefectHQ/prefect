@@ -442,7 +442,7 @@ def create_publisher(
 def assert_message_represents_event(message: Message, event: ReceivedEvent):
     """Confirms that the message adequately represents the event"""
     assert message.data
-    assert ReceivedEvent.parse_raw(message.data) == event
+    assert ReceivedEvent.model_validate_json(message.data) == event
     assert message.attributes
     assert message.attributes["id"] == str(event.id)
     assert message.attributes["event"] == event.event

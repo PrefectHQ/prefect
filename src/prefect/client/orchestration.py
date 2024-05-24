@@ -2187,7 +2187,7 @@ class PrefectClient:
             state=state.to_state_create(),
             task_inputs=task_inputs or {},
         )
-        content = task_run_data.json(exclude={"id"} if id is None else None)
+        content = task_run_data.model_dump_json(exclude={"id"} if id is None else None)
 
         response = await self._client.post("/task_runs/", content=content)
         return TaskRun.model_validate(response.json())

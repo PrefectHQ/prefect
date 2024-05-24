@@ -102,7 +102,7 @@ def event() -> ReceivedEvent:
 @pytest.fixture
 def message(event: ReceivedEvent) -> Message:
     return CapturedMessage(
-        data=event.json().encode(),
+        data=event.model_dump_json().encode(),
         attributes={},
     )
 
@@ -273,7 +273,7 @@ async def test_sends_remaining_messages(
         for _ in range(10):
             event.id = uuid4()
             message = CapturedMessage(
-                data=event.json().encode(),
+                data=event.model_dump_json().encode(),
                 attributes={},
             )
             await handler(message)
@@ -293,7 +293,7 @@ async def test_flushes_messages_periodically(
         for _ in range(9):
             event.id = uuid4()
             message = CapturedMessage(
-                data=event.json().encode(),
+                data=event.model_dump_json().encode(),
                 attributes={},
             )
             await handler(message)

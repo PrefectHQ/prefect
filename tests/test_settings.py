@@ -282,7 +282,7 @@ class TestSettingsClass:
 
     def test_with_obfuscated_secrets(self):
         settings = get_current_settings()
-        original = settings.copy()
+        original = settings.model_copy()
         obfuscated = settings.with_obfuscated_secrets()
         assert settings == original
         assert original != obfuscated

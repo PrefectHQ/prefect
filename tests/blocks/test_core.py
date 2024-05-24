@@ -2328,11 +2328,11 @@ class TestTypeDispatch:
 
     def test_created_block_has_pydantic_attributes(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
-        assert block.__fields_set__
+        assert block.model_fields_set
 
     def test_created_block_can_be_copied(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
-        block_copy = block.copy()
+        block_copy = block.model_copy()
         assert block == block_copy
 
     async def test_created_block_can_be_saved(self):
@@ -2369,7 +2369,7 @@ class TestTypeDispatch:
         assert type(model.block) == AChildBlock
 
         # Assignment with a copy works still
-        model.block = model.block.copy()
+        model.block = model.block.model_copy()
         assert type(model.block) == AChildBlock
         assert model.block
 
@@ -2387,7 +2387,7 @@ class TestTypeDispatch:
         assert type(model.block) == AChildBlock
         assert model.block.a == 3
 
-        model.block = model.block.copy()
+        model.block = model.block.model_copy()
         assert type(model.block) == AChildBlock
         assert model.block.a == 3
 

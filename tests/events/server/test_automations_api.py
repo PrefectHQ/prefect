@@ -269,7 +269,7 @@ async def test_create_automation_allows_specifying_just_owner_resource(
     )
     assert response.status_code == 201, response.content
 
-    created_automation = Automation.parse_raw(response.content)
+    created_automation = Automation.model_validate_json(response.content)
 
     related_automations = await read_automations_related_to_resource(
         session=automations_session,
@@ -305,7 +305,7 @@ async def test_create_automation_allows_specifying_owner_resource_and_actions(
     )
     assert response.status_code == 201, response.content
 
-    created_automation = Automation.parse_raw(response.content)
+    created_automation = Automation.model_validate_json(response.content)
 
     related_automations = await read_automations_related_to_resource(
         session=automations_session,
@@ -354,7 +354,7 @@ async def test_create_automation_overrides_client_provided_trigger_ids(
     )
     assert response.status_code == 201, response.content
 
-    created_automation = Automation.parse_raw(response.content)
+    created_automation = Automation.model_validate_json(response.content)
 
     assert isinstance(created_automation.trigger, CompoundTrigger)
 
@@ -452,7 +452,7 @@ async def test_update_automation(
     )
     assert response.status_code == 200, response.content
 
-    updated_automation = Automation.parse_raw(response.content)
+    updated_automation = Automation.model_validate_json(response.content)
     assert updated_automation.enabled is False
 
     assert isinstance(updated_automation.trigger, EventTrigger)
@@ -521,7 +521,7 @@ async def test_update_automation_overrides_client_provided_trigger_ids(
     )
     assert response.status_code == 200, response.content
 
-    updated_automation = Automation.parse_raw(response.content)
+    updated_automation = Automation.model_validate_json(response.content)
 
     assert isinstance(updated_automation.trigger, CompoundTrigger)
 
@@ -553,7 +553,7 @@ async def test_patch_automation(
     )
     assert response.status_code == 200, response.content
 
-    updated_automation = Automation.parse_raw(response.content)
+    updated_automation = Automation.model_validate_json(response.content)
     assert updated_automation.enabled is False
 
 
@@ -652,7 +652,7 @@ async def test_read_automation(
     response = await client.get(f"{automations_url}/{existing_automation.id}")
     assert response.status_code == 200, response.content
 
-    read_automation = Automation.parse_raw(response.content)
+    read_automation = Automation.model_validate_json(response.content)
     assert read_automation.id
     assert read_automation.name == "hello"
     assert read_automation.description == "world"
@@ -970,7 +970,7 @@ async def test_create_run_deployment_automation_with_job_variables_and_no_schema
     )
     assert response.status_code == 201, response.content
 
-    created_automation = Automation.parse_raw(response.content)
+    created_automation = Automation.model_validate_json(response.content)
     assert isinstance(created_automation.actions[0], actions.RunDeployment)
     assert created_automation.actions[0].job_variables == run_vars
 
@@ -1002,7 +1002,7 @@ async def test_create_run_deployment_automation_with_job_variables_that_match_sc
     )
     assert response.status_code == 201, response.content
 
-    created_automation = Automation.parse_raw(response.content)
+    created_automation = Automation.model_validate_json(response.content)
     assert isinstance(created_automation.actions[0], actions.RunDeployment)
     assert created_automation.actions[0].job_variables == run_vars
 
@@ -1156,7 +1156,7 @@ async def test_create_run_deployment_automation_with_none_variable_value(
 
     automation_id = response.json()["id"]
     response = await client.get(f"{automations_url}/{automation_id}")
-    created_automation = Automation.parse_raw(response.content)
+    created_automation = Automation.model_validate_json(response.content)
     assert isinstance(created_automation.actions[0], actions.RunDeployment)
     assert created_automation.actions[0].job_variables == {"profile_name": None}
 
@@ -1213,7 +1213,7 @@ async def test_updating_run_deployment_automation_with_none_variable_value(
     assert response.status_code == 204
 
     response = await client.get(f"{automations_url}/{automation_id}")
-    updated_automation = Automation.parse_raw(response.content)
+    updated_automation = Automation.model_validate_json(response.content)
     assert isinstance(updated_automation.actions[0], actions.RunDeployment)
     assert updated_automation.actions[0].job_variables == {"profile_name": None}
 
@@ -1258,7 +1258,7 @@ async def test_updating_run_deployment_automation_with_valid_job_variables(
     assert response.status_code == 204
 
     response = await client.get(f"{automations_url}/{automation_id}")
-    updated_automation = Automation.parse_raw(response.content)
+    updated_automation = Automation.model_validate_json(response.content)
     assert isinstance(updated_automation.actions[0], actions.RunDeployment)
     assert updated_automation.actions[0].job_variables == {"this": "something else!!"}
 

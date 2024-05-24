@@ -474,7 +474,9 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx.post(callback + "/success", content=LoginSuccess(api_key="foo").json())
+        httpx.post(
+            callback + "/success", content=LoginSuccess(api_key="foo").model_dump_json()
+        )
 
     mock_webbrowser.open_new_tab.side_effect = post_success
 
@@ -519,7 +521,10 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
         )
         # Bypass the mocks
         respx_mock.route(url__startswith=callback).pass_through()
-        httpx.post(callback + "/failure", content=LoginFailed(reason="Oh no!").json())
+        httpx.post(
+            callback + "/failure",
+            content=LoginFailed(reason="Oh no!").model_dump_json(),
+        )
 
     mock_webbrowser.open_new_tab.side_effect = post_failure
 

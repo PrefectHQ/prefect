@@ -262,7 +262,7 @@ def capturing_publisher() -> Generator[Type[CapturingPublisher], None, None]:
 
 def captured_events(capturing_publisher: CapturingPublisher) -> List[ReceivedEvent]:
     return [
-        ReceivedEvent.parse_raw(message.data)
+        ReceivedEvent.model_validate_json(message.data)
         for message in capturing_publisher.messages
     ]
 

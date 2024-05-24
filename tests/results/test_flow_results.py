@@ -464,7 +464,7 @@ async def test_root_flow_default_remote_storage_saves_correct_result():
     local_storage = await LocalFileSystem.load("my-result-storage")
     result_bytes = await local_storage.read_path("~/.prefect/results/my-result.pkl")
     saved_python_result = pickle.loads(
-        base64.b64decode(PersistedResultBlob.parse_raw(result_bytes).data)
+        base64.b64decode(PersistedResultBlob.model_validate_json(result_bytes).data)
     )
 
     assert saved_python_result == {"foo": "bar"}

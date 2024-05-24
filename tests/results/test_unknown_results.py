@@ -40,14 +40,14 @@ def test_unknown_result_create_and_get_with_explicit_value():
 async def test_result_unknown_json_roundtrip():
     result = await UnknownResult.create()
     serialized = result.json()
-    deserialized = UnknownResult.parse_raw(serialized)
+    deserialized = UnknownResult.model_validate_json(serialized)
     assert await deserialized.get() is None
 
 
 async def test_unknown_result_json_roundtrip_base_result_parser():
     result = await UnknownResult.create()
     serialized = result.json()
-    deserialized = BaseResult.parse_raw(serialized)
+    deserialized = BaseResult.model_validate_json(serialized)
     assert await deserialized.get() is None
 
 
