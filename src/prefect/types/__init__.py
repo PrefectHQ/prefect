@@ -98,13 +98,11 @@ NonEmptyishName = Annotated[
 ]
 
 
-# order of types => order of attempts to cast
-# e.g. True is cast to 1.0 if the order is [float, bool]
 VariableValue = Union[
     StrictStr,
     StrictInt,
-    StrictBool,
     StrictFloat,
+    StrictBool,
     None,
     Dict[str, Any],
     List[Any],
