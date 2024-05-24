@@ -153,16 +153,16 @@ async def test_flow_visualize_doesnt_support_task_map():
         await add_flow.visualize()
 
 
-async def test_flow_visualize_doesnt_support_task_submit():
+async def test_flow_visualize_doesnt_support_task_apply_async():
     @task
     def add_one(n):
         return n + 1
 
     @flow
     def add_flow():
-        add_one.submit(1)
+        add_one.apply_async(1)
 
-    with pytest.raises(VisualizationUnsupportedError, match="task.submit()"):
+    with pytest.raises(VisualizationUnsupportedError, match="task.apply_async()"):
         await add_flow.visualize()
 
 
