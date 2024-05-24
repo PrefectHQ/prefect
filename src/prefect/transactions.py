@@ -20,8 +20,15 @@ else:
 from prefect.context import ContextModel, TaskRunContext
 from prefect.records import Record
 from prefect.tasks import Task
+from prefect.utilities.collections import AutoEnum
 
 T = TypeVar("T")
+
+
+class CommitMode(AutoEnum):
+    EAGER = AutoEnum.auto()
+    LAZY = AutoEnum.auto()
+    OFF = AutoEnum.auto()
 
 
 class Transaction(ContextModel):
@@ -33,7 +40,7 @@ class Transaction(ContextModel):
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
     children: List["Transaction"] = Field(default_factory=list)
-    auto_commit: Optional[bool] = None
+    commit_mode: Optional[CommitMode] = None
     committed: bool = False
     rolled_back: bool = False
     __var__ = ContextVar("transaction")
@@ -43,15 +50,15 @@ class Transaction(ContextModel):
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
             )
-        # set default auto-commit behavior
-        if self.auto_commit is None:
+        # set default commit behavior
+        if self.commit_mode is None:
             parent = get_transaction()
 
-            # either inherit from parent or set a default of True
+            # either inherit from parent or set a default of eager
             if parent:
-                self.auto_commit = parent.auto_commit
+                self.commit_mode = parent.commit_mode
             else:
-                self.auto_commit = True
+                self.commit_mode = CommitMode.EAGER
 
         self._token = self.__var__.set(self)
         return self
@@ -66,14 +73,20 @@ class Transaction(ContextModel):
             self.reset()
             raise exc_val
 
-        parent = self.get_parent()
-        if self.auto_commit is True or parent is None:
+        if self.commit_mode == CommitMode.EAGER:
             self.commit()
-        elif parent:
-            # if exiting a nested transaction with un-committed tasks,
-            # merge that state data with the parent for correct rollback behavior
-            # need to do this before releasing active on this transaction
+
+        parent = self.get_parent()
+
+        if parent:
+            # parent takes responsibility
             parent.add_child(self)
+        elif self.commit_mode == CommitMode.OFF:
+            # no one took responsibility to commit, rolling back
+            self.rollback()
+        elif self.commit_mode == CommitMode.LAZY:
+            # no one left to take responsibility for committing
+            self.commit()
 
         self.reset()
 
@@ -96,26 +109,37 @@ class Transaction(ContextModel):
             parent = None
         return parent
 
-    def commit(self) -> None:
-        if self.rolled_back:
-            return
+    def commit(self) -> bool:
+        if self.rolled_back or self.committed:
+            return False
 
-        for child in self.children:
-            child.commit()
+        try:
+            for child in self.children:
+                child.commit()
 
-        for tsk in self.tasks:
-            for hook in tsk.on_commit_hooks:
-                hook(self.record)
+            for tsk in self.tasks:
+                for hook in tsk.on_commit_hooks:
+                    hook(self)
 
-        self.committed = True
+            self.committed = True
+            return True
+        except Exception:
+            self.rollback()
+            return False
 
     def rollback(self) -> bool:
-        if self.rolled_back:
+        if self.rolled_back or self.committed:
             return False
+
         for tsk in reversed(self.tasks):
             for hook in tsk.on_rollback_hooks:
-                hook()
+                hook(self)
+
         self.rolled_back = True
+
+        for child in reversed(self.children):
+            child.rollback()
+
         return True
 
     def add_task(self, task: Task, task_run_id: UUID) -> None:
@@ -157,6 +181,8 @@ def get_transaction() -> Transaction:
 
 
 @contextmanager
-def transaction(record: Record, auto_commit: bool = True) -> Transaction:
-    with Transaction(record=record, auto_commit=auto_commit) as txn:
+def transaction(
+    record: Record, commit_mode: CommitMode = CommitMode.LAZY
+) -> Transaction:
+    with Transaction(record=record, commit_mode=commit_mode) as txn:
         yield txn

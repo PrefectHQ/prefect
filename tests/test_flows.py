@@ -4064,8 +4064,8 @@ class TestTransactions:
 
         main(return_state=True)
 
-        assert data1["called"] is True
         assert data2["called"] is True
+        assert data1["called"] is True
 
     def test_commit_isnt_called_on_rollback(self):
         data = {}
@@ -4084,7 +4084,7 @@ class TestTransactions:
 
         @flow
         def main():
-            with transaction(None, auto_commit=False):
+            with transaction(None):
                 task1()
                 task2()
 

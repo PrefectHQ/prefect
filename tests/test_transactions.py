@@ -2,13 +2,15 @@ import pytest
 
 from prefect.records import Record
 from prefect.tasks import task
-from prefect.transactions import Transaction, get_transaction
+from prefect.transactions import CommitMode, Transaction, get_transaction
 
 
 def test_basic_init():
     txn = Transaction()
     assert txn.record is None
     assert txn.rolled_back is False
+    assert txn.committed is False
+    assert txn.commit_mode is None
 
 
 def test_equality():
@@ -49,7 +51,7 @@ class TestGetParent:
             assert outer.get_parent() is None
 
 
-class TestCommit:
+class TestCommitMode:
     def test_txns_auto_commit(self):
         with Transaction() as txn:
             assert txn.committed is False
@@ -76,10 +78,11 @@ class TestCommit:
 
         assert txn.committed is False
 
-    def test_txns_dont_auto_commit_with_parent(self):
+    def test_txns_dont_auto_commit_with_lazy_parent(self):
         outer_rec, inner_rec = Record("outer"), Record("inner")
-        with Transaction(record=outer_rec, auto_commit=False) as outer:
+        with Transaction(record=outer_rec, commit_mode=CommitMode.LAZY) as outer:
             assert outer.committed is False
+
             with Transaction(record=inner_rec) as inner:
                 pass
 
@@ -87,6 +90,41 @@ class TestCommit:
 
         assert outer.committed is True
         assert inner.committed is True
+
+    def test_txns_commit_with_lazy_parent_if_eager(self):
+        outer_rec, inner_rec = Record("outer"), Record("inner")
+        with Transaction(record=outer_rec, commit_mode=CommitMode.LAZY) as outer:
+            assert outer.committed is False
+
+            with Transaction(record=inner_rec, commit_mode=CommitMode.EAGER) as inner:
+                pass
+
+            assert inner.committed is True
+
+        assert outer.committed is True
+
+    def test_txns_commit_off_rolls_back(self):
+        with Transaction(commit_mode=CommitMode.OFF) as txn:
+            assert txn.committed is False
+        assert txn.committed is False
+        assert txn.rolled_back is True
+
+    def test_txns_commit_off_doesnt_roll_back_if_committed(self):
+        with Transaction(commit_mode=CommitMode.OFF) as txn:
+            txn.commit()
+        assert txn.committed is True
+        assert txn.rolled_back is False
+
+    def test_error_in_commit_triggers_rollback(self):
+        class BadTxn(Transaction):
+            def commit(self, **kwargs):
+                raise ValueError("foo")
+
+        with Transaction() as txn:
+            txn.add_child(BadTxn())
+
+        assert txn.committed is False
+        assert txn.rolled_back is True
 
 
 class TestRollBacks:

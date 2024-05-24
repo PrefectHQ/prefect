@@ -27,7 +27,6 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.new_futures import PrefectFuture as NewPrefectFuture
-from prefect.records import Record
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -40,6 +39,7 @@ from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
+from prefect.transactions import Transaction
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.collections import quote
@@ -4222,11 +4222,11 @@ class TestTransactions:
             pass
 
         @my_task.on_commit
-        def commit(record):
-            data["record"] = record
+        def commit(txn):
+            data["txn"] = txn
 
         state = my_task(return_state=True)
 
         assert state.is_completed()
         assert state.name == "Completed"
-        assert isinstance(data["record"], Record)
+        assert isinstance(data["txn"], Transaction)
