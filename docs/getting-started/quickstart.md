@@ -284,8 +284,8 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 ![Managed flow run graph and logs](/img/ui/qs-flow-run.png)
 
-!!! warning "Remove the schedule"
-    Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
+!!! warning "Pause the schedule"
+    Toggle the button under **Schedules** in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
 
 ## Next steps
 
