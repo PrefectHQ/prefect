@@ -44,50 +44,86 @@ You can create and delete variables through the REST API. You can also set and g
 
 ### Through the CLI
 
-List, inspect, and delete variables in the CLI with the `prefect variable ls`, `prefect variable inspect <name>`, and `prefect variable delete <name>` commands, respectively.
-
+- `prefect variable set` creates or updates a variable.
+- `prefect variable get` retrieves a variable's value.
+- `prefect variable unset` deletes a variable.
+- `prefect variable ls` lists all variables.
+- `prefect variable inspect` shows a variable's details.
+- 
 ## Accessing variables
 
 In addition to the UI and API, you can reference variables in code and in certain Prefect configuration files.
 
 ### In Python code
 
-You can access any variable through the Python SDK with the `Variable.get()` method. If you attempt to reference a variable that does not exist, the method will return `None`. You can create variables through the Python SDK with the `Variable.set()` method. Note that if a variable of the same name exists, you'll need to pass `overwrite=True`.
+You can interact with Variables via the Python SDK utilizing the `get`, `set`, and `unset` methods. 
 
+Note that these methods are invoked either synchronously or asynchronously, depending on the context in which they are called
+while inside of a `flow` or `task`. Outside of a `flow` or `task`, these methods are always asynchronous.
+
+
+#### In an asynchronous context:
 ```python
+from prefect import flow
 from prefect.variables import Variable
 
-# setting the variable
-variable = Variable.set(name="the_answer", value="42")
-
-# getting from a synchronous context
-answer = Variable.get('the_answer')
-print(answer.value)
-# 42
-
-# getting from an asynchronous context
-answer = await Variable.get('the_answer')
-print(answer.value)
-# 42
-
-# getting without a default value
-answer = Variable.get('not_the_answer')
-print(answer.value)
-# None
-
-# getting with a default value
-answer = Variable.get('not_the_answer', default='42')
-print(answer.value)
-# 42
-
-# using `overwrite=True`
-answer = Variable.get('the_answer')
-print(answer.value)
-#42
-answer = Variable.set(name="the_answer", value="43", overwrite=True)
-print(answer.value)
-#43
+@flow
+async def my_async_flow():
+    # set a variable
+    answer = await Variable.set(name="the_answer", value="42")
+    print(answer) # 42
+    
+    # get a variable
+    answer = await Variable.get("the_answer")
+    print(answer) # 42
+    
+    # overwrite an existing variable
+    answer = await Variable.set(name="the_answer", value="43", overwrite=True)
+    print(answer) # 43
+    
+    # unset a variable
+    await Variable.unset("the_answer")
+    
+    # get a variable that doesn't exist
+    answer = await Variable.get("not_the_answer")
+    print(answer) # None
+    
+    # get a variable that doesn't exist with a default
+    answer = await Variable.get("not_the_answer", default="42")
+    print(answer) # 42
 ```
+
+#### In a synchronous context:
+```python
+from prefect import flow
+from prefect.variables import Variable
+
+@flow
+def my_sync_flow():
+    # set a variable
+    answer = Variable.set(name="the_answer", value="42")
+    print(answer) # 42
+    
+    # get a variable
+    answer = Variable.get("the_answer")
+    print(answer) # 42
+    
+    # overwrite an existing variable
+    answer = Variable.set(name="the_answer", value="43", overwrite=True)
+    print(answer) # 43
+    
+    # unset a variable
+    Variable.unset("the_answer")
+    
+    # get a variable that doesn't exist
+    answer = Variable.get("not_the_answer")
+    print(answer) # None
+    
+    # get a variable that doesn't exist with a default
+    answer = Variable.get("not_the_answer", default="42")
+    print(answer) # 42
+```
+
 
 ### In `prefect.yaml` deployment steps
 
