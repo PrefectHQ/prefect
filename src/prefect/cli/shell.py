@@ -8,11 +8,10 @@ import logging
 import subprocess
 import sys
 import threading
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import typer
 from typing_extensions import Annotated
-from zoneinfo import ZoneInfo
 
 from prefect import flow
 from prefect.cli._types import PrefectTyper
@@ -24,7 +23,6 @@ from prefect.exceptions import FailedRun
 from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
-from prefect.types import TimeZone
 
 shell_app = PrefectTyper(name="shell", help="Commands for working with shell commands.")
 app.add_typer(shell_app)
@@ -176,9 +174,7 @@ async def serve(
     ),
     stream_stdout: bool = typer.Option(True, help="Stream the output of the command"),
     cron_schedule: str = typer.Option(None, help="Cron schedule for the flow"),
-    timezone: Union[TimeZone, ZoneInfo] = typer.Option(
-        None, help="Timezone for the schedule"
-    ),
+    timezone: str = typer.Option(None, help="Timezone for the schedule"),
     concurrency_limit: int = typer.Option(
         None,
         min=1,

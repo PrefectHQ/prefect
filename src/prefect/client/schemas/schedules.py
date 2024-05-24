@@ -10,7 +10,6 @@ import dateutil.rrule
 import pendulum
 from pydantic import AfterValidator, ConfigDict, Field, field_validator
 from pydantic_extra_types.pendulum_dt import DateTime
-from zoneinfo import ZoneInfo
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.schemas.validators import (
@@ -52,12 +51,13 @@ class IntervalSchedule(PrefectBaseModel):
         interval (datetime.timedelta): an interval to schedule on
         anchor_date (DateTime, optional): an anchor date to schedule increments against;
             if not provided, the current timestamp will be used
-        timezone (ZoneInfo): a valid timezone string in IANA tzdata format (for example,
+        timezone (TimeZone): a valid timezone string in IANA tzdata format (for example,
             America/New_York).
     """
 
     model_config = ConfigDict(
-        extra="forbid", exclude_none=True, arbitrary_types_allowed=True
+        extra="forbid",
+        exclude_none=True,
     )
 
     interval: PositiveDuration
@@ -65,7 +65,7 @@ class IntervalSchedule(PrefectBaseModel):
         default_factory=lambda: pendulum.now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
-    timezone: ZoneInfo = Field(default="UTC", examples=["America/New_York"])
+    timezone: TimeZone = Field(default="UTC", examples=["America/New_York"])
 
 
 class CronSchedule(PrefectBaseModel):
@@ -83,7 +83,7 @@ class CronSchedule(PrefectBaseModel):
 
     Args:
         cron (str): a valid cron string
-        timezone (ZoneInfo): a valid timezone string in IANA tzdata format (for example,
+        timezone (TimeZone): a valid timezone string in IANA tzdata format (for example,
             America/New_York).
         day_or (bool, optional): Control how croniter handles `day` and `day_of_week`
             entries. Defaults to True, matching cron which connects those values using
@@ -93,10 +93,10 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    model_config = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
-    timezone: ZoneInfo = Field(default="UTC", examples=["America/New_York"])
+    timezone: TimeZone = Field(default="UTC", examples=["America/New_York"])
     day_or: bool = Field(
         default=True,
         description=(
@@ -141,7 +141,7 @@ class RRuleSchedule(PrefectBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rrule: str
-    timezone: Field(default="UTC", examples=["America/New_York"])
+    timezone: TimeZone = Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("rrule")
     @classmethod
@@ -260,7 +260,7 @@ SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule, NoSchedule
 
 
 def construct_schedule(
-    timezone: Union[TimeZone, ZoneInfo] = "UTC",
+    timezone: TimeZone = "UTC",
     interval: Optional[Union[int, float, datetime.timedelta]] = None,
     anchor_date: Optional[Union[datetime.datetime, str]] = None,
     cron: Optional[str] = None,
@@ -299,10 +299,10 @@ def construct_schedule(
         if not anchor_date:
             anchor_date = DateTime.now()
         schedule = IntervalSchedule(
-            interval=interval, anchor_date=anchor_date, timezone=ZoneInfo(timezone)
+            interval=interval, anchor_date=anchor_date, timezone=timezone
         )
     elif cron:
-        schedule = CronSchedule(cron=cron, timezone=ZoneInfo(timezone))
+        schedule = CronSchedule(cron=cron, timezone=timezone)
     elif rrule:
         schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
 

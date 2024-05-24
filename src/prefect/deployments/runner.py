@@ -48,7 +48,6 @@ from pydantic import (
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
-from zoneinfo import ZoneInfo
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
@@ -357,7 +356,7 @@ class RunnerDeployment(BaseModel):
 
     @staticmethod
     def _construct_deployment_schedules(
-        timezone: Union[TimeZone, ZoneInfo] = "UTC",
+        timezone: TimeZone = "UTC",
         interval: Optional[
             Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
         ] = None,

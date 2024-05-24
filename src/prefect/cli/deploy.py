@@ -17,7 +17,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from yaml.error import YAMLError
-from zoneinfo import ZoneInfo
 
 import prefect
 from prefect._internal.compatibility.deprecated import (
@@ -289,7 +288,7 @@ async def deploy(
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
     ),
-    timezone: Union[TimeZone, ZoneInfo] = typer.Option(
+    timezone: TimeZone = typer.Option(
         None,
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
@@ -347,7 +346,6 @@ async def deploy(
 
     Should be run from a project root directory.
     """
-
     if variables is not None:
         app.console.print(
             generate_deprecation_message(
@@ -851,6 +849,7 @@ def _construct_schedules(
     Returns:
         A list of schedule objects
     """
+
     schedule_configs = deploy_config.get("schedules", NotSet)
 
     if schedule_configs is not NotSet:
@@ -874,7 +873,7 @@ def _schedule_config_to_deployment_schedule(
     interval = schedule_config.get("interval")
     anchor_date = schedule_config.get("anchor_date")
     rrule = schedule_config.get("rrule")
-    timezone = schedule_config.get("timezone")
+    timezone = schedule_config.get("timezone", "UTC")
     schedule_active = schedule_config.get("active", True)
     max_active_runs = schedule_config.get("max_active_runs")
     catchup = schedule_config.get("catchup", False)
