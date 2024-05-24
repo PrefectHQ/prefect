@@ -37,17 +37,17 @@ def dask_task_runner_with_existing_cluster_address(use_hosted_api_server):  # no
 
 
 @pytest.fixture
-def dask_task_runner_with_process_pool():
+def dask_task_runner_with_process_pool(use_hosted_api_server):  # noqa
     yield DaskTaskRunner(cluster_kwargs={"processes": True})
 
 
 @pytest.fixture
-def dask_task_runner_with_thread_pool():
+def dask_task_runner_with_thread_pool(use_hosted_api_server):  # noqa
     yield DaskTaskRunner(cluster_kwargs={"processes": False})
 
 
 @pytest.fixture
-def default_dask_task_runner():
+def default_dask_task_runner(use_hosted_api_server):  # noqa
     yield DaskTaskRunner()
 
 
