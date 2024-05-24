@@ -629,7 +629,7 @@ async def test_still_instruments_rejected_state_transitions(
         TO_STATES = ALL_ORCHESTRATION_STATES
 
         async def before_transition(self, initial_state, proposed_state, context):
-            new_state = proposed_state.copy()
+            new_state = proposed_state.model_copy()
             new_state.name = "Cancelled Fussily"
             new_state.type = StateType.CANCELLED
             await self.reject_transition(new_state, reason="I am fussy")

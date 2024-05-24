@@ -301,7 +301,7 @@ class PrefectEventsClient(EventsClient):
                     await self._reconnect()
                     assert self._websocket
 
-                await self._websocket.send(event.json())
+                await self._websocket.send(event.model_dump_json())
                 await self._checkpoint(event)
 
                 return

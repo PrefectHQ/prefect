@@ -266,7 +266,7 @@ async def handle_event_count_request(
         countable,
         time_unit,
         time_interval,
-        filter.json(),
+        filter.model_dump_json(),
     )
 
     try:

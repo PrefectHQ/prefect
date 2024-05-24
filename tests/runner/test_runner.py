@@ -454,7 +454,7 @@ class TestRunner:
 
             await prefect_client.set_flow_run_state(
                 flow_run_id=flow_run.id,
-                state=flow_run.state.copy(
+                state=flow_run.state.model_copy(
                     update={"name": "Cancelling", "type": StateType.CANCELLING}
                 ),
             )

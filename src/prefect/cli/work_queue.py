@@ -428,7 +428,7 @@ async def ls(
                     ),
                 ]
                 if verbose and queue.filter is not None:
-                    row.append(queue.filter.json())
+                    row.append(queue.filter.model_dump_json())
                 table.add_row(*row)
     elif not pool:
         table = Table(
@@ -469,7 +469,7 @@ async def ls(
                     ),
                 ]
                 if verbose and queue.filter is not None:
-                    row.append(queue.filter.json())
+                    row.append(queue.filter.model_dump_json())
                 table.add_row(*row)
 
     else:

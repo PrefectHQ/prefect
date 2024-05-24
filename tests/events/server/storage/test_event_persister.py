@@ -312,7 +312,7 @@ async def test_trims_messages_periodically(
     await write_events(
         session,
         [
-            event.copy(
+            event.model_copy(
                 update={
                     "id": uuid4(),
                     "occurred": pendulum.now("UTC") - timedelta(days=i),

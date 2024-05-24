@@ -304,7 +304,7 @@ class TestBaseOrchestrationRule:
             assert side_effect == 1
 
             # mutating the proposed state inside the context will fizzle the rule
-            mutated_state = proposed_state.copy()
+            mutated_state = proposed_state.model_copy()
             mutated_state.type = random.choice(
                 list(set(states.StateType) - {*intended_transition})
             )
@@ -334,7 +334,7 @@ class TestBaseOrchestrationRule:
 
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -392,7 +392,7 @@ class TestBaseOrchestrationRule:
 
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -448,7 +448,7 @@ class TestBaseOrchestrationRule:
 
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)

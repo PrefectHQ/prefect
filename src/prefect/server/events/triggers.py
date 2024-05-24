@@ -337,7 +337,7 @@ async def act(firing: Firing):
 
     async with messaging.create_actions_publisher() as publisher:
         for action in actions:
-            await publisher.publish_data(action.json().encode(), {})
+            await publisher.publish_data(action.model_dump_json().encode(), {})
 
 
 __events_clock_lock: Optional[asyncio.Lock] = None
