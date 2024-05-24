@@ -49,7 +49,7 @@ from prefect.types import (
     Name,
     NonNegativeInteger,
     PositiveInteger,
-    StrictVariableType,
+    StrictVariableValue,
 )
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
@@ -1510,7 +1510,7 @@ class Variable(ObjectBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: StrictVariableType = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my_value"],

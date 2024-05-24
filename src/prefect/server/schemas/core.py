@@ -46,7 +46,7 @@ from prefect.types import (
     NonEmptyishName,
     NonNegativeInteger,
     PositiveInteger,
-    StrictVariableType,
+    StrictVariableValue,
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
@@ -1217,7 +1217,7 @@ class Variable(ORMBaseModel):
         examples=["my-variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: StrictVariableType = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],

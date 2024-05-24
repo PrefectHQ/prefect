@@ -15,7 +15,7 @@ from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
 from prefect.server.schemas.responses import DeploymentResponse
-from prefect.types import StrictVariableType
+from prefect.types import StrictVariableValue
 
 logger = get_logger(__name__)
 
@@ -156,8 +156,8 @@ class OrchestrationClient(BaseClient):
 
     async def read_workspace_variables(
         self, names: Optional[List[str]] = None
-    ) -> Dict[str, StrictVariableType]:
-        variables: Dict[str, StrictVariableType] = {}
+    ) -> Dict[str, StrictVariableValue]:
+        variables: Dict[str, StrictVariableValue] = {}
 
         offset = 0
 

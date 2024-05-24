@@ -21,8 +21,6 @@ MAX_VARIABLE_VALUE_LENGTH = 5000
 
 timezone_set = available_timezones()
 
-VariableType = Union[str, float, bool, int, None, Dict[str, Any], List[Any]]
-
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
@@ -101,7 +99,7 @@ NonEmptyishName = Annotated[
 
 # order of types => order of attempts to cast
 # e.g. True is cast to 1.0 if the order is [float, bool]
-VariableType = Union[
+VariableValue = Union[
     StrictStr,
     StrictInt,
     StrictBool,
@@ -120,7 +118,7 @@ def check_variable_value(value: object) -> object:
     return value
 
 
-StrictVariableType = Annotated[VariableType, BeforeValidator(check_variable_value)]
+StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_value)]
 
 
 class SecretDict(pydantic.Secret[Dict[str, Any]]):

@@ -33,7 +33,7 @@ from prefect.types import (
     NonNegativeFloat,
     NonNegativeInteger,
     PositiveInteger,
-    StrictVariableType,
+    StrictVariableValue,
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
@@ -725,7 +725,7 @@ class VariableCreate(ActionBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: StrictVariableType = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
@@ -745,7 +745,7 @@ class VariableUpdate(ActionBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: StrictVariableType = Field(
+    value: StrictVariableValue = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
