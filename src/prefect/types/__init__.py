@@ -44,7 +44,7 @@ class Duration(timedelta):
                 try:
                     return timedelta(seconds=float(value))
                 except ValueError:
-                    return value
+                    return value  # type: ignore
             return value
 
         return core_schema.no_info_before_validator_function(parse_duration, cls.schema)
@@ -82,9 +82,8 @@ NameOrEmpty = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS_EMPTY_OK)]
 
 
 def non_emptyish(value: str) -> str:
-    if isinstance(value, str):
-        if not value.strip("' \""):
-            raise ValueError("name cannot be an empty string")
+    if not value.strip("' \""):
+        raise ValueError("name cannot be an empty string")
 
     return value
 
