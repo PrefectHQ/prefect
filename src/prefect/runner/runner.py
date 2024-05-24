@@ -1131,7 +1131,7 @@ class Runner:
         """
         if state.is_cancelling():
             flow = await load_flow_from_flow_run(
-                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+                flow_run, storage_base_path=str(self._tmp_dir)
             )
             hooks = flow.on_cancellation_hooks or []
 
@@ -1147,7 +1147,7 @@ class Runner:
         """
         if state.is_crashed():
             flow = await load_flow_from_flow_run(
-                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+                flow_run, storage_base_path=str(self._tmp_dir)
             )
             hooks = flow.on_crashed_hooks or []
 

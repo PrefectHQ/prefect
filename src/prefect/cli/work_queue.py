@@ -2,6 +2,7 @@
 Command line interface for working with work queues.
 """
 
+import warnings
 from textwrap import dedent
 from typing import List, Optional, Union
 from uuid import UUID
@@ -356,7 +357,10 @@ async def inspect(
     async with get_client() as client:
         try:
             result = await client.read_work_queue(id=queue_id)
-            app.console.print(Pretty(result))
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=DeprecationWarning)
+
+                app.console.print(Pretty(result))
         except ObjectNotFound:
             if pool:
                 error_message = f"No work queue found: {name!r} in work pool {pool!r}"

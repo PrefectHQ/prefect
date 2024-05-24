@@ -80,19 +80,19 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_fields_reflected_in_schema(self):
-        class SecretBlock(Block):
+        class SecretBlockE(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        assert SecretBlock.model_json_schema()["secret_fields"] == ["w.*", "x", "y"]
+        assert SecretBlockE.model_json_schema()["secret_fields"] == ["w.*", "x", "y"]
 
-        schema = SecretBlock._to_block_schema(block_type_id=uuid4())
+        schema = SecretBlockE._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["w.*", "x", "y"]
         assert schema.fields == {
             "block_schema_references": {},
-            "block_type_slug": "secretblock",
+            "block_type_slug": "secretblocke",
             "properties": {
                 "w": {"title": "W", "type": "object"},
                 "x": {
@@ -111,7 +111,7 @@ class TestAPICompatibility:
             },
             "required": ["w", "x", "y", "z"],
             "secret_fields": ["w.*", "x", "y"],
-            "title": "SecretBlock",
+            "title": "SecretBlockE",
             "type": "object",
         }
 
@@ -381,13 +381,13 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
-        class SecretBlock(Block):
+        class SecretBlockA(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(
+        block = SecretBlockA(
             w={
                 "Here's my shallow secret": "I don't like olives",
                 "deeper secrets": {"Here's my deeper secret": "I've never seen Lost"},
@@ -1539,13 +1539,13 @@ class TestSaveBlock:
         assert loaded_outer_block.contents._block_document_name is None
 
     async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
-        class SecretBlock(Block):
+        class SecretBlockB(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(w=dict(secret="value"), x="x", y=b"y", z="z")
+        block = SecretBlockB(w=dict(secret="value"), x="x", y=b"y", z="z")
         await block.save("secret-block")
 
         # read from DB without secrets
@@ -1571,7 +1571,7 @@ class TestSaveBlock:
         assert db_block.data == {"w": {"secret": "value"}, "x": "x", "y": "y", "z": "z"}
 
         # load block with secrets
-        api_block = await SecretBlock.load("secret-block")
+        api_block = await SecretBlockB.load("secret-block")
         assert api_block.w.get_secret_value() == {"secret": "value"}
         assert api_block.x.get_secret_value() == "x"
         assert api_block.y.get_secret_value() == b"y"
@@ -2377,11 +2377,8 @@ class TestTypeDispatch:
         assert type(model.block) == BChildBlock
 
     def test_base_field_creates_child_instance_with_assignment_validation(self):
-        class AssignmentParentModel(BaseModel):
+        class AssignmentParentModel(BaseModel, validate_assignment=True):
             block: BaseBlock
-
-            class Config:
-                validate_assignment = True
 
         model = AssignmentParentModel(block=AChildBlock(a=3).model_dump())
         assert type(model.block) == AChildBlock
@@ -2576,7 +2573,7 @@ class TestDeleteBlock:
             )
 
 
-class SecretBlock(Block):
+class MySecretBlock(Block):
     u: PydanticSecret[str]
     v: PydanticSecret[bytes]
     w: SecretDict
@@ -2600,9 +2597,9 @@ class TestDumpSecrets:
         )
 
     def test_dump_obscured_secrets(self, secret_data):
-        block = SecretBlock.model_validate_json(secret_data)
+        block = MySecretBlock.model_validate_json(secret_data)
         assert block.model_dump() == {
-            "block_type_slug": "secretblock",
+            "block_type_slug": "mysecretblock",
             "u": PydanticSecret[str]("u"),
             "v": PydanticSecret[bytes](b"v"),
             "w": SecretDict({"secret": "w"}),
@@ -2612,9 +2609,9 @@ class TestDumpSecrets:
         }
 
     def test_dump_obscured_secrets_mode_json(self, secret_data):
-        block = SecretBlock.model_validate_json(secret_data)
+        block = MySecretBlock.model_validate_json(secret_data)
         assert block.model_dump(mode="json") == {
-            "block_type_slug": "secretblock",
+            "block_type_slug": "mysecretblock",
             "u": "**********",
             "v": "**********",
             "w": "**********",
@@ -2624,9 +2621,9 @@ class TestDumpSecrets:
         }
 
     def test_dump_python_secrets(self, secret_data):
-        block = SecretBlock.model_validate_json(secret_data)
+        block = MySecretBlock.model_validate_json(secret_data)
         assert block.model_dump(context={"include_secrets": True}) == {
-            "block_type_slug": "secretblock",
+            "block_type_slug": "mysecretblock",
             "u": "u",
             "v": b"v",
             "w": {"secret": "w"},
@@ -2636,9 +2633,9 @@ class TestDumpSecrets:
         }
 
     def test_dump_jsonable_secrets(self, secret_data):
-        block = SecretBlock.model_validate_json(secret_data)
+        block = MySecretBlock.model_validate_json(secret_data)
         assert block.model_dump(context={"include_secrets": True}, mode="json") == {
-            "block_type_slug": "secretblock",
+            "block_type_slug": "mysecretblock",
             "u": "u",
             "v": "v",
             "w": {"secret": "w"},
@@ -2648,7 +2645,7 @@ class TestDumpSecrets:
         }
 
     def test_dump_json_secrets(self, secret_data):
-        block = SecretBlock.model_validate_json(secret_data)
+        block = MySecretBlock.model_validate_json(secret_data)
         assert (
             block.model_dump_json(context={"include_secrets": True})
             == to_json(
@@ -2659,7 +2656,7 @@ class TestDumpSecrets:
                     "x": "x",
                     "y": "y",
                     "z": ["z", 1, 2.0],
-                    "block_type_slug": "secretblock",
+                    "block_type_slug": "mysecretblock",
                 }
             ).decode()
         )

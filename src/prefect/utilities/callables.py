@@ -3,6 +3,7 @@ Utilities for working with Python callables.
 """
 
 import inspect
+import warnings
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -268,21 +269,31 @@ def process_v1_params(
         name = param.name
 
     type_ = Any if param.annotation is inspect._empty else param.annotation
-    field = pydantic.Field(
-        default=... if param.default is param.empty else param.default,
-        title=param.name,
-        description=docstrings.get(param.name, None),
-        alias=aliases.get(name),
-        position=position,
-    )
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+        )
+        field = pydantic.Field(
+            default=... if param.default is param.empty else param.default,
+            title=param.name,
+            description=docstrings.get(param.name, None),
+            alias=aliases.get(name),
+            position=position,
+        )
     return name, type_, field
 
 
 def create_v1_schema(name_: str, model_cfg, **model_fields):
-    model: "pydantic.BaseModel" = pydantic.create_model(
-        name_, __config__=model_cfg, **model_fields
-    )
-    return model.schema(by_alias=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+        )
+
+        model: "pydantic.BaseModel" = pydantic.create_model(
+            name_, __config__=model_cfg, **model_fields
+        )
+        return model.schema(by_alias=True)
 
 
 def parameter_schema(fn: Callable) -> ParameterSchema:

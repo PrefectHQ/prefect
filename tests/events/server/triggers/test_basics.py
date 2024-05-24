@@ -1,4 +1,3 @@
-import unittest.mock
 from datetime import timedelta
 from typing import Callable, List, Optional, Union
 from unittest import mock
@@ -450,7 +449,6 @@ async def test_proactive_trigger_fires_after_time_expires(
     )
     assert_acted_with(
         Firing(
-            id=unittest.mock.ANY,
             trigger=chonk_sadness.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore

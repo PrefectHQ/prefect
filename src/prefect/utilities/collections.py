@@ -4,6 +4,7 @@ Utilities for extensions of and operations on Python collections.
 
 import io
 import itertools
+import warnings
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
 from collections.abc import Sequence
@@ -345,9 +346,13 @@ def visit_collection(
         # when extra=allow, fields not in model_fields may be in model_fields_set
         model_fields = expr.model_fields_set.union(expr.model_fields.keys())
 
-        updated_data = {
-            field: visit_nested(getattr(expr, field)) for field in model_fields
-        }
+        # We may encounter a deprecated field here, but this isn't the caller's fault
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+
+            updated_data = {
+                field: visit_nested(getattr(expr, field)) for field in model_fields
+            }
 
         if return_data:
             # Use construct to avoid validation and handle immutability

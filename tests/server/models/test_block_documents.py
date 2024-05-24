@@ -1581,18 +1581,18 @@ class TestUpdateBlockDocument:
 class TestSecretBlockDocuments:
     @pytest.fixture()
     async def secret_block_type_and_schema(self, session):
-        class SecretBlock(Block):
+        class SecretBlockC(Block):
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
         secret_block_type = await models.block_types.create_block_type(
-            session=session, block_type=SecretBlock._to_block_type()
+            session=session, block_type=SecretBlockC._to_block_type()
         )
         secret_block_schema = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=SecretBlock._to_block_schema(
+            block_schema=SecretBlockC._to_block_schema(
                 block_type_id=secret_block_type.id
             ),
         )

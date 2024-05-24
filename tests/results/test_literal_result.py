@@ -28,7 +28,7 @@ def test_result_literal_create_and_get_sync(value):
 async def test_result_literal_json_roundtrip(value):
     result = await LiteralResult.create(value)
     serialized = result.model_dump_json()
-    deserialized = LiteralResult.model_validate(serialized)
+    deserialized = LiteralResult.model_validate_json(serialized)
     assert await deserialized.get() == value
 
 
@@ -36,7 +36,7 @@ async def test_result_literal_json_roundtrip(value):
 async def test_result_literal_json_roundtrip_base_result_parser(value):
     result = await LiteralResult.create(value)
     serialized = result.model_dump_json()
-    deserialized = BaseResult.model_validate(serialized)
+    deserialized = BaseResult.model_validate_json(serialized)
     assert await deserialized.get() == value
 
 
