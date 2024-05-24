@@ -12,9 +12,6 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
-from prefect._internal.compatibility.experimental import (
-    experiment_enabled,
-)
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -388,41 +385,7 @@ async def ls(
     """
     View all work queues.
     """
-    if not pool and not experiment_enabled("work_pools"):
-        table = Table(
-            title="Work Queues",
-            caption="(**) denotes a paused queue",
-            caption_style="red",
-        )
-        table.add_column("Name", style="green", no_wrap=True)
-        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-        table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-        if verbose:
-            table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
-
-        async with get_client() as client:
-            if work_queue_prefix is not None:
-                queues = await client.match_work_queues([work_queue_prefix])
-            else:
-                queues = await client.read_work_queues()
-
-            def sort_by_created_key(q):
-                return pendulum.now("utc") - q.created
-
-            for queue in sorted(queues, key=sort_by_created_key):
-                row = [
-                    f"{queue.name} [red](**)" if queue.is_paused else queue.name,
-                    str(queue.id),
-                    (
-                        f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit is not None
-                        else "[blue]None"
-                    ),
-                ]
-                if verbose and queue.filter is not None:
-                    row.append(queue.filter.json())
-                table.add_row(*row)
-    elif not pool:
+    if not pool:
         table = Table(
             title="Work Queues",
             caption="(**) denotes a paused queue",
