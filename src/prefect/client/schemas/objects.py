@@ -18,11 +18,15 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
     field_validator,
     model_validator,
 )
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Literal, Self
+from typing_extensions import Literal, Self, TypeAlias
 
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -1483,6 +1487,16 @@ class ArtifactCollection(ObjectBaseModel):
     )
 
 
+# strict typing to use inside a pydantic object, to avoid
+# casting values to undesired types (e.g. 123 -> "123")
+STRICT_VARIABLE_TYPES: TypeAlias = Union[
+    StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+]
+VARIABLE_TYPES: TypeAlias = Union[
+    str, int, float, bool, None, Dict[str, Any], List[Any]
+]
+
+
 class Variable(ObjectBaseModel):
     name: str = Field(
         default=...,
@@ -1490,11 +1504,10 @@ class Variable(ObjectBaseModel):
         examples=["my_variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=...,
         description="The value of the variable",
         examples=["my_value"],
-        max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,

@@ -78,14 +78,13 @@ from prefect.runner.storage import (
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.task_runners import BaseTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -240,8 +239,6 @@ class Flow(Generic[P, R]):
         ]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
-                if not hooks:
-                    raise ValueError(f"Empty list passed for '{hook_name}'")
                 try:
                     hooks = list(hooks)
                 except TypeError:
@@ -280,11 +277,7 @@ class Flow(Generic[P, R]):
                 )
         self.flow_run_name = flow_run_name
 
-        default_task_runner = (
-            ThreadPoolTaskRunner()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
-            else ConcurrentTaskRunner()
-        )
+        default_task_runner = ThreadPoolTaskRunner()
         task_runner = task_runner or default_task_runner
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
@@ -343,11 +336,11 @@ class Flow(Generic[P, R]):
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
-        self.on_completion = on_completion
-        self.on_failure = on_failure
-        self.on_cancellation = on_cancellation
-        self.on_crashed = on_crashed
-        self.on_running = on_running
+        self.on_completion_hooks = on_completion or []
+        self.on_failure_hooks = on_failure or []
+        self.on_cancellation_hooks = on_cancellation or []
+        self.on_crashed_hooks = on_crashed or []
+        self.on_running_hooks = on_running or []
 
         # Used for flows loaded from remote storage
         self._storage: Optional[RunnerStorage] = None
@@ -545,11 +538,11 @@ class Flow(Generic[P, R]):
                 else self.cache_result_in_memory
             ),
             log_prints=log_prints if log_prints is not NotSet else self.log_prints,
-            on_completion=on_completion or self.on_completion,
-            on_failure=on_failure or self.on_failure,
-            on_cancellation=on_cancellation or self.on_cancellation,
-            on_crashed=on_crashed or self.on_crashed,
-            on_running=on_running or self.on_running,
+            on_completion=on_completion or self.on_completion_hooks,
+            on_failure=on_failure or self.on_failure_hooks,
+            on_cancellation=on_cancellation or self.on_cancellation_hooks,
+            on_crashed=on_crashed or self.on_crashed_hooks,
+            on_running=on_running or self.on_running_hooks,
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint
@@ -772,6 +765,36 @@ class Flow(Generic[P, R]):
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
             )
+
+    def on_completion(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_completion_hooks.append(fn)
+        return fn
+
+    def on_cancellation(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_cancellation_hooks.append(fn)
+        return fn
+
+    def on_crashed(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_crashed_hooks.append(fn)
+        return fn
+
+    def on_running(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_running_hooks.append(fn)
+        return fn
+
+    def on_failure(
+        self, fn: Callable[["Flow", FlowRun, State], None]
+    ) -> Callable[["Flow", FlowRun, State], None]:
+        self.on_failure_hooks.append(fn)
+        return fn
 
     @sync_compatible
     async def serve(
@@ -1258,7 +1281,6 @@ class Flow(Generic[P, R]):
             >>> with tags("db", "blue"):
             >>>     my_flow("foo")
         """
-        from prefect.engine import enter_flow_run_engine_from_flow_call
         from prefect.utilities.visualization import (
             get_task_viz_tracker,
             track_viz_task,
@@ -1275,27 +1297,19 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_flow_engine import run_flow, run_flow_sync
+        from prefect.new_flow_engine import run_flow, run_flow_sync
 
-            run_kwargs = dict(
-                flow=self,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-            )
-            if self.isasync:
-                # this returns an awaitable coroutine
-                return run_flow(**run_kwargs)
-            else:
-                return run_flow_sync(**run_kwargs)
-
-        return enter_flow_run_engine_from_flow_call(
-            self,
-            parameters,
+        run_kwargs = dict(
+            flow=self,
+            parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
         )
+        if self.isasync:
+            # this returns an awaitable coroutine
+            return run_flow(**run_kwargs)
+        else:
+            return run_flow_sync(**run_kwargs)
 
     @sync_compatible
     async def visualize(self, *args, **kwargs):

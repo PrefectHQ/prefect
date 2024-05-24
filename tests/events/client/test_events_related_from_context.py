@@ -139,8 +139,10 @@ async def test_gets_related_from_task_run_context(prefect_client):
     @task
     async def test_task():
         # Clear the FlowRunContext to simulated a task run in a remote worker.
-        FlowRunContext.__var__.set(None)
-        return await related_resources_from_run_context()
+        token = FlowRunContext.__var__.set(None)
+        related_resources = await related_resources_from_run_context()
+        FlowRunContext.__var__.reset(token)
+        return related_resources
 
     @flow
     async def test_flow():

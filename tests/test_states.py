@@ -59,7 +59,12 @@ def test_is_not_state_iterable_if_empty(iterable_type):
 class TestRaiseStateException:
     def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            raise_state_exception(state_cls(data=ValueError("Test")))
+
+            @flow
+            def test_flow():
+                raise_state_exception(state_cls(data=ValueError("Test")))
+
+            test_flow()
 
     async def test_raises_state_exception(self, state_cls):
         with pytest.raises(ValueError, match="Test"):

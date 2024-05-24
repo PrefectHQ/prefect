@@ -1947,6 +1947,33 @@ class TestVariables:
             results.append(res.json())
         return parse_obj_as(List[Variable], results)
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_create_variable(self, prefect_client, value):
+        created_variable = await prefect_client.create_variable(
+            variable=VariableCreate(name="my_variable", value=value)
+        )
+        assert created_variable
+        assert created_variable.name == "my_variable"
+        assert created_variable.value == value
+
+        res = await prefect_client.read_variable_by_name(created_variable.name)
+        assert res.name == created_variable.name
+        assert res.value == value
+
     async def test_read_variable_by_name(self, prefect_client, variable):
         res = await prefect_client.read_variable_by_name(variable.name)
         assert res.name == variable.name
