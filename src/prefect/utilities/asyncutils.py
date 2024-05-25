@@ -234,8 +234,7 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
         if force_sync:
             return run_sync(ctx_call())
         elif RUN_ASYNC_FLAG.get() or is_async:
-            context = copy_context()
-            return context.run(ctx_call)
+            return ctx_call
         else:
             return run_sync(ctx_call())
 
