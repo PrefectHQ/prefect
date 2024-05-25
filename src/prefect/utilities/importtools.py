@@ -3,6 +3,7 @@ import importlib.util
 import os
 import runpy
 import sys
+import warnings
 from importlib.abc import Loader, MetaPathFinder
 from importlib.machinery import ModuleSpec
 from pathlib import Path
@@ -13,7 +14,10 @@ from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Union
 import fsspec
 
 from prefect.exceptions import ScriptError
+from prefect.logging import get_logger
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
+
+logger = get_logger(__name__)
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -245,6 +249,11 @@ def lazy_import(
     Use this to retain module-level imports for libraries that we don't want to
     actually import until they are needed.
 
+    NOTE: Lazy-loading a subpackage, such as `docker.error`, will eagerly load the
+    containing package (e.g. `docker`) even if it's already been lazy-imported. This can
+    cause unexpected behavior when the lazy version of the package is used because
+    multiple versions of the package may be loaded.
+
     Adapted from the [Python documentation][1] and [lazy_loader][2]
 
     [1]: https://docs.python.org/3/library/importlib.html#implementing-lazy-imports
@@ -255,6 +264,12 @@ def lazy_import(
         return sys.modules[name]
     except KeyError:
         pass
+
+    if "." in name:
+        warnings.warn(
+            "Lazy importing subpackages can lead to unexpected behavior.",
+            RuntimeWarning,
+        )
 
     spec = importlib.util.find_spec(name)
 

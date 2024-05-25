@@ -86,18 +86,37 @@ def test_cant_find_docker_error(monkeypatch):
 
 
 @pytest.mark.service("docker")
-def test_lazy_import_does_not_break_type_comparisons():
+def test_lazy_import_breaks_type_comparisons():
+    """
+    This test exists to show that lazy-importing subpackages can cause
+    unexpected behavior.
+
+    In the past, this test attempted to show that lazy-importing a subpackage
+    would NOT load two copies of the containing package. However, the test only
+    passed because the lazy import of `docker` would unexpectedly import docker
+    due to the layout of our packages and imports and the use of `inspect`
+    inside `lazy_import`.
+
+    However, in normal operation, lazy-importing a package and then
+    lazy-importing one of its subpackages will create both a lazy import of the
+    package and an eager import of the package -- eagerly importing the package
+    is a side effect of lazy-importing the subpackage. When used at runtime,
+    multiple copies of the package (e.g. `docker`) will end up imported, which
+    can break type comparisons and cause other unexpected behavior.
+    """
     docker = lazy_import("docker")
     docker.errors = lazy_import("docker.errors")
 
     with docker_client() as client:
         try:
-            client.containers.get(uuid4().hex)  # Better not exist
+            client.containers.get(uuid4().hex)  # Should not exist
         except docker.errors.NotFound:
             pass
-
-    # The exception should not raise but can raise if `lazy_import` creates a duplicate
-    # copy of the `docker` module
+        except Exception as e:
+            # We tried to catch `docker.errors.NotFound`, but we couldn't even
+            # though this is a docker.errors.NotFound error. The problem is that
+            # there are now two copies of NotFound.
+            assert e.__class__.__name__ == "NotFound"
 
 
 def test_lazy_import_fails_for_missing_modules():
