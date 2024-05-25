@@ -571,7 +571,7 @@ def run_task_sync(
                                 if txn.committed:
                                     result_json = txn.read()
                                     if result_json:
-                                        result = BaseResult(**result_json)
+                                        result = BaseResult(**result_json).get()
                                     else:
                                         result = None  # this is questionable
                                 else:
@@ -646,7 +646,7 @@ async def run_task_async(
                                 if txn.committed:
                                     result_json = txn.read()
                                     if result_json:
-                                        result = BaseResult(**result_json)
+                                        result = BaseResult(**result_json).get()
                                     else:
                                         result = None  # this is questionable
                                 else:
@@ -666,13 +666,13 @@ async def run_task_async(
                     except Exception as exc:
                         run.handle_exception(exc)
 
-                if run.state.is_final():
-                    for hook in run.get_hooks(run.state, as_async=True):
-                        await hook()
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state, as_async=True):
+                    await hook()
 
-                if return_type == "state":
-                    return run.state
-                return run.result()
+            if return_type == "state":
+                return run.state
+            return run.result()
 
 
 def run_task(
