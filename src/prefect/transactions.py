@@ -25,6 +25,11 @@ from prefect.utilities.collections import AutoEnum
 T = TypeVar("T")
 
 
+class IsolationLevel(AutoEnum):
+    READ_COMMITTED = AutoEnum.auto()
+    SERIALIZABLE = AutoEnum.auto()
+
+
 class CommitMode(AutoEnum):
     EAGER = AutoEnum.auto()
     LAZY = AutoEnum.auto()
@@ -60,6 +65,7 @@ class Transaction(ContextModel):
             else:
                 self.commit_mode = CommitMode.EAGER
 
+        self.begin()
         self._token = self.__var__.set(self)
         return self
 
@@ -82,7 +88,8 @@ class Transaction(ContextModel):
             # parent takes responsibility
             parent.add_child(self)
         elif self.commit_mode == CommitMode.OFF:
-            # no one took responsibility to commit, rolling back
+            # if no one took responsibility to commit, rolling back
+            # note that rollback returns if already committed
             self.rollback()
         elif self.commit_mode == CommitMode.LAZY:
             # no one left to take responsibility for committing
@@ -93,6 +100,12 @@ class Transaction(ContextModel):
         # do this below reset so that get_transaction() returns the relevant txn
         if parent and self.rolled_back:
             parent.rollback()
+
+    def begin(self):
+        # currently we only support READ_COMMITTED isolation
+        # i.e., no locking behavior
+        if self.record and self.record.exists():
+            self.committed = True
 
     def reset(self) -> None:
         self.__var__.reset(self._token)
@@ -121,11 +134,18 @@ class Transaction(ContextModel):
                 for hook in tsk.on_commit_hooks:
                     hook(self)
 
+            ## persist record - where does the value come from?
             self.committed = True
             return True
         except Exception:
             self.rollback()
             return False
+
+    def stage(self, value: dict) -> None:
+        """
+        Stage a value to be committed later.
+        """
+        self._staged_value = value  # ??
 
     def rollback(self) -> bool:
         if self.rolled_back or self.committed:

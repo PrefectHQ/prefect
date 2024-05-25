@@ -171,6 +171,7 @@ class TaskRunEngine(Generic[P, R]):
                         result = hook(task, task_run, state)
                         if inspect.isawaitable(result):
                             await result
+
             else:
 
                 def _hook_fn():
@@ -261,7 +262,7 @@ class TaskRunEngine(Generic[P, R]):
             context={},
         )
 
-    def begin_run(self):
+    def begin_run(self, transaction: Transaction):
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
@@ -275,6 +276,10 @@ class TaskRunEngine(Generic[P, R]):
                 # update the state name
                 force=self.state.is_pending(),
             )
+            return
+
+        if transaction.committed:
+            self.handle_success(transaction.record.read(), transaction=transaction)
             return
 
         state_details = self._compute_state_details()
@@ -333,7 +338,7 @@ class TaskRunEngine(Generic[P, R]):
             _result = run_sync(_result)
         return _result
 
-    def handle_success(self, result: R) -> R:
+    def handle_success(self, result: R, transaction: Transaction) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
@@ -343,6 +348,7 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=result_factory,
             )
         )
+        # TODO: stage value on transaction here
         terminal_state.state_details = self._compute_state_details(
             include_cache_expiration=True
         )
@@ -546,9 +552,9 @@ def run_task_sync(
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
-            with transaction(record=Record()) as txn:
+            with transaction(record=Record(key=str(run.task_run.id))) as txn:
                 txn.add_task(run.task, run.task_run.id)
-                run.begin_run()
+                run.begin_run(transaction=txn)
                 while run.is_running():
                     # enter run context on each loop iteration to ensure the context
                     # contains the latest task run metadata
@@ -565,7 +571,7 @@ def run_task_sync(
                                 result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
                             # If the task run is successful, finalize it.
-                            run.handle_success(result)
+                            run.handle_success(result, transaction=txn)
                         except RollBack as exc:
                             run.handle_rollback(exc, transaction=txn)
                         except TimeoutError as exc:
@@ -607,9 +613,9 @@ async def run_task_async(
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
-            with transaction(record=Record()) as txn:
+            with transaction(record=Record(key=str(run.task_run.id))) as txn:
                 txn.add_task(run.task, run.task_run.id)
-                run.begin_run()
+                run.begin_run(transaction=txn)
 
                 while run.is_running():
                     # enter run context on each loop iteration to ensure the context
@@ -629,7 +635,7 @@ async def run_task_async(
                                 )  # type: ignore
 
                             # If the task run is successful, finalize it.
-                            run.handle_success(result)
+                            run.handle_success(result, transaction=txn)
                         except RollBack as exc:
                             run.handle_rollback(exc, transaction=txn)
                         except TimeoutError as exc:
