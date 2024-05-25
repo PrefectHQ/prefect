@@ -18,7 +18,7 @@ else:
     from pydantic import Field
 
 from prefect.context import ContextModel
-from prefect.records import Record
+from prefect.records import RecordStore
 from prefect.tasks import Task
 from prefect.utilities.collections import AutoEnum
 
@@ -41,7 +41,8 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    record: Record = None
+    store: RecordStore = None
+    key: str = None
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
     children: List["Transaction"] = Field(default_factory=list)
@@ -104,8 +105,11 @@ class Transaction(ContextModel):
     def begin(self):
         # currently we only support READ_COMMITTED isolation
         # i.e., no locking behavior
-        if self.record and self.record.exists():
+        if self.store and self.store.exists(key=self.key):
             self.committed = True
+
+    def read(self) -> dict:
+        return self.store.read(key=self.key)
 
     def reset(self) -> None:
         self.__var__.reset(self._token)
@@ -134,9 +138,8 @@ class Transaction(ContextModel):
                 for hook in tsk.on_commit_hooks:
                     hook(self)
 
-            ## persist record - where does the value come from?
-            if self.record:
-                self.record.write(self.state.get("_staged_value"))
+            if self.store:
+                self.store.write(key=self.key, value=self.state.get("_staged_value"))
             self.committed = True
             return True
         except Exception:
@@ -182,7 +185,9 @@ def get_transaction() -> Transaction:
 
 @contextmanager
 def transaction(
-    record: Record = None, commit_mode: CommitMode = CommitMode.LAZY
+    key: str = None,
+    store: RecordStore = None,
+    commit_mode: CommitMode = CommitMode.LAZY,
 ) -> Transaction:
-    with Transaction(record=record, commit_mode=commit_mode) as txn:
+    with Transaction(key=key, store=store, commit_mode=commit_mode) as txn:
         yield txn

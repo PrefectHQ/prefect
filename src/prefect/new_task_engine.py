@@ -282,7 +282,7 @@ class TaskRunEngine(Generic[P, R]):
 
         if transaction.committed:
             self.handle_success(
-                BaseResult(**transaction.record.read()), transaction=transaction
+                BaseResult(**transaction.read()), transaction=transaction
             )
             return
 
@@ -556,8 +556,7 @@ def run_task_sync(
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
-            record = RECORD_STORE.get_record(key=str(run.task_run.id))
-            with transaction(record=record) as txn:
+            with transaction(key=str(run.task_run.id), store=RECORD_STORE) as txn:
                 txn.add_task(run.task, run.task_run.id)
                 run.begin_run(transaction=txn)
                 while run.is_running():
@@ -618,8 +617,7 @@ async def run_task_async(
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
-            record = RECORD_STORE.get_record(key=str(run.task_run.id))
-            with transaction(record=record) as txn:
+            with transaction(key=str(run.task_run.id), store=RECORD_STORE) as txn:
                 txn.add_task(run.task, run.task_run.id)
                 run.begin_run(transaction=txn)
 
