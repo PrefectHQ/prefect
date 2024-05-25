@@ -282,7 +282,7 @@ class TaskRunEngine(Generic[P, R]):
 
         if transaction.committed:
             self.handle_success(
-                BaseResult(**transaction.read()), transaction=transaction
+                BaseResult(**transaction.read()).get(), transaction=transaction
             )
             return
 
