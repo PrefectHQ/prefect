@@ -17,7 +17,7 @@ if HAS_PYDANTIC_V2:
 else:
     from pydantic import Field
 
-from prefect.context import ContextModel, TaskRunContext
+from prefect.context import ContextModel
 from prefect.records import Record
 from prefect.tasks import Task
 from prefect.utilities.collections import AutoEnum
@@ -135,6 +135,8 @@ class Transaction(ContextModel):
                     hook(self)
 
             ## persist record - where does the value come from?
+            if self.record:
+                self.record.write(self.state.get("_staged_value"))
             self.committed = True
             return True
         except Exception:
@@ -145,7 +147,8 @@ class Transaction(ContextModel):
         """
         Stage a value to be committed later.
         """
-        self._staged_value = value  # ??
+        if not self.committed:
+            self.state["_staged_value"] = value  # ??
 
     def rollback(self) -> bool:
         if self.rolled_back or self.committed:
@@ -167,36 +170,10 @@ class Transaction(ContextModel):
 
     def add_task(self, task: Task, task_run_id: UUID) -> None:
         self.tasks.append(task)
-        self.state[task_run_id] = {}
 
     @classmethod
     def get_active(cls: Type[T]) -> Optional[T]:
         return cls.__var__.get(None)
-
-    def get(self, var: str) -> Any:
-        ctx = TaskRunContext.get()
-        if not ctx:
-            raise RuntimeError(
-                "Transaction state can only be set from within a task run context."
-            )
-        if ctx.task_run not in self.state:
-            raise RuntimeError(
-                "Task run initiated outside the scope of this transcation."
-            )
-        return self.state[ctx.task_run].get(var)
-
-    def set(self, var: str, val: Any) -> None:
-        ctx = TaskRunContext.get()
-        if not ctx:
-            raise RuntimeError(
-                "Transaction state can only be set from within a task run context."
-            )
-        if ctx.task_run not in self.state:
-            raise RuntimeError(
-                "Task run initiated outside the scope of this transcation."
-            )
-
-        self.state[ctx.task_run][var] = val
 
 
 def get_transaction() -> Transaction:

@@ -348,7 +348,7 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=result_factory,
             )
         )
-        # TODO: stage value on transaction here
+        transaction.stage(terminal_state.data.json())
         terminal_state.state_details = self._compute_state_details(
             include_cache_expiration=True
         )

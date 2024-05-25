@@ -1,11 +1,9 @@
-from .records import Record, NOTSET
-from .store import RecordStore
-from typing import Any, Optional, Dict
+from typing import Any, Dict
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic.v1 import Field
+
+from .records import NOTSET, Record
+from .store import RecordStore
 
 
 class MemoryRecord(Record):

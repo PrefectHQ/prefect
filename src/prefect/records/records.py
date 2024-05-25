@@ -24,7 +24,8 @@ class Record(BaseModel):
         raise NotImplementedError
 
     def write(self, payload: dict) -> None:
-        raise NotImplementedError
+        # raise NotImplementedError
+        pass
 
     @contextmanager
     def lock(self, timeout: int = None, expires_in: int = None) -> bool:
