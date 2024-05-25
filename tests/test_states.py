@@ -20,25 +20,11 @@ from prefect.states import (
     Running,
     State,
     StateGroup,
-    is_state,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
 )
 from prefect.utilities.annotations import quote
-
-
-def test_is_state():
-    assert is_state(Completed())
-
-
-def test_is_not_state():
-    assert not is_state(None)
-    assert not is_state("test")
-
-
-def test_is_state_requires_instance():
-    assert not is_state(Completed)
 
 
 @pytest.mark.parametrize("iterable_type", [set, list, tuple])
