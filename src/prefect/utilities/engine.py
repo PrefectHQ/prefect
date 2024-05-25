@@ -56,7 +56,6 @@ from prefect.settings import (
 from prefect.states import (
     State,
     get_state_exception,
-    is_state,
 )
 from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
@@ -97,7 +96,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             # We need to wait for futures to be submitted before we can get the task
             # run id but we want to do so asynchronously
             futures.add(obj)
-        elif is_state(obj):
+        elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         # Expressions inside quotes should not be traversed
@@ -142,7 +141,7 @@ def collect_task_run_inputs_sync(
     def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
             inputs.add(TaskRunResult(id=obj.task_run_id))
-        elif is_state(obj):
+        elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         # Expressions inside quotes should not be traversed
@@ -270,7 +269,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             futures.add(expr)
-        if is_state(expr):
+        if isinstance(expr, State):
             states.add(expr)
 
         return expr
@@ -309,7 +308,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             state = expr._final_state
-        elif is_state(expr):
+        elif isinstance(expr, State):
             state = expr
         else:
             return expr
@@ -797,7 +796,7 @@ def resolve_to_final_result(expr, context):
     if isinstance(expr, NewPrefectFuture):
         expr.wait()
         state = expr.state
-    elif is_state(expr):
+    elif isinstance(expr, State):
         state = expr
     else:
         return expr

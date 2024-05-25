@@ -29,15 +29,23 @@ from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.context import FlowRunContext, TaskRunContext, hydrated_context
 from prefect.events.schemas.events import Event
-from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    Pause,
+    PrefectException,
+    RollBack,
+    UpstreamTaskError,
+)
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
+from prefect.records import Record
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
+    Completed,
     Failed,
     Paused,
     Pending,
@@ -48,6 +56,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.transactions import Transaction, transaction
 from prefect.utilities.asyncutils import run_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
@@ -211,6 +220,11 @@ class TaskRunEngine(Generic[P, R]):
         if not self.parameters:
             return {}
 
+        # We don't resolve parameters for task runs that are not part of a flow run, AKA
+        # autonomous tasks.
+        if self.task_run and not self.task_run.flow_run_id:
+            return self.parameters
+
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
             try:
@@ -298,6 +312,7 @@ class TaskRunEngine(Generic[P, R]):
 
         # currently this is a hack to keep a reference to the state object
         # that has an in-memory result attached to it; using the API state
+
         # could result in losing that reference
         self.task_run.state = new_state
         # emit a state change event
@@ -371,6 +386,19 @@ class TaskRunEngine(Generic[P, R]):
                 name="TimedOut",
             )
             self.set_state(state)
+
+    def handle_rollback(self, exc: RollBack, transaction: Transaction) -> None:
+        message = (
+            f"Task run raised rollback error, rolling back transaction {transaction}"
+        )
+        self.logger.error(message)
+        state = Completed(
+            data=exc,
+            message=message,
+            name="RolledBack",
+        )
+        transaction.rollback()
+        self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_sync(exception_to_crashed_state(exc))
@@ -451,9 +479,9 @@ class TaskRunEngine(Generic[P, R]):
                                 extra_task_inputs=dependencies,
                             )
                         )
-                    self.logger.info(
-                        f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                    )
+                        self.logger.info(
+                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                        )
                     # Emit an event to capture that the task run was in the `PENDING` state.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
@@ -513,29 +541,32 @@ def run_task_sync(
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
-            run.begin_run()
+            with transaction(record=Record()) as txn:
+                txn.add_task(run.task, run.task_run.id)
+                run.begin_run()
+                while run.is_running():
+                    # enter run context on each loop iteration to ensure the context
+                    # contains the latest task run metadata
+                    with run.enter_run_context():
+                        try:
+                            # This is where the task is actually run.
+                            with timeout(seconds=run.task.timeout_seconds):
+                                call_args, call_kwargs = parameters_to_args_kwargs(
+                                    task.fn, run.parameters or {}
+                                )
+                                run.logger.debug(
+                                    f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
+                                )
+                                result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
-            while run.is_running():
-                # enter run context on each loop iteration to ensure the context
-                # contains the latest task run metadata
-                with run.enter_run_context():
-                    try:
-                        # This is where the task is actually run.
-                        with timeout(seconds=run.task.timeout_seconds):
-                            call_args, call_kwargs = parameters_to_args_kwargs(
-                                task.fn, run.parameters or {}
-                            )
-                            run.logger.debug(
-                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
-                            )
-                            result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
-
-                        # If the task run is successful, finalize it.
-                        run.handle_success(result)
-                    except TimeoutError as exc:
-                        run.handle_timeout(exc)
-                    except Exception as exc:
-                        run.handle_exception(exc)
+                            # If the task run is successful, finalize it.
+                            run.handle_success(result)
+                        except RollBack as exc:
+                            run.handle_rollback(exc, transaction=txn)
+                        except TimeoutError as exc:
+                            run.handle_timeout(exc)
+                        except Exception as exc:
+                            run.handle_exception(exc)
 
             if run.state.is_final():
                 for hook in run.get_hooks(run.state):
@@ -571,37 +602,43 @@ async def run_task_async(
     # This is a context manager that keeps track of the run of the task run.
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
-            run.begin_run()
+            with transaction(record=Record()) as txn:
+                txn.add_task(run.task, run.task_run.id)
+                run.begin_run()
 
-            while run.is_running():
-                # enter run context on each loop iteration to ensure the context
-                # contains the latest task run metadata
-                with run.enter_run_context():
-                    try:
-                        # This is where the task is actually run.
-                        with timeout_async(seconds=run.task.timeout_seconds):
-                            call_args, call_kwargs = parameters_to_args_kwargs(
-                                task.fn, run.parameters or {}
-                            )
-                            run.logger.debug(
-                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
-                            )
-                            result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
+                while run.is_running():
+                    # enter run context on each loop iteration to ensure the context
+                    # contains the latest task run metadata
+                    with run.enter_run_context():
+                        try:
+                            # This is where the task is actually run.
+                            with timeout_async(seconds=run.task.timeout_seconds):
+                                call_args, call_kwargs = parameters_to_args_kwargs(
+                                    task.fn, run.parameters or {}
+                                )
+                                run.logger.debug(
+                                    f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
+                                )
+                                result = cast(
+                                    R, await task.fn(*call_args, **call_kwargs)
+                                )  # type: ignore
 
-                        # If the task run is successful, finalize it.
-                        run.handle_success(result)
-                    except TimeoutError as exc:
-                        run.handle_timeout(exc)
-                    except Exception as exc:
-                        run.handle_exception(exc)
+                            # If the task run is successful, finalize it.
+                            run.handle_success(result)
+                        except RollBack as exc:
+                            run.handle_rollback(exc, transaction=txn)
+                        except TimeoutError as exc:
+                            run.handle_timeout(exc)
+                        except Exception as exc:
+                            run.handle_exception(exc)
 
-            if run.state.is_final():
-                for hook in run.get_hooks(run.state, as_async=True):
-                    await hook()
+                if run.state.is_final():
+                    for hook in run.get_hooks(run.state, as_async=True):
+                        await hook()
 
-            if return_type == "state":
-                return run.state
-            return run.result()
+                if return_type == "state":
+                    return run.state
+                return run.result()
 
 
 def run_task(

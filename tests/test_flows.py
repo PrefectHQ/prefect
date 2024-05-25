@@ -71,6 +71,7 @@ from prefect.testing.utilities import (
     exceptions_equal,
     get_most_recent_flow_run,
 )
+from prefect.transactions import transaction
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
@@ -4036,3 +4037,60 @@ class TestLoadFlowFromFlowRun:
 
         assert result == pretend_flow
         load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")
+
+
+class TestTransactions:
+    def test_grouped_rollback_behavior(self):
+        data1, data2 = {}, {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_rollback
+        def rollback(txn):
+            data1["called"] = True
+
+        @task
+        def task2():
+            raise prefect.exceptions.RollBack()
+
+        @task2.on_rollback
+        def rollback2(txn):
+            data2["called"] = True
+
+        @flow
+        def main():
+            with transaction(None):
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        assert data2["called"] is True
+        assert data1["called"] is True
+
+    def test_commit_isnt_called_on_rollback(self):
+        data = {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_commit
+        def rollback(txn):
+            data["called"] = True
+
+        @task
+        def task2():
+            raise prefect.exceptions.RollBack()
+
+        @flow
+        def main():
+            with transaction(None):
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        assert data == {}
