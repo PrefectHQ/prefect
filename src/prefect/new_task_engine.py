@@ -40,7 +40,7 @@ from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
 from prefect.records.memory_store import MemoryStore
-from prefect.results import ResultFactory
+from prefect.results import BaseResult, ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -281,7 +281,9 @@ class TaskRunEngine(Generic[P, R]):
             return
 
         if transaction.committed:
-            self.handle_success(transaction.record.read(), transaction=transaction)
+            self.handle_success(
+                BaseResult(**transaction.record.read()), transaction=transaction
+            )
             return
 
         state_details = self._compute_state_details()
@@ -350,7 +352,7 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=result_factory,
             )
         )
-        transaction.stage(terminal_state.data.json())
+        transaction.stage(terminal_state.data.dict())
         terminal_state.state_details = self._compute_state_details(
             include_cache_expiration=True
         )

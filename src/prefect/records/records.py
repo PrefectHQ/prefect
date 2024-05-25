@@ -12,7 +12,7 @@ class NOTSET:
 
 class Record(BaseModel):
     key: str = None
-    _cache: dict = NOTSET
+    cache: dict = NOTSET
 
     def exists(self) -> bool:
         return False
