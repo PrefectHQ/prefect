@@ -33,7 +33,6 @@ from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
@@ -548,10 +547,6 @@ class FlowRunEngine(Generic[P, R]):
                     level=logging.INFO if self.state.is_completed() else logging.ERROR,
                     msg=f"Finished in state {display_state}",
                 )
-
-                maybe_awaitable = APILogHandler.flush()
-                if inspect.isawaitable(maybe_awaitable):
-                    run_sync(maybe_awaitable)
 
                 self._is_started = False
                 self._client = None

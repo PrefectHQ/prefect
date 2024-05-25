@@ -36,7 +36,6 @@ from prefect.exceptions import (
     RollBack,
     UpstreamTaskError,
 )
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
 from prefect.records import Record
@@ -512,10 +511,6 @@ class TaskRunEngine(Generic[P, R]):
                         else logging.ERROR,
                         msg=f"Finished in state {display_state}",
                     )
-
-                    maybe_awaitable = APILogHandler.flush()
-                    if inspect.isawaitable(maybe_awaitable):
-                        run_sync(maybe_awaitable)
 
                     self._is_started = False
                     self._client = None
