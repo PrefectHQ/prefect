@@ -221,6 +221,11 @@ class TaskRunEngine(Generic[P, R]):
         if not self.parameters:
             return {}
 
+        # We don't resolve parameters for task runs that are not part of a flow run, AKA
+        # autonomous tasks.
+        if self.task_run and not self.task_run.flow_run_id:
+            return self.parameters
+
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
             try:
@@ -458,11 +463,10 @@ class TaskRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
-
-        with get_client(sync_client=True) as client:
-            self._client = client
-            self._is_started = True
-            with hydrated_context(self.context, client=client):
+        with hydrated_context(self.context):
+            with get_client(sync_client=True) as client:
+                self._client = client
+                self._is_started = True
                 try:
                     if not self.task_run:
                         self.task_run = run_sync(
@@ -476,9 +480,9 @@ class TaskRunEngine(Generic[P, R]):
                                 extra_task_inputs=dependencies,
                             )
                         )
-                    self.logger.info(
-                        f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                    )
+                        self.logger.info(
+                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                        )
                     # Emit an event to capture that the task run was in the `PENDING` state.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
@@ -545,7 +549,6 @@ def run_task_sync(
             with transaction(record=Record()) as txn:
                 txn.add_task(run.task, run.task_run.id)
                 run.begin_run()
-
                 while run.is_running():
                     # enter run context on each loop iteration to ensure the context
                     # contains the latest task run metadata
@@ -557,7 +560,7 @@ def run_task_sync(
                                     task.fn, run.parameters or {}
                                 )
                                 run.logger.debug(
-                                    f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                                    f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
                                 )
                                 result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
@@ -619,7 +622,7 @@ async def run_task_async(
                                     task.fn, run.parameters or {}
                                 )
                                 run.logger.debug(
-                                    f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                                    f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
                                 )
                                 result = cast(
                                     R, await task.fn(*call_args, **call_kwargs)
