@@ -18,6 +18,7 @@ else:
     from pydantic import Field
 
 from prefect.context import ContextModel
+from prefect.exceptions import RollBack
 from prefect.records import RecordStore
 from prefect.tasks import Task
 from prefect.utilities.collections import AutoEnum
@@ -76,19 +77,20 @@ class Transaction(ContextModel):
                 "Asymmetric use of context. Context exit called without an enter."
             )
         if exc_type:
-            self.rollback()
+            if exc_type == RollBack:
+                self.rollback()
             self.reset()
             raise exc_val
 
         if self.commit_mode == CommitMode.EAGER:
             self.commit()
 
-        parent = self.get_parent()
+        # if parent, let them take responsibility
+        if self.get_parent():
+            self.reset()
+            return
 
-        if parent:
-            # parent takes responsibility
-            parent.add_child(self)
-        elif self.commit_mode == CommitMode.OFF:
+        if self.commit_mode == CommitMode.OFF:
             # if no one took responsibility to commit, rolling back
             # note that rollback returns if already committed
             self.rollback()
@@ -97,10 +99,6 @@ class Transaction(ContextModel):
             self.commit()
 
         self.reset()
-
-        # do this below reset so that get_transaction() returns the relevant txn
-        if parent and self.rolled_back:
-            parent.rollback()
 
     def begin(self):
         # currently we only support READ_COMMITTED isolation
@@ -112,8 +110,18 @@ class Transaction(ContextModel):
         return self.store.read(key=self.key)
 
     def reset(self) -> None:
+        parent = self.get_parent()
+
+        if parent:
+            # parent takes responsibility
+            parent.add_child(self)
+
         self.__var__.reset(self._token)
         self._token = None
+
+        # do this below reset so that get_transaction() returns the relevant txn
+        if parent and self.rolled_back:
+            parent.rollback()
 
     def add_child(self, transaction: "Transaction") -> None:
         self.children.append(transaction)
@@ -171,7 +179,7 @@ class Transaction(ContextModel):
         except Exception:
             return False
 
-    def add_task(self, task: Task, task_run_id: UUID) -> None:
+    def add_task(self, task: Task) -> None:
         self.tasks.append(task)
 
     @classmethod

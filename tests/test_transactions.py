@@ -1,5 +1,6 @@
 import pytest
 
+from prefect.exceptions import RollBack
 from prefect.tasks import task
 from prefect.transactions import CommitMode, Transaction, get_transaction
 
@@ -140,10 +141,16 @@ class TestRollBacks:
             txn.rollback()
             assert txn.rolled_back is True
 
-    def test_txns_rollback_on_exception(self):
+    def test_txns_rollback_on_rollback_exception(self):
         with pytest.raises(ValueError, match="foo"):
             with Transaction() as txn:
                 raise ValueError("foo")
+
+        assert txn.rolled_back is False
+
+        with pytest.raises(RollBack, match="foo"):
+            with Transaction() as txn:
+                raise RollBack("foo")
 
         assert txn.rolled_back is True
 
@@ -159,7 +166,7 @@ class TestRollBacks:
             data["called"] = True
 
         with Transaction() as txn:
-            txn.add_task(my_task, None)
+            txn.add_task(my_task)
             txn.rolled_back = True
             txn.rollback()
 
@@ -197,9 +204,9 @@ class TestRollBacks:
             data["inner"] = txn.key
 
         with Transaction(key="outer") as txn:
-            txn.add_task(outer_task, None)
+            txn.add_task(outer_task)
             with Transaction(key="inner") as inner:
-                inner.add_task(inner_task, None)
+                inner.add_task(inner_task)
                 inner.rollback()
 
         assert data["inner"] == "inner"
