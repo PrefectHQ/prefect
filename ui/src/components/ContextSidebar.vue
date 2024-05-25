@@ -6,7 +6,7 @@
       </router-link>
     </template>
     <p-context-nav-item title="Dashboard" :to="routes.dashboard()" />
-    <p-context-nav-item title="Flow Runs" :to="routes.flowRuns()" />
+    <p-context-nav-item title="Runs" :to="routes.runs()" />
     <p-context-nav-item title="Flows" :to="routes.flows()" />
     <p-context-nav-item title="Deployments" :to="routes.deployments()" />
     <p-context-nav-item v-if="canSeeWorkPools" title="Work Pools" :to="routes.workPools()" />
@@ -14,6 +14,7 @@
     <p-context-nav-item title="Blocks" :to="routes.blocks()" />
     <p-context-nav-item :title="localization.info.variables" :to="routes.variables()" />
     <p-context-nav-item title="Automations" :to="routes.automations()" />
+    <p-context-nav-item title="Event Feed" :to="routes.events()" />
     <p-context-nav-item title="Notifications" :to="routes.notifications()" />
     <p-context-nav-item title="Concurrency" :to="routes.concurrencyLimits()" />
 

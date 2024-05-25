@@ -147,6 +147,9 @@ async def test_resolves_futures_in_nested_collections(task_run):
     ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})
 
 
+@pytest.mark.skip(
+    reason="Not supported with new engine",
+)
 def test_raise_warning_futures_in_condition():
     @task
     def a_task():
@@ -171,13 +174,13 @@ def test_raise_warning_futures_in_condition():
 
     match = "A 'PrefectFuture' from a task call was cast to a boolean"
     with pytest.warns(UserWarning, match=match):
-        if_flow._run()
+        if_flow(return_state=True)
 
     with pytest.warns(UserWarning, match=match):
-        elif_flow._run()
+        elif_flow(return_state=True)
 
     with assert_does_not_warn():
-        if_result_flow._run()
+        if_result_flow(return_state=True)
 
 
 async def test_resolve_futures_to_data_raises_exception_default(task_run):
