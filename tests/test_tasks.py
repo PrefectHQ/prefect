@@ -4205,7 +4205,7 @@ class TestTransactions:
             raise RollBack()
 
         @my_task.on_rollback
-        def rollback(**kwargs):
+        def rollback(txn):
             data["called"] = True
 
         state = my_task(return_state=True)
