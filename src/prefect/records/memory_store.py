@@ -25,16 +25,15 @@ class MemoryRecord(Record):
 
 
 class MemoryStore(RecordStore):
-    record_type: Record = MemoryRecord
-    _store: Dict[str, MemoryRecord] = Field(default_factory=dict)
+    store: Dict[str, MemoryRecord] = Field(default_factory=dict)
 
     def read(self, key: str) -> dict:
-        record = self._store.get(key, MemoryRecord(key=key))
+        record = self.store.get(key, MemoryRecord(key=key))
         return record.read()
 
     def write(self, key: str, value: dict) -> MemoryRecord:
-        self._store[key] = MemoryRecord(key=key, _cache=value)
-        return self._store[key]
+        self.store[key] = MemoryRecord(key=key, _cache=value)
+        return self.store[key]
 
     def get_record(self, key: str) -> MemoryRecord:
-        return self._store.get(key, MemoryRecord(key=key))
+        return self.store.get(key, MemoryRecord(key=key))
