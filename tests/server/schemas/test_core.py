@@ -119,8 +119,7 @@ class TestFlowRunNotificationPolicy:
 class TestFlowRunPolicy:
     class OldFlowRunPolicy(PrefectBaseModel):
         # Schemas ignore extras during normal execution, but raise errors during tests if not explicitly ignored.
-        class Config:
-            extra = "ignore"
+        model_config = pydantic.ConfigDict(extra="ignore")
 
         max_retries: int = 0
         retry_delay_seconds: float = 0

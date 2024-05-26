@@ -218,8 +218,8 @@ class TestDeleteBlockSchema:
 class TestReadBlockSchema:
     async def test_read_all_block_schemas(self, session, client, block_schemas):
         result = await client.post("/block_schemas/filter")
-        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_json(
-            result.model_dump_json()
+        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_python(
+            result.json()
         )
         assert {s.id for s in api_schemas} == {
             block_schemas[0].id,
@@ -236,8 +236,8 @@ class TestReadBlockSchema:
                 block_schemas=dict(block_type_id=dict(any_=[str(block_type_x.id)]))
             ),
         )
-        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_json(
-            result.model_dump_json()
+        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_python(
+            result.json()
         )
         assert [s.id for s in api_schemas] == [block_schemas[i].id for i in (2, 0)]
 
@@ -250,8 +250,8 @@ class TestReadBlockSchema:
                 block_schemas=dict(block_type_id=dict(any_=[str(block_type_y.id)]))
             ),
         )
-        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_json(
-            result.model_dump_json()
+        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_python(
+            result.json()
         )
         assert [s.id for s in api_schemas] == [block_schemas[1].id]
 
@@ -268,8 +268,8 @@ class TestReadBlockSchema:
                 )
             ),
         )
-        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_json(
-            result.model_dump_json()
+        api_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_python(
+            result.json()
         )
         assert [s.id for s in api_schemas] == [block_schemas[i].id for i in (2, 1, 0)]
 
@@ -303,8 +303,9 @@ class TestReadBlockSchema:
         )
 
         assert result.status_code == status.HTTP_200_OK
-        block_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_json(
-            result.model_dump_json()
+
+        block_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_python(
+            result.json()
         )
         assert len(block_schemas) == 1
         assert block_schemas[0].id == block_schemas_with_capabilities[0].id
@@ -315,8 +316,8 @@ class TestReadBlockSchema:
         )
 
         assert result.status_code == status.HTTP_200_OK
-        block_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_json(
-            result.model_dump_json()
+        block_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_python(
+            result.json()
         )
         assert len(block_schemas) == 2
         assert [block_schema.id for block_schema in block_schemas] == [
@@ -330,8 +331,8 @@ class TestReadBlockSchema:
         )
 
         assert result.status_code == status.HTTP_200_OK
-        block_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_json(
-            result.model_dump_json()
+        block_schemas = TypeAdapter(List[schemas.core.BlockSchema]).validate_python(
+            result.json()
         )
         assert len(block_schemas) == 1
         assert block_schemas[0].id == block_schemas_with_capabilities[0].id
