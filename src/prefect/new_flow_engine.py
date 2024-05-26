@@ -51,7 +51,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -77,7 +77,7 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
         flow = load_flow_from_entrypoint(entrypoint)
     else:
         async_client = get_client()
-        flow = run_sync(load_flow_from_flow_run(flow_run, client=async_client))
+        flow = run_coro_as_sync(load_flow_from_flow_run(flow_run, client=async_client))
 
     return flow_run, flow
 
@@ -196,14 +196,14 @@ class FlowRunEngine(Generic[P, R]):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if inspect.isawaitable(_result):
-            _result = run_sync(_result)
+            _result = run_coro_as_sync(_result)
         return _result
 
     def handle_success(self, result: R) -> R:
         result_factory = getattr(FlowRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
-        terminal_state = run_sync(
+        terminal_state = run_coro_as_sync(
             return_value_to_state(
                 resolve_futures_to_states(result),
                 result_factory=result_factory,
@@ -219,7 +219,7 @@ class FlowRunEngine(Generic[P, R]):
         result_factory: Optional[ResultFactory] = None,
     ) -> State:
         context = FlowRunContext.get()
-        terminal_state = run_sync(
+        terminal_state = run_coro_as_sync(
             exception_to_failed_state(
                 exc,
                 message=msg or "Flow run encountered an exception:",
@@ -249,7 +249,7 @@ class FlowRunEngine(Generic[P, R]):
         self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
-        state = run_sync(exception_to_crashed_state(exc))
+        state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
@@ -314,7 +314,7 @@ class FlowRunEngine(Generic[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
-            parent_task_run = run_sync(
+            parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
                     client=self.client,
                     flow_run_context=flow_run_ctx,
@@ -417,7 +417,7 @@ class FlowRunEngine(Generic[P, R]):
                     with hook_context():
                         result = hook(flow, flow_run, state)
                         if inspect.isawaitable(result):
-                            run_sync(result)
+                            run_coro_as_sync(result)
 
             yield _hook_fn
 
@@ -457,7 +457,7 @@ class FlowRunEngine(Generic[P, R]):
                     parameters=self.parameters,
                     client=client,
                     background_tasks=task_group,
-                    result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
                     task_runner=task_runner,
                 )
             )
@@ -523,7 +523,9 @@ class FlowRunEngine(Generic[P, R]):
                     self.handle_exception(
                         exc,
                         msg=message,
-                        result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                        result_factory=run_coro_as_sync(
+                            ResultFactory.from_flow(self.flow)
+                        ),
                     )
                     self.short_circuit = True
             try:

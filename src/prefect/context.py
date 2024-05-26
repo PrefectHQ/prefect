@@ -50,7 +50,7 @@ from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
@@ -107,7 +107,7 @@ def hydrated_context(
                     **flow_run_context,
                     client=client,
                     background_tasks=task_group,
-                    result_factory=run_sync(ResultFactory.from_flow(flow)),
+                    result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
                     task_runner=flow.task_runner.duplicate(),
                     detached=True,
                 )
@@ -118,7 +118,7 @@ def hydrated_context(
                 task_run_context = TaskRunContext(
                     **parent_task_run_context,
                     client=client,
-                    result_factory=run_sync(
+                    result_factory=run_coro_as_sync(
                         ResultFactory.from_autonomous_task(parent_task)
                     ),
                 )
@@ -310,7 +310,7 @@ class ClientContext(ContextModel):
         self._context_stack += 1
         if self._context_stack == 1:
             self.sync_client.__enter__()
-            run_sync(self.async_client.__aenter__())
+            run_coro_as_sync(self.async_client.__aenter__())
             return super().__enter__()
         else:
             return self
@@ -319,7 +319,7 @@ class ClientContext(ContextModel):
         self._context_stack -= 1
         if self._context_stack == 0:
             self.sync_client.__exit__(*exc_info)
-            run_sync(self.async_client.__aexit__(*exc_info))
+            run_coro_as_sync(self.async_client.__aexit__(*exc_info))
             return super().__exit__(*exc_info)
 
     @classmethod

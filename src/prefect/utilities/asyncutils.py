@@ -48,7 +48,7 @@ EVENT_LOOP_GC_REFS = {}
 PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
 RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=False)
-RUN_ASYNC_FLAG = ContextVar("run_async", default=False)
+RUNNING_ASYNC_FLAG = ContextVar("run_async", default=False)
 
 logger = get_logger()
 
@@ -88,7 +88,7 @@ def is_async_gen_fn(func):
 
 def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     """
-    Note: this is an OLD implementation of `run_sync` which liberally created
+    Note: this is an OLD implementation of `run_as_sync` which liberally created
     new threads and new loops. This works, but prevents sharing any objects
     across coroutines, in particular httpx clients, which are very expensive to
     instantiate.
@@ -119,13 +119,13 @@ def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     async def context_local_wrapper():
         """
         Wrapper that is submitted using copy_context().run to ensure
-        the RUN_ASYNC_FLAG mutations are tightly scoped to this coroutine's frame.
+        the RUNNING_ASYNC_FLAG mutations are tightly scoped to this coroutine's frame.
         """
-        token = RUN_ASYNC_FLAG.set(True)
+        token = RUNNING_ASYNC_FLAG.set(True)
         try:
             result = await coroutine
         finally:
-            RUN_ASYNC_FLAG.reset(token)
+            RUNNING_ASYNC_FLAG.reset(token)
         return result
 
     context = copy_context()
@@ -143,9 +143,10 @@ def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     return result
 
 
-def run_sync(coroutine: Awaitable, force_new_thread: bool = False):
+def run_coro_as_sync(coroutine: Awaitable, force_new_thread: bool = False):
     """
-    Runs a coroutine from a synchronous context.
+    Runs a coroutine from a synchronous context, as if it were a synchronous
+    function.
 
     The coroutine is scheduled to run in the "run sync" event loop, which is
     running in its own thread and is started the first time it is needed. This
@@ -167,13 +168,13 @@ def run_sync(coroutine: Awaitable, force_new_thread: bool = False):
         deadlock.
         """
         token1 = RUNNING_IN_RUN_SYNC_LOOP_FLAG.set(True)
-        token2 = RUN_ASYNC_FLAG.set(True)
+        token2 = RUNNING_ASYNC_FLAG.set(True)
         try:
             # use `create_task` because it copies context variables automatically
             result = await asyncio.create_task(coroutine)
         finally:
             RUNNING_IN_RUN_SYNC_LOOP_FLAG.reset(token1)
-            RUN_ASYNC_FLAG.reset(token2)
+            RUNNING_ASYNC_FLAG.reset(token2)
         return result
 
     # if we are already in the run_sync loop, or a descendent of a coroutine
@@ -284,21 +285,21 @@ def sync_compatible(
         async def ctx_call():
             """
             Wrapper that is submitted using copy_context().run to ensure
-            mutations of RUN_ASYNC_FLAG are tightly scoped to this coroutine's frame.
+            mutations of RUNNING_ASYNC_FLAG are tightly scoped to this coroutine's frame.
             """
-            token = RUN_ASYNC_FLAG.set(True)
+            token = RUNNING_ASYNC_FLAG.set(True)
             try:
                 result = await async_fn(*args, **kwargs)
             finally:
-                RUN_ASYNC_FLAG.reset(token)
+                RUNNING_ASYNC_FLAG.reset(token)
             return result
 
         if force_sync:
-            return run_sync(ctx_call(), force_new_thread=force_new_thread)
-        elif RUN_ASYNC_FLAG.get() or is_async:
+            return run_coro_as_sync(ctx_call(), force_new_thread=force_new_thread)
+        elif RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
-            return run_sync(ctx_call(), force_new_thread=force_new_thread)
+            return run_coro_as_sync(ctx_call(), force_new_thread=force_new_thread)
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.

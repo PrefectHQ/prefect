@@ -62,7 +62,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -181,7 +181,7 @@ class TaskRunEngine(Generic[P, R]):
                     with hook_context():
                         result = hook(task, task_run, state)
                         if inspect.isawaitable(result):
-                            run_sync(result)
+                            run_coro_as_sync(result)
 
             yield _hook_fn
 
@@ -334,14 +334,14 @@ class TaskRunEngine(Generic[P, R]):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if inspect.isawaitable(_result):
-            _result = run_sync(_result)
+            _result = run_coro_as_sync(_result)
         return _result
 
     def handle_success(self, result: R) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
-        terminal_state = run_sync(
+        terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
                 result_factory=result_factory,
@@ -370,7 +370,7 @@ class TaskRunEngine(Generic[P, R]):
         if not self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             context = TaskRunContext.get()
-            state = run_sync(
+            state = run_coro_as_sync(
                 exception_to_failed_state(
                     exc,
                     message="Task run encountered an exception",
@@ -406,7 +406,7 @@ class TaskRunEngine(Generic[P, R]):
         self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
-        state = run_sync(exception_to_crashed_state(exc))
+        state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
@@ -433,7 +433,7 @@ class TaskRunEngine(Generic[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_sync(
+                    result_factory=run_coro_as_sync(
                         ResultFactory.from_autonomous_task(self.task)
                     ),  # type: ignore
                     client=client,
@@ -473,7 +473,7 @@ class TaskRunEngine(Generic[P, R]):
                 self._is_started = True
                 try:
                     if not self.task_run:
-                        self.task_run = run_sync(
+                        self.task_run = run_coro_as_sync(
                             self.task.create_run(
                                 id=task_run_id,
                                 client=self.client,
