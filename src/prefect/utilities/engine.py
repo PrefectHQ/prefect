@@ -61,7 +61,7 @@ from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.asyncutils import (
     gather,
-    run_sync,
+    run_coro_as_sync,
 )
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
@@ -503,7 +503,7 @@ def propose_state_sync(
             # the purpose of disabling `cache_result_in_memory`
             result = state.result(raise_on_failure=False, fetch=True)
             if inspect.isawaitable(result):
-                result = run_sync(result)
+                result = run_coro_as_sync(result)
         else:
             result = state.data
 
@@ -820,7 +820,7 @@ def resolve_to_final_result(expr, context):
 
     _result = state.result(raise_on_failure=False, fetch=True)
     if inspect.isawaitable(_result):
-        _result = run_sync(_result)
+        _result = run_coro_as_sync(_result)
     return _result
 
 

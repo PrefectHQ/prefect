@@ -2,6 +2,7 @@
 Custom Prefect CLI types
 """
 
+import asyncio
 import functools
 import sys
 from typing import List, Optional
@@ -13,7 +14,7 @@ from rich.theme import Theme
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.settings import PREFECT_CLI_COLORS, Setting
-from prefect.utilities.asyncutils import is_async_fn, sync_compatible
+from prefect.utilities.asyncutils import is_async_fn
 
 
 def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
@@ -136,8 +137,23 @@ class PrefectTyper(typer.Typer):
         """
 
         def wrapper(fn):
+            # click doesn't support async functions, so we wrap them in
+            # asyncio.run(). This has the advantage of keeping the function in
+            # the main thread, which means signal handling works for e.g. the
+            # server and workers. However, it means that async CLI commands can
+            # not directly call other async CLI commands (because asyncio.run()
+            # can not be called nested). In that (rare) circumstance, refactor
+            # the CLI command so its business logic can be invoked separately
+            # from its entrypoint.
             if is_async_fn(fn):
-                fn = sync_compatible(fn, force_sync=True)
+                _fn = fn
+
+                @functools.wraps(fn)
+                def fn(*args, **kwargs):
+                    return asyncio.run(_fn(*args, **kwargs))
+
+                fn.aio = _fn
+
             fn = with_cli_exception_handling(fn)
             if deprecated:
                 if not deprecated_name or not deprecated_start_date:

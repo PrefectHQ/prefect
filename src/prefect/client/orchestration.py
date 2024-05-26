@@ -178,14 +178,39 @@ def get_client(
         client.hello()
     ```
     """
-    ctx = prefect.context.get_settings_context()
+    import prefect.context
+
+    settings_ctx = prefect.context.get_settings_context()
+
+    # try to load clients from a client context, if possible
+    # only load clients that match the provided config / loop
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if client_ctx := prefect.context.ClientContext.get():
+        if (
+            sync_client
+            and client_ctx.sync_client
+            and client_ctx._httpx_settings == httpx_settings
+        ):
+            return client_ctx.sync_client
+        elif (
+            not sync_client
+            and client_ctx.async_client
+            and client_ctx._httpx_settings == httpx_settings
+            and loop in (client_ctx.async_client._loop, None)
+        ):
+            return client_ctx.async_client
+
     api = PREFECT_API_URL.value()
 
     if not api:
         # create an ephemeral API if none was provided
         from prefect.server.api.server import create_app
 
-        api = create_app(ctx.settings, ephemeral=True)
+        api = create_app(settings_ctx.settings, ephemeral=True)
 
     if sync_client:
         return SyncPrefectClient(
@@ -253,6 +278,7 @@ class PrefectClient:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         # Context management
+        self._context_stack: int = 0
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[ASGIApp] = None
         self.manage_lifespan = True
@@ -3234,9 +3260,11 @@ class PrefectClient:
                 "Retrieve a new client with `get_client()` instead."
             )
 
+        self._context_stack += 1
+
         if self._started:
-            # httpx.AsyncClient does not allow reentrancy so we will not either.
-            raise RuntimeError("The client cannot be started more than once.")
+            # allow reentrancy
+            return self
 
         self._loop = asyncio.get_running_loop()
         await self._exit_stack.__aenter__()
@@ -3267,6 +3295,10 @@ class PrefectClient:
         """
         Shutdown the client.
         """
+
+        self._context_stack -= 1
+        if self._context_stack > 0:
+            return
         self._closed = True
         return await self._exit_stack.__aexit__(*exc_info)
 
@@ -3332,6 +3364,7 @@ class SyncPrefectClient:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         # Context management
+        self._context_stack: int = 0
         self._ephemeral_app: Optional[ASGIApp] = None
         self.manage_lifespan = True
         self.server_type: ServerType
@@ -3463,9 +3496,12 @@ class SyncPrefectClient:
                 "Retrieve a new client with `get_client()` instead."
             )
 
+        self._context_stack += 1
+
         if self._started:
-            # httpx.Client does not allow reentrancy so we will not either.
-            raise RuntimeError("The client cannot be started more than once.")
+            # allow reentrancy
+            return self
+
         self._client.__enter__()
         self._started = True
 
@@ -3475,6 +3511,9 @@ class SyncPrefectClient:
         """
         Shutdown the client.
         """
+        self._context_stack -= 1
+        if self._context_stack > 0:
+            return
         self._closed = True
         self._client.__exit__(*exc_info)
 

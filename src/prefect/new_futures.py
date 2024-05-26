@@ -12,7 +12,7 @@ from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
 from prefect.states import Pending, State
 from prefect.utilities.annotations import quote
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 
 F = TypeVar("F")
@@ -127,7 +127,7 @@ class PrefectConcurrentFuture(PrefectFuture):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if inspect.isawaitable(_result):
-            _result = run_sync(_result)
+            _result = run_coro_as_sync(_result)
         return _result
 
 
