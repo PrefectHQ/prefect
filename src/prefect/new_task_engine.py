@@ -409,9 +409,7 @@ class TaskRunEngine(Generic[P, R]):
             self.set_state(state)
 
     def handle_rollback(self, exc: RollBack) -> None:
-        message = (
-            f"Task run raised RollBack error, rolled back transaction {transaction}"
-        )
+        message = "Task run raised RollBack error, rolled back transaction."
         self.logger.error(message)
         state = Completed(
             data=exc,
