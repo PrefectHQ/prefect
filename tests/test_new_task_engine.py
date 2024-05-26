@@ -954,3 +954,17 @@ class TestTimeout:
 
         with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             run_task_sync(sync_task)
+
+
+async def test_task_can_return_persisted_result(prefect_client):
+    @task
+    async def async_task():
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True
+        )
+        result = await factory.create_result(42)
+        return result
+
+    assert await async_task() == 42
+    state = await async_task(return_state=True)
+    assert await state.result() == 42

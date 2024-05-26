@@ -175,6 +175,15 @@ class TestReturnValueToState:
         assert isinstance(result_state.data, PersistedResult)
         assert await result_state.result() == 1
 
+    async def test_returns_persisted_results_unaltered(self, prefect_client):
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True
+        )
+        result = await factory.create_result(42)
+        result_state = await return_value_to_state(result, factory)
+        assert result_state.data == result
+        assert await result_state.result() == 42
+
     async def test_returns_single_state_unaltered_with_user_created_reference(
         self, factory
     ):

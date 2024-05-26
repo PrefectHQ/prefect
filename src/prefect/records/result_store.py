@@ -1,6 +1,6 @@
-from .store import RecordStore
-
 from prefect.results import BaseResult, PersistedResult, ResultFactory
+
+from .store import RecordStore
 
 
 class ResultFactoryStore(RecordStore):

@@ -444,7 +444,11 @@ class ResultFactory(pydantic.BaseModel):
             return await LiteralResult.create(obj)
 
         if key:
-            storage_key_fn = lambda: key
+
+            def key_fn():
+                return key
+
+            storage_key_fn = key_fn
         else:
             storage_key_fn = self.storage_key_fn
 
