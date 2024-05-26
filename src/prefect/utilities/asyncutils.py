@@ -86,7 +86,7 @@ def is_async_gen_fn(func):
     return inspect.isasyncgenfunction(func)
 
 
-def run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
+def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     """
     Note: this is an OLD implementation of `run_sync` which liberally created
     new threads and new loops. This works, but prevents sharing any objects
@@ -143,7 +143,7 @@ def run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     return result
 
 
-def run_sync(coroutine: Awaitable, force_new_loop: bool = False):
+def run_sync(coroutine: Awaitable, force_new_thread: bool = False):
     """
     Runs a coroutine from a synchronous context.
 
@@ -157,7 +157,7 @@ def run_sync(coroutine: Awaitable, force_new_loop: bool = False):
     that this behavior should not appear anywhere in the Prefect codebase or in
     user code.
 
-    if force_new_loop=True, the coroutine will always be run in a new thread.
+    if force_new_thread=True, the coroutine will always be run in a new thread.
     """
 
     async def coroutine_wrapper():
@@ -179,7 +179,7 @@ def run_sync(coroutine: Awaitable, force_new_loop: bool = False):
     # if we are already in the run_sync loop, or a descendent of a coroutine
     # that is running in the run_sync loop, we need to run this coroutine in a
     # new thread
-    if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get() or force_new_loop:
+    if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get() or force_new_thread:
         return from_sync.call_in_new_thread(coroutine_wrapper)
 
     # otherwise, we can run the coroutine in the run_sync loop
@@ -244,7 +244,9 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
+def sync_compatible(
+    async_fn: T, force_sync: bool = False, force_new_thread: bool = False
+) -> T:
     """
     Converts an async function into a dual async and sync function.
 
@@ -292,13 +294,11 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
             return result
 
         if force_sync:
-            return run_sync(ctx_call())
+            return run_sync(ctx_call(), force_new_thread=force_new_thread)
         elif RUN_ASYNC_FLAG.get() or is_async:
             return ctx_call()
-            context = copy_context()
-            return context.run(ctx_call)
         else:
-            return run_sync(ctx_call())
+            return run_sync(ctx_call(), force_new_thread=force_new_thread)
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
