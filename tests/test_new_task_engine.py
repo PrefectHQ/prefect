@@ -22,7 +22,7 @@ from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task_async, run_task_sync
 from prefect.new_task_runners import ThreadPoolTaskRunner
-from prefect.results import ResultFactory
+from prefect.results import PersistedResult, ResultFactory
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
@@ -956,15 +956,49 @@ class TestTimeout:
             run_task_sync(sync_task)
 
 
-async def test_task_can_return_persisted_result(prefect_client):
-    @task
-    async def async_task():
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True
-        )
-        result = await factory.create_result(42)
-        return result
+class TestPersistence:
+    async def test_task_can_return_persisted_result(self, prefect_client):
+        @task
+        async def async_task():
+            factory = await ResultFactory.default_factory(
+                client=prefect_client, persist_result=True
+            )
+            result = await factory.create_result(42)
+            return result
 
-    assert await async_task() == 42
-    state = await async_task(return_state=True)
-    assert await state.result() == 42
+        assert await async_task() == 42
+        state = await async_task(return_state=True)
+        assert await state.result() == 42
+
+    async def test_task_persists_results_with_run_id_key(self):
+        @task(persist_result=True)
+        async def async_task():
+            return 42
+
+        state = await async_task(return_state=True)
+        assert state.is_completed()
+        assert await state.result() == 42
+        assert isinstance(state.data, PersistedResult)
+        assert state.data.storage_key == str(state.state_details.task_run_id)
+
+    async def test_task_loads_result_if_exists(self, prefect_client, tmp_path):
+        run_id = uuid4()
+
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True, result_storage=fs
+        )
+        await factory.create_result(1800, key=str(run_id))
+
+        @task(result_storage=fs)
+        async def async_task():
+            return 42
+
+        state = await run_task_async(
+            async_task, task_run_id=run_id, return_type="state"
+        )
+        assert state.is_completed()
+        assert await state.result() == 1800
+        assert isinstance(state.data, PersistedResult)
+        assert state.data.storage_key == str(run_id)

@@ -43,8 +43,8 @@ from prefect.exceptions import (
 )
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
-from prefect.records.memory_store import MemoryStore
-from prefect.results import BaseResult, ResultFactory
+from prefect.records.result_store import ResultFactoryStore
+from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -76,8 +76,6 @@ from prefect.utilities.timeout import timeout, timeout_async
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-RECORD_STORE = MemoryStore()  # TODO: make this configurable
 
 
 @dataclass
@@ -344,13 +342,15 @@ class TaskRunEngine(Generic[P, R]):
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
+        if transaction.key:
+            result_factory.storage_key_fn = lambda: transaction.key
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
                 result_factory=result_factory,
             )
         )
-        transaction.stage(terminal_state.data.dict())
+        transaction.stage(terminal_state.data)
         terminal_state.state_details = self._compute_state_details(
             include_cache_expiration=True
         )
@@ -563,17 +563,17 @@ def run_task_sync(
                             run.logger.debug(
                                 f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
                             )
+                            result_factory = getattr(
+                                TaskRunContext.get(), "result_factory", None
+                            )
                             with transaction(
-                                key=str(run.task_run.id), store=RECORD_STORE
+                                key=str(run.task_run.id),
+                                store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
                                 txn.add_task(run.task)
 
                                 if txn.committed:
-                                    result_json = txn.read()
-                                    if result_json:
-                                        result = BaseResult(**result_json).get()
-                                    else:
-                                        result = None  # this is questionable
+                                    result = txn.read()
                                 else:
                                     result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
 
@@ -639,17 +639,17 @@ async def run_task_async(
                             run.logger.debug(
                                 f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
                             )
+                            result_factory = getattr(
+                                TaskRunContext.get(), "result_factory", None
+                            )
                             with transaction(
-                                key=str(run.task_run.id), store=RECORD_STORE
+                                key=str(run.task_run.id),
+                                store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
                                 txn.add_task(run.task)
 
                                 if txn.committed:
-                                    result_json = txn.read()
-                                    if result_json:
-                                        result = BaseResult(**result_json).get()
-                                    else:
-                                        result = None  # this is questionable
+                                    result = txn.read()
                                 else:
                                     result = cast(
                                         R, await task.fn(*call_args, **call_kwargs)

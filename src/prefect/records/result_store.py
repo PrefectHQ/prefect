@@ -1,21 +1,40 @@
+from typing import Any
+
+from prefect.exceptions import ObjectNotFound
 from prefect.results import BaseResult, PersistedResult, ResultFactory
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 from .store import RecordStore
 
 
 class ResultFactoryStore(RecordStore):
     result_factory: ResultFactory
+    cache: PersistedResult = None
 
     def exists(self, key: str) -> bool:
-        return False
+        try:
+            result = self.read(key)
+            run_coro_as_sync(result.get())  # loads and caches value on result object
+            self.cache = result
+            return True
+        except (ObjectNotFound, ValueError):
+            return False
 
     def read(self, key: str) -> BaseResult:
-        result = PersistedResult(
-            serializer_type=self.result_factory.serializer.type,
-            storage_block_id=self.result_factory.storage_block_id,
-            storage_key=key,
-        )
-        return result
+        if self.cache:
+            return self.cache
+        try:
+            result = PersistedResult(
+                serializer_type=self.result_factory.serializer.type,
+                storage_block_id=self.result_factory.storage_block_id,
+                storage_key=key,
+            )
+            return result
+        except Exception:
+            # this is a bit of a bandaid for functionality
+            raise ValueError("Result could not be read")
 
-    def write(self, key: str, value: dict) -> BaseResult:
-        return self.result_factory.create_result(obj=value, key=key)
+    def write(self, key: str, value: Any) -> BaseResult:
+        if isinstance(value, BaseResult):
+            return value
+        return run_coro_as_sync(self.result_factory.create_result(obj=value, key=key))
