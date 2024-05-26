@@ -198,7 +198,10 @@ async def exception_to_failed_state(
     #       excluded from messages for now
     message = existing_message + format_exception(exc)
 
-    return Failed(data=data, message=message, **kwargs)
+    state = Failed(data=data, message=message, **kwargs)
+    state.state_details.retriable = False
+
+    return state
 
 
 async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:
@@ -224,7 +227,7 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
     """
 
     if (
-        is_state(retval)
+        isinstance(retval, State)
         # Check for manual creation
         and not retval.state_details.flow_run_id
         and not retval.state_details.task_run_id
@@ -238,7 +241,7 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         return state
 
     # Determine a new state from the aggregate of contained states
-    if is_state(retval) or is_state_iterable(retval):
+    if isinstance(retval, State) or is_state_iterable(retval):
         states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
@@ -341,7 +344,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif isinstance(result, str):
         return wrapper(result)
 
-    elif is_state(result):
+    elif isinstance(result, State):
         # Return the exception from the inner state
         return await get_state_exception(result)
 
@@ -373,23 +376,6 @@ async def raise_state_exception(state: State) -> None:
     raise await get_state_exception(state)
 
 
-def is_state(obj: Any) -> TypeGuard[State]:
-    """
-    Check if the given object is a state instance
-    """
-    # We may want to narrow this to client-side state types but for now this provides
-    # backwards compatibility
-    try:
-        from prefect.server.schemas.states import State as State_
-
-        classes_ = (State, State_)
-    except ImportError:
-        classes_ = State
-
-    # return isinstance(obj, (State, State_))
-    return isinstance(obj, classes_)
-
-
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     """
     Check if a the given object is an iterable of states types
@@ -408,7 +394,7 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         and isinstance(obj, (list, set, tuple))
         and obj
     ):
-        return all([is_state(o) for o in obj])
+        return all([isinstance(o, State) for o in obj])
     else:
         return False
 
