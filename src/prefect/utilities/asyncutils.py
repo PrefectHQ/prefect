@@ -143,7 +143,7 @@ def run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     return result
 
 
-def run_sync(coroutine):
+def run_sync(coroutine: Awaitable, force_new_loop: bool = False):
     """
     Runs a coroutine from a synchronous context.
 
@@ -157,9 +157,10 @@ def run_sync(coroutine):
     that this behavior should not appear anywhere in the Prefect codebase or in
     user code.
 
+    if force_new_loop=True, the coroutine will always be run in a new thread.
     """
 
-    async def wrapper():
+    async def coroutine_wrapper():
         """
         Set flags so that children (and grandchildren...) of this task know they are running in a new
         thread and do not try to run on the run_sync thread, which would cause a
@@ -178,13 +179,13 @@ def run_sync(coroutine):
     # if we are already in the run_sync loop, or a descendent of a coroutine
     # that is running in the run_sync loop, we need to run this coroutine in a
     # new thread
-    if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get():
-        return from_sync.call_in_new_thread(wrapper)
+    if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get() or force_new_loop:
+        return from_sync.call_in_new_thread(coroutine_wrapper)
 
     # otherwise, we can run the coroutine in the run_sync loop
     # and wait for the result
     else:
-        call = _cast_to_call(wrapper)
+        call = _cast_to_call(coroutine_wrapper)
         runner = get_run_sync_loop()
         runner.submit(call)
         return call.result()
