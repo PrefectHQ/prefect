@@ -26,7 +26,7 @@ from prefect.utilities.asyncutils import (
     is_async_gen_fn,
     run_async_from_worker_thread,
     run_async_in_new_loop,
-    run_sync,
+    run_coro_as_sync,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -415,30 +415,30 @@ class TestRunSync:
         async def foo():
             return 42
 
-        assert run_sync(foo()) == 42
+        assert run_coro_as_sync(foo()) == 42
 
     def test_run_sync_error(self):
         async def foo():
             raise ValueError("test-42")
 
         with pytest.raises(ValueError, match="test-42"):
-            run_sync(foo())
+            run_coro_as_sync(foo())
 
     def test_nested_run_sync(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
-        assert run_sync(bar()) == 42
+        assert run_coro_as_sync(bar()) == 42
 
     def test_run_sync_in_async(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         assert asyncio.run(bar()) == 42
 
@@ -447,7 +447,7 @@ class TestRunSync:
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         await bar() == 42
 
@@ -456,7 +456,7 @@ class TestRunSync:
             raise ValueError("test-42")
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         with pytest.raises(ValueError, match="test-42"):
             asyncio.run(bar())
@@ -476,7 +476,7 @@ class TestRunSync:
 
         async def parent():
             with MyVar(x=42):
-                return run_sync(load_var())
+                return run_coro_as_sync(load_var())
 
         # this has to be run via asyncio.run because
         # otherwise the context is maintained automatically

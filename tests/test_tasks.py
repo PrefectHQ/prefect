@@ -41,7 +41,7 @@ from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import Transaction
 from prefect.utilities.annotations import allow_failure, unmapped
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
 
@@ -1663,7 +1663,7 @@ class TestTaskInputs:
             # result retrieval to be sync.
             result = upstream_state.result()
             if inspect.isawaitable(result):
-                result = run_sync(result)
+                result = run_coro_as_sync(result)
             downstream_state = downstream(result, return_state=True)
             return upstream_state, downstream_state
 

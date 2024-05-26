@@ -42,12 +42,15 @@ def get_or_create_client(
     if client is not None:
         return client, True
     from prefect._internal.concurrency.event_loop import get_running_loop
-    from prefect.context import FlowRunContext, TaskRunContext
+    from prefect.context import ClientContext, FlowRunContext, TaskRunContext
 
+    client_context = ClientContext.get()
     flow_run_context = FlowRunContext.get()
     task_run_context = TaskRunContext.get()
 
-    if (
+    if client_context and client_context.async_client._loop == get_running_loop():
+        return client_context.async_client, True
+    elif (
         flow_run_context
         and getattr(flow_run_context.client, "_loop", None) == get_running_loop()
     ):
