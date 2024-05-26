@@ -43,7 +43,9 @@ async def create_block_type(
     # to the appropriate server model.
     if not isinstance(block_type, schemas.core.BlockType):
         if not PREFECT_TEST_MODE.value():
-            raise ValueError("block_type must be a server model")
+            raise ValueError(
+                f"block_type must be a server model, got {type(block_type)}"
+            )
         block_type = schemas.core.BlockType.model_validate(
             block_type.model_dump(mode="json")
         )

@@ -58,7 +58,9 @@ async def create_block_schema(
     # to the appropriate server model.
     if not isinstance(block_schema, schemas.actions.BlockSchemaCreate):
         if not PREFECT_TEST_MODE.value():
-            raise ValueError("block_schema must be a server model")
+            raise ValueError(
+                f"block_schema must be a server model, got {type(block_schema)}"
+            )
         block_schema = schemas.actions.BlockSchemaCreate.model_validate(
             block_schema.model_dump(
                 mode="json",

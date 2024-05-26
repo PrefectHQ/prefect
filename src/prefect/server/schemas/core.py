@@ -40,6 +40,7 @@ from prefect.server.utilities.schemas.bases import (
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    LaxUrl,
     Name,
     NameOrEmpty,
     NonEmptyishName,
@@ -669,10 +670,10 @@ class BlockType(ORMBaseModel):
 
     name: Name = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
-    logo_url: Optional[str] = Field(  # TODO: make it HttpUrl
+    logo_url: Optional[LaxUrl] = Field(  # TODO: make it HttpUrl
         default=None, description="Web URL for the block type's logo"
     )
-    documentation_url: Optional[str] = Field(  # TODO: make it HttpUrl
+    documentation_url: Optional[LaxUrl] = Field(  # TODO: make it HttpUrl
         default=None, description="Web URL for the block type's documentation"
     )
     description: Optional[str] = Field(
