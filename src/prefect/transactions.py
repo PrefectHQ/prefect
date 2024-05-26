@@ -10,12 +10,7 @@ from typing import (
 )
 from uuid import UUID
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic import Field
 
 from prefect.context import ContextModel, TaskRunContext
 from prefect.records import Record
@@ -36,7 +31,7 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    record: Record = None
+    record: Optional[Record] = None
     tasks: List[Task] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
     children: List["Transaction"] = Field(default_factory=list)
@@ -185,7 +180,7 @@ def get_transaction() -> Transaction:
 
 @contextmanager
 def transaction(
-    record: Record = None, commit_mode: CommitMode = CommitMode.LAZY
+    record: Optional[Record] = None, commit_mode: CommitMode = CommitMode.LAZY
 ) -> Transaction:
     with Transaction(record=record, commit_mode=commit_mode) as txn:
         yield txn
