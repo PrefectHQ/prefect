@@ -288,9 +288,7 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(
-    async_fn: T, force_sync: bool = False, force_new_thread: bool = False
-) -> T:
+def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
     Converts an async function into a dual async and sync function.
 
@@ -338,11 +336,11 @@ def sync_compatible(
             return result
 
         if force_sync:
-            return run_coro_as_sync(ctx_call(), force_new_thread=force_new_thread)
+            return run_coro_as_sync(ctx_call())
         elif RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
-            return run_coro_as_sync(ctx_call(), force_new_thread=force_new_thread)
+            return run_coro_as_sync(ctx_call())
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
