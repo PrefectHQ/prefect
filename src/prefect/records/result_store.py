@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 from prefect.exceptions import ObjectNotFound
@@ -7,6 +8,7 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from .store import RecordStore
 
 
+@dataclass
 class ResultFactoryStore(RecordStore):
     result_factory: ResultFactory
     cache: PersistedResult = None

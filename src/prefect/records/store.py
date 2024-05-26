@@ -1,7 +1,4 @@
-from pydantic.v1 import BaseModel
-
-
-class RecordStore(BaseModel):
+class RecordStore:
     def read(self, key: str):
         raise NotImplementedError
 

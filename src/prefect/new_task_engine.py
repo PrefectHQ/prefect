@@ -3,6 +3,7 @@ import logging
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -44,7 +45,7 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
 from prefect.records.result_store import ResultFactoryStore
-from prefect.results import ResultFactory
+from prefect.results import ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -342,8 +343,19 @@ class TaskRunEngine(Generic[P, R]):
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
-        if transaction.key:
-            result_factory.storage_key_fn = lambda: transaction.key
+
+        if self.task.result_storage_key is not None:
+            key_fn = partial(
+                _format_user_supplied_storage_key, self.task.result_storage_key
+            )
+        elif transaction.key:
+            # assign here to avoid a transaction reference on the result factory
+            key = transaction.key
+
+            def key_fn():
+                return key
+
+        result_factory.storage_key_fn = key_fn
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
