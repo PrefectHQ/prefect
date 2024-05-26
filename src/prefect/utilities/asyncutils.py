@@ -28,6 +28,11 @@ import anyio.abc
 import sniffio
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
+from prefect._internal.concurrency.api import _cast_to_call, from_sync
+from prefect._internal.concurrency.threads import (
+    get_run_sync_loop,
+    in_run_sync_loop,
+)
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -42,6 +47,7 @@ EVENT_LOOP_GC_REFS = {}
 
 PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
+RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=False)
 RUN_ASYNC_FLAG = ContextVar("run_async", default=False)
 
 logger = get_logger()
@@ -80,8 +86,14 @@ def is_async_gen_fn(func):
     return inspect.isasyncgenfunction(func)
 
 
-def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
+def run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     """
+    Note: this is an OLD implementation of `run_sync` which liberally created
+    new threads and new loops. This works, but prevents sharing any objects
+    across coroutines, in particular httpx clients, which are very expensive to
+    instantiate.
+
+
     Runs a coroutine from a synchronous context. A thread will be spawned
     to run the event loop if necessary, which allows coroutines to run in
     environments like Jupyter notebooks where the event loop runs on the main
@@ -129,6 +141,53 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
     else:
         result = context.run(asyncio.run, context_local_wrapper())
     return result
+
+
+def run_sync(coroutine):
+    """
+    Runs a coroutine from a synchronous context.
+
+    The coroutine is scheduled to run in the "run sync" event loop, which is
+    running in its own thread and is started the first time it is needed. This
+    allows us to share objects like async httpx clients among all coroutines
+    running in the loop.
+
+    If run_sync is called from within the run_sync loop, it will run the
+    coroutine in a new thread, because otherwise a deadlock would occur. Note
+    that this behavior should not appear anywhere in the Prefect codebase or in
+    user code.
+
+    """
+
+    async def wrapper():
+        """
+        Set flags so that children (and grandchildren...) of this task know they are running in a new
+        thread and do not try to run on the run_sync thread, which would cause a
+        deadlock.
+        """
+        token1 = RUNNING_IN_RUN_SYNC_LOOP_FLAG.set(True)
+        token2 = RUN_ASYNC_FLAG.set(True)
+        try:
+            # use `create_task` because it copies context variables automatically
+            result = await asyncio.create_task(coroutine)
+        finally:
+            RUNNING_IN_RUN_SYNC_LOOP_FLAG.reset(token1)
+            RUN_ASYNC_FLAG.reset(token2)
+        return result
+
+    # if we are already in the run_sync loop, or a descendent of a coroutine
+    # that is running in the run_sync loop, we need to run this coroutine in a
+    # new thread
+    if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get():
+        return from_sync.call_in_new_thread(wrapper)
+
+    # otherwise, we can run the coroutine in the run_sync loop
+    # and wait for the result
+    else:
+        call = _cast_to_call(wrapper)
+        runner = get_run_sync_loop()
+        runner.submit(call)
+        return call.result()
 
 
 async def run_sync_in_worker_thread(
@@ -234,6 +293,7 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
         if force_sync:
             return run_sync(ctx_call())
         elif RUN_ASYNC_FLAG.get() or is_async:
+            return ctx_call()
             context = copy_context()
             return context.run(ctx_call)
         else:

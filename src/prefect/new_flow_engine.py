@@ -30,7 +30,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext, TagsContext
+from prefect.context import ClientContext, FlowRunContext, TagsContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.logging.loggers import (
@@ -485,16 +485,15 @@ class FlowRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a flow run if needed.
         """
-
-        with get_client(sync_client=True) as client:
-            self._client = client
+        with ClientContext.get_or_create() as client_ctx:
+            self._client = client_ctx.sync_client
             self._is_started = True
 
             # this conditional is engaged whenever a run is triggered via deployment
             if self.flow_run_id and not self.flow:
-                self.flow_run = client.read_flow_run(self.flow_run_id)
+                self.flow_run = self.client.read_flow_run(self.flow_run_id)
                 try:
-                    self.flow = self.load_flow(client)
+                    self.flow = self.load_flow(self.client)
                 except Exception as exc:
                     self.handle_exception(
                         exc,
@@ -503,7 +502,7 @@ class FlowRunEngine(Generic[P, R]):
                     self.short_circuit = True
 
             if not self.flow_run:
-                self.flow_run = self.create_flow_run(client)
+                self.flow_run = self.create_flow_run(self.client)
 
                 ui_url = PREFECT_UI_URL.value()
                 if ui_url:

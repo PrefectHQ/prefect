@@ -23,11 +23,16 @@ from uuid import UUID
 import pendulum
 from typing_extensions import ParamSpec
 
-from prefect import Task, get_client
+from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.context import FlowRunContext, TaskRunContext, hydrated_context
+from prefect.context import (
+    ClientContext,
+    FlowRunContext,
+    TaskRunContext,
+    hydrated_context,
+)
 from prefect.events.schemas.events import Event
 from prefect.exceptions import (
     Abort,
@@ -463,15 +468,15 @@ class TaskRunEngine(Generic[P, R]):
         Enters a client context and creates a task run if needed.
         """
         with hydrated_context(self.context):
-            with get_client(sync_client=True) as client:
-                self._client = client
+            with ClientContext.get_or_create() as client_ctx:
+                self._client = client_ctx.sync_client
                 self._is_started = True
                 try:
                     if not self.task_run:
                         self.task_run = run_sync(
                             self.task.create_run(
                                 id=task_run_id,
-                                client=client,
+                                client=self.client,
                                 parameters=self.parameters,
                                 flow_run_context=FlowRunContext.get(),
                                 parent_task_run_context=TaskRunContext.get(),
@@ -592,6 +597,7 @@ async def run_task_async(
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
+
     engine = TaskRunEngine[P, R](
         task=task,
         parameters=parameters,
