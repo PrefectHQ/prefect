@@ -31,7 +31,12 @@ Different deployments may reference the same underlying flow, a useful pattern w
 The complete schema that defines a deployment is as follows:
 
 ```python
+from uuid import UUID
+from typing import Optional, Dict, Any
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, RRuleSchedule
+from prefect.events.schemas.automations import EventTrigger
 class Deployment:
+
     """
     Structure of the schema defining a deployment
     """
@@ -45,9 +50,9 @@ class Deployment:
     # workflow scheduling and parametrization
     parameters: Optional[Dict[str, Any]] = None
     parameter_openapi_schema: Optional[Dict[str, Any]] = None
-    schedules: list[Schedule] = None
+    schedules: list[CronSchedule | IntervalSchedule | RRuleSchedule] = None
     paused: bool = False
-    trigger: Trigger = None
+    trigger: EventTrigger = None
 
     # metadata for bookkeeping
     version: str = None
@@ -162,7 +167,7 @@ can use this object to retrieve information about the run after calling
 from prefect import get_client
 from prefect.deployments import run_deployment
 
-def main():
+async def main():
     flow_run = run_deployment(name="my_flow_name/my_deployment_name")
     flow_run_id = flow_run.id
 
