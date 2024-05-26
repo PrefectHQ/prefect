@@ -14,7 +14,6 @@ from prefect.results import (
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
-    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     temporary_settings,
@@ -131,7 +130,9 @@ def test_root_flow_persists_results_when_flow_uses_feature(options, default_stor
 
 
 @pytest.mark.parametrize("options", [{"cache_result_in_memory": False}])
-def test_root_flow_can_opt_out_of_persistence_when_flow_uses_feature(options, default_storage):
+def test_root_flow_can_opt_out_of_persistence_when_flow_uses_feature(
+    options, default_storage
+):
     result_factory = None
 
     @flow(**options, persist_result=False)
@@ -368,7 +369,9 @@ def test_child_flow_persists_result_when_parent_uses_feature(options, default_st
     assert isinstance(child_factory.storage_block_id, uuid.UUID)
 
 
-def test_child_flow_can_opt_out_of_result_persistence_when_parent_uses_feature(default_storage):
+def test_child_flow_can_opt_out_of_result_persistence_when_parent_uses_feature(
+    default_storage,
+):
     @flow(retries=3)
     def foo():
         return get_run_context().result_factory, bar()
@@ -403,7 +406,9 @@ def test_child_flow_persists_result_when_child_uses_feature(options, default_sto
     assert isinstance(child_factory.storage_block_id, uuid.UUID)
 
 
-def test_child_flow_can_opt_out_of_result_persistence_when_child_uses_feature(default_storage):
+def test_child_flow_can_opt_out_of_result_persistence_when_child_uses_feature(
+    default_storage,
+):
     child_factory = None
 
     @flow
@@ -497,7 +502,9 @@ async def test_child_flow_custom_storage(tmp_path, default_storage):
     assert child_factory.storage_block_id == storage_id
 
 
-async def test_child_flow_custom_storage_by_instance_unsaved(prefect_client, default_storage, tmp_path):
+async def test_child_flow_custom_storage_by_instance_unsaved(
+    prefect_client, default_storage, tmp_path
+):
     storage = LocalFileSystem(basepath=tmp_path)
 
     @flow(cache_result_in_memory=False)  # use a feature that requires persistence
@@ -764,7 +771,9 @@ async def test_task_custom_storage(default_storage, tmp_path):
     assert task_factory.storage_block_id == storage_id
 
 
-async def test_task_custom_storage_by_instance_unsaved(prefect_client, default_storage, tmp_path):
+async def test_task_custom_storage_by_instance_unsaved(
+    prefect_client, default_storage, tmp_path
+):
     storage = LocalFileSystem(basepath=tmp_path / "test")
 
     @flow(cache_result_in_memory=False)
