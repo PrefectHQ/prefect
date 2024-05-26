@@ -23,11 +23,16 @@ from uuid import UUID
 import pendulum
 from typing_extensions import ParamSpec
 
-from prefect import Task, get_client
+from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.context import FlowRunContext, TaskRunContext, hydrated_context
+from prefect.context import (
+    ClientContext,
+    FlowRunContext,
+    TaskRunContext,
+    hydrated_context,
+)
 from prefect.events.schemas.events import Event
 from prefect.exceptions import (
     Abort,
@@ -36,7 +41,6 @@ from prefect.exceptions import (
     RollBack,
     UpstreamTaskError,
 )
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
 from prefect.records.memory_store import MemoryStore
@@ -58,7 +62,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -180,7 +184,7 @@ class TaskRunEngine(Generic[P, R]):
                     with hook_context():
                         result = hook(task, task_run, state)
                         if inspect.isawaitable(result):
-                            run_sync(result)
+                            run_coro_as_sync(result)
 
             yield _hook_fn
 
@@ -333,14 +337,14 @@ class TaskRunEngine(Generic[P, R]):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if inspect.isawaitable(_result):
-            _result = run_sync(_result)
+            _result = run_coro_as_sync(_result)
         return _result
 
     def handle_success(self, result: R, transaction: Transaction) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
-        terminal_state = run_sync(
+        terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
                 result_factory=result_factory,
@@ -370,7 +374,7 @@ class TaskRunEngine(Generic[P, R]):
         if not self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             context = TaskRunContext.get()
-            state = run_sync(
+            state = run_coro_as_sync(
                 exception_to_failed_state(
                     exc,
                     message="Task run encountered an exception",
@@ -405,7 +409,7 @@ class TaskRunEngine(Generic[P, R]):
         self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
-        state = run_sync(exception_to_crashed_state(exc))
+        state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
@@ -432,7 +436,7 @@ class TaskRunEngine(Generic[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_sync(
+                    result_factory=run_coro_as_sync(
                         ResultFactory.from_autonomous_task(self.task)
                     ),  # type: ignore
                     client=client,
@@ -467,15 +471,15 @@ class TaskRunEngine(Generic[P, R]):
         Enters a client context and creates a task run if needed.
         """
         with hydrated_context(self.context):
-            with get_client(sync_client=True) as client:
-                self._client = client
+            with ClientContext.get_or_create() as client_ctx:
+                self._client = client_ctx.sync_client
                 self._is_started = True
                 try:
                     if not self.task_run:
-                        self.task_run = run_sync(
+                        self.task_run = run_coro_as_sync(
                             self.task.create_run(
                                 id=task_run_id,
-                                client=client,
+                                client=self.client,
                                 parameters=self.parameters,
                                 flow_run_context=FlowRunContext.get(),
                                 parent_task_run_context=TaskRunContext.get(),
@@ -515,10 +519,6 @@ class TaskRunEngine(Generic[P, R]):
                         else logging.ERROR,
                         msg=f"Finished in state {display_state}",
                     )
-
-                    maybe_awaitable = APILogHandler.flush()
-                    if inspect.isawaitable(maybe_awaitable):
-                        run_sync(maybe_awaitable)
 
                     self._is_started = False
                     self._client = None
@@ -613,6 +613,7 @@ async def run_task_async(
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
+
     engine = TaskRunEngine[P, R](
         task=task,
         parameters=parameters,
