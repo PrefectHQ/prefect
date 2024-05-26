@@ -2,7 +2,7 @@ import abc
 import json
 import warnings
 from textwrap import dedent
-from typing import Dict, List, Type, Union
+from typing import Any, Dict, List, Type, Union
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
@@ -2573,13 +2573,24 @@ class TestDeleteBlock:
             )
 
 
-class MySecretBlock(Block):
-    u: PydanticSecret[str]
-    v: PydanticSecret[bytes]
-    w: SecretDict
-    x: SecretStr
-    y: SecretBytes
-    z: List[Union[str, int, float]]
+class NestedFunModel(BaseModel):
+    loser: str = "drake"
+    nested_secret_str: SecretStr
+    nested_secret_bytes: SecretBytes
+    nested_secret_int: PydanticSecret[int]
+    all_my_enemies_secrets: List[SecretStr]
+
+
+class FunSecretModel(Block):
+    winner: str = "kendrick"
+    secret_str: SecretStr
+    secret_str_manual: PydanticSecret[str]
+    secret_bytes: SecretBytes
+    secret_bytes_manual: PydanticSecret[bytes]
+    secret_int: PydanticSecret[int]
+    nested_model: NestedFunModel
+    normal_dictionary: Dict[str, Union[str, Dict[str, Any]]]
+    secret_dict: SecretDict
 
 
 class TestDumpSecrets:
@@ -2587,76 +2598,211 @@ class TestDumpSecrets:
     def secret_data(self) -> bytes:
         return to_json(
             {
-                "u": "u",
-                "v": b"v",
-                "w": {"secret": "w"},
-                "x": "x",
-                "y": b"y",
-                "z": ["z", 1, 2.0],
+                "winner": "kendrick",
+                "secret_str": "back to back? i like that record",
+                "secret_str_manual": "ima get back to that for the record",
+                "secret_bytes": b"dudes be byting my style",
+                "secret_bytes_manual": b"sneak dissing",
+                "secret_int": 31415,
+                "nested_model": {
+                    "loser": "drake",
+                    "nested_secret_str": "call me a bird the way im nesting",
+                    "nested_secret_bytes": b"nesting like a bird",
+                    "nested_secret_int": 54321,
+                    "all_my_enemies_secrets": [
+                        "culture vulture",
+                        "not really a secret",
+                        "but still",
+                        "you know",
+                    ],
+                },
+                "normal_dictionary": {
+                    "keys": "do not",
+                    "matter": "at all",
+                    "because": {
+                        "they": "are not",
+                        "typed": "on the model",
+                        "so": ["they", "can be", "anything"],
+                    },
+                },
+                "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
             }
         )
 
     def test_dump_obscured_secrets(self, secret_data):
-        block = MySecretBlock.model_validate_json(secret_data)
+        block = FunSecretModel.model_validate_json(secret_data)
         assert block.model_dump() == {
-            "block_type_slug": "mysecretblock",
-            "u": PydanticSecret[str]("u"),
-            "v": PydanticSecret[bytes](b"v"),
-            "w": SecretDict({"secret": "w"}),
-            "x": SecretStr("x"),
-            "y": SecretBytes(b"y"),
-            "z": ["z", 1, 2.0],
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": SecretStr("back to back? i like that record"),
+            "secret_str_manual": PydanticSecret[str](
+                "ima get back to that for the record"
+            ),
+            "secret_bytes": SecretBytes(b"dudes be byting my style"),
+            "secret_bytes_manual": PydanticSecret[bytes](b"sneak dissing"),
+            "secret_int": PydanticSecret[int](31415),
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": SecretStr("call me a bird the way im nesting"),
+                "nested_secret_bytes": SecretBytes(b"nesting like a bird"),
+                "nested_secret_int": PydanticSecret[int](54321),
+                "all_my_enemies_secrets": [
+                    SecretStr("culture vulture"),
+                    SecretStr("not really a secret"),
+                    SecretStr("but still"),
+                    SecretStr("you know"),
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            "secret_dict": SecretDict({"shoooOOOooo!": "bih! bih! bih! bih!"}),
         }
 
     def test_dump_obscured_secrets_mode_json(self, secret_data):
-        block = MySecretBlock.model_validate_json(secret_data)
+        block = FunSecretModel.model_validate_json(secret_data)
         assert block.model_dump(mode="json") == {
-            "block_type_slug": "mysecretblock",
-            "u": "**********",
-            "v": "**********",
-            "w": "**********",
-            "x": "**********",
-            "y": "**********",
-            "z": ["z", 1, 2.0],
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": "**********",
+            "secret_str_manual": "**********",
+            "secret_bytes": "**********",
+            "secret_bytes_manual": "**********",
+            "secret_int": "**********",
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "**********",
+                "nested_secret_bytes": "**********",
+                "nested_secret_int": "**********",
+                "all_my_enemies_secrets": [
+                    "**********",
+                    "**********",
+                    "**********",
+                    "**********",
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            # historically this was: {"key": "**********", ...}
+            "secret_dict": "**********",
         }
 
     def test_dump_python_secrets(self, secret_data):
-        block = MySecretBlock.model_validate_json(secret_data)
+        block = FunSecretModel.model_validate_json(secret_data)
         assert block.model_dump(context={"include_secrets": True}) == {
-            "block_type_slug": "mysecretblock",
-            "u": "u",
-            "v": b"v",
-            "w": {"secret": "w"},
-            "x": "x",
-            "y": b"y",
-            "z": ["z", 1, 2.0],
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": "back to back? i like that record",
+            "secret_str_manual": "ima get back to that for the record",
+            "secret_bytes": b"dudes be byting my style",
+            "secret_bytes_manual": b"sneak dissing",
+            "secret_int": 31415,
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "call me a bird the way im nesting",
+                "nested_secret_bytes": b"nesting like a bird",
+                "nested_secret_int": 54321,
+                "all_my_enemies_secrets": [
+                    "culture vulture",
+                    "not really a secret",
+                    "but still",
+                    "you know",
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
         }
 
     def test_dump_jsonable_secrets(self, secret_data):
-        block = MySecretBlock.model_validate_json(secret_data)
+        block = FunSecretModel.model_validate_json(secret_data)
         assert block.model_dump(context={"include_secrets": True}, mode="json") == {
-            "block_type_slug": "mysecretblock",
-            "u": "u",
-            "v": "v",
-            "w": {"secret": "w"},
-            "x": "x",
-            "y": "y",
-            "z": ["z", 1, 2.0],
+            "block_type_slug": "funsecretmodel",
+            "winner": "kendrick",
+            "secret_str": "back to back? i like that record",
+            "secret_str_manual": "ima get back to that for the record",
+            "secret_bytes": "dudes be byting my style",
+            "secret_bytes_manual": "sneak dissing",
+            "secret_int": 31415,
+            "nested_model": {
+                "loser": "drake",
+                "nested_secret_str": "call me a bird the way im nesting",
+                "nested_secret_bytes": "nesting like a bird",
+                "nested_secret_int": 54321,
+                "all_my_enemies_secrets": [
+                    "culture vulture",
+                    "not really a secret",
+                    "but still",
+                    "you know",
+                ],
+            },
+            "normal_dictionary": {
+                "keys": "do not",
+                "matter": "at all",
+                "because": {
+                    "they": "are not",
+                    "typed": "on the model",
+                    "so": ["they", "can be", "anything"],
+                },
+            },
+            "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
         }
 
     def test_dump_json_secrets(self, secret_data):
-        block = MySecretBlock.model_validate_json(secret_data)
+        block = FunSecretModel.model_validate_json(secret_data)
         assert (
             block.model_dump_json(context={"include_secrets": True})
             == to_json(
                 {
-                    "u": "u",
-                    "v": "v",
-                    "w": {"secret": "w"},
-                    "x": "x",
-                    "y": "y",
-                    "z": ["z", 1, 2.0],
-                    "block_type_slug": "mysecretblock",
+                    "winner": "kendrick",
+                    "secret_str": "back to back? i like that record",
+                    "secret_str_manual": "ima get back to that for the record",
+                    "secret_bytes": "dudes be byting my style",
+                    "secret_bytes_manual": "sneak dissing",
+                    "secret_int": 31415,
+                    "nested_model": {
+                        "loser": "drake",
+                        "nested_secret_str": "call me a bird the way im nesting",
+                        "nested_secret_bytes": "nesting like a bird",
+                        "nested_secret_int": 54321,
+                        "all_my_enemies_secrets": [
+                            "culture vulture",
+                            "not really a secret",
+                            "but still",
+                            "you know",
+                        ],
+                    },
+                    "normal_dictionary": {
+                        "keys": "do not",
+                        "matter": "at all",
+                        "because": {
+                            "they": "are not",
+                            "typed": "on the model",
+                            "so": ["they", "can be", "anything"],
+                        },
+                    },
+                    "secret_dict": {"shoooOOOooo!": "bih! bih! bih! bih!"},
+                    "block_type_slug": "funsecretmodel",
                 }
             ).decode()
         )
