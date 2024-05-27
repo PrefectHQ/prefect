@@ -4,6 +4,7 @@ import sys
 
 import pytest
 
+from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
 
@@ -56,3 +57,9 @@ def event_loop(request):
     # Workaround for failures in pytest_asyncio 0.17;
     # see https://github.com/pytest-dev/pytest-asyncio/issues/257
     policy.set_event_loop(loop)
+
+
+@pytest.fixture(autouse=True)
+def fetch_state_result():
+    with temporary_settings(updates={PREFECT_ASYNC_FETCH_STATE_RESULT: True}):
+        yield

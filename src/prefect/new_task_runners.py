@@ -58,6 +58,7 @@ class TaskRunner(abc.ABC):
         task: "Task",
         parameters: Dict[str, Any],
         wait_for: Iterable[PrefectFuture],
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> PrefectFuture:
         """
         Submit a task to the task run engine.

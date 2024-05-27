@@ -340,6 +340,9 @@ async def act(firing: Firing):
             await publisher.publish_data(action.json().encode(), {})
 
 
+# Initializing this lock at the module level prevents us from submitting to Dask when using
+# Python 3.9 and the ephemeral API due to the lack of an event loop.
+# TODO: Explore moving this lock initialization from the module level
 _events_clock_lock = asyncio.Lock()
 _events_clock: Optional[float] = None
 _events_clock_updated: Optional[float] = None

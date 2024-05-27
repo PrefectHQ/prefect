@@ -89,7 +89,7 @@ class PrefectFuture(abc.ABC, Generic[F]):
         """
 
 
-class PrefectConcurrentFuture(PrefectFuture):
+class PrefectConcurrentFuture(PrefectFuture[concurrent.futures.Future]):
     """
     A Prefect future that wraps a concurrent.futures.Future. This future is used
     when the task run is submitted to a ThreadPoolExecutor.
