@@ -81,6 +81,18 @@ class TaskRunner(abc.ABC, Generic[F]):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
     ) -> Iterable[F]:
+        """
+        Submit multiple tasks to the task run engine.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            An iterable of future objects that can be used to wait for the tasks to
+            complete and retrieve the results.
+        """
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
