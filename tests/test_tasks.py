@@ -23,15 +23,14 @@ from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
     ReservedArgumentError,
+    RollBack,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.futures import PrefectFuture
 from prefect.new_futures import PrefectFuture as NewPrefectFuture
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     temporary_settings,
@@ -39,19 +38,12 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
-from prefect.testing.utilities import exceptions_equal, fails_with_new_engine
+from prefect.testing.utilities import exceptions_equal
+from prefect.transactions import Transaction
 from prefect.utilities.annotations import allow_failure, unmapped
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
-
-
-@pytest.fixture(
-    autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
-)
-def set_new_engine_setting(request):
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
-        yield
 
 
 def comparable_inputs(d):
@@ -211,7 +203,7 @@ class TestTaskCall:
         assert await bar() == 1
 
     # Will not be supported in new engine
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_async_task_called_inside_sync_flow(self):
         @task
         async def foo(x):
@@ -379,7 +371,7 @@ class TestTaskRun:
         assert await task_state.result() == 1
 
     # Will not be supported in new engine
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_async_task_run_inside_sync_flow(self):
         @task
         async def foo(x):
@@ -440,10 +432,7 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert isinstance(future, NewPrefectFuture)
-            else:
-                assert isinstance(future, PrefectFuture)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = bar()
@@ -470,10 +459,7 @@ class TestTaskSubmit:
 
         @flow
         async def bar():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                state = foo.submit(1, return_state=True)
-            else:
-                state = await foo.submit(1, return_state=True)
+            state = foo.submit(1, return_state=True)
             assert isinstance(state, State)
             return state
 
@@ -487,12 +473,8 @@ class TestTaskSubmit:
 
         @flow
         async def bar():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit(1)
-                assert isinstance(future, NewPrefectFuture)
-            else:
-                future = await foo.submit(1)
-                assert isinstance(future, PrefectFuture)
+            future = foo.submit(1)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = await bar()
@@ -506,10 +488,7 @@ class TestTaskSubmit:
         @flow
         async def bar():
             future = foo.submit(1)
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert isinstance(future, NewPrefectFuture)
-            else:
-                assert isinstance(future, PrefectFuture)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = await bar()
@@ -523,10 +502,7 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert isinstance(future, NewPrefectFuture)
-            else:
-                assert isinstance(future, PrefectFuture)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = bar()
@@ -755,13 +731,9 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                future.wait()
-                state = future.state
-            else:
-                future = await foo.submit()
-                state = await future.wait()
+            future = foo.submit()
+            future.wait()
+            state = future.state
 
             assert state.is_completed()
 
@@ -779,15 +751,10 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                future.wait(0.01)
-                state = future.state
-                assert not state.is_completed()
-            else:
-                future = await foo.submit()
-                state = await future.wait(0.01)
-                assert state is None
+            future = foo.submit()
+            future.wait(0.01)
+            state = future.state
+            assert not state.is_completed()
 
         await my_flow()
 
@@ -798,13 +765,9 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                future.wait(5)
-                state = future.state
-            else:
-                future = await foo.submit()
-                state = await future.wait(5)
+            future = foo.submit()
+            future.wait(5)
+            state = future.state
 
             assert state is not None
             assert state.is_completed()
@@ -819,14 +782,9 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                with pytest.raises(TimeoutError):
-                    future.result(timeout=0.01)
-            else:
-                future = await foo.submit()
-                with pytest.raises(TimeoutError):
-                    await future.result(timeout=0.01)
+            future = foo.submit()
+            with pytest.raises(TimeoutError):
+                future.result(timeout=0.01)
 
         await my_flow()
 
@@ -837,12 +795,8 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                result = future.result(timeout=5)
-            else:
-                future = await foo.submit()
-                result = await future.result(timeout=5)
+            future = foo.submit()
+            result = future.result(timeout=5)
             assert result == 1
 
         await my_flow()
@@ -854,12 +808,8 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                result = future.result()
-            else:
-                future = await foo.submit()
-                result = await future.result()
+            future = foo.submit()
+            result = future.result()
             assert result == 1
 
         await my_flow()
@@ -871,14 +821,9 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                with pytest.raises(ValueError, match="Test"):
-                    future.result()
-            else:
-                future = await foo.submit()
-                with pytest.raises(ValueError, match="Test"):
-                    await future.result()
+            future = foo.submit()
+            with pytest.raises(ValueError, match="Test"):
+                future.result()
             return True  # Ignore failed tasks
 
         await my_flow()
@@ -890,14 +835,9 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = foo.submit()
-                result = future.result(raise_on_failure=False)
-                assert exceptions_equal(result, ValueError("Test"))
-            else:
-                future = await foo.submit()
-                result = await future.result(raise_on_failure=False)
-                assert exceptions_equal(result, ValueError("Test"))
+            future = foo.submit()
+            result = future.result(raise_on_failure=False)
+            assert exceptions_equal(result, ValueError("Test"))
             return True  # Ignore failed tasks
 
         await my_flow()
@@ -913,10 +853,6 @@ class TestTaskFutures:
         @flow
         def test_flow():
             future = get_data.submit()
-            if not PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert (
-                    not future.asynchronous
-                ), "The async task should return a sync future"
             result = future.result()
             assert result == data, "Retrieving the result returns data"
             return result
@@ -949,10 +885,8 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state, ...
-            return future.wait(), ...
+            future.wait()
+            return future.state, ...
 
         task_run_state, _ = test_flow()
         task_run_id = task_run_state.state_details.task_run_id
@@ -971,28 +905,15 @@ class TestTaskRetries:
         states = await prefect_client.read_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            # task retries are client-side in the new engine
-            assert state_names == [
-                "Pending",
-                "Running",
-                "Retrying",
-                "Retrying",
-                "Retrying",
-                "Failed" if always_fail else "Completed",
-            ]
-        else:
-            assert state_names == [
-                "Pending",
-                "Running",
-                "AwaitingRetry",
-                "Retrying",
-                "AwaitingRetry",
-                "Retrying",
-                "AwaitingRetry",
-                "Retrying",
-                "Failed" if always_fail else "Completed",
-            ]
+        # task retries are client-side in the new engine
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+            "Failed" if always_fail else "Completed",
+        ]
 
     async def test_task_only_uses_necessary_retries(self, prefect_client):
         mock = MagicMock()
@@ -1008,10 +929,8 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state
-            return future.wait()
+            future.wait()
+            return future.state
 
         task_run_state = test_flow()
         task_run_id = task_run_state.state_details.task_run_id
@@ -1022,23 +941,13 @@ class TestTaskRetries:
 
         states = await prefect_client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            # task retries are client side in the new engine
-            assert state_names == [
-                "Pending",
-                "Running",
-                "Retrying",
-                "Completed",
-            ]
-
-        else:
-            assert state_names == [
-                "Pending",
-                "Running",
-                "AwaitingRetry",
-                "Retrying",
-                "Completed",
-            ]
+        # task retries are client side in the new engine
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Completed",
+        ]
 
     async def test_task_retries_receive_latest_task_run_in_context(self):
         contexts: List[TaskRunContext] = []
@@ -1754,7 +1663,7 @@ class TestTaskInputs:
             # result retrieval to be sync.
             result = upstream_state.result()
             if inspect.isawaitable(result):
-                result = run_sync(result)
+                result = run_coro_as_sync(result)
             downstream_state = downstream(result, return_state=True)
             return upstream_state, downstream_state
 
@@ -2008,11 +1917,8 @@ class TestTaskInputs:
             upstream_future = upstream.submit(257)
             upstream_result = upstream_future.result()
             downstream_state = downstream(upstream_result, return_state=True)
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                upstream_future.wait()
-                upstream_state = upstream_future.state
-            else:
-                upstream_state = upstream_future.wait()
+            upstream_future.wait()
+            upstream_state = upstream_future.state
             return upstream_state, downstream_state
 
         upstream_state, downstream_state = test_flow()
@@ -2366,10 +2272,7 @@ class TestSubflowWaitForTasks:
         @flow
         async def test_flow():
             e = Event()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                waiter_task.submit(e, 1)
-            else:
-                await waiter_task.submit(e, 1)
+            waiter_task.submit(e, 1)
             b = await setter_flow(e)
             return b
 
@@ -2392,10 +2295,7 @@ class TestSubflowWaitForTasks:
         @flow
         async def test_flow():
             e = Event()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                f = waiter_task.submit(e, 1)
-            else:
-                f = await waiter_task.submit(e, 1)
+            f = waiter_task.submit(e, 1)
             b = await setter_flow(e, wait_for=[f])
             return b
 
@@ -2830,10 +2730,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map([1, 2, 3])
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert all(isinstance(f, NewPrefectFuture) for f in futures)
-            else:
-                assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -2853,10 +2750,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map((1, 2, 3))
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert all(isinstance(f, NewPrefectFuture) for f in futures)
-            else:
-                assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -2872,10 +2766,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(generate_numbers())
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert all(isinstance(f, NewPrefectFuture) for f in futures)
-            else:
-                assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -2898,10 +2789,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert all(isinstance(f, NewPrefectFuture) for f in futures)
-            else:
-                assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -2911,10 +2799,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                assert all(isinstance(f, NewPrefectFuture) for f in futures)
-            else:
-                assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
@@ -3170,10 +3055,7 @@ class TestTaskMap:
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                return TestTaskMap.add_one.map(await some_numbers())
-            else:
-                return await TestTaskMap.add_one.map(await some_numbers())
+            return TestTaskMap.add_one.map(await some_numbers())
 
         task_states = await my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
@@ -3283,7 +3165,7 @@ class TestTaskMap:
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
     # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
         1/100th the value of their input, starting with the longest sleep first. If the tasks
@@ -3316,7 +3198,7 @@ class TestTaskMap:
         assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
     # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
         1/100th the value of their input, starting with the longest sleep first. If the tasks
@@ -3349,7 +3231,7 @@ class TestTaskMap:
         assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
     # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @fails_with_new_engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
         """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
         1/100th the value of their input, starting with the longest sleep first. If the tasks
@@ -3623,20 +3505,36 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected iterable for 'on_completion'; got function instead. Please"
                 " provide a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=completion_hook)
-            def flow1():
+            @task(on_completion=completion_hook)
+            def task1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
+    def test_decorated_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
 
-            @flow(on_completion=[])
-            def flow2():
-                pass
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_completion
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        @my_task.on_completion
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
     def test_noncallable_hook_raises(self):
         with pytest.raises(
@@ -3644,12 +3542,12 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
                 " a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=["test"])
-            def flow1():
+            @task(on_completion=["test"])
+            def task1():
                 pass
 
     def test_callable_noncallable_hook_raises(self):
@@ -3661,12 +3559,12 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
                 " a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=[completion_hook, "test"])
-            def flow2():
+            @task(on_completion=[completion_hook, "test"])
+            def task2():
                 pass
 
     def test_on_completion_hooks_run_on_completed(self):
@@ -3706,10 +3604,8 @@ class TestTaskHooksOnCompletion:
         @flow
         def my_flow():
             future = my_task.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
@@ -3785,13 +3681,6 @@ class TestTaskHooksOnFailure:
             def flow1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
-
-            @flow(on_failure=[])
-            def flow2():
-                pass
-
     def test_noncallable_hook_raises(self):
         with pytest.raises(
             TypeError,
@@ -3823,6 +3712,32 @@ class TestTaskHooksOnFailure:
             def flow2():
                 pass
 
+    def test_decorated_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        @task
+        def my_task():
+            raise Exception("oops")
+
+        @my_task.on_failure
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        @my_task.on_failure
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            future.wait()
+            return future.state
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -3839,10 +3754,8 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
@@ -3865,10 +3778,8 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state
-            return future.wait()
+            future.wait()
+            return future.state
 
         state = my_flow()
         assert state.type == StateType.COMPLETED
@@ -3893,10 +3804,8 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
@@ -3924,10 +3833,8 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
@@ -3947,10 +3854,8 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future.wait()
-                return future.state
-            return future.wait()
+            future.wait()
+            return future.state
 
         state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
@@ -4021,12 +3926,8 @@ class TestNestedTasks:
 
         @task
         async def outer_task():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = inner_task.submit()
-                return future.result()
-            else:
-                future = await inner_task.submit()
-                return await future.result()
+            future = inner_task.submit()
+            return future.result()
 
         @flow
         async def my_flow():
@@ -4060,21 +3961,13 @@ class TestNestedTasks:
 
         @task
         async def outer_task():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = inner_task.submit()
-                return future.result()
-            else:
-                future = await inner_task.submit()
-                return await future.result()
+            future = inner_task.submit()
+            return future.result()
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = outer_task.submit()
-                return future.result()
-            else:
-                future = await outer_task.submit()
-                return await future.result()
+            future = outer_task.submit()
+            return future.result()
 
         result = await my_flow()
         assert result == 42
@@ -4103,12 +3996,8 @@ class TestNestedTasks:
 
         @task
         async def outer_task(x):
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                futures = inner_task.map(x)
-                return sum([future.result() for future in futures])
-            else:
-                futures = await inner_task.map(x)
-                return sum([await future.result() for future in futures])
+            futures = inner_task.map(x)
+            return sum([future.result() for future in futures])
 
         @flow
         async def my_flow():
@@ -4142,23 +4031,14 @@ class TestNestedTasks:
 
         @task
         async def outer_task(x, y):
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                future = inner_task.submit(x)
-                return future.result() + y
-            else:
-                future = await inner_task.submit(x)
-                return await future.result() + y
+            future = inner_task.submit(x)
+            return future.result() + y
 
         @flow
         async def my_flow():
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-                f1 = inner_task.submit(2)
-                f2 = outer_task.submit(3, 4, wait_for=[f1])
-                return f2.result()
-            else:
-                f1 = await inner_task.submit(2)
-                f2 = await outer_task.submit(3, 4, wait_for=[f1])
-                return await f2.result()
+            f1 = inner_task.submit(2)
+            f2 = outer_task.submit(3, 4, wait_for=[f1])
+            return f2.result()
 
         assert await my_flow() == 10
 
@@ -4314,3 +4194,39 @@ class TestNestedTasks:
 
         result = await outer_task()
         assert result == 42
+
+
+class TestTransactions:
+    def test_rollback_hook_is_called_on_rollback(self):
+        data = {}
+
+        @task
+        def my_task():
+            raise RollBack()
+
+        @my_task.on_rollback
+        def rollback(txn):
+            data["called"] = True
+
+        state = my_task(return_state=True)
+
+        assert state.is_completed()
+        assert state.name == "RolledBack"
+        assert data["called"] is True
+
+    def test_commit_hook_is_called_on_commit(self):
+        data = {}
+
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_commit
+        def commit(txn):
+            data["txn"] = txn
+
+        state = my_task(return_state=True)
+
+        assert state.is_completed()
+        assert state.name == "Completed"
+        assert isinstance(data["txn"], Transaction)

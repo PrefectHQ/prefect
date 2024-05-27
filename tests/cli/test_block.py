@@ -11,6 +11,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 TEST_BLOCK_CODE = """\
 from prefect.blocks.core import Block
@@ -183,11 +184,12 @@ def test_listing_blocks_when_none_are_registered():
     )
 
 
-def test_listing_blocks_after_saving_a_block():
-    block_id = system.JSON(value="a casual test block").save("wildblock")
+async def test_listing_blocks_after_saving_a_block():
+    block_id = await system.JSON(value="a casual test block").save("wildblock")
 
-    invoke_and_assert(
-        ["block", "ls"],
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls"],
         expected_output_contains=f"""                           
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
             ┃ ID                                   ┃ Type ┃ Name      ┃ Slug           ┃
@@ -219,12 +221,13 @@ def test_listing_system_block_types(register_block_types):
     )
 
 
-def test_inspecting_a_block():
-    system.JSON(value="a simple json blob").save("jsonblob")
+async def test_inspecting_a_block():
+    await system.JSON(value="a simple json blob").save("jsonblob")
 
     expected_output = ("Block Type", "Block id", "value", "a simple json blob")
 
-    invoke_and_assert(
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
         ["block", "inspect", "json/jsonblob"],
         expected_code=0,
         expected_output_contains=expected_output,
@@ -239,15 +242,17 @@ def test_inspecting_a_block_malformed_slug():
     )
 
 
-def test_deleting_a_block():
-    system.JSON(value="don't delete me please").save("pleasedonterase")
+async def test_deleting_a_block():
+    await system.JSON(value="don't delete me please").save("pleasedonterase")
 
-    invoke_and_assert(
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
         ["block", "delete", "json/pleasedonterase"],
         expected_code=0,
     )
 
-    invoke_and_assert(
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
         ["block", "inspect", "json/pleasedonterase"],
         expected_code=1,
     )

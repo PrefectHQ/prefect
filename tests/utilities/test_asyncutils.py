@@ -1,7 +1,6 @@
 import asyncio
 import inspect
 import threading
-import time
 import uuid
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
@@ -10,6 +9,7 @@ from functools import partial, wraps
 import anyio
 import pytest
 
+from prefect._internal.concurrency.threads import get_run_sync_loop
 from prefect.context import ContextModel
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
@@ -27,8 +27,7 @@ from prefect.utilities.asyncutils import (
     is_async_gen_fn,
     run_async_from_worker_thread,
     run_async_in_new_loop,
-    run_sync,
-    run_sync_in_interruptible_worker_thread,
+    run_coro_as_sync,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -167,69 +166,6 @@ async def test_run_sync_in_worker_thread_does_not_hide_exceptions():
         await run_sync_in_worker_thread(foo)
 
 
-async def test_run_sync_in_interruptible_worker_thread():
-    def foo(x, y, z=3):
-        return x + y + z
-
-    assert await run_sync_in_interruptible_worker_thread(foo, 1, y=2) == 6
-
-
-async def test_run_sync_in_interruptible_worker_thread_does_not_hide_exceptions():
-    def foo():
-        raise ValueError("test")
-
-    with pytest.raises(ValueError, match="test"):
-        await run_sync_in_interruptible_worker_thread(foo)
-
-
-async def test_run_sync_in_interruptible_worker_thread_does_not_hide_base_exceptions():
-    class LikeKeyboardInterrupt(BaseException):
-        """Like a keyboard interrupt but not for real"""
-
-    def foo():
-        raise LikeKeyboardInterrupt("test")
-
-    with pytest.raises(LikeKeyboardInterrupt, match="test"):
-        await run_sync_in_interruptible_worker_thread(foo)
-
-
-async def test_run_sync_in_interruptible_worker_thread_function_can_return_exception():
-    def foo():
-        return ValueError("test")
-
-    result = await run_sync_in_interruptible_worker_thread(foo)
-
-    assert isinstance(result, ValueError)
-    assert result.args == ("test",)
-
-
-async def test_run_sync_in_interruptible_worker_thread_can_be_interrupted():
-    i = 0
-
-    def just_sleep():
-        nonlocal i
-        for i in range(100):  # Sleep for 10 seconds
-            time.sleep(0.1)
-
-    with pytest.raises(TimeoutError):
-        with anyio.fail_after(1):
-            t0 = time.perf_counter()
-            await run_sync_in_interruptible_worker_thread(just_sleep)
-
-    t1 = time.perf_counter()
-    runtime = t1 - t0
-    assert runtime < 2, "The call should be return quickly after timeout"
-
-    # Sleep for an extra second to check if the thread is still running. We cannot
-    # check `thread.is_alive()` because it is still alive — presumably this is because
-    # AnyIO is using long-lived worker threads instead of creating a new thread per
-    # task. Without a check like this, the thread can be running after timeout in the
-    # background and we will not know — the next test will start.
-    await anyio.sleep(1)
-
-    assert i <= 10, "`just_sleep` should not be running after timeout"
-
-
 async def test_run_async_from_worker_thread():
     async def foo(x, y, z=3):
         return x + y + z
@@ -274,6 +210,9 @@ SYNC_COMPAT_TEST_CASES = [
 ]
 
 
+@pytest.mark.skip(
+    reason="Not supported with new engine",
+)
 @pytest.mark.parametrize("fn", SYNC_COMPAT_TEST_CASES)
 def test_sync_compatible_call_from_sync(fn):
     assert fn(1, y=2) == 6
@@ -322,6 +261,9 @@ async def test_sync_compatible_call_with_taskgroup():
     assert results == [3, 3]
 
 
+@pytest.mark.skip(
+    reason="Not supported with new engine",
+)
 @pytest.mark.parametrize("fn", SYNC_COMPAT_TEST_CASES)
 async def test_sync_compatible_call_from_worker(fn):
     def run_fn():
@@ -469,53 +411,53 @@ async def test_lazy_semaphore_initialization():
     assert lazy_semaphore._semaphore._value == initial_value
 
 
-class TestRunSync:
-    def test_run_sync(self):
+class TestRunCoroAsSync:
+    def test_run_coro_as_sync(self):
         async def foo():
             return 42
 
-        assert run_sync(foo()) == 42
+        assert run_coro_as_sync(foo()) == 42
 
-    def test_run_sync_error(self):
+    def test_run_coro_as_sync_error(self):
         async def foo():
             raise ValueError("test-42")
 
         with pytest.raises(ValueError, match="test-42"):
-            run_sync(foo())
+            run_coro_as_sync(foo())
 
     def test_nested_run_sync(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
-        assert run_sync(bar()) == 42
+        assert run_coro_as_sync(bar()) == 42
 
-    def test_run_sync_in_async(self):
+    def test_run_coro_as_sync_in_async(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         assert asyncio.run(bar()) == 42
 
-    async def test_run_sync_in_async_with_await(self):
+    async def test_run_coro_as_sync_in_async_with_await(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         await bar() == 42
 
-    def test_run_sync_in_async_error(self):
+    def test_run_coro_as_sync_in_async_error(self):
         async def foo():
             raise ValueError("test-42")
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         with pytest.raises(ValueError, match="test-42"):
             asyncio.run(bar())
@@ -535,8 +477,95 @@ class TestRunSync:
 
         async def parent():
             with MyVar(x=42):
-                return run_sync(load_var())
+                return run_coro_as_sync(load_var())
 
         # this has to be run via asyncio.run because
         # otherwise the context is maintained automatically
         assert asyncio.run(parent()) == 42
+
+    def test_context_carries_to_nested_async_frame(self):
+        """
+        Ensures that ContextVars set in a parent scope of `run_sync` are automatically
+        carried over to the async frame.
+        """
+
+        class MyVar(ContextModel):
+            __var__ = ContextVar("my_var")
+            x: int = 1
+
+        async def load_var():
+            return MyVar.get().x
+
+        async def intermediate():
+            val1 = run_coro_as_sync(load_var())
+            with MyVar(x=99):
+                val2 = run_coro_as_sync(load_var())
+            return val1, val2
+
+        async def parent():
+            with MyVar(x=42):
+                return run_coro_as_sync(intermediate())
+
+        # this has to be run via asyncio.run because
+        # otherwise the context is maintained automatically
+        assert asyncio.run(parent()) == (42, 99)
+
+    def test_run_coro_as_sync_runs_in_run_sync_thread(self):
+        """
+        run_coro_as_sync should always submit coros to the same run_sync loop thread
+        """
+        run_sync_loop = get_run_sync_loop()
+
+        async def foo():
+            return (threading.current_thread(), asyncio.get_running_loop())
+
+        assert run_coro_as_sync(foo()) == (run_sync_loop.thread, run_sync_loop._loop)
+
+    def test_nested_run_coro_as_sync_does_not_run_in_run_sync_thread(self):
+        """
+        nested run_coro_as_sync calls should not run in the run_sync loop thread because it would deadlock,
+        so they make a new thread / loop
+        """
+        run_sync_loop = get_run_sync_loop()
+
+        async def bar():
+            return dict(bar=[threading.current_thread(), asyncio.get_running_loop()])
+
+        async def foo():
+            result = run_coro_as_sync(bar())
+            result["foo"] = (threading.current_thread(), asyncio.get_running_loop())
+            return result
+
+        result = run_coro_as_sync(foo())
+        assert result["bar"][0] != run_sync_loop.thread
+        assert result["bar"][1] != run_sync_loop._loop
+        assert result["foo"][0] == run_sync_loop.thread
+        assert result["foo"][1] == run_sync_loop._loop
+
+    def test_twice_nested_run_coro_as_sync_does_not_run_in_run_sync_thread(self):
+        """
+        Ensure that creating new threads/loops isn't based on the parent call, but is inherited by
+        all nested calls
+        """
+        run_sync_loop = get_run_sync_loop()
+
+        async def baz():
+            return dict(baz=[threading.current_thread(), asyncio.get_running_loop()])
+
+        async def bar():
+            result = run_coro_as_sync(baz())
+            result["bar"] = (threading.current_thread(), asyncio.get_running_loop())
+            return result
+
+        async def foo():
+            result = run_coro_as_sync(bar())
+            result["foo"] = (threading.current_thread(), asyncio.get_running_loop())
+            return result
+
+        result = run_coro_as_sync(foo())
+        assert result["baz"][0] != run_sync_loop.thread
+        assert result["baz"][1] != run_sync_loop._loop
+        assert result["bar"][0] != run_sync_loop.thread
+        assert result["bar"][1] != run_sync_loop._loop
+        assert result["foo"][0] == run_sync_loop.thread
+        assert result["foo"][1] == run_sync_loop._loop

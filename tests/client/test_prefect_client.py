@@ -279,12 +279,20 @@ def make_lifespan(startup, shutdown) -> callable:
 
 
 class TestClientContextManager:
-    async def test_client_context_cannot_be_reentered(self):
+    async def test_client_context_can_be_reentered(self):
         client = PrefectClient("http://foo.test")
-        async with client:
-            with pytest.raises(RuntimeError, match="cannot be started more than once"):
-                async with client:
-                    pass
+        client._exit_stack.__aenter__ = AsyncMock()
+        client._exit_stack.__aexit__ = AsyncMock()
+
+        assert client._exit_stack.__aenter__.call_count == 0
+        assert client._exit_stack.__aexit__.call_count == 0
+        async with client as c1:
+            async with client as c2:
+                assert c1 is c2
+
+        # despite entering the context twice, we only ran its major logic once
+        assert client._exit_stack.__aenter__.call_count == 1
+        assert client._exit_stack.__aexit__.call_count == 1
 
     async def test_client_context_cannot_be_reused(self):
         client = PrefectClient("http://foo.test")
@@ -1989,6 +1997,33 @@ class TestVariables:
             assert res.status_code == 201
             results.append(res.json())
         return pydantic.parse_obj_as(List[Variable], results)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "string-value",
+            '"string-value"',
+            123,
+            12.3,
+            True,
+            False,
+            None,
+            {"key": "value"},
+            ["value1", "value2"],
+            {"key": ["value1", "value2"]},
+        ],
+    )
+    async def test_create_variable(self, prefect_client, value):
+        created_variable = await prefect_client.create_variable(
+            variable=VariableCreate(name="my_variable", value=value)
+        )
+        assert created_variable
+        assert created_variable.name == "my_variable"
+        assert created_variable.value == value
+
+        res = await prefect_client.read_variable_by_name(created_variable.name)
+        assert res.name == created_variable.name
+        assert res.value == value
 
     async def test_read_variable_by_name(self, prefect_client, variable):
         res = await prefect_client.read_variable_by_name(variable.name)

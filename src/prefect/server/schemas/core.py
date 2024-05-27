@@ -7,8 +7,18 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import BaseModel, Field, HttpUrl, root_validator, validator
-from typing_extensions import Literal, Self
+from pydantic.v1 import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    root_validator,
+    validator,
+)
+from typing_extensions import Literal, Self, TypeAlias
 
 import prefect.server.database
 from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
@@ -1196,6 +1206,16 @@ class ArtifactCollection(ORMBaseModel):
     )
 
 
+# strict typing to use inside a pydantic object, to avoid
+# casting values to undesired types (e.g. 123 -> "123")
+STRICT_VARIABLE_TYPES: TypeAlias = Union[
+    StrictStr, StrictInt, StrictFloat, StrictBool, None, Dict[str, Any], List[Any]
+]
+VARIABLE_TYPES: TypeAlias = Union[
+    str, int, float, bool, None, Dict[str, Any], List[Any]
+]
+
+
 class Variable(ORMBaseModel):
     name: str = Field(
         default=...,
@@ -1203,11 +1223,10 @@ class Variable(ORMBaseModel):
         examples=["my-variable"],
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: STRICT_VARIABLE_TYPES = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: List[str] = Field(
         default_factory=list,

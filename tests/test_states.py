@@ -20,25 +20,11 @@ from prefect.states import (
     Running,
     State,
     StateGroup,
-    is_state,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
 )
 from prefect.utilities.annotations import quote
-
-
-def test_is_state():
-    assert is_state(Completed())
-
-
-def test_is_not_state():
-    assert not is_state(None)
-    assert not is_state("test")
-
-
-def test_is_state_requires_instance():
-    assert not is_state(Completed)
 
 
 @pytest.mark.parametrize("iterable_type", [set, list, tuple])
@@ -59,7 +45,12 @@ def test_is_not_state_iterable_if_empty(iterable_type):
 class TestRaiseStateException:
     def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            raise_state_exception(state_cls(data=ValueError("Test")))
+
+            @flow
+            def test_flow():
+                raise_state_exception(state_cls(data=ValueError("Test")))
+
+            test_flow()
 
     async def test_raises_state_exception(self, state_cls):
         with pytest.raises(ValueError, match="Test"):

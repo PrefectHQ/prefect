@@ -147,6 +147,9 @@ async def test_resolves_futures_in_nested_collections(task_run):
     ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})
 
 
+@pytest.mark.skip(
+    reason="Not supported with new engine",
+)
 def test_raise_warning_futures_in_condition():
     @task
     def a_task():
