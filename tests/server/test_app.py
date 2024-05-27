@@ -37,14 +37,12 @@ def test_app_exposes_ui_settings():
     assert flags == {
         "artifacts",
         "workers",
-        "work_pools",
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "new_engine",
     }
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),
@@ -63,7 +61,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     flags = set(json.pop("flags"))
     assert flags == {
         "test",
-        "work_pools",
         "workers",
         "artifacts",
         "workspace_dashboard",
@@ -72,7 +69,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
         "work_queue_status",
         "artifacts_on_flow_run_graph",
         "states_on_flow_run_graph",
-        "new_engine",
     }
     assert json == {
         "api_url": PREFECT_UI_API_URL.value(),

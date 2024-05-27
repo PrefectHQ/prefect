@@ -72,14 +72,13 @@ from prefect.runner.storage import (
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.task_runners import BaseTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -270,11 +269,7 @@ class Flow(Generic[P, R]):
                 )
         self.flow_run_name = flow_run_name
 
-        default_task_runner = (
-            ThreadPoolTaskRunner()
-            if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE
-            else ConcurrentTaskRunner()
-        )
+        default_task_runner = ThreadPoolTaskRunner()
         task_runner = task_runner or default_task_runner
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
@@ -1215,7 +1210,6 @@ class Flow(Generic[P, R]):
             >>> with tags("db", "blue"):
             >>>     my_flow("foo")
         """
-        from prefect.engine import enter_flow_run_engine_from_flow_call
         from prefect.utilities.visualization import (
             get_task_viz_tracker,
             track_viz_task,
@@ -1232,27 +1226,19 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value():
-            from prefect.new_flow_engine import run_flow, run_flow_sync
+        from prefect.new_flow_engine import run_flow, run_flow_sync
 
-            run_kwargs = dict(
-                flow=self,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type=return_type,
-            )
-            if self.isasync:
-                # this returns an awaitable coroutine
-                return run_flow(**run_kwargs)
-            else:
-                return run_flow_sync(**run_kwargs)
-
-        return enter_flow_run_engine_from_flow_call(
-            self,
-            parameters,
+        run_kwargs = dict(
+            flow=self,
+            parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
         )
+        if self.isasync:
+            # this returns an awaitable coroutine
+            return run_flow(**run_kwargs)
+        else:
+            return run_flow_sync(**run_kwargs)
 
     @sync_compatible
     async def visualize(self, *args, **kwargs):

@@ -160,7 +160,7 @@ async def test_background_task_state_changes(
     def foo():
         pass
 
-    task_run = foo.submit()
+    task_run = foo.apply_async()
 
     await TaskServer(foo).execute_task_run(task_run)
 
