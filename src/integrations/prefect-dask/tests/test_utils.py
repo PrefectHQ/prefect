@@ -70,8 +70,8 @@ class TestDaskAsyncClient:
 
         @flow(task_runner=DaskTaskRunner)
         async def test_flow():
-            future = await test_task.submit()
-            return await future.result()
+            future = test_task.submit()
+            return future.result()
 
         assert (await test_flow()) == 42
 
@@ -83,7 +83,7 @@ class TestDaskAsyncClient:
 
         @flow(task_runner=DaskTaskRunner)
         def test_flow():
-            test_task.submit()
+            return test_task.submit()
 
         if sys.version_info < (3, 11):
             with pytest.raises(AttributeError, match="__enter__"):
