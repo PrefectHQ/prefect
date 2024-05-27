@@ -41,6 +41,7 @@ from prefect.exceptions import (
     RollBack,
     UpstreamTaskError,
 )
+from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
 from prefect.records import Record
@@ -516,6 +517,10 @@ class TaskRunEngine(Generic[P, R]):
                         else logging.ERROR,
                         msg=f"Finished in state {display_state}",
                     )
+
+                    # flush all logs if this is not a "top" level run
+                    if not (FlowRunContext.get() or TaskRunContext.get()):
+                        run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
 
                     self._is_started = False
                     self._client = None
