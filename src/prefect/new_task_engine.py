@@ -17,7 +17,6 @@ from typing import (
     Set,
     TypeVar,
     Union,
-    cast,
 )
 from uuid import UUID
 
@@ -524,9 +523,9 @@ class TaskRunEngine(Generic[P, R]):
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
                     self.logger.log(
-                        level=logging.INFO
-                        if self.state.is_completed()
-                        else logging.ERROR,
+                        level=(
+                            logging.INFO if self.state.is_completed() else logging.ERROR
+                        ),
                         msg=f"Finished in state {display_state}",
                     )
 
@@ -585,7 +584,7 @@ def run_task_sync(
                                 if txn.committed:
                                     result = txn.read()
                                 else:
-                                    result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
+                                    result = task.fn(*call_args, **call_kwargs)  # type: ignore
 
                                 # If the task run is successful, finalize it.
                                 # do this within the transaction lifecycle
@@ -661,9 +660,7 @@ async def run_task_async(
                                 if txn.committed:
                                     result = txn.read()
                                 else:
-                                    result = cast(
-                                        R, await task.fn(*call_args, **call_kwargs)
-                                    )  # type: ignore
+                                    result = await task.fn(*call_args, **call_kwargs)  # type: ignore
 
                                 # If the task run is successful, finalize it.
                                 # do this within the transaction lifecycle
