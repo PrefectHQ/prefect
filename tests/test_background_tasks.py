@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, AsyncGenerator, Iterable, Tuple
 from unittest import mock
 
 import pytest
+from exceptiongroup import ExceptionGroup, catch
 
 import prefect.results
 from prefect import Task, task, unmapped
@@ -271,7 +272,13 @@ async def test_stuck_pending_tasks_are_reenqueued(
 
     # now we simulate a stuck task by having the TaskServer try to run it but fail
     server = TaskServer(foo_task_with_result_storage)
-    with pytest.raises(ValueError):
+
+    def assert_exception(exc_group: ExceptionGroup):
+        assert len(exc_group.exceptions) == 1
+        assert isinstance(exc_group.exceptions[0], ValueError)
+        assert "woops" in str(exc_group.exceptions[0])
+
+    with catch({ValueError: assert_exception}):
         with mock.patch(
             "prefect.task_server.submit_autonomous_task_run_to_engine",
             side_effect=ValueError("woops"),

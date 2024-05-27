@@ -122,10 +122,10 @@ class HistoryResponseState(PrefectBaseModel):
 class HistoryResponse(PrefectBaseModel):
     """Represents a history of aggregation states over an interval"""
 
-    interval_start: datetime.datetime = Field(
+    interval_start: DateTime = Field(
         default=..., description="The start date of the interval."
     )
-    interval_end: datetime.datetime = Field(
+    interval_end: DateTime = Field(
         default=..., description="The end date of the interval."
     )
     states: List[HistoryResponseState] = Field(

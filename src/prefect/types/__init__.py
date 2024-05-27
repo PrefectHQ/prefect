@@ -136,4 +136,5 @@ __all__ = [
     "NameOrEmpty",
     "NonEmptyishName",
     "SecretDict",
+    "StrictVariableValue",
 ]
