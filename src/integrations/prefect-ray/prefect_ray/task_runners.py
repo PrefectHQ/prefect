@@ -86,7 +86,7 @@ from prefect.new_task_engine import run_task_async, run_task_sync
 from prefect.new_task_runners import TaskRunner
 from prefect.states import State, exception_to_crashed_state
 from prefect.tasks import Task
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
 from prefect_ray.context import RemoteOptionsContext
 
@@ -98,7 +98,7 @@ class PrefectRayFuture(PrefectFuture[ray.ObjectRef]):
         except GetTimeoutError:
             return
         except Exception as exc:
-            result = run_sync(exception_to_crashed_state(exc))
+            result = run_coro_as_sync(exception_to_crashed_state(exc))
         if isinstance(result, State):
             self._final_state = result
 
@@ -126,7 +126,7 @@ class PrefectRayFuture(PrefectFuture[ray.ObjectRef]):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if inspect.isawaitable(_result):
-            _result = run_sync(_result)
+            _result = run_coro_as_sync(_result)
         return _result
 
 
