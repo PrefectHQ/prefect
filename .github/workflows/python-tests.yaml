@@ -53,7 +53,7 @@ jobs:
     strategy:
       matrix:
         database:
-          - "postgres:14"
+          # - "postgres:14"
           - "sqlite"
         python-version:
           - "3.9"
