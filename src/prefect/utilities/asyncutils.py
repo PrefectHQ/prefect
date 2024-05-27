@@ -4,6 +4,7 @@ Utilities for interoperability with async functions and workers from various con
 
 import asyncio
 import inspect
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -49,6 +50,8 @@ PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
 RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=False)
 RUNNING_ASYNC_FLAG = ContextVar("run_async", default=False)
+BACKGROUND_TASKS: set[asyncio.Task] = set()
+background_task_lock = threading.Lock()
 
 logger = get_logger()
 
@@ -86,18 +89,47 @@ def is_async_gen_fn(func):
     return inspect.isasyncgenfunction(func)
 
 
+def create_task(coroutine: Coroutine) -> asyncio.Task:
+    """
+    Replacement for asyncio.create_task that will ensure that tasks aren't
+    garbage collected before they complete. Allows for "fire and forget"
+    behavior in which tasks can be created and the application can move on.
+    Tasks can also be awaited normally.
+
+    See https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+    for details (and essentially this implementation)
+    """
+
+    task = asyncio.create_task(coroutine)
+
+    # Add task to the set. This creates a strong reference.
+    # Take a lock because this might be done from multiple threads.
+    with background_task_lock:
+        BACKGROUND_TASKS.add(task)
+
+    # To prevent keeping references to finished tasks forever,
+    # make each task remove its own reference from the set after
+    # completion:
+    task.add_done_callback(BACKGROUND_TASKS.discard)
+
+    return task
+
+
 def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     """
-    Note: this is an OLD implementation of `run_as_sync` which liberally created
+    Note: this is an OLD implementation of `run_coro_as_sync` which liberally created
     new threads and new loops. This works, but prevents sharing any objects
     across coroutines, in particular httpx clients, which are very expensive to
     instantiate.
 
+    This is here for historical purposes and can be removed if/when it is no
+    longer needed for reference.
 
-    Runs a coroutine from a synchronous context. A thread will be spawned
-    to run the event loop if necessary, which allows coroutines to run in
-    environments like Jupyter notebooks where the event loop runs on the main
-    thread.
+    ---
+
+    Runs a coroutine from a synchronous context. A thread will be spawned to run
+    the event loop if necessary, which allows coroutines to run in environments
+    like Jupyter notebooks where the event loop runs on the main thread.
 
     Args:
         coroutine: The coroutine to run.
@@ -106,13 +138,10 @@ def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
         The return value of the coroutine.
 
     Example:
-        Basic usage:
-        ```python
-        async def my_async_function(x: int) -> int:
+        Basic usage: ```python async def my_async_function(x: int) -> int:
             return x + 1
 
-        run_sync(my_async_function(1))
-        ```
+        run_sync(my_async_function(1)) ```
     """
 
     # ensure context variables are properly copied to the async frame
@@ -143,7 +172,11 @@ def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
     return result
 
 
-def run_coro_as_sync(coroutine: Awaitable, force_new_thread: bool = False):
+def run_coro_as_sync(
+    coroutine: Awaitable,
+    force_new_thread: bool = False,
+    wait_for_result: bool = True,
+) -> Optional[Any]:
     """
     Runs a coroutine from a synchronous context, as if it were a synchronous
     function.
@@ -158,7 +191,16 @@ def run_coro_as_sync(coroutine: Awaitable, force_new_thread: bool = False):
     that this behavior should not appear anywhere in the Prefect codebase or in
     user code.
 
-    if force_new_thread=True, the coroutine will always be run in a new thread.
+    Args:
+        coroutine (Awaitable): The coroutine to be run as a synchronous function.
+        force_new_thread (bool, optional): If True, the coroutine will always be run in a new thread.
+            Defaults to False.
+        wait_for_result (bool, optional): If True, the function will wait for the coroutine to complete
+            and return the result. If False, the function will submit the coroutine to the "run sync"
+            event loop and return immediately, where it will eventually be run. Defaults to True.
+
+    Returns:
+        The result of the coroutine if wait_for_result is True, otherwise None.
     """
 
     async def coroutine_wrapper():
@@ -170,12 +212,13 @@ def run_coro_as_sync(coroutine: Awaitable, force_new_thread: bool = False):
         token1 = RUNNING_IN_RUN_SYNC_LOOP_FLAG.set(True)
         token2 = RUNNING_ASYNC_FLAG.set(True)
         try:
-            # use `create_task` because it copies context variables automatically
-            result = await asyncio.create_task(coroutine)
+            # use `asyncio.create_task` because it copies context variables automatically
+            task = create_task(coroutine)
+            if wait_for_result:
+                return await task
         finally:
             RUNNING_IN_RUN_SYNC_LOOP_FLAG.reset(token1)
             RUNNING_ASYNC_FLAG.reset(token2)
-        return result
 
     # if we are already in the run_sync loop, or a descendent of a coroutine
     # that is running in the run_sync loop, we need to run this coroutine in a
@@ -245,9 +288,7 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(
-    async_fn: T, force_sync: bool = False, force_new_thread: bool = False
-) -> T:
+def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
     Converts an async function into a dual async and sync function.
 
@@ -295,11 +336,11 @@ def sync_compatible(
             return result
 
         if force_sync:
-            return run_coro_as_sync(ctx_call(), force_new_thread=force_new_thread)
+            return run_coro_as_sync(ctx_call())
         elif RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
-            return run_coro_as_sync(ctx_call(), force_new_thread=force_new_thread)
+            return run_coro_as_sync(ctx_call())
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.

@@ -30,9 +30,10 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import ClientContext, FlowRunContext, TagsContext
+from prefect.context import ClientContext, FlowRunContext, TagsContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
+from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
@@ -548,6 +549,10 @@ class FlowRunEngine(Generic[P, R]):
                     level=logging.INFO if self.state.is_completed() else logging.ERROR,
                     msg=f"Finished in state {display_state}",
                 )
+
+                # flush any logs in the background if this is a "top" level run
+                if not (FlowRunContext.get() or TaskRunContext.get()):
+                    run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
 
                 self._is_started = False
                 self._client = None
