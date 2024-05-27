@@ -23,6 +23,7 @@ from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
     ReservedArgumentError,
+    RollBack,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.new_futures import PrefectFuture as NewPrefectFuture
@@ -38,8 +39,9 @@ from prefect.states import State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
+from prefect.transactions import Transaction
 from prefect.utilities.annotations import allow_failure, unmapped
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
 
@@ -1661,7 +1663,7 @@ class TestTaskInputs:
             # result retrieval to be sync.
             result = upstream_state.result()
             if inspect.isawaitable(result):
-                result = run_sync(result)
+                result = run_coro_as_sync(result)
             downstream_state = downstream(result, return_state=True)
             return upstream_state, downstream_state
 
@@ -4192,3 +4194,39 @@ class TestNestedTasks:
 
         result = await outer_task()
         assert result == 42
+
+
+class TestTransactions:
+    def test_rollback_hook_is_called_on_rollback(self):
+        data = {}
+
+        @task
+        def my_task():
+            raise RollBack()
+
+        @my_task.on_rollback
+        def rollback(txn):
+            data["called"] = True
+
+        state = my_task(return_state=True)
+
+        assert state.is_completed()
+        assert state.name == "RolledBack"
+        assert data["called"] is True
+
+    def test_commit_hook_is_called_on_commit(self):
+        data = {}
+
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_commit
+        def commit(txn):
+            data["txn"] = txn
+
+        state = my_task(return_state=True)
+
+        assert state.is_completed()
+        assert state.name == "Completed"
+        assert isinstance(data["txn"], Transaction)

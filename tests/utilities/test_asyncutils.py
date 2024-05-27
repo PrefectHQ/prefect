@@ -9,6 +9,7 @@ from functools import partial, wraps
 import anyio
 import pytest
 
+from prefect._internal.concurrency.threads import get_run_sync_loop
 from prefect.context import ContextModel
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
@@ -26,7 +27,7 @@ from prefect.utilities.asyncutils import (
     is_async_gen_fn,
     run_async_from_worker_thread,
     run_async_in_new_loop,
-    run_sync,
+    run_coro_as_sync,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -410,53 +411,53 @@ async def test_lazy_semaphore_initialization():
     assert lazy_semaphore._semaphore._value == initial_value
 
 
-class TestRunSync:
-    def test_run_sync(self):
+class TestRunCoroAsSync:
+    def test_run_coro_as_sync(self):
         async def foo():
             return 42
 
-        assert run_sync(foo()) == 42
+        assert run_coro_as_sync(foo()) == 42
 
-    def test_run_sync_error(self):
+    def test_run_coro_as_sync_error(self):
         async def foo():
             raise ValueError("test-42")
 
         with pytest.raises(ValueError, match="test-42"):
-            run_sync(foo())
+            run_coro_as_sync(foo())
 
     def test_nested_run_sync(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
-        assert run_sync(bar()) == 42
+        assert run_coro_as_sync(bar()) == 42
 
-    def test_run_sync_in_async(self):
+    def test_run_coro_as_sync_in_async(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         assert asyncio.run(bar()) == 42
 
-    async def test_run_sync_in_async_with_await(self):
+    async def test_run_coro_as_sync_in_async_with_await(self):
         async def foo():
             return 42
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         await bar() == 42
 
-    def test_run_sync_in_async_error(self):
+    def test_run_coro_as_sync_in_async_error(self):
         async def foo():
             raise ValueError("test-42")
 
         async def bar():
-            return run_sync(foo())
+            return run_coro_as_sync(foo())
 
         with pytest.raises(ValueError, match="test-42"):
             asyncio.run(bar())
@@ -476,8 +477,95 @@ class TestRunSync:
 
         async def parent():
             with MyVar(x=42):
-                return run_sync(load_var())
+                return run_coro_as_sync(load_var())
 
         # this has to be run via asyncio.run because
         # otherwise the context is maintained automatically
         assert asyncio.run(parent()) == 42
+
+    def test_context_carries_to_nested_async_frame(self):
+        """
+        Ensures that ContextVars set in a parent scope of `run_sync` are automatically
+        carried over to the async frame.
+        """
+
+        class MyVar(ContextModel):
+            __var__ = ContextVar("my_var")
+            x: int = 1
+
+        async def load_var():
+            return MyVar.get().x
+
+        async def intermediate():
+            val1 = run_coro_as_sync(load_var())
+            with MyVar(x=99):
+                val2 = run_coro_as_sync(load_var())
+            return val1, val2
+
+        async def parent():
+            with MyVar(x=42):
+                return run_coro_as_sync(intermediate())
+
+        # this has to be run via asyncio.run because
+        # otherwise the context is maintained automatically
+        assert asyncio.run(parent()) == (42, 99)
+
+    def test_run_coro_as_sync_runs_in_run_sync_thread(self):
+        """
+        run_coro_as_sync should always submit coros to the same run_sync loop thread
+        """
+        run_sync_loop = get_run_sync_loop()
+
+        async def foo():
+            return (threading.current_thread(), asyncio.get_running_loop())
+
+        assert run_coro_as_sync(foo()) == (run_sync_loop.thread, run_sync_loop._loop)
+
+    def test_nested_run_coro_as_sync_does_not_run_in_run_sync_thread(self):
+        """
+        nested run_coro_as_sync calls should not run in the run_sync loop thread because it would deadlock,
+        so they make a new thread / loop
+        """
+        run_sync_loop = get_run_sync_loop()
+
+        async def bar():
+            return dict(bar=[threading.current_thread(), asyncio.get_running_loop()])
+
+        async def foo():
+            result = run_coro_as_sync(bar())
+            result["foo"] = (threading.current_thread(), asyncio.get_running_loop())
+            return result
+
+        result = run_coro_as_sync(foo())
+        assert result["bar"][0] != run_sync_loop.thread
+        assert result["bar"][1] != run_sync_loop._loop
+        assert result["foo"][0] == run_sync_loop.thread
+        assert result["foo"][1] == run_sync_loop._loop
+
+    def test_twice_nested_run_coro_as_sync_does_not_run_in_run_sync_thread(self):
+        """
+        Ensure that creating new threads/loops isn't based on the parent call, but is inherited by
+        all nested calls
+        """
+        run_sync_loop = get_run_sync_loop()
+
+        async def baz():
+            return dict(baz=[threading.current_thread(), asyncio.get_running_loop()])
+
+        async def bar():
+            result = run_coro_as_sync(baz())
+            result["bar"] = (threading.current_thread(), asyncio.get_running_loop())
+            return result
+
+        async def foo():
+            result = run_coro_as_sync(bar())
+            result["foo"] = (threading.current_thread(), asyncio.get_running_loop())
+            return result
+
+        result = run_coro_as_sync(foo())
+        assert result["baz"][0] != run_sync_loop.thread
+        assert result["baz"][1] != run_sync_loop._loop
+        assert result["bar"][0] != run_sync_loop.thread
+        assert result["bar"][1] != run_sync_loop._loop
+        assert result["foo"][0] == run_sync_loop.thread
+        assert result["foo"][1] == run_sync_loop._loop
