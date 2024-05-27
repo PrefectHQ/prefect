@@ -133,7 +133,8 @@ async def pause_flow_run(
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
-) -> None: ...
+) -> None:
+    ...
 
 
 @overload
@@ -144,7 +145,8 @@ async def pause_flow_run(
     poll_interval: int = 10,
     reschedule: bool = False,
     key: str = None,
-) -> T: ...
+) -> T:
+    ...
 
 
 @sync_compatible
@@ -367,7 +369,8 @@ async def suspend_flow_run(
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
-) -> None: ...
+) -> None:
+    ...
 
 
 @overload
@@ -377,7 +380,8 @@ async def suspend_flow_run(
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
     client: PrefectClient = None,
-) -> T: ...
+) -> T:
+    ...
 
 
 @sync_compatible
