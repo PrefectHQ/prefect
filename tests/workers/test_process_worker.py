@@ -11,6 +11,7 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
+from exceptiongroup import ExceptionGroup, catch
 from pydantic import BaseModel
 from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -343,7 +344,15 @@ async def test_process_created_then_marked_as_started(
     patch_client(monkeypatch)
     fake_configuration = MagicMock()
     fake_configuration.command = "echo hello"
-    with pytest.raises(RuntimeError, match="Started called!"):
+
+    def handle_exception_group(excgrp: ExceptionGroup):
+        assert len(excgrp.exceptions) == 1
+        assert isinstance(excgrp.exceptions[0], RuntimeError)
+        assert str(excgrp.exceptions[0]) == "Started called!"
+
+    with catch(  # should be superseded by `ExceptionGroup` once we're 3.11+
+        {RuntimeError: handle_exception_group}  # type: ignore
+    ):  # see https://github.com/agronholm/anyio/blob/master/docs/migration.rst#task-groups-now-wrap-single-exceptions-in-groups # noqa F821
         async with ProcessWorker(
             work_pool_name=work_pool.name,
         ) as worker:
