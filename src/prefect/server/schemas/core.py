@@ -581,7 +581,7 @@ class Deployment(ORMBaseModel):
         description="The last time the deployment was polled for status updates.",
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
-        default=None,
+        default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
     )
     path: Optional[str] = Field(
