@@ -38,7 +38,7 @@ Flow run, task run, and artifact metadata is retained according your Prefect Clo
 The retention period applies to all workspaces belonging to the account.
 
 The retention period is the number of days that metadata is available after it is created. 
-For flow and task runs, it is calculated from the time the run reaches a [terminal state](/concepts/states/#state-types)). 
+For flow and task runs, it is calculated from the time the run reaches a [terminal state](/concepts/states/#state-types). 
 Subflow runs are reatined independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state.
 
 If you have needs that require a custom retention period, [contact Prefect's Sales team](https://www.prefect.io/pricing).
