@@ -36,9 +36,10 @@ async def test_client_param_required(client: AsyncClient):
     assert response.json() == {
         "exception_detail": [
             {
+                "input": None,
                 "loc": ["query", "client"],
-                "msg": "field required",
-                "type": "value_error.missing",
+                "msg": "Field required",
+                "type": "missing",
             }
         ],
         "exception_message": "Invalid request received.",

@@ -466,8 +466,7 @@ async def update_block_document(
     if not current_block_document:
         return False
 
-    update_values = block_document.dict(
-        shallow=True,
+    update_values = block_document.model_dump_for_orm(
         exclude_unset=merge_existing_data,
         exclude={"merge_existing_data"},
     )
@@ -615,8 +614,8 @@ async def create_block_document_reference(
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
 ):
     insert_stmt = db.insert(orm_models.BlockDocumentReference).values(
-        **block_document_reference.dict(
-            shallow=True, exclude_unset=True, exclude={"created", "updated"}
+        **block_document_reference.model_dump_for_orm(
+            exclude_unset=True, exclude={"created", "updated"}
         )
     )
     await session.execute(insert_stmt)

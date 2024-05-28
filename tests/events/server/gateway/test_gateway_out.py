@@ -3,13 +3,13 @@ from typing import Any, AsyncGenerator, AsyncIterable, List, Tuple
 
 import pendulum
 import pytest
-from prefect._vendor.starlette.status import (
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.status import (
     WS_1002_PROTOCOL_ERROR,
     WS_1008_POLICY_VIOLATION,
 )
-from prefect._vendor.starlette.testclient import TestClient
-from prefect._vendor.starlette.websockets import WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from prefect.server.events.filters import (
     EventFilter,
@@ -102,7 +102,7 @@ def test_streaming_requires_authentication(
             # will disconnect the websocket.
             message = {
                 "type": "filter",
-                "filter": default_liberal_filter.dict(json_compatible=True),
+                "filter": default_liberal_filter.model_dump(mode="json"),
             }
             websocket.send_json(message)
             websocket.receive_json()
@@ -138,7 +138,7 @@ async def test_streaming_requires_a_filter(
 
             filter_message = {
                 "type": "what?",
-                "filter": default_liberal_filter.dict(json_compatible=True),
+                "filter": default_liberal_filter.model_dump(mode="json"),
             }
             websocket.send_json(filter_message)
 
@@ -208,18 +208,18 @@ async def test_user_may_decline_a_backfill(
 
         filter_message = {
             "type": "filter",
-            "filter": default_liberal_filter.dict(json_compatible=True),
+            "filter": default_liberal_filter.model_dump(mode="json"),
             "backfill": False,
         }
         websocket.send_json(filter_message)
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event1
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event1
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event2
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event2
 
 
 async def test_user_may_explicitly_request_a_backfill(
@@ -248,23 +248,23 @@ async def test_user_may_explicitly_request_a_backfill(
 
         filter_message = {
             "type": "filter",
-            "filter": default_liberal_filter.dict(json_compatible=True),
+            "filter": default_liberal_filter.model_dump(mode="json"),
             "backfill": True,
         }
         websocket.send_json(filter_message)
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == old_event1
+        assert ReceivedEvent.model_validate(event_message["event"]) == old_event1
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == old_event2
+        assert ReceivedEvent.model_validate(event_message["event"]) == old_event2
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event1
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event1
 
         event_message = websocket.receive_json()
         assert event_message["type"] == "event"
-        assert ReceivedEvent.parse_obj(event_message["event"]) == received_event2
+        assert ReceivedEvent.model_validate(event_message["event"]) == received_event2

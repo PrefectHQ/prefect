@@ -16,7 +16,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from pydantic.v1 import parse_obj_as
+from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,7 +55,7 @@ async def create_work_queue(
         orm_models.WorkQueue: the newly-created or updated WorkQueue
 
     """
-    data = work_queue.dict()
+    data = work_queue.model_dump()
 
     if data.get("work_pool_id") is None:
         # If no work pool is provided, get or create the default agent work pool
@@ -222,7 +222,7 @@ async def update_work_queue(
     """
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = work_queue.dict(shallow=True, exclude_unset=True)
+    update_data = work_queue.model_dump_for_orm(exclude_unset=True)
 
     if "is_paused" in update_data:
         wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
@@ -361,7 +361,9 @@ async def _legacy_get_runs_in_work_queue(
     # ensure the filter object is fully hydrated
     # SQLAlchemy caching logic can result in a dict type instead
     # of the full pydantic model
-    work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
+    work_queue_filter = TypeAdapter(schemas.core.QueueFilter).validate_python(
+        work_queue.filter
+    )
     flow_run_filter = dict(
         tags=dict(all_=work_queue_filter.tags),
         deployment_id=dict(any_=work_queue_filter.deployment_ids, is_null_=False),

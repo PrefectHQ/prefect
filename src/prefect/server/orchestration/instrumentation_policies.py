@@ -28,8 +28,10 @@ class InstrumentFlowRunStateTransitions(BaseUniversalTransform):
         if not isinstance(context, FlowOrchestrationContext):
             return
 
-        initial_state = context.initial_state.copy() if context.initial_state else None
-        validated_state = context.validated_state.copy()
+        initial_state = (
+            context.initial_state.model_copy() if context.initial_state else None
+        )
+        validated_state = context.validated_state.model_copy()
 
         # Guard against passing large state payloads to arq
         if initial_state:

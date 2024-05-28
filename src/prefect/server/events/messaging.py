@@ -38,7 +38,7 @@ class EventPublisher(Publisher):
         Args:
             event: the event to publish
         """
-        encoded = event.json().encode()
+        encoded = event.model_dump_json().encode()
         if len(encoded) > PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value():
             logger.warning(
                 "Refusing to publish event of size %s",

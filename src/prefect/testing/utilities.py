@@ -146,7 +146,7 @@ async def get_most_recent_flow_run(client: "PrefectClient" = None):
 
 
 def assert_blocks_equal(
-    found, expected, exclude_private: bool = True, **kwargs
+    found: Block, expected: Block, exclude_private: bool = True, **kwargs
 ) -> bool:
     assert isinstance(
         found, type(expected)
@@ -154,11 +154,10 @@ def assert_blocks_equal(
 
     if exclude_private:
         exclude = set(kwargs.pop("exclude", set()))
-        for attr, _ in found._iter():
-            if attr.startswith("_"):
-                exclude.add(attr)
+        for field_name in found.__private_attributes__:
+            exclude.add(field_name)
 
-    assert found.dict(exclude=exclude, **kwargs) == expected.dict(
+    assert found.model_dump(exclude=exclude, **kwargs) == expected.model_dump(
         exclude=exclude, **kwargs
     )
 

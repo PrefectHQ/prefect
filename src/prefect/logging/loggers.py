@@ -5,7 +5,7 @@ import warnings
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from logging import LogRecord
+from logging import LoggerAdapter, LogRecord
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from typing_extensions import Self
@@ -161,7 +161,7 @@ def flow_run_logger(
     flow_run: Union["FlowRun", "ClientFlowRun"],
     flow: Optional["Flow"] = None,
     **kwargs: str,
-):
+) -> LoggerAdapter:
     """
     Create a flow run logger with the run's metadata attached.
 

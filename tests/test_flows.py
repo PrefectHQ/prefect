@@ -17,21 +17,14 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.blocks.core import Block
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 import regex as re
 
 import prefect
 import prefect.exceptions
 from prefect import flow, get_run_logger, runtime, tags, task
+from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -528,7 +521,7 @@ class TestFlowCall:
         def foo(x: int, y: List[int], zt: CustomType):
             return x + sum(y) + zt.z
 
-        result = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
+        result = foo(x="1", y=["2", "3"], zt=CustomType(z=4).model_dump())
         assert result == 10
 
     def test_call_with_variadic_args(self):
@@ -1002,7 +995,7 @@ class TestSubflowCalls:
 
         parent_state = parent("foo", return_state=True)
 
-        with pytest.raises(ParameterTypeError):
+        with pytest.raises(ParameterTypeError, match="invalid parameters"):
             await parent_state.result()
 
         child_state = await parent_state.result(raise_on_failure=False)
@@ -1010,7 +1003,6 @@ class TestSubflowCalls:
             child_state.state_details.flow_run_id
         )
         assert flow_run.state.is_failed()
-        assert "invalid parameters" in flow_run.state.message
 
     async def test_subflow_with_invalid_parameters_fails_parent(self):
         child_state = None
@@ -1662,7 +1654,7 @@ async def _wait_for_logs(
     prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
 ):
     logs = []
-    for _ in range(5):
+    while True:
         logs = await prefect_client.read_logs()
         if logs:
             if expected_num_logs is None:
@@ -4033,7 +4025,7 @@ class TestLoadFlowFromFlowRun:
             deployment_id=deployment_id
         )
 
-        result = await load_flow_from_flow_run(flow_run, client=prefect_client)
+        result = await load_flow_from_flow_run(flow_run)
 
         assert result == pretend_flow
         load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")

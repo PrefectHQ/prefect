@@ -73,7 +73,7 @@ class NotificationBlock(Block, ABC):
     """
 
     _block_schema_capabilities = ["notify"]
-    _events_excluded_methods = Block._events_excluded_methods + ["notify"]
+    _events_excluded_methods = Block._events_excluded_methods.default + ["notify"]
 
     @property
     def logger(self) -> Logger:

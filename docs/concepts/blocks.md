@@ -296,7 +296,7 @@ Here's an example of a block that uses `SecretDict`:
 from typing import Dict
 
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
+from prefect.types import SecretDict
 
 
 class SystemConfiguration(Block):

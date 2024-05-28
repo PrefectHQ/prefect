@@ -136,7 +136,7 @@ async def test_updates_existing_automations_on_changes(
         assert automation_to_update.name != "Well this is new"
 
         update_to_apply = AutomationUpdate(
-            **AutomationCore(**automation_to_update.dict()).dict()
+            **AutomationCore(**automation_to_update.model_dump()).model_dump()
         )
         update_to_apply.name = "Well this is new"
 
@@ -169,7 +169,9 @@ async def test_removes_disabled_automations(
         automation = list(triggers.automations_by_id.values())[0]
         assert automation.enabled
 
-        update_to_apply = AutomationUpdate(**AutomationCore(**automation.dict()).dict())
+        update_to_apply = AutomationUpdate(
+            **AutomationCore(**automation.model_dump()).model_dump()
+        )
         update_to_apply.enabled = False
 
         await automations.update_automation(

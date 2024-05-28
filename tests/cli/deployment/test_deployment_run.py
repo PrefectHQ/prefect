@@ -29,11 +29,15 @@ def frozen_now(monkeypatch):
 
 
 def completed_flow_run():
-    return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Completed())
+    return FlowRun(
+        id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Completed(), work_pool_id=None
+    )
 
 
 def failed_flow_run():
-    return FlowRun(id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Failed())
+    return FlowRun(
+        id=uuid.uuid4(), flow_id=uuid.uuid4(), state=Failed(), work_pool_id=None
+    )
 
 
 async def test_run_deployment_only_creates_one_flow_run(

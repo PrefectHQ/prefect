@@ -5,10 +5,7 @@ from uuid import UUID
 import anyio
 import pendulum
 
-from prefect._internal.compatibility.deprecated import (
-    deprecated_parameter,
-    handle_deprecated_infra_overrides_parameter,
-)
+from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -94,8 +91,6 @@ async def run_deployment(
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
 
-    jv = handle_deprecated_infra_overrides_parameter(job_variables, infra_overrides)
-
     parameters = parameters or {}
 
     deployment_id = None
@@ -171,7 +166,7 @@ async def run_deployment(
         idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
-        job_variables=jv,
+        job_variables=job_variables,
     )
 
     flow_run_id = flow_run.id

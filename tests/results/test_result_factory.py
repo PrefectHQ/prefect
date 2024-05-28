@@ -201,7 +201,7 @@ async def test_root_flow_custom_storage_by_slug(tmp_path):
     result_factory = foo()
     assert result_factory.persist_result is False
     assert result_factory.serializer == DEFAULT_SERIALIZER()
-    assert result_factory.storage_block == storage
+    assert_blocks_equal(result_factory.storage_block, storage)
     assert result_factory.storage_block_id == storage_id
 
 
@@ -233,7 +233,7 @@ async def test_root_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_
     result_factory = foo()
     assert result_factory.persist_result is True
     assert result_factory.serializer == DEFAULT_SERIALIZER()
-    assert result_factory.storage_block == storage
+    assert_blocks_equal(result_factory.storage_block, storage)
     assert result_factory.storage_block._is_anonymous is True
     assert isinstance(result_factory.storage_block_id, uuid.UUID)
 
@@ -241,7 +241,9 @@ async def test_root_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_
     storage_block_document = await prefect_client.read_block_document(
         result_factory.storage_block_id
     )
-    assert LocalFileSystem._from_block_document(storage_block_document) == storage
+    assert_blocks_equal(
+        LocalFileSystem._from_block_document(storage_block_document), storage
+    )
 
 
 def test_child_flow_inherits_default_result_settings():
@@ -492,7 +494,7 @@ async def test_child_flow_custom_storage(tmp_path):
     assert_blocks_equal(parent_factory.storage_block, DEFAULT_STORAGE())
     assert child_factory.persist_result is False
     assert child_factory.serializer == DEFAULT_SERIALIZER()
-    assert child_factory.storage_block == storage
+    assert_blocks_equal(child_factory.storage_block, storage)
     assert child_factory.storage_block_id == storage_id
 
 
@@ -516,7 +518,7 @@ async def test_child_flow_custom_storage_by_instance_unsaved(prefect_client, tmp
     assert parent_factory.storage_block_id != child_factory.storage_block_id
 
     # The child should have a saved custom storage
-    assert child_factory.storage_block == storage
+    assert_blocks_equal(child_factory.storage_block, storage)
     assert child_factory.storage_block._is_anonymous is True
     assert isinstance(child_factory.storage_block_id, uuid.UUID)
 
@@ -524,7 +526,9 @@ async def test_child_flow_custom_storage_by_instance_unsaved(prefect_client, tmp
     storage_block_document = await prefect_client.read_block_document(
         child_factory.storage_block_id
     )
-    assert LocalFileSystem._from_block_document(storage_block_document) == storage
+    assert_blocks_equal(
+        LocalFileSystem._from_block_document(storage_block_document), storage
+    )
 
     # Other settings should not be changed
     assert child_factory.persist_result is True
@@ -757,9 +761,9 @@ async def test_task_custom_storage(tmp_path):
 
     flow_factory, task_factory = foo()
     assert_blocks_equal(flow_factory.storage_block, DEFAULT_STORAGE())
+    assert_blocks_equal(task_factory.storage_block, storage)
     assert task_factory.persist_result is False
     assert task_factory.serializer == DEFAULT_SERIALIZER()
-    assert task_factory.storage_block == storage
     assert task_factory.storage_block_id == storage_id
 
 
@@ -789,7 +793,10 @@ async def test_task_custom_storage_by_instance_unsaved(prefect_client, tmp_path)
     storage_block_document = await prefect_client.read_block_document(
         task_factory.storage_block_id
     )
-    assert LocalFileSystem._from_block_document(storage_block_document) == storage
+    assert_blocks_equal(
+        LocalFileSystem._from_block_document(storage_block_document),
+        storage,
+    )
 
     # Other settings should not be changed
     assert task_factory.persist_result is True

@@ -48,7 +48,6 @@ class JsonFormatter(logging.Formatter):
 
         self.serializer = JSONSerializer(
             jsonlib="orjson",
-            object_encoder="pydantic.json.pydantic_encoder",
             dumps_kwargs={"option": orjson.OPT_INDENT_2} if fmt == "pretty" else {},
         )
 

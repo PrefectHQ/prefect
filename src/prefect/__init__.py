@@ -29,6 +29,7 @@ from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow, serve
+from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.manifests import Manifest
@@ -54,10 +55,11 @@ prefect.context.initialize_object_registry()
 # Perform any forward-ref updates needed for Pydantic models
 import prefect.client.schemas
 
-prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
-prefect.context.TaskRunContext.update_forward_refs(Task=Task)
-prefect.client.schemas.State.update_forward_refs(BaseResult=BaseResult)
-prefect.client.schemas.StateCreate.update_forward_refs(BaseResult=BaseResult)
+prefect.context.FlowRunContext.model_rebuild()
+prefect.context.TaskRunContext.model_rebuild()
+prefect.client.schemas.State.model_rebuild()
+prefect.client.schemas.StateCreate.model_rebuild()
+Transaction.model_rebuild()
 
 
 prefect.plugins.load_extra_entrypoints()
@@ -94,6 +96,7 @@ __all__ = [
     "tags",
     "task",
     "Task",
+    "Transaction",
     "unmapped",
     "serve",
     "deploy",

@@ -47,7 +47,7 @@ async def test_reacts_to_messages(
     with caplog.at_level("INFO"):
         await message_handler(
             MemoryMessage(
-                data=email_me_when_that_dang_spider_comes.json().encode(),
+                data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
                 attributes=None,
             )
         )
@@ -69,7 +69,7 @@ async def test_acks_actions_that_raise_actionfailed(
     with caplog.at_level("INFO"):
         await message_handler(
             MemoryMessage(
-                data=email_me_when_that_dang_spider_comes.json().encode(),
+                data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
                 attributes=None,
             )
         )
@@ -87,7 +87,7 @@ async def test_successes_emit_events(
 ):
     await message_handler(
         MemoryMessage(
-            data=email_me_when_that_dang_spider_comes.json().encode(),
+            data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
             attributes=None,
         )
     )
@@ -122,7 +122,7 @@ async def test_failures_emit_events(
     act.side_effect = actions.ActionFailed("womp womp")
     await message_handler(
         MemoryMessage(
-            data=email_me_when_that_dang_spider_comes.json().encode(),
+            data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
             attributes=None,
         )
     )
@@ -159,7 +159,7 @@ async def test_does_not_ack_actions_that_raise_unexpected_errors(
         with pytest.raises(ValueError, match="womp womp"):
             await message_handler(
                 MemoryMessage(
-                    data=email_me_when_that_dang_spider_comes.json().encode(),
+                    data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
                     attributes=None,
                 )
             )
@@ -178,14 +178,14 @@ async def test_actions_are_idempotent(
     """Actions are only executed once"""
     await message_handler(
         MemoryMessage(
-            data=email_me_when_that_dang_spider_comes.json().encode(),
+            data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
             attributes=None,
         )
     )
 
     await message_handler(
         MemoryMessage(
-            data=email_me_when_that_dang_spider_comes.json().encode(),
+            data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
             attributes=None,
         )
     )

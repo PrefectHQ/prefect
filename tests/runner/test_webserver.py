@@ -4,7 +4,7 @@ from unittest import mock
 
 import pydantic
 import pytest
-from prefect._vendor.fastapi.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient, get_client
@@ -200,7 +200,7 @@ class TestWebserverFlowRoutes:
                 json={"entrypoint": f"{__file__}:simple_flow", "parameters": {}},
             )
             assert response.status_code == 201, response.status_code
-            assert isinstance(FlowRun.parse_obj(response.json()), FlowRun)
+            assert isinstance(FlowRun.model_validate(response.json()), FlowRun)
             mock_run.assert_called()
 
     @pytest.mark.parametrize("flow_name", ["a_missing_flow", "a_non_flow_function"])
@@ -245,7 +245,7 @@ class TestWebserverFlowRoutes:
             )
             # the flow should still be run even though it's not managed
             assert response.status_code == 201, response.status_code
-            assert isinstance(FlowRun.parse_obj(response.json()), FlowRun)
+            assert isinstance(FlowRun.model_validate(response.json()), FlowRun)
             mock_run.assert_called()
 
         # we should have logged a warning
@@ -277,7 +277,7 @@ class TestWebserverFlowRoutes:
             )
             # we'll still attempt to run the changed flow
             assert response.status_code == 201, response.status_code
-            assert isinstance(FlowRun.parse_obj(response.json()), FlowRun)
+            assert isinstance(FlowRun.model_validate(response.json()), FlowRun)
             mock_run.assert_called()
 
         # we should have logged a warning

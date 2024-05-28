@@ -3,11 +3,11 @@ from unittest import mock
 from uuid import UUID
 
 import pendulum
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.settings import (
     PREFECT_API_URL,
     temporary_settings,
@@ -35,7 +35,7 @@ def test_emits_complex_event(
     emit_event(
         event="vogon.poetry.read",
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
-        occurred=DateTimeTZ(2023, 3, 1, 12, 39, 28),
+        occurred=DateTime(2023, 3, 1, 12, 39, 28),
         related=[
             {
                 "prefect.resource.id": "vogon.ship.the-business-end",
@@ -53,7 +53,7 @@ def test_emits_complex_event(
     event = asserting_events_worker._client.events[0]
     assert event.event == "vogon.poetry.read"
     assert event.resource.id == "vogon.poem.oh-freddled-gruntbuggly"
-    assert event.occurred == DateTimeTZ(2023, 3, 1, 12, 39, 28)
+    assert event.occurred == DateTime(2023, 3, 1, 12, 39, 28)
     assert len(event.related) == 1
     assert event.related[0].id == "vogon.ship.the-business-end"
     assert event.related[0].role == "locale"

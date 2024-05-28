@@ -119,10 +119,12 @@ class AssertingEventsClient(EventsClient):
             event for client in cls.all for event in reversed(client.events)
         ]
 
-        resource_spec = ResourceSpecification.parse_obj(resource) if resource else None
+        resource_spec = (
+            ResourceSpecification.model_validate(resource) if resource else None
+        )
         related_specs = (
             [
-                ResourceSpecification.parse_obj(related_resource)
+                ResourceSpecification.model_validate(related_resource)
                 for related_resource in related
             ]
             if related

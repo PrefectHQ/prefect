@@ -5,10 +5,10 @@ Schemas that define Prefect REST API filtering operations.
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic.v1 import Field
+from pydantic import Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.schemas.objects import StateType
 from prefect.utilities.collections import AutoEnum
 
@@ -175,8 +175,12 @@ class FlowRunFilterStateName(PrefectBaseModel):
 
 
 class FlowRunFilterState(PrefectBaseModel, OperatorMixin):
-    type: Optional[FlowRunFilterStateType]
-    name: Optional[FlowRunFilterStateName]
+    type: Optional[FlowRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `FlowRun` state type"
+    )
+    name: Optional[FlowRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `FlowRun` state name"
+    )
 
 
 class FlowRunFilterFlowVersion(PrefectBaseModel):
@@ -190,11 +194,11 @@ class FlowRunFilterFlowVersion(PrefectBaseModel):
 class FlowRunFilterStartTime(PrefectBaseModel):
     """Filter by `FlowRun.start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs starting at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs starting at or after this time",
     )
@@ -206,11 +210,11 @@ class FlowRunFilterStartTime(PrefectBaseModel):
 class FlowRunFilterExpectedStartTime(PrefectBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs scheduled to start at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs scheduled to start at or after this time",
     )
@@ -219,14 +223,14 @@ class FlowRunFilterExpectedStartTime(PrefectBaseModel):
 class FlowRunFilterNextScheduledStartTime(PrefectBaseModel):
     """Filter by `FlowRun.next_scheduled_start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include flow runs with a next_scheduled_start_time or before this"
             " time"
         ),
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include flow runs with a next_scheduled_start_time at or after this"
@@ -402,11 +406,11 @@ class TaskRunFilterSubFlowRuns(PrefectBaseModel):
 class TaskRunFilterStartTime(PrefectBaseModel):
     """Filter by `TaskRun.start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include task runs starting at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include task runs starting at or after this time",
     )
@@ -553,11 +557,11 @@ class LogFilterLevel(PrefectBaseModel):
 class LogFilterTimestamp(PrefectBaseModel):
     """Filter by `Log.timestamp`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include logs with a timestamp at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include logs with a timestamp at or after this time",
     )
@@ -878,13 +882,13 @@ class WorkerFilterWorkPoolId(PrefectBaseModel):
 class WorkerFilterLastHeartbeatTime(PrefectBaseModel):
     """Filter by `Worker.last_heartbeat_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include processes whose last heartbeat was at or before this time"
         ),
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include processes whose last heartbeat was at or after this time"

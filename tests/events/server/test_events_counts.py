@@ -5,8 +5,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pendulum.date import Date
-from pendulum.datetime import DateTime
+from pydantic_extra_types.pendulum_dt import Date, DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events.counting import PIVOT_DATETIME, Countable, TimeUnit

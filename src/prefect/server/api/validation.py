@@ -37,8 +37,8 @@ Note some important details:
 
 from typing import Any, Dict, Optional, Tuple, Union
 
-import pydantic.v1 as pydantic
-from prefect._vendor.fastapi import HTTPException, status
+import pydantic
+from fastapi import HTTPException, status
 from sqlalchemy.exc import DBAPIError, NoInspectionAvailable
 from sqlalchemy.ext.asyncio import AsyncSession
 

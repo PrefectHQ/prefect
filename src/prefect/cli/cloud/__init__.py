@@ -15,10 +15,9 @@ import httpx
 import readchar
 import typer
 import uvicorn
-from prefect._vendor.fastapi import FastAPI
-from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 from rich.live import Live
 from rich.table import Table
@@ -44,7 +43,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.compat import raise_signal
 
-from pydantic.v1 import BaseModel
+from pydantic import BaseModel
 
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
 cloud_app = PrefectTyper(

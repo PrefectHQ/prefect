@@ -4,7 +4,7 @@ Routes for interacting with log objects.
 
 from typing import List
 
-from prefect._vendor.fastapi import Body, Depends, status
+from fastapi import Body, Depends, status
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

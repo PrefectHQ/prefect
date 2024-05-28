@@ -25,6 +25,7 @@ from prefect.cli.deploy import (
     _initialize_deployment_triggers,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -47,7 +48,6 @@ from prefect.server.schemas.actions import (
     BlockDocumentCreate,
     BlockSchemaCreate,
     BlockTypeCreate,
-    WorkPoolCreate,
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -327,7 +327,7 @@ class TestProjectDeploy:
         assert deployment.enforce_parameter_schema is False
 
     async def test_project_deploy_with_no_deployment_file(
-        self, project_dir, prefect_client
+        self, project_dir, prefect_client: PrefectClient
     ):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")

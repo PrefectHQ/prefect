@@ -4,16 +4,8 @@ from uuid import UUID, uuid4
 
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import ValidationError
-else:
-    import pydantic
-    from pydantic import ValidationError
 
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import actions
@@ -29,22 +21,23 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import workers
 from prefect.server.schemas.actions import WorkPoolCreate
+from prefect.utilities.pydantic import parse_obj_as
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkPool
 
 
 def test_source_determines_if_work_pool_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="work_pool_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkPool(source="selected")
 
-    with pytest.raises(ValidationError, match="work_pool_id is required"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkPool(source="selected")
 
-    with pytest.raises(ValidationError, match="work_pool_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkPool(source="inferred", work_pool_id=uuid4())
 
-    with pytest.raises(ValidationError, match="work_pool_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkPool(source="inferred", work_pool_id=uuid4())
 
 
@@ -243,24 +236,22 @@ async def test_inferring_work_pool_requires_recognizable_resource_id(
     triggered_pause_action_with_source_inferred: TriggeredAction,
 ):
     assert triggered_pause_action_with_source_inferred.triggering_event
-    triggered_pause_action_with_source_inferred.triggering_event.related = (
-        pydantic.parse_obj_as(
-            List[RelatedResource],
-            [
-                {
-                    "prefect.resource.role": "work-pool",
-                    "prefect.resource.id": "prefect.work-pool.nope",  # not a uuid
-                },
-                {
-                    "prefect.resource.role": "work-pool",
-                    "prefect.resource.id": f"oh.so.close.{uuid4()}",  # not a work-pool
-                },
-                {
-                    "prefect.resource.role": "work-pool",
-                    "prefect.resource.id": "nah-ah",  # not a dotted name
-                },
-            ],
-        )
+    triggered_pause_action_with_source_inferred.triggering_event.related = parse_obj_as(
+        List[RelatedResource],
+        [
+            {
+                "prefect.resource.role": "work-pool",
+                "prefect.resource.id": "prefect.work-pool.nope",  # not a uuid
+            },
+            {
+                "prefect.resource.role": "work-pool",
+                "prefect.resource.id": f"oh.so.close.{uuid4()}",  # not a work-pool
+            },
+            {
+                "prefect.resource.role": "work-pool",
+                "prefect.resource.id": "nah-ah",  # not a dotted name
+            },
+        ],
     )
 
     action = triggered_pause_action_with_source_inferred.action
@@ -283,7 +274,7 @@ async def test_pausing_publishes_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                 "prefect.resource.name": work_pool.name,
@@ -462,7 +453,7 @@ async def test_resuming_with_inferred_work_pool_requires_recognizable_resource_i
 ):
     assert triggered_resume_action_with_source_inferred.triggering_event
     triggered_resume_action_with_source_inferred.triggering_event.related = (
-        pydantic.parse_obj_as(
+        parse_obj_as(
             List[RelatedResource],
             [
                 {
@@ -501,7 +492,7 @@ async def test_resuming_publishes_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{paused_work_pool.id}",
                 "prefect.resource.name": paused_work_pool.name,

@@ -1,23 +1,14 @@
-import datetime
 import importlib
 import os
 from contextlib import contextmanager
 from typing import Generator, Type
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 from prefect.server.utilities.schemas import (
-    DateTimeTZ,
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
@@ -61,7 +52,7 @@ class TestExtraForbidden:
             x: int
 
         with pytest.raises(
-            pydantic.ValidationError, match="extra fields not permitted"
+            pydantic.ValidationError, match="Extra inputs are not permitted"
         ):
             Model(x=1, y=2)
 
@@ -82,7 +73,7 @@ class TestExtraForbidden:
                 x: int
 
         with pytest.raises(
-            pydantic.ValidationError, match="extra fields not permitted"
+            pydantic.ValidationError, match="Extra inputs are not permitted"
         ):
             Model(x=1, y=2)
 
@@ -100,61 +91,18 @@ class TestNestedDict:
         return Parent(x=1, y=Child(z=2))
 
     def test_full_dict(self, nested):
-        assert nested.dict() == {"x": 1, "y": {"z": 2}}
-        assert isinstance(nested.dict()["y"], dict)
+        assert nested.model_dump() == {"x": 1, "y": {"z": 2}}
+        assert isinstance(nested.model_dump()["y"], dict)
 
     def test_simple_dict(self, nested):
         assert dict(nested) == {"x": 1, "y": nested.y}
         assert isinstance(dict(nested)["y"], pydantic.BaseModel)
 
-    def test_shallow_true(self, nested):
-        assert dict(nested) == nested.dict(shallow=True)
-        assert isinstance(nested.dict(shallow=True)["y"], pydantic.BaseModel)
-
-    def test_kwargs_respected(self, nested):
-        deep = nested.dict(include={"y"})
-        shallow = nested.dict(include={"y"}, shallow=True)
+    def test_custom_dump_methods_respected(self, nested: PrefectBaseModel):
+        deep = nested.model_dump(include={"y"})
+        shallow = nested.model_dump_for_orm(include={"y"})
         assert isinstance(deep["y"], dict)
         assert isinstance(shallow["y"], pydantic.BaseModel)
-        assert deep == shallow == {"y": {"z": 2}}
-
-
-class TestJsonCompatibleDict:
-    class Model(PrefectBaseModel):
-        x: UUID
-        y: datetime.datetime
-
-    @pytest.fixture()
-    def nested(self):
-        class Child(pydantic.BaseModel):
-            z: UUID
-
-        class Parent(PrefectBaseModel):
-            x: UUID
-            y: Child
-
-        return Parent(x=uuid4(), y=Child(z=uuid4()))
-
-    def test_json_compatible_and_nested_errors(self):
-        model = self.Model(x=uuid4(), y=pendulum.now("UTC"))
-        with pytest.raises(ValueError, match="(only be applied to the entire object)"):
-            model.dict(json_compatible=True, shallow=True)
-
-    def test_json_compatible(self):
-        model = self.Model(x=uuid4(), y=pendulum.now("UTC"))
-        d1 = model.dict()
-        d2 = model.dict(json_compatible=True)
-
-        assert isinstance(d1["x"], UUID) and d1["x"] == model.x
-        assert isinstance(d2["x"], str) and d2["x"] == str(model.x)
-
-        assert isinstance(d1["y"], datetime.datetime) and d1["y"] == model.y
-        assert isinstance(d2["y"], str) and d2["y"] == model.y.isoformat()
-
-    def test_json_applies_to_nested(self, nested):
-        d1 = nested.dict(json_compatible=True)
-        assert isinstance(d1["x"], str) and d1["x"] == str(nested.x)
-        assert isinstance(d1["y"]["z"], str) and d1["y"]["z"] == str(nested.y.z)
 
 
 class CopyOnValidationChild(ORMBaseModel):
@@ -229,31 +177,3 @@ class TestEqualityExcludedFields:
         # if the PBM is the RH operand, the equality check fails
         # because the Pydantic logic of using every field is applied
         assert Y(val=1) != X(val=1)
-
-
-class TestDatetimeTZ:
-    class Model(pydantic.BaseModel):
-        dt: datetime.datetime
-        dtp: pendulum.DateTime
-        dttz: DateTimeTZ
-
-    async def test_tz_adds_timezone(self):
-        model = self.Model(
-            dt=datetime.datetime(2022, 1, 1),
-            dtp=datetime.datetime(2022, 1, 1),
-            dttz=datetime.datetime(2022, 1, 1),
-        )
-
-        assert model.dt.tzinfo is None
-        assert model.dtp.tzinfo.name == "UTC"
-        assert model.dttz.tzinfo.name == "UTC"
-
-    async def test_tz_is_pydantic_object(self):
-        model = self.Model(
-            dt=datetime.datetime(2022, 1, 1),
-            dtp=datetime.datetime(2022, 1, 1),
-            dttz=datetime.datetime(2022, 1, 1),
-        )
-        assert not isinstance(model.dt, pendulum.DateTime)
-        assert isinstance(model.dtp, pendulum.DateTime)
-        assert isinstance(model.dttz, pendulum.DateTime)

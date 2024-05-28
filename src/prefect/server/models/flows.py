@@ -38,7 +38,7 @@ async def create_flow(
 
     insert_stmt = (
         db.insert(orm_models.Flow)
-        .values(**flow.dict(shallow=True, exclude_unset=True))
+        .values(**flow.model_dump_for_orm(exclude_unset=True))
         .on_conflict_do_nothing(
             index_elements=db.flow_unique_upsert_columns,
         )
@@ -79,7 +79,7 @@ async def update_flow(
         .where(orm_models.Flow.id == flow_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
-        .values(**flow.dict(shallow=True, exclude_unset=True))
+        .values(**flow.model_dump_for_orm(exclude_unset=True))
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0

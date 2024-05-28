@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import threading
@@ -161,74 +162,77 @@ async def start(
     if base_job_template is not None:
         template_contents = json.load(fp=base_job_template)
 
-    async with worker_cls(
-        name=worker_name,
-        work_pool_name=work_pool_name,
-        work_queues=work_queues,
-        limit=limit,
-        prefetch_seconds=prefetch_seconds,
-        heartbeat_interval_seconds=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
-        base_job_template=template_contents,
-    ) as worker:
-        app.console.print(f"Worker {worker.name!r} started!", style="green")
-        async with anyio.create_task_group() as tg:
-            # wait for an initial heartbeat to configure the worker
-            await worker.sync_with_backend()
-            # schedule the scheduled flow run polling loop
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=worker.get_and_submit_flow_runs,
-                    interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                    run_once=run_once,
-                    printer=app.console.print,
-                    jitter_range=0.3,
-                    backoff=4,  # Up to ~1 minute interval during backoff
+    try:
+        async with worker_cls(
+            name=worker_name,
+            work_pool_name=work_pool_name,
+            work_queues=work_queues,
+            limit=limit,
+            prefetch_seconds=prefetch_seconds,
+            heartbeat_interval_seconds=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
+            base_job_template=template_contents,
+        ) as worker:
+            app.console.print(f"Worker {worker.name!r} started!", style="green")
+            async with anyio.create_task_group() as tg:
+                # wait for an initial heartbeat to configure the worker
+                await worker.sync_with_backend()
+                # schedule the scheduled flow run polling loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.get_and_submit_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        run_once=run_once,
+                        printer=app.console.print,
+                        jitter_range=0.3,
+                        backoff=4,  # Up to ~1 minute interval during backoff
+                    )
                 )
-            )
-            # schedule the sync loop
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=worker.sync_with_backend,
-                    interval=worker.heartbeat_interval_seconds,
-                    run_once=run_once,
-                    printer=app.console.print,
-                    jitter_range=0.3,
-                    backoff=4,
+                # schedule the sync loop
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.sync_with_backend,
+                        interval=worker.heartbeat_interval_seconds,
+                        run_once=run_once,
+                        printer=app.console.print,
+                        jitter_range=0.3,
+                        backoff=4,
+                    )
                 )
-            )
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=worker.check_for_cancelled_flow_runs,
-                    interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
-                    run_once=run_once,
-                    printer=app.console.print,
-                    jitter_range=0.3,
-                    backoff=4,
+                tg.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=worker.check_for_cancelled_flow_runs,
+                        interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
+                        run_once=run_once,
+                        printer=app.console.print,
+                        jitter_range=0.3,
+                        backoff=4,
+                    )
                 )
-            )
 
-            started_event = await worker._emit_worker_started_event()
+                started_event = await worker._emit_worker_started_event()
 
-            # if --with-healthcheck was passed, start the healthcheck server
-            if with_healthcheck:
-                # we'll start the ASGI server in a separate thread so that
-                # uvicorn does not block the main thread
-                server_thread = threading.Thread(
-                    name="healthcheck-server-thread",
-                    target=partial(
-                        start_healthcheck_server,
-                        worker=worker,
-                        query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                    ),
-                    daemon=True,
-                )
-                server_thread.start()
+                # if --with-healthcheck was passed, start the healthcheck server
+                if with_healthcheck:
+                    # we'll start the ASGI server in a separate thread so that
+                    # uvicorn does not block the main thread
+                    webserver_thread = threading.Thread(
+                        name="healthcheck-server-thread",
+                        target=partial(
+                            start_healthcheck_server,
+                            worker=worker,
+                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        ),
+                        daemon=True,
+                    )
+                    webserver_thread.start()
 
-    await worker._emit_worker_stopped_event(started_event)
-    app.console.print(f"Worker {worker.name!r} stopped!")
+        await worker._emit_worker_stopped_event(started_event)
+        app.console.print(f"Worker {worker.name!r} stopped!")
+    except asyncio.CancelledError:
+        app.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
 
 
 async def _check_work_pool_paused(work_pool_name: str) -> bool:

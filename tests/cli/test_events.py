@@ -77,7 +77,7 @@ async def test_stream_workspace(
     assert len(stdout_list) == 3
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_raw(event1)
+        parsed_event = Event.model_validate_json(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")
@@ -111,7 +111,7 @@ async def test_stream_account(
     assert len(stdout_list) == 3
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_raw(event1)
+        parsed_event = Event.model_validate_json(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")
@@ -157,7 +157,7 @@ async def test_stream_oss_events(
 
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_raw(event1)
+        parsed_event = Event.model_validate_json(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")

@@ -1,5 +1,3 @@
-# Note: This file should only be imported under a HAS_PYDANTIC_V2 flag
-
 import inspect
 import typing
 import typing as t

@@ -50,13 +50,16 @@ class TestUpdateWorkQueue:
         )
         assert result
 
-        updated_queue = schemas.core.WorkQueue.from_orm(
+        updated_queue = schemas.core.WorkQueue.model_validate(
             await models.work_queues.read_work_queue(
                 session=session, work_queue_id=work_queue.id
-            )
+            ),
+            from_attributes=True,
         )
         assert updated_queue.id == work_queue.id
-        assert updated_queue.filter.tags == ["updated", "tags"]
+
+        with pytest.warns(DeprecationWarning):
+            assert updated_queue.filter.tags == ["updated", "tags"]
 
 
 class TestGetRunsInWorkQueue:

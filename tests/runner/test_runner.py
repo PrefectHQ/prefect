@@ -17,12 +17,13 @@ from unittest.mock import MagicMock
 import anyio
 import pendulum
 import pytest
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect.runner
 from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import MinimalDeploymentSchedule, StateType
+from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
@@ -297,7 +298,7 @@ class TestRunner:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -453,7 +454,7 @@ class TestRunner:
 
             await prefect_client.set_flow_run_state(
                 flow_run_id=flow_run.id,
-                state=flow_run.state.copy(
+                state=flow_run.state.model_copy(
                     update={"name": "Cancelling", "type": StateType.CANCELLING}
                 ),
             )
@@ -832,7 +833,7 @@ class TestRunnerDeployment:
             dummy_flow_1,
             __file__,
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -884,7 +885,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ],
@@ -1030,7 +1031,7 @@ class TestRunnerDeployment:
             dummy_flow_1_entrypoint,
             __file__,
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -1088,7 +1089,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -1266,7 +1267,7 @@ class TestRunnerDeployment:
             entrypoint="flows.py:test_flow",
             name="test-deployment",
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),

@@ -80,7 +80,7 @@ async def read_token_for_client(
     if token is None:
         return None
 
-    return core.CsrfToken.from_orm(token)
+    return core.CsrfToken.model_validate(token, from_attributes=True)
 
 
 async def delete_expired_tokens(session: AsyncSession) -> int:

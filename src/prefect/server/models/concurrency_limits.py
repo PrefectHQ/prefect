@@ -21,7 +21,7 @@ async def create_concurrency_limit(
     session: sa.orm.Session,
     concurrency_limit: schemas.core.ConcurrencyLimit,
 ):
-    insert_values = concurrency_limit.dict(shallow=True, exclude_unset=False)
+    insert_values = concurrency_limit.model_dump_for_orm(exclude_unset=False)
     insert_values.pop("created")
     insert_values.pop("updated")
     concurrency_tag = insert_values["tag"]
@@ -36,8 +36,8 @@ async def create_concurrency_limit(
         .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.concurrency_limit_unique_upsert_columns,
-            set_=concurrency_limit.dict(
-                shallow=True, include={"concurrency_limit", "updated"}
+            set_=concurrency_limit.model_dump_for_orm(
+                include={"concurrency_limit", "updated"}
             ),
         )
     )

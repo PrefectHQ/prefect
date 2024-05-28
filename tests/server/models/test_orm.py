@@ -20,7 +20,7 @@ async def many_flow_run_states(flow, session, db):
     for _ in range(5):
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version=1),
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="1"),
         )
 
         states = [

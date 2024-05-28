@@ -209,14 +209,14 @@ async def test_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.block-document.{email_me_block_id}",
                 "prefect.resource.role": "block",
                 "prefect.resource.name": "debug-print-notification",
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.block-type.debug-print-notification",
                 "prefect.resource.role": "block-type",
@@ -252,14 +252,14 @@ async def test_captures_notification_failures(
 
     assert event.event == "prefect.automation.action.failed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.block-document.{email_me_block_id}",
                 "prefect.resource.role": "block",
                 "prefect.resource.name": "debug-print-notification",
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.block-type.debug-print-notification",
                 "prefect.resource.role": "block-type",
