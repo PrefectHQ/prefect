@@ -738,7 +738,7 @@ class TestTaskFutures:
 
             # TODO: The ids are not equal here, why?
             # task_run = await prefect_client.read_task_run(state.state_details.task_run_id)
-            # assert task_run.state.dict(exclude={"data"}) == state.dict(exclude={"data"})
+            # assert task_run.state.model_dump(exclude={"data"}) == state.model_dump(exclude={"data"})
 
         await my_flow()
 
@@ -2440,7 +2440,7 @@ async def _wait_for_logs(
         if flow_run_id
         else None
     )
-    for _ in range(5):
+    while True:
         logs = await prefect_client.read_logs(log_filter=log_filter)
         if logs:
             break

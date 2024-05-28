@@ -24,7 +24,7 @@ from snowflake.connector.cursor import SnowflakeCursor as OriginalSnowflakeCurso
 
 def test_snowflake_connector_init(connector_params):
     snowflake_connector = SnowflakeConnector(**connector_params)
-    actual_connector_params = snowflake_connector.dict()
+    actual_connector_params = snowflake_connector.model_dump()
     for param in connector_params:
         expected = connector_params[param]
         if param == "schema":
@@ -182,7 +182,7 @@ def test_snowflake_query_sync(snowflake_connector):
 
 def test_snowflake_private_connector_init(private_connector_params):
     snowflake_connector = SnowflakeConnector(**private_connector_params)
-    actual_connector_params = snowflake_connector.dict()
+    actual_connector_params = snowflake_connector.model_dump()
     for param in private_connector_params:
         expected = private_connector_params[param]
         if param == "schema":

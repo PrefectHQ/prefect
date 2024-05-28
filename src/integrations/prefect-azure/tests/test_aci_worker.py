@@ -108,7 +108,7 @@ async def create_job_configuration(
 
     json_config = {
         "job_configuration": AzureContainerJobConfiguration.json_template(),
-        "variables": container_instance_variables.dict(),
+        "variables": container_instance_variables.model_dump(),
     }
 
     container_instance_configuration = (
@@ -989,7 +989,7 @@ async def test_image_populated_in_template_when_not_provided(worker_flow_run):
         values=AzureContainerVariables(
             subscription_id="my-subscription-id",
             resource_group_name="my-resource-group",
-        ).dict(exclude_unset=True),
+        ).model_dump(exclude_unset=True),
     )
     config.prepare_for_flow_run(worker_flow_run)
 

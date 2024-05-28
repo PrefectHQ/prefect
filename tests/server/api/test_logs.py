@@ -43,7 +43,7 @@ def log_data(client, flow_run_id, task_run_id):
             message="Ahoy, captain",
             timestamp=NOW,
             flow_run_id=flow_run_id,
-        ).dict(json_compatible=True),
+        ).model_dump(mode="json"),
         LogCreate(
             name="prefect.task_run",
             level=50,
@@ -51,7 +51,7 @@ def log_data(client, flow_run_id, task_run_id):
             timestamp=(NOW + timedelta(hours=1)),
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,
-        ).dict(json_compatible=True),
+        ).model_dump(mode="json"),
     ]
 
 
@@ -68,8 +68,8 @@ class TestCreateLogs:
 
         for i, log in enumerate(logs):
             assert (
-                Log.from_orm(log).dict(
-                    json_compatible=True, exclude={"created", "id", "updated"}
+                Log.model_validate(log, from_attributes=True).model_dump(
+                    mode="json", exclude={"created", "id", "updated"}
                 )
                 == log_data[i]
             )
@@ -85,8 +85,8 @@ class TestCreateLogs:
         assert len(logs) == 1
 
         assert (
-            Log.from_orm(logs[0]).dict(
-                json_compatible=True, exclude={"created", "id", "updated"}
+            Log.model_validate(logs[0], from_attributes=True).model_dump(
+                mode="json", exclude={"created", "id", "updated"}
             )
             == log_data[1]
         )
@@ -120,7 +120,7 @@ class TestReadLogs:
                 message="Full speed ahead!",
                 timestamp=NOW,
                 flow_run_id=uuid1(),
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         ]
         await client.post(CREATE_LOGS_URL, json=flow_run_logs)
         yield flow_run_logs[0]
@@ -135,7 +135,7 @@ class TestReadLogs:
                 timestamp=NOW,
                 flow_run_id=uuid1(),
                 task_run_id=uuid1(),
-            ).dict(json_compatible=True)
+            ).model_dump(mode="json")
         ]
         await client.post(CREATE_LOGS_URL, json=flow_run_logs)
         yield flow_run_logs[0]

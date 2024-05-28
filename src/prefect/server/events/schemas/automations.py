@@ -19,9 +19,14 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-from pydantic.v1.fields import ModelField
-from typing_extensions import TypeAlias
+from pydantic import (
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
+from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import Self, TypeAlias
 
 from prefect.logging import get_logger
 from prefect.server.events.actions import ActionTypes
@@ -33,7 +38,8 @@ from prefect.server.events.schemas.events import (
     matches,
 )
 from prefect.server.schemas.actions import ActionBaseModel
-from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.types import NonNegativeDuration
 from prefect.utilities.collections import AutoEnum
 
 logger = get_logger(__name__)
@@ -55,8 +61,6 @@ class Trigger(PrefectBaseModel, abc.ABC):
     Base class describing a set of criteria that must be satisfied in order to trigger
     an automation.
     """
-
-    __slots__ = ("__weakref__",)
 
     type: str
 
@@ -142,7 +146,7 @@ class CompositeTrigger(Trigger, abc.ABC):
             payload={
                 "triggering_labels": firing.triggering_labels,
                 "triggering_event": (
-                    triggering_event.dict(json_compatible=True)
+                    triggering_event.model_dump(mode="json")
                     if triggering_event
                     else None
                 ),
@@ -190,19 +194,17 @@ class CompoundTrigger(CompositeTrigger):
     def ready_to_fire(self, firings: Sequence["Firing"]) -> bool:
         return len(firings) >= self.num_expected_firings
 
-    @root_validator
-    def validate_require(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        require = values.get("require")
-
-        if isinstance(require, int):
-            if require < 1:
-                raise ValueError("required must be at least 1")
-            if require > len(values["triggers"]):
+    @model_validator(mode="after")
+    def validate_require(self) -> Self:
+        if isinstance(self.require, int):
+            if self.require < 1:
+                raise ValueError("require must be at least 1")
+            if self.require > len(self.triggers):
                 raise ValueError(
-                    "required must be less than or equal to the number of triggers"
+                    "require must be less than or equal to the number of triggers"
                 )
 
-        return values
+        return self
 
 
 class SequenceTrigger(CompositeTrigger):
@@ -230,11 +232,11 @@ class ResourceTrigger(Trigger, abc.ABC):
     type: str
 
     match: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this trigger will match.",
     )
     match_related: ResourceSpecification = Field(
-        default_factory=lambda: ResourceSpecification.parse_obj({}),
+        default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this trigger will match.",
     )
 
@@ -303,10 +305,8 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: timedelta = Field(
-        timedelta(0),
-        minimum=0.0,
-        exclusiveMinimum=False,
+    within: NonNegativeDuration = Field(
+        timedelta(seconds=0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
@@ -314,29 +314,33 @@ class EventTrigger(ResourceTrigger):
         ),
     )
 
-    @validator("within")
-    def enforce_minimum_within(
-        cls, value: timedelta, values, config, field: ModelField
-    ):
-        minimum = field.field_info.extra["minimum"]
-        if value.total_seconds() < minimum:
-            raise ValueError("The minimum within is 0 seconds")
-        return value
+    @model_validator(mode="before")
+    @classmethod
+    def enforce_minimum_within_for_proactive_triggers(
+        cls, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if not isinstance(data, dict):
+            return data
 
-    @root_validator(skip_on_failure=True)
-    def enforce_minimum_within_for_proactive_triggers(cls, values: Dict[str, Any]):
-        posture: Optional[Posture] = values.get("posture")
-        within: Optional[timedelta] = values.get("within")
+        if "within" in data and data["within"] is None:
+            raise ValueError("`within` should be a valid timedelta")
+
+        posture: Optional[Posture] = data.get("posture")
+        within: Optional[timedelta] = data.get("within")
+
+        if isinstance(within, (int, float)):
+            data["within"] = within = timedelta(seconds=within)
 
         if posture == Posture.Proactive:
             if not within or within == timedelta(0):
-                values["within"] = timedelta(seconds=10.0)
+                data["within"] = timedelta(seconds=10.0)
             elif within < timedelta(seconds=10.0):
                 raise ValueError(
-                    "The minimum within for Proactive triggers is 10 seconds"
+                    "`within` for Proactive triggers must be greater than or equal to "
+                    "10 seconds"
                 )
 
-        return values
+        return data
 
     def covers(self, event: ReceivedEvent):
         if not self.covers_resources(event.resource, event.related):
@@ -443,7 +447,7 @@ class EventTrigger(ResourceTrigger):
             payload={
                 "triggering_labels": firing.triggering_labels,
                 "triggering_event": (
-                    triggering_event.dict(json_compatible=True)
+                    triggering_event.model_dump(mode="json")
                     if triggering_event
                     else None
                 ),
@@ -505,32 +509,26 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                 return trigger
         return None
 
-    @root_validator
-    def prevent_run_deployment_loops(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+    @model_validator(mode="after")
+    def prevent_run_deployment_loops(self) -> Self:
         """Detects potential infinite loops in automations with RunDeployment actions"""
         from prefect.server.events.actions import RunDeployment
 
-        if any(values.get(key) is None for key in ("enabled", "trigger", "actions")):
-            # This automation is invalid anyway, so don't proceed with validation
-            return values
-
-        enabled: bool = values["enabled"]
-        if not enabled:
+        if not self.enabled:
             # Disabled automations can't cause problems
-            return values
+            return self
 
-        trigger: Optional[TriggerTypes] = values["trigger"]
         if (
-            not trigger
-            or not isinstance(trigger, EventTrigger)
-            or trigger.posture != Posture.Reactive
+            not self.trigger
+            or not isinstance(self.trigger, EventTrigger)
+            or self.trigger.posture != Posture.Reactive
         ):
             # Only reactive automations can cause infinite amplification
-            return values
+            return self
 
-        if not any(e.startswith("prefect.flow-run.") for e in trigger.expect):
+        if not any(e.startswith("prefect.flow-run.") for e in self.trigger.expect):
             # Only flow run events can cause infinite amplification
-            return values
+            return self
 
         # Every flow run created by a Deployment goes through these states
         problematic_events = {
@@ -539,10 +537,10 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
             "prefect.flow-run.Running",
             "prefect.flow-run.*",
         }
-        if not problematic_events.intersection(trigger.expect):
-            return values
+        if not problematic_events.intersection(self.trigger.expect):
+            return self
 
-        actions = [a for a in values["actions"] if isinstance(a, RunDeployment)]
+        actions = [a for a in self.actions if isinstance(a, RunDeployment)]
         for action in actions:
             if action.source == "inferred":
                 # Inferred deployments for flow run state change events will always
@@ -561,9 +559,9 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                 # loops if there aren't enough filtering labels on the trigger's match
                 # or match_related.  While it's still possible to have infinite loops
                 # with additional filters, it's less likely.
-                if trigger.match.matches_every_resource_of_kind(
+                if self.trigger.match.matches_every_resource_of_kind(
                     "prefect.flow-run"
-                ) and trigger.match_related.matches_every_resource_of_kind(
+                ) and self.trigger.match_related.matches_every_resource_of_kind(
                     "prefect.flow-run"
                 ):
                     raise ValueError(
@@ -575,19 +573,26 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                         "you've selected."
                     )
 
-        return values
+        return self
 
 
 class Automation(ORMBaseModel, AutomationCore, extra="ignore"):
-    __slots__ = ("__weakref__",)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.trigger._set_parent(self)
 
     @classmethod
-    def from_orm(cls: Type["Automation"], obj: Any) -> "Automation":
-        automation = super().from_orm(obj)
+    def model_validate(
+        cls: type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[dict[str, Any]] = None,
+    ) -> Self:
+        automation = super().model_validate(
+            obj, strict=strict, from_attributes=from_attributes, context=context
+        )
         automation.trigger._set_parent(automation)
         return automation
 
@@ -625,7 +630,7 @@ class Firing(PrefectBaseModel):
         ...,
         description="The state changes represented by this Firing",
     )
-    triggered: DateTimeTZ = Field(
+    triggered: DateTime = Field(
         ...,
         description=(
             "The time at which this trigger fired, which may differ from the "
@@ -666,7 +671,8 @@ class Firing(PrefectBaseModel):
         ),
     )
 
-    @validator("trigger_states")
+    @field_validator("trigger_states")
+    @classmethod
     def validate_trigger_states(cls, value: Set[TriggerState]):
         if not value:
             raise ValueError("At least one trigger state must be provided")
@@ -698,7 +704,7 @@ class TriggeredAction(PrefectBaseModel):
 
     firing: Firing = Field(None, description="The Firing that prompted this action")
 
-    triggered: DateTimeTZ = Field(..., description="When this action was triggered")
+    triggered: DateTime = Field(..., description="When this action was triggered")
     triggering_labels: Dict[str, str] = Field(
         ...,
         description=(
@@ -742,5 +748,5 @@ class TriggeredAction(PrefectBaseModel):
         return self.firing.all_events() if self.firing else []
 
 
-CompoundTrigger.update_forward_refs()
-SequenceTrigger.update_forward_refs()
+CompoundTrigger.model_rebuild()
+SequenceTrigger.model_rebuild()

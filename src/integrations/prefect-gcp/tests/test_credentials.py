@@ -234,8 +234,8 @@ class MockTargetConfigs(Block):
         Returns:
             A configs JSON.
         """
-        configs = self.credentials.dict()
-        for key in Block().dict():
+        configs = self.credentials.model_dump()
+        for key in Block().model_dump():
             configs.pop(key, None)
         for key in configs.copy():
             if key.startswith("_"):
