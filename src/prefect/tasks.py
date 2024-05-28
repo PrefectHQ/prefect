@@ -713,32 +713,25 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[None, Sync]:
+    ) -> PrefectFuture:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[PrefectFuture[T, Async]]:
+    ) -> PrefectFuture:
         ...
 
     @overload
     def submit(
         self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFuture[T, Sync]:
-        ...
-
-    @overload
-    def submit(
-        self: "Task[P, T]",
-        *args: P.args,
         return_state: Literal[True],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        *args: P.args,
         **kwargs: P.kwargs,
     ) -> State[T]:
         ...
@@ -749,7 +742,7 @@ class Task(Generic[P, R]):
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    ):
         """
         Submit a run of the task to the engine.
 
@@ -870,32 +863,24 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[None, Sync]]:
+    ) -> List[PrefectFuture]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
     @overload
     def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[List[PrefectFuture[T, Async]]]:
+    ) -> List[PrefectFuture]:
         ...
 
     @overload
     def map(
         self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> List[PrefectFuture[T, Sync]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, T]",
-        *args: P.args,
         return_state: Literal[True],
+        *args: P.args,
         **kwargs: P.kwargs,
     ) -> List[State[T]]:
         ...
@@ -906,7 +891,7 @@ class Task(Generic[P, R]):
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
-    ) -> Any:
+    ):
         """
         Submit a mapped run of the task to a worker.
 

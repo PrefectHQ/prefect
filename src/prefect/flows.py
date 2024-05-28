@@ -81,7 +81,7 @@ from prefect.settings import (
     PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner, ThreadPoolTaskRunner
+from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -187,7 +187,7 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner, None] = None,
+        task_runner: Union[Type[TaskRunner], TaskRunner, None] = None,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -359,7 +359,7 @@ class Flow(Generic[P, R]):
         retry_delay_seconds: Optional[Union[int, float]] = None,
         description: str = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
+        task_runner: Union[Type[TaskRunner], TaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
         persist_result: Optional[bool] = NotSet,
@@ -1318,7 +1318,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
-    task_runner: Optional[BaseTaskRunner] = None,
+    task_runner: Optional[TaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -1350,7 +1350,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = None,
     retry_delay_seconds: Union[int, float] = None,
-    task_runner: Optional[BaseTaskRunner] = None,
+    task_runner: Optional[TaskRunner] = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,

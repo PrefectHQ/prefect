@@ -48,7 +48,7 @@ from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner, TaskRunner
+from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
@@ -373,7 +373,7 @@ class EngineContext(RunContext):
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
     autonomous_task_run: Optional[TaskRun] = None
-    task_runner: Union[BaseTaskRunner, TaskRunner]
+    task_runner: TaskRunner
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
