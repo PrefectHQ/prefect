@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import Body, Depends
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.logging import get_logger
@@ -29,6 +30,13 @@ class SimpleNextFlowRun(PrefectBaseModel):
     next_scheduled_start_time: DateTime = Field(
         default=..., description="The next scheduled start time"
     )
+
+    @field_validator("next_scheduled_start_time", mode="before")
+    @classmethod
+    def validate_next_scheduled_start_time(cls, v):
+        if isinstance(v, datetime):
+            return DateTime.instance(v)
+        return v
 
 
 @router.post("/count-deployments")
