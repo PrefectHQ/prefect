@@ -16,7 +16,6 @@ from typing import (
     Set,
     TypeVar,
     Union,
-    cast,
 )
 from uuid import UUID
 
@@ -41,6 +40,7 @@ from prefect.exceptions import (
     RollBack,
     UpstreamTaskError,
 )
+from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
 from prefect.records.result_store import ResultFactoryStore
@@ -525,11 +525,15 @@ class TaskRunEngine(Generic[P, R]):
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
                     self.logger.log(
-                        level=logging.INFO
-                        if self.state.is_completed()
-                        else logging.ERROR,
+                        level=(
+                            logging.INFO if self.state.is_completed() else logging.ERROR
+                        ),
                         msg=f"Finished in state {display_state}",
                     )
+
+                    # flush all logs if this is not a "top" level run
+                    if not (FlowRunContext.get() or TaskRunContext.get()):
+                        run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
 
                     self._is_started = False
                     self._client = None
@@ -586,7 +590,7 @@ def run_task_sync(
                                 if txn.committed:
                                     result = txn.read()
                                 else:
-                                    result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
+                                    result = task.fn(*call_args, **call_kwargs)  # type: ignore
 
                                 # If the task run is successful, finalize it.
                                 # do this within the transaction lifecycle
@@ -662,9 +666,7 @@ async def run_task_async(
                                 if txn.committed:
                                     result = txn.read()
                                 else:
-                                    result = cast(
-                                        R, await task.fn(*call_args, **call_kwargs)
-                                    )  # type: ignore
+                                    result = await task.fn(*call_args, **call_kwargs)  # type: ignore
 
                                 # If the task run is successful, finalize it.
                                 # do this within the transaction lifecycle
