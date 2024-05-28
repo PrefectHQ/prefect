@@ -132,7 +132,10 @@ def registry(docker: DockerClient) -> Generator[str, None, None]:
         try:
             yield "http://localhost:5555"
         finally:
-            container.remove(force=True)
+            try:
+                container.remove(force=True)
+            except Exception:
+                pass
 
 
 def pytest_runtest_makereport(item, call):
