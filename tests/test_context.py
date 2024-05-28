@@ -66,7 +66,7 @@ def test_single_context_object_cannot_be_entered_multiple_times():
 def test_copied_context_object_can_be_reentered():
     context = ExampleContext(x=1)
     with context:
-        with context.copy():
+        with context.model_copy():
             assert ExampleContext.get().x == 1
 
 
@@ -393,7 +393,7 @@ class TestSettingsContext:
 
     @pytest.mark.usefixtures("remove_existing_settings_context")
     def test_root_settings_context_accessible_in_new_loop(self):
-        from anyio import start_blocking_portal
+        from anyio.from_thread import start_blocking_portal
 
         with start_blocking_portal() as portal:
             result = portal.call(get_settings_context)

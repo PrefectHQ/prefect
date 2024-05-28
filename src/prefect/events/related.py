@@ -31,7 +31,7 @@ RESOURCE_CACHE: RelatedResourceCache = {}
 
 def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
     return [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.tag.{tag}",
                 "prefect.resource.role": "tag",
@@ -44,7 +44,7 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
 def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
     resource_id = f"prefect.{kind}.{object.id}"
 
-    return RelatedResource.parse_obj(
+    return RelatedResource.model_validate(
         {
             "prefect.resource.id": resource_id,
             "prefect.resource.role": role,

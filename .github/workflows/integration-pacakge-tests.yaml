@@ -85,4 +85,4 @@ jobs:
           pytest tests
           --numprocesses auto
           --maxprocesses 6
-          --dist loadscope
+          --dist worksteal
