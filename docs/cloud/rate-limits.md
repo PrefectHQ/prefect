@@ -45,7 +45,7 @@ The Prefect Cloud API will return a `429` response if these limits are triggered
 !!! info "Prefect Cloud feature"
     The Flow Run Retention Policy setting is only applicable in Prefect Cloud.
 
-Flow runs in Prefect Cloud are retained according to the Flow Run Retention Policy set by your account tier.
+Flow runs in Prefect Cloud are retained according to the Flow Run Retention Policy set by your account tier. Artifacts produced by flow runs are also subject to this policy.
 The policy setting applies to all workspaces owned by the account.
 
 The flow run retention policy represents the number of days each flow run is available in the Prefect Cloud UI, and via the Prefect CLI and API after it ends.
