@@ -1,8 +1,8 @@
 from uuid import uuid4
 
 import pendulum
-import pydantic
 import pytest
+from pydantic import ConfigDict, ValidationError
 
 from prefect.server import schemas
 from prefect.server.utilities.schemas import PrefectBaseModel
@@ -41,15 +41,15 @@ async def test_valid_names(name):
     ],
 )
 async def test_invalid_names(name):
-    with pytest.raises(pydantic.ValidationError, match="String should match pattern"):
+    with pytest.raises(ValidationError, match="String should match pattern"):
         assert schemas.core.Flow(name=name)
-    with pytest.raises(pydantic.ValidationError, match="String should match pattern"):
+    with pytest.raises(ValidationError, match="String should match pattern"):
         assert schemas.core.Deployment(
             name=name,
             flow_id=uuid4(),
             manifest_path="file.json",
         )
-    with pytest.raises(pydantic.ValidationError, match="String should match pattern"):
+    with pytest.raises(ValidationError, match="String should match pattern"):
         assert schemas.core.BlockDocument(
             name=name, block_schema_id=uuid4(), block_type_id=uuid4()
         )
@@ -88,7 +88,7 @@ class TestBlockDocumentReference:
 class TestFlowRunNotificationPolicy:
     async def test_message_template_variables_are_validated(self):
         with pytest.raises(
-            pydantic.ValidationError,
+            ValidationError,
             match="(Invalid template variable provided: 'bad_variable')",
         ):
             schemas.core.FlowRunNotificationPolicy(
@@ -101,7 +101,7 @@ class TestFlowRunNotificationPolicy:
 
     async def test_multiple_message_template_variables_are_validated(self):
         with pytest.raises(
-            pydantic.ValidationError,
+            ValidationError,
             match="(Invalid template variable provided: 'bad_variable')",
         ):
             schemas.core.FlowRunNotificationPolicy(
@@ -119,7 +119,7 @@ class TestFlowRunNotificationPolicy:
 class TestFlowRunPolicy:
     class OldFlowRunPolicy(PrefectBaseModel):
         # Schemas ignore extras during normal execution, but raise errors during tests if not explicitly ignored.
-        model_config = pydantic.ConfigDict(extra="ignore")
+        model_config = ConfigDict(extra="ignore")
 
         max_retries: int = 0
         retry_delay_seconds: float = 0
@@ -157,7 +157,7 @@ class TestFlowRunPolicy:
 class TestTaskRunPolicy:
     class OldTaskRunPolicy(PrefectBaseModel):
         # Schemas ignore extras during normal execution, but raise errors during tests if not explicitly ignored.
-        model_config = pydantic.ConfigDict(extra="ignore")
+        model_config = ConfigDict(extra="ignore")
 
         max_retries: int = 0
         retry_delay_seconds: float = 0
@@ -195,7 +195,7 @@ class TestTaskRun:
         with temporary_settings({PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH: 5}):
             cache_key_invalid_length = "X" * 6
             with pytest.raises(
-                pydantic.ValidationError,
+                ValidationError,
                 match="Cache key exceeded maximum allowed length",
             ):
                 schemas.core.TaskRun(
@@ -207,7 +207,7 @@ class TestTaskRun:
                 )
 
             with pytest.raises(
-                pydantic.ValidationError,
+                ValidationError,
                 match="Cache key exceeded maximum allowed length",
             ):
                 schemas.actions.TaskRunCreate(
@@ -238,7 +238,7 @@ class TestTaskRun:
     def test_task_run_cache_key_greater_than_default_max_length(self):
         cache_key_invalid_length = "X" * 2001
         with pytest.raises(
-            pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
+            ValidationError, match="Cache key exceeded maximum allowed length"
         ):
             schemas.core.TaskRun(
                 id=uuid4(),
@@ -249,7 +249,7 @@ class TestTaskRun:
             )
 
         with pytest.raises(
-            pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
+            ValidationError, match="Cache key exceeded maximum allowed length"
         ):
             schemas.actions.TaskRunCreate(
                 flow_run_id=uuid4(),
@@ -309,7 +309,7 @@ class TestWorkQueueHealthPolicy:
 
 class TestWorkPool:
     def test_more_helpful_validation_message_for_work_pools(self):
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(ValidationError):
             schemas.core.WorkPool(name="test")
 
     async def test_valid_work_pool_default_queue_id(self):

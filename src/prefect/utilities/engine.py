@@ -56,7 +56,6 @@ from prefect.settings import (
 from prefect.states import (
     State,
     get_state_exception,
-    is_state,
 )
 from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
@@ -97,7 +96,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             # We need to wait for futures to be submitted before we can get the task
             # run id but we want to do so asynchronously
             futures.add(obj)
-        elif is_state(obj):
+        elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         # Expressions inside quotes should not be traversed
@@ -122,7 +121,9 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     return inputs
 
 
-def collect_task_run_inputs_sync(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
+def collect_task_run_inputs_sync(
+    expr: Any, future_cls: Any = NewPrefectFuture, max_depth: int = -1
+) -> Set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -136,12 +137,11 @@ def collect_task_run_inputs_sync(expr: Any, max_depth: int = -1) -> Set[TaskRunI
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
-    futures: Set[NewPrefectFuture] = set()
 
     def add_futures_and_states_to_inputs(obj):
-        if isinstance(obj, NewPrefectFuture):
-            futures.add(obj)
-        elif is_state(obj):
+        if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
+            inputs.add(TaskRunResult(id=obj.task_run_id))
+        elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         # Expressions inside quotes should not be traversed
@@ -158,9 +158,6 @@ def collect_task_run_inputs_sync(expr: Any, max_depth: int = -1) -> Set[TaskRunI
         return_data=False,
         max_depth=max_depth,
     )
-
-    for future in futures:
-        inputs.add(TaskRunResult(id=future.task_run_id))
 
     return inputs
 
@@ -272,7 +269,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             futures.add(expr)
-        if is_state(expr):
+        if isinstance(expr, State):
             states.add(expr)
 
         return expr
@@ -311,7 +308,7 @@ async def resolve_inputs(
 
         if isinstance(expr, PrefectFuture):
             state = expr._final_state
-        elif is_state(expr):
+        elif isinstance(expr, State):
             state = expr
         else:
             return expr
@@ -799,7 +796,7 @@ def resolve_to_final_result(expr, context):
     if isinstance(expr, NewPrefectFuture):
         expr.wait()
         state = expr.state
-    elif is_state(expr):
+    elif isinstance(expr, State):
         state = expr
     else:
         return expr

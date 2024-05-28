@@ -218,7 +218,7 @@ async def start(
                 if with_healthcheck:
                     # we'll start the ASGI server in a separate thread so that
                     # uvicorn does not block the main thread
-                    server_thread = threading.Thread(
+                    webserver_thread = threading.Thread(
                         name="healthcheck-server-thread",
                         target=partial(
                             start_healthcheck_server,
@@ -227,16 +227,12 @@ async def start(
                         ),
                         daemon=True,
                     )
-                    server_thread.start()
+                    webserver_thread.start()
 
+        await worker._emit_worker_stopped_event(started_event)
         app.console.print(f"Worker {worker.name!r} stopped!")
     except asyncio.CancelledError:
-        app.console.print(
-            f"Worker {worker.name!r} stopped!",
-            style="red",
-        )
-    finally:
-        await worker._emit_worker_stopped_event(started_event)
+        app.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
 
 
 async def _check_work_pool_paused(work_pool_name: str) -> bool:
