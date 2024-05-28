@@ -97,6 +97,10 @@ class WorkPoolStatus(AutoEnum):
     NOT_READY = AutoEnum.auto()
     PAUSED = AutoEnum.auto()
 
+    @property
+    def display_name(self):
+        return self.name.replace("_", " ").capitalize()
+
 
 class WorkerStatus(AutoEnum):
     """Enumeration of worker statuses."""
