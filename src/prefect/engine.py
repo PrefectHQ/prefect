@@ -8,15 +8,12 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from functools import partial
 from typing import (
     Any,
-    Awaitable,
     Dict,
     Iterable,
-    List,
     Optional,
     Set,
     Type,
     TypeVar,
-    Union,
     overload,
 )
 from uuid import UUID, uuid4
@@ -49,8 +46,6 @@ from prefect.context import (
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
-    MappingLengthMismatch,
-    MappingMissingIterable,
     NotPausedError,
     Pause,
     UpstreamTaskError,
@@ -77,7 +72,6 @@ from prefect.states import (
     Paused,
     Pending,
     Running,
-    Scheduled,
     State,
     Suspended,
     exception_to_crashed_state,
@@ -89,20 +83,14 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
-    gather,
     is_async_fn,
     run_coro_as_sync,
     sync_compatible,
 )
 from prefect.utilities.callables import (
-    collapse_variadic_parameters,
-    explode_variadic_parameter,
-    get_parameter_defaults,
     parameters_to_args_kwargs,
 )
-from prefect.utilities.collections import isiterable
 from prefect.utilities.engine import (
     _dynamic_key_for_task_run,
     _get_hook_name,
@@ -516,113 +504,6 @@ async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
             raise FlowPauseTimeout("Flow run can no longer be resumed.")
         else:
             raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
-
-
-async def begin_task_map(
-    task: Task,
-    flow_run_context: Optional[FlowRunContext],
-    parameters: Dict[str, Any],
-    wait_for: Optional[Iterable[PrefectFuture]],
-    return_type: EngineReturnType,
-    task_runner: Optional[BaseTaskRunner],
-    autonomous: bool = False,
-) -> List[Union[PrefectFuture, Awaitable[PrefectFuture], TaskRun]]:
-    """Async entrypoint for task mapping"""
-    # We need to resolve some futures to map over their data, collect the upstream
-    # links beforehand to retain relationship tracking.
-    task_inputs = {
-        k: await collect_task_run_inputs(v, max_depth=0) for k, v in parameters.items()
-    }
-
-    # Resolve the top-level parameters in order to get mappable data of a known length.
-    # Nested parameters will be resolved in each mapped child where their relationships
-    # will also be tracked.
-    parameters = await resolve_inputs(parameters, max_depth=1)
-
-    # Ensure that any parameters in kwargs are expanded before this check
-    parameters = explode_variadic_parameter(task.fn, parameters)
-
-    iterable_parameters = {}
-    static_parameters = {}
-    annotated_parameters = {}
-    for key, val in parameters.items():
-        if isinstance(val, (allow_failure, quote)):
-            # Unwrap annotated parameters to determine if they are iterable
-            annotated_parameters[key] = val
-            val = val.unwrap()
-
-        if isinstance(val, unmapped):
-            static_parameters[key] = val.value
-        elif isiterable(val):
-            iterable_parameters[key] = list(val)
-        else:
-            static_parameters[key] = val
-
-    if not len(iterable_parameters):
-        raise MappingMissingIterable(
-            "No iterable parameters were received. Parameters for map must "
-            f"include at least one iterable. Parameters: {parameters}"
-        )
-
-    iterable_parameter_lengths = {
-        key: len(val) for key, val in iterable_parameters.items()
-    }
-    lengths = set(iterable_parameter_lengths.values())
-    if len(lengths) > 1:
-        raise MappingLengthMismatch(
-            "Received iterable parameters with different lengths. Parameters for map"
-            f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
-        )
-
-    map_length = list(lengths)[0]
-
-    task_runs = []
-    for i in range(map_length):
-        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
-        call_parameters.update({key: value for key, value in static_parameters.items()})
-
-        # Add default values for parameters; these are skipped earlier since they should
-        # not be mapped over
-        for key, value in get_parameter_defaults(task.fn).items():
-            call_parameters.setdefault(key, value)
-
-        # Re-apply annotations to each key again
-        for key, annotation in annotated_parameters.items():
-            call_parameters[key] = annotation.rewrap(call_parameters[key])
-
-        # Collapse any previously exploded kwargs
-        call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
-
-        if autonomous:
-            task_runs.append(
-                await create_autonomous_task_run(
-                    task=task,
-                    parameters=call_parameters,
-                )
-            )
-        else:
-            task_runs.append(
-                partial(
-                    get_task_call_return_value,
-                    task=task,
-                    flow_run_context=flow_run_context,
-                    parameters=call_parameters,
-                    wait_for=wait_for,
-                    return_type=return_type,
-                    task_runner=task_runner,
-                    extra_task_inputs=task_inputs,
-                )
-            )
-
-    if autonomous:
-        return task_runs
-
-    # Maintain the order of the task runs when using the sequential task runner
-    runner = task_runner if task_runner else flow_run_context.task_runner
-    if runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
-        return [await task_run() for task_run in task_runs]
-
-    return await gather(*task_runs)
 
 
 async def get_task_call_return_value(
@@ -1401,35 +1282,6 @@ async def _check_task_failure_retriable(
             exc_info=True,
         )
         return False
-
-
-async def create_autonomous_task_run(task: Task, parameters: Dict[str, Any]) -> TaskRun:
-    """
-    Create a task run in the API for an autonomous task submission and store
-    the provided parameters using the existing result storage mechanism.
-    """
-    async with get_client() as client:
-        state = Scheduled()
-        if parameters:
-            parameters_id = uuid4()
-            state.state_details.task_parameters_id = parameters_id
-
-            # TODO: Improve use of result storage for parameter storage / reference
-            task.persist_result = True
-
-            factory = await ResultFactory.from_autonomous_task(task, client=client)
-            await factory.store_parameters(parameters_id, parameters)
-
-        task_run = await client.create_task_run(
-            task=task,
-            flow_run_id=None,
-            dynamic_key=f"{task.task_key}-{str(uuid4())[:NUM_CHARS_DYNAMIC_KEY]}",
-            state=state,
-        )
-
-        engine_logger.debug(f"Submitted run of task {task.name!r} for execution")
-
-    return task_run
 
 
 if __name__ == "__main__":
