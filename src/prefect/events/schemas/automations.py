@@ -24,7 +24,6 @@ from typing_extensions import Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.events.actions import ActionTypes, RunDeployment
-from prefect.types import NonNegativeDuration
 from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
@@ -163,8 +162,9 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: NonNegativeDuration = Field(
+    within: timedelta = Field(
         timedelta(seconds=0),
+        ge=timedelta(seconds=0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "
