@@ -14,7 +14,6 @@ from prefect.server import schemas
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import BlockSchema, BlockType
-from prefect.settings import PREFECT_TEST_MODE
 
 if TYPE_CHECKING:
     from prefect.client.schemas import BlockType as ClientBlockType
@@ -38,14 +37,10 @@ async def create_block_type(
     Returns:
         block_type: an ORM block type model
     """
-    # We take a shortcut in many unit tests to pass client models directly to
-    # this function.  We will support this (only in unit tests) by converting them
-    # to the appropriate server model.
+    # We take a shortcut in many unit tests and in block registration to pass client
+    # models directly to this function.  We will support this by converting them to
+    # the appropriate server model.
     if not isinstance(block_type, schemas.core.BlockType):
-        if not PREFECT_TEST_MODE.value():
-            raise ValueError(
-                f"block_type must be a server model, got {type(block_type)}"
-            )
         block_type = schemas.core.BlockType.model_validate(
             block_type.model_dump(mode="json")
         )
@@ -172,12 +167,10 @@ async def update_block_type(
         bool: True if the block type was updated
     """
 
-    # We take a shortcut in many unit tests to pass client models directly to
-    # this function.  We will support this (only in unit tests) by converting them
-    # to the appropriate server model.
+    # We take a shortcut in many unit tests and in block registration to pass client
+    # models directly to this function.  We will support this by converting them to
+    # the appropriate server model.
     if not isinstance(block_type, schemas.actions.BlockTypeUpdate):
-        if not PREFECT_TEST_MODE.value():
-            raise ValueError("block_type must be a server model")
         block_type = schemas.actions.BlockTypeUpdate.model_validate(
             block_type.model_dump(
                 mode="json",
