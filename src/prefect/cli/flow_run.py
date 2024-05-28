@@ -184,6 +184,11 @@ async def delete(id: UUID):
     """
     async with get_client() as client:
         try:
+            if not typer.confirm(
+                (f"Are you sure you want to delete flow run with id {id!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
             await client.delete_flow_run(id)
         except ObjectNotFound:
             exit_with_error(f"Flow run '{id}' not found!")
