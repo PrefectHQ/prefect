@@ -29,6 +29,7 @@ from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow, serve
+from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.manifests import Manifest
@@ -58,6 +59,7 @@ prefect.context.FlowRunContext.model_rebuild()
 prefect.context.TaskRunContext.model_rebuild()
 prefect.client.schemas.State.model_rebuild()
 prefect.client.schemas.StateCreate.model_rebuild()
+Transaction.model_rebuild()
 
 
 prefect.plugins.load_extra_entrypoints()
@@ -94,6 +96,7 @@ __all__ = [
     "tags",
     "task",
     "Task",
+    "Transaction",
     "unmapped",
     "serve",
     "deploy",
