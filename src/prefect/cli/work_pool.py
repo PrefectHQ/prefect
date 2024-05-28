@@ -219,7 +219,7 @@ async def create(
                     f"{PREFECT_UI_URL.value()}/work-pools/work-pool/{work_pool.name}"
                 )
             else:
-                run_url = "<no dashboard available>"
+                pool_url = "<no dashboard available>"
 
             app.console.print(
                 textwrap.dedent(
@@ -228,7 +228,7 @@ async def create(
                 └── Type: {work_pool.type}
                 └── Description: {work_pool.description}
                 └── Status: {work_pool.status.display_name}
-                └── URL: {run_url}
+                └── URL: {pool_url}
                 """
                 ).strip(),
                 soft_wrap=True,
