@@ -48,7 +48,11 @@ def reset_object_registry():
 
 @pytest.fixture
 def kube_config_dict():
-    return yaml.safe_load(GOOD_CONFIG_FILE_PATH.read_text())
+    try:
+        return yaml.safe_load(GOOD_CONFIG_FILE_PATH.read_text())
+    # exception for if working from integration directory
+    except FileNotFoundError:
+        return yaml.safe_load(Path("tests/kube_config.yaml").read_text())
 
 
 @pytest.fixture

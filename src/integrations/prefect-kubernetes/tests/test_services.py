@@ -1,4 +1,4 @@
-from kubernetes.client.models import V1DeleteOptions, V1Service
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Service
 from prefect_kubernetes.services import (
     create_namespaced_service,
     delete_namespaced_service,
