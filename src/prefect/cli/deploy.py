@@ -319,7 +319,7 @@ async def deploy(
         ),
     ),
     enforce_parameter_schema: bool = typer.Option(
-        False,
+        True,
         "--enforce-parameter-schema",
         help=(
             "Whether to enforce the parameter schema on this deployment. If set to"
@@ -690,7 +690,7 @@ async def _run_single_deploy(
         version=deploy_config.get("version"),
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
-        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
+        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", True),
         parameter_openapi_schema=deploy_config.get(
             "parameter_openapi_schema"
         ).model_dump(),

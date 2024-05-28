@@ -878,7 +878,7 @@ class Deployment(Base):
     pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
     enforce_parameter_schema = sa.Column(
-        sa.Boolean, default=False, server_default="0", nullable=False
+        sa.Boolean, default=True, server_default="0", nullable=False
     )
     created_by = sa.Column(
         Pydantic(schemas.core.CreatedBy),

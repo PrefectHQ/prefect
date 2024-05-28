@@ -174,7 +174,7 @@ class DeploymentCreate(ActionBaseModel):
         description="A list of schedules for the deployment.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
