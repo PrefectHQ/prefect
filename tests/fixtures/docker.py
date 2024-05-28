@@ -132,7 +132,20 @@ def registry(docker: DockerClient) -> Generator[str, None, None]:
         try:
             yield "http://localhost:5555"
         finally:
-            try:
-                container.remove(force=True)
-            except Exception:
-                pass
+            container.remove(force=True)
+
+
+def pytest_runtest_makereport(item, call):
+    if call.excinfo is not None:
+        # Get the fixture value
+        registry_url = item.funcargs.get("registry", None)
+        if registry_url:
+            # Assuming `docker` is accessible here and the container name is known
+            docker = item.funcargs.get("docker")
+            if docker:
+                try:
+                    container = docker.containers.get("orion-test-registry")
+                    logs = container.logs().decode("utf-8")
+                    print(f"\nLogs for container 'orion-test-registry':\n{logs}")
+                except Exception as e:
+                    print(f"Failed to retrieve container logs: {e}")
