@@ -1,9 +1,11 @@
 import sys
+import time
 from contextlib import contextmanager
 from typing import Generator
 
 import docker.errors as docker_errors
 import pytest
+import requests
 from typer.testing import CliRunner
 
 import prefect
@@ -130,25 +132,23 @@ def registry(docker: DockerClient) -> Generator[str, None, None]:
             ports={"5000/tcp": 5555},
         )
         try:
-            yield "http://localhost:5555"
+            registry_url = "http://localhost:5555"
+            for _ in range(30):
+                try:
+                    response = requests.get(f"{registry_url}/v2/")
+                    if response.status_code == 200:
+                        break
+                    else:
+                        print(response.content)
+                except requests.ConnectionError:
+                    pass
+                time.sleep(1)
+            else:
+                raise RuntimeError("Docker registry did not become ready in time.")
+
+            yield registry_url
         finally:
             try:
                 container.remove(force=True)
             except Exception:
                 pass
-
-
-def pytest_runtest_makereport(item, call):
-    if call.excinfo is not None:
-        # Get the fixture value
-        registry_url = item.funcargs.get("registry", None)
-        if registry_url:
-            # Assuming `docker` is accessible here and the container name is known
-            docker = item.funcargs.get("docker")
-            if docker:
-                try:
-                    container = docker.containers.get("orion-test-registry")
-                    logs = container.logs().decode("utf-8")
-                    print(f"\nLogs for container 'orion-test-registry':\n{logs}")
-                except Exception as e:
-                    print(f"Failed to retrieve container logs: {e}")
