@@ -1654,7 +1654,7 @@ async def _wait_for_logs(
     prefect_client: PrefectClient, expected_num_logs: Optional[int] = None
 ):
     logs = []
-    for _ in range(5):
+    while True:
         logs = await prefect_client.read_logs()
         if logs:
             if expected_num_logs is None:
