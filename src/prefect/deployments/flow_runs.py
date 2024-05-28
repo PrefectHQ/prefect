@@ -13,7 +13,7 @@ from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.logging import get_logger
-from prefect.states import Scheduled
+from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
@@ -116,13 +116,13 @@ async def run_deployment(
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
     if as_subflow and (flow_run_ctx or task_run_ctx):
-        # This was called from a flow. Link the flow run as a subflow.
-        from prefect.engine import (
-            Pending,
+        # TODO: this logic can likely be simplified by using `Task.create_run`
+        from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
             collect_task_run_inputs,
         )
 
+        # This was called from a flow. Link the flow run as a subflow.
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
