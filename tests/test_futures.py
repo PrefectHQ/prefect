@@ -1,218 +1,131 @@
+import uuid
 from collections import OrderedDict
+from concurrent.futures import Future
 from dataclasses import dataclass
-from unittest.mock import MagicMock
+from typing import Any, Optional
 
 import pytest
 
-from prefect.client import PrefectClient
-from prefect.exceptions import FailedRun
-from prefect.flows import flow
-from prefect.futures import PrefectFuture, resolve_futures_to_data
-from prefect.states import Completed, Failed
-from prefect.tasks import task
-from prefect.testing.utilities import assert_does_not_warn
-
-mock_client = MagicMock(spec=PrefectClient)()
-mock_client.read_flow_run_states.return_value = [Completed()]
-
-
-async def test_resolve_futures_transforms_future(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(future) == "foo"
-
-
-@pytest.mark.parametrize("typ", [list, tuple, set])
-async def test_resolve_futures_transforms_future_in_listlike_type(typ, task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(typ(["a", future, "b"])) == typ(
-        ["a", "foo", "b"]
-    )
-
-
-@pytest.mark.xfail(reason="2-step traversal of collections exhausts generators")
-async def test_resolve_futures_transforms_future_in_generator_type(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-
-    def gen():
-        yield "a"
-        yield future
-        yield "b"
-
-    assert await resolve_futures_to_data(gen()) == ["a", "foo", "b"]
-
-
-@pytest.mark.xfail(reason="2-step traversal of collections exhausts generators")
-async def test_resolve_futures_transforms_future_in_nested_generator_types(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-
-    def gen_a():
-        yield future
-
-    def gen_b():
-        yield range(2)
-        yield gen_a()
-        yield "b"
-
-    assert await resolve_futures_to_data(gen_b()) == [range(2), ["foo"], "b"]
-
-
-@pytest.mark.parametrize("typ", [dict, OrderedDict])
-async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run):
-    key_future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    key_future.task_run = task_run
-    key_future._submitted.set()
-    value_future = PrefectFuture(
-        key=str(task_run.id),
-        name="bar",
-        task_runner=None,
-        _final_state=Completed(data="bar"),
-    )
-    value_future.task_run = task_run
-    value_future._submitted.set()
-    assert await resolve_futures_to_data(
-        typ([("a", 1), (key_future, value_future), ("b", 2)])
-    ) == typ([("a", 1), ("foo", "bar"), ("b", 2)])
-
-
-async def test_resolve_futures_transforms_future_in_dataclass(task_run):
-    @dataclass
-    class Foo:
-        a: int
-        foo: str
-        b: int = 2
-
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="bar"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(Foo(a=1, foo=future)) == Foo(
-        a=1, foo="bar", b=2
-    )
-
-
-async def test_resolves_futures_in_nested_collections(task_run):
-    @dataclass
-    class Foo:
-        foo: str
-        nested_list: list
-        nested_dict: dict
-
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="bar"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(
-        Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
-    ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})
-
-
-@pytest.mark.skip(
-    reason="Not supported with new engine",
+from prefect.futures import (
+    PrefectConcurrentFuture,
+    PrefectFuture,
+    resolve_futures_to_states,
 )
-def test_raise_warning_futures_in_condition():
-    @task
-    def a_task():
-        return False
-
-    @flow
-    def if_flow():
-        if a_task.submit():
-            pass
-
-    @flow
-    def elif_flow():
-        if False:
-            pass
-        elif a_task.submit():
-            pass
-
-    @flow
-    def if_result_flow():
-        if a_task().result():
-            pass
-
-    match = "A 'PrefectFuture' from a task call was cast to a boolean"
-    with pytest.warns(UserWarning, match=match):
-        if_flow(return_state=True)
-
-    with pytest.warns(UserWarning, match=match):
-        elif_flow(return_state=True)
-
-    with assert_does_not_warn():
-        if_result_flow(return_state=True)
+from prefect.states import Completed, Failed
 
 
-async def test_resolve_futures_to_data_raises_exception_default(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Failed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
+class MockFuture(PrefectFuture):
+    def __init__(self, data: Any = 42):
+        super().__init__(uuid.uuid4(), Future())
+        self._final_state = Completed(data=data)
 
-    def failed_fun():
-        yield future
+    def wait(self, timeout: Optional[float] = None) -> None:
+        pass
 
-    with pytest.raises(FailedRun) as excinfo:
-        await resolve_futures_to_data(failed_fun())
-
-    assert "foo" in str(excinfo.value)
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> Any:
+        return self._final_state.result()
 
 
-async def test_resolve_futures_to_data_dont_raises_exception(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Failed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
+class TestPrefectConcurrentFuture:
+    def test_wait_with_timeout(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        future.wait(timeout=0.01)  # should not raise a TimeoutError
 
-    def failed_fun():
-        yield future
+        assert (
+            future.state.is_pending()
+        )  # should return a Pending state when task run is not found
 
-    assert await resolve_futures_to_data(failed_fun(), raise_on_failure=False) == []
+    def test_wait_without_timeout(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(Completed())
+        future.wait(timeout=0)
+
+        assert future.state.is_completed()
+
+    def test_result_with_final_state(self):
+        final_state = Completed(data=42)
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(final_state)
+        result = future.result()
+
+        assert result == 42
+
+    def test_result_without_final_state(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(42)
+        result = future.result()
+
+        assert result == 42
+
+    def test_result_with_final_state_and_raise_on_failure(self):
+        final_state = Failed(data=ValueError("oops"))
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(final_state)
+
+        with pytest.raises(ValueError, match="oops"):
+            future.result(raise_on_failure=True)
+
+
+class TestResolveFuturesToStates:
+    async def test_resolve_futures_transforms_future(self):
+        future = future = MockFuture()
+        assert resolve_futures_to_states(future).is_completed()
+
+    def test_resolve_futures_to_states_with_no_futures(self):
+        expr = [1, 2, 3]
+        result = resolve_futures_to_states(expr)
+        assert result == [1, 2, 3]
+
+    @pytest.mark.parametrize("_type", [list, tuple, set])
+    def test_resolve_futures_transforms_future_in_listlike_type(self, _type):
+        future = MockFuture(data="foo")
+        result = resolve_futures_to_states(_type(["a", future, "b"]))
+        assert result == _type(["a", future.state, "b"])
+
+    @pytest.mark.parametrize("_type", [dict, OrderedDict])
+    def test_resolve_futures_transforms_future_in_dictlike_type(self, _type):
+        key_future = MockFuture(data="foo")
+        value_future = MockFuture(data="bar")
+        result = resolve_futures_to_states(
+            _type([("a", 1), (key_future, value_future), ("b", 2)])
+        )
+        assert result == _type(
+            [("a", 1), (key_future.state, value_future.state), ("b", 2)]
+        )
+
+    def test_resolve_futures_transforms_future_in_dataclass(self):
+        @dataclass
+        class Foo:
+            a: int
+            foo: str
+            b: int = 2
+
+        future = MockFuture(data="bar")
+        assert resolve_futures_to_states(Foo(a=1, foo=future)) == Foo(
+            a=1, foo=future.state, b=2
+        )
+
+    def test_resolves_futures_in_nested_collections(self):
+        @dataclass
+        class Foo:
+            foo: str
+            nested_list: list
+            nested_dict: dict
+
+        future = MockFuture(data="bar")
+        assert resolve_futures_to_states(
+            Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
+        ) == Foo(
+            foo=future.state,
+            nested_list=[[future.state]],
+            nested_dict={"key": [future.state]},
+        )

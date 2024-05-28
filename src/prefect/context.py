@@ -45,11 +45,10 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
-from prefect.new_task_runners import TaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner
+from prefect.task_runners import BaseTaskRunner, TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 

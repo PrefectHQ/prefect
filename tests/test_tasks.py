@@ -26,7 +26,7 @@ from prefect.exceptions import (
     RollBack,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.new_futures import PrefectFuture as NewPrefectFuture
+from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (

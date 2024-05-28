@@ -24,7 +24,6 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
-from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
@@ -37,7 +36,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.task_runners import SequentialTaskRunner
+from prefect.task_runners import SequentialTaskRunner, ThreadPoolTaskRunner
 
 
 class ExampleContext(ContextModel):

@@ -1047,7 +1047,7 @@ class Task(Generic[P, R]):
                 for parameters in parameters_list
             ]
 
-        from prefect.new_task_runners import TaskRunner
+        from prefect.task_runners import TaskRunner
 
         task_runner = flow_run_context.task_runner
         assert isinstance(task_runner, TaskRunner)

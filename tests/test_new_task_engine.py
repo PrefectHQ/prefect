@@ -21,13 +21,13 @@ from prefect.context import (
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task_async, run_task_sync
-from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import PersistedResult, ResultFactory
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
 from prefect.states import Running, State
+from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state

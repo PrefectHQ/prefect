@@ -33,6 +33,7 @@ from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import ClientContext, FlowRunContext, TagsContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
+from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
     flow_run_logger,
@@ -40,7 +41,6 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.new_futures import PrefectFuture, resolve_futures_to_states
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
 from prefect.states import (
