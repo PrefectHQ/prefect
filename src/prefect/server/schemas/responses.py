@@ -6,6 +6,7 @@ import datetime
 from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
+import pendulum
 from pydantic import ConfigDict, Field, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
@@ -141,7 +142,7 @@ class HistoryResponse(PrefectBaseModel):
         for field in d.keys():
             val = values.get(field)
             if isinstance(val, datetime.datetime):
-                d[field] = DateTime.instance(values[field])
+                d[field] = pendulum.instance(values[field])
             else:
                 d[field] = val
 

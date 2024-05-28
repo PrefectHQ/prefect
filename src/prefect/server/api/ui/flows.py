@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field, field_validator
@@ -35,7 +36,7 @@ class SimpleNextFlowRun(PrefectBaseModel):
     @classmethod
     def validate_next_scheduled_start_time(cls, v):
         if isinstance(v, datetime):
-            return DateTime.instance(v)
+            return pendulum.instance(v)
         return v
 
 
