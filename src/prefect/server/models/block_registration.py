@@ -36,6 +36,7 @@ async def _install_protected_system_blocks(session):
                 block_type.model_dump()
             )
             block_type.is_protected = True
+            server_block_type.is_protected = True
 
             block_type = await models.block_types.create_block_type(
                 session=session, block_type=server_block_type, override=True
