@@ -151,7 +151,7 @@ async def delete_global_concurrency_limit(
         name (str): The name of the global concurrency limit to delete.
     """
     if not typer.confirm(
-        f"Are you sure you want to delete global concurrency limit {name!r}?",
+        f"Are you sure you want to delete global concurrency limit with name {name!r}?",
         default=False,
     ):
         exit_with_error("Deletion aborted.")
