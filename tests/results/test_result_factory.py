@@ -191,7 +191,7 @@ def test_root_flow_custom_serializer_by_instance():
 
 
 async def test_root_flow_custom_storage_by_slug(tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
     @flow(result_storage="local-file-system/test")
@@ -206,7 +206,7 @@ async def test_root_flow_custom_storage_by_slug(tmp_path):
 
 
 async def test_root_flow_custom_storage_by_instance_presaved(tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
     @flow(result_storage=storage)
@@ -222,7 +222,7 @@ async def test_root_flow_custom_storage_by_instance_presaved(tmp_path):
 
 
 async def test_root_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
 
     @flow(
         result_storage=storage, cache_result_in_memory=False
@@ -443,7 +443,7 @@ def test_child_flow_inherits_custom_serializer():
 
 
 async def test_child_flow_inherits_custom_storage(tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
     @flow(result_storage="local-file-system/test")
@@ -479,7 +479,7 @@ def test_child_flow_custom_serializer():
 
 
 async def test_child_flow_custom_storage(tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
     @flow()
@@ -499,7 +499,7 @@ async def test_child_flow_custom_storage(tmp_path):
 
 
 async def test_child_flow_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
 
     @flow(cache_result_in_memory=False)  # use a feature that requires persistence
     def foo():
@@ -712,7 +712,7 @@ def test_task_inherits_custom_serializer():
 
 
 async def test_task_inherits_custom_storage(tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
     @flow(result_storage="local-file-system/test")
@@ -748,7 +748,7 @@ def test_task_custom_serializer():
 
 
 async def test_task_custom_storage(tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
     storage_id = await storage.save("test")
 
     @flow()
@@ -768,7 +768,7 @@ async def test_task_custom_storage(tmp_path):
 
 
 async def test_task_custom_storage_by_instance_unsaved(prefect_client, tmp_path):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=tmp_path / "test")
 
     @flow(cache_result_in_memory=False)
     def foo():

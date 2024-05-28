@@ -119,19 +119,13 @@ class APILogHandler(logging.Handler):
             return APILogWorker.drain_all(timeout=5)
 
     @classmethod
-    def aflush(cls):
+    async def aflush(cls):
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
         """
 
-        if not get_running_loop():
-            raise RuntimeError(
-                "`aflush` cannot be used from a synchronous context; use `flush`"
-                " instead."
-            )
-
-        return APILogWorker.drain_all()
+        return await APILogWorker.drain_all()
 
     def emit(self, record: logging.LogRecord):
         """

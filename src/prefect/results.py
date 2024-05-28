@@ -165,7 +165,7 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     return False
 
 
-def _format_user_supplied_storage_key(key):
+def _format_user_supplied_storage_key(key: str) -> str:
     # Note here we are pinning to task runs since flow runs do not support storage keys
     # yet; we'll need to split logic in the future or have two separate functions
     runtime_vars = {key: getattr(prefect.runtime, key) for key in dir(prefect.runtime)}
@@ -424,7 +424,7 @@ class ResultFactory(BaseModel):
             )
 
     @sync_compatible
-    async def create_result(self, obj: R) -> Union[R, "BaseResult[R]"]:
+    async def create_result(self, obj: R, key: str = None) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
 
@@ -444,11 +444,20 @@ class ResultFactory(BaseModel):
         if type(obj) in LITERAL_TYPES:
             return await LiteralResult.create(obj)
 
+        if key:
+
+            def key_fn():
+                return key
+
+            storage_key_fn = key_fn
+        else:
+            storage_key_fn = self.storage_key_fn
+
         return await PersistedResult.create(
             obj,
             storage_block=self.storage_block,
             storage_block_id=self.storage_block_id,
-            storage_key_fn=self.storage_key_fn,
+            storage_key_fn=storage_key_fn,
             serializer=self.serializer,
             cache_object=should_cache_object,
         )

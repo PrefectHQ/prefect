@@ -4053,7 +4053,7 @@ class TestTransactions:
 
         @flow
         def main():
-            with transaction(None):
+            with transaction():
                 task1()
                 task2()
 

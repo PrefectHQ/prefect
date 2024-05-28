@@ -441,8 +441,8 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
     assert storage_block._is_anonymous is False
 
 
-async def test_root_flow_default_remote_storage_saves_correct_result():
-    await LocalFileSystem(basepath="~/.prefect/results").save("my-result-storage")
+async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
+    await LocalFileSystem(basepath=tmp_path).save("my-result-storage")
 
     @task(result_storage_key="my-result.pkl")
     async def bar():
@@ -462,7 +462,7 @@ async def test_root_flow_default_remote_storage_saves_correct_result():
 
     assert result == {"foo": "bar"}
     local_storage = await LocalFileSystem.load("my-result-storage")
-    result_bytes = await local_storage.read_path("~/.prefect/results/my-result.pkl")
+    result_bytes = await local_storage.read_path(f"{tmp_path/'my-result.pkl'}")
     saved_python_result = pickle.loads(
         base64.b64decode(PersistedResultBlob.model_validate_json(result_bytes).data)
     )

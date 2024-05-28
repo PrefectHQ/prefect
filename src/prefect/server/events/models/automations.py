@@ -16,7 +16,7 @@ from prefect.server.events.schemas.automations import (
     AutomationUpdate,
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 if TYPE_CHECKING:
     from prefect.server.database import orm_models
@@ -111,7 +111,7 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 
     def change_notification(session, **kwargs):
         try:
-            run_sync(automation_changed(automation.id, f"automation__{event}"))
+            run_coro_as_sync(automation_changed(automation.id, f"automation__{event}"))
         except Exception:
             # On exception, do not re-raise, just move on
             pass
