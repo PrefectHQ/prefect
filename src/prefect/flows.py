@@ -190,8 +190,6 @@ class Flow(Generic[P, R]):
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
         task_runner: Union[Type[TaskRunner], TaskRunner, None] = None,
-        description: str = None,
-        timeout_seconds: Union[int, float] = None,
         description: Optional[str] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
@@ -363,8 +361,7 @@ class Flow(Generic[P, R]):
         retry_delay_seconds: Optional[Union[int, float]] = None,
         description: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        task_runner: Union[Type[TaskRunner], TaskRunner] = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner, None] = None,
+        task_runner: Union[Type[TaskRunner], TaskRunner, None] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: Optional[bool] = None,
         persist_result: Optional[bool] = NotSet,  # type: ignore
