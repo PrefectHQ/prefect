@@ -20,25 +20,11 @@ from prefect.states import (
     Running,
     State,
     StateGroup,
-    is_state,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
 )
 from prefect.utilities.annotations import quote
-
-
-def test_is_state():
-    assert is_state(Completed())
-
-
-def test_is_not_state():
-    assert not is_state(None)
-    assert not is_state("test")
-
-
-def test_is_state_requires_instance():
-    assert not is_state(Completed)
 
 
 @pytest.mark.parametrize("iterable_type", [set, list, tuple])
@@ -174,6 +160,15 @@ class TestReturnValueToState:
         assert result_state is state
         assert isinstance(result_state.data, PersistedResult)
         assert await result_state.result() == 1
+
+    async def test_returns_persisted_results_unaltered(self, prefect_client):
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True
+        )
+        result = await factory.create_result(42)
+        result_state = await return_value_to_state(result, factory)
+        assert result_state.data == result
+        assert await result_state.result() == 42
 
     async def test_returns_single_state_unaltered_with_user_created_reference(
         self, factory

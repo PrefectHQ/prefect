@@ -15,7 +15,6 @@ from prefect.serializers import (
     PickleSerializer,
     Serializer,
 )
-from prefect.server import schemas
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_HOME,
@@ -421,41 +420,6 @@ async def test_flow_state_result_is_respected(persist_result, return_state):
         assert await state.result(raise_on_failure=False) == return_state.data
 
 
-@pytest.mark.parametrize(
-    "return_state",
-    [
-        schemas.states.Completed(data="test"),
-        schemas.states.Cancelled(),
-        schemas.states.Failed(),
-    ],
-)
-@pytest.mark.parametrize("persist_result", [True, False])
-async def test_flow_server_state_schema_result_is_respected(
-    persist_result, return_state
-):
-    # Tests for backwards compatibility with server-side state return values
-    @flow(persist_result=persist_result)
-    def my_flow():
-        return return_state
-
-    with pytest.warns(DeprecationWarning, match="Use `prefect.states.State` instead"):
-        state = my_flow(return_state=True)
-
-    assert state.type == return_state.type
-
-    # id, timestamp, and state details must be excluded as they are copied from
-    # the API version of the state and will not match the state created for
-    # this test. Data must be excluded as it will have been updated to a
-    # result.
-    assert state.dict(
-        exclude={"id", "timestamp", "state_details", "data"}
-    ) == return_state.dict(exclude={"id", "timestamp", "state_details", "data"})
-
-    if return_state.data:
-        with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
-            assert await state.result(raise_on_failure=False) == return_state.data
-
-
 async def test_root_flow_default_remote_storage(tmp_path: Path):
     @flow
     async def foo():
@@ -477,8 +441,8 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
     assert storage_block._is_anonymous is False
 
 
-async def test_root_flow_default_remote_storage_saves_correct_result():
-    await LocalFileSystem(basepath="~/.prefect/results").save("my-result-storage")
+async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
+    await LocalFileSystem(basepath=tmp_path).save("my-result-storage")
 
     @task(result_storage_key="my-result.pkl")
     async def bar():
@@ -498,7 +462,7 @@ async def test_root_flow_default_remote_storage_saves_correct_result():
 
     assert result == {"foo": "bar"}
     local_storage = await LocalFileSystem.load("my-result-storage")
-    result_bytes = await local_storage.read_path("~/.prefect/results/my-result.pkl")
+    result_bytes = await local_storage.read_path(f"{tmp_path/'my-result.pkl'}")
     saved_python_result = pickle.loads(
         base64.b64decode(PersistedResultBlob.parse_raw(result_bytes).data)
     )

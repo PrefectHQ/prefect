@@ -16,29 +16,41 @@ from typing import (
     Set,
     TypeVar,
     Union,
-    cast,
 )
 from uuid import UUID
 
 import pendulum
 from typing_extensions import ParamSpec
 
-from prefect import Task, get_client
+from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.context import FlowRunContext, TaskRunContext, hydrated_context
+from prefect.context import (
+    ClientContext,
+    FlowRunContext,
+    TaskRunContext,
+    hydrated_context,
+)
 from prefect.events.schemas.events import Event
-from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    Pause,
+    PrefectException,
+    RollBack,
+    UpstreamTaskError,
+)
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.new_futures import PrefectFuture
-from prefect.results import ResultFactory
+from prefect.records.result_store import ResultFactoryStore
+from prefect.results import ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
+    Completed,
     Failed,
     Paused,
     Pending,
@@ -49,7 +61,8 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import run_sync
+from prefect.transactions import Transaction, transaction
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -162,15 +175,23 @@ class TaskRunEngine(Generic[P, R]):
                         result = hook(task, task_run, state)
                         if inspect.isawaitable(result):
                             await result
+
             else:
 
                 def _hook_fn():
                     with hook_context():
                         result = hook(task, task_run, state)
                         if inspect.isawaitable(result):
-                            run_sync(result)
+                            run_coro_as_sync(result)
 
             yield _hook_fn
+
+    def compute_transaction_key(self) -> str:
+        if self.task.result_storage_key is not None:
+            key = _format_user_supplied_storage_key(self.task.result_storage_key)
+        else:
+            key = str(self.task_run.id)
+        return key
 
     def _compute_state_details(
         self, include_cache_expiration: bool = False
@@ -211,6 +232,11 @@ class TaskRunEngine(Generic[P, R]):
     def _resolve_parameters(self):
         if not self.parameters:
             return {}
+
+        # We don't resolve parameters for task runs that are not part of a flow run, AKA
+        # autonomous tasks.
+        if self.task_run and not self.task_run.flow_run_id:
+            return self.parameters
 
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
@@ -299,6 +325,7 @@ class TaskRunEngine(Generic[P, R]):
 
         # currently this is a hack to keep a reference to the state object
         # that has an in-memory result attached to it; using the API state
+
         # could result in losing that reference
         self.task_run.state = new_state
         # emit a state change event
@@ -315,19 +342,28 @@ class TaskRunEngine(Generic[P, R]):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if inspect.isawaitable(_result):
-            _result = run_sync(_result)
+            _result = run_coro_as_sync(_result)
         return _result
 
-    def handle_success(self, result: R) -> R:
+    def handle_success(self, result: R, transaction: Transaction) -> R:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
-        terminal_state = run_sync(
+
+        # dont put this inside function, else the transaction could get serialized
+        key = transaction.key
+
+        def key_fn():
+            return key
+
+        result_factory.storage_key_fn = key_fn
+        terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
                 result_factory=result_factory,
             )
         )
+        transaction.stage(terminal_state.data)
         terminal_state.state_details = self._compute_state_details(
             include_cache_expiration=True
         )
@@ -351,7 +387,7 @@ class TaskRunEngine(Generic[P, R]):
         if not self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             context = TaskRunContext.get()
-            state = run_sync(
+            state = run_coro_as_sync(
                 exception_to_failed_state(
                     exc,
                     message="Task run encountered an exception",
@@ -373,8 +409,18 @@ class TaskRunEngine(Generic[P, R]):
             )
             self.set_state(state)
 
+    def handle_rollback(self, exc: RollBack) -> None:
+        message = "Task run raised RollBack error, rolled back transaction."
+        self.logger.error(message)
+        state = Completed(
+            data=exc,
+            message=message,
+            name="RolledBack",
+        )
+        self.set_state(state)
+
     def handle_crash(self, exc: BaseException) -> None:
-        state = run_sync(exception_to_crashed_state(exc))
+        state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
@@ -401,7 +447,7 @@ class TaskRunEngine(Generic[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_factory=run_sync(
+                    result_factory=run_coro_as_sync(
                         ResultFactory.from_autonomous_task(self.task)
                     ),  # type: ignore
                     client=client,
@@ -436,15 +482,15 @@ class TaskRunEngine(Generic[P, R]):
         Enters a client context and creates a task run if needed.
         """
         with hydrated_context(self.context):
-            with get_client(sync_client=True) as client:
-                self._client = client
+            with ClientContext.get_or_create() as client_ctx:
+                self._client = client_ctx.sync_client
                 self._is_started = True
                 try:
                     if not self.task_run:
-                        self.task_run = run_sync(
+                        self.task_run = run_coro_as_sync(
                             self.task.create_run(
                                 id=task_run_id,
-                                client=client,
+                                client=self.client,
                                 parameters=self.parameters,
                                 flow_run_context=FlowRunContext.get(),
                                 parent_task_run_context=TaskRunContext.get(),
@@ -452,9 +498,9 @@ class TaskRunEngine(Generic[P, R]):
                                 extra_task_inputs=dependencies,
                             )
                         )
-                    self.logger.info(
-                        f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
-                    )
+                        self.logger.info(
+                            f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
+                        )
                     # Emit an event to capture that the task run was in the `PENDING` state.
                     self._last_event = emit_task_run_state_change_event(
                         task_run=self.task_run,
@@ -479,15 +525,15 @@ class TaskRunEngine(Generic[P, R]):
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
                     self.logger.log(
-                        level=logging.INFO
-                        if self.state.is_completed()
-                        else logging.ERROR,
+                        level=(
+                            logging.INFO if self.state.is_completed() else logging.ERROR
+                        ),
                         msg=f"Finished in state {display_state}",
                     )
 
-                    maybe_awaitable = APILogHandler.flush()
-                    if inspect.isawaitable(maybe_awaitable):
-                        run_sync(maybe_awaitable)
+                    # flush all logs if this is not a "top" level run
+                    if not (FlowRunContext.get() or TaskRunContext.get()):
+                        run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
 
                     self._is_started = False
                     self._client = None
@@ -519,7 +565,6 @@ def run_task_sync(
     with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
         with run.enter_run_context():
             run.begin_run()
-
             while run.is_running():
                 # enter run context on each loop iteration to ensure the context
                 # contains the latest task run metadata
@@ -531,12 +576,29 @@ def run_task_sync(
                                 task.fn, run.parameters or {}
                             )
                             run.logger.debug(
-                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                                f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
                             )
-                            result = cast(R, task.fn(*call_args, **call_kwargs))  # type: ignore
+                            result_factory = getattr(
+                                TaskRunContext.get(), "result_factory", None
+                            )
+                            with transaction(
+                                key=run.compute_transaction_key(),
+                                store=ResultFactoryStore(result_factory=result_factory),
+                            ) as txn:
+                                txn.add_task(run.task)
 
-                        # If the task run is successful, finalize it.
-                        run.handle_success(result)
+                                if txn.committed:
+                                    result = txn.read()
+                                else:
+                                    result = task.fn(*call_args, **call_kwargs)  # type: ignore
+
+                                # If the task run is successful, finalize it.
+                                # do this within the transaction lifecycle
+                                # in order to get the proper result serialization
+                                run.handle_success(result, transaction=txn)
+
+                    except RollBack as exc:
+                        run.handle_rollback(exc)
                     except TimeoutError as exc:
                         run.handle_timeout(exc)
                     except Exception as exc:
@@ -566,6 +628,7 @@ async def run_task_async(
 
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
+
     engine = TaskRunEngine[P, R](
         task=task,
         parameters=parameters,
@@ -589,12 +652,29 @@ async def run_task_async(
                                 task.fn, run.parameters or {}
                             )
                             run.logger.debug(
-                                f"Executing flow {task.name!r} for flow run {run.task_run.name!r}..."
+                                f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
                             )
-                            result = cast(R, await task.fn(*call_args, **call_kwargs))  # type: ignore
+                            result_factory = getattr(
+                                TaskRunContext.get(), "result_factory", None
+                            )
+                            with transaction(
+                                key=run.compute_transaction_key(),
+                                store=ResultFactoryStore(result_factory=result_factory),
+                            ) as txn:
+                                txn.add_task(run.task)
 
-                        # If the task run is successful, finalize it.
-                        run.handle_success(result)
+                                if txn.committed:
+                                    result = txn.read()
+                                else:
+                                    result = await task.fn(*call_args, **call_kwargs)  # type: ignore
+
+                                # If the task run is successful, finalize it.
+                                # do this within the transaction lifecycle
+                                # in order to get the proper result serialization
+                                run.handle_success(result, transaction=txn)
+
+                    except RollBack as exc:
+                        run.handle_rollback(exc)
                     except TimeoutError as exc:
                         run.handle_timeout(exc)
                     except Exception as exc:

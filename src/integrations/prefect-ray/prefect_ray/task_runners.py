@@ -71,23 +71,66 @@ Example:
     ```
 """
 
-from contextlib import AsyncExitStack
-from typing import Awaitable, Callable, Dict, Optional
-from uuid import UUID
+import asyncio
+import inspect
+from typing import Any, Dict, Iterable, Optional, Set
+from uuid import UUID, uuid4
 
-import anyio
 import ray
-from ray.exceptions import RayTaskError
+from ray.exceptions import GetTimeoutError
 
-from prefect.futures import PrefectFuture
+from prefect.client.schemas.objects import TaskRunInput
+from prefect.context import serialize_context
+from prefect.new_futures import PrefectFuture
+from prefect.new_task_engine import run_task_async, run_task_sync
+from prefect.new_task_runners import TaskRunner
 from prefect.states import State, exception_to_crashed_state
-from prefect.task_runners import BaseTaskRunner, R, TaskConcurrencyType
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.tasks import Task
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
 from prefect_ray.context import RemoteOptionsContext
 
 
-class RayTaskRunner(BaseTaskRunner):
+class PrefectRayFuture(PrefectFuture[ray.ObjectRef]):
+    def wait(self, timeout: Optional[float] = None) -> None:
+        try:
+            result = ray.get(self.wrapped_future, timeout=timeout)
+        except GetTimeoutError:
+            return
+        except Exception as exc:
+            result = run_coro_as_sync(exception_to_crashed_state(exc))
+        if isinstance(result, State):
+            self._final_state = result
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> Any:
+        if not self._final_state:
+            try:
+                object_ref_result = ray.get(self.wrapped_future, timeout=timeout)
+            except GetTimeoutError as exc:
+                raise TimeoutError(
+                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                ) from exc
+
+            if isinstance(object_ref_result, State):
+                self._final_state = object_ref_result
+            else:
+                return object_ref_result
+
+        _result = self._final_state.result(
+            raise_on_failure=raise_on_failure, fetch=True
+        )
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
+        if inspect.isawaitable(_result):
+            _result = run_coro_as_sync(_result)
+        return _result
+
+
+class RayTaskRunner(TaskRunner[PrefectRayFuture]):
     """
     A parallel task_runner that submits tasks to `ray`.
     By default, a temporary Ray cluster is created for the duration of the flow run.
@@ -115,8 +158,8 @@ class RayTaskRunner(BaseTaskRunner):
 
     def __init__(
         self,
-        address: str = None,
-        init_kwargs: dict = None,
+        address: Optional[str] = None,
+        init_kwargs: Optional[Dict] = None,
     ):
         # Store settings
         self.address = address
@@ -125,7 +168,7 @@ class RayTaskRunner(BaseTaskRunner):
         self.init_kwargs.setdefault("namespace", "prefect")
 
         # Runtime attributes
-        self._ray_refs: Dict[str, "ray.ObjectRef"] = {}
+        self._ray_context = None
 
         super().__init__()
 
@@ -139,44 +182,51 @@ class RayTaskRunner(BaseTaskRunner):
         """
         Check if an instance has the same settings as this task runner.
         """
-        if type(self) == type(other):
+        if isinstance(other, RayTaskRunner):
             return (
                 self.address == other.address and self.init_kwargs == other.init_kwargs
             )
         else:
-            return NotImplemented
+            return False
 
-    @property
-    def concurrency_type(self) -> TaskConcurrencyType:
-        return TaskConcurrencyType.PARALLEL
-
-    async def submit(
+    def submit(
         self,
-        key: UUID,
-        call: Callable[..., Awaitable[State[R]]],
-    ) -> None:
+        task: Task,
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectRayFuture:
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
 
-        call_kwargs, upstream_ray_obj_refs = self._exchange_prefect_for_ray_futures(
-            call.keywords
+        parameters, upstream_ray_obj_refs = self._exchange_prefect_for_ray_futures(
+            parameters
         )
+        task_run_id = uuid4()
+        context = serialize_context()
 
         remote_options = RemoteOptionsContext.get().current_remote_options
-        # Ray does not support the submission of async functions and we must create a
-        # sync entrypoint
         if remote_options:
             ray_decorator = ray.remote(**remote_options)
         else:
             ray_decorator = ray.remote
 
-        self._ray_refs[key] = (
+        object_ref = (
             ray_decorator(self._run_prefect_task)
-            .options(name=call.keywords["task_run"].name)
-            .remote(sync_compatible(call.func), *upstream_ray_obj_refs, **call_kwargs)
+            .options(name=task.name)
+            .remote(
+                *upstream_ray_obj_refs,
+                task=task,
+                task_run_id=task_run_id,
+                parameters=parameters,
+                wait_for=wait_for,
+                dependencies=dependencies,
+                context=context,
+            )
         )
+        return PrefectRayFuture(task_run_id=task_run_id, wrapped_future=object_ref)
 
     def _exchange_prefect_for_ray_futures(self, kwargs_prefect_futures):
         """Exchanges Prefect futures for Ray futures."""
@@ -185,11 +235,10 @@ class RayTaskRunner(BaseTaskRunner):
 
         def exchange_prefect_for_ray_future(expr):
             """Exchanges Prefect future for Ray future."""
-            if isinstance(expr, PrefectFuture):
-                ray_future = self._ray_refs.get(expr.key)
-                if ray_future is not None:
-                    upstream_ray_obj_refs.append(ray_future)
-                    return ray_future
+            if isinstance(expr, PrefectRayFuture):
+                ray_future = expr.wrapped_future
+                upstream_ray_obj_refs.append(ray_future)
+                return ray_future
             return expr
 
         kwargs_ray_futures = visit_collection(
@@ -201,52 +250,54 @@ class RayTaskRunner(BaseTaskRunner):
         return kwargs_ray_futures, upstream_ray_obj_refs
 
     @staticmethod
-    def _run_prefect_task(func, *upstream_ray_obj_refs, **kwargs):
+    def _run_prefect_task(
+        *upstream_ray_obj_refs,
+        task: Task,
+        task_run_id: UUID,
+        context: Dict[str, Any],
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ):
         """Resolves Ray futures before calling the actual Prefect task function.
 
         Passing upstream_ray_obj_refs directly as args enables Ray to wait for
         upstream tasks before running this remote function.
         This variable is otherwise unused as the ray object refs are also
-        contained in kwargs.
+        contained in parameters.
         """
 
+        # Resolve Ray futures to ensure that the task function receives the actual values
         def resolve_ray_future(expr):
             """Resolves Ray future."""
             if isinstance(expr, ray.ObjectRef):
                 return ray.get(expr)
             return expr
 
-        kwargs = visit_collection(kwargs, visit_fn=resolve_ray_future, return_data=True)
+        parameters = visit_collection(
+            parameters, visit_fn=resolve_ray_future, return_data=True
+        )
 
-        return func(**kwargs)
+        run_task_kwargs = {
+            "task": task,
+            "task_run_id": task_run_id,
+            "parameters": parameters,
+            "wait_for": wait_for,
+            "dependencies": dependencies,
+            "context": context,
+            "return_type": "state",
+        }
 
-    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
-        ref = self._get_ray_ref(key)
+        # Ray does not support the submission of async functions and we must create a
+        # sync entrypoint
+        if task.isasync:
+            return asyncio.run(run_task_async(**run_task_kwargs))
+        else:
+            return run_task_sync(**run_task_kwargs)
 
-        result = None
+    def __enter__(self):
+        super().__enter__()
 
-        with anyio.move_on_after(timeout):
-            # We await the reference directly instead of using `ray.get` so we can
-            # avoid blocking the event loop
-            try:
-                result = await ref
-            except RayTaskError as exc:
-                # unwrap the original exception that caused task failure, except for
-                # KeyboardInterrupt, which unwraps as TaskCancelledError
-                result = await exception_to_crashed_state(exc.cause)
-            except BaseException as exc:
-                result = await exception_to_crashed_state(exc)
-
-        return result
-
-    async def _start(self, exit_stack: AsyncExitStack):
-        """
-        Start the task runner and prep for context exit.
-
-        - Creates a cluster if an external address is not set.
-        - Creates a client to connect to the cluster.
-        - Pushes a call to wait for all running futures to complete on exit.
-        """
         if self.address and self.address != "auto":
             self.logger.info(
                 f"Connecting to an existing Ray instance at {self.address}"
@@ -257,14 +308,13 @@ class RayTaskRunner(BaseTaskRunner):
                 "Local Ray instance is already initialized. "
                 "Using existing local instance."
             )
-            return
+            return self
         else:
             self.logger.info("Creating a local Ray instance")
             init_args = ()
 
-        context = ray.init(*init_args, **self.init_kwargs)
-        dashboard_url = getattr(context, "dashboard_url", None)
-        exit_stack.push(context)
+        self._ray_context = ray.init(*init_args, **self.init_kwargs)
+        dashboard_url = getattr(self._ray_context, "dashboard_url", None)
 
         # Display some information about the cluster
         nodes = ray.nodes()
@@ -276,15 +326,12 @@ class RayTaskRunner(BaseTaskRunner):
                 f"The Ray UI is available at {dashboard_url}",
             )
 
-    async def _shutdown_ray(self):
+        return self
+
+    def __exit__(self, *exc_info):
         """
         Shuts down the cluster.
         """
         self.logger.debug("Shutting down Ray cluster...")
         ray.shutdown()
-
-    def _get_ray_ref(self, key: UUID) -> "ray.ObjectRef":
-        """
-        Retrieve the ray object reference corresponding to a prefect future.
-        """
-        return self._ray_refs[key]
+        super().__exit__(*exc_info)

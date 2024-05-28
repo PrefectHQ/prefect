@@ -71,6 +71,7 @@ from prefect.testing.utilities import (
     exceptions_equal,
     get_most_recent_flow_run,
 )
+from prefect.transactions import transaction
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
@@ -1683,7 +1684,8 @@ class TestFlowRunLogs:
 
         my_flow()
 
-        await asyncio.sleep(0.5)  # needed for new engine for some reason
+        await _wait_for_logs(prefect_client, expected_num_logs=3)
+
         logs = await prefect_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
@@ -1709,8 +1711,8 @@ class TestFlowRunLogs:
                 logger.error("There was an issue", exc_info=True)
 
         my_flow()
+        await _wait_for_logs(prefect_client, expected_num_logs=3)
 
-        await asyncio.sleep(0.5)  # needed for new engine for some reason
         logs = await prefect_client.read_logs()
         error_logs = "\n".join([log.message for log in logs if log.level == 40])
         assert "Traceback" in error_logs
@@ -1786,6 +1788,8 @@ class TestSubflowRunLogs:
         state = my_flow(return_state=True)
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = (await state.result()).state_details.flow_run_id
+
+        await _wait_for_logs(prefect_client, expected_num_logs=3)
 
         logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
@@ -4033,3 +4037,60 @@ class TestLoadFlowFromFlowRun:
 
         assert result == pretend_flow
         load_flow_from_entrypoint.assert_called_once_with("my.module.pretend_flow")
+
+
+class TestTransactions:
+    def test_grouped_rollback_behavior(self):
+        data1, data2 = {}, {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_rollback
+        def rollback(txn):
+            data1["called"] = True
+
+        @task
+        def task2():
+            raise prefect.exceptions.RollBack()
+
+        @task2.on_rollback
+        def rollback2(txn):
+            data2["called"] = True
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        assert data2["called"] is True
+        assert data1["called"] is True
+
+    def test_commit_isnt_called_on_rollback(self):
+        data = {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_commit
+        def rollback(txn):
+            data["called"] = True
+
+        @task
+        def task2():
+            raise prefect.exceptions.RollBack()
+
+        @flow
+        def main():
+            with transaction(None):
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        assert data == {}

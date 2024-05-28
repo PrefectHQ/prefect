@@ -30,7 +30,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext, TagsContext
+from prefect.context import ClientContext, FlowRunContext, TagsContext, TaskRunContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.logging.handlers import APILogHandler
@@ -52,7 +52,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -78,7 +78,7 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
         flow = load_flow_from_entrypoint(entrypoint)
     else:
         async_client = get_client()
-        flow = run_sync(load_flow_from_flow_run(flow_run, client=async_client))
+        flow = run_coro_as_sync(load_flow_from_flow_run(flow_run, client=async_client))
 
     return flow_run, flow
 
@@ -197,14 +197,14 @@ class FlowRunEngine(Generic[P, R]):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if inspect.isawaitable(_result):
-            _result = run_sync(_result)
+            _result = run_coro_as_sync(_result)
         return _result
 
     def handle_success(self, result: R) -> R:
         result_factory = getattr(FlowRunContext.get(), "result_factory", None)
         if result_factory is None:
             raise ValueError("Result factory is not set")
-        terminal_state = run_sync(
+        terminal_state = run_coro_as_sync(
             return_value_to_state(
                 resolve_futures_to_states(result),
                 result_factory=result_factory,
@@ -220,7 +220,7 @@ class FlowRunEngine(Generic[P, R]):
         result_factory: Optional[ResultFactory] = None,
     ) -> State:
         context = FlowRunContext.get()
-        terminal_state = run_sync(
+        terminal_state = run_coro_as_sync(
             exception_to_failed_state(
                 exc,
                 message=msg or "Flow run encountered an exception:",
@@ -250,7 +250,7 @@ class FlowRunEngine(Generic[P, R]):
         self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
-        state = run_sync(exception_to_crashed_state(exc))
+        state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
@@ -315,7 +315,7 @@ class FlowRunEngine(Generic[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
-            parent_task_run = run_sync(
+            parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
                     client=self.client,
                     flow_run_context=flow_run_ctx,
@@ -418,7 +418,7 @@ class FlowRunEngine(Generic[P, R]):
                     with hook_context():
                         result = hook(flow, flow_run, state)
                         if inspect.isawaitable(result):
-                            run_sync(result)
+                            run_coro_as_sync(result)
 
             yield _hook_fn
 
@@ -458,7 +458,7 @@ class FlowRunEngine(Generic[P, R]):
                     parameters=self.parameters,
                     client=client,
                     background_tasks=task_group,
-                    result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
                     task_runner=task_runner,
                 )
             )
@@ -486,16 +486,15 @@ class FlowRunEngine(Generic[P, R]):
         """
         Enters a client context and creates a flow run if needed.
         """
-
-        with get_client(sync_client=True) as client:
-            self._client = client
+        with ClientContext.get_or_create() as client_ctx:
+            self._client = client_ctx.sync_client
             self._is_started = True
 
             # this conditional is engaged whenever a run is triggered via deployment
             if self.flow_run_id and not self.flow:
-                self.flow_run = client.read_flow_run(self.flow_run_id)
+                self.flow_run = self.client.read_flow_run(self.flow_run_id)
                 try:
-                    self.flow = self.load_flow(client)
+                    self.flow = self.load_flow(self.client)
                 except Exception as exc:
                     self.handle_exception(
                         exc,
@@ -504,7 +503,7 @@ class FlowRunEngine(Generic[P, R]):
                     self.short_circuit = True
 
             if not self.flow_run:
-                self.flow_run = self.create_flow_run(client)
+                self.flow_run = self.create_flow_run(self.client)
 
                 ui_url = PREFECT_UI_URL.value()
                 if ui_url:
@@ -525,7 +524,9 @@ class FlowRunEngine(Generic[P, R]):
                     self.handle_exception(
                         exc,
                         msg=message,
-                        result_factory=run_sync(ResultFactory.from_flow(self.flow)),
+                        result_factory=run_coro_as_sync(
+                            ResultFactory.from_flow(self.flow)
+                        ),
                     )
                     self.short_circuit = True
             try:
@@ -549,9 +550,9 @@ class FlowRunEngine(Generic[P, R]):
                     msg=f"Finished in state {display_state}",
                 )
 
-                maybe_awaitable = APILogHandler.flush()
-                if inspect.isawaitable(maybe_awaitable):
-                    run_sync(maybe_awaitable)
+                # flush any logs in the background if this is a "top" level run
+                if not (FlowRunContext.get() or TaskRunContext.get()):
+                    run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
 
                 self._is_started = False
                 self._client = None
