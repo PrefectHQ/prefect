@@ -39,7 +39,6 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.server.schemas.actions import ActionBaseModel
 from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.types import NonNegativeDuration
 from prefect.utilities.collections import AutoEnum
 
 logger = get_logger(__name__)
@@ -305,8 +304,9 @@ class EventTrigger(ResourceTrigger):
             "triggers)"
         ),
     )
-    within: NonNegativeDuration = Field(
+    within: timedelta = Field(
         timedelta(seconds=0),
+        ge=timedelta(seconds=0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
             "this may be as low as 0 seconds, but must be at least 10 seconds for "

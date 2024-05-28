@@ -20,7 +20,7 @@ from prefect._internal.schemas.validators import (
     validate_rrule_string,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types import PositiveDuration, TimeZone
+from prefect.types import TimeZone
 
 MAX_ITERATIONS = 1000
 
@@ -72,7 +72,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    interval: PositiveDuration
+    interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
         default_factory=lambda: pendulum.now("UTC"),
         examples=["2020-01-01T00:00:00Z"],

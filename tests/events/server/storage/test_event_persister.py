@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
 
@@ -16,7 +17,6 @@ from prefect.server.events.services import event_persister
 from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
-from prefect.types import Duration
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMEventResource
@@ -258,7 +258,7 @@ async def test_sends_remaining_messages(
 ):
     async with event_persister.create_handler(
         batch_size=4,
-        flush_every=Duration(days=100),
+        flush_every=timedelta(days=100),
     ) as handler:
         for _ in range(10):
             event.id = uuid4()
@@ -278,7 +278,7 @@ async def test_flushes_messages_periodically(
 ):
     async with event_persister.create_handler(
         batch_size=5,
-        flush_every=Duration(seconds=0.001),
+        flush_every=timedelta(seconds=0.001),
     ) as handler:
         for _ in range(9):
             event.id = uuid4()
@@ -305,7 +305,7 @@ async def test_trims_messages_periodically(
             event.model_copy(
                 update={
                     "id": uuid4(),
-                    "occurred": DateTime.now("UTC") - Duration(days=i),
+                    "occurred": DateTime.now("UTC") - timedelta(days=i),
                 }
             )
             for i in range(10)
@@ -313,7 +313,7 @@ async def test_trims_messages_periodically(
     )
     await session.commit()
 
-    five_days_ago = DateTime.now("UTC") - Duration(days=5)
+    five_days_ago = DateTime.now("UTC") - timedelta(days=5)
 
     initial_events, total, _ = await query_events(session, filter=EventFilter())
     assert total == 10
@@ -321,10 +321,10 @@ async def test_trims_messages_periodically(
     assert any(event.occurred < five_days_ago for event in initial_events)
     assert any(event.occurred >= five_days_ago for event in initial_events)
 
-    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: Duration(days=5)}):
+    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: timedelta(days=5)}):
         async with event_persister.create_handler(
-            flush_every=Duration(seconds=0.001),
-            trim_every=Duration(seconds=0.001),
+            flush_every=timedelta(seconds=0.001),
+            trim_every=timedelta(seconds=0.001),
         ):
             await asyncio.sleep(0.1)  # this is 100x the time necessary
 
