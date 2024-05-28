@@ -702,7 +702,7 @@ class ECSWorker(BaseWorker):
             task_definition = self._prepare_task_definition(
                 configuration, region=ecs_client.meta.region_name, flow_run=flow_run
             )
-            _drop_empty_keys_from_task_definition(task_definition)
+
             (
                 task_definition_arn,
                 new_task_definition_registered,
@@ -713,7 +713,6 @@ class ECSWorker(BaseWorker):
             task_definition = self._retrieve_task_definition(
                 logger, ecs_client, task_definition_arn
             )
-            _drop_empty_keys_from_task_definition(task_definition)
             if configuration.task_definition:
                 logger.warning(
                     "Ignoring task definition in configuration since task definition"
@@ -975,6 +974,7 @@ class ECSWorker(BaseWorker):
             "Task definition request"
             f"{json.dumps(task_definition, indent=2, default=str)}"
         )
+
         response = ecs_client.register_task_definition(**task_definition)
         return response["taskDefinition"]["taskDefinitionArn"]
 
