@@ -8,53 +8,37 @@ search:
   boost: 2
 ---
 
-# API Rate Limits & Retention Periods <span class="badge cloud"></span>
+# Rate Limits & Retention Periods <span class="badge cloud"></span>
 
-API rate limits restrict the number of requests that a single client can make in a given time period.
-They ensure Prefect Cloud's stability, so that when you make an API call, you always get a response.
+Prefect Cloud has certain controls in place to ensure stability.
+
+## API Rate Limits
 
 !!! info "Prefect Cloud rate limits are subject to change"
-    The following rate limits are in effect currently, but are subject to change.
-    Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) if you have questions about current rate limits.
+    API rate limites but are subject to change without notice.
+    Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) if you have questions about rate limits.
 
-Prefect Cloud enforces the following rate limits:
+Prefect Cloud's API rate limits restrict the number of requests that a single client can make to certain endpoints in a given time period. The `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes are limited to:
 
-- Flow and task creation rate limits
-- Log service rate limits
+- 400 requests per minute for Free accounts
+- 2,000 requests per minute for Pro accounts
 
-## Flow, flow run, and task run rate limits
+The Prefect Cloud API will return a `429` response with an appropriate `Retry-After` header if this limit is triggered.
 
-Prefect Cloud limits the `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes at the following levels:
+The `logs` endpoint is limited to:
 
-- 400 per minute for personal accounts
-- 2,000 per minute for Pro accounts
-
-The Prefect Cloud API will return a `429` response with an appropriate `Retry-After` header if these limits are triggered.
-
-## Log service rate limits
-
-Prefect Cloud limits the number of logs accepted:
-
-- 700 logs per minute for personal accounts
+- 700 logs per minute for Free accounts
 - 10,000 logs per minute for Pro accounts
 
-The Prefect Cloud API will return a `429` response if these limits are triggered.
+The Prefect Cloud API will return a `429` response if this limit is triggered.
 
-## Flow run retention
+## Metadata retention period
 
-!!! info "Prefect Cloud feature"
-    The Flow Run Retention Policy setting is only applicable in Prefect Cloud.
+Flow run, task run, and artifact metadata is retained according your Prefect Cloud account's retention period.
+The retention period applies to all workspaces belonging to the account.
 
-Flow runs in Prefect Cloud are retained according to the Flow Run Retention Policy set by your account tier. Artifacts produced by flow runs are also subject to this policy.
-The policy setting applies to all workspaces owned by the account.
+The retention period is the number of days that metadata is available after it is created. 
+For flow and task runs, it is calculated from the time the run reaches a [terminal state](/concepts/states/#state-types)). 
+Subflow runs are reatined independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state.
 
-The flow run retention policy represents the number of days each flow run is available in the Prefect Cloud UI, and via the Prefect CLI and API after it ends.
-Once a flow run reaches a terminal state ([detailed in the chart here](/concepts/states/#state-types)), it will be retained until the end of the flow run retention period.
-
-!!! tip "Flow Run Retention Policy keys on terminal state"
-    Note that, because Flow Run Retention Policy keys on terminal state, if two flows start at the same time, but reach a terminal state at different times, they will be removed at different times according to when they each reached their respective terminal states.
-
-This retention policy applies to all [details about a flow run](/ui/flow-runs/#inspect-a-flow-run), including its task runs.
-Subflow runs follow the retention policy independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state.
-
-If you or your organization have needs that require a tailored retention period, [contact the Prefect Sales team](https://www.prefect.io/pricing).
+If you have needs that require a custom retention period, [contact Prefect's Sales team](https://www.prefect.io/pricing).
