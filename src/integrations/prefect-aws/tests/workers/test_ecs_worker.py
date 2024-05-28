@@ -12,17 +12,6 @@ import pytest
 import yaml
 from moto import mock_ec2, mock_ecs, mock_logs
 from moto.ec2.utils import generate_instance_identity_document
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.server.schemas.core import FlowRun
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.slugify import slugify
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
-
 from prefect_aws.credentials import _get_client_cached
 from prefect_aws.workers.ecs_worker import (
     _TAG_REGEX,
@@ -42,6 +31,11 @@ from prefect_aws.workers.ecs_worker import (
     mask_sensitive_env_values,
     parse_identifier,
 )
+from pydantic import ValidationError
+
+from prefect.server.schemas.core import FlowRun
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.slugify import slugify
 
 TEST_TASK_DEFINITION_YAML = """
 containerDefinitions:
@@ -75,7 +69,7 @@ def reset_task_definition_cache():
 def patch_task_watch_poll_interval(monkeypatch):
     # Patch the poll interval to be way shorter for speed during testing!
     monkeypatch.setattr(
-        ECSVariables.__fields__["task_watch_poll_interval"], "default", 0.05
+        ECSVariables.model_fields["task_watch_poll_interval"], "default", 0.05
     )
 
 
@@ -313,13 +307,13 @@ def ecs_mocks(
 
 async def construct_configuration(**options):
     variables = ECSVariables(**options)
-    print(f"Using variables: {variables.json(indent=2)}")
+    print(f"Using variables: {variables.model_dump_json(indent=2, exclude_none=True)}")
 
     configuration = await ECSJobConfiguration.from_template_and_values(
         base_job_template=ECSWorker.get_default_base_job_template(),
         values={**variables.model_dump(exclude_none=True)},
     )
-    print(f"Constructed test configuration: {configuration.json(indent=2)}")
+    print(f"Constructed test configuration: {configuration.model_dump_json(indent=2)}")
 
     return configuration
 
@@ -327,8 +321,8 @@ async def construct_configuration(**options):
 async def construct_configuration_with_job_template(
     template_overrides: dict, **variables: dict
 ):
-    variables = ECSVariables(**variables)
-    print(f"Using variables: {variables.json(indent=2)}")
+    variables: ECSVariables = ECSVariables(**variables)
+    print(f"Using variables: {variables.model_dump_json(indent=2, exclude_none=True)}")
 
     base_template = ECSWorker.get_default_base_job_template()
     for key in template_overrides:
@@ -339,11 +333,13 @@ async def construct_configuration_with_job_template(
         f" {json.dumps(base_template['job_configuration'], indent=2)}"
     )
 
-    configuration = await ECSJobConfiguration.from_template_and_values(
-        base_job_template=base_template,
-        values={**variables.model_dump(exclude_none=True)},
+    configuration: ECSJobConfiguration = (
+        await ECSJobConfiguration.from_template_and_values(
+            base_job_template=base_template,
+            values={**variables.model_dump(exclude_none=True)},
+        )
     )
-    print(f"Constructed test configuration: {configuration.json(indent=2)}")
+    print(f"Constructed test configuration: {configuration.model_dump_json(indent=2)}")
 
     return configuration
 

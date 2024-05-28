@@ -58,7 +58,10 @@ from uuid import UUID
 import anyio
 import anyio.abc
 import yaml
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel, Field, model_validator
+from slugify import slugify
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from typing_extensions import Literal, Self
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import FlowRun
@@ -70,16 +73,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import BaseModel, Field, root_validator
-else:
-    from pydantic import BaseModel, Field, root_validator
-
-from slugify import slugify
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
-from typing_extensions import Literal
-
 from prefect_aws.credentials import AwsCredentials, ClientType
 
 # Internal type alias for ECS clients which are generated dynamically in botocore
@@ -264,11 +257,13 @@ class ECSJobConfiguration(BaseJobConfiguration):
     """
 
     aws_credentials: Optional[AwsCredentials] = Field(default_factory=AwsCredentials)
-    task_definition: Optional[Dict[str, Any]] = Field(
-        template=_default_task_definition_template()
+    task_definition: Dict[str, Any] = Field(
+        default_factory=dict,
+        json_schema_extra=dict(template=_default_task_definition_template()),
     )
     task_run_request: Dict[str, Any] = Field(
-        template=_default_task_run_request_template()
+        default_factory=dict,
+        json_schema_extra=dict(template=_default_task_run_request_template()),
     )
     configure_cloudwatch_logs: Optional[bool] = Field(default=None)
     cloudwatch_logs_options: Dict[str, str] = Field(default_factory=dict)
@@ -283,38 +278,40 @@ class ECSJobConfiguration(BaseJobConfiguration):
     cluster: Optional[str] = Field(default=None)
     match_latest_revision_in_family: bool = Field(default=False)
 
-    @root_validator
-    def task_run_request_requires_arn_if_no_task_definition_given(cls, values) -> dict:
+    @model_validator(mode="after")
+    def task_run_request_requires_arn_if_no_task_definition_given(self) -> Self:
         """
         If no task definition is provided, a task definition ARN must be present on the
         task run request.
         """
-        if not values.get("task_run_request", {}).get(
-            "taskDefinition"
-        ) and not values.get("task_definition"):
+        if (
+            not (self.task_run_request or {}).get("taskDefinition")
+            and not self.task_definition
+        ):
             raise ValueError(
                 "A task definition must be provided if a task definition ARN is not "
                 "present on the task run request."
             )
-        return values
+        return self
 
-    @root_validator
-    def container_name_default_from_task_definition(cls, values) -> dict:
+    @model_validator(mode="after")
+    def container_name_default_from_task_definition(self) -> Self:
         """
         Infers the container name from the task definition if not provided.
         """
-        if values.get("container_name") is None:
-            values["container_name"] = _container_name_from_task_definition(
-                values.get("task_definition")
+        if self.container_name is None:
+            self.container_name = _container_name_from_task_definition(
+                self.task_definition
             )
 
             # We may not have a name here still; for example if someone is using a task
             # definition arn. In that case, we'll perform similar logic later to find
             # the name to treat as the "orchestration" container.
 
-        return values
+        return self
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def set_default_configure_cloudwatch_logs(cls, values: dict) -> dict:
         """
         Streaming output generally requires CloudWatch logs to be configured.
@@ -327,57 +324,55 @@ class ECSJobConfiguration(BaseJobConfiguration):
             values["configure_cloudwatch_logs"] = values.get("stream_output")
         return values
 
-    @root_validator
+    @model_validator(mode="after")
     def configure_cloudwatch_logs_requires_execution_role_arn(
-        cls, values: dict
-    ) -> dict:
+        self,
+    ) -> Self:
         """
         Enforces that an execution role arn is provided (or could be provided by a
         runtime task definition) when configuring logging.
         """
         if (
-            values.get("configure_cloudwatch_logs")
-            and not values.get("execution_role_arn")
+            self.configure_cloudwatch_logs
+            and not self.execution_role_arn
             # TODO: Does not match
             # Do not raise if they've linked to another task definition or provided
             # it without using our shortcuts
-            and not values.get("task_run_request", {}).get("taskDefinition")
-            and not (values.get("task_definition") or {}).get("executionRoleArn")
+            and not (self.task_run_request or {}).get("taskDefinition")
+            and not (self.task_definition or {}).get("executionRoleArn")
         ):
             raise ValueError(
                 "An `execution_role_arn` must be provided to use "
                 "`configure_cloudwatch_logs` or `stream_logs`."
             )
-        return values
+        return self
 
-    @root_validator
+    @model_validator(mode="after")
     def cloudwatch_logs_options_requires_configure_cloudwatch_logs(
-        cls, values: dict
-    ) -> dict:
+        self,
+    ) -> Self:
         """
         Enforces that an execution role arn is provided (or could be provided by a
         runtime task definition) when configuring logging.
         """
-        if values.get("cloudwatch_logs_options") and not values.get(
-            "configure_cloudwatch_logs"
-        ):
+        if self.cloudwatch_logs_options and not self.configure_cloudwatch_logs:
             raise ValueError(
                 "`configure_cloudwatch_log` must be enabled to use "
                 "`cloudwatch_logs_options`."
             )
-        return values
+        return self
 
-    @root_validator
-    def network_configuration_requires_vpc_id(cls, values: dict) -> dict:
+    @model_validator(mode="after")
+    def network_configuration_requires_vpc_id(self) -> Self:
         """
         Enforces a `vpc_id` is provided when custom network configuration mode is
         enabled for network settings.
         """
-        if values.get("network_configuration") and not values.get("vpc_id"):
+        if self.network_configuration and not self.vpc_id:
             raise ValueError(
                 "You must provide a `vpc_id` to enable custom `network_configuration`."
             )
-        return values
+        return self
 
 
 class ECSVariables(BaseVariables):
@@ -454,7 +449,7 @@ class ECSVariables(BaseVariables):
             "defaults to a Prefect base image matching your local versions."
         ),
     )
-    cpu: int = Field(
+    cpu: Optional[int] = Field(
         title="CPU",
         default=None,
         description=(
@@ -463,7 +458,7 @@ class ECSVariables(BaseVariables):
             f"{ECS_DEFAULT_CPU} will be used unless present on the task definition."
         ),
     )
-    memory: int = Field(
+    memory: Optional[int] = Field(
         default=None,
         description=(
             "The amount of memory to provide to the ECS task. Valid amounts are "
@@ -471,7 +466,7 @@ class ECSVariables(BaseVariables):
             f"{ECS_DEFAULT_MEMORY} will be used unless present on the task definition."
         ),
     )
-    container_name: str = Field(
+    container_name: Optional[str] = Field(
         default=None,
         description=(
             "The name of the container flow run orchestration will occur in. If not "
@@ -480,7 +475,7 @@ class ECSVariables(BaseVariables):
             "be used."
         ),
     )
-    task_role_arn: str = Field(
+    task_role_arn: Optional[str] = Field(
         title="Task Role ARN",
         default=None,
         description=(
@@ -488,7 +483,7 @@ class ECSVariables(BaseVariables):
             "task while it is running."
         ),
     )
-    execution_role_arn: str = Field(
+    execution_role_arn: Optional[str] = Field(
         title="Execution Role ARN",
         default=None,
         description=(
@@ -509,7 +504,7 @@ class ECSVariables(BaseVariables):
             "VPC will be used. If no default VPC can be found, the task run will fail."
         ),
     )
-    configure_cloudwatch_logs: bool = Field(
+    configure_cloudwatch_logs: Optional[bool] = Field(
         default=None,
         description=(
             "If enabled, the Prefect container will be configured to send its output "
@@ -550,7 +545,7 @@ class ECSVariables(BaseVariables):
         ),
     )
 
-    stream_output: bool = Field(
+    stream_output: Optional[bool] = Field(
         default=None,
         description=(
             "If enabled, logs will be streamed from the Prefect container to the local "
@@ -606,7 +601,7 @@ class ECSWorker(BaseWorker):
     A Prefect worker to run flow runs as ECS tasks.
     """
 
-    type = "ecs"
+    type: str = "ecs"
     job_configuration = ECSJobConfiguration
     job_configuration_variables = ECSVariables
     _description = (
@@ -707,6 +702,7 @@ class ECSWorker(BaseWorker):
             task_definition = self._prepare_task_definition(
                 configuration, region=ecs_client.meta.region_name, flow_run=flow_run
             )
+            _drop_empty_keys_from_task_definition(task_definition)
             (
                 task_definition_arn,
                 new_task_definition_registered,
@@ -717,6 +713,7 @@ class ECSWorker(BaseWorker):
             task_definition = self._retrieve_task_definition(
                 logger, ecs_client, task_definition_arn
             )
+            _drop_empty_keys_from_task_definition(task_definition)
             if configuration.task_definition:
                 logger.warning(
                     "Ignoring task definition in configuration since task definition"
@@ -1468,7 +1465,11 @@ class ECSWorker(BaseWorker):
         task_run_request = deepcopy(configuration.task_run_request)
 
         task_run_request.setdefault("taskDefinition", task_definition_arn)
-        assert task_run_request["taskDefinition"] == task_definition_arn
+
+        assert task_run_request["taskDefinition"] == task_definition_arn, (
+            f"Task definition ARN mismatch: {task_run_request['taskDefinition']!r} "
+            f"!= {task_definition_arn!r}"
+        )
         capacityProviderStrategy = task_run_request.get("capacityProviderStrategy")
 
         if capacityProviderStrategy:
