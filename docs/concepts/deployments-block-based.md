@@ -251,7 +251,7 @@ To edit parameters in the Prefect UI, go the the details page for a deployment, 
 
 To create an ad-hoc flow run with different parameter values, go the the details page for a deployment, select **Run**, then select **Custom**. You will be able to provide custom values for any editable deployment fields. Under **Parameters**, select **Custom**. Provide the new values, then select **Save**. Select **Run** to begin the flow run with custom values.
 
-If you want the Prefect API to verify the parameter values passed to a flow run against the schema defined by `parameter_openapi_schema`, set `enforce_parameter_schema` to `true`.
+If you do not want the Prefect API to verify the parameter values passed to a flow run against the schema defined by `parameter_openapi_schema`, set `enforce_parameter_schema` to `false`.
 
 ![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
 
