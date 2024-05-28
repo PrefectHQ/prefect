@@ -19,7 +19,6 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.block_types import read_block_type_by_slug
 from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import BlockSchema, BlockSchemaReference, BlockType
-from prefect.settings import PREFECT_TEST_MODE
 
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import (
@@ -53,14 +52,10 @@ async def create_block_schema(
     """
     from prefect.blocks.core import Block, _get_non_block_reference_definitions
 
-    # We take a shortcut in many unit tests to pass client models directly to
-    # this function.  We will support this (only in unit tests) by converting them
-    # to the appropriate server model.
+    # We take a shortcut in many unit tests and in block registration to pass client
+    # models directly to this function.  We will support this by converting them to
+    # the appropriate server model.
     if not isinstance(block_schema, schemas.actions.BlockSchemaCreate):
-        if not PREFECT_TEST_MODE.value():
-            raise ValueError(
-                f"block_schema must be a server model, got {type(block_schema)}"
-            )
         block_schema = schemas.actions.BlockSchemaCreate.model_validate(
             block_schema.model_dump(
                 mode="json",
