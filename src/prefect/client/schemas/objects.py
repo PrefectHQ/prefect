@@ -273,8 +273,6 @@ class State(ObjectBaseModel, Generic[R]):
 
     @model_validator(mode="after")
     def default_scheduled_start_time(self) -> Self:
-        from prefect.server.schemas.states import StateType
-
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
                 self.state_details.scheduled_time = pendulum.now("utc")
