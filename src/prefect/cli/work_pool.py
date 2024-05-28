@@ -473,6 +473,11 @@ async def delete(
     """
     async with get_client() as client:
         try:
+            if not typer.confirm(
+                (f"Are you sure you want to delete work pool with name {name!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
             await client.delete_work_pool(work_pool_name=name)
         except ObjectNotFound as exc:
             exit_with_error(exc)
