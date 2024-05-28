@@ -53,13 +53,15 @@ jobs:
     strategy:
       matrix:
         database:
-          # - "postgres:14"
+          - "postgres:14"
           - "sqlite"
         python-version:
           - "3.9"
-          # - "3.10"
-          # - "3.11"
+          - "3.10"
+          - "3.11"
           - "3.12"
+
+      fail-fast: true
 
     timeout-minutes: 45
 
