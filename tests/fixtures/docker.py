@@ -1,4 +1,5 @@
 import sys
+import time
 from contextlib import contextmanager
 from typing import Generator
 
@@ -129,6 +130,7 @@ def registry(docker: DockerClient) -> Generator[str, None, None]:
             name="orion-test-registry",
             ports={"5000/tcp": 5555},
         )
+        time.sleep(15)
         try:
             yield "http://localhost:5555"
         finally:
