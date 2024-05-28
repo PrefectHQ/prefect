@@ -15,8 +15,8 @@ Prefect Cloud has certain controls in place to ensure stability.
 ## API Rate Limits
 
 !!! info "Prefect Cloud rate limits are subject to change"
-    API rate limites but are subject to change without notice.
-    Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) if you have questions about rate limits.
+    API rate limites but are subject to change.
+    Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) with questions about rate limits.
 
 Prefect Cloud's API rate limits restrict the number of requests that a single client can make to certain endpoints in a given time period. The `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes are limited to:
 
