@@ -176,7 +176,7 @@ async def test_sync_task_not_awaitable_in_async_context(foo_task):
 async def test_async_task_submission_creates_a_scheduled_task_run(
     async_foo_task_with_result_storage,
 ):
-    task_run = await async_foo_task_with_result_storage.apply_async(42)
+    task_run = async_foo_task_with_result_storage.apply_async(42)
     assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(async_foo_task_with_result_storage)
@@ -329,7 +329,7 @@ class TestCall:
 
 class TestMap:
     async def test_map(self, async_foo_task):
-        task_runs = await async_foo_task.map([1, 2, 3])
+        task_runs = async_foo_task.map([1, 2, 3])
 
         assert len(task_runs) == 3
 
@@ -363,7 +363,7 @@ class TestMap:
         async def bar(x: int, unmappable: int) -> Tuple[int, int]:
             return (x, unmappable)
 
-        task_runs = await bar.map([1, 2, 3], unmappable=42)
+        task_runs = bar.map([1, 2, 3], unmappable=42)
 
         assert len(task_runs) == 3
 
@@ -397,7 +397,7 @@ class TestMap:
         async def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
             return (x, mappable)
 
-        task_runs = await bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+        task_runs = bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
 
         assert len(task_runs) == 3
 
