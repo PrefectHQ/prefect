@@ -13,6 +13,7 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.cloud import cloud_app, confirm_logged_in
 from prefect.cli.root import app
 from prefect.client.cloud import get_cloud_client
+from prefect.exceptions import ObjectNotFound
 from prefect.settings import PREFECT_API_URL
 
 webhook_app = PrefectTyper(
@@ -184,14 +185,18 @@ async def delete(webhook_id: UUID):
     """
     confirm_logged_in()
 
-    confirm_delete = typer.confirm(
-        "Are you sure you want to delete it? This cannot be undone."
-    )
-
-    if not confirm_delete:
-        return
+    if not typer.confirm(
+        (f"Are you sure you want to delete webhook with id '{webhook_id!s}'?"),
+        default=False,
+    ):
+        exit_with_error("Deletion aborted.")
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
-        await client.request("DELETE", f"/webhooks/{webhook_id}")
-        app.console.print(f"Successfully deleted webhook {webhook_id}")
+        try:
+            await client.request("DELETE", f"/webhooks/{webhook_id}")
+            app.console.print(f"Successfully deleted webhook {webhook_id}")
+        except ObjectNotFound:
+            exit_with_error(f"Webhook with id '{webhook_id!s}' not found.")
+        except Exception as exc:
+            exit_with_error(f"Error deleting webhook: {exc}")
