@@ -1,5 +1,6 @@
 import pendulum
 import pytest
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.server import models, schemas
 from prefect.server.api.ui.flows import SimpleNextFlowRun
@@ -126,8 +127,8 @@ class TestNextRunsByFlow:
                 flow_version="0.1",
                 state=schemas.states.State(
                     type=schemas.states.StateType.SCHEDULED,
-                    timestamp=pendulum.now("UTC"),
-                    state_details={"scheduled_time": pendulum.now("UTC")},
+                    timestamp=DateTime.now("UTC"),
+                    state_details={"scheduled_time": DateTime.now("UTC")},
                 ),
             ),
         )

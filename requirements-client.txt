@@ -17,9 +17,7 @@ jsonschema >= 4.0.0, < 5.0.0
 orjson >= 3.7, < 4.0
 packaging >= 21.3, < 24.3
 pathspec >= 0.8.0
-# https://github.com/PrefectHQ/prefect/issues/11619
-pendulum < 3.0; python_version < '3.12'
-pendulum >= 3.0.0, <4; python_version >= '3.12'
+pendulum >= 3.0.0, <4
 # the version constraints for pydantic are merged with those from fastapi 0.103.2
 pydantic >= 2.4, < 3.0.0
 pydantic_core >= 2.12.0, < 3.0.0

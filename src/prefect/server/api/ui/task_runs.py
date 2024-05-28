@@ -5,7 +5,7 @@ from typing import List, Optional, cast
 import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
-from pydantic import Field
+from pydantic import Field, model_serializer
 from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
@@ -28,6 +28,13 @@ class TaskRunCount(PrefectBaseModel):
         default=..., description="The number of completed task runs."
     )
     failed: int = Field(default=..., description="The number of failed task runs.")
+
+    @model_serializer
+    def ser_model(self) -> dict:
+        return {
+            "completed": int(self.completed),
+            "failed": int(self.failed),
+        }
 
 
 def _postgres_bucket_expression(

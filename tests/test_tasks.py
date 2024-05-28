@@ -2441,7 +2441,7 @@ async def _wait_for_logs(
         if flow_run_id
         else None
     )
-    for _ in range(5):
+    while True:
         logs = await prefect_client.read_logs(log_filter=log_filter)
         if logs:
             break
