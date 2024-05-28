@@ -1,5 +1,4 @@
 import asyncio
-import json
 from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
 
@@ -26,16 +25,8 @@ if TYPE_CHECKING:
 @db_injector
 async def get_event(db: PrefectDBInterface, id: UUID) -> Optional[ReceivedEvent]:
     async with await db.session() as session:
-        result = await session.execute(
-            sa.text("SELECT * FROM events WHERE id = :id"),
-            params={"id": str(id)},
-        )
-        event = result.mappings().fetchone()
-        if db.uses_json_strings:
-            event = dict(event)
-            event["resource"] = json.loads(event["resource"])
-            event["related"] = json.loads(event["related"])
-            event["payload"] = json.loads(event["payload"])
+        result = await session.execute(sa.select(db.Event).where(db.Event.id == id))
+        event = result.scalar_one_or_none()
 
         if not event:
             return None

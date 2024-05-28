@@ -6,7 +6,7 @@ import datetime
 from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
 
@@ -131,6 +131,21 @@ class HistoryResponse(PrefectBaseModel):
     states: List[HistoryResponseState] = Field(
         default=..., description="A list of state histories during the interval."
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_timestamps(
+        cls, values: dict
+    ) -> dict:  # TODO: remove this, handle with ORM
+        d = {"interval_start": None, "interval_end": None}
+        for field in d.keys():
+            val = values.get(field)
+            if isinstance(val, datetime.datetime):
+                d[field] = DateTime.instance(values[field])
+            else:
+                d[field] = val
+
+        return {**values, **d}
 
 
 StateResponseDetails = Union[
