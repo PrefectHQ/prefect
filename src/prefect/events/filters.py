@@ -44,15 +44,16 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-ar
     _top_level_filter: Optional["EventFilter"] = PrivateAttr(None)
 
     def get_filters(self) -> List["EventDataFilter"]:
-        return [
+        filters: List["EventDataFilter"] = [
             filter
             for filter in [
-                getattr(self, name)
-                for name, field in self.__fields__.items()
-                if issubclass(field.type_, EventDataFilter)
+                getattr(self, name) for name, field in self.model_fields.items()
             ]
-            if filter
+            if isinstance(filter, EventDataFilter)
         ]
+        for filter in filters:
+            filter._top_level_filter = self._top_level_filter
+        return filters
 
     def includes(self, event: Event) -> bool:
         """Does the given event match the criteria of this filter?"""

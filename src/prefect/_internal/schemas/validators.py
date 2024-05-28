@@ -548,23 +548,6 @@ def get_or_create_state_name(v: str, values: dict) -> str:
     return v
 
 
-def set_default_scheduled_time(cls, values: dict) -> dict:
-    """
-    TODO: This should throw an error instead of setting a default but is out of
-            scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
-            into work refactoring state initialization
-    """
-    from prefect.server.schemas.states import StateType
-
-    if values.get("type") == StateType.SCHEDULED:
-        state_details = values.setdefault(
-            "state_details", cls.__fields__["state_details"].get_default()
-        )
-        if not state_details.scheduled_time:
-            state_details.scheduled_time = pendulum.now("utc")
-    return values
-
-
 def get_or_create_run_name(name):
     return name or generate_slug(2)
 
