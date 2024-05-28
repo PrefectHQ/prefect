@@ -152,8 +152,9 @@ async def test_background_task_state_changes(
     reset_worker_events,
     prefect_client,
     enable_task_scheduling,
+    tmp_path,
 ):
-    storage = LocalFileSystem(basepath="/tmp/prefect")
+    storage = LocalFileSystem(basepath=tmp_path)
     storage.save("test")
 
     @task(result_storage=storage)

@@ -286,7 +286,10 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(data))
+    if isinstance(data, BaseResult):
+        return Completed(data=data)
+    else:
+        return Completed(data=await result_factory.create_result(data))
 
 
 @sync_compatible

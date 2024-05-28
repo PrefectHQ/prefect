@@ -248,8 +248,8 @@ async def test_task_result_storage(prefect_client, source):
     await assert_uses_result_storage(api_state, storage)
 
 
-async def test_task_result_static_storage_key(prefect_client):
-    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+async def test_task_result_static_storage_key(prefect_client, tmp_path):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
 
     @flow
     def foo():
@@ -271,8 +271,8 @@ async def test_task_result_static_storage_key(prefect_client):
     assert task_state.data.storage_key == "test"
 
 
-async def test_task_result_parameter_formatted_storage_key(prefect_client):
-    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+async def test_task_result_parameter_formatted_storage_key(prefect_client, tmp_path):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
 
     @flow
     def foo():
@@ -298,8 +298,8 @@ async def test_task_result_parameter_formatted_storage_key(prefect_client):
     assert task_state.data.storage_key == "1-foo-bar"
 
 
-async def test_task_result_flow_run_formatted_storage_key(prefect_client):
-    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_path):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
 
     @flow
     def foo():
