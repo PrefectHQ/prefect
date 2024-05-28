@@ -180,7 +180,11 @@ def delete(name: str):
             f"Profile {name!r} is the active profile. You must switch profiles before"
             " it can be deleted."
         )
-
+    if not typer.confirm(
+        (f"Are you sure you want to delete profile with name {name!r}?"),
+        default=False,
+    ):
+        exit_with_error("Deletion aborted.")
     profiles.remove_profile(name)
 
     verb = "Removed"
