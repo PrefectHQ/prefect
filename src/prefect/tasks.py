@@ -14,7 +14,6 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Coroutine,
     Dict,
     Generic,
     Iterable,
@@ -50,7 +49,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import Async, Sync, run_coro_as_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -750,9 +749,7 @@ class Task(Generic[P, R]):
 
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
-        once it is submitted, the flow function will continue executing. However, note
-        that the `SequentialTaskRunner` does not implement parallel execution for sync tasks
-        and they are fully resolved on submission.
+        once it is submitted, the flow function will continue executing.
 
         Args:
             *args: Arguments to run the task with
@@ -906,9 +903,7 @@ class Task(Generic[P, R]):
         backing API and submit the task runs to the flow's task runner. This
         call blocks if given a future as input while the future is resolved. It
         also blocks while the tasks are being submitted, once they are
-        submitted, the flow function will continue executing. However, note
-        that the `SequentialTaskRunner` does not implement parallel execution
-        for sync tasks and they are fully resolved on submission.
+        submitted, the flow function will continue executing.
 
         Args:
             *args: Iterable and static arguments to run the tasks with

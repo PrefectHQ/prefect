@@ -422,13 +422,13 @@ class Flow(Generic[P, R]):
             Create a new flow from an existing flow, update the task runner, and call
             it without an intermediate variable:
 
-            >>> from prefect.task_runners import SequentialTaskRunner
+            >>> from prefect.task_runners import ThreadPoolTaskRunner
             >>>
             >>> @flow
             >>> def my_flow(x, y):
             >>>     return x + y
             >>>
-            >>> state = my_flow.with_options(task_runner=SequentialTaskRunner)(1, 3)
+            >>> state = my_flow.with_options(task_runner=ThreadPoolTaskRunner)(1, 3)
             >>> assert state.result() == 4
 
         """
