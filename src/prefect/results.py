@@ -164,7 +164,7 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     return False
 
 
-def _format_user_supplied_storage_key(key):
+def _format_user_supplied_storage_key(key: str) -> str:
     # Note here we are pinning to task runs since flow runs do not support storage keys
     # yet; we'll need to split logic in the future or have two separate functions
     runtime_vars = {key: getattr(prefect.runtime, key) for key in dir(prefect.runtime)}

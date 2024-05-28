@@ -1002,3 +1002,23 @@ class TestPersistence:
         assert await state.result() == 1800
         assert isinstance(state.data, PersistedResult)
         assert state.data.storage_key == str(run_id)
+
+    async def test_task_loads_result_if_exists_using_result_storage_key(
+        self, prefect_client, tmp_path
+    ):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True, result_storage=fs
+        )
+        await factory.create_result(-92, key="foo-bar")
+
+        @task(result_storage=fs, result_storage_key="foo-bar")
+        async def async_task():
+            return 42
+
+        state = await run_task_async(async_task, return_type="state")
+        assert state.is_completed()
+        assert await state.result() == -92
+        assert isinstance(state.data, PersistedResult)
+        assert state.data.storage_key == "foo-bar"

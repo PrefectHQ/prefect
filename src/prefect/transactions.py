@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -20,8 +21,10 @@ else:
 from prefect.context import ContextModel
 from prefect.exceptions import RollBack
 from prefect.records import RecordStore
-from prefect.tasks import Task
 from prefect.utilities.collections import AutoEnum
+
+if TYPE_CHECKING:
+    from prefect.tasks import Task
 
 T = TypeVar("T")
 
@@ -44,7 +47,7 @@ class Transaction(ContextModel):
 
     store: RecordStore = None
     key: str = None
-    tasks: List[Task] = Field(default_factory=list)
+    tasks: List["Task"] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
@@ -179,7 +182,7 @@ class Transaction(ContextModel):
         except Exception:
             return False
 
-    def add_task(self, task: Task) -> None:
+    def add_task(self, task: "Task") -> None:
         self.tasks.append(task)
 
     @classmethod
