@@ -577,7 +577,7 @@ async def delete(
     async with get_client() as client:
         try:
             if not typer.confirm(
-                (f"Are you sure you want to delete automation {name!r}?"),
+                (f"Are you sure you want to delete work queue with name {name!r}?"),
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")
