@@ -220,13 +220,18 @@ async def create(
             else:
                 pool_url = "<no dashboard available>"
 
+            # Agent work pools have no status
+            wp_status_display_name = (
+                work_pool.status.display_name if work_pool.status else "N/A"
+            )
+
             app.console.print(
                 textwrap.dedent(
                     f"""
                 └── UUID: {work_pool.id}
                 └── Type: {work_pool.type}
                 └── Description: {work_pool.description}
-                └── Status: {work_pool.status.display_name}
+                └── Status: {wp_status_display_name}
                 └── URL: {pool_url}
                 """
                 ).strip(),
