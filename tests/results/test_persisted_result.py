@@ -78,7 +78,7 @@ async def test_result_reference_create_uses_serializer(storage_block):
 
     assert result.serializer_type == serializer.type
     contents = await storage_block.read_path(result.storage_key)
-    blob = PersistedResultBlob.parse_raw(contents)
+    blob = PersistedResultBlob.model_validate_json(contents)
     assert blob.serializer == serializer
     assert serializer.loads(blob.data) == "test"
 
@@ -102,7 +102,7 @@ async def test_result_reference_file_blob_is_json(storage_block):
     blob_dict = json.loads(contents)
 
     # Should conform to the PersistedResultBlob spec
-    blob = PersistedResultBlob.parse_obj(blob_dict)
+    blob = PersistedResultBlob.model_validate(blob_dict)
 
     assert blob.serializer
     assert blob.data

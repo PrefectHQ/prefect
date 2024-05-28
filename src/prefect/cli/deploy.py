@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
-import pydantic.v1 as pydantic
+import pydantic
 import typer
 import yaml
 from rich.console import Console
@@ -41,7 +41,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import ServerType
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -695,7 +695,9 @@ async def _run_single_deploy(
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
         enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
-        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
+        parameter_openapi_schema=deploy_config.get(
+            "parameter_openapi_schema"
+        ).model_dump(),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),
@@ -837,7 +839,7 @@ async def _run_multi_deploy(
 
 def _construct_schedules(
     deploy_config: Dict,
-) -> List[MinimalDeploymentSchedule]:
+) -> List[DeploymentScheduleCreate]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -865,7 +867,7 @@ def _construct_schedules(
 
 def _schedule_config_to_deployment_schedule(
     schedule_config: Dict,
-) -> MinimalDeploymentSchedule:
+) -> DeploymentScheduleCreate:
     cron = schedule_config.get("cron")
     interval = schedule_config.get("interval")
     anchor_date = schedule_config.get("anchor_date")
@@ -902,7 +904,7 @@ def _schedule_config_to_deployment_schedule(
             f"Unknown schedule type. Please provide a valid schedule. schedule={schedule_config}"
         )
 
-    return MinimalDeploymentSchedule(
+    return DeploymentScheduleCreate(
         schedule=schedule,
         active=schedule_active,
         max_active_runs=max_active_runs,
@@ -1600,7 +1602,9 @@ def _initialize_deployment_triggers(
     triggers = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
-        triggers.append(pydantic.parse_obj_as(DeploymentTriggerTypes, spec))
+        triggers.append(
+            pydantic.TypeAdapter(DeploymentTriggerTypes).validate_python(spec)
+        )
 
     return triggers
 

@@ -13,11 +13,10 @@ e.g. Jan 2023.
 import functools
 import sys
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Callable, List, Optional, Type, TypeVar
 
 import pendulum
-from pydantic.v1 import BaseModel, Field, root_validator
-from pydantic.v1.schema import default_ref_template
+from pydantic import BaseModel
 
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
@@ -231,9 +230,10 @@ def deprecated_field(
 
             cls_init(__pydantic_self__, **data)
 
-            field = __pydantic_self__.__fields__.get(name)
+            field = __pydantic_self__.model_fields.get(name)
             if field is not None:
-                field.field_info.extra["deprecated"] = True
+                field.json_schema_extra = field.json_schema_extra or {}
+                field.json_schema_extra["deprecated"] = True
 
         # Patch the model's init method
         model_cls.__init__ = __init__
@@ -272,106 +272,3 @@ def register_renamed_module(old_name: str, new_name: str, start_date: str):
     DEPRECATED_MODULE_ALIASES.append(
         AliasedModuleDefinition(old_name, new_name, callback)
     )
-
-
-class DeprecatedInfraOverridesField(BaseModel):
-    """
-    A model mixin that handles the deprecated `infra_overrides` field.
-
-    The `infra_overrides` field has been renamed to `job_variables`. This mixin maintains
-    backwards compatibility with users of the `infra_overrides` field while presenting
-    `job_variables` as the user-facing field.
-
-    When we remove support for `infra_overrides`, we can remove this class as a parent of
-    all schemas that use it, leaving them with only the `job_variables` field.
-    """
-
-    infra_overrides: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Deprecated field. Use `job_variables` instead.",
-    )
-
-    @root_validator(pre=True)
-    def _job_variables_from_infra_overrides(
-        cls, values: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Validate that only one of `infra_overrides` or `job_variables` is used
-        and keep them in sync during init.
-        """
-        job_variables = values.get("job_variables")
-        infra_overrides = values.get("infra_overrides")
-
-        if job_variables is not None and infra_overrides is not None:
-            if job_variables != infra_overrides:
-                raise ValueError(
-                    "The `infra_overrides` field has been renamed to `job_variables`."
-                    "Use one of these fields, but not both."
-                )
-            return values
-        elif job_variables is not None and infra_overrides is None:
-            values["infra_overrides"] = job_variables
-        elif job_variables is None and infra_overrides is not None:
-            values["job_variables"] = infra_overrides
-        return values
-
-    def __setattr__(self, key: str, value: Any) -> None:
-        """
-        Override the default __setattr__ to ensure that setting `infra_overrides` or
-        `job_variables` will update both fields.
-        """
-        if key == "infra_overrides" or key == "job_variables":
-            updates = {"infra_overrides": value, "job_variables": value}
-            self.__dict__.update(updates)
-            return
-        super().__setattr__(key, value)
-
-    def dict(self, **kwargs) -> Dict[str, Any]:
-        """
-        Override the default dict method to ensure only `infra_overrides` is serialized.
-        This preserves backwards compatibility for newer clients talking to older servers.
-        """
-        exclude: Union[set, Dict[str, Any]] = kwargs.pop("exclude", set())
-        exclude_type = type(exclude)
-
-        if exclude_type is set:
-            exclude.add("job_variables")
-        elif exclude_type is dict:
-            exclude["job_variables"] = True
-        else:
-            exclude = {"job_variables"}
-        kwargs["exclude"] = exclude
-
-        return super().dict(**kwargs)
-
-    @classmethod
-    def schema(
-        cls, by_alias: bool = True, ref_template: str = default_ref_template
-    ) -> Dict[str, Any]:
-        """
-        Don't use the mixin docstring as the description if this class is missing a
-        docstring.
-        """
-        schema = super().schema(by_alias=by_alias, ref_template=ref_template)
-
-        if not cls.__doc__:
-            schema.pop("description", None)
-
-        return schema
-
-
-def handle_deprecated_infra_overrides_parameter(
-    job_variables: Dict[str, Any], infra_overrides: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
-    if infra_overrides is not None and job_variables is not None:
-        raise RuntimeError(
-            "The `infra_overrides` argument has been renamed to `job_variables`."
-            "Use one or the other, but not both."
-        )
-    elif infra_overrides is not None and job_variables is None:
-        jv = infra_overrides
-    elif job_variables is not None and infra_overrides is None:
-        jv = job_variables
-    else:
-        jv = None
-    return jv

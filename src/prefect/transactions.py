@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
+    Generator,
     List,
     Optional,
     Type,
@@ -11,12 +12,7 @@ from typing import (
 )
 from uuid import UUID
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic import Field
 
 from prefect.context import ContextModel
 from prefect.exceptions import RollBack
@@ -45,8 +41,8 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    store: RecordStore = None
-    key: str = None
+    store: Optional[RecordStore] = None
+    key: Optional[str] = None
     tasks: List["Task"] = Field(default_factory=list)
     state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
     children: List["Transaction"] = Field(default_factory=list)
@@ -196,9 +192,9 @@ def get_transaction() -> Transaction:
 
 @contextmanager
 def transaction(
-    key: str = None,
-    store: RecordStore = None,
+    key: Optional[str] = None,
+    store: Optional[RecordStore] = None,
     commit_mode: CommitMode = CommitMode.LAZY,
-) -> Transaction:
+) -> Generator[Transaction, None, None]:
     with Transaction(key=key, store=store, commit_mode=commit_mode) as txn:
         yield txn

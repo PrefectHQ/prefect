@@ -870,7 +870,7 @@ class TestPullWithBlock:
         """
 
         class Wrong(Block):
-            square_peg = "round_hole"
+            square_peg: str = "round_hole"
 
         block = Wrong()
         await block.save("test-block")

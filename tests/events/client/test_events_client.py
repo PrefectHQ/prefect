@@ -90,7 +90,7 @@ async def test_ephemeral_events_client_can_emit(
 
     mock_http_client().post.assert_called_once_with(
         "/events",
-        json=[example_event_1.dict(json_compatible=True)],
+        json=[example_event_1.model_dump(mode="json")],
     )
 
 
