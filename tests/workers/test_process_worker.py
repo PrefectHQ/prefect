@@ -11,26 +11,22 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
+from exceptiongroup import ExceptionGroup, catch
+from pydantic import BaseModel
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+import prefect
+from prefect import flow
+from prefect.client import schemas as client_schemas
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas import State
+from prefect.exceptions import InfrastructureNotAvailable
 from prefect.server import models
 from prefect.server.schemas.actions import (
     DeploymentUpdate,
     WorkPoolCreate,
 )
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
-
-import prefect
-from prefect import flow
-from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas import State
-from prefect.exceptions import InfrastructureNotAvailable
-from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.workers.process import (
     ProcessJobConfiguration,
@@ -62,8 +58,8 @@ async def flow_run(prefect_client: PrefectClient):
     flow_run = await prefect_client.create_flow_run(
         flow=example_process_worker_flow,
         state=State(
-            type=StateType.SCHEDULED,
-            state_details=StateDetails(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
                 scheduled_time=pendulum.now("utc").subtract(minutes=5)
             ),
         ),
@@ -77,8 +73,8 @@ async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment_id=deployment.id,
         state=State(
-            type=StateType.SCHEDULED,
-            state_details=StateDetails(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
                 scheduled_time=pendulum.now("utc").subtract(minutes=5)
             ),
         ),
@@ -115,7 +111,7 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
         id: UUID = uuid.uuid4()
         job_variables: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
-        updated: pendulum.DateTime = pendulum.now("utc")
+        updated: DateTime = pendulum.now("utc")
 
     class MockFlow(BaseModel):
         id: UUID = uuid.uuid4()
@@ -142,8 +138,8 @@ async def work_pool(session: AsyncSession):
 
     wp = await models.workers.create_work_pool(
         session=session,
-        work_pool=WorkPoolCreate.construct(
-            _fields_set=WorkPoolCreate.__fields_set__,
+        work_pool=WorkPoolCreate.model_construct(
+            _fields_set=WorkPoolCreate.model_fields_set,
             name="test-worker-pool",
             type="test",
             description="None",
@@ -162,8 +158,8 @@ async def work_pool_with_default_env(session: AsyncSession):
     }
     wp = await models.workers.create_work_pool(
         session=session,
-        work_pool=WorkPoolCreate.construct(
-            _fields_set=WorkPoolCreate.__fields_set__,
+        work_pool=WorkPoolCreate.model_construct(
+            _fields_set=WorkPoolCreate.model_fields_set,
             name="wp-1",
             type="test",
             description="None",
@@ -348,7 +344,15 @@ async def test_process_created_then_marked_as_started(
     patch_client(monkeypatch)
     fake_configuration = MagicMock()
     fake_configuration.command = "echo hello"
-    with pytest.raises(RuntimeError, match="Started called!"):
+
+    def handle_exception_group(excgrp: ExceptionGroup):
+        assert len(excgrp.exceptions) == 1
+        assert isinstance(excgrp.exceptions[0], RuntimeError)
+        assert str(excgrp.exceptions[0]) == "Started called!"
+
+    with catch(  # should be superseded by `ExceptionGroup` once we're 3.11+
+        {RuntimeError: handle_exception_group}  # type: ignore
+    ):  # see https://github.com/agronholm/anyio/blob/master/docs/migration.rst#task-groups-now-wrap-single-exceptions-in-groups # noqa F821
         async with ProcessWorker(
             work_pool_name=work_pool.name,
         ) as worker:

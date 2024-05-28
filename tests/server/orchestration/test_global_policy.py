@@ -432,7 +432,7 @@ async def test_update_subflow_parent_task(
         task_run=core.TaskRun(
             task_key="dummy-task",
             flow_run_id=parent_flow_run.id,
-            state=ctx.initial_state.copy(reset_fields=True),
+            state=ctx.initial_state.reset_fields(),
             dynamic_key="0",
         ),
     )
@@ -484,7 +484,7 @@ async def test_child_flow_run_states_include_parent_task_run_id(
         task_run=core.TaskRun(
             task_key="dummy-task",
             flow_run_id=parent_flow_run.id,
-            state=ctx.initial_state.copy(reset_fields=True),
+            state=ctx.initial_state.reset_fields(),
             dynamic_key="0",
         ),
     )

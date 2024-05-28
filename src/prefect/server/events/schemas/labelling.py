@@ -1,6 +1,6 @@
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
-from prefect.server.utilities.schemas import PrefectBaseModel
+from pydantic import RootModel
 
 
 class LabelDiver:
@@ -71,36 +71,32 @@ class LabelDiver:
             raise AttributeError
 
 
-class Labelled(PrefectBaseModel, extra="ignore"):
-    """An object defined by string labels and values"""
-
-    __root__: Dict[str, str]
-
+class Labelled(RootModel[Dict[str, str]]):
     def keys(self) -> Iterable[str]:
-        return self.__root__.keys()
+        return self.root.keys()
 
     def items(self) -> Iterable[Tuple[str, str]]:
-        return self.__root__.items()
+        return self.root.items()
 
     def __getitem__(self, label: str) -> str:
-        return self.__root__[label]
+        return self.root[label]
 
     def __setitem__(self, label: str, value: str) -> str:
-        self.__root__[label] = value
+        self.root[label] = value
         return value
 
     def __contains__(self, key: str) -> bool:
-        return key in self.__root__
+        return key in self.root
 
     def get(self, label: str, default: Optional[str] = None) -> Optional[str]:
-        return self.__root__.get(label, default)
+        return self.root.get(label, default)
 
     def as_label_value_array(self) -> List[Dict[str, str]]:
         return [{"label": label, "value": value} for label, value in self.items()]
 
     @property
     def labels(self) -> LabelDiver:
-        return LabelDiver(self.__root__)
+        return LabelDiver(self.root)
 
     def has_all_labels(self, labels: Dict[str, str]) -> bool:
-        return all(self.__root__.get(label) == value for label, value in labels.items())
+        return all(self.root.get(label) == value for label, value in labels.items())

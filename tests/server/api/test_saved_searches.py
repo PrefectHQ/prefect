@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from prefect._vendor.starlette import status
+from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import SavedSearchCreate
@@ -38,8 +38,8 @@ class TestCreateSavedSearch:
             },
         ]
 
-        data = SavedSearchCreate(name="My SavedSearch", filters=filters).dict(
-            json_compatible=True
+        data = SavedSearchCreate(name="My SavedSearch", filters=filters).model_dump(
+            mode="json"
         )
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -56,7 +56,7 @@ class TestCreateSavedSearch:
     async def test_create_saved_search_respects_name_uniqueness(self, client):
         data = SavedSearchCreate(
             name="My SavedSearch",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My SavedSearch"
@@ -65,7 +65,7 @@ class TestCreateSavedSearch:
         # post different data, upsert should be respected
         data = SavedSearchCreate(
             name="My SavedSearch",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My SavedSearch"
@@ -79,7 +79,7 @@ class TestCreateSavedSearch:
 
         data = SavedSearchCreate(
             name="My SavedSearch",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My SavedSearch"
@@ -92,7 +92,7 @@ class TestReadSavedSearch:
         # first create a saved_search to read
         data = SavedSearchCreate(
             name="My SavedSearch",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         response = await client.put("/saved_searches/", json=data)
         saved_search_id = response.json()["id"]
 
@@ -153,7 +153,7 @@ class TestDeleteSavedSearch:
         # first create a saved_search to delete
         data = SavedSearchCreate(
             name="My SavedSearch",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         response = await client.put("/saved_searches/", json=data)
         saved_search_id = response.json()["id"]
 

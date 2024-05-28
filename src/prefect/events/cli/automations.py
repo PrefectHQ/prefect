@@ -3,12 +3,13 @@ Command line interface for working with automations.
 """
 
 import functools
-from typing import Optional
+from typing import Optional, Type
 from uuid import UUID
 
 import orjson
 import typer
 import yaml as pyyaml
+from pydantic import BaseModel
 from rich.pretty import Pretty
 from rich.table import Table
 from rich.text import Text
@@ -148,10 +149,22 @@ async def inspect(
                 exit_with_error(f"Automation with id {id!r} not found.")
 
     if yaml or json:
+
+        def no_really_json(obj: Type[BaseModel]):
+            # Working around a weird bug where pydantic isn't rendering enums as strings
+            #
+            # automation.trigger.model_dump(mode="json")
+            # {..., 'posture': 'Reactive', ...}
+            #
+            # automation.model_dump(mode="json")
+            # {..., 'posture': Posture.Reactive, ...}
+            return orjson.loads(obj.model_dump_json())
+
         if isinstance(automation, list):
-            automation = [a.dict(json_compatible=True) for a in automation]
+            automation = [no_really_json(a) for a in automation]
         elif isinstance(automation, Automation):
-            automation = automation.dict(json_compatible=True)
+            automation = no_really_json(automation)
+
         if yaml:
             app.console.print(pyyaml.dump(automation, sort_keys=False))
         elif json:

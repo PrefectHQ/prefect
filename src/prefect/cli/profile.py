@@ -8,9 +8,9 @@ from typing import Optional
 
 import httpx
 import typer
-from prefect._vendor.starlette import status
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+from starlette import status
 
 import prefect.context
 import prefect.settings
@@ -78,7 +78,7 @@ def create(
             exit_with_error(f"Profile {from_name!r} not found.")
 
         # Create a copy of the profile with a new name and add to the collection
-        profiles.add_profile(profiles[from_name].copy(update={"name": name}))
+        profiles.add_profile(profiles[from_name].model_copy(update={"name": name}))
     else:
         profiles.add_profile(prefect.settings.Profile(name=name, settings={}))
 
@@ -203,7 +203,7 @@ def rename(name: str, new_name: str):
     if new_name in profiles:
         exit_with_error(f"Profile {new_name!r} already exists.")
 
-    profiles.add_profile(profiles[name].copy(update={"name": new_name}))
+    profiles.add_profile(profiles[name].model_copy(update={"name": new_name}))
     profiles.remove_profile(name)
 
     # If the active profile was renamed switch the active profile to the new name.

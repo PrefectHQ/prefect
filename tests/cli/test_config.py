@@ -80,7 +80,7 @@ def test_set_with_disallowed_setting(setting):
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", f"{setting}=BAR"],
-        expected_output=f"""                
+        expected_output=f"""
             Setting {setting!r} cannot be changed with this command. Use an environment variable instead.
             """,
         expected_code=1,
@@ -92,10 +92,7 @@ def test_set_with_invalid_value_type():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_API_DATABASE_TIMEOUT=HELLO"],
-        expected_output="""
-            Validation error for setting 'PREFECT_API_DATABASE_TIMEOUT': value is not a valid float
-            Invalid setting value.
-            """,
+        expected_output_contains="Input should be a valid number",
         expected_code=1,
     )
 
@@ -326,7 +323,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
         res = invoke_and_assert(["config", "view", "--hide-sources"])
 
         # Collect just settings that are set
-        expected = ctx.settings.dict(exclude_unset=True)
+        expected = ctx.settings.model_dump(exclude_unset=True)
 
     lines = res.stdout.splitlines()
     assert lines[0] == "PREFECT_PROFILE='foo'"
@@ -361,7 +358,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
 
 def test_view_includes_unset_settings_with_show_defaults():
     expected_settings = (
-        prefect.settings.get_current_settings().with_obfuscated_secrets().dict()
+        prefect.settings.get_current_settings().with_obfuscated_secrets().model_dump()
     )
 
     res = invoke_and_assert(["config", "view", "--show-defaults", "--hide-sources"])

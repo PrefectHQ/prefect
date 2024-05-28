@@ -10,7 +10,7 @@ from prefect.server.events.schemas.automations import (
 
 
 async def test_compound_trigger_requires_too_small():
-    with pytest.raises(ValueError, match="required must be at least 1"):
+    with pytest.raises(ValueError, match="require must be at least 1"):
         CompoundTrigger(
             triggers=[
                 EventTrigger(
@@ -38,7 +38,7 @@ async def test_compound_trigger_requires_too_small():
 async def test_compound_trigger_requires_too_big():
     with pytest.raises(
         ValueError,
-        match="required must be less than or equal to the number of triggers",
+        match="require must be less than or equal to the number of triggers",
     ):
         CompoundTrigger(
             triggers=[

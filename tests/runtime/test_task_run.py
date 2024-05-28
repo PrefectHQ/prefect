@@ -78,7 +78,7 @@ class TestID:
         assert task_run.id is None
 
     async def test_id_from_context(self):
-        with TaskRunContext.construct(task_run=TaskRun.construct(id="foo")):
+        with TaskRunContext.model_construct(task_run=TaskRun.model_construct(id="foo")):
             assert task_run.id == "foo"
 
 
@@ -90,7 +90,9 @@ class TestTags:
         assert task_run.tags == []
 
     async def test_tags_returns_tags_when_present_dynamically(self):
-        with TaskRunContext.construct(task_run=TaskRun.construct(tags=["foo", "bar"])):
+        with TaskRunContext.model_construct(
+            task_run=TaskRun.model_construct(tags=["foo", "bar"])
+        ):
             assert task_run.tags == ["foo", "bar"]
 
 
@@ -104,8 +106,8 @@ class TestRunCount:
     async def test_run_count_returns_run_count_when_present_dynamically(self):
         assert task_run.run_count == 0
 
-        with TaskRunContext.construct(
-            task_run=TaskRun.construct(id="foo", run_count=10)
+        with TaskRunContext.model_construct(
+            task_run=TaskRun.model_construct(id="foo", run_count=10)
         ):
             assert task_run.run_count == 10
 
@@ -120,7 +122,7 @@ class TestParameters:
         assert task_run.parameters == {}
 
     async def test_parameters_from_context(self):
-        with TaskRunContext.construct(parameters={"x": "foo", "y": "bar"}):
+        with TaskRunContext.model_construct(parameters={"x": "foo", "y": "bar"}):
             assert task_run.parameters == {"x": "foo", "y": "bar"}
 
 
@@ -132,7 +134,9 @@ class TestName:
         assert task_run.name is None
 
     async def test_name_from_context(self):
-        with TaskRunContext.construct(task_run=TaskRun.construct(name="foo")):
+        with TaskRunContext.model_construct(
+            task_run=TaskRun.model_construct(name="foo")
+        ):
             assert task_run.name == "foo"
 
 
@@ -144,5 +148,5 @@ class TestTaskName:
         assert task_run.task_name is None
 
     async def test_task_name_from_context(self):
-        with TaskRunContext.construct(task=Task(fn=lambda: None, name="foo")):
+        with TaskRunContext.model_construct(task=Task(fn=lambda: None, name="foo")):
             assert task_run.task_name == "foo"

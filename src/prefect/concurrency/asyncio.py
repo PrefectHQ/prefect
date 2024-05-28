@@ -117,4 +117,6 @@ async def _release_concurrency_slots(
 def _response_to_minimal_concurrency_limit_response(
     response: httpx.Response,
 ) -> List[MinimalConcurrencyLimitResponse]:
-    return [MinimalConcurrencyLimitResponse.parse_obj(obj_) for obj_ in response.json()]
+    return [
+        MinimalConcurrencyLimitResponse.model_validate(obj_) for obj_ in response.json()
+    ]

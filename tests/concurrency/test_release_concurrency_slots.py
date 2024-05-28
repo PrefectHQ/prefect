@@ -17,7 +17,7 @@ async def test_calls_release_client_method():
         "prefect.client.orchestration.PrefectClient.release_concurrency_slots"
     ) as client_release_concurrency_slots:
         response = Response(
-            200, json=[limit.dict(json_compatible=True) for limit in limits]
+            200, json=[limit.model_dump(mode="json") for limit in limits]
         )
         client_release_concurrency_slots.return_value = response
 
@@ -41,7 +41,7 @@ async def test_returns_minimal_concurrency_limit():
         "prefect.client.orchestration.PrefectClient.release_concurrency_slots"
     ) as client_release_concurrency_slots:
         response = Response(
-            200, json=[limit.dict(json_compatible=True) for limit in limits]
+            200, json=[limit.model_dump(mode="json") for limit in limits]
         )
         client_release_concurrency_slots.return_value = response
 

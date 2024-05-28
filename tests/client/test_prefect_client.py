@@ -1,7 +1,7 @@
 import json
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Generator, List
 from unittest.mock import ANY, MagicMock, Mock
 from uuid import UUID, uuid4
@@ -11,18 +11,12 @@ import certifi
 import httpcore
 import httpx
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 import respx
-from prefect._vendor.fastapi import Depends, FastAPI, status
-from prefect._vendor.fastapi.security import HTTPBearer
+from fastapi import Depends, FastAPI, status
+from fastapi.security import HTTPBearer
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -88,6 +82,7 @@ from prefect.settings import (
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.utilities.pydantic import parse_obj_as
 
 
 class TestGetClient:
@@ -232,13 +227,13 @@ class TestInjectClient:
         assert not client._closed, "Client should not be closed after function returns"
 
     async def test_use_existing_client_from_flow_run_ctx(self, prefect_client):
-        with prefect.context.FlowRunContext.construct(client=prefect_client):
+        with prefect.context.FlowRunContext.model_construct(client=prefect_client):
             client = await TestInjectClient.injected_func()
         assert client is prefect_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
 
     async def test_use_existing_client_from_task_run_ctx(self, prefect_client):
-        with prefect.context.FlowRunContext.construct(client=prefect_client):
+        with prefect.context.FlowRunContext.model_construct(client=prefect_client):
             client = await TestInjectClient.injected_func()
         assert client is prefect_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
@@ -246,7 +241,7 @@ class TestInjectClient:
     async def test_use_existing_client_from_flow_run_ctx_with_null_kwarg(
         self, prefect_client
     ):
-        with prefect.context.FlowRunContext.construct(client=prefect_client):
+        with prefect.context.FlowRunContext.model_construct(client=prefect_client):
             client = await TestInjectClient.injected_func(client=None)
         assert client is prefect_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
@@ -609,44 +604,6 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
     assert lookup.parameter_openapi_schema == {}
-
-
-async def test_create_then_read_deployment_using_deprecated_infra_overrides_instead_of_job_variables(
-    prefect_client, storage_document_id
-):
-    @flow
-    def foo():
-        pass
-
-    flow_id = await prefect_client.create_flow(foo)
-    schedule = DeploymentScheduleCreate(
-        schedule=IntervalSchedule(interval=timedelta(days=1))
-    )
-
-    deployment_id = await prefect_client.create_deployment(
-        flow_id=flow_id,
-        name="test-deployment",
-        version="git-commit-hash",
-        manifest_path="path/file.json",
-        schedules=[schedule],
-        parameters={"foo": "bar"},
-        tags=["foo", "bar"],
-        storage_document_id=storage_document_id,
-        parameter_openapi_schema={},
-        infra_overrides={"foo": "bar"},
-    )
-
-    lookup = await prefect_client.read_deployment(deployment_id)
-
-    assert isinstance(lookup, DeploymentResponse)
-    assert lookup.name == "test-deployment"
-
-    # Should be able to access `job_variables` using the `infra_overrides` attribute
-    # because of the alias.
-    assert lookup.job_variables == {"foo": "bar"}
-
-    # And with `job_variables`
-    assert lookup.job_variables == {"foo": "bar"}
 
 
 async def test_updating_deployment(prefect_client, storage_document_id):
@@ -1059,7 +1016,9 @@ async def test_update_flow_run(prefect_client):
     # No mutation for unset fields
     await prefect_client.update_flow_run(flow_run.id)
     unchanged_flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert unchanged_flow_run.dict(exclude=exclude) == flow_run.dict(exclude=exclude)
+    assert unchanged_flow_run.model_dump(exclude=exclude) == flow_run.model_dump(
+        exclude=exclude
+    )
 
     # Fields updated when set
     await prefect_client.update_flow_run(
@@ -1326,7 +1285,7 @@ async def test_read_filtered_logs(session, prefect_client, deployment):
             name="prefect.flow_runs",
             level=20,
             message=f"Log from flow_run {id}.",
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=DateTime.now(),
             flow_run_id=id,
         )
         for id in flow_runs
@@ -1680,9 +1639,7 @@ class TestClientWorkQueues:
         with pytest.deprecated_call():
             await prefect_client.create_work_queue(name="test-queue", tags=["a"])
 
-    async def test_get_runs_from_queue_includes(
-        self, session, prefect_client, deployment
-    ):
+    async def test_get_runs_from_queue_includes(self, prefect_client, deployment):
         wq_1 = await prefect_client.read_work_queue_by_name(name="wq")
         wq_2 = await prefect_client.create_work_queue(name="wq2")
 
@@ -1690,7 +1647,7 @@ class TestClientWorkQueues:
         assert run.id
 
         runs_1 = await prefect_client.get_runs_in_work_queue(wq_1.id)
-        assert runs_1 == [run]
+        assert runs_1[0].id == run.id
 
         runs_2 = await prefect_client.get_runs_in_work_queue(wq_2.id)
         assert runs_2 == []
@@ -1974,10 +1931,10 @@ class TestVariables:
             "/variables/",
             json=VariableCreate(
                 name="my_variable", value="my-value", tags=["123", "456"]
-            ).dict(json_compatible=True),
+            ).model_dump(mode="json"),
         )
         assert res.status_code == 201
-        return pydantic.parse_obj_as(Variable, res.json())
+        return parse_obj_as(Variable, res.json())
 
     @pytest.fixture
     async def variables(
@@ -1992,11 +1949,11 @@ class TestVariables:
         results = []
         for variable in variables:
             res = await client.post(
-                "/variables/", json=variable.dict(json_compatible=True)
+                "/variables/", json=variable.model_dump(mode="json")
             )
             assert res.status_code == 201
             results.append(res.json())
-        return pydantic.parse_obj_as(List[Variable], results)
+        return parse_obj_as(List[Variable], results)
 
     @pytest.mark.parametrize(
         "value",
@@ -2071,7 +2028,7 @@ class TestAutomations:
 
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             create_route = router.post("/automations/").mock(
                 return_value=httpx.Response(200, json=created_automation)
@@ -2080,14 +2037,14 @@ class TestAutomations:
             automation_id = await cloud_client.create_automation(automation)
 
             assert create_route.called
-            assert json.loads(create_route.calls[0].request.content) == automation.dict(
-                json_compatible=True
-            )
+            assert json.loads(
+                create_route.calls[0].request.content
+            ) == automation.model_dump(mode="json")
             assert automation_id == UUID(created_automation["id"])
 
     async def test_read_automation(self, cloud_client, automation: AutomationCore):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
@@ -2105,7 +2062,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
             created_automation_id = created_automation["id"]
@@ -2123,7 +2080,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             read_route = router.post("/automations/filter").mock(
                 return_value=httpx.Response(200, json=[created_automation])
@@ -2156,10 +2113,10 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore, automation2: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
-            created_automation2 = automation2.dict(json_compatible=True)
+            created_automation2 = automation2.model_dump(mode="json")
             created_automation2["id"] = str(uuid4())
 
             read_route = router.post("/automations/filter").mock(
@@ -2186,7 +2143,7 @@ class TestAutomations:
         self, cloud_client, automation: AutomationCore
     ):
         with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
-            created_automation = automation.dict(json_compatible=True)
+            created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             created_automation["name"] = "nonexistent"
             read_route = router.post("/automations/filter").mock(

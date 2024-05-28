@@ -1,17 +1,12 @@
 import json
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.server import models
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
 
 
 class TestCreateFlowRunInput:

@@ -4,7 +4,7 @@ from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 import orjson
 import websockets
 import websockets.exceptions
-from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
+from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
@@ -48,7 +48,7 @@ class Subscription(Generic[S]):
 
                 await self._websocket.send(orjson.dumps({"type": "ack"}).decode())
 
-                return self.model.parse_raw(message)
+                return self.model.model_validate_json(message)
             except (
                 ConnectionRefusedError,
                 websockets.exceptions.ConnectionClosedError,

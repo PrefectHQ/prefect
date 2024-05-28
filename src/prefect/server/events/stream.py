@@ -1,7 +1,7 @@
 import asyncio
 from asyncio import Queue
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, AsyncIterable, Dict, Set
+from typing import AsyncGenerator, AsyncIterable, Dict, Optional, Set
 
 from prefect.logging import get_logger
 from prefect.server.events.filters import EventFilter
@@ -66,7 +66,7 @@ async def distributor() -> AsyncGenerator[messaging.MessageHandler, None]:
             return
 
         if subscribers:
-            event = ReceivedEvent.parse_raw(message.data)
+            event = ReceivedEvent.model_validate_json(message.data)
             for queue in subscribers:
                 filter = filters[queue]
                 if filter.excludes(event):
@@ -80,8 +80,8 @@ async def distributor() -> AsyncGenerator[messaging.MessageHandler, None]:
     yield message_handler
 
 
-_distributor_task: "asyncio.Task | None" = None
-_distributor_started: "asyncio.Event | None" = None
+_distributor_task: Optional[asyncio.Task] = None
+_distributor_started: Optional[asyncio.Event] = None
 
 
 async def start_distributor():

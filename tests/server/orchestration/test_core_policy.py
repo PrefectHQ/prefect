@@ -73,7 +73,7 @@ def fizzling_rule():
 
         async def before_transition(self, initial_state, proposed_state, context):
             # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-            mutated_state = proposed_state.copy()
+            mutated_state = proposed_state.model_copy()
             mutated_state.type = random.choice(
                 list(set(states.StateType) - {initial_state.type, proposed_state.type})
             )
@@ -1226,7 +1226,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1271,7 +1273,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1444,7 +1448,7 @@ class TestTaskConcurrencyLimits:
         cl_create = actions.ConcurrencyLimitCreate(
             tag=tag,
             concurrency_limit=limit,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         cl_model = schemas.core.ConcurrencyLimit(**cl_create)
 
@@ -1694,7 +1698,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -2133,7 +2137,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -2222,7 +2226,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -3147,7 +3151,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:
@@ -3178,7 +3184,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:

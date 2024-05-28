@@ -9,7 +9,7 @@ from uuid import UUID
 import orjson
 import pendulum
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from fastapi import (
     Body,
     Depends,
     HTTPException,
@@ -18,7 +18,8 @@ from prefect._vendor.fastapi import (
     Response,
     status,
 )
-from prefect._vendor.fastapi.responses import ORJSONResponse, PlainTextResponse
+from fastapi.responses import ORJSONResponse, PlainTextResponse
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
@@ -38,7 +39,6 @@ from prefect.server.orchestration import dependencies as orchestration_dependenc
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import OrchestrationResult
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 from prefect.utilities import schema_tools
 
@@ -65,7 +65,7 @@ async def create_flow_run(
     If no state is provided, the flow run will be created in a PENDING state.
     """
     # hydrate the input model into a full flow run / state model
-    flow_run = schemas.core.FlowRun(**flow_run.dict(), created_by=created_by)
+    flow_run = schemas.core.FlowRun(**flow_run.model_dump(), created_by=created_by)
 
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
@@ -84,7 +84,9 @@ async def create_flow_run(
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
 
-        return schemas.responses.FlowRunResponse.from_orm(model)
+        return schemas.responses.FlowRunResponse.model_validate(
+            model, from_attributes=True
+        )
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -228,8 +230,8 @@ async def average_flow_run_lateness(
 
 @router.post("/history")
 async def flow_run_history(
-    history_start: DateTimeTZ = Body(..., description="The history's start time."),
-    history_end: DateTimeTZ = Body(..., description="The history's end time."),
+    history_start: DateTime = Body(..., description="The history's start time."),
+    history_end: DateTime = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description=(
@@ -284,7 +286,9 @@ async def read_flow_run(
         )
         if not flow_run:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
-        return schemas.responses.FlowRunResponse.from_orm(flow_run)
+        return schemas.responses.FlowRunResponse.model_validate(
+            flow_run, from_attributes=True
+        )
 
 
 @router.get("/{id}/graph")
@@ -479,12 +483,12 @@ async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.FlowRunResponse]:
     """
@@ -509,7 +513,9 @@ async def read_flow_runs(
         # In particular, the FastAPI encoder is very slow for large, nested objects.
         # See: https://github.com/tiangolo/fastapi/issues/1224
         encoded = [
-            schemas.responses.FlowRunResponse.from_orm(fr).dict(json_compatible=True)
+            schemas.responses.FlowRunResponse.model_validate(
+                fr, from_attributes=True
+            ).model_dump(mode="json")
             for fr in db_flow_runs
         ]
         return ORJSONResponse(content=encoded)
@@ -569,7 +575,7 @@ async def set_flow_run_state(
             session=session,
             flow_run_id=flow_run_id,
             # convert to a full State object
-            state=schemas.states.State.parse_obj(state),
+            state=schemas.states.State.model_validate(state),
             force=force,
             flow_policy=flow_policy,
             orchestration_parameters=orchestration_parameters,

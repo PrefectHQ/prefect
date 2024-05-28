@@ -13,7 +13,7 @@ from google.oauth2.service_account import Credentials
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect.blocks.abstract import CredentialsBlock
-from prefect.blocks.fields import SecretDict
+from prefect.types import SecretDict
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 
 if PYDANTIC_VERSION.startswith("2."):

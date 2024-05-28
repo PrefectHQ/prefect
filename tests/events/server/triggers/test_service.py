@@ -46,7 +46,7 @@ async def test_acting_publishes_an_action_message_from_a_reactive_event(
 
     create_actions_publisher.assert_called_with()
 
-    parsed = TriggeredAction.parse_raw(action_message)
+    parsed = TriggeredAction.model_validate_json(action_message)
     assert parsed == TriggeredAction(
         automation=arachnophobia,
         firing=firing,
@@ -79,7 +79,7 @@ async def test_acting_publishes_an_action_message_from_a_proactive_trigger(
 
     create_actions_publisher.assert_called_with()
 
-    parsed = TriggeredAction.parse_raw(action_message)
+    parsed = TriggeredAction.model_validate_json(action_message)
     assert parsed == TriggeredAction(
         triggered=frozen_time,
         automation=arachnophobia,
@@ -247,7 +247,7 @@ async def test_only_considers_messages_with_attributes(
     async with triggers.consumer() as handler:
         await handler(
             MemoryMessage(
-                data=daddy_long_legs_walked.json().encode(),
+                data=daddy_long_legs_walked.model_dump_json().encode(),
                 attributes=None,  # ...but no attributes
             )
         )
@@ -262,7 +262,7 @@ async def test_only_considers_messages_that_are_not_log_writes(
     async with triggers.consumer() as handler:
         await handler(
             MemoryMessage(
-                data=daddy_long_legs_walked.json().encode(),
+                data=daddy_long_legs_walked.model_dump_json().encode(),
                 attributes={
                     "event": "prefect.log.write",
                 },
@@ -287,7 +287,7 @@ async def test_only_considers_messages_with_event_ids(
 
     await message_handler(
         MemoryMessage(
-            data=event.json().encode(),
+            data=event.model_dump_json().encode(),
             attributes={},
         )
     )
@@ -311,7 +311,7 @@ async def test_only_considers_messages_with_valid_event_ids(
 
     await message_handler(
         MemoryMessage(
-            data=event.json().encode(),
+            data=event.model_dump_json().encode(),
             attributes={
                 "id": "do you even UUID, bro?",
             },
@@ -337,7 +337,7 @@ async def test_acks_early_arrivals(
     # the fact that the message handler does _not_ raise means we will ack this message
     await message_handler(
         MemoryMessage(
-            data=event.json().encode(),
+            data=event.model_dump_json().encode(),
             attributes={
                 "id": str(event.id),
             },
@@ -359,7 +359,7 @@ async def test_only_processes_event_once(
         id=uuid4(),
     )
     message = MemoryMessage(
-        data=event.json().encode(),
+        data=event.model_dump_json().encode(),
         attributes={
             "id": str(event.id),
         },

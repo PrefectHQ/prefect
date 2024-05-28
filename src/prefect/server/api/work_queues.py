@@ -6,7 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from fastapi import (
     BackgroundTasks,
     Body,
     Depends,
@@ -15,6 +15,7 @@ from prefect._vendor.fastapi import (
     Path,
     status,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -27,7 +28,6 @@ from prefect.server.models.work_queues import (
     mark_work_queues_ready,
 )
 from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
@@ -56,7 +56,9 @@ async def create_work_queue(
             detail="A work queue with this name already exists.",
         )
 
-    return schemas.responses.WorkQueueResponse.from_orm(model)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        model, from_attributes=True
+    )
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -97,7 +99,9 @@ async def read_work_queue_by_name(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
-    return schemas.responses.WorkQueueResponse.from_orm(work_queue)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        work_queue, from_attributes=True
+    )
 
 
 @router.get("/{id}")
@@ -116,7 +120,9 @@ async def read_work_queue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
-    return schemas.responses.WorkQueueResponse.from_orm(work_queue)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        work_queue, from_attributes=True
+    )
 
 
 @router.post("/{id}/get_runs")
@@ -124,7 +130,7 @@ async def read_work_queue_runs(
     background_tasks: BackgroundTasks,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
-    scheduled_before: DateTimeTZ = Body(
+    scheduled_before: DateTime = Body(
         None,
         description=(
             "Only flow runs scheduled to start before this time will be returned."
@@ -210,7 +216,10 @@ async def read_work_queues(
             session=session, offset=offset, limit=limit, work_queue_filter=work_queues
         )
 
-    return [schemas.responses.WorkQueueResponse.from_orm(wq) for wq in wqs]
+    return [
+        schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
+        for wq in wqs
+    ]
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)

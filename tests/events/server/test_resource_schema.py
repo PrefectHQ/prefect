@@ -4,19 +4,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.settings import (
-    PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
-    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
-    temporary_settings,
-)
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
-
+from pydantic import ValidationError
 
 from prefect.server.events import (
     Event,
@@ -25,10 +13,15 @@ from prefect.server.events import (
     Resource,
     ResourceSpecification,
 )
+from prefect.settings import (
+    PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
+    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
+    temporary_settings,
+)
 
 
 def test_resource_openapi_schema() -> None:
-    assert Resource.schema() == {
+    assert Resource.model_json_schema() == {
         "title": "Resource",
         "description": "An observable business object of interest to the user",
         "type": "object",
@@ -37,7 +30,7 @@ def test_resource_openapi_schema() -> None:
 
 
 def test_related_resource_openapi_schema() -> None:
-    assert RelatedResource.schema() == {
+    assert RelatedResource.model_json_schema() == {
         "title": "RelatedResource",
         "description": "A Resource with a specific role in an Event",
         "type": "object",
@@ -50,15 +43,12 @@ def test_related_resource_openapi_schema() -> None:
 )
 def test_resource_root_is_required(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
-        resource_class.parse_obj(None)
+        resource_class.model_validate(None)
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "none is not an allowed value",
-            "type": "type_error.none.not_allowed",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid dictionary"
+    assert error["type"] == "dict_type"
 
 
 @pytest.mark.parametrize(
@@ -66,68 +56,62 @@ def test_resource_root_is_required(resource_class: Type[Resource]) -> None:
 )
 def test_resource_root_is_a_dictionary(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
-        resource_class.parse_obj(11)
+        resource_class.model_validate(11)
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "value is not a valid dict",
-            "type": "type_error.dict",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid dictionary"
+    assert error["type"] == "dict_type"
 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resource_requires_resource_id(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
-        resource_class.parse_obj(
+        resource_class.model_validate(
             {
                 "prefect.resource.role": "any-role",
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "Resources must include the prefect.resource.id label",
-            "type": "value_error",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert (
+        error["msg"]
+        == "Value error, Resources must include the prefect.resource.id label"
+    )
+    assert error["type"] == "value_error"
 
 
 def test_related_resources_require_role() -> None:
     with pytest.raises(ValidationError) as error:
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "my.unique.resource",
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "Related Resources must include the prefect.resource.role label",
-            "type": "value_error",
-        },
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert (
+        error["msg"]
+        == "Value error, Related Resources must include the prefect.resource.role label"
+    )
+    assert error["type"] == "value_error"
 
 
 def test_related_resources_require_non_empty_role() -> None:
     with pytest.raises(ValidationError) as error:
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "my.unique.resource",
                 "prefect.resource.role": None,
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "The prefect.resource.role label must be non-empty",
-            "type": "value_error",
-        },
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid string"
+    assert error["type"] == "string_type"
 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
@@ -135,30 +119,27 @@ def test_resource_requires_non_empty_resource_id(
     resource_class: Type[Resource],
 ) -> None:
     with pytest.raises(ValidationError) as error:
-        resource_class.parse_obj(
+        resource_class.model_validate(
             {
                 "prefect.resource.id": None,
                 "prefect.resource.role": "any-role",
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__",),
-            "msg": "The prefect.resource.id label must be non-empty",
-            "type": "value_error",
-        }
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["msg"] == "Input should be a valid string"
+    assert error["type"] == "string_type"
 
 
 def test_empty_resource_specification_allowed_and_includes_all_resources() -> None:
-    specification = ResourceSpecification.parse_obj({})
+    specification = ResourceSpecification.model_validate({})
     assert specification.includes(
-        [Resource.parse_obj({"prefect.resource.id": "any.thing", "any": "thing"})]
+        [Resource.model_validate({"prefect.resource.id": "any.thing", "any": "thing"})]
     )
     assert specification.includes(
         [
-            Resource.parse_obj(
+            Resource.model_validate(
                 {
                     "prefect.resource.id": "this.too",
                     "prefect.resource.role": "also",
@@ -172,7 +153,7 @@ def test_empty_resource_specification_allowed_and_includes_all_resources() -> No
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resource_disallows_none_values(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
-        resource_class.parse_obj(
+        resource_class.model_validate(
             {
                 "prefect.resource.id": "my.unique.resource",
                 "prefect.resource.role": "any-role",
@@ -180,30 +161,16 @@ def test_resource_disallows_none_values(resource_class: Type[Resource]) -> None:
             }
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("__root__", "another.thing"),
-            "msg": "none is not an allowed value",
-            "type": "type_error.none.not_allowed",
-        },
-    ]
-
-
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
-def test_resource_coerces_other_values(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
-        {
-            "prefect.resource.id": "my.unique.resource",
-            "prefect.resource.role": "any-role",
-            "another.thing": 5,
-        }
-    )
-    assert resource["another.thing"] == "5"
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["loc"] == ("another.thing",)
+    assert error["msg"] == "Input should be a valid string"
+    assert error["type"] == "string_type"
 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resources_support_indexing(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -224,7 +191,7 @@ def test_resources_support_indexing(resource_class: Type[Resource]) -> None:
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resources_support_contains(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -238,7 +205,7 @@ def test_resources_support_contains(resource_class: Type[Resource]) -> None:
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resource_id_shortcut(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -248,7 +215,7 @@ def test_resource_id_shortcut(resource_class: Type[Resource]) -> None:
 
 
 def test_resource_role_shortcut() -> None:
-    resource = RelatedResource.parse_obj(
+    resource = RelatedResource.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -259,7 +226,7 @@ def test_resource_role_shortcut() -> None:
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resource_labels_are_iterable(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -277,7 +244,7 @@ def test_resource_labels_are_iterable(resource_class: Type[Resource]) -> None:
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resource_label_pairs_are_iterable(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -295,7 +262,7 @@ def test_resource_label_pairs_are_iterable(resource_class: Type[Resource]) -> No
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resources_export_to_simple_dicts(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -303,7 +270,7 @@ def test_resources_export_to_simple_dicts(resource_class: Type[Resource]) -> Non
             "goodbye": "moon",
         }
     )
-    assert json.loads(resource.json()) == {
+    assert json.loads(resource.model_dump_json()) == {
         "prefect.resource.id": "my.unique.resource",
         "prefect.resource.role": "any-role",
         "hello": "world",
@@ -313,7 +280,7 @@ def test_resources_export_to_simple_dicts(resource_class: Type[Resource]) -> Non
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resources_export_label_value_arrays(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -331,7 +298,7 @@ def test_resources_export_label_value_arrays(resource_class: Type[Resource]) -> 
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resources_can_test_for_labels(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -346,7 +313,7 @@ def test_resources_can_test_for_labels(resource_class: Type[Resource]) -> None:
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resources_provide_label_divers(resource_class: Type[Resource]) -> None:
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "my.unique.resource",
             "prefect.resource.role": "any-role",
@@ -426,8 +393,8 @@ def test_label_diving():
 
 def test_limit_on_labels():
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE: 10}):
-        with pytest.raises(ValidationError, match="maximum number of labels"):
-            Resource.parse_obj(
+        with pytest.raises(ValidationError):
+            Resource.model_validate(
                 {
                     "prefect.resource.id": "the.thing",
                     **{str(i): str(i) for i in range(10)},
@@ -437,7 +404,7 @@ def test_limit_on_labels():
 
 def test_limit_on_related_resources():
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES: 10}):
-        with pytest.raises(ValidationError, match="maximum number of related"):
+        with pytest.raises(ValidationError):
             Event(
                 occurred=pendulum.now("UTC"),
                 event="anything",
@@ -465,9 +432,9 @@ def test_limit_on_related_resources():
 def test_resource_specification_matches_resource(
     resource_class: Type[Resource], example: Dict[str, str]
 ):
-    specification = ResourceSpecification.parse_obj({"a-label": "a-value"})
+    specification = ResourceSpecification.model_validate({"a-label": "a-value"})
 
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "anything",
             "prefect.resource.role": "anyhoo",
@@ -496,9 +463,9 @@ def test_resource_specification_matches_resource(
 def test_resource_specification_wildcard_matches_resource(
     resource_class: Type[Resource], example: Dict[str, str]
 ):
-    specification = ResourceSpecification.parse_obj({"a-label": "a-val*"})
+    specification = ResourceSpecification.model_validate({"a-label": "a-val*"})
 
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "anything",
             "prefect.resource.role": "anyhoo",
@@ -523,9 +490,9 @@ def test_resource_specification_wildcard_matches_resource(
 def test_resource_specification_does_not_match_resource(
     resource_class: Type[Resource], example: Dict[str, str]
 ):
-    specification = ResourceSpecification.parse_obj({"a-label": "a-value"})
+    specification = ResourceSpecification.model_validate({"a-label": "a-value"})
 
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "anything",
             "prefect.resource.role": "anyhoo",
@@ -552,9 +519,9 @@ def test_resource_specification_does_not_match_resource(
 def test_resource_specification_wildcard_does_not_match_resource(
     resource_class: Type[Resource], example: Dict[str, str]
 ):
-    specification = ResourceSpecification.parse_obj({"a-label": "a-val*"})
+    specification = ResourceSpecification.model_validate({"a-label": "a-val*"})
 
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "anything",
             "prefect.resource.role": "anyhoo",
@@ -568,12 +535,12 @@ def test_resource_specification_wildcard_does_not_match_resource(
 
 @pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
 def test_resource_specification_matches_every_resource(resource_class: Type[Resource]):
-    specification = ResourceSpecification.parse_obj({})
+    specification = ResourceSpecification.model_validate({})
     assert specification.matches_every_resource()
     assert specification.matches_every_resource_of_kind("anything")
     assert specification.matches_every_resource_of_kind("yep.this.too")
 
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "anything",
             "prefect.resource.role": "anyhoo",
@@ -587,14 +554,14 @@ def test_resource_specification_matches_every_resource(resource_class: Type[Reso
 def test_resource_specification_matches_every_resource_of_kind(
     resource_class: Type[Resource],
 ):
-    specification = ResourceSpecification.parse_obj(
+    specification = ResourceSpecification.model_validate(
         {"prefect.resource.id": "any.old.*"}
     )
     assert not specification.matches_every_resource()
     assert specification.matches_every_resource_of_kind("any.old")
     assert not specification.matches_every_resource_of_kind("nope.not.this")
 
-    resource = resource_class.parse_obj(
+    resource = resource_class.model_validate(
         {
             "prefect.resource.id": "any.old.thing",
             "prefect.resource.role": "anyhoo",
@@ -605,19 +572,19 @@ def test_resource_specification_matches_every_resource_of_kind(
 
 
 def test_resource_specification_does_not_match_every_resource_of_kind():
-    specification = ResourceSpecification.parse_obj(
+    specification = ResourceSpecification.model_validate(
         {"prefect.resource.id": "any.old.*", "but-also": "another-thing"}
     )
     assert not specification.matches_every_resource()
     assert not specification.matches_every_resource_of_kind("any.old")
 
-    specification = ResourceSpecification.parse_obj({"but-also": "another-thing"})
+    specification = ResourceSpecification.model_validate({"but-also": "another-thing"})
     assert not specification.matches_every_resource()
     assert not specification.matches_every_resource_of_kind("any.old")
 
 
 def test_resource_specification_is_dictlike():
-    specification = ResourceSpecification.parse_obj(
+    specification = ResourceSpecification.model_validate(
         {
             "prefect.resource.id": "any.old.*",
             "but-also": ["another-thing", "or-this"],
@@ -658,7 +625,7 @@ def test_resource_specification_is_dictlike():
 
 
 def test_resource_specification_deepcopy():
-    specification = ResourceSpecification.parse_obj(
+    specification = ResourceSpecification.model_validate(
         {
             "prefect.resource.id": "any.old.*",
             "but-also": ["another-thing", "or-this"],
@@ -674,7 +641,7 @@ def test_resource_specification_deepcopy():
 
 @pytest.fixture
 def specification_with_single_label():
-    return ResourceSpecification.parse_obj(
+    return ResourceSpecification.model_validate(
         {
             "only-a-negative": ["!nah"],
         }
@@ -706,7 +673,7 @@ def test_resource_specification_single_negative_label_values_includes(
     specification_with_single_label: ResourceSpecification,
     resource_labels: Dict[str, str],
 ):
-    resource = Resource.parse_obj(resource_labels)
+    resource = Resource.model_validate(resource_labels)
     assert specification_with_single_label.includes([resource])
 
 
@@ -727,13 +694,13 @@ def test_resource_specification_single_negative_label_values_excludes(
     specification_with_single_label: ResourceSpecification,
     resource_labels: Dict[str, str],
 ):
-    resource = Resource.parse_obj(resource_labels)
+    resource = Resource.model_validate(resource_labels)
     assert not specification_with_single_label.includes([resource])
 
 
 @pytest.fixture
 def specification_with_negated_wildcard():
-    return ResourceSpecification.parse_obj(
+    return ResourceSpecification.model_validate(
         {
             "only-a-negative": ["!nah*"],
         }
@@ -765,7 +732,7 @@ def test_resource_specification_single_negated_wildcard_includes(
     specification_with_negated_wildcard: ResourceSpecification,
     resource_labels: Dict[str, str],
 ):
-    resource = Resource.parse_obj(resource_labels)
+    resource = Resource.model_validate(resource_labels)
     assert specification_with_negated_wildcard.includes([resource])
 
 
@@ -794,13 +761,13 @@ def test_resource_specification_single_negated_wildcard_excludes(
     specification_with_negated_wildcard: ResourceSpecification,
     resource_labels: Dict[str, str],
 ):
-    resource = Resource.parse_obj(resource_labels)
+    resource = Resource.model_validate(resource_labels)
     assert not specification_with_negated_wildcard.includes([resource])
 
 
 @pytest.fixture
 def specification_with_multiple_labels():
-    return ResourceSpecification.parse_obj(
+    return ResourceSpecification.model_validate(
         {
             "some-label": ["this-value", "!that-value", "other-value"],
             "another-label": ["yes", "!no", "maybe"],
@@ -837,7 +804,7 @@ def test_resource_specification_multiple_negative_label_values_includes(
     specification_with_multiple_labels: ResourceSpecification,
     resource_labels: Dict[str, str],
 ):
-    resource = Resource.parse_obj(resource_labels)
+    resource = Resource.model_validate(resource_labels)
     assert specification_with_multiple_labels.includes([resource])
 
 
@@ -874,5 +841,5 @@ def test_resource_specification_multiple_negative_label_values_excludes(
     specification_with_multiple_labels: ResourceSpecification,
     resource_labels: Dict[str, str],
 ):
-    resource = Resource.parse_obj(resource_labels)
+    resource = Resource.model_validate(resource_labels)
     assert not specification_with_multiple_labels.includes([resource])

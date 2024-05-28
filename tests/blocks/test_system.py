@@ -1,11 +1,5 @@
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
+from pydantic import SecretStr
 
 from prefect.blocks import system
 

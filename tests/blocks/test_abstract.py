@@ -73,6 +73,7 @@ class TestJobBlock:
     def test_job_block_implementation(self, caplog):
         class AJobRun(JobRun):
             def __init__(self):
+                super().__init__()
                 self.status = "running"
 
             @property
@@ -128,6 +129,7 @@ class TestDatabaseBlock:
     async def test_database_block_implementation(self, caplog):
         class ADatabaseBlock(DatabaseBlock):
             def __init__(self):
+                super().__init__()
                 self._results = tuple(
                     zip(["apple", "banana", "cherry"], [1, 2, 3], [True, False, True])
                 )
@@ -223,6 +225,7 @@ class TestObjectStorageBlock:
     def test_object_storage_block_implementation(self, caplog, tmp_path):
         class AObjectStorageBlock(ObjectStorageBlock):
             def __init__(self):
+                super().__init__()
                 self._storage = {}
 
             def download_object_to_path(self, from_path, to_path, **download_kwargs):
@@ -318,6 +321,7 @@ class TestSecretBlock:
             secret_name: str
 
             def __init__(self, secret_name: str):
+                super().__init__(secret_name=secret_name)
                 self._secrets = {}
 
             def read_secret(self):

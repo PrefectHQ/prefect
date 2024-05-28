@@ -62,7 +62,7 @@ async def stream(
 
 async def handle_event(event: Event, format: StreamFormat, output_file: str):
     if format == StreamFormat.json:
-        event_data = orjson.dumps(event.dict(), default=str).decode()
+        event_data = orjson.dumps(event.model_dump(), default=str).decode()
     elif format == StreamFormat.text:
         event_data = f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
     else:

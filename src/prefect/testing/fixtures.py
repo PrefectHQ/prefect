@@ -11,7 +11,7 @@ import anyio
 import httpx
 import pendulum
 import pytest
-from prefect._vendor.starlette.status import WS_1008_POLICY_VIOLATION
+from starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
@@ -75,7 +75,10 @@ async def hosted_api_server(unused_tcp_port_factory):
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
-        env={**os.environ, **get_current_settings().to_environment_variables()},
+        env={
+            **os.environ,
+            **get_current_settings().to_environment_variables(exclude_unset=True),
+        },
     ) as process:
         api_url = f"http://localhost:{port}/api"
 
@@ -269,7 +272,7 @@ async def events_server(
             except ConnectionClosed:
                 return
 
-            event = Event.parse_raw(message)
+            event = Event.model_validate_json(message)
             recorder.events.append(event)
 
             if puppeteer.hard_disconnect_after == event.id:
@@ -294,7 +297,7 @@ async def events_server(
         # 2. filter
         filter_message = json.loads(await socket.recv())
         assert filter_message["type"] == "filter"
-        recorder.filter = EventFilter.parse_obj(filter_message["filter"])
+        recorder.filter = EventFilter.model_validate(filter_message["filter"])
 
         # 3. send events
         for event in puppeteer.outgoing_events:
@@ -302,7 +305,7 @@ async def events_server(
                 json.dumps(
                     {
                         "type": "event",
-                        "event": event.dict(json_compatible=True),
+                        "event": event.model_dump(mode="json"),
                     }
                 )
             )

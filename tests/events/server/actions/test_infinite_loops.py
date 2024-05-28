@@ -5,13 +5,7 @@ from typing import Set
 from uuid import uuid4
 
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
+from pydantic import ValidationError
 
 from prefect.server.events.actions import RunDeployment
 from prefect.server.events.schemas.automations import (
@@ -42,8 +36,8 @@ def test_running_inferred_deployment_on_all_flow_run_state_changes():
     assert len(errors) == 1
     (error,) = errors
 
-    assert error["loc"] == ("__root__",)
-    assert error["msg"].startswith("Running an inferred deployment from a flow run")
+    assert error["loc"] == tuple()
+    assert "Running an inferred deployment from a flow run" in error["msg"]
 
 
 def test_running_inferred_deployment_on_filtered_flow_run_state_changes():
@@ -69,8 +63,8 @@ def test_running_inferred_deployment_on_filtered_flow_run_state_changes():
     assert len(errors) == 1
     (error,) = errors
 
-    assert error["loc"] == ("__root__",)
-    assert error["msg"].startswith("Running an inferred deployment from a flow run")
+    assert error["loc"] == tuple()
+    assert "Running an inferred deployment from a flow run" in error["msg"]
 
 
 def test_running_inferred_deployment_on_related_filtered_flow_run_state_changes():
@@ -97,8 +91,8 @@ def test_running_inferred_deployment_on_related_filtered_flow_run_state_changes(
     assert len(errors) == 1
     (error,) = errors
 
-    assert error["loc"] == ("__root__",)
-    assert error["msg"].startswith("Running an inferred deployment from a flow run")
+    assert error["loc"] == tuple()
+    assert "Running an inferred deployment from a flow run" in error["msg"]
 
 
 def test_running_a_selected_deployment_on_unfiltered_flow_run_state_changes():
@@ -123,8 +117,8 @@ def test_running_a_selected_deployment_on_unfiltered_flow_run_state_changes():
     assert len(errors) == 1
     (error,) = errors
 
-    assert error["loc"] == ("__root__",)
-    assert error["msg"].startswith("Running a selected deployment from a flow run")
+    assert error["loc"] == tuple()
+    assert "Running a selected deployment from a flow run" in error["msg"]
 
 
 def test_running_a_selected_deployment_on_filtered_flow_run_state_changes():
@@ -249,8 +243,8 @@ def test_blocking_inferred_on_universal_flow_run_events(naughty_events: Set[str]
     assert len(errors) == 1
     (error,) = errors
 
-    assert error["loc"] == ("__root__",)
-    assert error["msg"].startswith("Running an inferred deployment from a flow run")
+    assert error["loc"] == tuple()
+    assert "Running an inferred deployment from a flow run" in error["msg"]
 
 
 @pytest.mark.parametrize(
@@ -294,5 +288,5 @@ def test_blocking_selected_on_universal_flow_run_events(naughty_events: Set[str]
     assert len(errors) == 1
     (error,) = errors
 
-    assert error["loc"] == ("__root__",)
-    assert error["msg"].startswith("Running a selected deployment from a flow run")
+    assert error["loc"] == tuple()
+    assert "Running a selected deployment from a flow run" in error["msg"]

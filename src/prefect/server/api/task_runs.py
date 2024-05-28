@@ -8,7 +8,7 @@ from uuid import UUID
 
 import anyio
 import pendulum
-from prefect._vendor.fastapi import (
+from fastapi import (
     Body,
     Depends,
     HTTPException,
@@ -17,7 +17,8 @@ from prefect._vendor.fastapi import (
     WebSocket,
     status,
 )
-from prefect._vendor.starlette.websockets import WebSocketDisconnect
+from pydantic_extra_types.pendulum_dt import DateTime
+from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -31,7 +32,6 @@ from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("server.api")
@@ -57,7 +57,7 @@ async def create_task_run(
     If no state is provided, the task run will be created in a PENDING state.
     """
     # hydrate the input model into a full task run / state model
-    task_run_dict = task_run.dict()
+    task_run_dict = task_run.model_dump()
     if not task_run_dict.get("id"):
         task_run_dict.pop("id", None)
     task_run = schemas.core.TaskRun(**task_run_dict)
@@ -77,7 +77,7 @@ async def create_task_run(
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
 
-    new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(model)
+    new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.model_validate(model)
 
     return new_task_run
 
@@ -122,8 +122,8 @@ async def count_task_runs(
 
 @router.post("/history")
 async def task_run_history(
-    history_start: DateTimeTZ = Body(..., description="The history's start time."),
-    history_end: DateTimeTZ = Body(..., description="The history's end time."),
+    history_start: DateTime = Body(..., description="The history's start time."),
+    history_end: DateTime = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description=(
@@ -251,7 +251,7 @@ async def set_task_run_state(
         orchestration_result = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run_id,
-            state=schemas.states.State.parse_obj(
+            state=schemas.states.State.model_validate(
                 state
             ),  # convert to a full State object
             force=force,
@@ -300,7 +300,7 @@ async def scheduled_task_subscription(websocket: WebSocket):
             continue
 
         try:
-            await websocket.send_json(task_run.dict(json_compatible=True))
+            await websocket.send_json(task_run.model_dump(mode="json"))
 
             acknowledgement = await websocket.receive_json()
             ack_type = acknowledgement.get("type")

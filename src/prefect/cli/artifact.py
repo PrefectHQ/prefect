@@ -133,7 +133,7 @@ async def inspect(
         if not artifacts:
             exit_with_error(f"Artifact {key!r} not found.")
 
-        artifacts = [a.dict(json_compatible=True) for a in artifacts]
+        artifacts = [a.model_dump(mode="json") for a in artifacts]
 
         app.console.print(Pretty(artifacts))
 

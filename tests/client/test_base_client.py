@@ -6,7 +6,7 @@ from unittest import mock
 import httpx
 import pytest
 from httpx import AsyncClient, Request, Response
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect
 import prefect.client
@@ -45,7 +45,7 @@ RESPONSE_CSRF = Response(
     status.HTTP_200_OK,
     json=CsrfToken(
         client="test_client", token="test_token", expiration=now + timedelta(days=1)
-    ).dict(json_compatible=True, exclude_unset=True),
+    ).model_dump(mode="json", exclude_unset=True),
     request=Request("a test request", "fake.url/fake/route"),
 )
 

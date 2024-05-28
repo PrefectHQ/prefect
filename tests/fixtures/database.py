@@ -441,7 +441,7 @@ async def deployment(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -479,7 +479,7 @@ async def deployment_with_version(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
             version="1.0",
         ),
@@ -518,7 +518,7 @@ async def deployment_2(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -553,7 +553,7 @@ async def deployment_in_default_work_pool(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue.id,
         ),
     )
@@ -586,7 +586,7 @@ async def deployment_in_non_default_work_pool(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name="wq",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1126,7 +1126,7 @@ async def worker_deployment_wq1(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1151,7 +1151,7 @@ async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1181,7 +1181,7 @@ async def worker_deployment_wq_2(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_2.id,
         ),
     )
@@ -1201,4 +1201,4 @@ async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)

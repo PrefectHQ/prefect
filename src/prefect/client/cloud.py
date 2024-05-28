@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx
-import pydantic.v1 as pydantic
-from prefect._vendor.starlette import status
+import pydantic
+from starlette import status
 
 import prefect.context
 import prefect.settings
@@ -80,8 +80,8 @@ class CloudClient:
             await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Workspace]:
-        workspaces = pydantic.parse_obj_as(
-            List[Workspace], await self.get("/me/workspaces")
+        workspaces = pydantic.TypeAdapter(List[Workspace]).validate_python(
+            await self.get("/me/workspaces")
         )
         return workspaces
 

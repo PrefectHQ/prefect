@@ -479,14 +479,9 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `delete`          | Delete a deployment.                                            |
 | `inspect`         | View details about a deployment.                                |
 | `ls`              | View all deployments or deployments for specific flows.         |
-| `pause-schedule`  | Pause schedule of a given deployment.                           |
-| `resume-schedule` | Resume schedule of a given deployment.                          |
 | `run`             | Create a flow run for the given flow and deployment.            |
 | `schedule`        | Commands for interacting with your deployment's schedules.      |
-| `set-schedule`    | Set schedule for a given deployment.                            |
 
-!!! warning "Deprecated Schedule Commands"
-The pause-schedule, resume-schedule, and set-schedule commands are deprecated due to the introduction of multi-schedule support for deployments. Use the new `prefect deployment schedule` command for enhanced flexibility and control over your deployment schedules.
 
 ### Create a flow run in a Python script 
 

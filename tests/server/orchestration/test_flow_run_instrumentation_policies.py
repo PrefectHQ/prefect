@@ -7,10 +7,11 @@ from uuid import uuid4
 import httpx
 import pendulum
 import pytest
+from fastapi.applications import FastAPI
 from httpx import ASGITransport, AsyncClient
-from prefect._vendor.fastapi.applications import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect import states as client_states
 from prefect.server import models
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -38,7 +39,6 @@ from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import CreatedBy, FlowRun
 from prefect.server.schemas.responses import FlowRunResponse
 from prefect.server.schemas.states import (
-    Cancelled,
     Pending,
     State,
     StateDetails,
@@ -83,7 +83,7 @@ async def test_instrumenting_a_flow_run_state_change(
     assert event.event == "prefect.flow-run.Running"
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
-    assert event.resource.dict() == Resource.parse_obj(
+    assert event.resource == Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
@@ -94,7 +94,7 @@ async def test_instrumenting_a_flow_run_state_change(
         }
     )
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow.{flow.id}",
                 "prefect.resource.role": "flow",
@@ -155,7 +155,7 @@ async def test_capturing_flow_run_provenance_as_related_resource(
         assert not creators
     else:
         assert creators == [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"{resource_prefix}.{created_by.id}",
                     "prefect.resource.role": "creator",
@@ -192,7 +192,7 @@ async def test_flow_run_state_change_events_capture_order_on_short_gaps(
 
     from_db = await flow_run_states.read_flow_run_state(session, pending_state.id)
     assert from_db
-    pending_state = State.from_orm(from_db)
+    pending_state = State.model_validate(from_db, from_attributes=True)
 
     # Now process the Pending->Running transition and confirm it sends an event
     running_state: State = State(type=StateType.RUNNING)
@@ -250,7 +250,7 @@ async def test_flow_run_state_change_events_do_not_capture_order_on_long_gaps(
 
     from_db = await flow_run_states.read_flow_run_state(session, pending_state.id)
     assert from_db
-    pending_state = State.from_orm(from_db)
+    pending_state = State.model_validate(from_db, from_attributes=True)
 
     # Now process the Pending->Running transition and confirm it sends an event
     running_state: State = State(type=StateType.RUNNING)
@@ -343,7 +343,7 @@ async def test_instrumenting_a_flow_run_with_no_flow(
     assert event.event == "prefect.flow-run.Running"
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
-    assert event.resource == Resource.parse_obj(
+    assert event.resource == Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
@@ -413,21 +413,21 @@ async def test_instrumenting_a_deployed_flow_run_state_change(
     (event,) = AssertingEventsClient.last.events
 
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow.{flow.id}",
                 "prefect.resource.role": "flow",
                 "prefect.resource.name": "my-flow",
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{deployment.id}",
                 "prefect.resource.role": "deployment",
                 "prefect.resource.name": deployment.name,
             }
         ),
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.test",
                 "prefect.resource.role": "tag",
@@ -477,7 +477,7 @@ async def test_instrumenting_a_flow_with_tags(
     assert len(event.related) == 6  # two of these are the flow and deployment
 
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.common-one",
                 "prefect.resource.role": "tag",
@@ -486,7 +486,7 @@ async def test_instrumenting_a_flow_with_tags(
         in event.related
     )
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.deployment-one",
                 "prefect.resource.role": "tag",
@@ -495,7 +495,7 @@ async def test_instrumenting_a_flow_with_tags(
         in event.related
     )
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.flow-run-one",
                 "prefect.resource.role": "tag",
@@ -504,7 +504,7 @@ async def test_instrumenting_a_flow_with_tags(
         in event.related
     )
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": "prefect.tag.flow-one",
                 "prefect.resource.role": "tag",
@@ -567,7 +567,7 @@ async def test_instrumenting_a_flow_run_from_a_work_queue(
     assert len(event.related) == 3  # the other one is the flow
 
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
                 "prefect.resource.role": "work-queue",
@@ -578,7 +578,7 @@ async def test_instrumenting_a_flow_run_from_a_work_queue(
     )
 
     assert (
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                 "prefect.resource.role": "work-pool",
@@ -629,7 +629,7 @@ async def test_still_instruments_rejected_state_transitions(
         TO_STATES = ALL_ORCHESTRATION_STATES
 
         async def before_transition(self, initial_state, proposed_state, context):
-            new_state = proposed_state.copy()
+            new_state = proposed_state.model_copy()
             new_state.name = "Cancelled Fussily"
             new_state.type = StateType.CANCELLED
             await self.reject_transition(new_state, reason="I am fussy")
@@ -777,7 +777,9 @@ async def test_cancelling_to_cancelled_transitions(
     response = await client.post(
         f"flow_runs/{flow_run.id}/set_state",
         json={
-            "state": Cancelled().dict(json_compatible=True),
+            "state": client_states.Cancelled()
+            .to_state_create()
+            .model_dump(mode="json"),
             "force": True,  # the Agent uses force=True here, which caused the bug
         },
     )
@@ -788,7 +790,7 @@ async def test_cancelling_to_cancelled_transitions(
     )
     assert response.status_code == 200
 
-    updated_flow_run = FlowRunResponse.parse_obj(response.json())
+    updated_flow_run = FlowRunResponse.model_validate(response.json())
     assert updated_flow_run.state
 
     assert AssertingEventsClient.last
@@ -797,7 +799,7 @@ async def test_cancelling_to_cancelled_transitions(
     assert event.event == "prefect.flow-run.Cancelled"
     assert start_of_test <= event.occurred <= pendulum.now("UTC")
 
-    assert event.resource == Resource.parse_obj(
+    assert event.resource == Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,

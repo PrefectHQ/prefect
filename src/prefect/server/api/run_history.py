@@ -4,10 +4,11 @@ Utilities for querying flow and task run history.
 
 import datetime
 import json
-from typing import List
+from typing import List, Optional
 
-import pydantic.v1 as pydantic
+import pydantic
 import sqlalchemy as sa
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal
 
 import prefect.server.models as models
@@ -15,7 +16,6 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.schemas import DateTimeTZ
 
 logger = get_logger("server.api")
 
@@ -25,15 +25,15 @@ async def run_history(
     db: PrefectDBInterface,
     session: sa.orm.Session,
     run_type: Literal["flow_run", "task_run"],
-    history_start: DateTimeTZ,
-    history_end: DateTimeTZ,
+    history_start: DateTime,
+    history_end: DateTime,
     history_interval: datetime.timedelta,
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state
@@ -160,4 +160,6 @@ async def run_history(
         for r in records:
             r["states"] = json.loads(r["states"])
 
-    return pydantic.parse_obj_as(List[schemas.responses.HistoryResponse], list(records))
+    return pydantic.TypeAdapter(
+        List[schemas.responses.HistoryResponse]
+    ).validate_python(records)

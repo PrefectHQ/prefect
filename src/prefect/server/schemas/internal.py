@@ -3,7 +3,7 @@ appropriate for use on the API itself."""
 
 from typing import Optional
 
-from pydantic.v1 import Field
+from pydantic import Field
 
 from prefect.server.schemas import actions, statuses
 

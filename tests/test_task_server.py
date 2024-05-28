@@ -2,10 +2,10 @@ import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 import prefect.results
 from prefect import flow, get_client, task
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import MissingResult
 from prefect.settings import (
@@ -15,11 +15,6 @@ from prefect.settings import (
 from prefect.states import Running
 from prefect.task_server import TaskServer, serve
 from prefect.tasks import task_input_hash
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
 
 
 @pytest.fixture(autouse=True)

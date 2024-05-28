@@ -5,7 +5,7 @@ Routes for interacting with flow run notification policy objects.
 from typing import List
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path, status
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models

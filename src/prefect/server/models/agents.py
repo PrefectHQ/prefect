@@ -35,7 +35,7 @@ async def create_agent(
 
     """
 
-    model = orm_models.Agent(**agent.dict())
+    model = orm_models.Agent(**agent.model_dump())
     session.add(model)
     await session.flush()
 
@@ -110,7 +110,7 @@ async def update_agent(
         .where(orm_models.Agent.id == agent_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
-        .values(**agent.dict(shallow=True, exclude_unset=True))
+        .values(**agent.model_dump_for_orm(exclude_unset=True))
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0
@@ -144,14 +144,14 @@ async def record_agent_poll(
     insert_stmt = (
         db.insert(orm_models.Agent)
         .values(
-            **agent_data.dict(
+            **agent_data.model_dump(
                 include={"id", "name", "work_queue_id", "last_activity_time"}
             )
         )
         .on_conflict_do_update(
-            index_elements=[orm_models.Agent.id],
-            set_=agent_data.dict(
-                shallow=True, include={"work_queue_id", "last_activity_time"}
+            index_elements=[db.Agent.id],
+            set_=agent_data.model_dump_for_orm(
+                include={"work_queue_id", "last_activity_time"}
             ),
         )
     )

@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
-from prefect._vendor.fastapi import (
+from fastapi import (
     BackgroundTasks,
     Body,
     Depends,
@@ -15,6 +15,7 @@ from prefect._vendor.fastapi import (
     Path,
     status,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
@@ -30,7 +31,6 @@ from prefect.server.models.work_queues import (
 )
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
 if TYPE_CHECKING:
@@ -185,7 +185,7 @@ async def create_work_pool(
                 work_pool=model,
             )
 
-            return schemas.core.WorkPool.from_orm(model)
+            return schemas.core.WorkPool.model_validate(model, from_attributes=True)
 
     except sa.exc.IntegrityError:
         raise HTTPException(
@@ -211,7 +211,7 @@ async def read_work_pool(
         orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id
         )
-        return schemas.core.WorkPool.from_orm(orm_work_pool)
+        return schemas.core.WorkPool.model_validate(orm_work_pool, from_attributes=True)
 
 
 @router.post("/filter")
@@ -232,7 +232,10 @@ async def read_work_pools(
             offset=offset,
             limit=limit,
         )
-        return [schemas.core.WorkPool.from_orm(w) for w in orm_work_pools]
+        return [
+            schemas.core.WorkPool.model_validate(w, from_attributes=True)
+            for w in orm_work_pools
+        ]
 
 
 @router.post("/count")
@@ -261,7 +264,7 @@ async def update_work_pool(
     """
 
     # Reserved pools can only updated pause / concurrency
-    update_values = work_pool.dict(exclude_unset=True)
+    update_values = work_pool.model_dump(exclude_unset=True)
     if work_pool_name.lower().startswith("prefect") and (
         set(update_values).difference({"is_paused", "concurrency_limit"})
     ):
@@ -321,10 +324,10 @@ async def get_scheduled_flow_runs(
     work_queue_names: List[str] = Body(
         None, description="The names of work pool queues"
     ),
-    scheduled_before: DateTimeTZ = Body(
+    scheduled_before: DateTime = Body(
         None, description="The maximum time to look for scheduled flow runs"
     ),
-    scheduled_after: DateTimeTZ = Body(
+    scheduled_after: DateTime = Body(
         None, description="The minimum time to look for scheduled flow runs"
     ),
     limit: int = dependencies.LimitBody(),
@@ -430,7 +433,9 @@ async def create_work_queue(
             ),
         )
 
-    return schemas.responses.WorkQueueResponse.from_orm(model)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        model, from_attributes=True
+    )
 
 
 @router.get("/{work_pool_name}/queues/{name}")
@@ -457,7 +462,9 @@ async def read_work_queue(
             session=session, work_queue_id=work_queue_id
         )
 
-    return schemas.responses.WorkQueueResponse.from_orm(model)
+    return schemas.responses.WorkQueueResponse.model_validate(
+        model, from_attributes=True
+    )
 
 
 @router.post("/{work_pool_name}/queues/filter")
@@ -485,7 +492,10 @@ async def read_work_queues(
             offset=offset,
         )
 
-    return [schemas.responses.WorkQueueResponse.from_orm(wq) for wq in wqs]
+    return [
+        schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
+        for wq in wqs
+    ]
 
 
 @router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)

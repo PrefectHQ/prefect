@@ -1,5 +1,5 @@
 import pytest
-from prefect._vendor.fastapi.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from prefect.server.api.server import create_app
 from prefect.settings import (

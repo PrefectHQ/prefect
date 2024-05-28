@@ -3,6 +3,7 @@ The TaskSchedulingTimeouts service reschedules autonomous tasks that are stuck P
 """
 
 import asyncio
+from typing import Optional
 
 import pendulum
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +22,7 @@ from prefect.settings import PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT
 class TaskSchedulingTimeouts(LoopService):
     _first_run: bool
 
-    def __init__(self, loop_seconds: float = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
         self._first_run = True
         super().__init__(
             loop_seconds=loop_seconds
@@ -58,7 +59,7 @@ class TaskSchedulingTimeouts(LoopService):
         )
 
         for task_run_model in task_runs:
-            task_run: schemas.core.TaskRun = schemas.core.TaskRun.from_orm(
+            task_run: schemas.core.TaskRun = schemas.core.TaskRun.model_validate(
                 task_run_model
             )
             await TaskQueue.for_key(task_run.task_key).retry(task_run)

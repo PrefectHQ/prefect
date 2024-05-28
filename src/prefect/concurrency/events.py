@@ -20,7 +20,7 @@ def _emit_concurrency_event(
     }
 
     related = [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.concurrency-limit.{limit.id}",
                 "prefect.resource.role": "concurrency-limit",
