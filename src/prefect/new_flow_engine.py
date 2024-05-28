@@ -317,7 +317,6 @@ class FlowRunEngine(Generic[P, R]):
 
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
-                    client=self.client,
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
                     wait_for=self.wait_for,

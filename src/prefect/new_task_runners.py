@@ -8,16 +8,11 @@ from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, Optional, Set
 from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect.client.schemas.objects import TaskRunInput
-from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.new_futures import PrefectConcurrentFuture, PrefectFuture
-from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
-    collapse_variadic_parameters,
-    explode_variadic_parameter,
-    get_parameter_defaults,
+    expand_mapping_parameters,
 )
-from prefect.utilities.collections import isiterable
 
 if TYPE_CHECKING:
     from prefect.tasks import Task
@@ -115,74 +110,16 @@ class TaskRunner(abc.ABC, Generic[F]):
         # will also be tracked.
         parameters = resolve_inputs_sync(parameters, max_depth=0)
 
-        # Ensure that any parameters in kwargs are expanded before this check
-        parameters = explode_variadic_parameter(task.fn, parameters)
-
-        iterable_parameters = {}
-        static_parameters = {}
-        annotated_parameters = {}
-        for key, val in parameters.items():
-            if isinstance(val, (allow_failure, quote)):
-                # Unwrap annotated parameters to determine if they are iterable
-                annotated_parameters[key] = val
-                val = val.unwrap()
-
-            if isinstance(val, unmapped):
-                static_parameters[key] = val.value
-            elif isiterable(val):
-                iterable_parameters[key] = list(val)
-            else:
-                static_parameters[key] = val
-
-        if not len(iterable_parameters):
-            raise MappingMissingIterable(
-                "No iterable parameters were received. Parameters for map must "
-                f"include at least one iterable. Parameters: {parameters}"
+        parameters_list = expand_mapping_parameters(task.fn, parameters)
+        return [
+            self.submit(
+                task=task,
+                parameters=parameters,
+                wait_for=wait_for,
+                dependencies=task_inputs,
             )
-
-        iterable_parameter_lengths = {
-            key: len(val) for key, val in iterable_parameters.items()
-        }
-        lengths = set(iterable_parameter_lengths.values())
-        if len(lengths) > 1:
-            raise MappingLengthMismatch(
-                "Received iterable parameters with different lengths. Parameters for map"
-                f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
-            )
-
-        map_length = list(lengths)[0]
-
-        futures = []
-        for i in range(map_length):
-            call_parameters = {
-                key: value[i] for key, value in iterable_parameters.items()
-            }
-            call_parameters.update(
-                {key: value for key, value in static_parameters.items()}
-            )
-
-            # Add default values for parameters; these are skipped earlier since they should
-            # not be mapped over
-            for key, value in get_parameter_defaults(task.fn).items():
-                call_parameters.setdefault(key, value)
-
-            # Re-apply annotations to each key again
-            for key, annotation in annotated_parameters.items():
-                call_parameters[key] = annotation.rewrap(call_parameters[key])
-
-            # Collapse any previously exploded kwargs
-            call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
-
-            futures.append(
-                self.submit(
-                    task=task,
-                    parameters=call_parameters,
-                    wait_for=wait_for,
-                    dependencies=task_inputs,
-                )
-            )
-
-        return futures
+            for parameters in parameters_list
+        ]
 
     def __enter__(self):
         if self._started:
