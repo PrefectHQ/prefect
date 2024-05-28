@@ -36,8 +36,8 @@ async def result_factory_from_task(task) -> ResultFactory:
 
 
 @pytest.fixture
-def local_filesystem():
-    block = LocalFileSystem(basepath="~/.prefect/storage/test")
+def local_filesystem(tmp_path):
+    block = LocalFileSystem(basepath=tmp_path)
     block.save("test-fs", overwrite=True)
     return block
 

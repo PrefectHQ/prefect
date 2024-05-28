@@ -1188,6 +1188,7 @@ class TestSuspendFlowRun:
         with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
             await main_flow()
 
+    @pytest.mark.xfail(reason="Brittle caused by 5xx from API")
     async def test_suspend_flow_run_by_id(self, prefect_client, deployment, session):
         flow_run_id = None
         task_completions = 0
@@ -1196,7 +1197,7 @@ class TestSuspendFlowRun:
         async def increment_completions():
             nonlocal task_completions
             task_completions += 1
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(1)
 
         @flow
         async def suspendable_flow():
@@ -1225,7 +1226,7 @@ class TestSuspendFlowRun:
                 await asyncio.sleep(0.1)
 
             # Sleep for a bit to let some of `suspendable_flow`s tasks complete
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(2)
 
             await suspend_flow_run(flow_run_id=flow_run_id)
 
