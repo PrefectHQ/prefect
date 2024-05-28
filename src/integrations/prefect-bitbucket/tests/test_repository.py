@@ -10,9 +10,9 @@ from prefect.exceptions import InvalidRepositoryURLError
 from prefect.testing.utilities import AsyncMock
 
 if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretStr
+    pass
 else:
-    from pydantic import SecretStr
+    pass
 
 import prefect_bitbucket
 from prefect_bitbucket.credentials import BitBucketCredentials
@@ -137,7 +137,7 @@ class TestBitBucketRepository:
         repo = "https://bitbucket.org/PrefectHQ/prefect.git"
         b = BitBucketRepository(
             repository=repo,
-            bitbucket_credentials=BitBucketCredentials(token=SecretStr(credential)),
+            bitbucket_credentials=BitBucketCredentials(token=credential),
         )
         await b.get_directory()
         assert mock.await_count == 1
@@ -166,7 +166,7 @@ class TestBitBucketRepository:
         b = BitBucketRepository(
             repository=repo,
             bitbucket_credentials=BitBucketCredentials(
-                token=SecretStr(credential), username=username
+                token=credential, username=username
             ),
         )
         await b.get_directory()
@@ -201,7 +201,7 @@ class TestBitBucketRepository:
         with pytest.raises(InvalidRepositoryURLError, match=error_msg):
             BitBucketRepository(
                 repository="git@bitbucket.org:PrefectHQ/prefect.git",
-                bitbucket_credentials=BitBucketCredentials(token=SecretStr(credential)),
+                bitbucket_credentials=BitBucketCredentials(token=credential),
             )
 
     async def test_dir_contents_copied_correctly_with_get_directory(self, monkeypatch):  # noqa

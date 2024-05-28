@@ -36,24 +36,19 @@ private_bitbucket_block.save(name="my-private-bitbucket-block")
 """
 
 import io
-from distutils.dir_util import copy_tree
 from pathlib import Path
+from shutil import copytree
 from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
 from urllib.parse import urlparse, urlunparse
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, model_validator
+from typing_extensions import Self
 
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
 from prefect_bitbucket.credentials import BitBucketCredentials
 
 
@@ -84,8 +79,8 @@ class BitBucketRepository(ReadableDeploymentStorage):
         ),
     )
 
-    @validator("bitbucket_credentials")
-    def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
+    @model_validator(mode="after")
+    def _ensure_credentials_go_with_https(self) -> Self:
         """Ensure that credentials are not provided with 'SSH' formatted BitBucket URLs.
 
         Validators are by default only called on provided arguments.
@@ -93,8 +88,8 @@ class BitBucketRepository(ReadableDeploymentStorage):
         Note: validates `credentials` specifically so that it only fires when private
         repositories are used.
         """
-        if v is not None:
-            if urlparse(values["repository"]).scheme != "https":
+        if self.bitbucket_credentials is not None:
+            if urlparse(self.repository).scheme != "https":
                 raise InvalidRepositoryURLError(
                     (
                         "Credentials can only be used with BitBucket repositories "
@@ -105,7 +100,7 @@ class BitBucketRepository(ReadableDeploymentStorage):
                     )
                 )
 
-        return v
+        return self
 
     def _create_repo_url(self) -> str:
         """Format the URL provided to the `git clone` command.
@@ -197,4 +192,4 @@ class BitBucketRepository(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copy_tree(src=content_source, dst=content_destination)
+            copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)

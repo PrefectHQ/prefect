@@ -1,16 +1,12 @@
 """Module to enable authenticate interactions with BitBucket."""
+
 import re
 from enum import Enum
 from typing import Optional, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, SecretStr, field_validator
 
 from prefect.blocks.abstract import CredentialsBlock
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr, validator
-else:
-    from pydantic import Field, SecretStr, validator
 
 try:
     from atlassian.bitbucket import Bitbucket, Cloud
@@ -48,13 +44,14 @@ class BitBucketCredentials(CredentialsBlock):
 
     _block_type_name = "BitBucket Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/5d729f7355fb6828c4b605268ded9cfafab3ae4f-250x250.png"  # noqa
+
     token: Optional[SecretStr] = Field(
-        name="Personal Access Token",
+        title="Personal Access Token",
         default=None,
         description=(
             "A BitBucket Personal Access Token - required for private repositories."
         ),
-        example="x-token-auth:my-token",
+        examples=["x-token-auth:my-token"],
     )
     username: Optional[str] = Field(
         default=None,
@@ -69,7 +66,7 @@ class BitBucketCredentials(CredentialsBlock):
         title="URL",
     )
 
-    @validator("username")
+    @field_validator("username")
     def _validate_username(cls, value: str) -> str:
         """When username provided, will validate it."""
         pattern = "^[A-Za-z0-9_-]*$"
