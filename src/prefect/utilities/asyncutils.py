@@ -173,10 +173,10 @@ def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
 
 
 def run_coro_as_sync(
-    coroutine: Awaitable,
+    coroutine: Awaitable[R],
     force_new_thread: bool = False,
     wait_for_result: bool = True,
-) -> Optional[Any]:
+) -> R:
     """
     Runs a coroutine from a synchronous context, as if it were a synchronous
     function.

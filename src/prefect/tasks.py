@@ -31,7 +31,7 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec
 
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.context import (
@@ -50,8 +50,9 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import Async, Sync
+from prefect.utilities.asyncutils import Async, Sync, run_coro_as_sync
 from prefect.utilities.callables import (
+    expand_mapping_parameters,
     get_call_parameters,
     raise_for_reserved_arguments,
 )
@@ -59,7 +60,7 @@ from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+    from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
     from prefect.task_runners import BaseTaskRunner
     from prefect.transactions import Transaction
@@ -542,7 +543,7 @@ class Task(Generic[P, R]):
 
     async def create_run(
         self,
-        client: Union["PrefectClient", "SyncPrefectClient"],
+        client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
@@ -561,83 +562,88 @@ class Task(Generic[P, R]):
             parent_task_run_context = TaskRunContext.get()
         if parameters is None:
             parameters = {}
+        if client is None:
+            client = get_client()
 
-        is_autonomous_task = not flow_run_context
+        async with client:
+            is_autonomous_task = not flow_run_context
 
-        if is_autonomous_task:
-            dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
-            task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
-            state = Scheduled()
-        else:
-            dynamic_key = _dynamic_key_for_task_run(context=flow_run_context, task=self)
-            task_run_name = f"{self.name}-{dynamic_key}"
-            state = Pending()
+            if is_autonomous_task:
+                dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
+                task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
+                state = Scheduled()
+            else:
+                dynamic_key = _dynamic_key_for_task_run(
+                    context=flow_run_context, task=self
+                )
+                task_run_name = f"{self.name}-{dynamic_key}"
+                state = Pending()
 
-        # store parameters for autonomous tasks so that task servers
-        # can retrieve them at runtime
-        if is_autonomous_task and parameters:
-            parameters_id = uuid4()
-            state.state_details.task_parameters_id = parameters_id
+            # store parameters for autonomous tasks so that task servers
+            # can retrieve them at runtime
+            if is_autonomous_task and parameters:
+                parameters_id = uuid4()
+                state.state_details.task_parameters_id = parameters_id
 
-            # TODO: Improve use of result storage for parameter storage / reference
-            self.persist_result = True
+                # TODO: Improve use of result storage for parameter storage / reference
+                self.persist_result = True
 
-            factory = await ResultFactory.from_autonomous_task(self, client=client)
-            await factory.store_parameters(parameters_id, parameters)
+                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                await factory.store_parameters(parameters_id, parameters)
 
-        # collect task inputs
-        task_inputs = {
-            k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
-        }
+            # collect task inputs
+            task_inputs = {
+                k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
+            }
 
-        # check if this task has a parent task run based on running in another
-        # task run's existing context. A task run is only considered a parent if
-        # it is in the same flow run (because otherwise presumably the child is
-        # in a subflow, so the subflow serves as the parent) or if there is no
-        # flow run
-        if parent_task_run_context:
-            # there is no flow run
-            if not flow_run_context:
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=parent_task_run_context.task_run.id)
-                ]
-            # there is a flow run and the task run is in the same flow run
-            elif (
-                flow_run_context
-                and parent_task_run_context.task_run.flow_run_id
-                == getattr(flow_run_context.flow_run, "id", None)
-            ):
-                task_inputs["__parents__"] = [
-                    TaskRunResult(id=parent_task_run_context.task_run.id)
-                ]
+            # check if this task has a parent task run based on running in another
+            # task run's existing context. A task run is only considered a parent if
+            # it is in the same flow run (because otherwise presumably the child is
+            # in a subflow, so the subflow serves as the parent) or if there is no
+            # flow run
+            if parent_task_run_context:
+                # there is no flow run
+                if not flow_run_context:
+                    task_inputs["__parents__"] = [
+                        TaskRunResult(id=parent_task_run_context.task_run.id)
+                    ]
+                # there is a flow run and the task run is in the same flow run
+                elif (
+                    flow_run_context
+                    and parent_task_run_context.task_run.flow_run_id
+                    == getattr(flow_run_context.flow_run, "id", None)
+                ):
+                    task_inputs["__parents__"] = [
+                        TaskRunResult(id=parent_task_run_context.task_run.id)
+                    ]
 
-        if wait_for:
-            task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
+            if wait_for:
+                task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
 
-        # Join extra task inputs
-        for k, extras in (extra_task_inputs or {}).items():
-            task_inputs[k] = task_inputs[k].union(extras)
+            # Join extra task inputs
+            for k, extras in (extra_task_inputs or {}).items():
+                task_inputs[k] = task_inputs[k].union(extras)
 
-        # create the task run
-        task_run = client.create_task_run(
-            task=self,
-            name=task_run_name,
-            flow_run_id=(
-                getattr(flow_run_context.flow_run, "id", None)
-                if flow_run_context and flow_run_context.flow_run
-                else None
-            ),
-            dynamic_key=str(dynamic_key),
-            id=id,
-            state=state,
-            task_inputs=task_inputs,
-            extra_tags=TagsContext.get().current_tags,
-        )
-        # the new engine uses sync clients but old engines use async clients
-        if inspect.isawaitable(task_run):
-            task_run = await task_run
+            # create the task run
+            task_run = client.create_task_run(
+                task=self,
+                name=task_run_name,
+                flow_run_id=(
+                    getattr(flow_run_context.flow_run, "id", None)
+                    if flow_run_context and flow_run_context.flow_run
+                    else None
+                ),
+                dynamic_key=str(dynamic_key),
+                id=id,
+                state=state,
+                task_inputs=task_inputs,
+                extra_tags=TagsContext.get().current_tags,
+            )
+            # the new engine uses sync clients but old engines use async clients
+            if inspect.isawaitable(task_run):
+                task_run = await task_run
 
-        return task_run
+            return task_run
 
     @overload
     def __call__(
@@ -1014,7 +1020,6 @@ class Task(Generic[P, R]):
             [[11, 21], [12, 22], [13, 23]]
         """
 
-        from prefect.engine import begin_task_map
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -1023,7 +1028,6 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict; do not apply defaults
         # since they should not be mapped over
         parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
-        return_type = "state" if return_state else "future"
         flow_run_context = FlowRunContext.get()
 
         task_viz_tracker = get_task_viz_tracker()
@@ -1033,20 +1037,15 @@ class Task(Generic[P, R]):
             )
 
         if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
-            map_call = create_call(
-                begin_task_map,
-                task=self,
-                parameters=parameters,
-                flow_run_context=None,
-                wait_for=wait_for,
-                return_type=return_type,
-                task_runner=None,
-                autonomous=True,
-            )
-            if self.isasync:
-                return from_async.wait_for_call_in_loop_thread(map_call)
-            else:
-                return from_sync.wait_for_call_in_loop_thread(map_call)
+            # TODO: Should we split out background task mapping into a separate method
+            # like we do for the `submit`/`apply_async` split?
+            parameters_list = expand_mapping_parameters(self.fn, parameters)
+            # TODO: Make this non-blocking once we can return a list of futures
+            # instead of a list of task runs
+            return [
+                run_coro_as_sync(self.create_run(parameters=parameters))
+                for parameters in parameters_list
+            ]
 
         from prefect.new_task_runners import TaskRunner
 
@@ -1062,27 +1061,11 @@ class Task(Generic[P, R]):
         else:
             return futures
 
-    @overload
-    def apply_async(
-        self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> TaskRun:
-        ...
-
-    @overload
-    def apply_async(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> Awaitable[TaskRun]:
-        ...
-
     def apply_async(
         self,
         *args: Any,
         **kwargs: Any,
-    ) -> Union[TaskRun, Awaitable[TaskRun]]:
+    ) -> TaskRun:
         """
         Create a pending task run for a task server to execute.
 
@@ -1152,13 +1135,6 @@ class Task(Generic[P, R]):
             >>>     y = task_2.apply_async(wait_for=[x])  # <- Not implemented, unsure if will
 
         """
-
-        # TODO: Consolidate these into a single function that can create a task run
-        # and store parameters with or without a flow run ID.
-        from prefect.engine import (
-            create_autonomous_task_run,
-            create_task_run,
-        )
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -1172,15 +1148,8 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
-        flow_run_context = FlowRunContext.get()
 
-        # Create a pending task run
-        create_fn = create_task_run if flow_run_context else create_autonomous_task_run
-        create_task_run_call = create_call(create_fn, task=self, parameters=parameters)
-        if self.isasync:
-            return from_async.wait_for_call_in_loop_thread(create_task_run_call)
-        else:
-            return from_sync.wait_for_call_in_loop_thread(create_task_run_call)
+        return run_coro_as_sync(self.create_run(parameters=parameters))
 
     def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to
