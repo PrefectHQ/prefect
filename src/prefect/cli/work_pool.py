@@ -215,7 +215,7 @@ async def create(
                 set_work_pool_as_default(work_pool.name)
 
             if PREFECT_UI_URL:
-                run_url = (
+                pool_url = (
                     f"{PREFECT_UI_URL.value()}/work-pools/work-pool/{work_pool.name}"
                 )
             else:
