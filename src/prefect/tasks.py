@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.context import TaskRunContext
     from prefect.task_runners import BaseTaskRunner
+    from prefect.transactions import Transaction
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -227,8 +228,8 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
         on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_rollback: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_commit: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_rollback: Optional[List[Callable[["Transaction"], None]]] = None,
+        on_commit: Optional[List[Callable[["Transaction"], None]]] = None,
         retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
@@ -528,14 +529,14 @@ class Task(Generic[P, R]):
         return fn
 
     def on_commit(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+        self, fn: Callable[["Transaction"], None]
+    ) -> Callable[["Transaction"], None]:
         self.on_commit_hooks.append(fn)
         return fn
 
     def on_rollback(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+        self, fn: Callable[["Transaction"], None]
+    ) -> Callable[["Transaction"], None]:
         self.on_rollback_hooks.append(fn)
         return fn
 
