@@ -3,7 +3,6 @@ import logging
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
-from functools import partial
 from typing import (
     Any,
     Callable,
@@ -187,6 +186,13 @@ class TaskRunEngine(Generic[P, R]):
 
             yield _hook_fn
 
+    def compute_transaction_key(self) -> str:
+        if self.task.result_storage_key is not None:
+            key = _format_user_supplied_storage_key(self.task.result_storage_key)
+        else:
+            key = str(self.task_run.id)
+        return key
+
     def _compute_state_details(
         self, include_cache_expiration: bool = False
     ) -> StateDetails:
@@ -344,16 +350,11 @@ class TaskRunEngine(Generic[P, R]):
         if result_factory is None:
             raise ValueError("Result factory is not set")
 
-        if self.task.result_storage_key is not None:
-            key_fn = partial(
-                _format_user_supplied_storage_key, self.task.result_storage_key
-            )
-        elif transaction.key:
-            # assign here to avoid a transaction reference on the result factory
-            key = transaction.key
+        # dont put this inside function, else the transaction could get serialized
+        key = transaction.key
 
-            def key_fn():
-                return key
+        def key_fn():
+            return key
 
         result_factory.storage_key_fn = key_fn
         terminal_state = run_coro_as_sync(
@@ -581,7 +582,7 @@ def run_task_sync(
                                 TaskRunContext.get(), "result_factory", None
                             )
                             with transaction(
-                                key=str(run.task_run.id),
+                                key=run.compute_transaction_key(),
                                 store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
                                 txn.add_task(run.task)
@@ -657,7 +658,7 @@ async def run_task_async(
                                 TaskRunContext.get(), "result_factory", None
                             )
                             with transaction(
-                                key=str(run.task_run.id),
+                                key=run.compute_transaction_key(),
                                 store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
                                 txn.add_task(run.task)
