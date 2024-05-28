@@ -4,7 +4,6 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
-import asyncio
 import datetime
 import inspect
 import os
@@ -61,7 +60,7 @@ from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+    from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
     from prefect.task_runners import BaseTaskRunner
 
@@ -543,7 +542,7 @@ class Task(Generic[P, R]):
 
     async def create_run(
         self,
-        client: Union["PrefectClient", "SyncPrefectClient", None] = None,
+        client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
@@ -565,7 +564,7 @@ class Task(Generic[P, R]):
         if client is None:
             client = get_client()
 
-        with client:
+        async with client:
             is_autonomous_task = not flow_run_context
 
             if is_autonomous_task:
@@ -1040,9 +1039,12 @@ class Task(Generic[P, R]):
             # TODO: Should we split out background task mapping into a separate method
             # like we do for the `submit`/`apply_async` split?
             parameters_list = expand_mapping_parameters(self.fn, parameters)
-            for parameters in parameters_list:
-                create_coros = [self.create_run(parameters=parameters)]
-                return run_coro_as_sync(asyncio.gather(*create_coros))
+            # TODO: Make this non-blocking once we can return a list of futures
+            # instead of a list of task runs
+            return [
+                run_coro_as_sync(self.create_run(parameters=parameters))
+                for parameters in parameters_list
+            ]
 
         from prefect.new_task_runners import TaskRunner
 

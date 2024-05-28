@@ -477,7 +477,6 @@ class TaskRunEngine(Generic[P, R]):
                         self.task_run = run_coro_as_sync(
                             self.task.create_run(
                                 id=task_run_id,
-                                client=self.client,
                                 parameters=self.parameters,
                                 flow_run_context=FlowRunContext.get(),
                                 parent_task_run_context=TaskRunContext.get(),
