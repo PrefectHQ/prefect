@@ -11,7 +11,7 @@ from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import collect_task_run_inputs_sync
 
 
-class PrefectDistributedClient(Client):
+class PrefectDaskClient(Client):
     def submit(
         self,
         func,
