@@ -681,32 +681,32 @@ class KubernetesWorker(BaseWorker):
                     "deployment configuration."
                 )
 
-            current_cluster_uid = self._get_cluster_uid(client)
+            current_cluster_uid = await self._get_cluster_uid(client)
             if job_cluster_uid != current_cluster_uid:
                 raise InfrastructureNotAvailable(
                     f"Unable to kill job {job_name!r}: The job is running on another "
                     "cluster than the one specified by the infrastructure PID."
                 )
 
-            with self._get_batch_client(client) as batch_client:
-                try:
-                    batch_client.delete_namespaced_job(
-                        name=job_name,
-                        namespace=job_namespace,
-                        grace_period_seconds=grace_seconds,
-                        # Foreground propagation deletes dependent objects before deleting # noqa
-                        # owner objects. This ensures that the pods are cleaned up before # noqa
-                        # the job is marked as deleted.
-                        # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion # noqa
-                        propagation_policy="Foreground",
-                    )
-                except kubernetes_asyncio.client.exceptions.ApiException as exc:
-                    if exc.status == 404:
-                        raise InfrastructureNotFound(
-                            f"Unable to kill job {job_name!r}: The job was not found."
-                        ) from exc
-                    else:
-                        raise
+            batch_client = BatchV1Api(client)
+            try:
+                await batch_client.delete_namespaced_job(
+                    name=job_name,
+                    namespace=job_namespace,
+                    grace_period_seconds=grace_seconds,
+                    # Foreground propagation deletes dependent objects before deleting # noqa
+                    # owner objects. This ensures that the pods are cleaned up before # noqa
+                    # the job is marked as deleted.
+                    # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion # noqa
+                    propagation_policy="Foreground",
+                )
+            except kubernetes_asyncio.client.exceptions.ApiException as exc:
+                if exc.status == 404:
+                    raise InfrastructureNotFound(
+                        f"Unable to kill job {job_name!r}: The job was not found."
+                    ) from exc
+                else:
+                    raise
 
     @asynccontextmanager
     async def _get_configured_kubernetes_client(
