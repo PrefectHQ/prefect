@@ -2,6 +2,7 @@
 Command line interface for working with work queues.
 """
 import json
+import textwrap
 
 import pendulum
 import typer
@@ -23,7 +24,7 @@ from prefect.infrastructure.provisioners import (
     _provisioners,
     get_infrastructure_provisioner_for_work_pool_type,
 )
-from prefect.settings import update_current_profile
+from prefect.settings import PREFECT_UI_URL, update_current_profile
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,
@@ -212,6 +213,30 @@ async def create(
                 )
             if set_as_default:
                 set_work_pool_as_default(work_pool.name)
+            if PREFECT_UI_URL:
+                pool_url = (
+                    f"{PREFECT_UI_URL.value()}/work-pools/work-pool/{work_pool.name}"
+                )
+            else:
+                pool_url = "<no dashboard available>"
+
+            # Agent work pools have no status
+            wp_status_display_name = (
+                work_pool.status.display_name if work_pool.status else "N/A"
+            )
+
+            app.console.print(
+                textwrap.dedent(
+                    f"""
+                └── UUID: {work_pool.id}
+                └── Type: {work_pool.type}
+                └── Description: {work_pool.description}
+                └── Status: {wp_status_display_name}
+                └── URL: {pool_url}
+                """
+                ).strip(),
+                soft_wrap=True,
+            )
             exit_with_success("")
         except ObjectAlreadyExists:
             exit_with_error(
