@@ -920,6 +920,13 @@ async def delete(
     async with get_client() as client:
         if name is None and deployment_id is not None:
             try:
+                if not typer.confirm(
+                    (
+                        f"Are you sure you want to delete deployment with id {deployment_id!r}?"
+                    ),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment_id)
                 exit_with_success(f"Deleted deployment '{deployment_id}'.")
             except ObjectNotFound:
@@ -927,6 +934,11 @@ async def delete(
         elif name is not None:
             try:
                 deployment = await client.read_deployment_by_name(name)
+                if not typer.confirm(
+                    (f"Are you sure you want to delete deployment with name {name!r}?"),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment.id)
                 exit_with_success(f"Deleted deployment '{name}'.")
             except ObjectNotFound:
