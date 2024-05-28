@@ -22,18 +22,42 @@ Let's get started!
 
 Here's a basic script that fetches statistics about the [main Prefect GitHub repository](https://github.com/PrefectHQ/prefect).
 
-```python
-import httpx
+```python title="my_gh_workflow.py"
+import httpx   # an HTTP client library and dependency of Prefect
 
-def get_repo_info():
-    url = "https://api.github.com/repos/PrefectHQ/prefect"
-    response = httpx.get(url)
-    repo = response.json()
-    print("PrefectHQ/prefect repository statistics 🤓:")
-    print(f"Stars 🌠 : {repo['stargazers_count']}")
+
+def get_repo_info(repo_owner: str, repo_name: str):
+    """Get info about a repo"""
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+    api_response = httpx.get(url)
+    api_response.raise_for_status()
+    repo_info = api_response.json()
+    return repo_info
+
+
+def get_contributors(repo_info: dict):
+    """Get contributors for a repo"""
+    contributors_url = repo_info["contributors_url"]
+    response = httpx.get(contributors_url)
+    response.raise_for_status()
+    contributors = response.json()
+    return contributors
+
+
+def repo_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
+    """
+    Given a GitHub repository, logs the number of stargazers
+    and contributors for that repo.
+    """
+    repo_info = get_repo_info(repo_owner, repo_name)
+    print(f"Stars 🌠 : {repo_info['stargazers_count']}")
+
+    contributors = get_contributors(repo_info)
+    print(f"Number of contributors 👷: {len(contributors)}")
+
 
 if __name__ == "__main__":
-    get_repo_info()
+    repo_info()
 ```
 
 Let's make this script schedulable, observable, resilient, and capable of running anywhere.
@@ -76,7 +100,7 @@ If you have any issues with browser-based authentication, see the [Prefect Cloud
 The fastest way to get started with Prefect is to add a `@flow` decorator to your Python function.
 [Flows](/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
-```python hl_lines="2 5" title="my_gh_workflow.py"
+```python hl_lines="2 5 15 25" title="my_gh_workflow.py"
 import httpx   # an HTTP client library and dependency of Prefect
 from prefect import flow, task
 
@@ -259,8 +283,8 @@ After a minute or so, you should see the flow run graph and logs on the Flow Run
 
 ![Managed flow run graph and logs](/img/ui/qs-flow-run.png)
 
-!!! warning "Remove the schedule"
-    Click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
+!!! warning "Pause the schedule"
+    Toggle the button under **Schedules** in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
 
 ## Next steps
 
