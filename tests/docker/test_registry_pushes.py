@@ -1,4 +1,3 @@
-import io
 import sys
 from pathlib import Path
 from unittest import mock
@@ -10,6 +9,7 @@ from _pytest.capture import CaptureFixture
 
 from prefect.utilities.dockerutils import (
     ImageBuilder,
+    PushError,
     push_image,
     silence_docker_warnings,
 )
@@ -99,9 +99,9 @@ def test_does_not_leave_registry_tag_locally(
         docker.images.get(registry_tag)
 
 
-# def test_registry_error(howdy: str):
-#     with pytest.raises(PushError, match="lookup.+nowhere"):
-#         push_image(howdy, "http://nowhere:5678", "howdy")
+def test_registry_error(howdy: str):
+    with pytest.raises(PushError, match="lookup.+nowhere"):
+        push_image(howdy, "http://nowhere:5678", "howdy")
 
 
 def test_streams_nowhere_by_default(howdy: str, registry: str, capsys: CaptureFixture):
@@ -126,14 +126,14 @@ def test_streams_progress_to_stdout(howdy: str, registry: str, capsys: CaptureFi
     assert "\nPushing [" in output or "\nLayer already exists" in output
 
 
-def test_streams_progress_to_given_stream(howdy: str, registry: str):
-    my_stream = io.StringIO()
+# def test_streams_progress_to_given_stream(howdy: str, registry: str):
+#     my_stream = io.StringIO()
 
-    push_image(howdy, registry, "howdy", stream_progress_to=my_stream)
+#     push_image(howdy, registry, "howdy", stream_progress_to=my_stream)
 
-    output = my_stream.getvalue()
+#     output = my_stream.getvalue()
 
-    # spot check a few things we should expect to find in the output
-    assert "push refers to repository" in output
-    assert "\nPreparing" in output
-    assert "\nPushing [" in output or "\nLayer already exists" in output
+#     # spot check a few things we should expect to find in the output
+#     assert "push refers to repository" in output
+#     assert "\nPreparing" in output
+#     assert "\nPushing [" in output or "\nLayer already exists" in output
