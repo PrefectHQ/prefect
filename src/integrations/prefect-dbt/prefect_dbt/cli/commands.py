@@ -8,18 +8,12 @@ import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.results import NodeStatus, RunExecutionResult
 from prefect_shell.commands import ShellOperation
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, field_validator
 
 from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
 from prefect.states import Failed
 from prefect.utilities.filesystem import relative_path_to_current_platform
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
 from prefect_dbt.cli.credentials import DbtCliProfile
 
 
@@ -316,7 +310,7 @@ class DbtCoreOperation(ShellOperation):
         ),
     )
 
-    @validator("commands", always=True)
+    @field_validator("commands")
     def _has_a_dbt_command(cls, commands):
         """
         Check that the commands contain a dbt command.
@@ -396,7 +390,7 @@ class DbtCoreOperation(ShellOperation):
         # However _compile_kwargs directly uses self.commands, but here we modified
         # the commands without saving back to self.commands so we need to create a copy.
         # was also thinking of using env vars but DBT_PROJECT_DIR is not supported yet.
-        modified_self = self.copy()
+        modified_self = self.model_copy()
         modified_self.commands = commands
         return super(type(self), modified_self)._compile_kwargs(**open_kwargs)
 

@@ -1,4 +1,5 @@
 """Module containing tasks and flows for interacting with dbt Cloud jobs"""
+
 import asyncio
 import shlex
 import time
@@ -6,20 +7,13 @@ from json import JSONDecodeError
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
 from httpx import HTTPStatusError
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
+from typing_extensions import Literal
 
 from prefect import flow, get_run_logger, task
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import FlowRunContext
 from prefect.utilities.asyncutils import sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
-from typing_extensions import Literal
-
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
     DbtCloudGetJobFailed,

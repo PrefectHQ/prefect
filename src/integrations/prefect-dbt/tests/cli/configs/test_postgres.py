@@ -1,17 +1,11 @@
+from prefect_dbt.cli.configs import PostgresTargetConfigs
 from prefect_sqlalchemy import (
     ConnectionComponents,
     DatabaseCredentials,
     SqlAlchemyConnector,
     SyncDriver,
 )
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
-
-from prefect_dbt.cli.configs import PostgresTargetConfigs
+from pydantic import SecretStr
 
 
 def test_postgres_target_configs_get_configs():

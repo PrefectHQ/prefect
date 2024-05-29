@@ -2,16 +2,13 @@
 
 import abc
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel, Field, Secret, SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import BaseModel, Field, SecretField
-else:
-    from pydantic import BaseModel, Field, SecretField
+PydanticSecret = Union[SecretStr, SecretBytes, Secret]
 
 
 class DbtConfigs(Block, abc.ABC):
@@ -86,7 +83,7 @@ class DbtConfigs(Block, abc.ABC):
                         f"The keyword, {field_name}, has already been provided in "
                         f"TargetConfigs; remove duplicated keywords to continue"
                     )
-                if isinstance(field_value, SecretField):
+                if isinstance(field_value, PydanticSecret):
                     field_value = field_value.get_secret_value()
                 elif isinstance(field_value, Path):
                     field_value = str(field_value)
