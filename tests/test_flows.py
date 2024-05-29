@@ -41,7 +41,12 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
+from prefect.flows import (
+    Flow,
+    load_flow_argument_from_entrypoint,
+    load_flow_from_entrypoint,
+    load_flow_from_flow_run,
+)
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -58,7 +63,7 @@ from prefect.states import (
     StateType,
     raise_state_exception,
 )
-from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
+from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import (
     AsyncMock,
     exceptions_equal,
@@ -265,7 +270,6 @@ class TestFlowWithOptions:
             name="Initial flow",
             description="Flow before with options",
             flow_run_name="OG",
-            task_runner=ConcurrentTaskRunner,
             timeout_seconds=10,
             validate_parameters=True,
             persist_result=True,
@@ -296,7 +300,7 @@ class TestFlowWithOptions:
             name="Copied flow",
             description="A copied flow",
             flow_run_name=lambda: "new-name",
-            task_runner=SequentialTaskRunner,
+            task_runner=ThreadPoolTaskRunner,
             retries=3,
             retry_delay_seconds=20,
             timeout_seconds=5,
@@ -314,7 +318,7 @@ class TestFlowWithOptions:
         assert flow_with_options.name == "Copied flow"
         assert flow_with_options.description == "A copied flow"
         assert flow_with_options.flow_run_name() == "new-name"
-        assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
+        assert isinstance(flow_with_options.task_runner, ThreadPoolTaskRunner)
         assert flow_with_options.timeout_seconds == 5
         assert flow_with_options.retries == 3
         assert flow_with_options.retry_delay_seconds == 20
@@ -334,7 +338,7 @@ class TestFlowWithOptions:
         @flow(
             name="Initial flow",
             description="Flow before with options",
-            task_runner=SequentialTaskRunner,
+            task_runner=ThreadPoolTaskRunner,
             timeout_seconds=10,
             validate_parameters=True,
             retries=3,
@@ -353,7 +357,7 @@ class TestFlowWithOptions:
         assert flow_with_options is not initial_flow
         assert flow_with_options.name == "Initial flow"
         assert flow_with_options.description == "Flow before with options"
-        assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
+        assert isinstance(flow_with_options.task_runner, ThreadPoolTaskRunner)
         assert flow_with_options.timeout_seconds == 10
         assert flow_with_options.should_validate_parameters is True
         assert flow_with_options.retries == 3
@@ -4086,3 +4090,100 @@ class TestTransactions:
         main(return_state=True)
 
         assert data == {}
+
+
+class TestLoadFlowArgumentFromEntrypoint:
+    def test_load_flow_name_from_entrypoint(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow(name="My custom name")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "My custom name"
+
+    def test_load_flow_name_from_entrypoint_no_name(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function"
+
+    def test_load_flow_description_from_entrypoint(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow(description="My custom description")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "description")
+
+        assert result == "My custom description"
+
+    def test_load_flow_description_from_entrypoint_no_description(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "description")
+
+        assert result is None
+
+    def test_load_no_flow(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        with pytest.raises(ValueError, match="Could not find flow"):
+            load_flow_argument_from_entrypoint(entrypoint, "name")

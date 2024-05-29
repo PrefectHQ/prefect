@@ -24,7 +24,6 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
-from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
@@ -37,7 +36,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.task_runners import SequentialTaskRunner
+from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class ExampleContext(ContextModel):
@@ -93,7 +92,7 @@ async def test_flow_run_context(prefect_client):
     def foo():
         pass
 
-    test_task_runner = SequentialTaskRunner()
+    test_task_runner = ThreadPoolTaskRunner()
     flow_run = await prefect_client.create_flow_run(foo)
     result_factory = await ResultFactory.from_flow(foo)
 
@@ -158,7 +157,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
     def bar():
         pass
 
-    test_task_runner = SequentialTaskRunner()
+    test_task_runner = ThreadPoolTaskRunner()
     flow_run = await prefect_client.create_flow_run(foo)
     task_run = await prefect_client.create_task_run(bar, flow_run.id, dynamic_key="")
 
