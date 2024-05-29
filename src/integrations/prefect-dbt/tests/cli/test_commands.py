@@ -102,6 +102,41 @@ async def mock_dbt_runner_ls_success():
 
 
 @pytest.fixture
+def mock_dbt_runner_source_freshness_success():
+    return dbtRunnerResult(
+        success=True,
+        exception=None,
+        result=RunExecutionResult(
+            results=[
+                RunResult(
+                    status="pass",
+                    timing=None,
+                    thread_id="'Thread-1 (worker)'",
+                    message="Runtime Error",
+                    failures=None,
+                    node=ModelNode(
+                        database="test-123",
+                        schema="prefect_dbt_example",
+                        name="my_first_dbt_model",
+                        resource_type="model",
+                        package_name="prefect_dbt_bigquery",
+                        path="example/my_first_dbt_model.sql",
+                        original_file_path="models/example/my_first_dbt_model.sql",
+                        unique_id="model.prefect_dbt_bigquery.my_first_dbt_model",
+                        fqn=["prefect_dbt_bigquery", "example", "my_first_dbt_model"],
+                        alias="my_first_dbt_model",
+                        checksum=FileHash(name="sha256", checksum="123456789"),
+                    ),
+                    execution_time=0.0,
+                    adapter_response=None,
+                )
+            ],
+            elapsed_time=0.0,
+        ),
+    )
+
+
+@pytest.fixture
 def dbt_runner_model_result(monkeypatch, mock_dbt_runner_model_success):
     _mock_dbt_runner_invoke_success = MagicMock(
         return_value=mock_dbt_runner_model_success
@@ -115,6 +150,19 @@ def dbt_runner_model_result(monkeypatch, mock_dbt_runner_model_success):
 def dbt_runner_ls_result(monkeypatch, mock_dbt_runner_ls_success):
     _mock_dbt_runner_ls_result = MagicMock(return_value=mock_dbt_runner_ls_success)
     monkeypatch.setattr("dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_ls_result)
+
+
+@pytest.fixture
+def dbt_runner_source_freshness_result(
+    monkeypatch, mock_dbt_runner_source_freshness_success
+):
+    _mock_dbt_runner_source_freshness_result = MagicMock(
+        return_value=mock_dbt_runner_source_freshness_success
+    )
+    monkeypatch.setattr(
+        "dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_source_freshness_result
+    )
+    return _mock_dbt_runner_source_freshness_result
 
 
 @pytest.fixture
@@ -278,6 +326,24 @@ def test_trigger_dbt_cli_command_extra_command_args(profiles_dir, dbt_cli_profil
 
     result = test_flow()
     assert isinstance(result, dbtRunnerResult)
+
+
+def test_trigger_dbt_cli_multi_word_command(
+    profiles_dir, dbt_cli_profile_bare, dbt_runner_source_freshness_result
+):
+    @flow
+    def test_flow():
+        return trigger_dbt_cli_command(
+            "dbt source freshness",
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+        )
+
+    result = test_flow()
+    assert isinstance(result, dbtRunnerResult)
+    dbt_runner_source_freshness_result.assert_called_once_with(
+        ["source", "freshness", "--profiles-dir", profiles_dir]
+    )
 
 
 class TestDbtCoreOperation:

@@ -157,7 +157,7 @@ async def trigger_dbt_cli_command(
         )
 
     # append the options
-    cli_args = [command]
+    cli_args = command.split(" ")
     cli_args.append("--profiles-dir")
     cli_args.append(profiles_dir)
     if project_dir is not None:
