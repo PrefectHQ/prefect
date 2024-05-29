@@ -112,7 +112,7 @@ def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     return image_name
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def registry(docker: DockerClient) -> Generator[str, None, None]:
     """Starts a Docker registry locally, returning its URL"""
 
