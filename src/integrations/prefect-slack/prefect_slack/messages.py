@@ -76,9 +76,9 @@ async def send_chat_message(
     logger.info("Posting chat message to %s", channel)
 
     client = slack_credentials.get_client()
-    result: AsyncSlackResponse = await client.chat_postMessage(
+    result: AsyncSlackResponse = await client.chat_postMessage(  # type: ignore
         channel=channel, text=text, blocks=slack_blocks, attachments=attachments
-    )  # type: ignore
+    )
     return result.data  # type: ignore
 
 
