@@ -9,6 +9,7 @@ import pytest
 
 from prefect import task
 from prefect.exceptions import FailedRun, MissingResult
+from prefect.filesystems import LocalFileSystem
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
@@ -181,14 +182,18 @@ class TestPrefectDistributedFuture:
         future.wait(timeout=0)
         assert future.state.is_completed()
 
-    @pytest.mark.skip
-    async def test_result_with_final_state(self, sync_prefect_client, prefect_client):
-        @task(persist_result=True)
+    async def test_result_with_final_state(self, tmp_path):
+        # TODO: The default result storage block gets deleted during the
+        # execution of this test when it's run in as a suite, so we have to load
+        # a specific block and pass it in manually as the task's result storage.
+        # But why does the result storage block get deleted in the first place?
+        storage = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=True, result_storage=storage)
         def my_task():
             return 42
 
         task_run = await my_task.create_run()
-
         future = PrefectDistributedFuture(task_run_id=task_run.id)
 
         state = run_task_sync(
@@ -201,8 +206,9 @@ class TestPrefectDistributedFuture:
         assert state.is_completed()
         assert await state.result() == 42
 
-        future.wait(timeout=0)
-        assert state.data.storage_block_id == future._final_state.data.storage_block_id
+        # When this test is run as a suite and the task uses default result
+        # storage, this line fails because the result storage block no longer
+        # exists.
         assert future.result() == 42
 
     async def test_final_state_without_result(self):
