@@ -1,14 +1,7 @@
 import asyncio
 import random
 
-from packaging.version import Version
-
-import prefect
 from prefect import flow, task
-
-# Support for subflows with the same name was added in 2.10.6
-# Support for the concurrent subflow fix in #10533 was released in 2.12.0
-MINIMUM_VERSION = "2.12.0"
 
 
 @task
@@ -19,8 +12,12 @@ async def dummy_task(j: int):
 
 @flow
 async def child_flow(i: int, n_tasks: int):
-    for j in range(n_tasks):
-        await dummy_task.with_options(name=f"dummy-task-{i}-{j}").submit(j)
+    await asyncio.gather(
+        *[
+            dummy_task.with_options(name=f"dummy-task-{i}-{j}")(j)
+            for j in range(n_tasks)
+        ]
+    )
 
 
 @flow
@@ -34,5 +31,4 @@ async def parent_flow(n_subflows: int, n_tasks_per_subflow: int):
 
 
 if __name__ == "__main__":
-    if Version(prefect.__version__) >= Version(MINIMUM_VERSION):
-        asyncio.run(parent_flow(10, 10))
+    asyncio.run(parent_flow(10, 10))

@@ -10,10 +10,9 @@ Usage:
 
 Example:
 
-    PREFECT_API_URL="http://localhost:4200" ./scripts/run-integration-flows.py
+    PREFECT_API_URL="http://localhost:4200/api" ./scripts/run-integration-flows.py
 """
 
-import os
 import runpy
 import sys
 from pathlib import Path
@@ -34,9 +33,6 @@ DEFAULT_PATH = (
 def run_flows(search_path: Union[str, Path]):
     count = 0
     print(f"Running integration tests with client version: {__version__}")
-    server_version = os.environ.get("TEST_SERVER_VERSION")
-    if server_version:
-        print(f"and server version: {server_version}")
 
     for file in sorted(Path(search_path).glob("**/*.py")):
         print(f" {file.relative_to(search_path)} ".center(90, "-"), flush=True)
