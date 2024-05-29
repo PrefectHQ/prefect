@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from unittest import mock
 from uuid import uuid4
@@ -110,18 +111,18 @@ def test_streams_nowhere_by_default(howdy: str, registry: str, capsys: CaptureFi
     assert not captured.out
 
 
-# def test_streams_progress_to_stdout(howdy: str, registry: str, capsys: CaptureFixture):
-#     push_image(howdy, registry, "howdy", stream_progress_to=sys.stdout)
+def test_streams_progress_to_stdout(howdy: str, registry: str, capsys: CaptureFixture):
+    push_image(howdy, registry, "howdy", stream_progress_to=sys.stdout)
 
-#     captured = capsys.readouterr()
-#     assert not captured.err
+    captured = capsys.readouterr()
+    assert not captured.err
 
-#     output = captured.out
+    output = captured.out
 
-#     # spot check a few things we should expect to find in the output
-#     assert "push refers to repository" in output
-#     assert "\nPreparing" in output
-#     assert "\nPushing [" in output or "\nLayer already exists" in output
+    # spot check a few things we should expect to find in the output
+    assert "push refers to repository" in output
+    assert "\nPreparing" in output
+    assert "\nPushing [" in output or "\nLayer already exists" in output
 
 
 # def test_streams_progress_to_given_stream(howdy: str, registry: str):
