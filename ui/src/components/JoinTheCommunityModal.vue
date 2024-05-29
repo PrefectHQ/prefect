@@ -1,5 +1,5 @@
 <template>
-  <p-modal :show-modal="true" title="Join the Prefect Community">
+  <p-modal v-model:show-modal="showModal" title="Join the Prefect Community">
     <template #header>
       <h2>Join the Community</h2>
     </template>
@@ -44,6 +44,8 @@
 
 <script setup lang="ts">
   import { ref } from 'vue'
+
+  const showModal = defineModel<boolean>('showModal')
 
   const joinSlackUrl = 'http://prefect.io/slack?utm_source=oss&utm_medium=oss&utm_campaign=oss_popup&utm_term=none&utm_content=none'
 
