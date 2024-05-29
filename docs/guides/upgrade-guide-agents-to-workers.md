@@ -11,9 +11,12 @@ search:
 ---
 # Upgrade from Agents to Workers
 
+!!! warning "This guide is for users who are on `prefect<3.0` who are upgrading from agents to workers."
+    If you are new to Prefect, we recommend starting with the [Prefect Cloud Quickstart](/getting-started/quickstart/) guide.
+
 Upgrading from agents to workers significantly enhances the experience of deploying flows. It simplifies the specification of each flow's infrastructure and runtime environment.
 
-A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure, and they specify the default configuration for jobs submitted to that infrastructure.
+A [worker](/concepts/work-pools/#worker-overview) is the fusion of an [agent](/concepts/agents/) with an [infrastructure block](https://docs.prefect.io/2.19.2/concepts/infrastructure/). Like agents, workers poll a work pool for flow runs that are scheduled to start. Like infrastructure blocks, workers are typed - they work with only one kind of infrastructure, and they specify the default configuration for jobs submitted to that infrastructure.
 
 Accordingly, workers are not a drop-in replacement for agents. **Using workers requires deploying flows differently.** In particular, deploying a flow with a worker does not involve specifying an infrastructure block. Instead, infrastructure configuration is specified on the [work pool](/concepts/work-pools/) and passed to each worker that polls work from that pool.
 
@@ -92,7 +95,7 @@ If you have existing deployments that use infrastructure blocks, you can quickly
 
 This new work pool will replace your infrastructure block.
 
-You can use the [`.publish_as_work_pool`](/api-ref/prefect/infrastructure/#prefect.infrastructure.Infrastructure.publish_as_work_pool) method on any infrastructure block to create a work pool with the same configuration.
+You can use the [`.publish_as_work_pool`](https://docs.prefect.io/2.19.2/api-ref/prefect/infrastructure/#prefect.infrastructure.Infrastructure.publish_as_work_pool) method on any infrastructure block to create a work pool with the same configuration.
 
 For example, if you have a `KubernetesJob` infrastructure block named 'my-k8s-job', you can create a work pool with the same configuration with this script:
 

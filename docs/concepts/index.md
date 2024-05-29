@@ -28,7 +28,6 @@ search:
 
 |  Block and Agent-Based Deployments                 | Description   |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| __[Infrastructure](/concepts/infrastructure)__           | Blocks that specify infrastructure for flow runs created by a deployment.   |
 | __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
 | __[Agents](/concepts/agents)__                           | Like untyped workers. |
 
