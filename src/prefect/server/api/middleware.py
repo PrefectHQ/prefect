@@ -1,9 +1,9 @@
 from typing import Awaitable, Callable
 
-from prefect._vendor.fastapi import status
-from prefect._vendor.starlette.middleware.base import BaseHTTPMiddleware
-from prefect._vendor.starlette.requests import Request
-from prefect._vendor.starlette.responses import JSONResponse, Response
+from fastapi import status
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from prefect import settings
 from prefect.server import models

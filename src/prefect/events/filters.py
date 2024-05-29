@@ -2,10 +2,10 @@ from typing import List, Optional, Tuple, cast
 from uuid import UUID
 
 import pendulum
-from pydantic.v1 import Field, PrivateAttr
+from pydantic import Field, PrivateAttr
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
@@ -14,7 +14,7 @@ from .schemas.events import Event, Resource, ResourceSpecification
 class AutomationFilterCreated(PrefectBaseModel):
     """Filter by `Automation.created`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include automations created before this datetime",
     )
@@ -41,18 +41,19 @@ class AutomationFilter(PrefectBaseModel):
 class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-arg]
     """A base class for filtering event data."""
 
-    _top_level_filter: "EventFilter | None" = PrivateAttr(None)
+    _top_level_filter: Optional["EventFilter"] = PrivateAttr(None)
 
     def get_filters(self) -> List["EventDataFilter"]:
-        return [
+        filters: List["EventDataFilter"] = [
             filter
             for filter in [
-                getattr(self, name)
-                for name, field in self.__fields__.items()
-                if issubclass(field.type_, EventDataFilter)
+                getattr(self, name) for name, field in self.model_fields.items()
             ]
-            if filter
+            if isinstance(filter, EventDataFilter)
         ]
+        for filter in filters:
+            filter._top_level_filter = self._top_level_filter
+        return filters
 
     def includes(self, event: Event) -> bool:
         """Does the given event match the criteria of this filter?"""
@@ -64,15 +65,15 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-ar
 
 
 class EventOccurredFilter(EventDataFilter):
-    since: DateTimeTZ = Field(
+    since: DateTime = Field(
         default_factory=lambda: cast(
-            DateTimeTZ,
+            DateTime,
             pendulum.now("UTC").start_of("day").subtract(days=180),
         ),
         description="Only include events after this time (inclusive)",
     )
-    until: DateTimeTZ = Field(
-        default_factory=lambda: cast(DateTimeTZ, pendulum.now("UTC")),
+    until: DateTime = Field(
+        default_factory=lambda: cast(DateTime, pendulum.now("UTC")),
         description="Only include events prior to this time (inclusive)",
     )
 

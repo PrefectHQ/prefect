@@ -821,7 +821,7 @@ class TestS3Bucket:
 
     def test_credentials_are_correct_type(self, credentials):
         s3_bucket = S3Bucket(bucket_name="bucket", credentials=credentials)
-        s3_bucket_parsed = S3Bucket.parse_obj(
+        s3_bucket_parsed = S3Bucket.model_validate(
             {"bucket_name": "bucket", "credentials": dict(credentials)}
         )
         assert isinstance(s3_bucket.credentials, type(credentials))

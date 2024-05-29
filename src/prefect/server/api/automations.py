@@ -2,10 +2,9 @@ from typing import Optional, Sequence
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
-from prefect._vendor.fastapi.exceptions import RequestValidationError
-from pydantic.v1 import ValidationError
-from pydantic.v1.error_wrappers import ErrorWrapper
+from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.api.validation import (
@@ -77,7 +76,7 @@ async def create_automation(
             detail=f"Error creating automation: {' '.join(errors)}",
         )
 
-    automation_dict = automation.dict()
+    automation_dict = automation.model_dump()
     owner_resource = automation_dict.pop("owner_resource", None)
 
     async with db.session_context(begin_transaction=True) as session:
@@ -157,8 +156,8 @@ async def patch_automation(
             )
     except ValidationError as e:
         raise RequestValidationError(
-            errors=[ErrorWrapper(e, "automation")],
-            body=automation.dict(json_compatible=True),
+            errors=e.errors(),
+            body=automation.model_dump(mode="json"),
         )
 
     if not updated:

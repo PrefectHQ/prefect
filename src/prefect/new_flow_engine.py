@@ -72,13 +72,13 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
     ## TODO: add error handling to update state and log tracebacks
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
-    client = get_client(sync_client=True)
+    client = cast(SyncPrefectClient, get_client(sync_client=True))
+
     flow_run = client.read_flow_run(flow_run_id)
     if entrypoint:
         flow = load_flow_from_entrypoint(entrypoint)
     else:
-        async_client = get_client()
-        flow = run_coro_as_sync(load_flow_from_flow_run(flow_run, client=async_client))
+        flow = run_coro_as_sync(load_flow_from_flow_run(flow_run))
 
     return flow_run, flow
 
@@ -317,7 +317,6 @@ class FlowRunEngine(Generic[P, R]):
 
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
-                    client=self.client,
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
                     wait_for=self.wait_for,
@@ -571,7 +570,6 @@ class FlowRunEngine(Generic[P, R]):
 async def run_flow_async(
     flow: Flow[P, Coroutine[Any, Any, R]],
     flow_run: Optional[FlowRun] = None,
-    flow_run_id: Optional[UUID] = None,
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
@@ -582,7 +580,10 @@ async def run_flow_async(
     We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
     """
     engine = FlowRunEngine[P, R](
-        flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
+        flow=flow,
+        parameters=flow_run.parameters if flow_run else parameters,
+        flow_run=flow_run,
+        wait_for=wait_for,
     )
 
     # This is a context manager that keeps track of the state of the flow run.
@@ -626,6 +627,8 @@ def run_flow_sync(
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
+    parameters = flow_run.parameters if flow_run else parameters
+
     engine = FlowRunEngine[P, R](
         flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
     )

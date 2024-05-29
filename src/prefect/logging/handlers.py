@@ -221,7 +221,7 @@ class APILogHandler(logging.Handler):
                 getattr(record, "created", None) or time.time()
             ),
             message=self.format(record),
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         log_size = log["__payload_size__"] = self._get_payload_size(log)
         if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():

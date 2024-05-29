@@ -3,11 +3,12 @@ Utilities for working with Python callables.
 """
 
 import inspect
+import warnings
 from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
-import pydantic.v1 as pydantic
+import pydantic
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
@@ -19,11 +20,15 @@ from prefect._internal.pydantic.v2_schema import (
     process_v2_params,
 )
 from prefect.exceptions import (
+    MappingLengthMismatch,
+    MappingMissingIterable,
     ParameterBindError,
     ReservedArgumentError,
     SignatureMismatchError,
 )
 from prefect.logging.loggers import disable_logger
+from prefect.utilities.annotations import allow_failure, quote, unmapped
+from prefect.utilities.collections import isiterable
 
 
 def get_call_parameters(
@@ -216,15 +221,11 @@ class ParameterSchema(pydantic.BaseModel):
     title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"
     properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
-    required: List[str] = None
-    definitions: Optional[Dict[str, Any]] = None
+    required: List[str] = pydantic.Field(default_factory=list)
+    definitions: Dict[str, Any] = pydantic.Field(default_factory=dict)
 
-    def dict(self, *args, **kwargs):
-        """Exclude `None` fields by default to comply with
-        the OpenAPI spec.
-        """
-        kwargs.setdefault("exclude_none", True)
-        return super().dict(*args, **kwargs)
+    def model_dump_for_openapi(self) -> Dict[str, Any]:
+        return self.model_dump(mode="python", exclude_none=True)
 
 
 def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
@@ -272,21 +273,31 @@ def process_v1_params(
         name = param.name
 
     type_ = Any if param.annotation is inspect._empty else param.annotation
-    field = pydantic.Field(
-        default=... if param.default is param.empty else param.default,
-        title=param.name,
-        description=docstrings.get(param.name, None),
-        alias=aliases.get(name),
-        position=position,
-    )
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+        )
+        field = pydantic.Field(
+            default=... if param.default is param.empty else param.default,
+            title=param.name,
+            description=docstrings.get(param.name, None),
+            alias=aliases.get(name),
+            position=position,
+        )
     return name, type_, field
 
 
 def create_v1_schema(name_: str, model_cfg, **model_fields):
-    model: "pydantic.BaseModel" = pydantic.create_model(
-        name_, __config__=model_cfg, **model_fields
-    )
-    return model.schema(by_alias=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+        )
+
+        model: "pydantic.BaseModel" = pydantic.create_model(
+            name_, __config__=model_cfg, **model_fields
+        )
+        return model.schema(by_alias=True)
 
 
 def parameter_schema(fn: Callable) -> ParameterSchema:
@@ -314,15 +325,19 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
 
-    class ModelConfig:
-        arbitrary_types_allowed = True
-
     if not has_v1_type_as_param(signature):
         create_schema = create_v2_schema
         process_params = process_v2_params
+
+        config = pydantic.ConfigDict(arbitrary_types_allowed=True)
     else:
         create_schema = create_v1_schema
         process_params = process_v1_params
+
+        class ModelConfig:
+            arbitrary_types_allowed = True
+
+        config = ModelConfig
 
     for position, param in enumerate(signature.parameters.values()):
         name, type_, field = process_params(
@@ -331,16 +346,14 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
         try:
-            create_schema(
-                "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
-            )
+            create_schema("CheckParameter", model_cfg=config, **{name: (type_, field)})
         except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)
 
     # Generate the final model and schema
-    schema = create_schema("Parameters", model_cfg=ModelConfig, **model_fields)
+    schema = create_schema("Parameters", model_cfg=config, **model_fields)
     return ParameterSchema(**schema)
 
 
@@ -354,3 +367,75 @@ def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]
             raise ReservedArgumentError(
                 f"{argument!r} is a reserved argument name and cannot be used."
             )
+
+
+def expand_mapping_parameters(
+    func: Callable, parameters: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    Generates a list of call parameters to be used for individual calls in a mapping
+    operation.
+
+    Args:
+        func: The function to be called
+        parameters: A dictionary of parameters with iterables to be mapped over
+
+    Returns:
+        List: A list of dictionaries to be used as parameters for each
+            call in the mapping operation
+    """
+    # Ensure that any parameters in kwargs are expanded before this check
+    parameters = explode_variadic_parameter(func, parameters)
+
+    iterable_parameters = {}
+    static_parameters = {}
+    annotated_parameters = {}
+    for key, val in parameters.items():
+        if isinstance(val, (allow_failure, quote)):
+            # Unwrap annotated parameters to determine if they are iterable
+            annotated_parameters[key] = val
+            val = val.unwrap()
+
+        if isinstance(val, unmapped):
+            static_parameters[key] = val.value
+        elif isiterable(val):
+            iterable_parameters[key] = list(val)
+        else:
+            static_parameters[key] = val
+
+    if not len(iterable_parameters):
+        raise MappingMissingIterable(
+            "No iterable parameters were received. Parameters for map must "
+            f"include at least one iterable. Parameters: {parameters}"
+        )
+
+    iterable_parameter_lengths = {
+        key: len(val) for key, val in iterable_parameters.items()
+    }
+    lengths = set(iterable_parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received iterable parameters with different lengths. Parameters for map"
+            f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0]
+
+    call_parameters_list = []
+    for i in range(map_length):
+        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
+        call_parameters.update({key: value for key, value in static_parameters.items()})
+
+        # Add default values for parameters; these are skipped earlier since they should
+        # not be mapped over
+        for key, value in get_parameter_defaults(func).items():
+            call_parameters.setdefault(key, value)
+
+        # Re-apply annotations to each key again
+        for key, annotation in annotated_parameters.items():
+            call_parameters[key] = annotation.rewrap(call_parameters[key])
+
+        # Collapse any previously exploded kwargs
+        call_parameters_list.append(collapse_variadic_parameters(func, call_parameters))
+
+    return call_parameters_list

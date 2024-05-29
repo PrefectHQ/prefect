@@ -26,6 +26,8 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.from_thread
+import anyio.to_thread
 import sniffio
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
@@ -52,6 +54,9 @@ RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=F
 RUNNING_ASYNC_FLAG = ContextVar("run_async", default=False)
 BACKGROUND_TASKS: set[asyncio.Task] = set()
 background_task_lock = threading.Lock()
+
+# Thread-local storage to keep track of worker thread state
+_thread_local = threading.local()
 
 logger = get_logger()
 
@@ -173,10 +178,10 @@ def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
 
 
 def run_coro_as_sync(
-    coroutine: Awaitable,
+    coroutine: Awaitable[R],
     force_new_thread: bool = False,
     wait_for_result: bool = True,
-) -> Optional[Any]:
+) -> R:
     """
     Runs a coroutine from a synchronous context, as if it were a synchronous
     function.
@@ -240,7 +245,7 @@ async def run_sync_in_worker_thread(
 ) -> T:
     """
     Runs a sync function in a new worker thread so that the main thread's event loop
-    is not blocked
+    is not blocked.
 
     Unlike the anyio function, this defaults to a cancellable thread and does not allow
     passing arguments to the anyio function so users can pass kwargs to their function.
@@ -249,9 +254,15 @@ async def run_sync_in_worker_thread(
     thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    return await anyio.to_thread.run_sync(
-        call, cancellable=True, limiter=get_thread_limiter()
+    result = await anyio.to_thread.run_sync(
+        call_with_mark, call, abandon_on_cancel=True, limiter=get_thread_limiter()
     )
+    return result
+
+
+def call_with_mark(call):
+    mark_as_worker_thread()
+    return call()
 
 
 def run_async_from_worker_thread(
@@ -269,13 +280,12 @@ def run_async_in_new_loop(__fn: Callable[..., Awaitable[T]], *args: Any, **kwarg
     return anyio.run(partial(__fn, *args, **kwargs))
 
 
+def mark_as_worker_thread():
+    _thread_local.is_worker_thread = True
+
+
 def in_async_worker_thread() -> bool:
-    try:
-        anyio.from_thread.threadlocals.current_async_module
-    except AttributeError:
-        return False
-    else:
-        return True
+    return getattr(_thread_local, "is_worker_thread", False)
 
 
 def in_async_main_thread() -> bool:

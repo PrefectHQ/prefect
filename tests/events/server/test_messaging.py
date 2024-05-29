@@ -19,7 +19,7 @@ def event1() -> ReceivedEvent:
     return ReceivedEvent(
         occurred=pendulum.now("UTC"),
         event="was.tubular",
-        resource=Resource.parse_obj({"prefect.resource.id": "my.kickflip"}),
+        resource=Resource.model_validate({"prefect.resource.id": "my.kickflip"}),
         payload={"goodbye": "yellow brick road"},
         id=uuid4(),
     )
@@ -30,7 +30,7 @@ def event2() -> ReceivedEvent:
     return ReceivedEvent(
         occurred=pendulum.now("UTC"),
         event="was.super.gnarly",
-        resource=Resource.parse_obj({"prefect.resource.id": "my.ollie"}),
+        resource=Resource.model_validate({"prefect.resource.id": "my.ollie"}),
         payload={"where": "the dogs of society howl"},
         id=uuid4(),
     )
@@ -41,7 +41,7 @@ def event3() -> ReceivedEvent:
     return ReceivedEvent(
         occurred=pendulum.now("UTC"),
         event="was.extra.spicy",
-        resource=Resource.parse_obj({"prefect.resource.id": "my.heelflip"}),
+        resource=Resource.model_validate({"prefect.resource.id": "my.heelflip"}),
         payload={"you": "can't plant me in your penthouse"},
         id=uuid4(),
     )

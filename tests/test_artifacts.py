@@ -1,13 +1,6 @@
 import json
 from typing import List
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 import pytest
 
 from prefect import flow, task
@@ -41,7 +34,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        result = schemas.core.Artifact.model_validate(response.json())
         assert result.data == f"[{my_link}]({my_link})"
 
     async def test_create_and_read_link_artifact_with_linktext_succeeds(
@@ -57,7 +50,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        result = schemas.core.Artifact.model_validate(response.json())
         assert result.data == f"[{link_text}]({my_link})"
 
     async def test_create_link_artifact_in_task_succeeds(self, client):
@@ -81,7 +74,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_link_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_link_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id == task_run_id
@@ -102,7 +95,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_link_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_link_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
@@ -128,7 +121,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_link_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_link_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
@@ -166,7 +159,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        result = schemas.core.Artifact.model_validate(response.json())
         assert result.data == my_markdown
 
     async def test_create_markdown_artifact_in_task_succeeds(self, client):
@@ -190,9 +183,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_markdown_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_markdown_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id == task_run_id
@@ -213,9 +204,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_markdown_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_markdown_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
@@ -240,9 +229,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_markdown_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_markdown_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
@@ -281,7 +268,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        result = schemas.core.Artifact.model_validate(response.json())
         result_data = json.loads(result.data)
         assert result_data == my_table
 
@@ -297,7 +284,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        result = schemas.core.Artifact.model_validate(response.json())
 
         result_data = json.loads(result.data)
         assert result_data == my_table
@@ -314,7 +301,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        result = schemas.core.Artifact.model_validate(response.json())
         result_data = json.loads(result.data)
         assert result_data == my_table
 
@@ -340,9 +327,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_table_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_table_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id == task_run_id
@@ -366,9 +351,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_table_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_table_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id is None
@@ -396,9 +379,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_table_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_table_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_table_artifact.flow_run_id == flow_run_id
         result_data = json.loads(my_table_artifact.data)
@@ -449,7 +430,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
         my_data = json.loads(my_artifact.data)
         assert my_data == {"a": [1, 3], "b": [2, None]}
 
@@ -478,7 +459,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
         my_data = json.loads(my_artifact.data)
         assert my_data == [
             {"a": 1, "b": 2},
