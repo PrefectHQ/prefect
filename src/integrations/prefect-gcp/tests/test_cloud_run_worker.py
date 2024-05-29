@@ -59,7 +59,6 @@ def flow_run():
 def cloud_run_worker_job_config(service_account_info, jobs_body):
     return CloudRunWorkerJobConfiguration(
         name="my-job-name",
-        image="gcr.io//not-a/real-image",
         region="middle-earth2",
         job_body=jobs_body,
         credentials=GcpCredentials(service_account_info=service_account_info),
@@ -70,7 +69,6 @@ def cloud_run_worker_job_config(service_account_info, jobs_body):
 def cloud_run_worker_job_config_noncompliant_name(service_account_info, jobs_body):
     return CloudRunWorkerJobConfiguration(
         name="MY_JOB_NAME",
-        image="gcr.io//not-a/real-image",
         region="middle-earth2",
         job_body=jobs_body,
         credentials=GcpCredentials(service_account_info=service_account_info),
@@ -107,13 +105,13 @@ class TestCloudRunWorkerJobConfiguration:
         assert container["env"][0]["name"] == "a"
         assert container["env"][0]["value"] == "b"
 
-    def test_populate_image_if_not_present(self, cloud_run_worker_v2_job_config):
-        cloud_run_worker_v2_job_config._populate_image_if_not_present()
+    def test_populate_image_if_not_present(self, cloud_run_worker_job_config):
+        cloud_run_worker_job_config._populate_image_if_not_present()
 
         assert (
-            cloud_run_worker_v2_job_config.job_body["template"]["template"][
-                "containers"
-            ][0]["image"]
+            cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+                "template"
+            ]["spec"]["containers"][0]["image"]
             == f"docker.io/{get_prefect_image_name()}"
         )
 
