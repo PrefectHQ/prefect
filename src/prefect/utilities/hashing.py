@@ -1,8 +1,9 @@
+# pyright: reportPrivateUsage=false
 import hashlib
 import sys
 from functools import partial
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import cloudpickle  # type: ignore
 
@@ -16,7 +17,7 @@ else:
 
 def stable_hash(
     *args: Union[str, bytes],
-    hash_algo: Callable[..., hashlib._Hash] = _md5,  # type: ignore
+    hash_algo: Callable[..., hashlib._Hash] = _md5,  # type: ignore[no-private-members]
 ) -> str:  # type: ignore
     """Given some arguments, produces a stable 64-bit hash of their contents.
 
@@ -37,7 +38,7 @@ def stable_hash(
     return h.hexdigest()
 
 
-def file_hash(path: str, hash_algo: Callable[..., hashlib._Hash] = _md5) -> str:  # type: ignore
+def file_hash(path: str, hash_algo: Callable[..., hashlib._Hash] = _md5) -> str:
     """Given a path to a file, produces a stable hash of the file contents.
 
     Args:
@@ -52,8 +53,8 @@ def file_hash(path: str, hash_algo: Callable[..., hashlib._Hash] = _md5) -> str:
 
 
 def hash_objects(
-    *args, hash_algo: Callable[..., hashlib._Hash] = _md5, **kwargs
-) -> Optional[str]:  # type: ignore
+    *args: Any, hash_algo: Callable[..., "hashlib._Hash"] = _md5, **kwargs: Any
+) -> Optional[str]:
     """
     Attempt to hash objects by dumping to JSON or serializing with cloudpickle.
     On failure of both, `None` will be returned
