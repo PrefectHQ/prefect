@@ -26,9 +26,19 @@ on:
 
 jobs:
   compatibility-tests:
-    name: "Integration tests"
+    name: "Integration tests against server@${{ matrix.server-version.version }}"
     timeout-minutes: 10
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        server-version: [
+          # These versions correspond to Prefect image tags, the patch version is
+          # excluded to always pull the latest patch of each minor version.  The ref
+          # should generally be set to the latest patch release for that version.
+          {version: "2.19", ref: "2.19.2", image: "prefecthq/prefect:2.19-python3.10"},
+          {version: "main", ref: "main"},
+        ]
 
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +67,26 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system .
 
-      - name: Start prefect server
+      - name: Start prefect server@${{ matrix.server-version.version }}"
+        if: matrix.server-version.image
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_LOGGING_SERVER_LEVEL: DEBUG
+        run: >
+          docker run \
+            --name "prefect-server" \
+            -d \
+            -p 4200:4200 \
+            ${{ matrix.server-version.image }} \
+            prefect server start --analytics-off --host 0.0.0.0
+
+          ./scripts/wait-for-server.py
+
+          # TODO: Replace `wait-for-server` with dedicated command
+          #       https://github.com/PrefectHQ/prefect/issues/6990
+
+      - name: Start prefect server@${{ matrix.server-version.version }}"
+        if: !matrix.server-version.image
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
@@ -79,3 +108,4 @@ jobs:
         if: always()
         run: |
           cat server.log || echo "No logs available"
+          docker logs prefect-server || echo "No logs available"
