@@ -142,10 +142,13 @@ class PrefectDistributedFuture(PrefectFuture):
     """
 
     def __init__(self, *args, **kwargs):
-        client = kwargs.pop("client", None)
-        self._client = client
+        self._client = kwargs.pop("client", None)
         self._task_run = None
+
+        # This future doesn't wrap an external future but instead wraps the task
+        # run itself.
         kwargs["wrapped_future"] = None
+
         super().__init__(*args, **kwargs)
 
     @property
