@@ -17,3 +17,8 @@ services:
       - postgres
       - -c
       - max_connections=250
+  registry:
+      image: registry:2
+      container_name: prefect-test-registry
+      ports:
+        - "5555:5000"
