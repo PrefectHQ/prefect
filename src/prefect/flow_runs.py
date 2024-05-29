@@ -42,7 +42,6 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.engine import (
-    _observed_flow_pauses,
     propose_state,
 )
 
@@ -453,3 +452,11 @@ async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
             raise FlowPauseTimeout("Flow run can no longer be resumed.")
         else:
             raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
+
+
+def _observed_flow_pauses(context: FlowRunContext) -> int:
+    if "counter" not in context.observed_flow_pauses:
+        context.observed_flow_pauses["counter"] = 1
+    else:
+        context.observed_flow_pauses["counter"] += 1
+    return context.observed_flow_pauses["counter"]
