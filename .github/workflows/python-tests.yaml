@@ -428,6 +428,7 @@ jobs:
           --name "prefect-test-registry"
           --detach
           --publish 5555:5000
+          registry:2
 
         # Parallelize tests by scope to reduce expensive service fixture duplication
         # Do not allow the test suite to build images, as we want the prebuilt images to be tested
