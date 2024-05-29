@@ -67,7 +67,7 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system .
 
-      - name: Start server@${{ matrix.server-version.version }}"
+      - name: Start server@${{ matrix.server-version.version }}
         if: ${{ matrix.server-version.version != 'main' }}
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
