@@ -19,27 +19,21 @@ from prefect.utilities.collections import StopVisiting, visit_collection
 F = TypeVar("F")
 
 
-class PrefectFuture(abc.ABC, Generic[F]):
+class PrefectFuture(abc.ABC):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
     to complete and to retrieve the result of the task run.
     """
 
-    def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
+    def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._wrapped_future = wrapped_future
         self._final_state = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
         """The ID of the task run associated with this future"""
         return self._task_run_id
-
-    @property
-    def wrapped_future(self) -> F:
-        """The underlying future object wrapped by this Prefect future"""
-        return self._wrapped_future
 
     @property
     def state(self) -> State:
@@ -60,7 +54,7 @@ class PrefectFuture(abc.ABC, Generic[F]):
         ...
         """
         Wait for the task run to complete. 
-        
+
         If the task run has already completed, this method will return immediately.
 
         Args:
@@ -90,7 +84,22 @@ class PrefectFuture(abc.ABC, Generic[F]):
         """
 
 
-class PrefectConcurrentFuture(PrefectFuture[concurrent.futures.Future]):
+class PrefectWrappedFuture(PrefectFuture, Generic[F]):
+    """
+    A Prefect future that wraps another future object.
+    """
+
+    def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
+        self._wrapped_future = wrapped_future
+        super().__init__(task_run_id)
+
+    @property
+    def wrapped_future(self) -> F:
+        """The underlying future object wrapped by this Prefect future"""
+        return self._wrapped_future
+
+
+class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
     """
     A Prefect future that wraps a concurrent.futures.Future. This future is used
     when the task run is submitted to a ThreadPoolExecutor.
@@ -144,11 +153,6 @@ class PrefectDistributedFuture(PrefectFuture):
     def __init__(self, *args, **kwargs):
         self._client = kwargs.pop("client", None)
         self._task_run = None
-
-        # This future doesn't wrap an external future but instead wraps the task
-        # run itself.
-        kwargs["wrapped_future"] = None
-
         super().__init__(*args, **kwargs)
 
     @property

@@ -13,14 +13,14 @@ from prefect.filesystems import LocalFileSystem
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
-    PrefectFuture,
+    PrefectWrappedFuture,
     resolve_futures_to_states,
 )
 from prefect.states import Completed, Failed
 from prefect.task_engine import run_task_sync
 
 
-class MockFuture(PrefectFuture):
+class MockFuture(PrefectWrappedFuture):
     def __init__(self, data: Any = 42):
         super().__init__(uuid.uuid4(), Future())
         self._final_state = Completed(data=data)
