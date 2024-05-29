@@ -325,3 +325,39 @@ class TestSnowflakeConnector:
 
         assert snowflake_connector._connection is None
         assert snowflake_connector._unique_cursors is None
+
+    async def test_fetch_one_async(self, snowflake_connector):
+        async def fetch_one_async_wrapper():
+            return await snowflake_connector.fetch_one_async(
+                "SELECT 1", parameters=None
+            )
+
+        result = await fetch_one_async_wrapper()
+        assert result == (0,)
+
+    async def test_fetch_many_async(self, snowflake_connector):
+        async def fetch_many_async_wrapper():
+            return await snowflake_connector.fetch_many_async(
+                "SELECT 1", parameters=None, size=3
+            )
+
+        result = await fetch_many_async_wrapper()
+        assert result == [(0,), (1,), (2,)]
+
+    async def test_fetch_all_async(self, snowflake_connector):
+        async def fetch_all_async_wrapper():
+            return await snowflake_connector.fetch_all_async(
+                "SELECT 1", parameters=None
+            )
+
+        result = await fetch_all_async_wrapper()
+        assert result == [(0,), (1,), (2,), (3,), (4,)]
+
+    async def test_execute_many_async(self, snowflake_connector):
+        async def execute_many_async_wrapper():
+            await snowflake_connector.execute_many_async(
+                "INSERT INTO table VALUES (%(val)s)",
+                seq_of_parameters=[{"val": 1}, {"val": 2}],
+            )
+
+        await execute_many_async_wrapper()
