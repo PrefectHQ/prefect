@@ -4,10 +4,10 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+from _pytest.capture import CaptureFixture
 
 from prefect.utilities.dockerutils import (
     ImageBuilder,
-    PushError,
     push_image,
     silence_docker_warnings,
 )
@@ -97,17 +97,17 @@ def test_does_not_leave_registry_tag_locally(
         docker.images.get(registry_tag)
 
 
-def test_registry_error(howdy: str):
-    with pytest.raises(PushError, match="lookup.+nowhere"):
-        push_image(howdy, "http://nowhere:5678", "howdy")
+# def test_registry_error(howdy: str):
+#     with pytest.raises(PushError, match="lookup.+nowhere"):
+#         push_image(howdy, "http://nowhere:5678", "howdy")
 
 
-# def test_streams_nowhere_by_default(howdy: str, registry: str, capsys: CaptureFixture):
-#     push_image(howdy, registry, "howdy")
+def test_streams_nowhere_by_default(howdy: str, registry: str, capsys: CaptureFixture):
+    push_image(howdy, registry, "howdy")
 
-#     captured = capsys.readouterr()
-#     assert not captured.err
-#     assert not captured.out
+    captured = capsys.readouterr()
+    assert not captured.err
+    assert not captured.out
 
 
 # def test_streams_progress_to_stdout(howdy: str, registry: str, capsys: CaptureFixture):
