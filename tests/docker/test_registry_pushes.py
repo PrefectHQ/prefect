@@ -71,16 +71,16 @@ def test_pushing_to_registry_with_tag(docker: DockerClient, registry: str, howdy
     assert greeting.startswith("hello from the registry")
 
 
-# def test_pushing_with_owner(
-#     docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
-# ):
-#     tag_prefix = slugify(frozen_now.isoformat())[:20]
+def test_pushing_with_owner(
+    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
+):
+    tag_prefix = slugify(frozen_now.isoformat())[:20]
 
-#     registry_tag = push_image(howdy, registry, "prefecthq/howdy")
-#     assert registry_tag.startswith(f"localhost:5555/prefecthq/howdy:{tag_prefix}")
+    registry_tag = push_image(howdy, registry, "prefecthq/howdy")
+    assert registry_tag.startswith(f"localhost:5555/prefecthq/howdy:{tag_prefix}")
 
-#     greeting = docker.containers.run(registry_tag, remove=True).decode().strip()
-#     assert greeting.startswith("hello from the registry")
+    greeting = docker.containers.run(registry_tag, remove=True).decode().strip()
+    assert greeting.startswith("hello from the registry")
 
 
 # def test_does_not_leave_registry_tag_locally(
