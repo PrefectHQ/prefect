@@ -76,7 +76,7 @@ from pydantic import (
     fields,
     model_validator,
 )
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -1717,9 +1717,14 @@ for __name, __setting in SETTING_VARIABLES.items():
 
 # Dynamically create a pydantic model that includes all of our settings
 
+
+class PrefectBaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+
 SettingsFieldsMixin: Type[BaseSettings] = create_model(
     "SettingsFieldsMixin",
-    __base__=BaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
+    __base__=PrefectBaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
     **{
         setting.name: (setting.type, setting.field)
         for setting in SETTING_VARIABLES.values()
@@ -2001,6 +2006,7 @@ class Profile(BaseModel):
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path] = None
+    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     @field_validator("settings", mode="before")
     def map_names_to_settings(cls, value):
@@ -2038,8 +2044,6 @@ class Profile(BaseModel):
                 )
                 changed.append((setting, setting.deprecated_renamed_to))
         return changed
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ProfilesCollection:
