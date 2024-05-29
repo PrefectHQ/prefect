@@ -25,8 +25,14 @@ def prefect_db():
     """
     Sets up test harness for temporary DB during test runs.
     """
-    with prefect_test_harness():
-        yield
+    try:
+        with prefect_test_harness():
+            yield
+    except OSError as e:
+        if "Directory not empty" in str(e):
+            pass
+        else:
+            raise e
 
 
 @pytest.fixture(autouse=True)
