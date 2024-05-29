@@ -164,6 +164,8 @@ async def unset(
 
     async with get_client() as client:
         try:
+            if not typer.confirm(f"Are you sure you want to unset variable {name!r}?"):
+                exit_with_error("Unset aborted.")
             await client.delete_variable_by_name(
                 name=name,
             )
