@@ -12,8 +12,12 @@ async def dummy_task(j: int):
 
 @flow
 async def child_flow(i: int, n_tasks: int):
-    for j in range(n_tasks):
-        await dummy_task.with_options(name=f"dummy-task-{i}-{j}").submit(j)
+    await asyncio.gather(
+        *[
+            dummy_task.with_options(name=f"dummy-task-{i}-{j}")(j)
+            for j in range(n_tasks)
+        ]
+    )
 
 
 @flow
@@ -27,8 +31,4 @@ async def parent_flow(n_subflows: int, n_tasks_per_subflow: int):
 
 
 if __name__ == "__main__":
-    raise NotImplementedError(
-        "This example is not ready in Prefect 3.0, as gathering async "
-        "subflows is not yet supported."
-    )
     asyncio.run(parent_flow(10, 10))
