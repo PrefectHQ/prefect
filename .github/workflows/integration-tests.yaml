@@ -68,7 +68,7 @@ jobs:
           uv pip install --upgrade --system .
 
       - name: Start prefect server@${{ matrix.server-version.version }}"
-        if: matrix.server-version.image
+        if: matrix.server-version.version != 'main'
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
@@ -88,7 +88,7 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Start prefect server@${{ matrix.server-version.version }}"
-        if: !matrix.server-version.image
+        if: matrix.server-version.version == 'main'
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
