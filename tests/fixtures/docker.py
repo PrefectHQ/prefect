@@ -1,9 +1,12 @@
+import os
 import sys
+import time
 from contextlib import contextmanager
 from typing import Generator
 
 import docker.errors as docker_errors
 import pytest
+import requests
 from typer.testing import CliRunner
 
 import prefect
@@ -110,26 +113,55 @@ def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     return image_name
 
 
-@pytest.fixture(scope="module")
+def _wait_for_registry(url: str, timeout: int = 30) -> bool:
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            response = requests.get(f"{url}/v2/")
+            if response.status_code == 200:
+                return True
+        except requests.ConnectionError:
+            pass
+        time.sleep(1)
+    return False
+
+
+@pytest.fixture(scope="session")
 def registry(docker: DockerClient) -> Generator[str, None, None]:
     """Starts a Docker registry locally, returning its URL"""
 
-    with silence_docker_warnings():
-        # Clean up any previously-created registry:
-        try:
-            preexisting: Container = docker.containers.get("orion-test-registry")
-            _safe_remove_container(preexisting)  # pragma: no cover
-        except NotFound:
-            pass
+    registry_url = "http://localhost:5555"
+    worker_id = os.getenv("PYTEST_XDIST_WORKER", "gw0")
 
-        container: Container = docker.containers.run(
-            "registry:2",
-            detach=True,
-            remove=True,
-            name="orion-test-registry",
-            ports={"5000/tcp": 5555},
-        )
+    if worker_id == "gw0":
+        with silence_docker_warnings():
+            # Clean up any previously-created registry:
+            try:
+                preexisting: Container = docker.containers.get("orion-test-registry")
+                _safe_remove_container(preexisting)  # pragma: no cover
+            except NotFound:
+                pass
+
+            docker.containers.run(
+                "registry:2",
+                detach=True,
+                remove=True,
+                name="orion-test-registry",
+                ports={"5000/tcp": 5555},
+            )
+
+    if not _wait_for_registry(registry_url):
+        raise RuntimeError("Docker registry did not become ready in time.")
+
+    yield registry_url
+
+
+def pytest_sessionfinish(session, exitstatus):
+    worker_id = os.getenv("PYTEST_XDIST_WORKER", "gw0")
+    if worker_id == "gw0":
+        docker = session.config._docker_client
         try:
-            yield "http://localhost:5555"
-        finally:
+            container = docker.containers.get("orion-test-registry")
             container.remove(force=True)
+        except Exception as e:
+            print(f"Failed to remove the `orion-test-registry` container: {e}")
