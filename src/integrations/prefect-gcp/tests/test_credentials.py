@@ -9,6 +9,7 @@ from prefect_gcp.credentials import ClientType, _get_job_service_async_client_ca
 
 from prefect import flow, task
 from prefect.blocks.core import Block
+from prefect.types import SecretDict
 
 
 def _get_first_file_in_root():
@@ -307,6 +308,8 @@ def test_get_client(gcp_credentials, input_type, client_type):
     assert gcp_credentials.get_client(client_type=client_type)
 
 
-def test_get_client_error():
+def test_get_client_error(service_account_info):
     with pytest.raises(ValueError, match="'cool' is not a valid ClientType"):
-        assert GcpCredentials().get_client(client_type="cool")
+        assert GcpCredentials(
+            service_account_info=SecretDict(secret_value=service_account_info)
+        ).get_client(client_type="cool")
