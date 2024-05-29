@@ -43,7 +43,7 @@ async def _submit_flow_to_runner(
     Returns:
         A `FlowRun` object representing the flow run that was submitted.
     """
-    from prefect.engine import (
+    from prefect.utilities.engine import (
         _dynamic_key_for_task_run,
         collect_task_run_inputs,
         resolve_inputs,
