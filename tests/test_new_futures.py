@@ -3,14 +3,19 @@ from collections import OrderedDict
 from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import Any, Optional
+from unittest import mock
 
 import pytest
 
+from prefect import task
+from prefect.exceptions import FailedRun, MissingResult
 from prefect.new_futures import (
     PrefectConcurrentFuture,
+    PrefectDistributedFuture,
     PrefectFuture,
     resolve_futures_to_states,
 )
+from prefect.new_task_engine import run_task_sync
 from prefect.states import Completed, Failed
 
 
@@ -129,3 +134,133 @@ class TestResolveFuturesToStates:
             nested_list=[[future.state]],
             nested_dict={"key": [future.state]},
         )
+
+
+class TestPrefectDistributedFuture:
+    def test_with_client(self, task_run):
+        mock_client = mock.MagicMock()
+        mock_client.read_task_run = mock.MagicMock()
+        future = PrefectDistributedFuture(task_run_id=task_run.id, client=mock_client)
+        future.wait(timeout=0.25)
+        mock_client.read_task_run.assert_called_with(task_run_id=task_run.id)
+
+    def test_without_client(self, sync_prefect_client, task_run):
+        with mock.patch(
+            "prefect.new_futures.get_client", return_value=sync_prefect_client
+        ) as mock_get_client:
+            future = PrefectDistributedFuture(task_run_id=task_run.id)
+            future.wait(timeout=0.25)
+            mock_get_client.assert_called_with(sync_client=True)
+
+    def test_wait_with_timeout(self, sync_prefect_client, task_run):
+        with mock.patch(
+            "prefect.new_futures.get_client", return_value=sync_prefect_client
+        ) as mock_get_client:
+            future = PrefectDistributedFuture(task_run_id=task_run.id)
+            future.wait(timeout=0.25)
+            assert future.state.is_pending()
+            mock_get_client.assert_called_with(sync_client=True)
+
+    async def test_wait_without_timeout(self):
+        @task
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        future.wait(timeout=0)
+        assert future.state.is_completed()
+
+    @pytest.mark.skip
+    async def test_result_with_final_state(self, sync_prefect_client, prefect_client):
+        @task(persist_result=True)
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+        assert await state.result() == 42
+
+        future.wait(timeout=0)
+        assert state.data.storage_block_id == future._final_state.data.storage_block_id
+        assert future.result() == 42
+
+    async def test_final_state_without_result(self):
+        @task(persist_result=False)
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        with pytest.raises(MissingResult):
+            future.result()
+
+    async def test_result_with_final_state_and_raise_on_failure(self):
+        @task(persist_result=False)
+        def my_task():
+            raise ValueError("oops")
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_failed()
+
+        with pytest.raises(FailedRun, match="oops"):
+            future.result(raise_on_failure=True)
+
+    async def test_final_state_missing_result(self):
+        @task(persist_result=False)
+        def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        with pytest.raises(MissingResult, match="State data is missing"):
+            future.result()

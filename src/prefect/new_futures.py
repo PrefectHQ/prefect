@@ -1,6 +1,7 @@
 import abc
 import concurrent.futures
 import inspect
+import time
 import uuid
 from functools import partial
 from typing import Any, Generic, Optional, Set, Union, cast
@@ -120,6 +121,66 @@ class PrefectConcurrentFuture(PrefectFuture[concurrent.futures.Future]):
                 self._final_state = future_result
             else:
                 return future_result
+
+        _result = self._final_state.result(
+            raise_on_failure=raise_on_failure, fetch=True
+        )
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
+        if inspect.isawaitable(_result):
+            _result = run_coro_as_sync(_result)
+        return _result
+
+
+class PrefectDistributedFuture(PrefectFuture):
+    """
+    Represents the result of a computation happening anywhere.
+
+    This class is typically used to interact with the result of a task run
+    scheduled to run in a Prefect task server but can be used to interact with
+    any task run scheduled in Prefect's API.
+    """
+
+    def __init__(self, *args, **kwargs):
+        client = kwargs.pop("client", None)
+        self._client = client
+        kwargs["wrapped_future"] = None
+        super().__init__(*args, **kwargs)
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = get_client(sync_client=True)
+        return self._client
+
+    def wait(
+        self, timeout: Optional[float] = None, polling_interval: Optional[float] = 0.2
+    ) -> None:
+        start_time = time.time()
+        # TODO: Websocket implementation?
+        while True:
+            task_run = cast(
+                TaskRun, self.client.read_task_run(task_run_id=self.task_run_id)
+            )
+            if task_run.state and task_run.state.is_final():
+                self._final_state = task_run.state
+                return
+            if timeout is not None and (time.time() - start_time) > timeout:
+                return
+            time.sleep(polling_interval)
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+        polling_interval: Optional[float] = 0.2,
+    ) -> Any:
+        if not self._final_state:
+            self.wait(timeout=timeout)
+            if not self._final_state:
+                raise TimeoutError(
+                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                )
 
         _result = self._final_state.result(
             raise_on_failure=raise_on_failure, fetch=True
