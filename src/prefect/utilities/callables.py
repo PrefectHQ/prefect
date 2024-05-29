@@ -333,6 +333,22 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
 
 
 def parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema:
+    """
+    Generate a parameter schema from an entrypoint string.
+
+    Will load the source code of the function and extract the signature and docstring
+    to generate the schema.
+
+    Useful for generating a schema for a function when instantiating the function may
+    not be possible due to missing imports or other issues.
+
+    Args:
+        entrypoint: A string representing the entrypoint to a function. The string
+            should be in the format of `module.path.to.function:do_stuff`.
+
+    Returns:
+        ParameterSchema: The parameter schema for the function.
+    """
     if ":" in entrypoint:
         # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
         path, func_name = entrypoint.rsplit(":", maxsplit=1)
@@ -351,6 +367,20 @@ def parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema:
 def generate_parameter_schema(
     signature: inspect.Signature, docstrings: Dict[str, str]
 ) -> ParameterSchema:
+    """
+    Generate a parameter schema from a function signature and docstrings.
+
+    To get a signature from a function, use `inspect.signature(fn)` or
+    `_generate_signature_from_source(source_code, func_name)`.
+
+    Args:
+        signature: The function signature.
+        docstrings: A dictionary mapping parameter names to docstrings.
+
+    Returns:
+        ParameterSchema: The parameter schema.
+    """
+
     model_fields = {}
     aliases = {}
 
