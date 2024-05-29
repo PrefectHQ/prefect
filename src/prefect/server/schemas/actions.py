@@ -180,7 +180,7 @@ class DeploymentCreate(ActionBaseModel):
         ),
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
-        default=None,
+        default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
     )
     parameters: Dict[str, Any] = Field(

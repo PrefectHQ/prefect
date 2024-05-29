@@ -382,7 +382,6 @@ async def deploy(
         "triggers": trigger,
         "param": param,
         "params": params,
-        "enforce_parameter_schema": enforce_parameter_schema,
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(
@@ -421,6 +420,7 @@ async def deploy(
             options["names"] = [
                 name.split("/", 1)[-1] if "/" in name else name for name in parsed_names
             ]
+            options["enforce_parameter_schema"] = enforce_parameter_schema
 
             await _run_single_deploy(
                 deploy_config=deploy_configs[0] if deploy_configs else {},
