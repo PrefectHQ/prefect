@@ -7,6 +7,7 @@ import pytest
 
 from prefect.utilities.dockerutils import (
     ImageBuilder,
+    PushError,
     push_image,
     silence_docker_warnings,
 )
@@ -96,9 +97,9 @@ def test_does_not_leave_registry_tag_locally(
         docker.images.get(registry_tag)
 
 
-# def test_registry_error(howdy: str):
-#     with pytest.raises(PushError, match="lookup.+nowhere"):
-#         push_image(howdy, "http://nowhere:5678", "howdy")
+def test_registry_error(howdy: str):
+    with pytest.raises(PushError, match="lookup.+nowhere"):
+        push_image(howdy, "http://nowhere:5678", "howdy")
 
 
 # def test_streams_nowhere_by_default(howdy: str, registry: str, capsys: CaptureFixture):
