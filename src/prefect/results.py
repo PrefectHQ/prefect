@@ -301,6 +301,7 @@ class ResultFactory(BaseModel):
         from prefect.context import FlowRunContext
 
         ctx = FlowRunContext.get()
+
         result_storage = task.result_storage or (
             ctx.result_factory.storage_block
             if ctx and ctx.result_factory
