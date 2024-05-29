@@ -29,6 +29,7 @@
           </p-button>
         </p-context-nav-item>
       </a>
+      <p-context-nav-item>Join the Community</p-context-nav-item>
       <p-context-nav-item title="Settings" :to="routes.settings()" />
     </template>
   </p-context-sidebar>
