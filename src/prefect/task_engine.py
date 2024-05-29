@@ -233,11 +233,6 @@ class TaskRunEngine(Generic[P, R]):
         if not self.parameters:
             return {}
 
-        # We don't resolve parameters for task runs that are not part of a flow run, AKA
-        # autonomous tasks.
-        if self.task_run and not self.task_run.flow_run_id:
-            return self.parameters
-
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
             try:

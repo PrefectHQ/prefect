@@ -39,7 +39,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
@@ -1045,7 +1045,7 @@ class Task(Generic[P, R]):
         self,
         *args: Any,
         **kwargs: Any,
-    ) -> TaskRun:
+    ) -> PrefectDistributedFuture:
         """
         Create a pending task run for a task server to execute.
 
@@ -1056,7 +1056,7 @@ class Task(Generic[P, R]):
             **kwargs: Keyword arguments to run the task with
 
         Returns:
-            A TaskRun object representing the pending task run
+            A PrefectDistributedFuture object representing the pending task run
 
         Examples:
 
@@ -1074,16 +1074,16 @@ class Task(Generic[P, R]):
             >>> def my_flow():
             >>>     my_task.apply_async()
 
-            TODO: Wait for a task to finish
+            Wait for a task to finish
 
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.apply_async().wait()  # <- This is not implemented
+            >>>     my_task.apply_async().wait()
 
 
             >>> @flow
             >>> def my_flow():
-            >>>     print(my_task.apply_async().result())  # <- This is not implemented
+            >>>     print(my_task.apply_async().result())
             >>>
             >>> my_flow()
             hello
@@ -1129,7 +1129,8 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return run_coro_as_sync(self.create_run(parameters=parameters))
+        task_run = run_coro_as_sync(self.create_run(parameters=parameters))
+        return PrefectDistributedFuture(task_run_id=task_run.id)
 
     def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to

@@ -5,7 +5,7 @@ import pytest
 from pydantic import BaseModel
 
 import prefect.results
-from prefect import flow, get_client, task
+from prefect import flow, task
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import MissingResult
 from prefect.settings import (
@@ -67,13 +67,8 @@ def async_foo_task():
 @pytest.fixture
 def bar_task():
     @task
-    async def bar(foo_run: TaskRun) -> int:
-        async with get_client() as client:
-            updated_foo_run = await client.read_task_run(foo_run.id)
-
-        x = await updated_foo_run.state.result()
-        y = x + 1
-        return y
+    async def bar(x) -> int:
+        return x + 1
 
     return bar
 
@@ -136,9 +131,13 @@ async def test_task_server_handles_aborted_task_run_submission(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run = foo_task.apply_async(42)
+    task_run_future = foo_task.apply_async(42)
 
-    await prefect_client.set_task_run_state(task_run.id, Running(), force=True)
+    await prefect_client.set_task_run_state(
+        task_run_future.task_run_id, Running(), force=True
+    )
+
+    task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
     await task_server.execute_task_run(task_run)
 
@@ -408,7 +407,7 @@ class TestTaskServerTaskResults:
 
         assert count == 1
 
-    async def test_task_run_via_task_server_ignores_task_dependency(
+    async def test_task_run_via_task_server_receives_result_of_task_dependency(
         self, prefect_client, foo_task, bar_task
     ):
         """
@@ -419,19 +418,15 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(foo, bar)
 
-        foo_task_run = foo.apply_async(42)
+        foo_task_run_future = foo.apply_async(42)
+        foo_task_run = await prefect_client.read_task_run(
+            foo_task_run_future.task_run_id
+        )
 
-        # Passing a TaskRun object as a dependency to another task run like this would
-        # normally fail because we would discover the state (`TaskRun.state`), find it was
-        # Pending, and then bail because the task wasn't complete. However, autonomous
-        # tasks don't keep track of dependencies, so instead `bar` should receive the
-        # TaskRun object as an argument.
-        #
-        # Ideally, though, we could wait for the TaskRun to complete in the same way that
-        # we can when tasks receive PrefectFuture objects for runs that a task runner in
-        # a flow is managing. For now, though, while we decide what else we want to do
-        # in this situation, we'll pass objects through directly as arguments.
-        bar_task_run = bar.apply_async(foo_task_run)
+        bar_task_run_future = bar.apply_async(foo_task_run_future)
+        bar_task_run = await prefect_client.read_task_run(
+            bar_task_run_future.task_run_id
+        )
 
         await task_server.execute_task_run(foo_task_run)
         updated_task_run = await prefect_client.read_task_run(foo_task_run.id)

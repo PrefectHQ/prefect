@@ -144,6 +144,7 @@ class PrefectDistributedFuture(PrefectFuture):
     def __init__(self, *args, **kwargs):
         client = kwargs.pop("client", None)
         self._client = client
+        self._task_run = None
         kwargs["wrapped_future"] = None
         super().__init__(*args, **kwargs)
 
@@ -153,17 +154,27 @@ class PrefectDistributedFuture(PrefectFuture):
             self._client = get_client(sync_client=True)
         return self._client
 
+    @property
+    def task_run(self):
+        if self._task_run is None:
+            self._task_run = self.client.read_task_run(task_run_id=self.task_run_id)
+        return self._task_run
+
+    @task_run.setter
+    def task_run(self, task_run):
+        self._task_run = task_run
+
     def wait(
         self, timeout: Optional[float] = None, polling_interval: Optional[float] = 0.2
     ) -> None:
         start_time = time.time()
         # TODO: Websocket implementation?
         while True:
-            task_run = cast(
+            self.task_run = cast(
                 TaskRun, self.client.read_task_run(task_run_id=self.task_run_id)
             )
-            if task_run.state and task_run.state.is_final():
-                self._final_state = task_run.state
+            if self.task_run.state and self.task_run.state.is_final():
+                self._final_state = self.task_run.state
                 return
             if timeout is not None and (time.time() - start_time) > timeout:
                 return
