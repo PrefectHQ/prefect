@@ -50,7 +50,7 @@ def event_loop(request):
         loop.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def machine_ray_instance():
     """
     Starts a ray instance for the current machine
@@ -109,7 +109,7 @@ def ray_task_runner_with_existing_cluster(
     )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def inprocess_ray_cluster():
     """
     Starts a ray cluster in-process
