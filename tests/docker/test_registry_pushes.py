@@ -63,12 +63,12 @@ def test_pushing_to_registry(
     assert greeting.startswith("hello from the registry")
 
 
-# def test_pushing_to_registry_with_tag(docker: DockerClient, registry: str, howdy: str):
-#     registry_tag = push_image(howdy, registry, "howdy", tag="my-tag")
-#     assert registry_tag.startswith("localhost:5555/howdy:my-tag")
+def test_pushing_to_registry_with_tag(docker: DockerClient, registry: str, howdy: str):
+    registry_tag = push_image(howdy, registry, "howdy", tag="my-tag")
+    assert registry_tag.startswith("localhost:5555/howdy:my-tag")
 
-#     greeting = docker.containers.run(registry_tag, remove=True).decode().strip()
-#     assert greeting.startswith("hello from the registry")
+    greeting = docker.containers.run(registry_tag, remove=True).decode().strip()
+    assert greeting.startswith("hello from the registry")
 
 
 # def test_pushing_with_owner(
