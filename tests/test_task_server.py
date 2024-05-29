@@ -67,8 +67,8 @@ def async_foo_task():
 @pytest.fixture
 def bar_task():
     @task
-    async def bar(x) -> int:
-        return x + 1
+    async def bar(x, y=1) -> int:
+        return x + y
 
     return bar
 
@@ -419,24 +419,30 @@ class TestTaskServerTaskResults:
         task_server = TaskServer(foo, bar)
 
         foo_task_run_future = foo.apply_async(42)
-        foo_task_run = await prefect_client.read_task_run(
-            foo_task_run_future.task_run_id
-        )
-
         bar_task_run_future = bar.apply_async(foo_task_run_future)
-        bar_task_run = await prefect_client.read_task_run(
-            bar_task_run_future.task_run_id
-        )
 
-        await task_server.execute_task_run(foo_task_run)
-        updated_task_run = await prefect_client.read_task_run(foo_task_run.id)
-        assert updated_task_run.state.is_completed()
-        assert await updated_task_run.state.result() == 42
+        await task_server.execute_task_run(foo_task_run_future.task_run)
+        assert foo_task_run_future.result() == 42
 
-        await task_server.execute_task_run(bar_task_run)
-        updated_bar_task_run = await prefect_client.read_task_run(bar_task_run.id)
-        assert updated_bar_task_run.state.is_completed()
-        assert await updated_bar_task_run.state.result() == 43
+        await task_server.execute_task_run(bar_task_run_future.task_run)
+        assert bar_task_run_future.result() == 43
+
+    async def test_task_run_via_task_server_handles_mix_of_args_and_task_dependencies(
+        self, foo_task, bar_task
+    ):
+        foo = foo_task.with_options(persist_result=True)
+        bar = bar_task.with_options(persist_result=True)
+
+        task_server = TaskServer(foo, bar)
+
+        foo_task_run_future = foo.apply_async(42)
+        bar_task_run_future = bar.apply_async(x=foo_task_run_future, y=5)
+
+        await task_server.execute_task_run(foo_task_run_future.task_run)
+        assert foo_task_run_future.result() == 42
+
+        await task_server.execute_task_run(bar_task_run_future.task_run)
+        assert bar_task_run_future.result() == 47
 
 
 class TestTaskServerTaskTags:
