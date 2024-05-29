@@ -1,3 +1,5 @@
+import os
+
 from prefect import flow, get_run_logger, task
 
 
@@ -8,8 +10,12 @@ def say_hello(name: str):
 
 @flow
 def hello(name: str = "world", count: int = 1):
-    say_hello.map(f"{name}-{i}" for i in range(count))
+    futures = say_hello.map(f"{name}-{i}" for i in range(count))
+    for future in futures:
+        future.wait()
 
 
 if __name__ == "__main__":
+    if os.getenv("SERVER_VERSION") == "2.19":
+        raise NotImplementedError("This example does not work against 2.19")
     hello(count=3)

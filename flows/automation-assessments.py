@@ -1,5 +1,4 @@
 import asyncio
-import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any, AsyncGenerator, Dict
@@ -7,30 +6,16 @@ from uuid import uuid4
 
 import anyio
 import pendulum
-from packaging.version import Version
 
-import prefect
-
-TEST_SERVER_VERSION = os.environ.get("TEST_SERVER_VERSION", prefect.__version__)
-
-if Version(TEST_SERVER_VERSION) < Version("2.17.2"):
-    raise NotImplementedError()
-
-if TEST_SERVER_VERSION == "9.9.9+for.the.tests":
-    raise NotImplementedError("Automations have a separate integration test for Cloud")
-
-try:
-    from prefect import flow, get_client, get_run_logger
-    from prefect.events import Event
-    from prefect.events.clients import get_events_client, get_events_subscriber
-    from prefect.events.filters import (
-        EventFilter,
-        EventNameFilter,
-        EventOccurredFilter,
-        EventResourceFilter,
-    )
-except ImportError:
-    raise NotImplementedError()
+from prefect import flow, get_client, get_run_logger
+from prefect.events import Event
+from prefect.events.clients import get_events_client, get_events_subscriber
+from prefect.events.filters import (
+    EventFilter,
+    EventNameFilter,
+    EventOccurredFilter,
+    EventResourceFilter,
+)
 
 
 @asynccontextmanager

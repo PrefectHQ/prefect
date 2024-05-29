@@ -1,11 +1,3 @@
-from packaging.version import Version
-
-import prefect
-
-# Only run these tests if the version is at least 2.13.0
-if Version(prefect.__version__) < Version("2.13.0"):
-    raise NotImplementedError()
-
 import asyncio
 import random
 import threading
@@ -15,6 +7,7 @@ from unittest.mock import MagicMock
 import anyio
 from fastapi import FastAPI
 
+import prefect
 import prefect.context
 import prefect.exceptions
 from prefect.client.orchestration import PrefectClient
