@@ -17,6 +17,7 @@ from prefect.settings import (
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLOUD_API_URL,
     PREFECT_CLOUD_UI_URL,
+    PREFECT_CLOUD_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
@@ -401,6 +402,28 @@ class TestSettingAccess:
     def test_prefect_home_expands_tilde_in_path(self):
         settings = Settings(PREFECT_HOME="~/test")
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
+
+    def test_prefect_cloud_url_deprecated_on_set(self):
+        with temporary_settings({PREFECT_CLOUD_URL: "test"}):
+            with pytest.raises(
+                DeprecationWarning,
+                match=(
+                    "`PREFECT_CLOUD_URL` is set and will be used instead of"
+                    " `PREFECT_CLOUD_API_URL`"
+                ),
+            ):
+                PREFECT_CLOUD_API_URL.value()
+
+    def test_prefect_cloud_url_deprecated_on_access(self):
+        with pytest.raises(
+            DeprecationWarning,
+            match=(
+                "Setting 'PREFECT_CLOUD_URL' has been deprecated. "
+                "It will not be available after Jun 2023. "
+                "Use `PREFECT_CLOUD_API_URL` instead."
+            ),
+        ):
+            PREFECT_CLOUD_URL.value()
 
     @pytest.mark.parametrize(
         "api_url,ui_url",
