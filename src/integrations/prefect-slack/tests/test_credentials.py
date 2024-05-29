@@ -2,17 +2,21 @@ from unittest.mock import AsyncMock
 
 import pytest
 from prefect_slack import SlackCredentials, SlackWebhook
+from pydantic import SecretStr
 from slack_sdk.web.async_client import AsyncWebClient
-from slack_sdk.webhook.async_client import AsyncWebhookClient, WebhookResponse
+from slack_sdk.webhook.async_client import AsyncWebhookClient
+from slack_sdk.webhook.webhook_response import WebhookResponse
 
 
 def test_slack_credentials():
-    assert isinstance(SlackCredentials(token="xoxb-xxxx").get_client(), AsyncWebClient)
+    assert isinstance(
+        SlackCredentials(token=SecretStr("xoxb-xxxx")).get_client(), AsyncWebClient
+    )
 
 
 def test_slack_webhook():
     assert isinstance(
-        SlackWebhook(url="https://hooks.slack.com/xxxx").get_client(),
+        SlackWebhook(url=SecretStr("https://hooks.slack.com/xxxx")).get_client(),
         AsyncWebhookClient,
     )
 
@@ -33,7 +37,7 @@ async def test_slack_webhook_block_does_not_raise_on_success(
             )
         ),
     )
-    block = SlackWebhook(url="http://wherever")
+    block = SlackWebhook(url=SecretStr("http://wherever"))
 
     with block.raise_on_failure():
         await block.notify("hello", "world")
@@ -58,7 +62,7 @@ async def test_slack_webhook_block_handles_raise_on_failure(
 
     from prefect.blocks.abstract import NotificationError
 
-    block = SlackWebhook(url="http://wherever")
+    block = SlackWebhook(url=SecretStr("http://wherever"))
 
     with pytest.raises(NotificationError, match="Failed to send message: woops"):
         with block.raise_on_failure():

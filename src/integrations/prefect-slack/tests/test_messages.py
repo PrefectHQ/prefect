@@ -1,9 +1,15 @@
 from itertools import product
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
+from unittest.mock import Mock
 
 import pytest
 from prefect_slack.messages import send_chat_message, send_incoming_webhook_message
 
-from prefect import flow
+from prefect import flow  # type: ignore
+
+if TYPE_CHECKING:
+    from slack_sdk.models.attachments import Attachment
+    from slack_sdk.models.blocks import Block
 
 CHANNELS = ["#random", "#general"]
 TEXT = ["hello", "goodbye"]
@@ -28,12 +34,25 @@ SLACK_BLOCKS = [
 ]
 
 
+# channel: str,
+# slack_credentials: SlackCredentials,
+# text: Optional[str] = None,
+# attachments: Optional[
+#     Sequence[Union[dict[str, Any], "slack_sdk.models.attachments.Attachment"]]
+# ] = None,
+# slack_blocks: Optional[
+#     Sequence[Union[dict[str, Any], "slack_sdk.models.blocks.Block"]]
+# ] = None,
 @pytest.mark.parametrize(
     ["channel", "text", "attachments", "slack_blocks"],
     product(CHANNELS, TEXT, ATTACHMENTS, SLACK_BLOCKS),
 )
 async def test_send_chat_message(
-    slack_credentials, channel, text, attachments, slack_blocks
+    slack_credentials: Mock,
+    channel: str,
+    text: Optional[str] = None,
+    attachments: Optional[Sequence[Union[dict[str, Any], "Attachment"]]] = None,
+    slack_blocks: Optional[Sequence[Union[dict[str, Any], "Block"]]] = None,
 ):
     @flow
     async def test_flow():
@@ -56,7 +75,10 @@ async def test_send_chat_message(
     product(TEXT, ATTACHMENTS, SLACK_BLOCKS),
 )
 async def test_send_incoming_webhook_message(
-    slack_webhook, text, attachments, slack_blocks
+    slack_webhook: Mock,
+    text: Optional[str] = None,
+    attachments: Optional[Sequence[Union[dict[str, Any], "Attachment"]]] = None,
+    slack_blocks: Optional[Sequence[Union[dict[str, Any], "Block"]]] = None,
 ):
     @flow
     async def test_flow():

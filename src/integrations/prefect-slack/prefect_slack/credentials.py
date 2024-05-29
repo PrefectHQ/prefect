@@ -38,7 +38,6 @@ class SlackCredentials(Block):
     _documentation_url = "https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackCredentials"  # type: ignore
 
     token: SecretStr = Field(
-        default=...,
         description="Bot user OAuth token for the Slack app used to perform actions.",
     )
 
