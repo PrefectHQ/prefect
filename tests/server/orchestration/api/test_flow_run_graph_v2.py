@@ -987,6 +987,13 @@ async def flow_run_task_artifacts(
         key=None,
     )
 
+    progress_type_artifact = db.Artifact(
+        flow_run_id=flow_run.id,
+        task_run_id=flat_tasks[0].id,
+        type="progress",
+        data=0.0,
+    )
+
     should_be_in_graph = [
         task_artifact,
         task_artifact_with_key_not_latest,
@@ -994,6 +1001,7 @@ async def flow_run_task_artifacts(
         task_link_artifact,
         task_table_artifact_from_same_task,
         task_table_artifact,
+        progress_type_artifact,
     ]
 
     should_not_be_in_graph = [
@@ -1045,6 +1053,9 @@ async def test_reading_graph_for_flow_run_with_artifacts(
                 created=expected_top_level_artifact.created,
                 key=expected_top_level_artifact.key,
                 type=expected_top_level_artifact.type,
+                data=expected_top_level_artifact.data
+                if expected_top_level_artifact.type == "progress"
+                else None,
                 is_latest=True,
             )
         ]
@@ -1058,6 +1069,7 @@ async def test_reading_graph_for_flow_run_with_artifacts(
                 created=task_artifact.created,
                 key=task_artifact.key,
                 type=task_artifact.type,
+                data=task_artifact.data if task_artifact.type == "progress" else None,
                 is_latest=task_artifact.key is None
                 or task_artifact.key == "collection-key--latest",
             )

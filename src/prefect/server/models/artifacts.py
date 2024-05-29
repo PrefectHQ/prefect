@@ -415,7 +415,7 @@ async def update_artifact(
         .values(**update_artifact_data)
     )
 
-    await session.execute(update_artifact_stmt)
+    artifact_result = await session.execute(update_artifact_stmt)
 
     update_artifact_collection_data = artifact.model_dump_for_orm(exclude_unset=True)
     update_artifact_collection_stmt = (
@@ -423,9 +423,9 @@ async def update_artifact(
         .where(orm_models.ArtifactCollection.latest_id == artifact_id)
         .values(**update_artifact_collection_data)
     )
-    result = await session.execute(update_artifact_collection_stmt)
+    collection_result = await session.execute(update_artifact_collection_stmt)
 
-    return result.rowcount > 0
+    return artifact_result.rowcount + collection_result.rowcount > 0
 
 
 async def delete_artifact(

@@ -326,6 +326,21 @@ class TestUpdateArtifacts:
         await session.commit()
         return artifact
 
+    @pytest.fixture
+    async def progress_artifact(self, session):
+        artifact_schema = schemas.core.Artifact(
+            type="progress",
+            data=0.0,
+            description="Info about the progress artifact",
+        )
+        artifact = await models.artifacts.create_artifact(
+            session=session,
+            artifact=artifact_schema,
+        )
+
+        await session.commit()
+        yield artifact
+
     async def test_update_artifact_succeeds(self, artifact, session):
         artifact_id = artifact.id
         updated_result = await models.artifacts.update_artifact(
@@ -358,6 +373,23 @@ class TestUpdateArtifacts:
 
         updated_artifact = await models.artifacts.read_artifact(session, artifact_id)
         assert updated_artifact.data == 1
+
+    async def test_update_artifact_succeeds_with_data_and_without_key(
+        self, progress_artifact, session
+    ):
+        new_data = 50.00
+        assert await models.artifacts.update_artifact(
+            session=session,
+            artifact_id=progress_artifact.id,
+            artifact=actions.ArtifactUpdate(data=new_data),
+        )
+
+        updated_artifact = await models.artifacts.read_artifact(
+            session=session,
+            artifact_id=progress_artifact.id,
+        )
+
+        assert updated_artifact.data == new_data
 
 
 class TestReadLatestArtifact:
