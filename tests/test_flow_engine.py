@@ -16,7 +16,6 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
-from prefect.engine import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.exceptions import CrashedRun, FailedRun, ParameterTypeError, Pause
 from prefect.flow_engine import (
     FlowRunEngine,
@@ -25,6 +24,7 @@ from prefect.flow_engine import (
     run_flow_async,
     run_flow_sync,
 )
+from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.server.schemas.core import FlowRun as ServerFlowRun

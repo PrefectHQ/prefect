@@ -12,7 +12,6 @@ from prefect_ray import RayTaskRunner
 from prefect_ray.context import remote_options
 
 import prefect
-import prefect.engine
 import prefect.task_engine
 import tests
 from prefect import flow, task
