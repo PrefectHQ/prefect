@@ -16,8 +16,8 @@ from prefect.futures import (
     PrefectFuture,
     resolve_futures_to_states,
 )
-from prefect.new_task_engine import run_task_sync
 from prefect.states import Completed, Failed
+from prefect.task_engine import run_task_sync
 
 
 class MockFuture(PrefectFuture):
