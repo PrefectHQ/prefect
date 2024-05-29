@@ -173,6 +173,15 @@ def test_unset_variable(variable):
     )
 
 
+def test_unset_variable_without_confirmation_aborts(variable):
+    invoke_and_assert(
+        ["variable", "unset", variable.name],
+        user_input="n",
+        expected_output_contains="Unset aborted.",
+        expected_code=1,
+    )
+
+
 def test_delete_variable(variable):
     invoke_and_assert(
         ["variable", "delete", variable.name],
