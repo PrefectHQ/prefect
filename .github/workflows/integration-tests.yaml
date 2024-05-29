@@ -26,106 +26,9 @@ on:
 
 jobs:
   compatibility-tests:
-    name: "Check compatibility with Prefect ${{ matrix.prefect-version }}"
-    if: false # disable while we iterate on 3.0
+    name: "Integration tests"
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        prefect-version:
-          # These versions correspond to Prefect image tags, the patch version is
-          # excluded to always pull the latest patch of each minor version.
-          - "2.0"
-          - "2.1"
-          - "2.2"
-          - "2.3"
-          - "2.4"
-          - "2.5"
-          - "2.6"
-          - "2.7"
-          - "2.8"
-          - "2.9"
-          - "2.10"
-          - "2.11"
-          - "2.12"
-          - "2.13"
-          - "2.14"
-          - "2.15"
-          - "2.16"
-          - "2.17"
-          - "2.18"
-          - "2.19"
-
-          # We can include the following to always test against the last release
-          # but the value is not particularly clear and we can just append the
-          # last minor version at each release time
-          # - "2"
-
-        include:
-          # While old clients should always be supported by new servers, a new
-          # client may send data that an old server does not support. These
-          # incompatibilities are allowed.
-
-          # All servers prior to 2.6.0 will not accept 2.6.0+ result types
-          # All servers prior to 2.16.0 will not accept `Deployment.schedules`
-
-          - prefect-version: "2.0"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.1"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.2"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.3"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.4"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.5"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.6"
-            server-incompatible: true
-            server-disable-csrf: true
-            # 2.6 containers have a bad version of httpcore installed
-            extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
-          - prefect-version: "2.7"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.8"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.9"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.10"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.11"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.12"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.13"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.14"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.15"
-            server-incompatible: true
-            server-disable-csrf: true
-          - prefect-version: "2.16"
-            server-incompatible: false
-          - prefect-version: "2.17"
-            server-incompatible: false
-          - prefect-version: "2.18"
-            server-incompatible: false
 
     steps:
       - uses: actions/checkout@v4
@@ -154,80 +57,25 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system .
 
-      - name: Start server@${{ matrix.prefect-version }}
-        if: ${{ ! matrix.server-incompatible }}
+      - name: Start server@dev
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_LOGGING_SERVER_LEVEL: DEBUG
         run: >
-          docker run
-          --name "prefect-server-${{ matrix.prefect-version }}"
-          --detach
-          --publish 4200:4200
-          ${{ matrix.extra_docker_run_options }}
-          --env PREFECT_EXPERIMENTAL_ENABLE_EVENTS=True
-          --env PREFECT_EXPERIMENTAL_EVENTS=True
-          --env PREFECT_LOGGING_SERVER_LEVEL=DEBUG
-          prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          ${{ matrix.server_command || 'prefect server start --analytics-off' }} --host 0.0.0.0
+          prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
 
           ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
-      - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }}
-        if: ${{ ! matrix.server-incompatible }}
+      - name: Run integration flows with client@dev, server@dev
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
-          PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True
-          PREFECT_EXPERIMENTAL_EVENTS: True
         run: >
-          TEST_SERVER_VERSION=${{ matrix.prefect-version }}
-          TEST_CLIENT_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           ./scripts/run-integration-flows.py flows/
 
       - name: Show server@${{ matrix.prefect-version }} logs
         if: always()
         run: |
-          docker logs "prefect-server-${{ matrix.prefect-version }}" || echo "No logs available"
-
-      - name: Turn off CSRF protection for older clients.
-        if: ${{ matrix.server-disable-csrf }}
-        run: |
-          echo "PREFECT_SERVER_CSRF_PROTECTION_ENABLED=0" >> $GITHUB_ENV
-
-      - name: Start server@dev
-        env:
-          PREFECT_API_URL: http://127.0.0.1:4200/api
-          PREFECT_EXPERIMENTAL_EVENTS: True
-          PREFECT_EXPERIMENTAL_ENABLE_EVENTS: True
-          PREFECT_LOGGING_SERVER_LEVEL: DEBUG
-        run: |
-          # First, we must stop the server container if it exists
-          # TODO: Once we have `prefect server stop` we can run these tests first and the
-          #       optional tests above second
-          #       https://github.com/PrefectHQ/prefect/issues/6989
-          docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
-
-          prefect server start --analytics-off > server-logs.txt 2>&1 &
-          ./scripts/wait-for-server.py
-
-      - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
-        run: >
-          docker run
-          --env TEST_SERVER_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
-          --env TEST_CLIENT_VERSION=${{ matrix.client_version }}
-          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
-          --env PREFECT_EXPERIMENTAL_ENABLE_EVENTS=True
-          --env PREFECT_EXPERIMENTAL_EVENTS=True
-          --volume $(pwd)/flows:/opt/prefect/integration/flows
-          --volume $(pwd)/scripts:/opt/prefect/integration/scripts
-          --network host
-          ${{ matrix.extra_docker_run_options }}
-          prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
-
-      - name: Show server@dev logs
-        if: always()
-        run: |
-          cat server-logs.txt || echo "No logs available"
+          cat server.log || echo "No logs available"

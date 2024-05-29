@@ -1,14 +1,7 @@
 import asyncio
 import random
 
-from packaging.version import Version
-
-import prefect
 from prefect import flow, task
-
-# Support for subflows with the same name was added in 2.10.6
-# Support for the concurrent subflow fix in #10533 was released in 2.12.0
-MINIMUM_VERSION = "2.12.0"
 
 
 @task
@@ -34,5 +27,8 @@ async def parent_flow(n_subflows: int, n_tasks_per_subflow: int):
 
 
 if __name__ == "__main__":
-    if Version(prefect.__version__) >= Version(MINIMUM_VERSION):
-        asyncio.run(parent_flow(10, 10))
+    raise NotImplementedError(
+        "This example is not ready in Prefect 3.0, as gathering async "
+        "subflows is not yet supported."
+    )
+    asyncio.run(parent_flow(10, 10))
