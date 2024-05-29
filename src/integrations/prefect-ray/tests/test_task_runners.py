@@ -55,19 +55,21 @@ def machine_ray_instance():
     """
     Starts a ray instance for the current machine
     """
-    subprocess.check_call(
-        [
-            "ray",
-            "start",
-            "--head",
-            "--include-dashboard",
-            "False",
-            "--disable-usage-stats",
-        ],
-        cwd=str(prefect.__development_base_path__),
-    )
     try:
+        subprocess.check_call(
+            [
+                "ray",
+                "start",
+                "--head",
+                "--include-dashboard",
+                "False",
+                "--disable-usage-stats",
+            ],
+            cwd=str(prefect.__development_base_path__),
+        )
         yield "ray://127.0.0.1:10001"
+    except subprocess.CalledProcessError as exc:
+        pytest.fail(f"Failed to start ray: {exc}")
     finally:
         subprocess.run(["ray", "stop"])
 
