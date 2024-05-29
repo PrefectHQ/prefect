@@ -353,4 +353,4 @@ prefect deploy my_flow.py:my_ecs_deployment
     - Do your flow runs require higher `CPU`?
     - Would an EC2 `Launch Type` speed up your flow run execution?
 
-    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/concepts/deployments/#workers-and-work-pools) if desired.
+    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](https://docs.prefect.io/2.19.2/concepts/deployments/#workers-and-work-pools) if desired.

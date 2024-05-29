@@ -28,7 +28,6 @@ search:
 
 |  Block and Agent-Based Deployments                 | Description   |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| __[Storage](/concepts/storage)__                         | Lets you configure how flow code for deployments is persisted and retrieved.     |
 | __[Agents](/concepts/agents)__                           | Like untyped workers. |
 
 Many features specific to [Prefect Cloud](/cloud/) are in their own navigation subheading.
