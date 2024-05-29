@@ -422,6 +422,13 @@ jobs:
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
+      - name: Start docker registry
+        run: >
+          docker run
+          --name "prefect-test-registry"
+          --detach
+          --publish 5555:5000
+
         # Parallelize tests by scope to reduce expensive service fixture duplication
         # Do not allow the test suite to build images, as we want the prebuilt images to be tested
         # Do not run Kubernetes service tests, we do not have a cluster available
