@@ -78,6 +78,7 @@ jobs:
           uv pip install --upgrade --system ../../../
 
       - name: Run tests
+        if: matrix.package != 'prefect-ray'
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
@@ -86,3 +87,12 @@ jobs:
           --numprocesses auto
           --maxprocesses 6
           --dist worksteal
+
+      # Run prefect-ray tests sequentially to avoid Ray cluster issues
+      - name: Run tests for prefect-ray
+        if: matrix.package == 'prefect-ray'
+        env:
+          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/${{ matrix.package }}
+        run: >
+          pytest tests
