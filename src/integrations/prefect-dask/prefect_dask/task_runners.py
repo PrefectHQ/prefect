@@ -78,8 +78,8 @@ from typing import Any, Callable, Dict, Iterable, Optional, Set, Union
 import distributed
 
 from prefect.client.schemas.objects import State, TaskRunInput
-from prefect.new_futures import PrefectFuture
-from prefect.new_task_runners import TaskRunner
+from prefect.futures import PrefectFuture
+from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
