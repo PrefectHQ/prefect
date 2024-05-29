@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from prefect_snowflake.credentials import PydanticSecret, SnowflakeCredentials
+from prefect_snowflake.credentials import SnowflakeCredentials
 from prefect_snowflake.database import (
     BEGIN_TRANSACTION_STATEMENT,
     END_TRANSACTION_STATEMENT,
@@ -50,7 +50,7 @@ def test_snowflake_connector_init(connector_params):
         if param == "schema":
             param = "schema_"
         actual = actual_connector_params[param]
-        if isinstance(actual, PydanticSecret):
+        if isinstance(actual, (SecretStr, SecretBytes)):
             actual = actual.get_secret_value()
         assert actual == expected
 

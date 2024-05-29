@@ -23,8 +23,6 @@ from pydantic import Field, SecretBytes, SecretStr, model_validator
 
 from prefect.blocks.abstract import CredentialsBlock
 
-PydanticSecret = Union[SecretStr, SecretBytes]
-
 # PEM certificates have the pattern:
 #   -----BEGIN PRIVATE KEY-----
 #   <- multiple lines of encoded data->
@@ -249,7 +247,7 @@ class SnowflakeCredentials(CredentialsBlock):
             The decoded secret as bytes.
 
         """
-        if isinstance(secret, PydanticSecret):
+        if isinstance(secret, (SecretStr, SecretBytes)):
             secret = secret.get_secret_value()
 
         if not isinstance(secret, (bytes, str)) or len(secret) == 0 or secret.isspace():
@@ -327,7 +325,7 @@ class SnowflakeCredentials(CredentialsBlock):
         }
 
         for key, value in connect_params.items():
-            if isinstance(value, PydanticSecret):
+            if isinstance(value, (SecretStr, SecretBytes)):
                 connect_params[key] = connect_params[key].get_secret_value()
 
         # set authenticator to the actual okta_endpoint
