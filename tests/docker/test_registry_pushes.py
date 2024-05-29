@@ -14,6 +14,7 @@ from prefect.utilities.slugify import slugify
 
 with silence_docker_warnings():
     from docker import DockerClient
+    from docker.errors import NotFound
 
 pytestmark = pytest.mark.service("docker")
 
@@ -83,16 +84,16 @@ def test_pushing_with_owner(
     assert greeting.startswith("hello from the registry")
 
 
-# def test_does_not_leave_registry_tag_locally(
-#     docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
-# ):
-#     tag_prefix = slugify(frozen_now.isoformat())[:20]
+def test_does_not_leave_registry_tag_locally(
+    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
+):
+    tag_prefix = slugify(frozen_now.isoformat())[:20]
 
-#     registry_tag = push_image(howdy, registry, "howdy")
-#     assert registry_tag.startswith(f"localhost:5555/howdy:{tag_prefix}")
+    registry_tag = push_image(howdy, registry, "howdy")
+    assert registry_tag.startswith(f"localhost:5555/howdy:{tag_prefix}")
 
-#     with pytest.raises(NotFound):
-#         docker.images.get(registry_tag)
+    with pytest.raises(NotFound):
+        docker.images.get(registry_tag)
 
 
 # def test_registry_error(howdy: str):
