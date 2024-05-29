@@ -1,13 +1,14 @@
 """Tasks for sending Slack messages."""
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
-from prefect import get_run_logger, task
+from prefect import get_run_logger, task  # type: ignore
 from prefect_slack.credentials import SlackCredentials, SlackWebhook
 
 if TYPE_CHECKING:  # pragma: no cover
     import slack_sdk.models.attachments
     import slack_sdk.models.blocks
+    from slack_sdk.web.async_slack_response import AsyncSlackResponse
 
 
 @task
@@ -16,12 +17,12 @@ async def send_chat_message(
     slack_credentials: SlackCredentials,
     text: Optional[str] = None,
     attachments: Optional[
-        Sequence[Union[Dict, "slack_sdk.models.attachments.Attachment"]]
+        Sequence[Union[dict[str, Any], "slack_sdk.models.attachments.Attachment"]]
     ] = None,
     slack_blocks: Optional[
-        Sequence[Union[Dict, "slack_sdk.models.blocks.Block"]]
+        Sequence[Union[dict[str, Any], "slack_sdk.models.blocks.Block"]]
     ] = None,
-) -> Dict:
+) -> Union[dict[str, Any], bytes]:
     """
     Sends a message to a Slack channel.
 
@@ -70,15 +71,15 @@ async def send_chat_message(
 
         example_send_message_flow()
         ```
-    """  # noqa
-    logger = get_run_logger()
+    """
+    logger = get_run_logger()  # type: ignore
     logger.info("Posting chat message to %s", channel)
 
     client = slack_credentials.get_client()
-    result = await client.chat_postMessage(
+    result: AsyncSlackResponse = await client.chat_postMessage(
         channel=channel, text=text, blocks=slack_blocks, attachments=attachments
-    )
-    return result.data
+    )  # type: ignore
+    return result.data  # type: ignore
 
 
 @task
@@ -86,10 +87,10 @@ async def send_incoming_webhook_message(
     slack_webhook: SlackWebhook,
     text: Optional[str] = None,
     attachments: Optional[
-        Sequence[Union[Dict, "slack_sdk.models.attachments.Attachment"]]
+        Sequence[Union[dict[str, Any], "slack_sdk.models.attachments.Attachment"]]
     ] = None,
     slack_blocks: Optional[
-        Sequence[Union[Dict, "slack_sdk.models.blocks.Block"]]
+        Sequence[Union[dict[str, Any], "slack_sdk.models.blocks.Block"]]
     ] = None,
 ) -> None:
     """
@@ -133,7 +134,7 @@ async def send_incoming_webhook_message(
         example_send_message_flow()
         ```
     """  # noqa
-    logger = get_run_logger()
+    logger = get_run_logger()  # type: ignore
     logger.info("Posting message to provided webhook")
 
     client = slack_webhook.get_client()

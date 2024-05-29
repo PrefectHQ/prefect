@@ -1,4 +1,8 @@
+# pyright: reportPrivateUsage=false
+
 from . import _version
 from .credentials import SlackCredentials, SlackWebhook  # noqa
 
-__version__ = _version.__version__
+__all__ = ["SlackCredentials", "SlackWebhook"]
+
+__version__ = getattr(_version, "__version__")
