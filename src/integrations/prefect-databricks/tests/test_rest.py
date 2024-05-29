@@ -9,7 +9,7 @@ from prefect_databricks.rest import (
     serialize_model,
     strip_kwargs,
 )
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel, ConfigDict
 
 
 @pytest.mark.parametrize("params", [dict(a="A", b="B"), None])
@@ -48,9 +48,7 @@ class TestAnotherBaseModel(BaseModel):
 
 
 class TestBaseModel(BaseModel):
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     some_string: str
     some_int: int

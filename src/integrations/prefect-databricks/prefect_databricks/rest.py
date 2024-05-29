@@ -10,19 +10,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import httpx
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._compat import model_dump
-
-if HAS_PYDANTIC_V2:
-    from pydantic import BaseModel as V2BaseModel
-    from pydantic.v1 import BaseModel
-
-    MODELS = (BaseModel, V2BaseModel)
-else:
-    from pydantic import BaseModel
-
-    MODELS = BaseModel
+from pydantic import BaseModel
 
 from prefect import task
 
@@ -58,8 +46,8 @@ def serialize_model(obj: Any) -> Any:
     elif isinstance(obj, Dict):
         return {k: serialize_model(v) for k, v in obj.items()}
 
-    if isinstance(obj, MODELS):
-        return model_dump(obj, mode="json")
+    if isinstance(obj, BaseModel):
+        return obj.model_dump(mode="json")
     elif isinstance(obj, Enum):
         return obj.value
     return obj
