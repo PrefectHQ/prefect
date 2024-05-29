@@ -26,7 +26,7 @@ on:
 
 jobs:
   compatibility-tests:
-    name: "Integration tests @${{ matrix.server-version.version }}"
+    name: Integration tests @${{ matrix.server-version.version }}
     timeout-minutes: 10
     runs-on: ubuntu-latest
 
@@ -67,8 +67,8 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system .
 
-      - name: Start prefect server@${{ matrix.server-version.version }}"
-        if: matrix.server-version.version != 'main'
+      - name: Start server@${{ matrix.server-version.version }}"
+        if: ${{ matrix.server-version.version != 'main' }}
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
@@ -87,8 +87,8 @@ jobs:
           # TODO: Replace `wait-for-server` with dedicated command
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
-      - name: Start prefect server@${{ matrix.server-version.version }}"
-        if: matrix.server-version.version == 'main'
+      - name: Start server
+        if: ${{ matrix.server-version.version == 'main' }}
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
