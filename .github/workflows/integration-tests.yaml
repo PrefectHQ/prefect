@@ -57,7 +57,7 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system .
 
-      - name: Start server@dev
+      - name: Start prefect server
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
@@ -69,13 +69,13 @@ jobs:
           # TODO: Replace `wait-for-server` with dedicated command
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
-      - name: Run integration flows with client@dev, server@dev
+      - name: Run integration flows
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: >
           ./scripts/run-integration-flows.py flows/
 
-      - name: Show server@${{ matrix.prefect-version }} logs
+      - name: Show server logs
         if: always()
         run: |
           cat server.log || echo "No logs available"
