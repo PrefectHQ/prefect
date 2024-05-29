@@ -19,7 +19,7 @@ import pytest
 import prefect
 import prefect.context
 import prefect.exceptions
-import prefect.new_flow_engine
+import prefect.flow_engine
 from prefect.client.schemas import FlowRun
 from prefect.testing.utilities import AsyncMock
 

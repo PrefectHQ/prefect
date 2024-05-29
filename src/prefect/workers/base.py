@@ -31,7 +31,6 @@ from prefect.client.schemas.filters import (
 )
 from prefect.client.schemas.objects import StateType, WorkPool
 from prefect.client.utilities import inject_client
-from prefect.engine import propose_state
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
@@ -51,6 +50,7 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
+from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import (
     apply_values,

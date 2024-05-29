@@ -698,7 +698,7 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        from prefect.new_task_engine import run_task
+        from prefect.task_engine import run_task
 
         return run_task(
             task=self,

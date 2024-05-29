@@ -1241,7 +1241,7 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        from prefect.new_flow_engine import run_flow, run_flow_sync
+        from prefect.flow_engine import run_flow, run_flow_sync
 
         run_kwargs = dict(
             flow=self,

@@ -35,7 +35,7 @@ from prefect.context import tags
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
-from prefect.engine import pause_flow_run, resume_flow_run, suspend_flow_run
+from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
 import prefect.variables
