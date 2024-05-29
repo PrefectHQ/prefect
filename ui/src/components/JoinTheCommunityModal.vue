@@ -9,10 +9,14 @@
         Connect with 25k+ engineers scaling Python with Prefect. Show us your work and be the first to know about new Prefect features.
       </p>
 
-      <div>
-        <p-button primary icon="Slack" :to="joinSlackUrl" target="_blank">
+      <div class="flex gap-x-2 items-center">
+        <p-button primary icon="Slack" :to="joinSlackUrl" target="_blank" @click="showJoinSlackThankYouMessage = true">
           Join us on Slack
         </p-button>
+
+        <span v-if="showJoinSlackThankYouMessage" class="text-sm italic">
+          Thanks for joining our community!
+        </span>
       </div>
 
       <p-divider class="-my-3" />
@@ -48,6 +52,7 @@
   const showModal = defineModel<boolean>('showModal')
 
   const joinSlackUrl = 'http://prefect.io/slack?utm_source=oss&utm_medium=oss&utm_campaign=oss_popup&utm_term=none&utm_content=none'
+  const showJoinSlackThankYouMessage = ref(false)
 
   const formId = 'join-the-community-modal'
   const email = ref<string>()
