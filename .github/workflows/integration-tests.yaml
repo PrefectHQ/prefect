@@ -106,6 +106,7 @@ jobs:
       - name: Run integration flows
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
+          SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
           ./scripts/run-integration-flows.py flows/
 

@@ -1,3 +1,5 @@
+import os
+
 from prefect import flow, get_run_logger, task
 
 
@@ -14,4 +16,6 @@ def hello(name: str = "world", count: int = 1):
 
 
 if __name__ == "__main__":
+    if os.getenv("SERVER_VERSION") == "2.19":
+        raise NotImplementedError("This example does not work against 2.19")
     hello(count=3)
