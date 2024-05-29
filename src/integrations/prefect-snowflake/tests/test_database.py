@@ -1,25 +1,45 @@
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect import flow
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretBytes, SecretStr
-else:
-    from pydantic import SecretBytes, SecretStr
-
+from prefect_snowflake.credentials import PydanticSecret, SnowflakeCredentials
 from prefect_snowflake.database import (
     BEGIN_TRANSACTION_STATEMENT,
     END_TRANSACTION_STATEMENT,
     SnowflakeConnector,
     snowflake_multiquery,
     snowflake_query,
+    snowflake_query_async,
     snowflake_query_sync,
 )
+from pydantic import SecretBytes, SecretStr
 from snowflake.connector import DictCursor
 from snowflake.connector.cursor import SnowflakeCursor as OriginalSnowflakeCursorClass
+
+from prefect import flow
+
+
+@pytest.fixture
+def connector_params(credentials_params):
+    snowflake_credentials = SnowflakeCredentials(**credentials_params)
+    _connector_params = {
+        "schema": "schema_input",
+        "database": "database",
+        "warehouse": "warehouse",
+        "credentials": snowflake_credentials.model_dump(),
+    }
+    return _connector_params
+
+
+@pytest.fixture
+def private_connector_params(private_credentials_params):
+    snowflake_credentials = SnowflakeCredentials(**private_credentials_params)
+    _connector_params = {
+        "schema": "schema_input",
+        "database": "database",
+        "warehouse": "warehouse",
+        "credentials": snowflake_credentials.model_dump(),
+    }
+    return _connector_params
 
 
 def test_snowflake_connector_init(connector_params):
@@ -30,7 +50,7 @@ def test_snowflake_connector_init(connector_params):
         if param == "schema":
             param = "schema_"
         actual = actual_connector_params[param]
-        if isinstance(actual, SecretStr):
+        if isinstance(actual, PydanticSecret):
             actual = actual.get_secret_value()
         assert actual == expected
 
@@ -180,6 +200,19 @@ def test_snowflake_query_sync(snowflake_connector):
     assert result[0][2] == "sync"
 
 
+async def test_snowflake_query_async(snowflake_connector):
+    @flow()
+    async def test_snowflake_query_async_flow():
+        result = await snowflake_query_async(
+            "query", snowflake_connector, params=("param",)
+        )
+        return result
+
+    result = await test_snowflake_query_async_flow()
+    assert result[0][0] == "query"
+    assert result[0][1] == ("param",)
+
+
 def test_snowflake_private_connector_init(private_connector_params):
     snowflake_connector = SnowflakeConnector(**private_connector_params)
     actual_connector_params = snowflake_connector.model_dump()
@@ -232,7 +265,6 @@ class TestSnowflakeConnector:
             "query", parameters=("param",), cursor_type=DictCursor
         )
         args, _ = snowflake_connector._connection.cursor.call_args
-
         assert args[0] == DictCursor
 
     def test_fetch_one_cursor_default(self, snowflake_connector: SnowflakeConnector):
