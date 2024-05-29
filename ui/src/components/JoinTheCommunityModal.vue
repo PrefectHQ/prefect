@@ -10,7 +10,7 @@
       </p>
 
       <div>
-        <p-button primary icon="Slack">
+        <p-button primary icon="Slack" :to="joinSlackUrl" target="_blank">
           Join us on Slack
         </p-button>
       </div>
@@ -18,8 +18,8 @@
       <p-divider class="-my-3" />
 
       <p-form :id="formId" @submit="console.dir($event)">
-        <p-label label="Notify me about Prefect updates">
-          <p-text-input v-model="email" placeholder="hello@prefect.io" type="email" required />
+        <p-label v-slot="{ id }" label="Notify me about Prefect updates">
+          <p-text-input :id v-model="email" placeholder="hello@prefect.io" type="email" required />
         </p-label>
       </p-form>
     </template>
@@ -41,7 +41,8 @@
 <script setup lang="ts">
   import { ref } from 'vue'
 
-  const email = ref<string>()
+  const joinSlackUrl = 'http://prefect.io/slack?utm_source=oss&utm_medium=oss&utm_campaign=oss_popup&utm_term=none&utm_content=none'
 
   const formId = 'join-the-community-modal'
+  const email = ref<string>()
 </script>
