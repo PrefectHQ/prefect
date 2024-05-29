@@ -142,7 +142,7 @@ def test_deleting_gcl(
         ],
         prompts_and_responses=[
             (
-                f"Are you sure you want to delete global concurrency limit '{various_global_concurrency_limits[0].name}'?",
+                f"Are you sure you want to delete global concurrency limit with name '{various_global_concurrency_limits[0].name}'?",
                 "y",
             )
         ],
@@ -159,7 +159,7 @@ def test_deleting_gcl_not_found():
         ["global-concurrency-limit", "delete", "not-found"],
         prompts_and_responses=[
             (
-                "Are you sure you want to delete global concurrency limit 'not-found'?",
+                "Are you sure you want to delete global concurrency limit with name 'not-found'?",
                 "y",
             )
         ],

@@ -248,6 +248,7 @@ async def test_deleting_a_block():
     await run_sync_in_worker_thread(
         invoke_and_assert,
         ["block", "delete", "json/pleasedonterase"],
+        user_input="y",
         expected_code=0,
     )
 
@@ -313,6 +314,7 @@ def test_deleting_a_block_type(tmp_path, prefect_client):
     invoke_and_assert(
         ["block", "type", "delete", "testforfileregister"],
         expected_code=0,
+        user_input="y",
         expected_output_contains=expected_output,
     )
 
@@ -328,5 +330,6 @@ def test_deleting_a_protected_block_type(
     invoke_and_assert(
         ["block", "type", "delete", "json"],
         expected_code=1,
+        user_input="y",
         expected_output_contains=expected_output,
     )
