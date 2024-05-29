@@ -98,6 +98,29 @@ def display_block_schema_properties(block_schema_fields):
     return block_schema_yaml_table
 
 
+def display_block_schema_extra_definitions(block_schema_definitions):
+    extra_definitions_table = Table(
+        title="Extra Definitions", show_header=False, show_footer=False, expand=True
+    )
+    extra_definitions_table.add_column(style="cyan")
+    extra_definitions_table.add_column()
+    extra_definitions_table.add_column()
+
+    for definition_name, definition_schema in block_schema_definitions.items():
+        for index, (property_name, property_schema) in enumerate(
+            definition_schema.get("properties", {}).items()
+        ):
+            # We'll set the definition column for the first row of each group only
+            # to give visual whitespace between each group
+            extra_definitions_table.add_row(
+                definition_name if index == 0 else None,
+                property_name,
+                yaml.dump(property_schema, default_flow_style=False),
+            )
+
+    return extra_definitions_table
+
+
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
     registered_blocks = []
     for _, cls in inspect.getmembers(module):
@@ -391,6 +414,12 @@ async def blocktype_inspect(
             exit_with_error(f"Failed to fetch latest schema for the {slug} block type")
 
         app.console.print(display_block_schema_properties(latest_schema.fields))
+
+        latest_schema_extra_definitions = latest_schema.fields.get("definitions")
+        if latest_schema_extra_definitions:
+            app.console.print(
+                display_block_schema_extra_definitions(latest_schema_extra_definitions)
+            )
 
 
 @blocktypes_app.command("delete")
