@@ -7,7 +7,9 @@ from prefect import flow, task
 from prefect.artifacts import (
     create_link_artifact,
     create_markdown_artifact,
+    create_progress_artifact,
     create_table_artifact,
+    update_progress_artifact,
 )
 from prefect.context import get_run_context
 from prefect.server import schemas
@@ -463,3 +465,156 @@ class TestCreateArtifacts:
             {"a": 1, "b": 2},
             {"a": 3, "b": None},
         ]
+
+    async def test_create_progress_artifact_without_key(self, client):
+        progress = 0.0
+
+        artifact_id = await create_progress_artifact(
+            progress, description="my-description"
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
+        assert my_artifact.data == progress
+        assert my_artifact.type == "progress"
+        assert my_artifact.description == "my-description"
+
+    async def test_create_progress_artifact_with_key(self, client):
+        progress = 0.0
+
+        artifact_id = await create_progress_artifact(
+            progress, key="progress-artifact", description="my-description"
+        )
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
+        assert my_artifact.data == progress
+        assert my_artifact.type == "progress"
+        assert my_artifact.key == "progress-artifact"
+        assert my_artifact.description == "my-description"
+
+    async def test_create_progress_artifact_in_task_succeeds(self, client):
+        @task
+        def my_task():
+            task_run_id = get_run_context().task_run.id
+            artifact_id = create_progress_artifact(
+                key="task-link-artifact-3",
+                progress=0.0,
+                description="my-artifact-description",
+            )
+            return artifact_id, task_run_id
+
+        @flow
+        def my_flow():
+            flow_run_id = get_run_context().flow_run.id
+            artifact_id, task_run_id = my_task()
+
+            return artifact_id, flow_run_id, task_run_id
+
+        my_artifact_id, flow_run_id, task_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_progress_artifact.flow_run_id == flow_run_id
+        assert my_progress_artifact.task_run_id == task_run_id
+        assert my_progress_artifact.data == 0.0
+        assert my_progress_artifact.type == "progress"
+        assert my_progress_artifact.description == "my-artifact-description"
+
+    async def test_create_progess_artifact_in_flow_succeeds(self, client):
+        @flow
+        def my_flow():
+            flow_run_id = get_run_context().flow_run.id
+
+            artifact_id = create_progress_artifact(
+                key="task-link-artifact-4",
+                progress=0.0,
+                description="my-artifact-description",
+            )
+
+            return artifact_id, flow_run_id
+
+        my_artifact_id, flow_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_progress_artifact.flow_run_id == flow_run_id
+        assert my_progress_artifact.task_run_id is None
+        assert my_progress_artifact.data == 0.0
+        assert my_progress_artifact.type == "progress"
+        assert my_progress_artifact.description == "my-artifact-description"
+
+
+class TestUpdateArtifacts:
+    async def test_update_progress_artifact_updates_progress(self, client):
+        progress = 0.0
+
+        artifact_id = await create_progress_artifact(progress)
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
+        assert my_artifact.data == progress
+        assert my_artifact.type == "progress"
+
+        new_progress = 50.0
+        await update_progress_artifact(artifact_id, new_progress)
+        response = await client.get(f"/artifacts/{artifact_id}")
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
+        assert my_artifact.data == new_progress
+
+    async def test_update_progress_artifact_in_task(self, client):
+        @task
+        def my_task():
+            task_run_id = get_run_context().task_run.id
+            artifact_id = create_progress_artifact(
+                key="task-link-artifact-3",
+                progress=0.0,
+                description="my-artifact-description",
+            )
+            update_progress_artifact(artifact_id, 50.0)
+            return artifact_id, task_run_id
+
+        @flow
+        def my_flow():
+            flow_run_id = get_run_context().flow_run.id
+            artifact_id, task_run_id = my_task()
+
+            return artifact_id, flow_run_id, task_run_id
+
+        my_artifact_id, flow_run_id, task_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_progress_artifact.flow_run_id == flow_run_id
+        assert my_progress_artifact.task_run_id == task_run_id
+        assert my_progress_artifact.data == 50.0
+        assert my_progress_artifact.type == "progress"
+        assert my_progress_artifact.description == "my-artifact-description"
+
+    async def test_update_progress_artifact_in_flow(self, client):
+        @flow
+        def my_flow():
+            flow_run_id = get_run_context().flow_run.id
+
+            artifact_id = create_progress_artifact(
+                key="task-link-artifact-4",
+                progress=0.0,
+                description="my-artifact-description",
+            )
+            update_progress_artifact(artifact_id, 50.0)
+
+            return artifact_id, flow_run_id
+
+        my_artifact_id, flow_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_progress_artifact.flow_run_id == flow_run_id
+        assert my_progress_artifact.task_run_id is None
+        assert my_progress_artifact.data == 50.0
+        assert my_progress_artifact.type == "progress"
+        assert my_progress_artifact.description == "my-artifact-description"
