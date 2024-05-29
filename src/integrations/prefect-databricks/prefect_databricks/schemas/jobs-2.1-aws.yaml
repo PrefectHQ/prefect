@@ -1176,12 +1176,18 @@ components:
           items:
             type: string
           type: array
-    JobParameters:
-      description: 'Job-level parameters used in the run
-            for example `"job_parameters": {"param": "overriding_val"}`.'
+    JobParameter:
+      properties:
+        name:
+          description: The name of the defined parameter. May only contain alphanumeric characters, _, -, and .
+
           example:
-            param: overriding_val
-          type: object
+            table
+        default:
+          description: Default value of the parameter.
+          example:
+            users
+      type: object
     JobSettings:
       properties:
         email_notifications:
@@ -1340,6 +1346,11 @@ components:
           description: A collection of system notification IDs to notify when runs
             of this job begin or complete. The default behavior is to not send any
             system notifications.
+        parameters:
+          description: Job-level parameter definitions
+          items:
+            $ref: '#/components/schemas/JobParameter'
+          type: array
     JobTask:
       properties:
         dbt_task:
@@ -2252,8 +2263,25 @@ components:
           $ref: '#/components/schemas/TriggerType'
           description: The type of trigger that fired this run.
         job_parameters:
-          $ref: '#/components/schemas/JobParameters'
           description: Job-level parameters used in the run
+          items:
+            $ref: '#/components/schemas/RunJobParameter'
+          type: array
+    RunJobParameter:
+      properties:
+        name:
+          description: The name of the parameter.
+          example:
+            table
+        default:
+          description: The optional default value of the parameter.
+          example:
+            users
+        value:
+          description: The value used in the run.
+          example:
+            customers
+      type: object
     RunLifeCycleState:
       description: '* `PENDING`: The run has been triggered. If there is not already
         an active run of the same job, the cluster and execution context are being
@@ -2429,6 +2457,9 @@ components:
             age: '35'
             name: john doe
           type: object
+        job_parameters:
+          description:  'A map from keys to values for job-level parameters used in the run, for example
+             `"job_parameters": {"param": "overriding_val"}`.'
     RunResultState:
       description: '* `SUCCESS`: The task completed successfully.
 
