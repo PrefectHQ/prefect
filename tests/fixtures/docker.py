@@ -1,11 +1,9 @@
 import sys
-import time
 from contextlib import contextmanager
 from typing import Generator
 
 import docker.errors as docker_errors
 import pytest
-import requests
 from typer.testing import CliRunner
 
 import prefect
@@ -112,7 +110,7 @@ def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     return image_name
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def registry(docker: DockerClient) -> Generator[str, None, None]:
     """Starts a Docker registry locally, returning its URL"""
 
@@ -132,23 +130,6 @@ def registry(docker: DockerClient) -> Generator[str, None, None]:
             ports={"5000/tcp": 5555},
         )
         try:
-            registry_url = "http://localhost:5555"
-            for _ in range(30):
-                try:
-                    response = requests.get(f"{registry_url}/v2/")
-                    if response.status_code == 200:
-                        break
-                    else:
-                        print(response.content)
-                except requests.ConnectionError:
-                    pass
-                time.sleep(1)
-            else:
-                raise RuntimeError("Docker registry did not become ready in time.")
-
-            yield registry_url
+            yield "http://localhost:5555"
         finally:
-            try:
-                container.remove(force=True)
-            except Exception:
-                pass
+            container.remove(force=True)
