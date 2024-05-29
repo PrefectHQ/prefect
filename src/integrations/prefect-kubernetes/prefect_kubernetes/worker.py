@@ -736,8 +736,7 @@ class KubernetesWorker(BaseWorker):
                 client = ApiClient()
             except config.ConfigException:
                 # If in-cluster config fails, load the local kubeconfig
-                await config.load_kube_config()
-                client = ApiClient()
+                client = await config.new_client_from_config()
 
         yield client
 
@@ -804,6 +803,8 @@ class KubernetesWorker(BaseWorker):
                 configuration=configuration, client=client
             )
         try:
+            with open("job_manifest.json", "w") as f:
+                json.dump(configuration.__dict__, f)
             batch_client = BatchV1Api(client)
             job = await batch_client.create_namespaced_job(
                 configuration.namespace,
@@ -979,35 +980,35 @@ class KubernetesWorker(BaseWorker):
             else None
         )
 
-        if configuration.stream_output:
-            core_client = CoreV1Api(client)
-            logs = await core_client.read_namespaced_pod_log(
-                pod.metadata.name,
-                configuration.namespace,
-                follow=True,
-                _preload_content=False,
-                container="prefect-job",
-            )
+        # if configuration.stream_output:
+        #     core_client = CoreV1Api(client)
+        #     logs = await core_client.read_namespaced_pod_log(
+        #         pod.metadata.name,
+        #         configuration.namespace,
+        #         follow=True,
+        #         _preload_content=False,
+        #         container="prefect-job",
+        #     )
+        #     try:
+        #         print("logs:", logs)
+        #         async for log in logs.stream():
+        #             print(log.decode().rstrip())
 
-            try:
-                async for log in logs.content:
-                    print(log.decode().rstrip())
+        #             # Check if we have passed the deadline and should stop streaming
+        #             # logs
+        #             remaining_time = deadline - time.monotonic() if deadline else None
+        #             if deadline and remaining_time <= 0:
+        #                 break
 
-                    # Check if we have passed the deadline and should stop streaming
-                    # logs
-                    remaining_time = deadline - time.monotonic() if deadline else None
-                    if deadline and remaining_time <= 0:
-                        break
-
-            except Exception:
-                logger.warning(
-                    (
-                        "Error occurred while streaming logs - "
-                        "Job will continue to run but logs will "
-                        "no longer be streamed to stdout."
-                    ),
-                    exc_info=True,
-                )
+        #     except Exception:
+        #         logger.warning(
+        #             (
+        #                 "Error occurred while streaming logs - "
+        #                 "Job will continue to run but logs will "
+        #                 "no longer be streamed to stdout."
+        #             ),
+        #             exc_info=True,
+        #         )
 
         batch_client = BatchV1Api(client)
         # Check if the job is completed before beginning a watch
@@ -1161,7 +1162,7 @@ class KubernetesWorker(BaseWorker):
         # memory/CPU requests, or a volume that wasn't available, or a node with an
         # available GPU.
         logger.error(f"Job {job_name!r}: Pod never started.")
-        self._log_recent_events(logger, job_name, last_pod_name, configuration, client)
+        await self._log_recent_events(logger, job_name, last_pod_name, configuration, client)
 
     async def _log_recent_events(
         self,
@@ -1174,12 +1175,13 @@ class KubernetesWorker(BaseWorker):
         """Look for reasons why a Job may not have been able to schedule a Pod, or why
         a Pod may not have been able to start and log them to the provided logger."""
         from kubernetes_asyncio.client.models import CoreV1Event, CoreV1EventList
-
+       
         def best_event_time(event: CoreV1Event) -> datetime:
             """Choose the best timestamp from a Kubernetes event"""
             return event.event_time or event.last_timestamp
+        
 
-        async def log_event(event: CoreV1Event):
+        def log_event(event: CoreV1Event):
             """Log an event in one of a few formats to the provided logger"""
             if event.count and event.count > 1:
                 logger.info(
@@ -1198,14 +1200,16 @@ class KubernetesWorker(BaseWorker):
                     best_event_time(event),
                     event.message,
                 )
-
-            core_client = CoreV1Api(client)
-
-            events: CoreV1EventList = await core_client.list_namespaced_event(
+            
+        core_client = CoreV1Api(client)
+            
+        events: CoreV1EventList = await core_client.list_namespaced_event(
                 configuration.namespace
             )
-            event: CoreV1Event
-            for event in sorted(events.items, key=best_event_time):
+        
+        
+        event: CoreV1Event
+        for event in sorted(events.items, key=best_event_time):
                 if (
                     event.involved_object.api_version == "batch/v1"
                     and event.involved_object.kind == "Job"
