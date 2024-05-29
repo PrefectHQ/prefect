@@ -367,7 +367,7 @@ from_template_and_values_cases = [
                     "image": {
                         "title": "Image",
                         "description": "The image reference of a container image to use for created jobs. If not set, the latest Prefect image will be used.",
-                        "example": "docker.io/prefecthq/prefect:2-latest",
+                        "example": "docker.io/prefecthq/prefect:3-latest",
                         "type": "string",
                     },
                     "service_account_name": {
@@ -790,7 +790,7 @@ from_template_and_values_cases = [
                     "image": {
                         "title": "Image",
                         "description": "The image reference of a container image to use for created jobs. If not set, the latest Prefect image will be used.",
-                        "example": "docker.io/prefecthq/prefect:2-latest",
+                        "example": "docker.io/prefecthq/prefect:3-latest",
                         "type": "string",
                     },
                     "image_pull_policy": {
@@ -1036,13 +1036,13 @@ class TestKubernetesWorkerJobConfiguration:
             values=values,
         )
         # comparing dictionaries produces cleaner diffs
-        assert result.dict() == expected_after_template.dict()
+        assert result.model_dump() == expected_after_template.model_dump()
 
         result.prepare_for_flow_run(flow_run=flow_run, deployment=deployment, flow=flow)
 
         assert (
-            result.dict()
-            == expected_after_preparation(flow_run, deployment, flow).dict()
+            result.model_dump()
+            == expected_after_preparation(flow_run, deployment, flow).model_dump()
         )
 
     async def test_validates_against_an_empty_job(self):

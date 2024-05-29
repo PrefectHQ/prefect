@@ -35,10 +35,10 @@ async def create_saved_search(
 
     insert_stmt = (
         db.insert(db.SavedSearch)
-        .values(**saved_search.dict(shallow=True, exclude_unset=True))
+        .values(**saved_search.model_dump_for_orm(exclude_unset=True))
         .on_conflict_do_update(
             index_elements=db.saved_search_unique_upsert_columns,
-            set_=saved_search.dict(shallow=True, include={"filters"}),
+            set_=saved_search.model_dump_for_orm(include={"filters"}),
         )
     )
 

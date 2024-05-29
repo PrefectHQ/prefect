@@ -1,42 +1,41 @@
 import asyncio
 import logging
 import time
+from pathlib import Path
 from typing import List
 from unittest.mock import MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import anyio
 import pytest
 
 from prefect import Task, flow, get_run_logger, task
-from prefect.client.orchestration import SyncPrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
-from prefect.context import TaskRunContext, get_run_context
+from prefect.context import (
+    EngineContext,
+    FlowRunContext,
+    TaskRunContext,
+    get_run_context,
+)
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.new_task_engine import TaskRunEngine, run_task_async, run_task_sync
+from prefect.results import PersistedResult, ResultFactory
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
-from prefect.states import State
+from prefect.states import Running, State
+from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.callables import get_call_parameters
-
-
-@pytest.fixture(autouse=True)
-def set_new_engine_setting():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: True}):
-        yield
+from prefect.utilities.engine import propose_state
 
 
 @task
 async def foo():
     return 42
-
-
-async def test_setting_is_set():
-    assert PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE.value() is True
 
 
 class TestTaskRunEngine:
@@ -61,7 +60,97 @@ class TestTaskRunEngine:
             engine.client
 
 
+class TestRunTask:
+    def test_run_task_with_client_provided_uuid(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        @task
+        def foo():
+            return 42
+
+        task_run_id = uuid4()
+
+        run_task_sync(foo, task_run_id=task_run_id)
+
+        task_run = sync_prefect_client.read_task_run(task_run_id)
+        assert task_run.id == task_run_id
+
+    async def test_with_provided_context(self, prefect_client):
+        @flow
+        def f():
+            pass
+
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(f)
+        await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
+        result_factory = await ResultFactory.from_flow(f)
+        async with anyio.create_task_group() as task_group:
+            flow_run_context = EngineContext(
+                flow=f,
+                flow_run=flow_run,
+                client=prefect_client,
+                task_runner=test_task_runner,
+                result_factory=result_factory,
+                background_tasks=task_group,
+                parameters={"x": "y"},
+            )
+
+        @task
+        def foo():
+            return FlowRunContext.get().flow_run.id
+
+        context = {"flow_run_context": flow_run_context.serialize()}
+
+        result = run_task_sync(foo, context=context)
+
+        assert result == flow_run.id
+
+
 class TestTaskRunsAsync:
+    async def test_run_task_async_with_client_provided_uuid(
+        self, prefect_client: PrefectClient
+    ):
+        @task
+        async def foo():
+            return 42
+
+        task_run_id = uuid4()
+
+        await run_task_async(foo, task_run_id=task_run_id)
+
+        task_run = await prefect_client.read_task_run(task_run_id)
+        assert task_run.id == task_run_id
+
+    async def test_with_provided_context(self, prefect_client):
+        @flow
+        def f():
+            pass
+
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(f)
+        await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
+        result_factory = await ResultFactory.from_flow(f)
+        async with anyio.create_task_group() as task_group:
+            flow_run_context = EngineContext(
+                flow=f,
+                flow_run=flow_run,
+                client=prefect_client,
+                task_runner=test_task_runner,
+                result_factory=result_factory,
+                background_tasks=task_group,
+                parameters={"x": "y"},
+            )
+
+        @task
+        async def foo():
+            return FlowRunContext.get().flow_run.id
+
+        context = {"flow_run_context": flow_run_context.serialize()}
+
+        result = await run_task_async(foo, context=context)
+
+        assert result == flow_run.id
+
     async def test_basic(self):
         @task
         async def foo():
@@ -345,7 +434,7 @@ class TestTaskRunsAsync:
 
         assert await api_state.result() == str(run_id)
 
-    async def test_task_runs_respect_cache_key(self):
+    async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
         async def first():
             return 42
@@ -354,7 +443,7 @@ class TestTaskRunsAsync:
         async def second():
             return 500
 
-        fs = LocalFileSystem(base_url="/tmp/prefect")
+        fs = LocalFileSystem(basepath=tmp_path)
 
         one = await run_task_async(first.with_options(result_storage=fs))
         two = await run_task_async(second.with_options(result_storage=fs))
@@ -543,7 +632,7 @@ class TestTaskRunsSync:
 
         assert await api_state.result() == str(run_id)
 
-    async def test_task_runs_respect_cache_key(self):
+    async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
         def first():
             return 42
@@ -552,7 +641,7 @@ class TestTaskRunsSync:
         def second():
             return 500
 
-        fs = LocalFileSystem(base_url="/tmp/prefect")
+        fs = LocalFileSystem(basepath=tmp_path)
 
         one = run_task_sync(first.with_options(result_storage=fs))
         two = run_task_sync(second.with_options(result_storage=fs))
@@ -865,3 +954,71 @@ class TestTimeout:
 
         with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             run_task_sync(sync_task)
+
+
+class TestPersistence:
+    async def test_task_can_return_persisted_result(self, prefect_client):
+        @task
+        async def async_task():
+            factory = await ResultFactory.default_factory(
+                client=prefect_client, persist_result=True
+            )
+            result = await factory.create_result(42)
+            return result
+
+        assert await async_task() == 42
+        state = await async_task(return_state=True)
+        assert await state.result() == 42
+
+    async def test_task_persists_results_with_run_id_key(self):
+        @task(persist_result=True)
+        async def async_task():
+            return 42
+
+        state = await async_task(return_state=True)
+        assert state.is_completed()
+        assert await state.result() == 42
+        assert isinstance(state.data, PersistedResult)
+        assert state.data.storage_key == str(state.state_details.task_run_id)
+
+    async def test_task_loads_result_if_exists(self, prefect_client, tmp_path):
+        run_id = uuid4()
+
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True, result_storage=fs
+        )
+        await factory.create_result(1800, key=str(run_id))
+
+        @task(result_storage=fs)
+        async def async_task():
+            return 42
+
+        state = await run_task_async(
+            async_task, task_run_id=run_id, return_type="state"
+        )
+        assert state.is_completed()
+        assert await state.result() == 1800
+        assert isinstance(state.data, PersistedResult)
+        assert state.data.storage_key == str(run_id)
+
+    async def test_task_loads_result_if_exists_using_result_storage_key(
+        self, prefect_client, tmp_path
+    ):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        factory = await ResultFactory.default_factory(
+            client=prefect_client, persist_result=True, result_storage=fs
+        )
+        await factory.create_result(-92, key="foo-bar")
+
+        @task(result_storage=fs, result_storage_key="foo-bar")
+        async def async_task():
+            return 42
+
+        state = await run_task_async(async_task, return_type="state")
+        assert state.is_completed()
+        assert await state.result() == -92
+        assert isinstance(state.data, PersistedResult)
+        assert state.data.storage_key == "foo-bar"

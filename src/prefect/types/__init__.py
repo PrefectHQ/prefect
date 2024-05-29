@@ -1,112 +1,91 @@
-from typing import Any, Callable, ClassVar, Generator
+from typing import Annotated, Any, Dict, List, Union
+import orjson
+import pydantic
 
-from pydantic_core import core_schema, CoreSchema, SchemaValidator
-from typing_extensions import Self
-from datetime import timedelta
+from pydantic import (
+    BeforeValidator,
+    Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+)
+from zoneinfo import available_timezones
 
+MAX_VARIABLE_NAME_LENGTH = 255
+MAX_VARIABLE_VALUE_LENGTH = 5000
 
-class NonNegativeInteger(int):
-    """An integer that must be greater than or equal to 0."""
+timezone_set = available_timezones()
 
-    schema: ClassVar[CoreSchema] = core_schema.int_schema(ge=0)
-
-    @classmethod
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+NonNegativeInteger = Annotated[int, Field(ge=0)]
+PositiveInteger = Annotated[int, Field(gt=0)]
+NonNegativeFloat = Annotated[float, Field(ge=0.0)]
+TimeZone = Annotated[str, Field(default="UTC", pattern="|".join(timezone_set))]
 
 
-class PositiveInteger(int):
-    """An integer that must be greater than 0."""
+BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 
-    schema: ClassVar[CoreSchema] = core_schema.int_schema(gt=0)
+WITHOUT_BANNED_CHARACTERS = r"^[^" + "".join(BANNED_CHARACTERS) + "]+$"
+Name = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS)]
 
-    @classmethod
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+WITHOUT_BANNED_CHARACTERS_EMPTY_OK = r"^[^" + "".join(BANNED_CHARACTERS) + "]*$"
+NameOrEmpty = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS_EMPTY_OK)]
 
 
-class NonNegativeFloat(float):
-    schema: ClassVar[CoreSchema] = core_schema.float_schema(ge=0)
+def non_emptyish(value: str) -> str:
+    if not value.strip("' \""):
+        raise ValueError("name cannot be an empty string")
 
-    @classmethod
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+    return value
 
 
-class NonNegativeDuration(timedelta):
-    """A timedelta that must be greater than or equal to 0."""
-
-    schema: ClassVar = core_schema.timedelta_schema(ge=timedelta(seconds=0))
-
-    @classmethod
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
-
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+NonEmptyishName = Annotated[
+    str,
+    Field(pattern=WITHOUT_BANNED_CHARACTERS),
+    BeforeValidator(non_emptyish),
+]
 
 
-class PositiveDuration(timedelta):
-    """A timedelta that must be greater than 0."""
+VariableValue = Union[
+    StrictStr,
+    StrictInt,
+    StrictBool,
+    StrictFloat,
+    None,
+    Dict[str, Any],
+    List[Any],
+]
 
-    schema: ClassVar = core_schema.timedelta_schema(gt=timedelta(seconds=0))
 
-    @classmethod
-    def __get_validators__(cls) -> Generator[Callable[..., Any], None, None]:
-        yield cls.validate
+def check_variable_value(value: object) -> object:
+    try:
+        json_string = orjson.dumps(value)
+    except orjson.JSONEncodeError:
+        raise ValueError("Variable value must be serializable to JSON")
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable[..., Any]
-    ) -> CoreSchema:
-        return cls.schema
+    if value is not None and len(json_string) > MAX_VARIABLE_VALUE_LENGTH:
+        raise ValueError(
+            f"Variable value must be less than {MAX_VARIABLE_VALUE_LENGTH} characters"
+        )
+    return value
 
-    @classmethod
-    def validate(cls, v: Any) -> Self:
-        return SchemaValidator(schema=cls.schema).validate_python(v)
+
+StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_value)]
+
+LaxUrl = Annotated[str, BeforeValidator(lambda x: str(x).strip())]
+
+
+class SecretDict(pydantic.Secret[Dict[str, Any]]):
+    pass
 
 
 __all__ = [
     "NonNegativeInteger",
     "PositiveInteger",
     "NonNegativeFloat",
-    "NonNegativeDuration",
-    "PositiveDuration",
+    "Name",
+    "NameOrEmpty",
+    "NonEmptyishName",
+    "SecretDict",
+    "StrictVariableValue",
 ]

@@ -11,7 +11,6 @@ else:
 
 import pytest
 from googleapiclient.errors import HttpError
-from jsonschema.exceptions import ValidationError
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.utilities import slugify_name
 from prefect_gcp.workers.cloud_run import (
@@ -23,6 +22,9 @@ from prefect_gcp.workers.cloud_run import (
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.server.schemas.actions import DeploymentCreate
+from prefect.utilities.schema_tools.validation import (
+    ValidationError as PrefectValidationError,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -313,12 +315,12 @@ class TestCloudRunWorkerValidConfiguration:
             flow_id=uuid.uuid4(),
             infra_overrides={"region": "test-region1", "cpu": cpu},
         )
-        with pytest.raises(ValidationError) as excinfo:
+        with pytest.raises(PrefectValidationError) as exc:
             deployment.check_valid_configuration(
                 CloudRunWorker.get_default_base_job_template()
             )
 
-        assert excinfo.value.message == f"'{cpu}' does not match '^(\\\\d*000)m$'"
+        assert f"'{cpu}' does not match '^(\\\\d*000)m$'" in str(exc.value)
 
     @pytest.mark.parametrize("cpu", ["1000m", "2000m", "3000m"])
     def test_valid_cpu_string(self, cpu):
@@ -338,14 +340,11 @@ class TestCloudRunWorkerValidConfiguration:
             flow_id=uuid.uuid4(),
             infra_overrides={"region": "test-region1", "memory": memory},
         )
-        with pytest.raises(ValidationError) as excinfo:
+        with pytest.raises(PrefectValidationError) as exc:
             deployment.check_valid_configuration(
                 CloudRunWorker.get_default_base_job_template()
             )
-        assert (
-            excinfo.value.message
-            == f"'{memory}' does not match '^\\\\d+(?:G|Gi|M|Mi)$'"
-        )
+        assert f"'{memory}' does not match '^\\\\d+(?:G|Gi|M|Mi)$'" in str(exc.value)
 
     @pytest.mark.parametrize("memory", ["512G", "512Gi", "512M", "512Mi"])
     def test_valid_memory_string(self, memory):
@@ -596,7 +595,7 @@ class TestCloudRunWorker:
             def raise_exception(*args, **kwargs):
                 raise Exception("This is an intentional exception")
 
-            monkeypatch.setattr("prefect_gcp.cloud_run.Job.get", raise_exception)
+            monkeypatch.setattr("prefect_gcp.utilities.Job.get", raise_exception)
 
             with pytest.raises(Exception):
                 await cloud_run_worker.run(flow_run, cloud_run_worker_job_config)
@@ -658,7 +657,7 @@ class TestCloudRunWorker:
             def raise_exception(*args, **kwargs):
                 raise Exception("This is an intentional exception")
 
-            monkeypatch.setattr("prefect_gcp.cloud_run.Execution.get", raise_exception)
+            monkeypatch.setattr("prefect_gcp.utilities.Execution.get", raise_exception)
 
             with pytest.raises(Exception):
                 await cloud_run_worker.run(flow_run, cloud_run_worker_job_config)

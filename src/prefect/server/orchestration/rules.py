@@ -22,14 +22,7 @@ from types import TracebackType
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import sqlalchemy as sa
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic import ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
@@ -96,13 +89,12 @@ class OrchestrationContext(PrefectBaseModel):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     session: Optional[Union[sa.orm.Session, AsyncSession]] = ...
     initial_state: Optional[states.State] = ...
     proposed_state: Optional[states.State] = ...
-    validated_state: Optional[states.State]
+    validated_state: Optional[states.State] = Field(default=None)
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
@@ -141,16 +133,16 @@ class OrchestrationContext(PrefectBaseModel):
             A mutation-safe copy of the `OrchestrationContext`
         """
 
-        safe_copy = self.copy()
+        safe_copy = self.model_copy()
 
         safe_copy.initial_state = (
-            self.initial_state.copy() if self.initial_state else None
+            self.initial_state.model_copy() if self.initial_state else None
         )
         safe_copy.proposed_state = (
-            self.proposed_state.copy() if self.proposed_state else None
+            self.proposed_state.model_copy() if self.proposed_state else None
         )
         safe_copy.validated_state = (
-            self.validated_state.copy() if self.validated_state else None
+            self.validated_state.model_copy() if self.validated_state else None
         )
         safe_copy.parameters = self.parameters.copy()
         return safe_copy
@@ -277,7 +269,7 @@ class FlowOrchestrationContext(OrchestrationContext):
                 else None
             )
         else:
-            state_payload = self.proposed_state.dict(shallow=True)
+            state_payload = self.proposed_state.model_dump_for_orm()
             state_data = state_payload.pop("data", None)
 
             if state_data is not None and not (
@@ -431,7 +423,7 @@ class TaskOrchestrationContext(OrchestrationContext):
                 else None
             )
         else:
-            state_payload = self.proposed_state.dict(shallow=True)
+            state_payload = self.proposed_state.model_dump_for_orm()
             state_data = state_payload.pop("data", None)
 
             if state_data is not None and not (

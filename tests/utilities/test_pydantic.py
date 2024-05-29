@@ -1,29 +1,19 @@
-import json
 from pathlib import Path
 
 import cloudpickle
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 import pytest
-from typing_extensions import Literal
+from pydantic import BaseModel, ConfigDict, Field
 
 from prefect.utilities.dispatch import register_type
 from prefect.utilities.pydantic import (
     JsonPatch,
     PartialModel,
     add_cloudpickle_reduction,
-    add_type_dispatch,
     get_class_fields_only,
 )
 
 
-class SimplePydantic(pydantic.BaseModel):
+class SimplePydantic(BaseModel):
     x: int
     y: int
 
@@ -35,16 +25,27 @@ try:
     # Models must be defined at the top-level to use the reduction decorator since it
     # imports types
     @add_cloudpickle_reduction
-    class CythonFieldModel(pydantic.BaseModel):
+    class CythonFieldModel(BaseModel):
         x: Path  # The pydantic validator for 'Path' is compiled in cythonized builds
 
     @add_cloudpickle_reduction(exclude={"x"})
-    class ReductionWithKwargs(pydantic.BaseModel):
+    class ReductionWithKwargs(BaseModel):
         x: int = 0
         y: str
 
 except Exception as exc:
     REDUCTION_MODELS_EXC = exc
+
+
+def test_register_type_without_known_base():
+    class DispatchlessBase(BaseModel):
+        pass
+
+    with pytest.raises(ValueError, match="No registry found for type 'Foo'"):
+
+        @register_type
+        class Foo(DispatchlessBase):
+            pass
 
 
 class TestCloudpickleReduction:
@@ -73,7 +74,7 @@ class TestCloudpickleReduction:
 
 class TestGetSubclassFieldsOnly:
     def test_get_subclass_fields(self):
-        class ParentModel(pydantic.BaseModel):
+        class ParentModel(BaseModel):
             parent_field: str = ""
 
         class ChildModel(ParentModel):
@@ -83,7 +84,7 @@ class TestGetSubclassFieldsOnly:
         assert res == {"child_field"}
 
     def test_get_subclass_fields_with_redefined_field(self):
-        class ParentModel(pydantic.BaseModel):
+        class ParentModel(BaseModel):
             parent_field: str = ""
             redefined_field: str = ""
 
@@ -95,10 +96,10 @@ class TestGetSubclassFieldsOnly:
         assert res == {"child_field", "redefined_field"}
 
     def test_get_subclass_fields_with_multiple_inheritance(self):
-        class ParentModel1(pydantic.BaseModel):
+        class ParentModel1(BaseModel):
             parent_field1: str = ""
 
-        class ParentModel2(pydantic.BaseModel):
+        class ParentModel2(BaseModel):
             parent_field2: str = ""
 
         class ChildModel(ParentModel1, ParentModel2):
@@ -108,7 +109,7 @@ class TestGetSubclassFieldsOnly:
         assert res == {"child_field"}
 
     def test_get_subclass_fields_with_multiple_parents(self):
-        class ParentModel1(pydantic.BaseModel):
+        class ParentModel1(BaseModel):
             parent_field1: str = ""
 
         class ParentModel2(ParentModel1):
@@ -180,206 +181,14 @@ class TestPartialModel:
             p.finalize()
 
 
-class TestTypeDispatchField:
-    def test_base_can_be_resolved_to_self(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            __dispatch_key__ = "__base__"
-
-        instance = Base()
-        post_instance = Base.parse_raw(instance.json())
-        assert type(post_instance) == Base
-
-    def test_subtype_dict_contains_dispatch_key(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            __dispatch_key__ = "base"
-
-        class Foo(Base):
-            __dispatch_key__ = "foo"
-
-        assert Foo().dict().get("type") == "foo"
-
-    def test_subtype_json_contains_dispatch_key(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            __dispatch_key__ = "base"
-
-        class Foo(Base):
-            __dispatch_key__ = "foo"
-
-        assert json.loads(Foo().json()).get("type") == "foo"
-
-    def test_subtype_can_be_resolved_with_base_parse(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            __dispatch_key__ = "base"
-
-        class Foo(Base):
-            __dispatch_key__ = "foo"
-
-        instance = Foo()
-        post_instance = Base.parse_raw(instance.json())
-        assert type(post_instance) == Foo
-        assert isinstance(post_instance, Foo)
-        assert isinstance(post_instance, Base)
-
-    def test_subtype_can_be_resolved_with_subtype_parse(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            __dispatch_key__ = "base"
-
-        class Foo(Base):
-            __dispatch_key__ = "foo"
-
-        instance = Foo()
-        post_instance = Foo.parse_raw(instance.json())
-        assert type(post_instance) == Foo
-        assert isinstance(post_instance, Foo)
-        assert isinstance(post_instance, Base)
-
-    def test_subtype_with_callable_dispatch_key_can_be_resolved_with_base_parse(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            @classmethod
-            def __dispatch_key__(cls):
-                return cls.__name__.lower()
-
-        class Foo(Base):
-            pass
-
-        instance = Foo()
-        post_instance = Foo.parse_raw(instance.json())
-        assert type(post_instance) == Foo
-        assert isinstance(post_instance, Foo)
-        assert isinstance(post_instance, Base)
-
-    def test_subtypes_are_unique(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            @classmethod
-            def __dispatch_key__(cls):
-                return cls.__name__.lower()
-
-        class Foo(Base):
-            pass
-
-        class Bar(Base):
-            pass
-
-        foo = Foo()
-        bar = Bar()
-        post_foo = Base.parse_raw(foo.json())
-        post_bar = Base.parse_raw(bar.json())
-        assert type(post_foo) != type(post_bar)
-
-    def test_registries_are_unique_per_base(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            @classmethod
-            def __dispatch_key__(cls):
-                return cls.__name__.lower()
-
-        class Foo(Base):
-            pass
-
-        @add_type_dispatch
-        class SecondBase(pydantic.BaseModel):
-            @classmethod
-            def __dispatch_key__(cls):
-                return cls.__name__.lower()
-
-        class SecondFoo(SecondBase):
-            pass
-
-        foo = Foo()
-        second_foo = SecondFoo()
-        post_foo = Base.parse_raw(foo.json())
-        post_second_foo = SecondBase.parse_raw(second_foo.json())
-        assert type(post_foo) != type(post_second_foo)
-        assert isinstance(post_foo, Foo)
-        assert isinstance(post_second_foo, SecondFoo)
-
-    def test_register_type_without_known_base(self):
-        class DispatchlessBase(pydantic.BaseModel):
-            pass
-
-        with pytest.raises(ValueError, match="No registry found for type 'Foo'"):
-
-            @register_type
-            class Foo(DispatchlessBase):
-                pass
-
-    def test_register_type_without_dispatch_key(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            __dispatch_key__: str
-
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Type 'Foo' does not define a value for '__dispatch_key__' which is"
-                " required for registry lookup"
-            ),
-        ):
-
-            class Foo(Base):
-                pass
-
-    def test_type_field_can_be_used_directly(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            type: str
-
-        @register_type
-        class Foo(Base):
-            type: Literal["foo"] = "foo"
-
-        assert Foo.__dispatch_key__() == "foo"
-
-        instance = Foo()
-        post_instance = Base.parse_raw(instance.json())
-        assert type(post_instance) == Foo
-        assert isinstance(post_instance, Foo)
-        assert isinstance(post_instance, Base)
-
-    def test_both_type_field_and_dispatch_key_cannot_be_set(self):
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Model class 'Base' defines a `__dispatch_key__` and a type field. Only"
-                " one of these may be defined for dispatch"
-            ),
-        ):
-
-            @add_type_dispatch
-            class Base(pydantic.BaseModel):
-                type: str
-                __dispatch_key__ = "base"
-
-    def test_base_type_field_must_be_string_type(self):
-        with pytest.raises(
-            TypeError,
-            match=(
-                "Model class 'Base' defines a 'type' field with type 'int' but it must"
-                " be 'str'"
-            ),
-        ):
-
-            @add_type_dispatch
-            class Base(pydantic.BaseModel):
-                type: int
-
-
 class TestJsonPatch:
-    class PatchModel(pydantic.BaseModel):
-        class Config:
-            arbitrary_types_allowed = True
-
-        patch: JsonPatch = pydantic.Field(default_factory=lambda: JsonPatch([]))
-
     def test_json_schema(self):
-        schema = TestJsonPatch.PatchModel().schema()
+        class PatchModel(BaseModel):
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+
+            patch: JsonPatch = Field(default_factory=lambda: JsonPatch([]))
+
+        schema = PatchModel.model_json_schema()
 
         assert schema["properties"]["patch"] == {
             "title": "Patch",

@@ -4,21 +4,16 @@ from typing import List, Optional, cast
 
 import pendulum
 import sqlalchemy as sa
-from prefect._vendor.fastapi import Depends, HTTPException, status
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from fastapi import Depends, HTTPException, status
+from pydantic import Field, model_serializer
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
+from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("orion.api.ui.task_runs")
@@ -33,6 +28,13 @@ class TaskRunCount(PrefectBaseModel):
         default=..., description="The number of completed task runs."
     )
     failed: int = Field(default=..., description="The number of failed task runs.")
+
+    @model_serializer
+    def ser_model(self) -> dict:
+        return {
+            "completed": int(self.completed),
+            "failed": int(self.failed),
+        }
 
 
 def _postgres_bucket_expression(
@@ -93,7 +95,7 @@ async def read_dashboard_task_run_counts(
     bucket_count = 20
     start_time = task_runs.start_time.after_.start_of("minute")
     end_time = cast(
-        DateTimeTZ,
+        DateTime,
         (
             task_runs.start_time.before_.end_of("minute")
             if task_runs.start_time.before_
@@ -107,7 +109,7 @@ async def read_dashboard_task_run_counts(
         # Gather the raw counts. The counts are divided into buckets of time
         # and each bucket contains the number of successful and failed task
         # runs.
-        # SQLAlchemy doesn't play nicely with our DateTimeTZ type so we convert it
+        # SQLAlchemy doesn't play nicely with our DateTime type so we convert it
         # to a datetime object.
         start_datetime = datetime(
             start_time.year,
@@ -200,7 +202,6 @@ async def read_task_run_counts_by_state(
     async with db.session_context(begin_transaction=False) as session:
         return await models.task_runs.count_task_runs_by_state(
             session=session,
-            db=db,
             flow_filter=flows,
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,

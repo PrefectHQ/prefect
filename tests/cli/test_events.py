@@ -5,7 +5,6 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
@@ -78,7 +77,7 @@ async def test_stream_workspace(
     assert len(stdout_list) == 3
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_raw(event1)
+        parsed_event = Event.model_validate_json(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")
@@ -112,7 +111,7 @@ async def test_stream_account(
     assert len(stdout_list) == 3
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_raw(event1)
+        parsed_event = Event.model_validate_json(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")
@@ -129,17 +128,7 @@ def oss_api_setup(events_api_url: str):
         yield
 
 
-@pytest.fixture
-def enable_oss_events():
-    with temporary_settings(
-        updates={
-            PREFECT_EXPERIMENTAL_EVENTS: True,
-        }
-    ):
-        yield
-
-
-@pytest.mark.usefixtures("oss_api_setup", "enable_oss_events")
+@pytest.mark.usefixtures("oss_api_setup")
 async def test_stream_oss_events(
     example_event_1: Event,
     example_event_2: Event,
@@ -168,7 +157,7 @@ async def test_stream_oss_events(
 
     event1 = stdout_list[1]
     try:
-        parsed_event = Event.parse_raw(event1)
+        parsed_event = Event.model_validate_json(event1)
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")

@@ -22,9 +22,7 @@ from prefect import flow, task
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
-from prefect.infrastructure import Process
 from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
@@ -181,44 +179,6 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     dictConfigMock.assert_called_once_with(expected_config)
 
 
-@pytest.mark.skip(reason="Will address with other infra compatibility improvements.")
-@pytest.mark.enable_api_log_handler
-async def test_flow_run_respects_extra_loggers(prefect_client, logger_test_deployment):
-    """
-    Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
-    intended. This avoids side-effects of modifying the loggers in this test run without
-    confusing mocking.
-    """
-    flow_run = await prefect_client.create_flow_run_from_deployment(
-        logger_test_deployment
-    )
-
-    assert (
-        await Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
-        .prepare_for_flow_run(flow_run)
-        .run()
-    )
-
-    state = (await prefect_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state, prefect_client)
-    api_logs = await prefect_client.read_logs()
-    api_log_messages = [log.message for log in api_logs]
-
-    extra_logger = logging.getLogger("prefect.extra")
-
-    # Configures 'foo' to match 'prefect.extra'
-    assert settings["foo"]["handlers"] == [
-        handler.name for handler in extra_logger.handlers
-    ]
-    assert settings["foo"]["level"] == extra_logger.level
-    assert "Hello from foo" in api_log_messages
-
-    # Does not configure 'bar'
-    assert settings["bar"]["handlers"] == []
-    assert settings["bar"]["level"] == logging.NOTSET
-    assert "Hello from bar" not in api_log_messages
-
-
 @pytest.mark.parametrize("name", ["default", None, ""])
 def test_get_logger_returns_prefect_logger_by_default(name):
     if name == "default":
@@ -322,32 +282,32 @@ class TestAPILogHandler:
         handler.flush()
 
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
-        with TaskRunContext.construct(task_run=task_run):
+        with TaskRunContext.model_construct(task_run=task_run):
             logger.info("test-task")
 
-        expected = LogCreate.construct(
+        expected = LogCreate.model_construct(
             flow_run_id=task_run.flow_run_id,
             task_run_id=task_run.id,
             name=logger.name,
             level=logging.INFO,
             message="test-task",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
         mock_log_worker.instance().send.assert_called_once_with(expected)
 
     def test_sends_flow_run_log_to_worker(self, logger, mock_log_worker, flow_run):
-        with FlowRunContext.construct(flow_run=flow_run):
+        with FlowRunContext.model_construct(flow_run=flow_run):
             logger.info("test-flow")
 
-        expected = LogCreate.construct(
+        expected = LogCreate.model_construct(
             flow_run_id=flow_run.id,
             task_run_id=None,
             name=logger.name,
             level=logging.INFO,
             message="test-flow",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
@@ -359,20 +319,20 @@ class TestAPILogHandler:
     ):
         flow_run_id = uuid.uuid4()
         context = (
-            FlowRunContext.construct(flow_run=flow_run)
+            FlowRunContext.model_construct(flow_run=flow_run)
             if with_context
             else nullcontext()
         )
         with context:
             logger.info("test-task", extra={"flow_run_id": flow_run_id})
 
-        expected = LogCreate.construct(
+        expected = LogCreate.model_construct(
             flow_run_id=flow_run_id,
             task_run_id=None,
             name=logger.name,
             level=logging.INFO,
             message="test-task",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
@@ -384,21 +344,21 @@ class TestAPILogHandler:
     ):
         task_run_id = uuid.uuid4()
         context = (
-            TaskRunContext.construct(task_run=task_run)
+            TaskRunContext.model_construct(task_run=task_run)
             if with_context
             else nullcontext()
         )
-        with FlowRunContext.construct(flow_run=flow_run):
+        with FlowRunContext.model_construct(flow_run=flow_run):
             with context:
                 logger.warning("test-task", extra={"task_run_id": task_run_id})
 
-        expected = LogCreate.construct(
+        expected = LogCreate.model_construct(
             flow_run_id=flow_run.id,
             task_run_id=task_run_id,
             name=logger.name,
             level=logging.WARNING,
             message="test-task",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
         expected["timestamp"] = ANY  # Tested separately
         expected["__payload_size__"] = ANY  # Tested separately
 
@@ -426,14 +386,15 @@ class TestAPILogHandler:
         # Capture the record
         handler.emit = MagicMock(side_effect=handler.emit)
 
-        with FlowRunContext.construct(flow_run=flow_run):
+        with FlowRunContext.model_construct(flow_run=flow_run):
             logger.info("test-flow")
 
         record = handler.emit.call_args[0][0]
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
         assert (
-            log_dict["timestamp"] == pendulum.from_timestamp(record.created).isoformat()
+            log_dict["timestamp"]
+            == pendulum.from_timestamp(record.created).to_iso8601_string()
         )
 
     def test_sets_timestamp_from_time_if_missing_from_recrod(
@@ -450,15 +411,15 @@ class TestAPILogHandler:
         now = time.time()
         monkeypatch.setattr("time.time", lambda: now)
 
-        with FlowRunContext.construct(flow_run=flow_run):
+        with FlowRunContext.model_construct(flow_run=flow_run):
             logger.info("test-flow")
 
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
-        assert log_dict["timestamp"] == pendulum.from_timestamp(now).isoformat()
+        assert log_dict["timestamp"] == pendulum.from_timestamp(now).to_iso8601_string()
 
     def test_does_not_send_logs_that_opt_out(self, logger, mock_log_worker, task_run):
-        with TaskRunContext.construct(task_run=task_run):
+        with TaskRunContext.model_construct(task_run=task_run):
             logger.info("test", extra={"send_to_api": False})
 
         mock_log_worker.instance().send.assert_not_called()
@@ -466,7 +427,7 @@ class TestAPILogHandler:
     def test_does_not_send_logs_that_opt_out_deprecated(
         self, logger, mock_log_worker, task_run
     ):
-        with TaskRunContext.construct(task_run=task_run):
+        with TaskRunContext.model_construct(task_run=task_run):
             with pytest.warns(
                 PrefectDeprecationWarning,
                 match=(
@@ -486,7 +447,7 @@ class TestAPILogHandler:
         with temporary_settings(
             updates={PREFECT_LOGGING_TO_API_ENABLED: "False"},
         ):
-            with TaskRunContext.construct(task_run=task_run):
+            with TaskRunContext.model_construct(task_run=task_run):
                 logger.info("test")
 
         mock_log_worker.instance().send.assert_not_called()
@@ -600,10 +561,7 @@ class TestAPILogHandler:
         with temporary_settings(
             updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
         ):
-            # NOTE: We use `raises` instead of `warns` because pytest will otherwise
-            #       capture the warning call and skip checking that we use it correctly
-            #       See https://github.com/pytest-dev/pytest/issues/9288
-            with pytest.raises(
+            with pytest.warns(
                 UserWarning,
                 match=(
                     "Logger 'tests.test_logging' attempted to send logs to the API"
@@ -660,7 +618,7 @@ class TestAPILogHandler:
     async def test_does_not_enqueue_logs_that_are_too_big(
         self, task_run, logger, capsys, mock_log_worker
     ):
-        with TaskRunContext.construct(task_run=task_run):
+        with TaskRunContext.model_construct(task_run=task_run):
             with temporary_settings(updates={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: "1"}):
                 logger.info("test")
 
@@ -699,14 +657,14 @@ class TestAPILogWorker:
             level=10,
             timestamp=pendulum.now("utc"),
             message="hello",
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
     async def test_send_logs_single_record(self, log_dict, prefect_client, worker):
         worker.send(log_dict)
         await worker.drain()
         logs = await prefect_client.read_logs()
         assert len(logs) == 1
-        assert logs[0].dict(include=log_dict.keys(), json_compatible=True) == log_dict
+        assert logs[0].model_dump(include=log_dict.keys(), mode="json") == log_dict
 
     async def test_send_logs_many_records(self, log_dict, prefect_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
@@ -723,8 +681,8 @@ class TestAPILogWorker:
         assert len(logs) == count
         for log in logs:
             assert (
-                log.dict(
-                    include=log_dict.keys(), exclude={"message"}, json_compatible=True
+                log.model_dump(
+                    include=log_dict.keys(), exclude={"message"}, mode="json"
                 )
                 == log_dict
             )
@@ -873,7 +831,7 @@ def test_task_run_logger_with_flow_run_from_context(task_run, flow_run):
     def test_flow():
         pass
 
-    with FlowRunContext.construct(flow_run=flow_run, flow=test_flow):
+    with FlowRunContext.model_construct(flow_run=flow_run, flow=test_flow):
         logger = task_run_logger(task_run)
         assert (
             logger.extra["flow_run_id"] == str(task_run.flow_run_id) == str(flow_run.id)
@@ -885,7 +843,7 @@ def test_task_run_logger_with_flow_run_from_context(task_run, flow_run):
 def test_run_logger_with_flow_run_context_without_parent_flow_run_id(caplog):
     """Test that get_run_logger works when called from a constructed FlowRunContext"""
 
-    with FlowRunContext.construct(flow_run=None, flow=None):
+    with FlowRunContext.model_construct(flow_run=None, flow=None):
         logger = get_run_logger()
 
         with caplog.at_level(logging.INFO):
@@ -912,7 +870,7 @@ async def test_run_logger_with_task_run_context_without_parent_flow_run_id(
         foo, flow_run_id=None, dynamic_key=""
     )
 
-    task_run_context = TaskRunContext.construct(
+    task_run_context = TaskRunContext.model_construct(
         task=foo, task_run=task_run, client=prefect_client
     )
 
@@ -949,7 +907,7 @@ async def test_run_logger_with_explicit_context(
         pass
 
     task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    context = TaskRunContext.construct(
+    context = TaskRunContext.model_construct(
         task=foo,
         task_run=task_run,
         client=prefect_client,
@@ -981,7 +939,7 @@ async def test_run_logger_with_explicit_context_overrides_existing(
 
     task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
     # Use `bar` instead of `foo` in context
-    context = TaskRunContext.construct(
+    context = TaskRunContext.model_construct(
         task=bar,
         task_run=task_run,
         client=prefect_client,
@@ -996,7 +954,7 @@ async def test_run_logger_in_flow(prefect_client):
     def test_flow():
         return get_run_logger()
 
-    state = test_flow._run()
+    state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
@@ -1012,7 +970,7 @@ async def test_run_logger_extra_data(prefect_client):
     def test_flow():
         return get_run_logger(foo="test", flow_name="bar")
 
-    state = test_flow._run()
+    state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(state.state_details.flow_run_id)
     logger = await state.result()
     assert logger.name == "prefect.flow_runs"
@@ -1031,9 +989,9 @@ async def test_run_logger_in_nested_flow(prefect_client):
 
     @flow
     def test_flow():
-        return child_flow._run()
+        return child_flow(return_state=True)
 
-    child_state = await test_flow._run().result()
+    child_state = await test_flow(return_state=True).result()
     flow_run = await prefect_client.read_flow_run(child_state.state_details.flow_run_id)
     logger = await child_state.result()
     assert logger.name == "prefect.flow_runs"
@@ -1051,9 +1009,9 @@ async def test_run_logger_in_task(prefect_client):
 
     @flow
     def test_flow():
-        return test_task._run()
+        return test_task(return_state=True)
 
-    flow_state = test_flow._run()
+    flow_state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(flow_state.state_details.flow_run_id)
     task_state = await flow_state.result()
     task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
@@ -1467,7 +1425,7 @@ def test_patch_print_writes_to_stdout_with_run_context_and_no_log_prints(
     caplog, capsys, run_context_cls
 ):
     with patch_print():
-        with run_context_cls.construct(log_prints=False):
+        with run_context_cls.model_construct(log_prints=False):
             print("foo")
 
     assert "foo" in capsys.readouterr().out
@@ -1484,7 +1442,9 @@ def test_patch_print_does_not_write_to_logger_with_custom_file(
         pass
 
     with patch_print():
-        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+        with TaskRunContext.model_construct(
+            log_prints=True, task_run=task_run, task=my_task
+        ):
             print("foo", file=string_io)
 
     assert "foo" not in caplog.text
@@ -1498,7 +1458,9 @@ def test_patch_print_writes_to_logger_with_task_run_context(caplog, capsys, task
         pass
 
     with patch_print():
-        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+        with TaskRunContext.model_construct(
+            log_prints=True, task_run=task_run, task=my_task
+        ):
             print("foo")
 
     assert "foo" not in capsys.readouterr().out
@@ -1523,7 +1485,9 @@ def test_patch_print_writes_to_logger_with_explicit_file(
         pass
 
     with patch_print():
-        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+        with TaskRunContext.model_construct(
+            log_prints=True, task_run=task_run, task=my_task
+        ):
             # We must defer retrieval of sys.<file> because pytest overrides sys!
             print("foo", file=getattr(sys, file))
 
@@ -1548,7 +1512,9 @@ def test_patch_print_writes_to_logger_with_flow_run_context(caplog, capsys, flow
         pass
 
     with patch_print():
-        with FlowRunContext.construct(log_prints=True, flow_run=flow_run, flow=my_flow):
+        with FlowRunContext.model_construct(
+            log_prints=True, flow_run=flow_run, flow=my_flow
+        ):
             print("foo")
 
     assert "foo" not in capsys.readouterr().out

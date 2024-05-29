@@ -19,7 +19,7 @@ import anyio
 import yaml
 from ruamel.yaml import YAML
 
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
@@ -260,7 +260,7 @@ def _format_deployment_for_saving_to_prefect_file(
         if isinstance(deployment["schedule"], IntervalSchedule):
             deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
         else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-            deployment["schedule"] = deployment["schedule"].dict()
+            deployment["schedule"] = deployment["schedule"].model_dump()
 
         if "is_schedule_active" in deployment:
             deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
@@ -268,16 +268,18 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedules"):
         schedules = []
         for deployment_schedule in cast(
-            List[MinimalDeploymentSchedule], deployment["schedules"]
+            List[DeploymentScheduleCreate], deployment["schedules"]
         ):
             if isinstance(deployment_schedule.schedule, IntervalSchedule):
                 schedule_config = _interval_schedule_to_dict(
                     deployment_schedule.schedule
                 )
             else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-                schedule_config = deployment_schedule.schedule.dict()
+                schedule_config = deployment_schedule.schedule.model_dump()
 
             schedule_config["active"] = deployment_schedule.active
+            schedule_config["max_active_runs"] = deployment_schedule.max_active_runs
+            schedule_config["catchup"] = deployment_schedule.catchup
             schedules.append(schedule_config)
 
         deployment["schedules"] = schedules
@@ -295,7 +297,7 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
     Returns:
         - Dict: the schedule as a dictionary
     """
-    schedule_config = schedule.dict()
+    schedule_config = schedule.model_dump()
     schedule_config["interval"] = schedule_config["interval"].total_seconds()
     schedule_config["anchor_date"] = schedule_config["anchor_date"].isoformat()
 

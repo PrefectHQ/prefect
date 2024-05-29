@@ -17,15 +17,15 @@ import asyncpg
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from prefect._vendor.fastapi import APIRouter, Depends, FastAPI, Request, status
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-from prefect._vendor.fastapi.exceptions import RequestValidationError
-from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
-from prefect._vendor.fastapi.middleware.gzip import GZipMiddleware
-from prefect._vendor.fastapi.openapi.utils import get_openapi
-from prefect._vendor.fastapi.responses import JSONResponse
-from prefect._vendor.fastapi.staticfiles import StaticFiles
-from prefect._vendor.starlette.exceptions import HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 import prefect
 import prefect.server.api as api
@@ -37,7 +37,6 @@ from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.events import stream
 from prefect.server.events.services.actions import Actions
-from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.events.services.event_persister import EventPersister
 from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
 from prefect.server.exceptions import ObjectNotFoundError
@@ -92,6 +91,7 @@ API_ROUTERS = (
     api.events.router,
     api.automations.router,
     api.templates.router,
+    api.ui.flows.router,
     api.ui.flow_runs.router,
     api.ui.schemas.router,
     api.ui.task_runs.router,
@@ -581,30 +581,15 @@ def create_app(
         if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
-            and prefect.settings.PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED.value()
-        ):
-            service_instances.append(EventLogger())
-
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS.value()
-            and prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value()
-        ):
+        if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
             service_instances.append(ReactiveTriggers())
             service_instances.append(ProactiveTriggers())
             service_instances.append(Actions())
 
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
-            and prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED
-        ):
+        if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
             service_instances.append(EventPersister())
 
-        if (
-            prefect.settings.PREFECT_EXPERIMENTAL_EVENTS
-            and prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED
-        ):
+        if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
             service_instances.append(stream.Distributor())
 
         loop = asyncio.get_running_loop()

@@ -70,7 +70,9 @@ class TestCreateLogs:
 
         for i, log in enumerate(read_logs):
             assert (
-                Log.from_orm(log).dict(exclude={"created", "id", "updated"})
+                Log.model_validate(log, from_attributes=True).model_dump(
+                    exclude={"created", "id", "updated"},
+                )
                 == log_data[i]
             )
 

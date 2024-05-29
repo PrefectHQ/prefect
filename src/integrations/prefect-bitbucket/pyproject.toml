@@ -6,19 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "prefect-bitbucket"
 description = "Prefect integrations for working with Bitbucket repositories."
 readme = "README.md"
-requires-python = ">=3.8"
-license = {text = "Apache License 2.0"}
+requires-python = ">=3.9"
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -26,7 +23,8 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=2.14.10",
+  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "pydantic>=2.4",
   "atlassian-python-api>=3.32.1,!=3.41.5,!=3.41.6,!=3.41.7,!=3.41.8",
 ]
 dynamic = ["version"]
@@ -40,7 +38,6 @@ dev = [
   "mkdocs-material",
   "mkdocs",
   "mkdocstrings[python]",
-  "mock; python_version < '3.8'",
   "mypy",
   "pillow",
   "pre-commit",

@@ -2,21 +2,16 @@ import datetime
 from typing import List
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from fastapi import Body, Depends
+from pydantic import Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
+from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("server.api.ui.flow_runs")
@@ -29,7 +24,7 @@ class SimpleFlowRun(PrefectBaseModel):
     state_type: schemas.states.StateType = Field(
         default=..., description="The state type."
     )
-    timestamp: DateTimeTZ = Field(
+    timestamp: DateTime = Field(
         default=...,
         description=(
             "The start time of the run, or the expected start time "

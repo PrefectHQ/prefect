@@ -7,14 +7,7 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.schemas.validators import return_v_or_none
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 import prefect
 from prefect._internal.compatibility.experimental import (
@@ -22,6 +15,7 @@ from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
     experiment_enabled,
 )
+from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.filters import (
@@ -107,7 +101,8 @@ class BaseJobConfiguration(BaseModel):
     def is_using_a_runner(self):
         return self.command is not None and "prefect flow-run execute" in self.command
 
-    @validator("command")
+    @field_validator("command")
+    @classmethod
     def _coerce_command(cls, v):
         return return_v_or_none(v)
 
@@ -124,7 +119,10 @@ class BaseJobConfiguration(BaseModel):
     @classmethod
     @inject_client
     async def from_template_and_values(
-        cls, base_job_template: dict, values: dict, client: "PrefectClient" = None
+        cls,
+        base_job_template: dict,
+        values: dict,
+        client: Optional["PrefectClient"] = None,
     ):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
@@ -161,7 +159,7 @@ class BaseJobConfiguration(BaseModel):
         }
         """
         configuration = {}
-        properties = cls.schema()["properties"]
+        properties = cls.model_json_schema()["properties"]
         for k, v in properties.items():
             if v.get("template"):
                 template = v["template"]
@@ -420,7 +418,7 @@ class BaseWorker(abc.ABC):
     @classmethod
     def get_default_base_job_template(cls) -> Dict:
         if cls.job_configuration_variables is None:
-            schema = cls.job_configuration.schema()
+            schema = cls.job_configuration.model_json_schema()
             # remove "template" key from all dicts in schema['properties'] because it is not a
             # relevant field
             for key, value in schema["properties"].items():
@@ -428,7 +426,7 @@ class BaseWorker(abc.ABC):
                     schema["properties"][key].pop("template", None)
             variables_schema = schema
         else:
-            variables_schema = cls.job_configuration_variables.schema()
+            variables_schema = cls.job_configuration_variables.model_json_schema()
         variables_schema.pop("title", None)
         return {
             "job_configuration": cls.job_configuration.json_template(),
@@ -963,7 +961,7 @@ class BaseWorker(abc.ABC):
         return {
             "name": self.name,
             "work_pool": (
-                self._work_pool.dict(json_compatible=True)
+                self._work_pool.model_dump(mode="json")
                 if self._work_pool is not None
                 else None
             ),
@@ -1068,7 +1066,7 @@ class BaseWorker(abc.ABC):
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
         state_updates.setdefault("type", StateType.CANCELLED)
-        state = flow_run.state.copy(update=state_updates)
+        state = flow_run.state.model_copy(update=state_updates)
 
         await self._client.set_flow_run_state(flow_run.id, state, force=True)
 
@@ -1155,7 +1153,7 @@ class BaseWorker(abc.ABC):
         if include_self:
             worker_resource = self._event_resource()
             worker_resource["prefect.resource.role"] = "worker"
-            related.append(RelatedResource.parse_obj(worker_resource))
+            related.append(RelatedResource.model_validate(worker_resource))
 
         return related
 

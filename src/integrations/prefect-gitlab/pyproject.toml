@@ -6,19 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "prefect-gitlab"
 description = "A Prefect collection for working with GitLab repositories."
 readme = "README.md"
-requires-python = ">=3.8"
-license = {text = "Apache License 2.0"}
+requires-python = ">=3.9"
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -26,9 +23,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "prefect>=2.13.5",
-    "python-gitlab>=3.12.0",
-    "tenacity>=8.2.3",
+  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "python-gitlab>=3.12.0",
+  "tenacity>=8.2.3",
 ]
 dynamic = ["version"]
 
@@ -41,7 +38,6 @@ dev = [
   "mkdocs-material",
   "mkdocs",
   "mkdocstrings[python]",
-  "mock; python_version < '3.8'",
   "mypy",
   "pillow",
   "pre-commit",

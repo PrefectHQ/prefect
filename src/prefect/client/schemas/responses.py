@@ -2,19 +2,13 @@ import datetime
 from typing import Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID
 
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic import ConfigDict, Field
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
-from prefect._internal.schemas.fields import CreatedBy, DateTimeTZ, UpdatedBy
+from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
@@ -120,10 +114,10 @@ class HistoryResponseState(PrefectBaseModel):
 class HistoryResponse(PrefectBaseModel):
     """Represents a history of aggregation states over an interval"""
 
-    interval_start: DateTimeTZ = Field(
+    interval_start: DateTime = Field(
         default=..., description="The start date of the interval."
     )
-    interval_end: DateTimeTZ = Field(
+    interval_end: DateTime = Field(
         default=..., description="The end date of the interval."
     )
     states: List[HistoryResponseState] = Field(
@@ -147,8 +141,7 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID
@@ -219,18 +212,18 @@ class FlowRunResponse(ObjectBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-    expected_start_time: Optional[DateTimeTZ] = Field(
+    expected_start_time: Optional[DateTime] = Field(
         default=None,
         description="The flow run's expected start time.",
     )
-    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+    next_scheduled_start_time: Optional[DateTime] = Field(
         default=None,
         description="The next time the flow run is scheduled to start.",
     )
-    start_time: Optional[DateTimeTZ] = Field(
+    start_time: Optional[DateTime] = Field(
         default=None, description="The actual start time."
     )
-    end_time: Optional[DateTimeTZ] = Field(
+    end_time: Optional[DateTime] = Field(
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
@@ -279,7 +272,7 @@ class FlowRunResponse(ObjectBaseModel):
     state: Optional[objects.State] = Field(
         default=None,
         description="The state of the flow run.",
-        examples=[objects.State(type=objects.StateType.COMPLETED)],
+        examples=["objects.State(type=objects.StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
         default=None, description="Job variables for the flow run."
@@ -304,13 +297,13 @@ class FlowRunResponse(ObjectBaseModel):
         """
         if isinstance(other, objects.FlowRun):
             exclude_fields = {"estimated_run_time", "estimated_start_time_delta"}
-            return self.dict(exclude=exclude_fields) == other.dict(
+            return self.model_dump(exclude=exclude_fields) == other.model_dump(
                 exclude=exclude_fields
             )
         return super().__eq__(other)
 
 
-class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
+class DeploymentResponse(ObjectBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
@@ -357,7 +350,7 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
             " be scheduled."
         ),
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
@@ -423,8 +416,7 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ObjectBaseModel):
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
-    class Config:
-        extra = "ignore"  # 2024/4/1
+    model_config = ConfigDict(extra="ignore")
 
     id: UUID
     name: str

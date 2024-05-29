@@ -38,32 +38,31 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import pendulum
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    model_validator,
+)
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
-    validate_automation_names,
 )
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
 )
 from prefect.deployments.schedules import (
     FlexibleScheduleList,
-    create_minimal_deployment_schedule,
+    create_deployment_schedule_create,
 )
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
@@ -144,8 +143,7 @@ class RunnerDeployment(BaseModel):
             available settings.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
@@ -161,7 +159,7 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedules: Optional[List[MinimalDeploymentSchedule]] = Field(
+    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
@@ -232,16 +230,22 @@ class RunnerDeployment(BaseModel):
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
 
-    @validator("triggers", allow_reuse=True)
-    def validate_automation_names(cls, field_value, values):
+    @model_validator(mode="after")
+    def validate_automation_names(self):
         """Ensure that each trigger has a name for its automation if none is provided."""
-        return validate_automation_names(field_value, values)
+        trigger: Union[DeploymentTriggerTypes, TriggerTypes]
+        for i, trigger in enumerate(self.triggers, start=1):
+            if trigger.name is None:
+                trigger.name = f"{self.name}__automation_{i}"
+        return self
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_paused(cls, values):
         return reconcile_paused_deployment(values)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def reconcile_schedules(cls, values):
         return reconcile_schedules_runner(values)
 
@@ -301,7 +305,9 @@ class RunnerDeployment(BaseModel):
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
                 infrastructure_document_id=None,
-                parameter_openapi_schema=self._parameter_openapi_schema.dict(),
+                parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+                    exclude_unset=True
+                ),
                 enforce_parameter_schema=self.enforce_parameter_schema,
             )
 
@@ -325,26 +331,25 @@ class RunnerDeployment(BaseModel):
                     f"Error while applying deployment: {str(exc)}"
                 ) from exc
 
-            if client.server_type.supports_automations():
-                try:
-                    # The triggers defined in the deployment spec are, essentially,
-                    # anonymous and attempting truly sync them with cloud is not
-                    # feasible. Instead, we remove all automations that are owned
-                    # by the deployment, meaning that they were created via this
-                    # mechanism below, and then recreate them.
-                    await client.delete_resource_owned_automations(
-                        f"prefect.deployment.{deployment_id}"
-                    )
-                except PrefectHTTPStatusError as e:
-                    if e.response.status_code == 404:
-                        # This Prefect server does not support automations, so we can safely
-                        # ignore this 404 and move on.
-                        return deployment_id
-                    raise e
+            try:
+                # The triggers defined in the deployment spec are, essentially,
+                # anonymous and attempting truly sync them with cloud is not
+                # feasible. Instead, we remove all automations that are owned
+                # by the deployment, meaning that they were created via this
+                # mechanism below, and then recreate them.
+                await client.delete_resource_owned_automations(
+                    f"prefect.deployment.{deployment_id}"
+                )
+            except PrefectHTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # This Prefect server does not support automations, so we can safely
+                    # ignore this 404 and move on.
+                    return deployment_id
+                raise e
 
-                for trigger in self.triggers:
-                    trigger.set_deployment_id(deployment_id)
-                    await client.create_automation(trigger.as_automation())
+            for trigger in self.triggers:
+                trigger.set_deployment_id(deployment_id)
+                await client.create_automation(trigger.as_automation())
 
             return deployment_id
 
@@ -359,7 +364,7 @@ class RunnerDeployment(BaseModel):
         timezone: Optional[str] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
         schedules: Optional[FlexibleScheduleList] = None,
-    ) -> Union[List[MinimalDeploymentSchedule], FlexibleScheduleList]:
+    ) -> Union[List[DeploymentScheduleCreate], FlexibleScheduleList]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -417,7 +422,7 @@ class RunnerDeployment(BaseModel):
                 value = [value]
 
             return [
-                create_minimal_deployment_schedule(
+                create_deployment_schedule_create(
                     construct_schedule(
                         **{
                             schedule_type: v,
@@ -429,7 +434,7 @@ class RunnerDeployment(BaseModel):
                 for v in value
             ]
         else:
-            return [create_minimal_deployment_schedule(schedule)]
+            return [create_deployment_schedule_create(schedule)]
 
     def _set_defaults_from_flow(self, flow: "Flow"):
         self._parameter_openapi_schema = parameter_schema(flow)

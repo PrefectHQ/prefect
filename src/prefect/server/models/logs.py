@@ -17,7 +17,7 @@ from prefect.utilities.collections import batched_iterable
 MAXIMUM_QUERY_PARAMETERS = 32_767
 
 # ...and logs have a certain number of fields...
-NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.schema()["properties"])
+NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.model_fields)
 
 # ...so we can only INSERT batches of a certain size at a time
 LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
@@ -42,7 +42,7 @@ async def create_logs(
     Returns:
         None
     """
-    await session.execute(db.insert(db.Log).values([log.dict() for log in logs]))
+    await session.execute(db.insert(db.Log).values([log.model_dump() for log in logs]))
 
 
 @inject_db
@@ -68,10 +68,10 @@ async def read_logs(
     Returns:
         List[db.Log]: the matching logs
     """
-    query = select(db.Log).order_by(sort.as_sql_sort(db)).offset(offset).limit(limit)
+    query = select(db.Log).order_by(sort.as_sql_sort()).offset(offset).limit(limit)
 
     if log_filter:
-        query = query.where(log_filter.as_sql_filter(db))
+        query = query.where(log_filter.as_sql_filter())
 
     result = await session.execute(query)
     return result.scalars().unique().all()

@@ -1,8 +1,8 @@
 from copy import deepcopy
 from typing import Any, Dict
 
-from prefect._vendor.fastapi import FastAPI
-from prefect._vendor.fastapi.openapi.utils import get_openapi
+from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 
 from prefect import __version__ as PREFECT_VERSION
 

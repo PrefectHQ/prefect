@@ -3,63 +3,45 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
+from pydantic import Field, field_validator, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
-from prefect._internal.schemas.fields import DateTimeTZ
-from prefect._internal.schemas.serializers import orjson_dumps_extra_compatible
 from prefect._internal.schemas.validators import (
-    raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_alphanumeric_underscores_only,
-    raise_on_name_with_banned_characters,
+    convert_to_strings,
     remove_old_deployment_fields,
     return_none_schedule,
+    validate_artifact_key,
+    validate_block_document_name,
+    validate_block_type_slug,
     validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
+    validate_variable_name,
 )
-from prefect.client.schemas.objects import StateDetails, StateType
+from prefect.client.schemas.objects import (
+    StateDetails,
+    StateType,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
-from prefect.types import NonNegativeFloat, NonNegativeInteger, PositiveInteger
+from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
+    Name,
+    NonEmptyishName,
+    NonNegativeFloat,
+    NonNegativeInteger,
+    PositiveInteger,
+    StrictVariableValue,
+)
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.deprecated.data_documents import DataDocument
     from prefect.results import BaseResult
 
 R = TypeVar("R")
-
-
-def validate_block_type_slug(value):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
-    return value
-
-
-def validate_block_document_name(value):
-    if value is not None:
-        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
-    return value
-
-
-def validate_artifact_key(value):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
-    return value
-
-
-def validate_variable_name(value):
-    if value is not None:
-        raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
-    return value
 
 
 class StateCreate(ActionBaseModel):
@@ -69,7 +51,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
+    data: Union["BaseResult[R]", Any] = Field(
         default=None,
     )
 
@@ -117,7 +99,8 @@ class DeploymentScheduleCreate(ActionBaseModel):
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
-    @validator("max_scheduled_runs")
+    @field_validator("max_scheduled_runs")
+    @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
@@ -147,19 +130,26 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
-    @validator("max_scheduled_runs")
+    @field_validator("max_scheduled_runs")
+    @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
 
 
-class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
+class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
+
+    @field_validator("description", "tags", mode="before")
+    @classmethod
+    def convert_to_strings(cls, values):
+        return convert_to_strings(values)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
@@ -197,7 +187,7 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
     entrypoint: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(
+    job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
@@ -222,14 +212,16 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
             jsonschema.validate(self.job_variables, variables_schema)
 
 
-class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
+class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
 
-    @validator("schedule")
+    @field_validator("schedule")
+    @classmethod
     def validate_none_schedule(cls, v):
         return return_none_schedule(v)
 
@@ -290,7 +282,7 @@ class FlowRunUpdate(ActionBaseModel):
 
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: Optional[Dict[str, Any]] = Field(None)
+    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
@@ -302,6 +294,7 @@ class FlowRunUpdate(ActionBaseModel):
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
+    id: Optional[UUID] = Field(None, description="The ID to assign to the task run")
     # TaskRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
         default=None, description="The state of the task run to create"
@@ -323,7 +316,7 @@ class TaskRunCreate(ActionBaseModel):
         ),
     )
     cache_key: Optional[str] = Field(None)
-    cache_expiration: Optional[objects.DateTimeTZ] = Field(None)
+    cache_expiration: Optional[objects.DateTime] = Field(None)
     task_version: Optional[str] = Field(None)
     empirical_policy: objects.TaskRunPolicy = Field(
         default_factory=objects.TaskRunPolicy,
@@ -373,9 +366,6 @@ class FlowRunCreate(ActionBaseModel):
     tags: List[str] = Field(default_factory=list)
     idempotency_key: Optional[str] = Field(None)
 
-    class Config(ActionBaseModel.Config):
-        json_dumps = orjson_dumps_extra_compatible
-
 
 class DeploymentFlowRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a flow run from a deployment."""
@@ -421,6 +411,37 @@ class ConcurrencyLimitCreate(ActionBaseModel):
     concurrency_limit: int = Field(default=..., description="The concurrency limit.")
 
 
+class ConcurrencyLimitV2Create(ActionBaseModel):
+    """Data used by the Prefect REST API to create a v2 concurrency limit."""
+
+    active: bool = Field(
+        default=True, description="Whether the concurrency limit is active."
+    )
+    name: Name = Field(default=..., description="The name of the concurrency limit.")
+    limit: NonNegativeInteger = Field(default=..., description="The concurrency limit.")
+    active_slots: NonNegativeInteger = Field(
+        default=0, description="The number of active slots."
+    )
+    denied_slots: NonNegativeInteger = Field(
+        default=0, description="The number of denied slots."
+    )
+    slot_decay_per_second: NonNegativeFloat = Field(
+        default=0,
+        description="The decay rate for active slots when used as a rate limit.",
+    )
+
+
+class ConcurrencyLimitV2Update(ActionBaseModel):
+    """Data used by the Prefect REST API to update a v2 concurrency limit."""
+
+    active: Optional[bool] = Field(None)
+    name: Optional[Name] = Field(None)
+    limit: Optional[NonNegativeInteger] = Field(None)
+    active_slots: Optional[NonNegativeInteger] = Field(None)
+    denied_slots: Optional[NonNegativeInteger] = Field(None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+
+
 class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
@@ -442,9 +463,7 @@ class BlockTypeCreate(ActionBaseModel):
     )
 
     # validators
-    _validate_slug_format = validator("slug", allow_reuse=True)(
-        validate_block_type_slug
-    )
+    _validate_slug_format = field_validator("slug")(validate_block_type_slug)
 
 
 class BlockTypeUpdate(ActionBaseModel):
@@ -480,7 +499,7 @@ class BlockSchemaCreate(ActionBaseModel):
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[str] = Field(
+    name: Optional[Name] = Field(
         default=None, description="The name of the block document"
     )
     data: Dict[str, Any] = Field(
@@ -500,11 +519,9 @@ class BlockDocumentCreate(ActionBaseModel):
         ),
     )
 
-    _validate_name_format = validator("name", allow_reuse=True)(
-        validate_block_document_name
-    )
+    _validate_name_format = field_validator("name")(validate_block_document_name)
 
-    @root_validator
+    @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -545,7 +562,7 @@ class LogCreate(ActionBaseModel):
     name: str = Field(default=..., description="The logger name.")
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
-    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
 
@@ -553,7 +570,7 @@ class LogCreate(ActionBaseModel):
 class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
-    name: str = Field(
+    name: NonEmptyishName = Field(
         description="The name of the work pool.",
     )
     description: Optional[str] = Field(None)
@@ -621,7 +638,7 @@ class WorkQueueUpdate(ActionBaseModel):
     )
     concurrency_limit: Optional[int] = Field(None)
     priority: Optional[int] = Field(None)
-    last_polled: Optional[DateTimeTZ] = Field(None)
+    last_polled: Optional[DateTime] = Field(None)
 
     # DEPRECATED
 
@@ -661,7 +678,8 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
         ],
     )
 
-    @validator("message_template")
+    @field_validator("message_template")
+    @classmethod
     def validate_message_template_variables(cls, v):
         return validate_message_template_variables(v)
 
@@ -687,9 +705,7 @@ class ArtifactCreate(ActionBaseModel):
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
 
-    _validate_artifact_format = validator("key", allow_reuse=True)(
-        validate_artifact_key
-    )
+    _validate_artifact_format = field_validator("key")(validate_artifact_key)
 
 
 class ArtifactUpdate(ActionBaseModel):
@@ -707,18 +723,17 @@ class VariableCreate(ActionBaseModel):
         default=...,
         description="The name of the variable",
         examples=["my_variable"],
-        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: str = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=objects.MAX_VARIABLE_VALUE_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)
 
     # validators
-    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+    _validate_name_format = field_validator("name")(validate_variable_name)
 
 
 class VariableUpdate(ActionBaseModel):
@@ -728,24 +743,23 @@ class VariableUpdate(ActionBaseModel):
         default=None,
         description="The name of the variable",
         examples=["my_variable"],
-        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: Optional[str] = Field(
+    value: StrictVariableValue = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
-        max_length=objects.MAX_VARIABLE_NAME_LENGTH,
     )
     tags: Optional[List[str]] = Field(default=None)
 
     # validators
-    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+    _validate_name_format = field_validator("name")(validate_variable_name)
 
 
 class GlobalConcurrencyLimitCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a global concurrency limit."""
 
-    name: str = Field(description="The name of the global concurrency limit.")
+    name: Name = Field(description="The name of the global concurrency limit.")
     limit: NonNegativeInteger = Field(
         description=(
             "The maximum number of slots that can be occupied on this concurrency"
@@ -768,20 +782,12 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
         ),
     )
 
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)
-
 
 class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a global concurrency limit."""
 
-    name: Optional[str] = Field(None)
+    name: Optional[Name] = Field(None)
     limit: Optional[NonNegativeInteger] = Field(None)
     active: Optional[NonNegativeInteger] = Field(None)
     active_slots: Optional[NonNegativeInteger] = Field(None)
     slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        return raise_on_name_with_banned_characters(v)

@@ -4,6 +4,7 @@ Utilities for extensions of and operations on Python collections.
 
 import io
 import itertools
+import warnings
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
 from collections.abc import Sequence
@@ -28,12 +29,7 @@ from typing import (
 )
 from unittest.mock import Mock
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
+import pydantic
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
@@ -225,7 +221,7 @@ class StopVisiting(BaseException):
 
 def visit_collection(
     expr,
-    visit_fn: Callable[[Any], Any],
+    visit_fn: Union[Callable[[Any, dict], Any], Callable[[Any], Any]],
     return_data: bool = False,
     max_depth: int = -1,
     context: Optional[dict] = None,
@@ -252,8 +248,10 @@ def visit_collection(
 
     Args:
         expr (Any): a Python object or expression
-        visit_fn (Callable[[Any], Awaitable[Any]]): an async function that
-            will be applied to every non-collection element of expr.
+        visit_fn (Callable[[Any, Optional[dict]], Awaitable[Any]]): a function that
+            will be applied to every non-collection element of expr. The function can
+            accept one or two arguments. If two arguments are accepted, the second
+            argument will be the context dictionary.
         return_data (bool): if `True`, a copy of `expr` containing data modified
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
@@ -343,39 +341,26 @@ def visit_collection(
         result = typ(**items) if return_data else None
 
     elif isinstance(expr, pydantic.BaseModel):
-        # NOTE: This implementation *does not* traverse private attributes
-        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
-        # as well to get all of the relevant attributes
-        # Check for presence of attrs even if they're in the field set due to pydantic#4916
-        model_fields = {
-            f for f in expr.__fields_set__.union(expr.__fields__) if hasattr(expr, f)
-        }
-        items = [visit_nested(getattr(expr, key)) for key in model_fields]
+        typ = cast(Type[pydantic.BaseModel], typ)
 
-        if return_data:
-            # Collect fields with aliases so reconstruction can use the correct field name
-            aliases = {
-                key: value.alias
-                for key, value in expr.__fields__.items()
-                if value.has_alias
+        # when extra=allow, fields not in model_fields may be in model_fields_set
+        model_fields = expr.model_fields_set.union(expr.model_fields.keys())
+
+        # We may encounter a deprecated field here, but this isn't the caller's fault
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+
+            updated_data = {
+                field: visit_nested(getattr(expr, field)) for field in model_fields
             }
 
-            model_instance = typ(
-                **{
-                    aliases.get(key) or key: value
-                    for key, value in zip(model_fields, items)
-                }
+        if return_data:
+            # Use construct to avoid validation and handle immutability
+            model_instance = typ.model_construct(
+                _fields_set=expr.model_fields_set, **updated_data
             )
-
-            # Private attributes are not included in `__fields_set__` but we do not want
-            # to drop them from the model so we restore them after constructing a new
-            # model
-            for attr in expr.__private_attributes__:
-                # Use `object.__setattr__` to avoid errors on immutable models
-                object.__setattr__(model_instance, attr, getattr(expr, attr))
-
-            # Preserve data about which fields were explicitly set on the original model
-            object.__setattr__(model_instance, "__fields_set__", expr.__fields_set__)
+            for private_attr in expr.__private_attributes__:
+                setattr(model_instance, private_attr, getattr(expr, private_attr))
             result = model_instance
         else:
             result = None

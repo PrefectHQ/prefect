@@ -26,13 +26,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 import anyio
 import anyio.abc
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
+from pydantic import Field, field_validator
 
 from prefect._internal.schemas.validators import validate_command
 from prefect.client.schemas import FlowRun
@@ -68,7 +62,8 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(default=True)
     working_dir: Optional[Path] = Field(default=None)
 
-    @validator("working_dir")
+    @field_validator("working_dir")
+    @classmethod
     def validate_command(cls, v):
         return validate_command(v)
 

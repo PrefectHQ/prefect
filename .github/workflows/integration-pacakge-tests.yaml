@@ -71,11 +71,14 @@ jobs:
 
       - name: Install dependencies
         working-directory: src/integrations/${{ matrix.package }}
+        # install uv, the package, and bleeding edge prefect
         run: |
           python -m pip install -U uv
           uv pip install --upgrade --system -e .[dev]
+          uv pip install --upgrade --system ../../../
 
       - name: Run tests
+        if: matrix.package != 'prefect-ray'
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
@@ -83,4 +86,13 @@ jobs:
           pytest tests
           --numprocesses auto
           --maxprocesses 6
-          --dist loadscope
+          --dist worksteal
+
+      # Run prefect-ray tests sequentially to avoid Ray cluster issues
+      - name: Run tests for prefect-ray
+        if: matrix.package == 'prefect-ray'
+        env:
+          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/${{ matrix.package }}
+        run: >
+          pytest tests

@@ -1,21 +1,24 @@
 import asyncio
 import inspect
 import os
+from datetime import timedelta
 from pathlib import Path
-from typing import AsyncGenerator, Iterable, Tuple
+from typing import TYPE_CHECKING, AsyncGenerator, Iterable, Tuple
 from unittest import mock
 
 import pytest
+from exceptiongroup import ExceptionGroup, catch
 
 import prefect.results
 from prefect import Task, task, unmapped
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import StateType
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultFactory
 from prefect.server.api.task_runs import TaskQueue
+from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
@@ -25,18 +28,19 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.task_server import TaskServer
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.hashing import hash_objects
 
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
-@sync_compatible
+
 async def result_factory_from_task(task) -> ResultFactory:
     return await ResultFactory.from_autonomous_task(task)
 
 
 @pytest.fixture
-def local_filesystem():
-    block = LocalFileSystem(basepath="~/.prefect/storage/test")
+def local_filesystem(tmp_path):
+    block = LocalFileSystem(basepath=tmp_path)
     block.save("test-fs", overwrite=True)
     return block
 
@@ -95,16 +99,18 @@ def async_foo_task_with_result_storage(async_foo_task, local_filesystem):
     return async_foo_task.with_options(result_storage=local_filesystem)
 
 
-def test_task_submission_with_parameters_uses_default_storage(foo_task):
+async def test_task_submission_with_parameters_uses_default_storage(foo_task):
     foo_task_without_result_storage = foo_task.with_options(result_storage=None)
-    task_run = foo_task_without_result_storage.submit(42)
+    task_run = foo_task_without_result_storage.apply_async(42)
 
-    result_factory = result_factory_from_task(foo_task)
+    result_factory = await result_factory_from_task(foo_task)
 
-    result_factory.read_parameters(task_run.state.state_details.task_parameters_id)
+    await result_factory.read_parameters(
+        task_run.state.state_details.task_parameters_id
+    )
 
 
-def test_task_submission_with_parameters_reuses_default_storage_block(
+async def test_task_submission_with_parameters_reuses_default_storage_block(
     foo_task: Task, tmp_path: Path
 ):
     with temporary_settings(
@@ -115,37 +121,39 @@ def test_task_submission_with_parameters_reuses_default_storage_block(
     ):
         # The block will not exist initially
         with pytest.raises(ValueError, match="Unable to find block document"):
-            Block.load("local-file-system/my-tasks")
+            await Block.load("local-file-system/my-tasks")
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
-        task_run_a = foo_task_without_result_storage.submit(42)
+        task_run_a = foo_task_without_result_storage.apply_async(42)
 
-        storage_before = Block.load("local-file-system/my-tasks")
+        storage_before = await Block.load("local-file-system/my-tasks")
         assert isinstance(storage_before, LocalFileSystem)
         assert storage_before.basepath == str(tmp_path / "some-storage")
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
-        task_run_b = foo_task_without_result_storage.submit(24)
+        task_run_b = foo_task_without_result_storage.apply_async(24)
 
-        storage_after = Block.load("local-file-system/my-tasks")
+        storage_after = await Block.load("local-file-system/my-tasks")
         assert isinstance(storage_after, LocalFileSystem)
 
-        result_factory = result_factory_from_task(foo_task)
-        assert result_factory.read_parameters(
+        result_factory = await result_factory_from_task(foo_task)
+        assert await result_factory.read_parameters(
             task_run_a.state.state_details.task_parameters_id
         ) == {"x": 42}
-        assert result_factory.read_parameters(
+        assert await result_factory.read_parameters(
             task_run_b.state.state_details.task_parameters_id
         ) == {"x": 24}
 
 
-def test_task_submission_creates_a_scheduled_task_run(foo_task_with_result_storage):
-    task_run = foo_task_with_result_storage.submit(42)
+async def test_task_submission_creates_a_scheduled_task_run(
+    foo_task_with_result_storage,
+):
+    task_run = foo_task_with_result_storage.apply_async(42)
     assert task_run.state.is_scheduled()
 
-    result_factory = result_factory_from_task(foo_task_with_result_storage)
+    result_factory = await result_factory_from_task(foo_task_with_result_storage)
 
-    parameters = result_factory.read_parameters(
+    parameters = await result_factory.read_parameters(
         task_run.state.state_details.task_parameters_id
     )
 
@@ -153,7 +161,7 @@ def test_task_submission_creates_a_scheduled_task_run(foo_task_with_result_stora
 
 
 async def test_sync_task_not_awaitable_in_async_context(foo_task):
-    task_run = foo_task.submit(42)
+    task_run = foo_task.apply_async(42)
     assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(foo_task)
@@ -168,7 +176,7 @@ async def test_sync_task_not_awaitable_in_async_context(foo_task):
 async def test_async_task_submission_creates_a_scheduled_task_run(
     async_foo_task_with_result_storage,
 ):
-    task_run = await async_foo_task_with_result_storage.submit(42)
+    task_run = async_foo_task_with_result_storage.apply_async(42)
     assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(async_foo_task_with_result_storage)
@@ -183,49 +191,48 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
 async def test_scheduled_tasks_are_enqueued_server_side(
     foo_task_with_result_storage: Task,
 ):
-    task_run: TaskRun = foo_task_with_result_storage.submit(42)
-    assert task_run.state.is_scheduled()
+    client_run: TaskRun = foo_task_with_result_storage.apply_async(42)
+    assert client_run.state.is_scheduled()
 
-    enqueued: TaskRun = await TaskQueue.for_key(task_run.task_key).get()
-
-    # The server-side task run through API-like serialization for comparison
-    enqueued = TaskRun.parse_obj(enqueued.dict(json_compatible=True))
+    enqueued_run: ServerTaskRun = await TaskQueue.for_key(client_run.task_key).get()
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
     # after orchestration in a way that differs by microseconds, or the
     # created/updated dates are populated.
 
-    assert task_run.state.created is None
-    assert enqueued.state.created is not None
-    task_run.state.created = enqueued.state.created
+    assert client_run.estimated_start_time_delta is not None
+    assert enqueued_run.estimated_start_time_delta is not None
+    assert (
+        client_run.estimated_start_time_delta - enqueued_run.estimated_start_time_delta
+        < timedelta(seconds=10)
+    )
+    client_run.estimated_start_time_delta = enqueued_run.estimated_start_time_delta
 
-    assert task_run.state.updated is None
-    assert enqueued.state.updated is not None
-    task_run.state.updated = enqueued.state.updated
+    enqueued_run_dict = enqueued_run.model_dump()
+    client_run_dict = client_run.model_dump()
 
-    assert task_run.estimated_start_time_delta is not None
-    assert enqueued.estimated_start_time_delta is not None
-    task_run.estimated_start_time_delta = enqueued.estimated_start_time_delta
+    client_run_dict["state"].pop("created")
+    client_run_dict["state"].pop("updated")
 
-    assert enqueued.dict() == task_run.dict()
+    assert enqueued_run_dict == client_run_dict
 
 
 @pytest.fixture
-async def prefect_client() -> AsyncGenerator[PrefectClient, None]:
+async def prefect_client() -> AsyncGenerator["PrefectClient", None]:
     async with get_client() as client:
         yield client
 
 
 async def test_scheduled_tasks_are_restored_at_server_startup(
-    foo_task_with_result_storage: Task, prefect_client: PrefectClient
+    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
 ):
     # run one iteration of the timeouts service
     service = TaskSchedulingTimeouts()
     await service.start(loops=1)
 
     # schedule a task
-    task_run: TaskRun = foo_task_with_result_storage.submit(42)
+    task_run: TaskRun = foo_task_with_result_storage.apply_async(42)
     assert task_run.state.is_scheduled()
 
     # pull the task from the queue to make sure it's cleared; this simulates when a task
@@ -258,16 +265,22 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
 
 
 async def test_stuck_pending_tasks_are_reenqueued(
-    foo_task_with_result_storage: Task, prefect_client: PrefectClient
+    foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
 ):
-    task_run: TaskRun = foo_task_with_result_storage.submit(42)
+    task_run: TaskRun = foo_task_with_result_storage.apply_async(42)
     assert task_run.state.is_scheduled()
 
     # now we simulate a stuck task by having the TaskServer try to run it but fail
     server = TaskServer(foo_task_with_result_storage)
-    with pytest.raises(ValueError):
+
+    def assert_exception(exc_group: ExceptionGroup):
+        assert len(exc_group.exceptions) == 1
+        assert isinstance(exc_group.exceptions[0], ValueError)
+        assert "woops" in str(exc_group.exceptions[0])
+
+    with catch({ValueError: assert_exception}):
         with mock.patch(
-            "prefect.task_server.submit_autonomous_task_run_to_engine",
+            "prefect.task_server.run_task_sync",
             side_effect=ValueError("woops"),
         ):
             await server.execute_task_run(task_run)
@@ -316,7 +329,7 @@ class TestCall:
 
 class TestMap:
     async def test_map(self, async_foo_task):
-        task_runs = await async_foo_task.map([1, 2, 3])
+        task_runs = async_foo_task.map([1, 2, 3])
 
         assert len(task_runs) == 3
 
@@ -350,7 +363,7 @@ class TestMap:
         async def bar(x: int, unmappable: int) -> Tuple[int, int]:
             return (x, unmappable)
 
-        task_runs = await bar.map([1, 2, 3], unmappable=42)
+        task_runs = bar.map([1, 2, 3], unmappable=42)
 
         assert len(task_runs) == 3
 
@@ -384,7 +397,7 @@ class TestMap:
         async def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
             return (x, mappable)
 
-        task_runs = await bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+        task_runs = bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
 
         assert len(task_runs) == 3
 

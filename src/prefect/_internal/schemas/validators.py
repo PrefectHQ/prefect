@@ -6,11 +6,9 @@ format.
 This will be subject to consolidation and refactoring over the next few months.
 """
 
-import datetime
 import json
 import logging
 import re
-import sys
 import urllib.parse
 import warnings
 from copy import copy
@@ -20,47 +18,23 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Uni
 import jsonschema
 import pendulum
 import yaml
+from pydantic_extra_types.pendulum_dt import DateTime
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect._internal.pydantic._flags import USE_PYDANTIC_V2
-from prefect._internal.schemas.fields import DateTimeTZ
-from prefect.exceptions import InvalidNameError, InvalidRepositoryURLError
+from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.collections import isiterable
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import JsonPatch
 
-BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
-    from prefect.events.schemas import DeploymentTrigger
     from prefect.utilities.callables import ParameterSchema
-
-    if HAS_PYDANTIC_V2:
-        if USE_PYDANTIC_V2:
-            # TODO: we need to account for rewriting the validator to not use ModelField
-            pass
-        if not USE_PYDANTIC_V2:
-            from pydantic.v1.fields import ModelField
-
-
-def raise_on_name_with_banned_characters(name: str) -> str:
-    """
-    Raise an InvalidNameError if the given name contains any invalid
-    characters.
-    """
-    if name is not None:
-        if any(c in name for c in BANNED_CHARACTERS):
-            raise InvalidNameError(
-                f"Name {name!r} contains an invalid character. "
-                f"Must not contain any of: {BANNED_CHARACTERS}."
-            )
-    return name
 
 
 def raise_on_name_alphanumeric_dashes_only(
@@ -236,6 +210,12 @@ def return_none_schedule(v: Optional[Union[str, dict]]) -> Optional[Union[str, d
     return v
 
 
+def convert_to_strings(value: Union[Any, List[Any]]) -> Union[str, List[str]]:
+    if isiterable(value):
+        return [str(item) for item in value]
+    return str(value)
+
+
 ### SCHEDULE SCHEMA VALIDATORS ###
 
 
@@ -264,15 +244,15 @@ def reconcile_schedules(cls, values: dict) -> dict:
     """
 
     from prefect.deployments.schedules import (
-        create_minimal_deployment_schedule,
-        normalize_to_minimal_deployment_schedules,
+        create_deployment_schedule_create,
+        normalize_to_deployment_schedule_create,
     )
 
     schedule = values.get("schedule", NotSet)
     schedules = values.get("schedules", NotSet)
 
     if schedules is not NotSet:
-        values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+        values["schedules"] = normalize_to_deployment_schedule_create(schedules)
     elif schedule is not NotSet:
         values["schedule"] = None
 
@@ -280,7 +260,7 @@ def reconcile_schedules(cls, values: dict) -> dict:
             values["schedules"] = []
         else:
             values["schedules"] = [
-                create_minimal_deployment_schedule(
+                create_deployment_schedule_create(
                     schedule=schedule, active=values.get("is_schedule_active")
                 )
             ]
@@ -297,17 +277,17 @@ def reconcile_schedules_runner(values: dict) -> dict:
     Similar to above, we reconcile the `schedule` and `schedules` fields in a deployment.
     """
     from prefect.deployments.schedules import (
-        create_minimal_deployment_schedule,
-        normalize_to_minimal_deployment_schedules,
+        create_deployment_schedule_create,
+        normalize_to_deployment_schedule_create,
     )
 
     schedule = values.get("schedule")
     schedules = values.get("schedules")
 
     if schedules is None and schedule is not None:
-        values["schedules"] = [create_minimal_deployment_schedule(schedule)]
+        values["schedules"] = [create_deployment_schedule_create(schedule)]
     elif schedules is not None and len(schedules) > 0:
-        values["schedules"] = normalize_to_minimal_deployment_schedules(schedules)
+        values["schedules"] = normalize_to_deployment_schedule_create(schedules)
 
     return values
 
@@ -316,12 +296,15 @@ def set_deployment_schedules(values: dict) -> dict:
     from prefect.server.schemas.actions import DeploymentScheduleCreate
 
     if not values.get("schedules") and values.get("schedule"):
-        values["schedules"] = [
-            DeploymentScheduleCreate(
-                schedule=values["schedule"],
-                active=values["is_schedule_active"],
-            )
-        ]
+        kwargs = {
+            key: values[key]
+            for key in ["schedule", "is_schedule_active"]
+            if key in values
+        }
+        if "is_schedule_active" in kwargs:
+            kwargs["active"] = kwargs.pop("is_schedule_active")
+
+        values["schedules"] = [DeploymentScheduleCreate(**kwargs)]
 
     return values
 
@@ -382,40 +365,17 @@ def reconcile_paused_deployment(values):
     return values
 
 
-def default_anchor_date(v: DateTimeTZ) -> DateTimeTZ:
-    if v is None:
-        return pendulum.now("UTC")
+def default_anchor_date(v: DateTime) -> DateTime:
     return pendulum.instance(v)
 
 
-def get_valid_timezones(v: str) -> Tuple[str, ...]:
+def get_valid_timezones(v: Optional[str]) -> Tuple[str, ...]:
     # pendulum.tz.timezones is a callable in 3.0 and above
     # https://github.com/PrefectHQ/prefect/issues/11619
     if callable(pendulum.tz.timezones):
         return pendulum.tz.timezones()
     else:
         return pendulum.tz.timezones
-
-
-def validate_rrule_timezone(v: str) -> str:
-    """
-    Validate that the provided timezone is a valid IANA timezone.
-
-    Unfortunately this list is slightly different from the list of valid
-    timezones in pendulum that we use for cron and interval timezone validation.
-    """
-    from prefect._internal.pytz import HAS_PYTZ
-
-    if HAS_PYTZ:
-        import pytz
-    else:
-        from prefect._internal import pytz
-
-    if v and v not in pytz.all_timezones_set:
-        raise ValueError(f'Invalid timezone: "{v}"')
-    elif v is None:
-        return "UTC"
-    return v
 
 
 def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
@@ -427,7 +387,8 @@ def validate_timezone(v: str, timezones: Tuple[str, ...]) -> str:
     return v
 
 
-def default_timezone(v: str, values: Optional[dict] = {}) -> str:
+def default_timezone(v: Optional[str], values: Optional[dict] = None) -> str:
+    values = values or {}
     timezones = get_valid_timezones(v)
 
     if v is not None:
@@ -435,7 +396,7 @@ def default_timezone(v: str, values: Optional[dict] = {}) -> str:
 
     # anchor schedules
     elif v is None and values and values.get("anchor_date"):
-        tz = values["anchor_date"].tz.name
+        tz = getattr(values["anchor_date"].tz, "name", None) or "UTC"
         if tz in timezones:
             return tz
         # sometimes anchor dates have "timezones" that are UTC offsets
@@ -483,34 +444,6 @@ def validate_rrule_string(v: str) -> str:
             f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
         )
     return v
-
-
-### AUTOMATION SCHEMA VALIDATORS ###
-
-
-def validate_trigger_within(
-    value: datetime.timedelta, field: "ModelField"
-) -> datetime.timedelta:
-    """
-    Validate that the `within` field is greater than the minimum value.
-    """
-    minimum = field.field_info.extra["minimum"]
-    if value.total_seconds() < minimum:
-        raise ValueError("The minimum `within` is 0 seconds")
-    return value
-
-
-def validate_automation_names(
-    field_value: List["DeploymentTrigger"], values: dict
-) -> List["DeploymentTrigger"]:
-    """
-    Ensure that each trigger has a name for its automation if none is provided.
-    """
-    for i, trigger in enumerate(field_value, start=1):
-        if trigger.name is None:
-            trigger.name = f"{values['name']}__automation_{i}"
-
-    return field_value
 
 
 ### INFRASTRUCTURE SCHEMA VALIDATORS ###
@@ -589,7 +522,6 @@ def set_default_image(values: dict) -> dict:
     """
     Set the default image for a Kubernetes job if not provided.
     """
-    from prefect.utilities.dockerutils import get_prefect_image_name
 
     job = values.get("job")
     image = values.get("image")
@@ -614,23 +546,6 @@ def get_or_create_state_name(v: str, values: dict) -> str:
     if v is None and values.get("type"):
         v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
     return v
-
-
-def set_default_scheduled_time(cls, values: dict) -> dict:
-    """
-    TODO: This should throw an error instead of setting a default but is out of
-            scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
-            into work refactoring state initialization
-    """
-    from prefect.server.schemas.states import StateType
-
-    if values.get("type") == StateType.SCHEDULED:
-        state_details = values.setdefault(
-            "state_details", cls.__fields__["state_details"].get_default()
-        )
-        if not state_details.scheduled_time:
-            state_details.scheduled_time = pendulum.now("utc")
-    return values
 
 
 def get_or_create_run_name(name):
@@ -882,33 +797,11 @@ def check_volume_format(volumes: List[str]) -> List[str]:
     return volumes
 
 
-def assign_default_base_image(values: Mapping[str, Any]) -> Mapping[str, Any]:
-    from prefect.software.conda import CondaEnvironment
-
-    if not values.get("base_image") and not values.get("dockerfile"):
-        values["base_image"] = get_prefect_image_name(
-            flavor=(
-                "conda"
-                if isinstance(values.get("python_environment"), CondaEnvironment)
-                else None
-            )
-        )
-    return values
-
-
 def base_image_xor_dockerfile(values: Mapping[str, Any]):
     if values.get("base_image") and values.get("dockerfile"):
         raise ValueError(
             "Either `base_image` or `dockerfile` should be provided, but not both"
         )
-    return values
-
-
-def set_default_python_environment(values: Mapping[str, Any]) -> Mapping[str, Any]:
-    from prefect.software.python import PythonEnvironment
-
-    if values.get("base_image") and not values.get("python_environment"):
-        values["python_environment"] = PythonEnvironment.from_environment()
     return values
 
 
@@ -976,29 +869,10 @@ def set_run_policy_deprecated_fields(values: dict) -> dict:
 ### PYTHON ENVIRONMENT SCHEMA VALIDATORS ###
 
 
-def infer_python_version(value: Optional[str]) -> Optional[str]:
-    if value is None:
-        return f"{sys.version_info.major}.{sys.version_info.minor}"
-    return value
-
-
 def return_v_or_none(v: Optional[str]) -> Optional[str]:
     """Make sure that empty strings are treated as None"""
     if not v:
         return None
-    return v
-
-
-### INFRASTRUCTURE BLOCK SCHEMA VALIDATORS ###
-
-
-def validate_block_is_infrastructure(v: "Block") -> "Block":
-    from prefect.infrastructure.base import Infrastructure
-
-    print("v: ", v)
-    if not isinstance(v, Infrastructure):
-        raise TypeError("Provided block is not a valid infrastructure block.")
-
     return v
 
 
@@ -1032,3 +906,31 @@ def validate_command(v: str) -> Path:
     if v:
         return relative_path_to_current_platform(v)
     return v
+
+
+### UNCATEGORIZED VALIDATORS ###
+
+# the above categories seem to be getting a bit unwieldy, so this is a temporary
+# catch-all for validators until we organize these into files
+
+
+def validate_block_document_name(value):
+    if value is not None:
+        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
+    return value
+
+
+def validate_artifact_key(value):
+    raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
+    return value
+
+
+def validate_variable_name(value):
+    if value is not None:
+        raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
+    return value
+
+
+def validate_block_type_slug(value):
+    raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
+    return value

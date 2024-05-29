@@ -3,8 +3,9 @@ import datetime
 import inspect
 import time
 from asyncio import Event, sleep
-from functools import partial, wraps
-from typing import Any, Dict, List
+from functools import partial
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, call
 from uuid import UUID
 
@@ -14,84 +15,34 @@ import regex as re
 
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
     ReservedArgumentError,
+    RollBack,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     temporary_settings,
 )
 from prefect.states import State
-from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
+from prefect.transactions import Transaction
 from prefect.utilities.annotations import allow_failure, unmapped
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
-
-# TODO: uncomment when new engine has parity
-# @pytest.fixture(
-#     autouse=True, params=[True, False], ids=["new_engine", "current_engine"]
-# )
-# def set_new_engine_setting(request):
-#     with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: request.param}):
-#         yield
-
-
-def fails_with_new_engine(func):
-    @wraps(func)
-    def sync_wrapper(*args, **kwargs):
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            try:
-                func(*args, **kwargs)
-            except (
-                Exception,
-                anyio._backends._asyncio.ExceptionGroup,
-                pytest.fail.Exception,
-            ):
-                pytest.xfail(
-                    "This test fails with the new engine",
-                )
-            else:
-                pytest.fail(
-                    "Test passed unexpectedly with the new engine", pytrace=False
-                )
-        return func(*args, **kwargs)
-
-    @wraps(func)
-    async def async_wrapper(*args, **kwargs):
-        if PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE:
-            try:
-                await func(*args, **kwargs)
-            except (
-                Exception,
-                anyio._backends._asyncio.ExceptionGroup,
-                pytest.fail.Exception,
-            ):
-                pytest.xfail(
-                    "This test fails with the new engine",
-                )
-            else:
-                pytest.fail(
-                    "Test passed unexpectedly with the new engine", pytrace=False
-                )
-        return await func(*args, **kwargs)
-
-    if asyncio.iscoroutinefunction(func):
-        return async_wrapper
-    else:
-        return sync_wrapper
 
 
 def comparable_inputs(d):
@@ -164,7 +115,6 @@ class TestTaskRunName:
             def my_task():
                 pass
 
-    @fails_with_new_engine
     def test_invalid_runtime_run_name(self):
         class InvalidTaskRunNameArg:
             def format(*args, **kwargs):
@@ -251,7 +201,8 @@ class TestTaskCall:
 
         assert await bar() == 1
 
-    @fails_with_new_engine
+    # Will not be supported in new engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     def test_async_task_called_inside_sync_flow(self):
         @task
         async def foo(x):
@@ -263,10 +214,9 @@ class TestTaskCall:
 
         assert bar() == 1
 
-    @fails_with_new_engine
     def test_task_call_with_debug_mode(self):
         @task
-        async def foo(x):
+        def foo(x):
             return x
 
         @flow
@@ -313,8 +263,7 @@ class TestTaskCall:
 
         assert test_flow() == (1, 2, dict(x=3, y=4, z=5))
 
-    @fails_with_new_engine
-    def test_task_failure_raises_in_flow(self):
+    async def test_task_failure_raises_in_flow(self):
         @task
         def foo():
             raise ValueError("Test")
@@ -324,10 +273,10 @@ class TestTaskCall:
             foo()
             return "bar"
 
-        state = bar._run()
+        state = bar(return_state=True)
         assert state.is_failed()
         with pytest.raises(ValueError, match="Test"):
-            state.result()
+            await state.result()
 
     def test_task_with_name_supports_callable_objects(self):
         class A:
@@ -381,76 +330,7 @@ class TestTaskCall:
 
 
 class TestTaskRun:
-    @fails_with_new_engine
-    def test_sync_task_run_inside_sync_flow(self):
-        @task
-        def foo(x):
-            return x
-
-        @flow
-        def bar():
-            return foo._run(1)
-
-        task_state = bar()
-        assert isinstance(task_state, State)
-        assert task_state.result() == 1
-
-    @fails_with_new_engine
-    async def test_async_task_run_inside_async_flow(self):
-        @task
-        async def foo(x):
-            return x
-
-        @flow
-        async def bar():
-            return await foo._run(1)
-
-        task_state = await bar()
-        assert isinstance(task_state, State)
-        assert await task_state.result() == 1
-
-    @fails_with_new_engine
-    async def test_sync_task_run_inside_async_flow(self):
-        @task
-        def foo(x):
-            return x
-
-        @flow
-        async def bar():
-            return foo._run(1)
-
-        task_state = await bar()
-        assert isinstance(task_state, State)
-        assert await task_state.result() == 1
-
-    @fails_with_new_engine
-    def test_async_task_run_inside_sync_flow(self):
-        @task
-        async def foo(x):
-            return x
-
-        @flow
-        def bar():
-            return foo._run(1)
-
-        task_state = bar()
-        assert isinstance(task_state, State)
-        assert task_state.result() == 1
-
-    @fails_with_new_engine
-    def test_task_failure_does_not_affect_flow(self):
-        @task
-        def foo():
-            raise ValueError("Test")
-
-        @flow
-        def bar():
-            foo._run()
-            return "bar"
-
-        assert bar() == "bar"
-
-    def test_task_with_return_state_true(self):
+    async def test_sync_task_run_inside_sync_flow(self):
         @task
         def foo(x):
             return x
@@ -461,9 +341,74 @@ class TestTaskRun:
 
         task_state = bar()
         assert isinstance(task_state, State)
+        assert await task_state.result() == 1
+
+    async def test_async_task_run_inside_async_flow(self):
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return await foo(1, return_state=True)
+
+        task_state = await bar()
+        assert isinstance(task_state, State)
+        assert await task_state.result() == 1
+
+    async def test_sync_task_run_inside_async_flow(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1, return_state=True)
+
+        task_state = await bar()
+        assert isinstance(task_state, State)
+        assert await task_state.result() == 1
+
+    # Will not be supported in new engine
+    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
+    def test_async_task_run_inside_sync_flow(self):
+        @task
+        async def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True)
+
+        task_state = bar()
+        assert isinstance(task_state, State)
         assert task_state.result() == 1
 
-    @fails_with_new_engine
+    def test_task_failure_does_not_affect_flow(self):
+        @task
+        def foo():
+            raise ValueError("Test")
+
+        @flow
+        def bar():
+            foo(return_state=True)
+            return "bar"
+
+        assert bar() == "bar"
+
+    async def test_task_with_return_state_true(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True)
+
+        task_state = bar()
+        assert isinstance(task_state, State)
+        assert await task_state.result() == 1
+
     def test_task_returns_generator_implicit_list(self):
         @task
         def my_generator(n):
@@ -478,8 +423,7 @@ class TestTaskRun:
 
 
 class TestTaskSubmit:
-    @fails_with_new_engine
-    def test_sync_task_submitted_inside_sync_flow(self):
+    async def test_sync_task_submitted_inside_sync_flow(self):
         @task
         def foo(x):
             return x
@@ -487,14 +431,13 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            assert isinstance(future, PrefectFuture)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = bar()
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
-    @fails_with_new_engine
-    def test_sync_task_with_return_state_true(self):
+    async def test_sync_task_with_return_state_true(self):
         @task
         def foo(x):
             return x
@@ -506,7 +449,7 @@ class TestTaskSubmit:
             return state
 
         task_state = bar()
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
     async def test_async_task_with_return_state_true(self):
         @task
@@ -515,7 +458,7 @@ class TestTaskSubmit:
 
         @flow
         async def bar():
-            state = await foo.submit(1, return_state=True)
+            state = foo.submit(1, return_state=True)
             assert isinstance(state, State)
             return state
 
@@ -529,14 +472,13 @@ class TestTaskSubmit:
 
         @flow
         async def bar():
-            future = await foo.submit(1)
-            assert isinstance(future, PrefectFuture)
+            future = foo.submit(1)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = await bar()
         assert await task_state.result() == 1
 
-    @fails_with_new_engine
     async def test_sync_task_submitted_inside_async_flow(self):
         @task
         def foo(x):
@@ -545,14 +487,13 @@ class TestTaskSubmit:
         @flow
         async def bar():
             future = foo.submit(1)
-            assert isinstance(future, PrefectFuture)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = await bar()
         assert await task_state.result() == 1
 
-    @fails_with_new_engine
-    def test_async_task_submitted_inside_sync_flow(self):
+    async def test_async_task_submitted_inside_sync_flow(self):
         @task
         async def foo(x):
             return x
@@ -560,13 +501,12 @@ class TestTaskSubmit:
         @flow
         def bar():
             future = foo.submit(1)
-            assert isinstance(future, PrefectFuture)
+            assert isinstance(future, NewPrefectFuture)
             return future
 
         task_state = bar()
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
-    @fails_with_new_engine
     def test_task_failure_does_not_affect_flow(self):
         @task
         def foo():
@@ -579,8 +519,7 @@ class TestTaskSubmit:
 
         assert bar() == "bar"
 
-    @fails_with_new_engine
-    def test_downstream_does_not_run_if_upstream_fails(self):
+    async def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
             raise ValueError("Fail task!")
@@ -596,11 +535,10 @@ class TestTaskSubmit:
             return b
 
         flow_state = test_flow(return_state=True)
-        task_state = flow_state.result(raise_on_failure=False)
+        task_state = await flow_state.result(raise_on_failure=False)
         assert task_state.is_pending()
         assert task_state.name == "NotReady"
 
-    @fails_with_new_engine
     def test_downstream_runs_if_upstream_succeeds(self):
         @task
         def foo(x):
@@ -618,7 +556,6 @@ class TestTaskSubmit:
 
         assert test_flow() == 2
 
-    @fails_with_new_engine
     def test_downstream_receives_exception_if_upstream_fails_and_allow_failure(self):
         @task
         def fails():
@@ -638,7 +575,6 @@ class TestTaskSubmit:
         assert isinstance(result, ValueError)
         assert "Fail task!" in str(result)
 
-    @fails_with_new_engine
     def test_downstream_receives_exception_in_collection_if_upstream_fails_and_allow_failure(
         self,
     ):
@@ -662,8 +598,7 @@ class TestTaskSubmit:
         assert result[1:] == [1, 2]
         assert "Fail task!" in str(result)
 
-    @fails_with_new_engine
-    def test_allow_failure_chained_mapped_tasks(
+    async def test_allow_failure_chained_mapped_tasks(
         self,
     ):
         @task
@@ -685,13 +620,12 @@ class TestTaskSubmit:
         states = test_flow()
         assert isinstance(states, list), f"Expected list; got {type(states)}"
 
-        assert states[0].result(), states[2].result() == [1, 3]
+        assert await states[0].result(), await states[2].result() == [1, 3]
 
         assert states[1].is_completed()
-        assert exceptions_equal(states[1].result(), ValueError("Fail task"))
+        assert exceptions_equal(await states[1].result(), ValueError("Fail task"))
 
-    @fails_with_new_engine
-    def test_allow_failure_mapped_with_noniterable_upstream(
+    async def test_allow_failure_mapped_with_noniterable_upstream(
         self,
     ):
         @task
@@ -713,15 +647,14 @@ class TestTaskSubmit:
 
         assert len(states) == 3
         for i, state in enumerate(states):
-            y, z = state.result()
+            y, z = await state.result()
             assert y == i + 1
             assert exceptions_equal(z, ValueError("Fail task"))
 
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
-    @fails_with_new_engine
-    def test_final_state_reflects_exceptions_during_run(self, error):
+    async def test_final_state_reflects_exceptions_during_run(self, error):
         @task
         def bar():
             if error:
@@ -729,16 +662,15 @@ class TestTaskStates:
 
         @flow(version="test")
         def foo():
-            return quote(bar._run())
+            return quote(bar(return_state=True))
 
         task_state = foo().unquote()
 
         # Assert the final state is correct
         assert task_state.is_failed() if error else task_state.is_completed()
-        assert exceptions_equal(task_state.result(raise_on_failure=False), error)
+        assert exceptions_equal(await task_state.result(raise_on_failure=False), error)
 
-    @fails_with_new_engine
-    def test_final_task_state_respects_returned_state(self):
+    async def test_final_task_state_respects_returned_state(self):
         @task
         def bar():
             return State(
@@ -749,13 +681,13 @@ class TestTaskStates:
 
         @flow(version="test")
         def foo():
-            return quote(bar._run())
+            return quote(bar(return_state=True))
 
         task_state = foo().unquote()
 
         # Assert the final state is correct
         assert task_state.is_failed()
-        assert task_state.result(raise_on_failure=False) is True
+        assert await task_state.result(raise_on_failure=False) is True
         assert task_state.message == "Test returned state"
 
 
@@ -774,7 +706,6 @@ class TestTaskVersion:
 
         assert my_task.version == "test-dev-experimental"
 
-    @fails_with_new_engine
     async def test_task_version_is_set_in_backend(self, prefect_client):
         @task(version="test-dev-experimental")
         def my_task():
@@ -782,7 +713,7 @@ class TestTaskVersion:
 
         @flow
         def test():
-            return my_task._run()
+            return my_task(return_state=True)
 
         task_state = test()
         task_run = await prefect_client.read_task_run(
@@ -799,14 +730,15 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
-            state = await future.wait()
+            future = foo.submit()
+            future.wait()
+            state = future.state
 
             assert state.is_completed()
 
             # TODO: The ids are not equal here, why?
             # task_run = await prefect_client.read_task_run(state.state_details.task_run_id)
-            # assert task_run.state.dict(exclude={"data"}) == state.dict(exclude={"data"})
+            # assert task_run.state.model_dump(exclude={"data"}) == state.model_dump(exclude={"data"})
 
         await my_flow()
 
@@ -818,9 +750,10 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
-            state = await future.wait(0.01)
-            assert state is None
+            future = foo.submit()
+            future.wait(0.01)
+            state = future.state
+            assert not state.is_completed()
 
         await my_flow()
 
@@ -831,8 +764,10 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
-            state = await future.wait(5)
+            future = foo.submit()
+            future.wait(5)
+            state = future.state
+
             assert state is not None
             assert state.is_completed()
 
@@ -846,9 +781,9 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
+            future = foo.submit()
             with pytest.raises(TimeoutError):
-                await future.result(timeout=0.01)
+                future.result(timeout=0.01)
 
         await my_flow()
 
@@ -859,8 +794,8 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
-            result = await future.result(timeout=5)
+            future = foo.submit()
+            result = future.result(timeout=5)
             assert result == 1
 
         await my_flow()
@@ -872,8 +807,8 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
-            result = await future.result()
+            future = foo.submit()
+            result = future.result()
             assert result == 1
 
         await my_flow()
@@ -885,9 +820,9 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
+            future = foo.submit()
             with pytest.raises(ValueError, match="Test"):
-                await future.result()
+                future.result()
             return True  # Ignore failed tasks
 
         await my_flow()
@@ -899,14 +834,13 @@ class TestTaskFutures:
 
         @flow
         async def my_flow():
-            future = await foo.submit()
-            result = await future.result(raise_on_failure=False)
+            future = foo.submit()
+            result = future.result(raise_on_failure=False)
             assert exceptions_equal(result, ValueError("Test"))
             return True  # Ignore failed tasks
 
         await my_flow()
 
-    @fails_with_new_engine
     async def test_async_tasks_in_sync_flows_return_sync_futures(self):
         data = {"value": 1}
 
@@ -918,7 +852,6 @@ class TestTaskFutures:
         @flow
         def test_flow():
             future = get_data.submit()
-            assert not future.asynchronous, "The async task should return a sync future"
             result = future.result()
             assert result == data, "Retrieving the result returns data"
             return result
@@ -933,7 +866,6 @@ class TestTaskRetries:
     """
 
     @pytest.mark.parametrize("always_fail", [True, False])
-    @fails_with_new_engine
     async def test_task_respects_retry_count(self, always_fail, prefect_client):
         mock = MagicMock()
         exc = ValueError()
@@ -952,7 +884,8 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function.submit()
-            return future.wait(), ...
+            future.wait()
+            return future.state, ...
 
         task_run_state, _ = test_flow()
         task_run_id = task_run_state.state_details.task_run_id
@@ -971,19 +904,16 @@ class TestTaskRetries:
         states = await prefect_client.read_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
+        # task retries are client-side in the new engine
         assert state_names == [
             "Pending",
             "Running",
-            "AwaitingRetry",
             "Retrying",
-            "AwaitingRetry",
             "Retrying",
-            "AwaitingRetry",
             "Retrying",
             "Failed" if always_fail else "Completed",
         ]
 
-    @fails_with_new_engine
     async def test_task_only_uses_necessary_retries(self, prefect_client):
         mock = MagicMock()
         exc = ValueError()
@@ -998,7 +928,8 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function.submit()
-            return future.wait()
+            future.wait()
+            return future.state
 
         task_run_state = test_flow()
         task_run_id = task_run_state.state_details.task_run_id
@@ -1009,10 +940,10 @@ class TestTaskRetries:
 
         states = await prefect_client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
+        # task retries are client side in the new engine
         assert state_names == [
             "Pending",
             "Running",
-            "AwaitingRetry",
             "Retrying",
             "Completed",
         ]
@@ -1049,7 +980,6 @@ class TestTaskRetries:
                     last_context.start_time < context.start_time
                 ), "Timestamps should be increasing"
 
-    @fails_with_new_engine
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
             mock = MagicMock()
@@ -1072,37 +1002,34 @@ class TestTaskRetries:
 
 
 class TestTaskCaching:
-    @fails_with_new_engine
-    def test_repeated_task_call_within_flow_is_not_cached_by_default(self):
+    async def test_repeated_task_call_within_flow_is_not_cached_by_default(self):
         @task
         def foo(x):
             return x
 
         @flow
         def bar():
-            return foo._run(1), foo._run(1)
+            return foo(1, return_state=True), foo(1, return_state=True)
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
-        assert second_state.result() == first_state.result()
+        assert await second_state.result() == await first_state.result()
 
-    @fails_with_new_engine
-    def test_cache_hits_within_flows_are_cached(self):
+    async def test_cache_hits_within_flows_are_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
             return x
 
         @flow
         def bar():
-            return foo._run(1), foo._run(2)
+            return foo(1, return_state=True), foo(2, return_state=True)
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
-        assert second_state.result() == first_state.result()
+        assert await second_state.result() == await first_state.result()
 
-    @fails_with_new_engine
     def test_many_repeated_cache_hits_within_flows_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
@@ -1110,29 +1037,27 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            foo._run(1)  # populate the cache
-            return [foo._run(i) for i in range(5)]
+            foo(1, return_state=True)  # populate the cache
+            return [foo(i, return_state=True) for i in range(5)]
 
         states = bar()
         assert all(state.name == "Cached" for state in states), states
 
-    @fails_with_new_engine
-    def test_cache_hits_between_flows_are_cached(self):
+    async def test_cache_hits_between_flows_are_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
             return x
 
         @flow
         def bar(x):
-            return foo._run(x)
+            return foo(x, return_state=True)
 
         first_state = bar(1)
         second_state = bar(2)
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
-        assert second_state.result() == first_state.result() == 1
+        assert await second_state.result() == await first_state.result() == 1
 
-    @fails_with_new_engine
     def test_cache_misses_arent_cached(self):
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
@@ -1145,14 +1070,13 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo._run(1), foo._run(1)
+            return foo(1, return_state=True), foo(1, return_state=True)
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
 
-    @fails_with_new_engine
-    def test_cache_key_fn_receives_context(self):
+    async def test_cache_key_fn_receives_context(self):
         def get_flow_run_id(context, args):
             return str(context.task_run.flow_run_id)
 
@@ -1162,23 +1086,24 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo._run("something"), foo._run("different")
+            return foo("something", return_state=True), foo(
+                "different", return_state=True
+            )
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
-        assert first_state.result() == "something"
+        assert await first_state.result() == "something"
 
         assert second_state.name == "Cached"
-        assert second_state.result() == "something"
+        assert await second_state.result() == "something"
 
         third_state, fourth_state = bar()
         assert third_state.name == "Completed"
         assert fourth_state.name == "Cached"
-        assert third_state.result() == "something"
-        assert fourth_state.result() == "something"
+        assert await third_state.result() == "something"
+        assert await fourth_state.result() == "something"
 
-    @fails_with_new_engine
-    def test_cache_key_fn_receives_resolved_futures(self):
+    async def test_cache_key_fn_receives_resolved_futures(self):
         def check_args(context, params):
             assert params["x"] == "something"
             assert len(params) == 1
@@ -1196,17 +1121,16 @@ class TestTaskCaching:
         def my_flow():
             future = foo.submit("something")
             # Mix run/submit to cover both cases
-            return bar._run(future), bar.submit(future).wait()
+            return bar(future, return_state=True), bar.submit(future, return_state=True)
 
         first_state, second_state = my_flow()
         assert first_state.name == "Completed"
-        assert first_state.result() == "something"
+        assert await first_state.result() == "something"
 
         assert second_state.name == "Cached"
-        assert second_state.result() == "something"
+        assert await second_state.result() == "something"
 
-    @fails_with_new_engine
-    def test_cache_key_fn_arg_inputs_are_stable(self):
+    async def test_cache_key_fn_arg_inputs_are_stable(self):
         def stringed_inputs(context, args):
             return str(args)
 
@@ -1217,9 +1141,9 @@ class TestTaskCaching:
         @flow
         def bar():
             return (
-                foo._run(1, 2, 3),
-                foo._run(1, b=2),
-                foo._run(c=3, a=1, b=2),
+                foo(1, 2, 3, return_state=True),
+                foo(1, b=2, return_state=True),
+                foo(c=3, a=1, b=2, return_state=True),
             )
 
         first_state, second_state, third_state = bar()
@@ -1228,12 +1152,11 @@ class TestTaskCaching:
         assert third_state.name == "Cached"
 
         # same output
-        assert first_state.result() == 6
-        assert second_state.result() == 6
-        assert third_state.result() == 6
+        assert await first_state.result() == 6
+        assert await second_state.result() == 6
+        assert await third_state.result() == 6
 
-    @fails_with_new_engine
-    def test_cache_key_hits_with_future_expiration_are_cached(self):
+    async def test_cache_key_hits_with_future_expiration_are_cached(self):
         @task(
             cache_key_fn=lambda *_: "cache hit",
             cache_expiration=datetime.timedelta(seconds=5),
@@ -1243,15 +1166,14 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo._run(1), foo._run(2)
+            return foo(1, return_state=True), foo(2, return_state=True)
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
-        assert second_state.result() == 1
+        assert await second_state.result() == 1
 
-    @fails_with_new_engine
-    def test_cache_key_hits_with_past_expiration_are_not_cached(self):
+    async def test_cache_key_hits_with_past_expiration_are_not_cached(self):
         @task(
             cache_key_fn=lambda *_: "cache hit",
             cache_expiration=datetime.timedelta(seconds=-5),
@@ -1261,14 +1183,14 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo._run(1), foo._run(2)
+            return foo(1, return_state=True), foo(2, return_state=True)
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
-        assert second_state.result() != first_state.result()
+        assert await second_state.result() != await first_state.result()
 
-    def test_cache_misses_w_refresh_cache(self):
+    async def test_cache_misses_w_refresh_cache(self):
         @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=True)
         def foo(x):
             return x
@@ -1280,9 +1202,9 @@ class TestTaskCaching:
         first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
-        assert second_state.result() != first_state.result()
+        assert await second_state.result() != await first_state.result()
 
-    def test_cache_hits_wo_refresh_cache(self):
+    async def test_cache_hits_wo_refresh_cache(self):
         @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=False)
         def foo(x):
             return x
@@ -1294,9 +1216,9 @@ class TestTaskCaching:
         first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
-        assert second_state.result() == first_state.result()
+        assert await second_state.result() == await first_state.result()
 
-    def test_tasks_refresh_cache_setting(self):
+    async def test_tasks_refresh_cache_setting(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
             return x
@@ -1323,39 +1245,41 @@ class TestTaskCaching:
             assert first_state.name == "Completed"
             assert second_state.name == "Completed"
             assert third_state.name == "Cached"
-            assert second_state.result() != first_state.result()
-            assert third_state.result() == second_state.result()
+            assert await second_state.result() != await first_state.result()
+            assert await third_state.result() == await second_state.result()
 
 
 class TestCacheFunctionBuiltins:
-    @fails_with_new_engine
-    def test_task_input_hash_within_flows(self):
+    async def test_task_input_hash_within_flows(self):
         @task(cache_key_fn=task_input_hash)
         def foo(x):
             return x
 
         @flow
         def bar():
-            return foo._run(1), foo._run(2), foo._run(1)
+            return (
+                foo(1, return_state=True),
+                foo(2, return_state=True),
+                foo(1, return_state=True),
+            )
 
         first_state, second_state, third_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
 
-        assert first_state.result() != second_state.result()
-        assert first_state.result() == third_state.result()
-        assert first_state.result() == 1
+        assert await first_state.result() != await second_state.result()
+        assert await first_state.result() == await third_state.result()
+        assert await first_state.result() == 1
 
-    @fails_with_new_engine
-    def test_task_input_hash_between_flows(self):
+    async def test_task_input_hash_between_flows(self):
         @task(cache_key_fn=task_input_hash)
         def foo(x):
             return x
 
         @flow
         def bar(x):
-            return foo._run(x)
+            return foo(x, return_state=True)
 
         first_state = bar(1)
         second_state = bar(2)
@@ -1363,11 +1287,10 @@ class TestCacheFunctionBuiltins:
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
-        assert first_state.result() != second_state.result()
-        assert first_state.result() == third_state.result() == 1
+        assert await first_state.result() != await second_state.result()
+        assert await first_state.result() == await third_state.result() == 1
 
-    @fails_with_new_engine
-    def test_task_input_hash_works_with_object_return_types(self):
+    async def test_task_input_hash_works_with_object_return_types(self):
         """
         This is a regression test for a weird bug where `task_input_hash` would always
         use cloudpickle to generate the hash since we were passing in the raw function
@@ -1390,18 +1313,21 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar():
-            return foo._run(1), foo._run(2), foo._run(1)
+            return (
+                foo(1, return_state=True),
+                foo(2, return_state=True),
+                foo(1, return_state=True),
+            )
 
         first_state, second_state, third_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
 
-        assert first_state.result() != second_state.result()
-        assert first_state.result() == third_state.result()
+        assert await first_state.result() != await second_state.result()
+        assert await first_state.result() == await third_state.result()
 
-    @fails_with_new_engine
-    def test_task_input_hash_works_with_object_input_types(self):
+    async def test_task_input_hash_works_with_object_input_types(self):
         class TestClass:
             def __init__(self, x):
                 self.x = x
@@ -1416,9 +1342,9 @@ class TestCacheFunctionBuiltins:
         @flow
         def bar():
             return (
-                foo._run(TestClass(1)),
-                foo._run(TestClass(2)),
-                foo._run(TestClass(1)),
+                foo(TestClass(1), return_state=True),
+                foo(TestClass(2), return_state=True),
+                foo(TestClass(1), return_state=True),
             )
 
         first_state, second_state, third_state = bar()
@@ -1426,11 +1352,10 @@ class TestCacheFunctionBuiltins:
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
 
-        assert first_state.result() != second_state.result()
-        assert first_state.result() == third_state.result() == 1
+        assert await first_state.result() != await second_state.result()
+        assert await first_state.result() == await third_state.result() == 1
 
-    @fails_with_new_engine
-    def test_task_input_hash_works_with_block_input_types(self):
+    async def test_task_input_hash_works_with_block_input_types(self):
         class TestBlock(Block):
             x: int
             y: int
@@ -1443,9 +1368,9 @@ class TestCacheFunctionBuiltins:
         @flow
         def bar():
             return (
-                foo._run(TestBlock(x=1, y=2, z=3)),
-                foo._run(TestBlock(x=4, y=2, z=3)),
-                foo._run(TestBlock(x=1, y=2, z=3)),
+                foo(TestBlock(x=1, y=2, z=3), return_state=True),
+                foo(TestBlock(x=4, y=2, z=3), return_state=True),
+                foo(TestBlock(x=1, y=2, z=3), return_state=True),
             )
 
         first_state, second_state, third_state = bar()
@@ -1453,11 +1378,10 @@ class TestCacheFunctionBuiltins:
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
 
-        assert first_state.result() != second_state.result()
-        assert first_state.result() == third_state.result() == 1
+        assert await first_state.result() != await second_state.result()
+        assert await first_state.result() == await third_state.result() == 1
 
-    @fails_with_new_engine
-    def test_task_input_hash_depends_on_task_key_and_code(self):
+    async def test_task_input_hash_depends_on_task_key_and_code(self):
         @task(cache_key_fn=task_input_hash)
         def foo(x):
             return x
@@ -1474,13 +1398,13 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def my_flow():
-            first = foo._run(1)
+            first = foo(1, return_state=True)
             foo.fn = foo_same_code
-            second = foo._run(1)
+            second = foo(1, return_state=True)
             foo.fn = foo_new_code
-            third = foo._run(1)
-            fourth = bar._run(1)
-            fifth = bar._run(1)
+            third = foo(1, return_state=True)
+            fourth = bar(1, return_state=True)
+            fifth = bar(1, return_state=True)
             return first, second, third, fourth, fifth
 
         (
@@ -1496,12 +1420,11 @@ class TestCacheFunctionBuiltins:
         assert fourth_state.name == "Completed"
         assert fifth_state.name == "Cached"
 
-        assert first_state.result() == second_state.result() == 1
-        assert first_state.result() != third_state.result()
-        assert fourth_state.result() == fifth_state.result() == 1
+        assert await first_state.result() == await second_state.result() == 1
+        assert await first_state.result() != await third_state.result()
+        assert await fourth_state.result() == await fifth_state.result() == 1
 
-    @fails_with_new_engine
-    def test_task_input_hash_works_with_block_input_types_and_bytes(self):
+    async def test_task_input_hash_works_with_block_input_types_and_bytes(self):
         class TestBlock(Block):
             x: int
             y: int
@@ -1514,11 +1437,21 @@ class TestCacheFunctionBuiltins:
         @flow
         def bar():
             return (
-                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))),  # same
-                foo._run(TestBlock(x=4, y=2, z="dog".encode("utf-8"))),  # different x
-                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))),  # same
-                foo._run(TestBlock(x=1, y=2, z="dog".encode("latin-1"))),  # same
-                foo._run(TestBlock(x=1, y=2, z="cat".encode("utf-8"))),  # different z
+                foo(
+                    TestBlock(x=1, y=2, z="dog".encode("utf-8")), return_state=True
+                ),  # same
+                foo(
+                    TestBlock(x=4, y=2, z="dog".encode("utf-8")), return_state=True
+                ),  # different x
+                foo(
+                    TestBlock(x=1, y=2, z="dog".encode("utf-8")), return_state=True
+                ),  # same
+                foo(
+                    TestBlock(x=1, y=2, z="dog".encode("latin-1")), return_state=True
+                ),  # same
+                foo(
+                    TestBlock(x=1, y=2, z="cat".encode("utf-8")), return_state=True
+                ),  # different z
             )
 
         first_state, second_state, third_state, fourth_state, fifth_state = bar()
@@ -1528,29 +1461,29 @@ class TestCacheFunctionBuiltins:
         assert fourth_state.name == "Cached"
         assert fifth_state.name == "Completed"
 
-        assert first_state.result() != second_state.result()
+        assert await first_state.result() != await second_state.result()
         assert (
-            first_state.result() == third_state.result() == fourth_state.result() == 1
+            await first_state.result()
+            == await third_state.result()
+            == await fourth_state.result()
+            == 1
         )
 
 
 class TestTaskTimeouts:
-    @fails_with_new_engine
     async def test_task_timeouts_actually_timeout(self, timeout_test_flow):
-        flow_state = timeout_test_flow._run()
+        flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
         assert timed_out.name == "TimedOut"
         assert timed_out.is_failed()
 
-    @fails_with_new_engine
     async def test_task_timeouts_are_not_task_crashes(self, timeout_test_flow):
-        flow_state = timeout_test_flow._run()
+        flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
         assert timed_out.is_crashed() is False
 
-    @fails_with_new_engine
     async def test_task_timeouts_do_not_crash_flow_runs(self, timeout_test_flow):
-        flow_state = timeout_test_flow._run()
+        flow_state = timeout_test_flow(return_state=True)
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
 
         assert timed_out.name == "TimedOut"
@@ -1558,7 +1491,6 @@ class TestTaskTimeouts:
         assert flow_state.is_failed()
         assert flow_state.is_crashed() is False
 
-    @fails_with_new_engine
     async def test_task_timeouts_do_not_timeout_prematurely(self):
         @task(timeout_seconds=100)
         def my_task():
@@ -1570,7 +1502,7 @@ class TestTaskTimeouts:
             x = my_task.submit()
             return x
 
-        flow_state = my_flow._run()
+        flow_state = my_flow(return_state=True)
         assert flow_state.type == StateType.COMPLETED
 
         task_res = await flow_state.result()
@@ -1578,7 +1510,6 @@ class TestTaskTimeouts:
 
 
 class TestTaskRunTags:
-    @fails_with_new_engine
     async def test_task_run_tags_added_at_submission(self, prefect_client):
         @flow
         def my_flow():
@@ -1597,12 +1528,11 @@ class TestTaskRunTags:
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    @fails_with_new_engine
     async def test_task_run_tags_added_at_run(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
-                state = my_task._run()
+                state = my_task(return_state=True)
 
             return state
 
@@ -1616,7 +1546,6 @@ class TestTaskRunTags:
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    @fails_with_new_engine
     async def test_task_run_tags_added_at_call(self, prefect_client):
         @flow
         def my_flow():
@@ -1635,12 +1564,11 @@ class TestTaskRunTags:
         )
         assert set(task_run.tags) == {"a", "b"}
 
-    @fails_with_new_engine
     async def test_task_run_tags_include_tags_on_task_object(self, prefect_client):
         @flow
         def my_flow():
             with tags("c", "d"):
-                state = my_task._run()
+                state = my_task(return_state=True)
 
             return state
 
@@ -1654,12 +1582,11 @@ class TestTaskRunTags:
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
 
-    @fails_with_new_engine
     async def test_task_run_tags_include_flow_run_tags(self, prefect_client):
         @flow
         def my_flow():
             with tags("c", "d"):
-                state = my_task._run()
+                state = my_task(return_state=True)
 
             return state
 
@@ -1675,13 +1602,12 @@ class TestTaskRunTags:
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
 
-    @fails_with_new_engine
     async def test_task_run_tags_not_added_outside_context(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
                 my_task()
-            state = my_task._run()
+            state = my_task(return_state=True)
 
             return state
 
@@ -1695,13 +1621,12 @@ class TestTaskRunTags:
         )
         assert not task_run.tags
 
-    @fails_with_new_engine
     async def test_task_run_tags_respects_nesting(self, prefect_client):
         @flow
         def my_flow():
             with tags("a", "b"):
                 with tags("c", "d"):
-                    state = my_task._run()
+                    state = my_task(return_state=True)
 
             return state
 
@@ -1731,13 +1656,18 @@ class TestTaskInputs:
 
         @flow
         def upstream_downstream_flow(result):
-            upstream_state = upstream._run(result)
-            downstream_state = downstream._run(upstream_state.result())
+            upstream_state = upstream(result, return_state=True)
+            # TODO: Running with the new engine causes the result call to return a coroutine
+            # because it runs on the main thread with an active event loop. We need to update
+            # result retrieval to be sync.
+            result = upstream_state.result()
+            if inspect.isawaitable(result):
+                result = run_coro_as_sync(result)
+            downstream_state = downstream(result, return_state=True)
             return upstream_state, downstream_state
 
         return upstream_downstream_flow
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_no_upstreams(self, prefect_client):
         @task
         def foo(x):
@@ -1747,14 +1677,13 @@ class TestTaskInputs:
         def test_flow():
             return foo.submit(1)
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
         x = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(x.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(x=[])
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_no_upstreams_and_multiple_parameters(
         self, prefect_client
     ):
@@ -1766,14 +1695,13 @@ class TestTaskInputs:
         def test_flow():
             return foo.submit(1)
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
         x = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(x.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(x=[], a=[], k=[])
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_one_upstream_positional_future(
         self, prefect_client
     ):
@@ -1789,10 +1717,10 @@ class TestTaskInputs:
         def test_flow():
             a = foo.submit(1)
             b = foo.submit(2)
-            c = bar._run(a, 1)
+            c = bar(a, 1, return_state=True)
             return a, b, c
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
         a, b, c = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
@@ -1802,7 +1730,6 @@ class TestTaskInputs:
             y=[],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_one_upstream_keyword_future(
         self, prefect_client
     ):
@@ -1818,10 +1745,10 @@ class TestTaskInputs:
         def test_flow():
             a = foo.submit(1)
             b = foo.submit(2)
-            c = bar._run(x=a, y=1)
+            c = bar(x=a, y=1, return_state=True)
             return a, b, c
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
         a, b, c = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
@@ -1831,7 +1758,6 @@ class TestTaskInputs:
             y=[],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_two_upstream_futures(
         self, prefect_client
     ):
@@ -1847,10 +1773,10 @@ class TestTaskInputs:
         def test_flow():
             a = foo.submit(1)
             b = foo.submit(2)
-            c = bar._run(a, b)
+            c = bar(a, b, return_state=True)
             return a, b, c
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
         a, b, c = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
@@ -1860,7 +1786,6 @@ class TestTaskInputs:
             y=[TaskRunResult(id=b.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_two_upstream_futures_from_same_task(
         self, prefect_client
     ):
@@ -1875,10 +1800,10 @@ class TestTaskInputs:
         @flow
         def test_flow():
             a = foo.submit(1)
-            c = bar._run(a, a)
+            c = bar(a, a, return_state=True)
             return a, c
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
         a, c = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(c.state_details.task_run_id)
@@ -1888,7 +1813,6 @@ class TestTaskInputs:
             y=[TaskRunResult(id=a.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_nested_upstream_futures(
         self, prefect_client
     ):
@@ -1905,10 +1829,10 @@ class TestTaskInputs:
             a = foo.submit(1)
             b = foo.submit(2)
             c = foo.submit(3)
-            d = bar._run([a, a, b], {3: b, 4: {5: {c, 4}}})
+            d = bar([a, a, b], {3: b, 4: {5: {c, 4}}}, return_state=True)
             return a, b, c, d
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
 
         a, b, c, d = await flow_state.result()
 
@@ -1925,7 +1849,6 @@ class TestTaskInputs:
             },
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_subflow_upstream(self, prefect_client):
         @task
         def foo(x):
@@ -1937,10 +1860,10 @@ class TestTaskInputs:
 
         @flow
         def parent():
-            child_state = child._run(1)
+            child_state = child(1, return_state=True)
             return child_state, foo.submit(child_state)
 
-        parent_state = parent._run()
+        parent_state = parent(return_state=True)
         child_state, task_state = await parent_state.result()
 
         task_run = await prefect_client.read_task_run(
@@ -1951,7 +1874,9 @@ class TestTaskInputs:
             x=[TaskRunResult(id=child_state.state_details.task_run_id)],
         )
 
-    async def test_task_inputs_populated_with_result_upstream(self, prefect_client):
+    async def test_task_inputs_populated_with_result_upstream(
+        self, sync_prefect_client
+    ):
         @task
         def name():
             return "Fred"
@@ -1962,22 +1887,19 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            my_name = name._run()
-            hi = say_hi._run(my_name.result())
+            my_name = name(return_state=True)
+            hi = say_hi(my_name.result(), return_state=True)
             return my_name, hi
 
-        flow_state = test_flow._run()
+        flow_state = test_flow(return_state=True)
         name_state, hi_state = await flow_state.result()
 
-        task_run = await prefect_client.read_task_run(
-            hi_state.state_details.task_run_id
-        )
+        task_run = sync_prefect_client.read_task_run(hi_state.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
             name=[TaskRunResult(id=name_state.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_result_upstream_from_future(
         self, prefect_client
     ):
@@ -1993,8 +1915,9 @@ class TestTaskInputs:
         def test_flow():
             upstream_future = upstream.submit(257)
             upstream_result = upstream_future.result()
-            downstream_state = downstream._run(upstream_result)
-            upstream_state = upstream_future.wait()
+            downstream_state = downstream(upstream_result, return_state=True)
+            upstream_future.wait()
+            upstream_state = upstream_future.state
             return upstream_state, downstream_state
 
         upstream_state, downstream_state = test_flow()
@@ -2007,7 +1930,6 @@ class TestTaskInputs:
             x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_result_upstream_from_state(
         self, prefect_client
     ):
@@ -2021,16 +1943,15 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            upstream_state = upstream._run(1)
+            upstream_state = upstream(1, return_state=True)
             upstream_result = upstream_state.result()
-            downstream_state = downstream._run(upstream_result)
+            downstream_state = downstream(upstream_result, return_state=True)
             return upstream_state, downstream_state
 
         upstream_state, downstream_state = test_flow()
 
         await prefect_client.read_task_run(downstream_state.state_details.task_run_id)
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_state_upstream(self, prefect_client):
         @task
         def upstream(x):
@@ -2042,8 +1963,8 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            upstream_state = upstream._run(1)
-            downstream_state = downstream._run(upstream_state)
+            upstream_state = upstream(1, return_state=True)
+            downstream_state = downstream(upstream_state, return_state=True)
             return upstream_state, downstream_state
 
         upstream_state, downstream_state = test_flow()
@@ -2089,7 +2010,7 @@ class TestTaskInputs:
     async def test_task_inputs_populated_with_collection_result_upstream(
         self, result, prefect_client, flow_with_upstream_downstream
     ):
-        flow_state = flow_with_upstream_downstream._run(result)
+        flow_state = flow_with_upstream_downstream(result, return_state=True)
         upstream_state, downstream_state = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(
@@ -2104,7 +2025,7 @@ class TestTaskInputs:
     async def test_task_inputs_populated_with_basic_result_types_upstream(
         self, result, prefect_client, flow_with_upstream_downstream
     ):
-        flow_state = flow_with_upstream_downstream._run(result)
+        flow_state = flow_with_upstream_downstream(result, return_state=True)
         upstream_state, downstream_state = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(
@@ -2118,7 +2039,7 @@ class TestTaskInputs:
     async def test_task_inputs_not_populated_with_singleton_results_upstream(
         self, result, prefect_client, flow_with_upstream_downstream
     ):
-        flow_state = flow_with_upstream_downstream._run(result)
+        flow_state = flow_with_upstream_downstream(result, return_state=True)
         _, downstream_state = await flow_state.result()
 
         task_run = await prefect_client.read_task_run(
@@ -2127,7 +2048,6 @@ class TestTaskInputs:
 
         assert task_run.task_inputs == dict(value=[])
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_trackables(
         self, prefect_client
     ):
@@ -2148,10 +2068,10 @@ class TestTaskInputs:
 
         @flow
         def unpacking_flow():
-            t1_state = task_1._run()
+            t1_state = task_1(return_state=True)
             t1_res_1, t1_res_2 = t1_state.result()
-            t2_state = task_2._run(t1_res_1)
-            t3_state = task_3._run(t1_res_2)
+            t2_state = task_2(t1_res_1, return_state=True)
+            t3_state = task_3(t1_res_2, return_state=True)
             return t1_state, t2_state, t3_state
 
         t1_state, t2_state, t3_state = unpacking_flow()
@@ -2172,7 +2092,6 @@ class TestTaskInputs:
             task_2_input=[TaskRunResult(id=t1_state.state_details.task_run_id)],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_mixed_untrackable_types(
         self, prefect_client
     ):
@@ -2193,10 +2112,10 @@ class TestTaskInputs:
 
         @flow
         def unpacking_flow():
-            t1_state = task_1._run()
+            t1_state = task_1(return_state=True)
             t1_res_1, t1_res_2 = t1_state.result()
-            t2_state = task_2._run(t1_res_1)
-            t3_state = task_3._run(t1_res_2)
+            t2_state = task_2(t1_res_1, return_state=True)
+            t3_state = task_3(t1_res_2, return_state=True)
             return t1_state, t2_state, t3_state
 
         t1_state, t2_state, t3_state = unpacking_flow()
@@ -2217,7 +2136,6 @@ class TestTaskInputs:
             task_2_input=[],
         )
 
-    @fails_with_new_engine
     async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_no_trackable_types(
         self, prefect_client
     ):
@@ -2237,10 +2155,10 @@ class TestTaskInputs:
 
         @flow
         def unpacking_flow():
-            t1_state = task_1._run()
+            t1_state = task_1(return_state=True)
             t1_res_1, t1_res_2 = t1_state.result()
-            t2_state = task_2._run(t1_res_1)
-            t3_state = task_3._run(t1_res_2)
+            t2_state = task_2(t1_res_1, return_state=True)
+            t3_state = task_3(t1_res_2, return_state=True)
             return t1_state, t2_state, t3_state
 
         t1_state, t2_state, t3_state = unpacking_flow()
@@ -2263,8 +2181,7 @@ class TestTaskInputs:
 
 
 class TestSubflowWaitForTasks:
-    @fails_with_new_engine
-    def test_downstream_does_not_run_if_upstream_fails(self):
+    async def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
             raise ValueError("Fail task!")
@@ -2276,11 +2193,11 @@ class TestSubflowWaitForTasks:
         @flow
         def test_flow():
             f = fails.submit()
-            b = bar._run(2, wait_for=[f])
+            b = bar(2, wait_for=[f], return_state=True)
             return b
 
-        flow_state = test_flow._run()
-        subflow_state = flow_state.result(raise_on_failure=False)
+        flow_state = test_flow(return_state=True)
+        subflow_state = await flow_state.result(raise_on_failure=False)
         assert subflow_state.is_pending()
         assert subflow_state.name == "NotReady"
 
@@ -2301,7 +2218,6 @@ class TestSubflowWaitForTasks:
 
         assert test_flow() == 2
 
-    @fails_with_new_engine
     async def test_backend_task_inputs_includes_wait_for_tasks(self, prefect_client):
         @task
         def foo(x):
@@ -2355,13 +2271,12 @@ class TestSubflowWaitForTasks:
         @flow
         async def test_flow():
             e = Event()
-            await waiter_task.submit(e, 1)
+            waiter_task.submit(e, 1)
             b = await setter_flow(e)
             return b
 
         assert (await test_flow()) == 42
 
-    @fails_with_new_engine
     async def test_subflows_waiting_for_tasks_can_deadlock(self):
         @task
         async def waiter_task(event, delay):
@@ -2379,11 +2294,11 @@ class TestSubflowWaitForTasks:
         @flow
         async def test_flow():
             e = Event()
-            f = await waiter_task.submit(e, 1)
+            f = waiter_task.submit(e, 1)
             b = await setter_flow(e, wait_for=[f])
             return b
 
-        flow_state = await test_flow._run()
+        flow_state = await test_flow(return_state=True)
         assert flow_state.is_failed()
         assert "UnfinishedRun" in flow_state.message
 
@@ -2396,8 +2311,9 @@ class TestSubflowWaitForTasks:
             def foo(wait_for):
                 pass
 
-    @fails_with_new_engine
-    def test_downstream_runs_if_upstream_fails_with_allow_failure_annotation(self):
+    async def test_downstream_runs_if_upstream_fails_with_allow_failure_annotation(
+        self,
+    ):
         @task
         def fails():
             raise ValueError("Fail task!")
@@ -2413,13 +2329,12 @@ class TestSubflowWaitForTasks:
             return b
 
         flow_state = test_flow(return_state=True)
-        subflow_state = flow_state.result(raise_on_failure=False)
-        assert subflow_state.result() == 2
+        subflow_state = await flow_state.result(raise_on_failure=False)
+        assert await subflow_state.result() == 2
 
 
 class TestTaskWaitFor:
-    @fails_with_new_engine
-    def test_downstream_does_not_run_if_upstream_fails(self):
+    async def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
             raise ValueError("Fail task!")
@@ -2431,11 +2346,11 @@ class TestTaskWaitFor:
         @flow
         def test_flow():
             f = fails.submit()
-            b = bar._run(2, wait_for=[f])
+            b = bar(2, wait_for=[f], return_state=True)
             return b
 
-        flow_state = test_flow._run()
-        task_state = flow_state.result(raise_on_failure=False)
+        flow_state = test_flow(return_state=True)
+        task_state = await flow_state.result(raise_on_failure=False)
         assert task_state.is_pending()
         assert task_state.name == "NotReady"
 
@@ -2456,7 +2371,6 @@ class TestTaskWaitFor:
 
         assert test_flow() == 2
 
-    @fails_with_new_engine
     async def test_backend_task_inputs_includes_wait_for_tasks(self, prefect_client):
         @task
         def foo(x):
@@ -2495,8 +2409,9 @@ class TestTaskWaitFor:
             def foo(wait_for):
                 pass
 
-    @fails_with_new_engine
-    def test_downstream_runs_if_upstream_fails_with_allow_failure_annotation(self):
+    async def test_downstream_runs_if_upstream_fails_with_allow_failure_annotation(
+        self,
+    ):
         @task
         def fails():
             raise ValueError("Fail task!")
@@ -2512,13 +2427,29 @@ class TestTaskWaitFor:
             return b
 
         flow_state = test_flow(return_state=True)
-        task_state = flow_state.result(raise_on_failure=False)
-        assert task_state.result() == 2
+        task_state = await flow_state.result(raise_on_failure=False)
+        assert await task_state.result() == 2
+
+
+async def _wait_for_logs(
+    prefect_client: PrefectClient, flow_run_id: Optional[UUID] = None
+):
+    logs = []
+    log_filter = (
+        LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        if flow_run_id
+        else None
+    )
+    while True:
+        logs = await prefect_client.read_logs(log_filter=log_filter)
+        if logs:
+            break
+        await asyncio.sleep(1)
+    return logs
 
 
 @pytest.mark.enable_api_log_handler
 class TestTaskRunLogs:
-    @fails_with_new_engine
     async def test_user_logs_are_sent_to_orion(self, prefect_client):
         @task
         def my_task():
@@ -2531,10 +2462,10 @@ class TestTaskRunLogs:
 
         my_flow()
 
-        logs = await prefect_client.read_logs()
+        # Logs don't always show up immediately with the new engine
+        logs = await _wait_for_logs(prefect_client)
         assert "Hello world!" in {log.message for log in logs}
 
-    @fails_with_new_engine
     async def test_tracebacks_are_logged(self, prefect_client):
         @task
         def my_task():
@@ -2550,7 +2481,7 @@ class TestTaskRunLogs:
 
         my_flow()
 
-        logs = await prefect_client.read_logs()
+        logs = await _wait_for_logs(prefect_client)
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "NameError" in error_log
         assert "x + y" in error_log
@@ -2567,10 +2498,9 @@ class TestTaskRunLogs:
 
         my_flow()
 
-        logs = await prefect_client.read_logs()
+        logs = await _wait_for_logs(prefect_client)
         assert "Hello world!" not in {log.message for log in logs}
 
-    @fails_with_new_engine
     async def test_logs_are_given_correct_ids(self, prefect_client):
         @task
         def my_task():
@@ -2579,15 +2509,17 @@ class TestTaskRunLogs:
 
         @flow
         def my_flow():
-            return my_task._run()
+            return my_task(return_state=True)
 
         task_state = my_flow()
         flow_run_id = task_state.state_details.flow_run_id
         task_run_id = task_state.state_details.task_run_id
 
-        logs = await prefect_client.read_logs()
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         assert logs, "There should be logs"
-        assert all([log.flow_run_id == flow_run_id for log in logs])
+        assert all([log.flow_run_id == flow_run_id for log in logs]), str(
+            [log for log in logs]
+        )
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert task_run_logs, f"There should be task run logs in {logs}"
         assert all([log.task_run_id == task_run_id for log in task_run_logs])
@@ -2652,9 +2584,11 @@ class TestTaskWithOptions:
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "bar"
 
-    def test_with_options_uses_existing_settings_when_no_override(self):
+    def test_with_options_uses_existing_settings_when_no_override(self, tmp_path: Path):
         def cache_key_fn(*_):
             return "cache hit"
+
+        storage = LocalFileSystem(basepath=tmp_path)
 
         @task(
             name="Initial task",
@@ -2666,7 +2600,7 @@ class TestTaskWithOptions:
             retry_delay_seconds=5,
             persist_result=False,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=storage,
             cache_result_in_memory=False,
             timeout_seconds=42,
             refresh_cache=True,
@@ -2690,17 +2624,17 @@ class TestTaskWithOptions:
         assert task_with_options.retry_delay_seconds == 5
         assert task_with_options.persist_result is False
         assert task_with_options.result_serializer == "json"
-        assert task_with_options.result_storage == LocalFileSystem()
+        assert task_with_options.result_storage == storage
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache is True
         assert task_with_options.result_storage_key == "test"
 
-    def test_with_options_can_unset_result_options_with_none(self):
+    def test_with_options_can_unset_result_options_with_none(self, tmp_path: Path):
         @task(
             persist_result=True,
             result_serializer="json",
-            result_storage=LocalFileSystem(),
+            result_storage=LocalFileSystem(basepath=tmp_path),
             refresh_cache=True,
             result_storage_key="test",
         )
@@ -2756,7 +2690,7 @@ class TestTaskWithOptions:
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
 
-    def test_with_options_refresh_cache(self):
+    async def test_with_options_refresh_cache(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
             return x
@@ -2776,10 +2710,10 @@ class TestTaskWithOptions:
         assert third.name == "Completed"
         assert fourth.name == "Cached"
 
-        assert first.result() == second.result()
-        assert second.result() != third.result()
-        assert third.result() == fourth.result()
-        assert fourth.result() != first.result()
+        assert await first.result() == await second.result()
+        assert await second.result() != await third.result()
+        assert await third.result() == await fourth.result()
+        assert await fourth.result() != await first.result()
 
 
 class TestTaskMap:
@@ -2791,19 +2725,17 @@ class TestTaskMap:
     def add_together(x, y):
         return x + y
 
-    @fails_with_new_engine
-    def test_simple_map(self):
+    async def test_simple_map(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map([1, 2, 3])
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_simple_map_return_state_true(self):
+    async def test_simple_map_return_state_true(self):
         @flow
         def my_flow():
             states = TestTaskMap.add_one.map([1, 2, 3], return_state=True)
@@ -2811,21 +2743,19 @@ class TestTaskMap:
             return states
 
         states = my_flow()
-        assert [state.result() for state in states] == [2, 3, 4]
+        assert [await state.result() for state in states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_map_can_take_tuple_as_input(self):
+    async def test_map_can_take_tuple_as_input(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map((1, 2, 3))
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_map_can_take_generator_as_input(self):
+    async def test_map_can_take_generator_as_input(self):
         def generate_numbers():
             i = 1
             while i <= 3:
@@ -2835,50 +2765,46 @@ class TestTaskMap:
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(generate_numbers())
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_map_can_take_state_as_input(self):
+    async def test_map_can_take_state_as_input(self):
         @task
         def some_numbers():
             return [1, 2, 3]
 
         @flow
         def my_flow():
-            numbers_state = some_numbers._run()
+            numbers_state = some_numbers(return_state=True)
             return TestTaskMap.add_one.map(numbers_state)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_can_take_quoted_iterable_as_input(self):
+    async def test_can_take_quoted_iterable_as_input(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_does_not_treat_quote_as_iterable(self):
+    async def test_does_not_treat_quote_as_iterable(self):
         @flow
         def my_flow():
             futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
-            assert all(isinstance(f, PrefectFuture) for f in futures)
+            assert all(isinstance(f, NewPrefectFuture) for f in futures)
             return futures
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_map_can_take_future_as_input(self):
+    async def test_map_can_take_future_as_input(self):
         @task
         def some_numbers():
             return [1, 2, 3]
@@ -2889,7 +2815,7 @@ class TestTaskMap:
             return TestTaskMap.add_one.map(numbers_future)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
     @task
     def echo(x):
@@ -2906,7 +2832,6 @@ class TestTaskMap:
 
         return {x["id"]: [d.id for d in x["upstream_dependencies"]] for x in graph}
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_all_mapped_children(
         self, session
     ):
@@ -2935,7 +2860,6 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_all_mapped_children_multiple(
         self, session
     ):
@@ -2970,7 +2894,6 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_differing_parents(
         self, session
     ):
@@ -3000,7 +2923,6 @@ class TestTaskMap:
             for a, e in zip(add_task_states, echo_futures)
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_static_arg(self, session):
         @flow
         def my_flow():
@@ -3027,7 +2949,6 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_mixed_map(self, session):
         @flow
         def my_flow():
@@ -3052,7 +2973,6 @@ class TestTaskMap:
         ]
         assert dependency_ids[add_task_states[1].state_details.task_run_id] == []
 
-    @fails_with_new_engine
     async def test_map_preserves_dependencies_between_futures_deep_nesting(
         self, session
     ):
@@ -3086,22 +3006,20 @@ class TestTaskMap:
             for a in add_task_states
         )
 
-    @fails_with_new_engine
-    def test_map_can_take_flow_state_as_input(self):
+    async def test_map_can_take_flow_state_as_input(self):
         @flow
         def child_flow():
             return [1, 2, 3]
 
         @flow
         def my_flow():
-            numbers_state = child_flow._run()
+            numbers_state = child_flow(return_state=True)
             return TestTaskMap.add_one.map(numbers_state)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
-    def test_multiple_inputs(self):
+    async def test_multiple_inputs(self):
         @flow
         def my_flow():
             numbers = [1, 2, 3]
@@ -3109,7 +3027,7 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(numbers, others)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [5, 7, 9]
+        assert [await state.result() for state in task_states] == [5, 7, 9]
 
     def test_missing_iterable_argument(self):
         @flow
@@ -3129,7 +3047,6 @@ class TestTaskMap:
         with pytest.raises(MappingLengthMismatch):
             assert my_flow()
 
-    @fails_with_new_engine
     async def test_async_flow_with_async_map(self):
         @task
         async def some_numbers():
@@ -3137,12 +3054,11 @@ class TestTaskMap:
 
         @flow
         async def my_flow():
-            return await TestTaskMap.add_one.map(await some_numbers())
+            return TestTaskMap.add_one.map(await some_numbers())
 
         task_states = await my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
-    @fails_with_new_engine
     async def test_async_flow_with_sync_map(self):
         @task
         def subtract_them(x, y):
@@ -3156,8 +3072,7 @@ class TestTaskMap:
         assert [await state.result() for state in task_states] == [3, 3, 3]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    @fails_with_new_engine
-    def test_unmapped_int(self, explicit):
+    async def test_unmapped_int(self, explicit):
         @flow
         def my_flow():
             numbers = [1, 2, 3]
@@ -3165,11 +3080,10 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(numbers, other)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [6, 7, 8]
+        assert [await state.result() for state in task_states] == [6, 7, 8]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    @fails_with_new_engine
-    def test_unmapped_str(self, explicit):
+    async def test_unmapped_str(self, explicit):
         @flow
         def my_flow():
             letters = ["a", "b", "c"]
@@ -3177,10 +3091,13 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(letters, other)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == ["atest", "btest", "ctest"]
+        assert [await state.result() for state in task_states] == [
+            "atest",
+            "btest",
+            "ctest",
+        ]
 
-    @fails_with_new_engine
-    def test_unmapped_iterable(self):
+    async def test_unmapped_iterable(self):
         @flow
         def my_flow():
             numbers = [[], [], []]
@@ -3188,14 +3105,13 @@ class TestTaskMap:
             return TestTaskMap.add_together.map(numbers, unmapped(others))
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [
+        assert [await state.result() for state in task_states] == [
             [4, 5, 6, 7],
             [4, 5, 6, 7],
             [4, 5, 6, 7],
         ]
 
-    @fails_with_new_engine
-    def test_with_keyword_with_default(self):
+    async def test_with_keyword_with_default(self):
         @task
         def add_some(x, y=5):
             return x + y
@@ -3206,10 +3122,9 @@ class TestTaskMap:
             return add_some.map(numbers)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [6, 7, 8]
+        assert [await state.result() for state in task_states] == [6, 7, 8]
 
-    @fails_with_new_engine
-    def test_with_keyword_with_iterable_default(self):
+    async def test_with_keyword_with_iterable_default(self):
         @task
         def add_some(x, y=[1, 4]):
             return x + sum(y)
@@ -3220,10 +3135,9 @@ class TestTaskMap:
             return add_some.map(numbers)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [6, 7, 8]
+        assert [await state.result() for state in task_states] == [6, 7, 8]
 
-    @fails_with_new_engine
-    def test_with_variadic_keywords_and_iterable(self):
+    async def test_with_variadic_keywords_and_iterable(self):
         @task
         def add_some(x, **kwargs):
             return x + kwargs["y"]
@@ -3234,10 +3148,9 @@ class TestTaskMap:
             return add_some.map(numbers, y=[4, 5, 6])
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [5, 7, 9]
+        assert [await state.result() for state in task_states] == [5, 7, 9]
 
-    @fails_with_new_engine
-    def test_with_variadic_keywords_and_noniterable(self):
+    async def test_with_variadic_keywords_and_noniterable(self):
         @task
         def add_some(x, **kwargs):
             return x + kwargs["y"]
@@ -3248,103 +3161,7 @@ class TestTaskMap:
             return add_some.map(numbers, y=1)
 
         task_states = my_flow()
-        assert [state.result() for state in task_states] == [2, 3, 4]
-
-    @fails_with_new_engine
-    def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
-        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
-        1/100th the value of their input, starting with the longest sleep first. If the tasks
-        do not execute sequentially, we expect the later tasks to append before the earlier.
-        """
-
-        @task
-        def sleepy_task(n, mock_item):
-            time.sleep(n / 100)
-            mock_item(n)
-            return n
-
-        @flow
-        def my_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        nums = [i for i in range(10, 0, -1)]
-
-        mock_item = MagicMock()
-        my_flow(mock_item, nums)
-        assert mock_item.call_args_list != [call(n) for n in nums]
-
-        @flow(task_runner=SequentialTaskRunner())
-        def seq_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        sync_mock_item = MagicMock()
-        seq_flow(sync_mock_item, nums)
-
-        assert sync_mock_item.call_args_list == [call(n) for n in nums]
-
-    @fails_with_new_engine
-    async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
-        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
-        1/100th the value of their input, starting with the longest sleep first. If the tasks
-        do not execute sequentially, we expect the later tasks to append before the earlier.
-        """
-
-        @task
-        def sleepy_task(n, mock_item):
-            time.sleep(n / 100)
-            mock_item(n)
-            return n
-
-        @flow
-        async def my_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        nums = [i for i in range(10, 0, -1)]
-
-        mock_item = MagicMock()
-        await my_flow(mock_item, nums)
-        assert mock_item.call_args_list != [call(n) for n in nums]
-
-        @flow(task_runner=SequentialTaskRunner())
-        async def seq_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        sync_mock_item = MagicMock()
-        await seq_flow(sync_mock_item, nums)
-
-        assert sync_mock_item.call_args_list == [call(n) for n in nums]
-
-    @fails_with_new_engine
-    async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
-        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
-        1/100th the value of their input, starting with the longest sleep first. If the tasks
-        do not execute sequentially, we expect the later tasks to append before the earlier.
-        """
-
-        @task
-        async def sleepy_task(n, mock_item):
-            time.sleep(n / 100)
-            mock_item(n)
-            return n
-
-        @flow
-        async def my_flow(mock_item, nums):
-            await sleepy_task.map(nums, unmapped(mock_item))
-
-        nums = [i for i in range(10, 0, -1)]
-
-        mock_item = MagicMock()
-        await my_flow(mock_item, nums)
-        assert mock_item.call_args_list != [call(n) for n in nums]
-
-        @flow(task_runner=SequentialTaskRunner())
-        async def seq_flow(mock_item, nums):
-            await sleepy_task.map(nums, unmapped(mock_item))
-
-        sync_mock_item = MagicMock()
-        await seq_flow(sync_mock_item, nums)
-
-        assert sync_mock_item.call_args_list == [call(n) for n in nums]
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
 
 class TestTaskConstructorValidation:
@@ -3417,7 +3234,6 @@ async def test_task_run_name_is_set_with_function(prefect_client):
     assert task_run.name == "is-this-a-bird"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_client):
     def generate_task_run_name():
         params = task_run_ctx.parameters
@@ -3444,7 +3260,6 @@ async def test_task_run_name_is_set_with_function_using_runtime_context(prefect_
     assert task_run.name == "chris-wuz-here"
 
 
-@fails_with_new_engine
 async def test_task_run_name_is_set_with_function_not_returning_string(prefect_client):
     def generate_task_run_name():
         pass
@@ -3590,20 +3405,36 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected iterable for 'on_completion'; got function instead. Please"
                 " provide a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=completion_hook)
-            def flow1():
+            @task(on_completion=completion_hook)
+            def task1():
                 pass
 
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_completion'"):
+    def test_decorated_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
 
-            @flow(on_completion=[])
-            def flow2():
-                pass
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_completion
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        @my_task.on_completion
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
     def test_noncallable_hook_raises(self):
         with pytest.raises(
@@ -3611,12 +3442,12 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
                 " a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=["test"])
-            def flow1():
+            @task(on_completion=["test"])
+            def task1():
                 pass
 
     def test_callable_noncallable_hook_raises(self):
@@ -3628,15 +3459,14 @@ class TestTaskHooksOnCompletion:
             match=re.escape(
                 "Expected callables in 'on_completion'; got str instead. Please provide"
                 " a list of hooks to 'on_completion':\n\n"
-                "@flow(on_completion=[hook1, hook2])\ndef my_flow():\n\tpass"
+                "@task(on_completion=[hook1, hook2])\ndef my_task():\n\tpass"
             ),
         ):
 
-            @flow(on_completion=[completion_hook, "test"])
-            def flow2():
+            @task(on_completion=[completion_hook, "test"])
+            def task2():
                 pass
 
-    @fails_with_new_engine
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
 
@@ -3652,13 +3482,12 @@ class TestTaskHooksOnCompletion:
 
         @flow
         def my_flow():
-            return my_task._run()
+            return my_task(return_state=True)
 
         state = my_flow()
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
-    @fails_with_new_engine
     def test_on_completion_hooks_dont_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -3675,14 +3504,14 @@ class TestTaskHooksOnCompletion:
         @flow
         def my_flow():
             future = my_task.submit()
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
             assert state == StateType.FAILED
             assert my_mock.call_args_list == []
 
-    @fails_with_new_engine
     def test_other_completion_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3701,7 +3530,7 @@ class TestTaskHooksOnCompletion:
 
         @flow
         def my_flow():
-            return my_task._run()
+            return my_task(return_state=True)
 
         state = my_flow()
         assert state.type == StateType.COMPLETED
@@ -3716,7 +3545,6 @@ class TestTaskHooksOnCompletion:
             (create_async_hook, create_async_hook),
         ],
     )
-    @fails_with_new_engine
     def test_on_completion_hooks_work_with_sync_and_async(self, hook1, hook2):
         my_mock = MagicMock()
         hook1_with_mock = hook1(my_mock)
@@ -3728,7 +3556,7 @@ class TestTaskHooksOnCompletion:
 
         @flow
         def my_flow():
-            return my_task._run()
+            return my_task(return_state=True)
 
         state = my_flow()
         assert state.type == StateType.COMPLETED
@@ -3751,13 +3579,6 @@ class TestTaskHooksOnFailure:
 
             @flow(on_failure=failure_hook)
             def flow1():
-                pass
-
-    def test_empty_hook_list_raises(self):
-        with pytest.raises(ValueError, match="Empty list passed for 'on_failure'"):
-
-            @flow(on_failure=[])
-            def flow2():
                 pass
 
     def test_noncallable_hook_raises(self):
@@ -3791,7 +3612,32 @@ class TestTaskHooksOnFailure:
             def flow2():
                 pass
 
-    @fails_with_new_engine
+    def test_decorated_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        @task
+        def my_task():
+            raise Exception("oops")
+
+        @my_task.on_failure
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        @my_task.on_failure
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            future.wait()
+            return future.state
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
     def test_on_failure_hooks_run_on_failure(self):
         my_mock = MagicMock()
 
@@ -3808,14 +3654,14 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
             assert state.type == StateType.FAILED
             assert my_mock.call_args_list == [call("failed1"), call("failed2")]
 
-    @fails_with_new_engine
     def test_on_failure_hooks_dont_run_on_completed(self):
         my_mock = MagicMock()
 
@@ -3832,13 +3678,13 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            return future.wait()
+            future.wait()
+            return future.state
 
         state = my_flow()
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == []
 
-    @fails_with_new_engine
     def test_other_failure_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
 
@@ -3858,7 +3704,8 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
@@ -3874,7 +3721,6 @@ class TestTaskHooksOnFailure:
             (create_async_hook, create_async_hook),
         ],
     )
-    @fails_with_new_engine
     def test_on_failure_hooks_work_with_sync_and_async_functions(self, hook1, hook2):
         my_mock = MagicMock()
         hook1_with_mock = hook1(my_mock)
@@ -3887,14 +3733,14 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            return future.wait()
+            future.wait()
+            return future.state
 
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
             assert state.type == StateType.FAILED
             assert my_mock.call_args_list == [call(), call()]
 
-    @fails_with_new_engine
     def test_failure_hooks_dont_run_on_retries(self):
         my_mock = MagicMock()
 
@@ -3908,9 +3754,10 @@ class TestTaskHooksOnFailure:
         @flow
         def my_flow():
             future = my_task.submit()
-            return future.wait()
+            future.wait()
+            return future.state
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1")]
 
@@ -3955,7 +3802,6 @@ class TestNestedTasks:
         result = await my_flow()
         assert result == 42
 
-    @fails_with_new_engine
     def test_nested_submitted_task(self):
         @task
         def inner_task():
@@ -3980,8 +3826,8 @@ class TestNestedTasks:
 
         @task
         async def outer_task():
-            future = await inner_task.submit()
-            return await future.result()
+            future = inner_task.submit()
+            return future.result()
 
         @flow
         async def my_flow():
@@ -3990,7 +3836,6 @@ class TestNestedTasks:
         result = await my_flow()
         assert result == 42
 
-    @fails_with_new_engine
     def test_nested_submitted_task_that_also_is_submitted(self):
         @task
         def inner_task():
@@ -4016,18 +3861,17 @@ class TestNestedTasks:
 
         @task
         async def outer_task():
-            future = await inner_task.submit()
-            return await future.result()
+            future = inner_task.submit()
+            return future.result()
 
         @flow
         async def my_flow():
-            future = await outer_task.submit()
-            return await future.result()
+            future = outer_task.submit()
+            return future.result()
 
         result = await my_flow()
         assert result == 42
 
-    @fails_with_new_engine
     def test_nested_map(self):
         @task
         def inner_task(x):
@@ -4045,7 +3889,6 @@ class TestNestedTasks:
 
         assert my_flow() == 12
 
-    @fails_with_new_engine
     async def test_nested_async_map(self):
         @task
         async def inner_task(x):
@@ -4053,8 +3896,8 @@ class TestNestedTasks:
 
         @task
         async def outer_task(x):
-            futures = await inner_task.map(x)
-            return sum([await future.result() for future in futures])
+            futures = inner_task.map(x)
+            return sum([future.result() for future in futures])
 
         @flow
         async def my_flow():
@@ -4063,7 +3906,6 @@ class TestNestedTasks:
 
         assert await my_flow() == 12
 
-    @fails_with_new_engine
     def test_nested_wait_for(self):
         @task
         def inner_task(x):
@@ -4089,19 +3931,18 @@ class TestNestedTasks:
 
         @task
         async def outer_task(x, y):
-            future = await inner_task.submit(x)
-            return await future.result() + y
+            future = inner_task.submit(x)
+            return future.result() + y
 
         @flow
         async def my_flow():
-            f1 = await inner_task.submit(2)
-            f2 = await outer_task.submit(3, 4, wait_for=[f1])
-            return await f2.result()
+            f1 = inner_task.submit(2)
+            f2 = outer_task.submit(3, 4, wait_for=[f1])
+            return f2.result()
 
         assert await my_flow() == 10
 
-    @fails_with_new_engine
-    def test_nested_cache_key_fn(self):
+    async def test_nested_cache_key_fn(self):
         def inner_task(x):
             return x * 2
 
@@ -4121,10 +3962,9 @@ class TestNestedTasks:
         assert state1.name == "Completed"
         assert state2.name == "Cached"
 
-        assert state1.result() == 4
-        assert state2.result() == 4
+        assert await state1.result() == 4
+        assert await state2.result() == 4
 
-    @fails_with_new_engine
     async def test_nested_async_cache_key_fn(self):
         @task
         async def inner_task(x):
@@ -4149,8 +3989,7 @@ class TestNestedTasks:
         assert await state1.result() == 4
         assert await state2.result() == 4
 
-    @fails_with_new_engine
-    def test_nested_cache_key_fn_inner_task_cached(self):
+    async def test_nested_cache_key_fn_inner_task_cached(self):
         @task(cache_key_fn=task_input_hash)
         def inner_task(x):
             return x * 2
@@ -4168,14 +4007,13 @@ class TestNestedTasks:
 
         state = my_flow()
         assert state.name == "Completed"
-        inner_state1, inner_state2 = state.result()
+        inner_state1, inner_state2 = await state.result()
         assert inner_state1.name == "Completed"
         assert inner_state2.name == "Cached"
 
-        assert inner_state1.result() == 4
-        assert inner_state2.result() == 4
+        assert await inner_state1.result() == 4
+        assert await inner_state2.result() == 4
 
-    @fails_with_new_engine
     async def test_nested_async_cache_key_fn_inner_task_cached(self):
         @task(cache_key_fn=task_input_hash)
         async def inner_task(x):
@@ -4256,3 +4094,39 @@ class TestNestedTasks:
 
         result = await outer_task()
         assert result == 42
+
+
+class TestTransactions:
+    def test_rollback_hook_is_called_on_rollback(self):
+        data = {}
+
+        @task
+        def my_task():
+            raise RollBack()
+
+        @my_task.on_rollback
+        def rollback(txn):
+            data["called"] = True
+
+        state = my_task(return_state=True)
+
+        assert state.is_completed()
+        assert state.name == "RolledBack"
+        assert data["called"] is True
+
+    def test_commit_hook_is_called_on_commit(self):
+        data = {}
+
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_commit
+        def commit(txn):
+            data["txn"] = txn
+
+        state = my_task(return_state=True)
+
+        assert state.is_completed()
+        assert state.name == "Completed"
+        assert isinstance(data["txn"], Transaction)

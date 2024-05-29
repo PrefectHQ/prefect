@@ -1,17 +1,9 @@
 from uuid import UUID, uuid4
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
-from prefect.deprecated.data_documents import DataDocument
 from prefect.server.schemas.states import (
     AwaitingRetry,
     Completed,
@@ -34,7 +26,8 @@ class TestState:
 
     def test_state_raises_validation_error_for_invalid_type(self):
         with pytest.raises(
-            pydantic.ValidationError, match="(value is not a valid enumeration member)"
+            pydantic.ValidationError,
+            match="1 validation error for State\ntype\n  Input should be",
         ):
             State(type="Running")
 
@@ -50,24 +43,19 @@ class TestState:
     def test_state_copy_does_not_create_insertable_object(self):
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
-        new_state = state.copy()
+        new_state = state.model_copy()
         # Same UUID
         assert new_state.id == state.id
 
     def test_state_copy_with_field_reset_creates_insertable_object(self):
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
-        new_state = state.copy(reset_fields=True)
+        new_state = state.reset_fields()
         # New UUID
         assert new_state.id != state.id
         assert isinstance(new_state.id, UUID)
         # New state timestamp
         assert new_state.timestamp >= dt
-
-    def test_state_result_warns_and_uses_client_result(self):
-        state = State(data=DataDocument(encoding="text", blob=b"abc"), type="COMPLETED")
-        with pytest.warns(DeprecationWarning, match="`result` is no longer supported"):
-            assert state.result() == "abc"
 
 
 class TestStateTypeFunctions:
@@ -189,10 +177,3 @@ class TestRepresentation:
 
     async def test_state_str_includes_type_if_name_is_custom(self):
         assert str(Failed(message="abc", name="Foo")) == "Foo('abc', type=FAILED)"
-
-    async def test_state_repr_includes_message_and_type_and_result(self):
-        data = DataDocument(encoding="text", blob=b"abc")
-        assert (
-            repr(Completed(message="I'm done", data=data))
-            == """Completed(message="I'm done", type=COMPLETED, result='abc')"""
-        )

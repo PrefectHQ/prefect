@@ -1,14 +1,5 @@
 {
   "prefect": {
-    "prefect-agent": {
-      "type": "prefect-agent",
-      "documentation_url": "https://docs.prefect.io/latest/concepts/work-pools/#agent-overview",
-      "display_name": "Prefect Agent",
-      "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/c771bb53894c877e169c8db158c5598558b8f175-24x24.svg",
-      "install_command": "pip install prefect",
-      "default_base_job_configuration": {},
-      "description": "Execute flow runs on heterogeneous infrastructure using infrastructure blocks."
-    },
     "process": {
       "default_base_job_configuration": {
         "job_configuration": {
@@ -806,7 +797,7 @@
             "image": {
               "title": "Image",
               "description": "The image reference of a container image to use for created jobs. If not set, the latest Prefect image will be used.",
-              "example": "docker.io/prefecthq/prefect:2-latest",
+              "example": "docker.io/prefecthq/prefect:3-latest",
               "type": "string"
             },
             "registry_credentials": {
@@ -1040,7 +1031,7 @@
             "image": {
               "title": "Image Name",
               "description": "The image to use for a new Cloud Run Job. If not set, the latest Prefect image will be used. See https://cloud.google.com/run/docs/deploying#images.",
-              "example": "docker.io/prefecthq/prefect:2-latest",
+              "example": "docker.io/prefecthq/prefect:3-latest",
               "type": "string"
             },
             "cpu": {
@@ -1211,7 +1202,7 @@
             "image": {
               "title": "Image Name",
               "description": "The image to use for the Cloud Run job. If not provided the default Prefect image will be used.",
-              "default": "prefecthq/prefect:2-latest",
+              "default": "prefecthq/prefect:3-latest",
               "type": "string"
             },
             "args": {
@@ -1600,7 +1591,7 @@
             "image": {
               "title": "Image",
               "description": "The image reference of a container image to use for created jobs. If not set, the latest Prefect image will be used.",
-              "example": "docker.io/prefecthq/prefect:2-latest",
+              "example": "docker.io/prefecthq/prefect:3-latest",
               "type": "string"
             },
             "service_account_name": {

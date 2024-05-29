@@ -13,10 +13,6 @@ from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State
 from prefect.client.schemas import StateDetails, StateType
-from prefect.deprecated.data_documents import (
-    DataDocument,
-    result_from_state_with_data_document,
-)
 from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
@@ -47,7 +43,6 @@ def get_state_result(
     ):
         # Fetch defaults to `True` for sync users or async users who have opted in
         fetch = True
-
     if not fetch:
         if fetch is None and in_async_main_thread():
             warnings.warn(
@@ -60,13 +55,8 @@ def get_state_result(
                 DeprecationWarning,
                 stacklevel=2,
             )
-        # Backwards compatibility
-        if isinstance(state.data, DataDocument):
-            return result_from_state_with_data_document(
-                state, raise_on_failure=raise_on_failure
-            )
-        else:
-            return state.data
+
+        return state.data
     else:
         return _get_state_result(state, raise_on_failure=raise_on_failure)
 
@@ -90,11 +80,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     ):
         raise await get_state_exception(state)
 
-    if isinstance(state.data, DataDocument):
-        result = result_from_state_with_data_document(
-            state, raise_on_failure=raise_on_failure
-        )
-    elif isinstance(state.data, BaseResult):
+    if isinstance(state.data, BaseResult):
         result = await state.data.get()
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():
@@ -212,7 +198,10 @@ async def exception_to_failed_state(
     #       excluded from messages for now
     message = existing_message + format_exception(exc)
 
-    return Failed(data=data, message=message, **kwargs)
+    state = Failed(data=data, message=message, **kwargs)
+    state.state_details.retriable = False
+
+    return state
 
 
 async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:
@@ -238,17 +227,12 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
     """
 
     if (
-        is_state(retval)
+        isinstance(retval, State)
         # Check for manual creation
         and not retval.state_details.flow_run_id
         and not retval.state_details.task_run_id
     ):
         state = retval
-
-        # Do not modify states with data documents attached; backwards compatibility
-        if isinstance(state.data, DataDocument):
-            return state
-
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
@@ -257,7 +241,7 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         return state
 
     # Determine a new state from the aggregate of contained states
-    if is_state(retval) or is_state_iterable(retval):
+    if isinstance(retval, State) or is_state_iterable(retval):
         states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
@@ -302,7 +286,10 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(data))
+    if isinstance(data, BaseResult):
+        return Completed(data=data)
+    else:
+        return Completed(data=await result_factory.create_result(data))
 
 
 @sync_compatible
@@ -360,7 +347,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif isinstance(result, str):
         return wrapper(result)
 
-    elif is_state(result):
+    elif isinstance(result, State):
         # Return the exception from the inner state
         return await get_state_exception(result)
 
@@ -392,23 +379,6 @@ async def raise_state_exception(state: State) -> None:
     raise await get_state_exception(state)
 
 
-def is_state(obj: Any) -> TypeGuard[State]:
-    """
-    Check if the given object is a state instance
-    """
-    # We may want to narrow this to client-side state types but for now this provides
-    # backwards compatibility
-    try:
-        from prefect.server.schemas.states import State as State_
-
-        classes_ = (State, State_)
-    except ImportError:
-        classes_ = State
-
-    # return isinstance(obj, (State, State_))
-    return isinstance(obj, classes_)
-
-
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     """
     Check if a the given object is an iterable of states types
@@ -427,7 +397,7 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
         and isinstance(obj, (list, set, tuple))
         and obj
     ):
-        return all([is_state(o) for o in obj])
+        return all([isinstance(o, State) for o in obj])
     else:
         return False
 
@@ -495,7 +465,7 @@ def Scheduled(
     Returns:
         State: a Scheduled state
     """
-    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
     elif state_details.scheduled_time:
@@ -581,7 +551,7 @@ def Paused(
     Returns:
         State: a Paused state
     """
-    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
 
     if state_details.pause_timeout:
         raise ValueError("An extra pause timeout was provided in state_details")

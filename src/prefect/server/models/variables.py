@@ -29,7 +29,7 @@ async def create_variable(
     Returns:
         db.Variable
     """
-    model = db.Variable(**variable.dict())
+    model = db.Variable(**variable.model_dump())
     session.add(model)
     await session.flush()
 
@@ -80,10 +80,10 @@ async def read_variables(
     """
     Read variables, applying filers.
     """
-    query = sa.select(db.Variable).order_by(sort.as_sql_sort(db))
+    query = sa.select(db.Variable).order_by(sort.as_sql_sort())
 
     if variable_filter:
-        query = query.where(variable_filter.as_sql_filter(db))
+        query = query.where(variable_filter.as_sql_filter())
 
     if offset is not None:
         query = query.offset(offset)
@@ -107,7 +107,7 @@ async def count_variables(
     query = sa.select(sa.func.count()).select_from(db.Variable)
 
     if variable_filter:
-        query = query.where(variable_filter.as_sql_filter(db))
+        query = query.where(variable_filter.as_sql_filter())
 
     result = await session.execute(query)
     return result.scalar()
@@ -126,7 +126,7 @@ async def update_variable(
     query = (
         sa.update(db.Variable)
         .where(db.Variable.id == variable_id)
-        .values(**variable.dict(shallow=True, exclude_unset=True))
+        .values(**variable.model_dump_for_orm(exclude_unset=True))
     )
 
     result = await session.execute(query)
@@ -146,7 +146,7 @@ async def update_variable_by_name(
     query = (
         sa.update(db.Variable)
         .where(db.Variable.name == name)
-        .values(**variable.dict(shallow=True, exclude_unset=True))
+        .values(**variable.model_dump_for_orm(exclude_unset=True))
     )
 
     result = await session.execute(query)

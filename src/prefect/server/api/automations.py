@@ -2,19 +2,9 @@ from typing import Optional, Sequence
 from uuid import UUID
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.server.events.filters import AutomationFilter, AutomationFilterCreated
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-    from pydantic.v1.error_wrappers import ErrorWrapper
-else:
-    from pydantic import ValidationError
-    from pydantic.error_wrappers import ErrorWrapper
-
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
-from prefect._vendor.fastapi.exceptions import RequestValidationError
+from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.api.validation import (
@@ -23,6 +13,7 @@ from prefect.server.api.validation import (
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import actions
+from prefect.server.events.filters import AutomationFilter, AutomationFilterCreated
 from prefect.server.events.models import automations as automations_models
 from prefect.server.events.schemas.automations import (
     Automation,
@@ -33,22 +24,18 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import (
-    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    PREFECT_EXPERIMENTAL_EVENTS,
-)
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.utilities.schema_tools.validation import (
     ValidationError as JSONSchemaValidationError,
 )
 
 
 def automations_enabled() -> bool:
-    if not PREFECT_EXPERIMENTAL_EVENTS or not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
+    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Automations are not enabled. Please enable the"
-            " PREFECT_EXPERIMENTAL_EVENTS and"
-            " PREFECT_API_SERVICES_TRIGGERS_ENABLED settings.",
+            " PREFECT_API_SERVICES_TRIGGERS_ENABLED setting.",
         )
 
 
@@ -89,7 +76,7 @@ async def create_automation(
             detail=f"Error creating automation: {' '.join(errors)}",
         )
 
-    automation_dict = automation.dict()
+    automation_dict = automation.model_dump()
     owner_resource = automation_dict.pop("owner_resource", None)
 
     async with db.session_context(begin_transaction=True) as session:
@@ -169,8 +156,8 @@ async def patch_automation(
             )
     except ValidationError as e:
         raise RequestValidationError(
-            errors=[ErrorWrapper(e, "automation")],
-            body=automation.dict(json_compatible=True),
+            errors=e.errors(),
+            body=automation.model_dump(mode="json"),
         )
 
     if not updated:

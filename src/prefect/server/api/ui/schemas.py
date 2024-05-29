@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, status
+from fastapi import Body, Depends, HTTPException, status
 
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import provide_database_interface
@@ -22,11 +22,11 @@ logger = get_logger("server.api.ui.schemas")
 
 @router.post("/validate")
 async def validate_obj(
-    schema: Dict[str, Any] = Body(..., embed=True),
+    json_schema: Dict[str, Any] = Body(..., embed=True, alias="schema"),
     values: Dict[str, Any] = Body(..., embed=True),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
-    schema = preprocess_schema(schema)
+    schema = preprocess_schema(json_schema)
 
     try:
         is_valid_schema(schema, preprocess=False)
@@ -36,7 +36,9 @@ async def validate_obj(
         )
 
     async with db.session_context() as session:
-        ctx = await HydrationContext.build(session=session)
+        ctx = await HydrationContext.build(
+            session=session, render_jinja=False, render_workspace_variables=True
+        )
 
     hydrated_values = hydrate(values, ctx)
     try:

@@ -4,7 +4,9 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+import pytest
+from pydantic import SecretStr
+
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.deployments.steps.core import run_step
@@ -18,11 +20,10 @@ from prefect.runner.storage import (
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
-import pytest
+
+@pytest.fixture(autouse=True)
+def tmp_cwd(monkeypatch, tmp_path):
+    monkeypatch.chdir(str(tmp_path))
 
 
 class TestCreateStorageFromUrl:
@@ -426,9 +427,9 @@ class TestGitRepository:
             )
 
     class TestToPullStep:
-        def test_to_pull_step_with_block_credentials(self):
+        async def test_to_pull_step_with_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")
-            credentials.save("test-credentials")
+            await credentials.save("test-credentials")
 
             repo = GitRepository(
                 url="https://github.com/org/repo.git", credentials=credentials
@@ -459,9 +460,9 @@ class TestGitRepository:
             ):
                 repo.to_pull_step()
 
-        def test_to_pull_step_with_secret_access_token(self):
+        async def test_to_pull_step_with_secret_access_token(self):
             access_token = Secret(value="testtoken")
-            access_token.save("test-access-token")
+            await access_token.save("test-access-token")
 
             repo = GitRepository(
                 url="https://github.com/org/repo.git",
@@ -585,14 +586,14 @@ class TestRemoteStorage:
             "path/to/directory/", str(rs.destination), recursive=True
         )
 
-    def test_to_pull_step(self, monkeypatch):
+    async def test_to_pull_step(self, monkeypatch):
         # saving blocks for this test
         key = Secret(value="fake")
-        key.save(name="aws-access-key-id")
+        await key.save(name="aws-access-key-id")
         secret = Secret(value="fake")
-        secret.save(name="aws-secret-access-key")
+        await secret.save(name="aws-secret-access-key")
         token = Secret(value="fake")
-        token.save(name="aws-session-token")
+        await token.save(name="aws-session-token")
 
         rs = RemoteStorage(url="s3://bucket/path", key=key, secret=secret, token=token)
 
@@ -745,9 +746,12 @@ class TestBlockStorageAdapter:
         assert storage1 == storage2
 
     async def test_eq_method_different_block(self, test_block: Block):
+        class FakeDeploymentStorage(ReadableDeploymentStorage):
+            def get_directory(self, *args, **kwargs):
+                pass
+
         storage1 = BlockStorageAdapter(block=test_block)
-        different_block = MagicMock(spec=ReadableDeploymentStorage)
-        storage2 = BlockStorageAdapter(block=different_block)
+        storage2 = BlockStorageAdapter(block=FakeDeploymentStorage())
         assert storage1 != storage2
 
     async def test_eq_method_different_type(self, test_block: Block):

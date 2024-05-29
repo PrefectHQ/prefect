@@ -2,11 +2,10 @@
 Routes for interacting with variable objects
 """
 
-
 from typing import List, Optional
 from uuid import UUID
 
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
@@ -55,7 +54,7 @@ async def create_variable(
             session=session, variable=variable
         )
 
-    return core.Variable.from_orm(model)
+    return core.Variable.model_validate(model, from_attributes=True)
 
 
 @router.get("/{id:uuid}")
@@ -66,7 +65,7 @@ async def read_variable(
     async with db.session_context() as session:
         model = await get_variable_or_404(session=session, variable_id=variable_id)
 
-    return core.Variable.from_orm(model)
+    return core.Variable.model_validate(model, from_attributes=True)
 
 
 @router.get("/name/{name:str}")
@@ -77,7 +76,7 @@ async def read_variable_by_name(
     async with db.session_context() as session:
         model = await get_variable_by_name_or_404(session=session, name=name)
 
-    return core.Variable.from_orm(model)
+    return core.Variable.model_validate(model, from_attributes=True)
 
 
 @router.post("/filter")

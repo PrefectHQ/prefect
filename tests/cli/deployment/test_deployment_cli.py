@@ -5,10 +5,12 @@ import pytest
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
-from prefect.deployments import Deployment
-from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
-from prefect.server.schemas.schedules import IntervalSchedule
-from prefect.settings import PREFECT_UI_URL, temporary_settings
+from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterId
+from prefect.client.schemas.schedules import IntervalSchedule
+from prefect.settings import (
+    PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -28,235 +30,12 @@ def patch_import(monkeypatch):
     return fn
 
 
-def test_deployment_apply_prints_deprecation_warning(tmp_path, patch_import):
-    Deployment.build_from_flow(
-        flow=my_flow,
-        name="TEST",
-        flow_name="my_flow",
-        output=str(tmp_path / "test.yaml"),
-        work_queue_name="prod",
-    )
-
-    invoke_and_assert(
-        [
-            "deployment",
-            "apply",
-            str(tmp_path / "test.yaml"),
-        ],
-        temp_dir=tmp_path,
-        expected_output_contains=(
-            "WARNING: The 'deployment apply' command has been deprecated.",
-            "It will not be available after Sep 2024.",
-            "Use 'prefect deploy' to deploy flows via YAML instead.",
-        ),
-    )
-
-
-class TestOutputMessages:
-    def test_message_with_work_queue_name_from_python_build(
-        self, patch_import, tmp_path
-    ):
-        d = Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_queue_name="prod",
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_output_contains=[
-                (
-                    "To execute flow runs from this deployment, start an agent "
-                    f"that pulls work from the {d.work_queue_name!r} work queue:"
-                ),
-                f"$ prefect agent start -q {d.work_queue_name!r}",
-            ],
-        )
-
-    def test_message_with_prefect_agent_work_pool(
-        self, patch_import, tmp_path, prefect_agent_work_pool
-    ):
-        Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_pool_name=prefect_agent_work_pool.name,
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_output_contains=[
-                (
-                    "To execute flow runs from this deployment, start an agent that"
-                    f" pulls work from the {prefect_agent_work_pool.name!r} work pool:"
-                ),
-                f"$ prefect agent start -p {prefect_agent_work_pool.name!r}",
-            ],
-        )
-
-    def test_message_with_process_work_pool(
-        self, patch_import, tmp_path, process_work_pool
-    ):
-        Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_pool_name=process_work_pool.name,
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_output_contains=[
-                (
-                    "To execute flow runs from this deployment, start a worker "
-                    f"that pulls work from the {process_work_pool.name!r} work pool:"
-                ),
-                f"$ prefect worker start -p {process_work_pool.name!r}",
-            ],
-        )
-
-    def test_message_with_process_work_pool_without_workers_enabled(
-        self, patch_import, tmp_path, process_work_pool, disable_workers
-    ):
-        Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_pool_name=process_work_pool.name,
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_output_contains=[
-                (
-                    "\nTo execute flow runs from this deployment, please enable "
-                    "the workers CLI and start a worker that pulls work from the "
-                    f"{process_work_pool.name!r} work pool:"
-                ),
-                (
-                    "$ prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORKERS=True\n"
-                    f"$ prefect worker start -p {process_work_pool.name!r}"
-                ),
-            ],
-        )
-
-    def test_linking_to_deployment_in_ui(
-        self,
-        patch_import,
-        tmp_path,
-        monkeypatch,
-    ):
-        with temporary_settings({PREFECT_UI_URL: "http://foo/bar"}):
-            Deployment.build_from_flow(
-                flow=my_flow,
-                name="TEST",
-                flow_name="my_flow",
-                output=str(tmp_path / "test.yaml"),
-                work_queue_name="prod",
-            )
-            invoke_and_assert(
-                [
-                    "deployment",
-                    "apply",
-                    str(tmp_path / "test.yaml"),
-                ],
-                expected_output_contains="http://foo/bar/deployments/deployment/",
-            )
-
-    def test_updating_work_queue_concurrency_from_python_build(
-        self, patch_import, tmp_path
-    ):
-        Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_queue_name="prod",
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-                "-l",
-                "42",
-            ],
-            expected_output_contains=[
-                "Updated concurrency limit on work queue 'prod' to 42",
-            ],
-        )
-
-    def test_message_with_missing_work_queue_name(self, patch_import, tmp_path):
-        Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_queue_name=None,
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_output_contains=(
-                (
-                    "This deployment does not specify a work queue name, which means"
-                    " agents will not be able to pick up its runs. To add a work queue,"
-                    " edit the deployment spec and re-run this command, or visit the"
-                    " deployment in the UI."
-                ),
-            ),
-        )
-
-    def test_message_with_missing_nonexistent_work_pool(self, patch_import, tmp_path):
-        Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_pool_name="gibberish",
-            schedule=IntervalSchedule(interval=60),
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_code=1,
-            expected_output_contains=(
-                [
-                    (
-                        "This deployment specifies a work pool name of 'gibberish', but"
-                        " no such work pool exists."
-                    ),
-                    "To create a work pool via the CLI:",
-                    "$ prefect work-pool create 'gibberish'",
-                ]
-            ),
-        )
-
-
 class TestDeploymentSchedules:
+    @pytest.fixture(autouse=True)
+    def enable_triggers(self):
+        with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
+            yield
+
     @pytest.fixture
     async def flojo(self, prefect_client):
         @flow
@@ -324,7 +103,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -363,12 +141,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            (
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--no-schedule",
-            ),
             ("deployment", "schedule", "clear", "-y", "rence-griffith/test-deployment"),
         ],
     )
@@ -404,33 +176,9 @@ class TestDeploymentSchedules:
             expected_code=0,
         )
 
-    def test_set_schedule_with_no_schedule_and_schedule_options_raises(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "424242",
-                "--no-schedule",
-            ],
-            expected_code=1,
-            expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
-                " must be provided"
-            ),
-        )
-
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                (
-                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
-                    " `--no-schedule` must be provided"
-                ),
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
@@ -456,13 +204,6 @@ class TestDeploymentSchedules:
         "commands,error",
         [
             [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                (
-                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
-                    " `--no-schedule` must be provided"
-                ),
-            ],
-            [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
             ],
@@ -478,7 +219,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -509,7 +249,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -541,7 +280,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -574,7 +312,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -610,7 +347,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -638,7 +374,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -659,7 +394,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -679,7 +413,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -711,7 +444,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -739,7 +471,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment-2"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment-2"),
         ],
     )
@@ -754,43 +485,6 @@ class TestDeploymentSchedules:
             expected_output_contains=[
                 "Deployment 'rence-griffith/test-deployment-2' not found!"
             ],
-        )
-
-    def test_pausing_and_resuming_schedules_with_pause_schedule(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "pause-schedule",
-                "rence-griffith/test-deployment",
-            ],
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=["'active': False"],
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "resume-schedule",
-                "rence-griffith/test-deployment",
-            ],
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=["'active': True"],
         )
 
     def test_pausing_and_resuming_schedules_with_schedule_pause(
@@ -836,15 +530,6 @@ class TestDeploymentSchedules:
             expected_output_contains=["'active': True"],
         )
 
-    def test_pause_schedule_deployment_not_found_raises(self, flojo):
-        invoke_and_assert(
-            ["deployment", "pause-schedule", "rence-griffith/test-deployment-2"],
-            expected_code=1,
-            expected_output_contains=[
-                "Deployment 'rence-griffith/test-deployment-2' not found!"
-            ],
-        )
-
     def test_schedule_pause_deployment_not_found_raises(self, flojo, flojo_deployment):
         invoke_and_assert(
             [
@@ -860,34 +545,9 @@ class TestDeploymentSchedules:
             ],
         )
 
-    def test_pause_schedule_multiple_schedules_raises(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "schedule",
-                "create",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "1800",
-            ],
-            expected_code=0,
-            expected_output_contains="Created deployment schedule!",
-        )
-
-        invoke_and_assert(
-            ["deployment", "pause-schedule", "rence-griffith/test-deployment"],
-            expected_code=1,
-            expected_output_contains=[
-                "Deployment 'rence-griffith/test-deployment' has multiple schedules."
-                " Use `prefect deployment schedule pause <deployment_name>"
-                " <schedule_id>`"
-            ],
-        )
-
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -910,16 +570,12 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00+00:00'"],
+            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00Z'"],
         )
 
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                "An anchor date can only be provided with an interval schedule",
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "An anchor date can only be provided with an interval schedule",
@@ -944,10 +600,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                "The anchor date must be a valid date string.",
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "The anchor date must be a valid date string.",

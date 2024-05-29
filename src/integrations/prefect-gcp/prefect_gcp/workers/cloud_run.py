@@ -1,4 +1,4 @@
-""" <!-- # noqa -->
+"""<!-- # noqa -->
 
 Module containing the Cloud Run worker used for executing flow runs as Cloud Run jobs.
 
@@ -182,9 +182,8 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import Field, validator
 
-from prefect_gcp.cloud_run import Execution, Job
 from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.utilities import slugify_name
+from prefect_gcp.utilities import Execution, Job, slugify_name
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
@@ -471,7 +470,7 @@ class CloudRunWorkerVariables(BaseVariables):
             "If not set, the latest Prefect image will be used. "
             "See https://cloud.google.com/run/docs/deploying#images."
         ),
-        example="docker.io/prefecthq/prefect:2-latest",
+        example="docker.io/prefecthq/prefect:3-latest",
     )
     cpu: Optional[str] = Field(
         default=None,

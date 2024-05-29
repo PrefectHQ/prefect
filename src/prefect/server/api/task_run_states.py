@@ -5,7 +5,7 @@ Routes for interacting with task run state objects.
 from typing import List
 from uuid import UUID
 
-from prefect._vendor.fastapi import Depends, HTTPException, Path, status
+from fastapi import Depends, HTTPException, Path, status
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas

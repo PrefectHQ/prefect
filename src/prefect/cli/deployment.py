@@ -6,9 +6,8 @@ import json
 import sys
 import textwrap
 import warnings
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -22,32 +21,27 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orchestration import PrefectClient, ServerType, get_client
+from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import FlowFilter
-from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
 )
 from prefect.client.utilities import inject_client
-from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
     ObjectAlreadyExists,
     ObjectNotFound,
     PrefectHTTPStatusError,
-    ScriptError,
-    exception_traceback,
 )
 from prefect.flow_runs import wait_for_flow_run
-from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import PREFECT_UI_URL
 from prefect.states import Scheduled
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
-from prefect.utilities.dispatch import get_registry_for_type
-from prefect.utilities.filesystem import create_default_ignore_file
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 def str_presenter(dumper, data):
@@ -81,7 +75,7 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-async def get_deployment(client: PrefectClient, name, deployment_id):
+async def get_deployment(client: "PrefectClient", name, deployment_id):
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
@@ -169,7 +163,7 @@ async def create_work_queue_and_set_concurrency_limit(
 
 @inject_client
 async def check_work_pool_exists(
-    work_pool_name: Optional[str], client: PrefectClient = None
+    work_pool_name: Optional[str], client: "PrefectClient" = None
 ):
     if work_pool_name is not None:
         try:
@@ -191,7 +185,7 @@ async def check_work_pool_exists(
 
 @inject_client
 async def _print_deployment_work_pool_instructions(
-    work_pool_name: str, client: PrefectClient = None
+    work_pool_name: str, client: "PrefectClient" = None
 ):
     work_pool = await client.read_work_pool(work_pool_name)
     blurb = (
@@ -285,22 +279,21 @@ async def inspect(name: str):
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
 
-        deployment_json = deployment.dict(json_compatible=True)
+        deployment_json = deployment.model_dump(mode="json")
 
         if deployment.infrastructure_document_id:
             deployment_json["infrastructure"] = Block._from_block_document(
                 await client.read_block_document(deployment.infrastructure_document_id)
-            ).dict(
+            ).model_dump(
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
-        if client.server_type.supports_automations():
-            deployment_json["automations"] = [
-                a.dict()
-                for a in await client.read_resource_related_automations(
-                    f"prefect.deployment.{deployment.id}"
-                )
-            ]
+        deployment_json["automations"] = [
+            a.model_dump()
+            for a in await client.read_resource_related_automations(
+                f"prefect.deployment.{deployment.id}"
+            )
+        ]
 
     app.console.print(Pretty(deployment_json))
 
@@ -557,11 +550,11 @@ async def list_schedules(deployment_name: str):
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-    def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
+    def sort_by_created_key(schedule: DeploymentScheduleCreate):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
         return pendulum.now("utc") - schedule.created
 
-    def schedule_details(schedule: DeploymentSchedule) -> str:
+    def schedule_details(schedule: DeploymentScheduleCreate) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
             return f"interval: {schedule.schedule.interval}s"
         elif isinstance(schedule.schedule, CronSchedule):
@@ -623,172 +616,6 @@ async def clear_schedules(
                 pass
 
         exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
-
-
-@deployment_app.command(
-    "set-schedule",
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_help="Use 'prefect deployment schedule create' instead.",
-    deprecated_name="deployment set-schedule",
-)
-async def _set_schedule(
-    name: str,
-    interval: Optional[float] = typer.Option(
-        None,
-        "--interval",
-        help="An interval to schedule on, specified in seconds",
-        min=0.0001,
-    ),
-    interval_anchor: Optional[str] = typer.Option(
-        None,
-        "--anchor-date",
-        help="The anchor date for an interval schedule",
-    ),
-    rrule_string: Optional[str] = typer.Option(
-        None, "--rrule", help="Deployment schedule rrule string"
-    ),
-    cron_string: Optional[str] = typer.Option(
-        None, "--cron", help="Deployment schedule cron string"
-    ),
-    cron_day_or: Optional[str] = typer.Option(
-        None,
-        "--day_or",
-        help="Control how croniter handles `day` and `day_of_week` entries",
-    ),
-    timezone: Optional[str] = typer.Option(
-        None,
-        "--timezone",
-        help="Deployment schedule timezone string e.g. 'America/New_York'",
-    ),
-    no_schedule: bool = typer.Option(
-        False,
-        "--no-schedule",
-        help="An optional flag to disable scheduling for this deployment.",
-    ),
-    deprecated=True,
-):
-    """
-    Set schedule for a given deployment.
-
-    This command is deprecated. Use 'prefect deployment schedule create' instead.
-    """
-    assert_deployment_name_format(name)
-
-    exclusive_options = sum(
-        option is not None
-        for option in [interval, rrule_string, cron_string] + [no_schedule or None]
-    )
-
-    if exclusive_options != 1:
-        exit_with_error(
-            "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule` must"
-            " be provided."
-        )
-
-    if no_schedule:
-        return await clear_schedules(name)
-    else:
-        async with get_client() as client:
-            try:
-                deployment = await client.read_deployment_by_name(name)
-            except ObjectNotFound:
-                return exit_with_error(f"Deployment {name!r} not found!")
-
-            if len(deployment.schedules) > 1:
-                return exit_with_error(
-                    f"Deployment {name!r} has multiple schedules. "
-                    "Use `prefect deployment schedules create` instead."
-                )
-
-            if deployment.schedules:
-                try:
-                    await client.delete_deployment_schedule(
-                        deployment.id, deployment.schedules[0].id
-                    )
-                except ObjectNotFound:
-                    pass
-
-            await create_schedule(
-                name=name,
-                interval=interval,
-                interval_anchor=interval_anchor,
-                rrule_string=rrule_string,
-                cron_string=cron_string,
-                cron_day_or=cron_day_or,
-                timezone=timezone,
-                active=True,
-            )
-
-
-@deployment_app.command(
-    "pause-schedule",
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_help="Use 'prefect deployment schedule pause' instead.",
-    deprecated_name="deployment pause-schedule",
-)
-async def _pause_schedule(
-    name: str,
-):
-    """
-    Pause schedule of a given deployment.
-
-    This command is deprecated. Use `prefect deployment schedule pause` instead.
-    """
-    assert_deployment_name_format(name)
-
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {name!r} not found!")
-
-        if not deployment.schedules:
-            return exit_with_error(f"Deployment {name!r} has no schedules.")
-
-        if len(deployment.schedules) > 1:
-            return exit_with_error(
-                f"Deployment {name!r} has multiple schedules. Use `prefect deployment"
-                " schedule pause <deployment_name> <schedule_id>`"
-            )
-
-        return await pause_schedule(name, deployment.schedules[0].id)
-
-
-@deployment_app.command(
-    "resume-schedule",
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_help="Use 'prefect deployment schedule resume' instead.",
-    deprecated_name="deployment resume-schedule",
-)
-async def _resume_schedule(
-    name: str,
-):
-    """
-    Resume schedule of a given deployment.
-
-    This command is deprecated. Use `prefect deployment schedule resume` instead.
-    """
-    # TODO only work if there is one schedule, otherwise error
-    assert_deployment_name_format(name)
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {name!r} not found!")
-
-        if not deployment.schedules:
-            return exit_with_error(f"Deployment {name!r} has no schedules.")
-
-        if len(deployment.schedules) > 1:
-            return exit_with_error(
-                f"Deployment {name!r} has multiple schedules. "
-                "Use `prefect deployment schedule pause <deployment_name> <schedule_id>"
-            )
-
-        return await resume_schedule(name, deployment.schedules[0].id)
 
 
 @deployment_app.command()
@@ -1072,168 +899,6 @@ async def run(
         )
 
 
-def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
-    """
-    Load deployments from the path the user gave on the command line, giving helpful
-    error messages if they cannot be loaded.
-    """
-    if path.suffix == ".py":
-        from_msg = "python script"
-        loader = registry_from_script
-
-    elif path.suffix in (".yaml", ".yml"):
-        from_msg = "yaml file"
-        loader = load_deployments_from_yaml
-
-    else:
-        exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
-
-    if not quietly:
-        app.console.print(
-            f"Loading deployments from {from_msg} at [green]{str(path)!r}[/]..."
-        )
-    try:
-        specs = loader(path)
-    except ScriptError as exc:
-        app.console.print(exc)
-        app.console.print(exception_traceback(exc.user_exc))
-        exit_with_error(f"Failed to load deployments from {str(path)!r}")
-
-    if not specs:
-        exit_with_error("No deployments found!", style="yellow")
-
-    return specs
-
-
-@deployment_app.command(
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_name="deployment apply",
-    deprecated_help="Use 'prefect deploy' to deploy flows via YAML instead.",
-)
-async def apply(
-    paths: List[str] = typer.Argument(
-        ...,
-        help="One or more paths to deployment YAML files.",
-    ),
-    upload: bool = typer.Option(
-        False,
-        "--upload",
-        help=(
-            "A flag that, when provided, uploads this deployment's files to remote"
-            " storage."
-        ),
-    ),
-    work_queue_concurrency: int = typer.Option(
-        None,
-        "--limit",
-        "-l",
-        help=(
-            "Sets the concurrency limit on the work queue that handles this"
-            " deployment's runs"
-        ),
-    ),
-):
-    """
-    Create or update a deployment from a YAML file.
-    """
-    deployment = None
-    async with get_client() as client:
-        for path in paths:
-            try:
-                deployment = await Deployment.load_from_yaml(path)
-                app.console.print(
-                    f"Successfully loaded {deployment.name!r}", style="green"
-                )
-            except Exception as exc:
-                exit_with_error(
-                    f"'{path!s}' did not conform to deployment spec: {exc!r}"
-                )
-
-            assert deployment
-
-            await create_work_queue_and_set_concurrency_limit(
-                deployment.work_queue_name,
-                deployment.work_pool_name,
-                work_queue_concurrency,
-            )
-
-            if upload:
-                if (
-                    deployment.storage
-                    and "put-directory" in deployment.storage.get_block_capabilities()
-                ):
-                    file_count = await deployment.upload_to_storage()
-                    if file_count:
-                        app.console.print(
-                            (
-                                f"Successfully uploaded {file_count} files to"
-                                f" {deployment.location}"
-                            ),
-                            style="green",
-                        )
-                else:
-                    app.console.print(
-                        (
-                            f"Deployment storage {deployment.storage} does not have"
-                            " upload capabilities; no files uploaded."
-                        ),
-                        style="red",
-                    )
-            await check_work_pool_exists(
-                work_pool_name=deployment.work_pool_name, client=client
-            )
-
-            if client.server_type != ServerType.CLOUD and deployment.triggers:
-                app.console.print(
-                    (
-                        "Deployment triggers are only supported on "
-                        f"Prefect Cloud. Triggers defined in {path!r} will be "
-                        "ignored."
-                    ),
-                    style="red",
-                )
-
-            deployment_id = await deployment.apply()
-            app.console.print(
-                (
-                    f"Deployment '{deployment.flow_name}/{deployment.name}'"
-                    f" successfully created with id '{deployment_id}'."
-                ),
-                style="green",
-            )
-
-            if PREFECT_UI_URL:
-                app.console.print(
-                    "View Deployment in UI:"
-                    f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
-                )
-
-            if deployment.work_pool_name is not None:
-                await _print_deployment_work_pool_instructions(
-                    work_pool_name=deployment.work_pool_name, client=client
-                )
-            elif deployment.work_queue_name is not None:
-                app.console.print(
-                    "\nTo execute flow runs from this deployment, start an agent that"
-                    f" pulls work from the {deployment.work_queue_name!r} work queue:"
-                )
-                app.console.print(
-                    f"$ prefect agent start -q {deployment.work_queue_name!r}",
-                    style="blue",
-                )
-            else:
-                app.console.print(
-                    (
-                        "\nThis deployment does not specify a work queue name, which"
-                        " means agents will not be able to pick up its runs. To add a"
-                        " work queue, edit the deployment spec and re-run this command,"
-                        " or visit the deployment in the UI."
-                    ),
-                    style="red",
-                )
-
-
 @deployment_app.command()
 async def delete(
     name: Optional[str] = typer.Argument(
@@ -1268,436 +933,6 @@ async def delete(
                 exit_with_error(f"Deployment {name!r} not found!")
         else:
             exit_with_error("Must provide a deployment name or id")
-
-
-builtin_infrastructure_types = [
-    slug
-    for slug, block in get_registry_for_type(Block).items()
-    if "run-infrastructure" in block.get_block_capabilities()
-]
-
-
-@deployment_app.command(
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_name="deployment build",
-    deprecated_help="Use 'prefect deploy' to deploy flows via YAML instead.",
-)
-async def build(
-    entrypoint: str = typer.Argument(
-        ...,
-        help=(
-            "The path to a flow entrypoint, in the form of"
-            " `./path/to/file.py:flow_func_name`"
-        ),
-    ),
-    name: str = typer.Option(
-        None, "--name", "-n", help="The name to give the deployment."
-    ),
-    description: str = typer.Option(
-        None,
-        "--description",
-        "-d",
-        help=(
-            "The description to give the deployment. If not provided, the description"
-            " will be populated from the flow's description."
-        ),
-    ),
-    version: str = typer.Option(
-        None, "--version", "-v", help="A version to give the deployment."
-    ),
-    tags: List[str] = typer.Option(
-        None,
-        "-t",
-        "--tag",
-        help=(
-            "One or more optional tags to apply to the deployment. Note: tags are used"
-            " only for organizational purposes. For delegating work to agents, use the"
-            " --work-queue flag."
-        ),
-    ),
-    work_queue_name: str = typer.Option(
-        None,
-        "-q",
-        "--work-queue",
-        help=(
-            "The work queue that will handle this deployment's runs. "
-            "It will be created if it doesn't already exist. Defaults to `None`. "
-            "Note that if a work queue is not set, work will not be scheduled."
-        ),
-    ),
-    work_pool_name: str = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The work pool that will handle this deployment's runs.",
-    ),
-    work_queue_concurrency: int = typer.Option(
-        None,
-        "--limit",
-        "-l",
-        help=(
-            "Sets the concurrency limit on the work queue that handles this"
-            " deployment's runs"
-        ),
-    ),
-    infra_type: str = typer.Option(
-        None,
-        "--infra",
-        "-i",
-        help="The infrastructure type to use, prepopulated with defaults. For example: "
-        + listrepr(builtin_infrastructure_types, sep=", "),
-    ),
-    infra_block: str = typer.Option(
-        None,
-        "--infra-block",
-        "-ib",
-        help="The slug of the infrastructure block to use as a template.",
-    ),
-    overrides: List[str] = typer.Option(
-        None,
-        "--override",
-        help=(
-            "One or more optional infrastructure overrides provided as a dot delimited"
-            " path, e.g., `env.env_key=env_value`"
-        ),
-    ),
-    storage_block: str = typer.Option(
-        None,
-        "--storage-block",
-        "-sb",
-        help=(
-            "The slug of a remote storage block. Use the syntax:"
-            " 'block_type/block_name', where block_type is one of 'github', 's3',"
-            " 'gcs', 'azure', 'smb', or a registered block from a library that"
-            " implements the WritableDeploymentStorage interface such as"
-            " 'gitlab-repository', 'bitbucket-repository', 's3-bucket',"
-            " 'gcs-bucket'"
-        ),
-    ),
-    skip_upload: bool = typer.Option(
-        False,
-        "--skip-upload",
-        help=(
-            "A flag that, when provided, skips uploading this deployment's files to"
-            " remote storage."
-        ),
-    ),
-    cron: str = typer.Option(
-        None,
-        "--cron",
-        help="A cron string that will be used to set a CronSchedule on the deployment.",
-    ),
-    interval: int = typer.Option(
-        None,
-        "--interval",
-        help=(
-            "An integer specifying an interval (in seconds) that will be used to set an"
-            " IntervalSchedule on the deployment."
-        ),
-    ),
-    interval_anchor: Optional[str] = typer.Option(
-        None, "--anchor-date", help="The anchor date for an interval schedule"
-    ),
-    rrule: str = typer.Option(
-        None,
-        "--rrule",
-        help="An RRule that will be used to set an RRuleSchedule on the deployment.",
-    ),
-    timezone: str = typer.Option(
-        None,
-        "--timezone",
-        help="Deployment schedule timezone string e.g. 'America/New_York'",
-    ),
-    path: str = typer.Option(
-        None,
-        "--path",
-        help=(
-            "An optional path to specify a subdirectory of remote storage to upload to,"
-            " or to point to a subdirectory of a locally stored flow."
-        ),
-    ),
-    output: str = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="An optional filename to write the deployment file to.",
-    ),
-    _apply: bool = typer.Option(
-        False,
-        "--apply",
-        "-a",
-        help=(
-            "An optional flag to automatically register the resulting deployment with"
-            " the API."
-        ),
-    ),
-    param: List[str] = typer.Option(
-        None,
-        "--param",
-        help=(
-            "An optional parameter override, values are parsed as JSON strings e.g."
-            " --param question=ultimate --param answer=42"
-        ),
-    ),
-    params: str = typer.Option(
-        None,
-        "--params",
-        help=(
-            "An optional parameter override in a JSON string format e.g."
-            ' --params=\'{"question": "ultimate", "answer": 42}\''
-        ),
-    ),
-    no_schedule: bool = typer.Option(
-        False,
-        "--no-schedule",
-        help="An optional flag to disable scheduling for this deployment.",
-    ),
-):
-    """
-    Generate a deployment YAML from /path/to/file.py:flow_function
-    """
-    # validate inputs
-    if not name:
-        exit_with_error(
-            "A name for this deployment must be provided with the '--name' flag."
-        )
-
-    if (
-        len([value for value in (cron, rrule, interval) if value is not None])
-        + (1 if no_schedule else 0)
-        > 1
-    ):
-        exit_with_error("Only one schedule type can be provided.")
-
-    if infra_block and infra_type:
-        exit_with_error(
-            "Only one of `infra` or `infra_block` can be provided, please choose one."
-        )
-
-    output_file = None
-    if output:
-        output_file = Path(output)
-        if output_file.suffix and output_file.suffix != ".yaml":
-            exit_with_error("Output file must be a '.yaml' file.")
-        else:
-            output_file = output_file.with_suffix(".yaml")
-
-    # validate flow
-    try:
-        fpath, obj_name = entrypoint.rsplit(":", 1)
-    except ValueError as exc:
-        if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = (
-                "Your flow entrypoint must include the name of the function that is"
-                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
-            )
-            exit_with_error(missing_flow_name_msg)
-        else:
-            raise exc
-    try:
-        flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
-    except Exception as exc:
-        exit_with_error(exc)
-    app.console.print(f"Found flow {flow.name!r}", style="green")
-    job_variables = {}
-    for override in overrides or []:
-        key, value = override.split("=", 1)
-        job_variables[key] = value
-
-    if infra_block:
-        infrastructure = await Block.load(infra_block)
-    elif infra_type:
-        # Create an instance of the given type
-        infrastructure = Block.get_block_class_from_key(infra_type)()
-    else:
-        # will reset to a default of Process is no infra is present on the
-        # server-side definition of this deployment
-        infrastructure = None
-
-    if interval_anchor and not interval:
-        exit_with_error("An anchor date can only be provided with an interval schedule")
-
-    schedule = None
-    if cron:
-        cron_kwargs = {"cron": cron, "timezone": timezone}
-        schedule = CronSchedule(
-            **{k: v for k, v in cron_kwargs.items() if v is not None}
-        )
-    elif interval:
-        interval_kwargs = {
-            "interval": timedelta(seconds=interval),
-            "anchor_date": interval_anchor,
-            "timezone": timezone,
-        }
-        schedule = IntervalSchedule(
-            **{k: v for k, v in interval_kwargs.items() if v is not None}
-        )
-    elif rrule:
-        try:
-            schedule = RRuleSchedule(**json.loads(rrule))
-            if timezone:
-                # override timezone if specified via CLI argument
-                schedule.timezone = timezone
-        except json.JSONDecodeError:
-            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
-
-    # parse storage_block
-    if storage_block:
-        block_type, block_name, *block_path = storage_block.split("/")
-        if block_path and path:
-            exit_with_error(
-                "Must provide a `path` explicitly or provide one on the storage block"
-                " specification, but not both."
-            )
-        elif not path:
-            path = "/".join(block_path)
-        storage_block = f"{block_type}/{block_name}"
-        storage = await Block.load(storage_block)
-    else:
-        storage = None
-
-    if create_default_ignore_file(path="."):
-        app.console.print(
-            (
-                "Default '.prefectignore' file written to"
-                f" {(Path('.') / '.prefectignore').absolute()}"
-            ),
-            style="green",
-        )
-
-    if param and (params is not None):
-        exit_with_error("Can only pass one of `param` or `params` options")
-
-    parameters = dict()
-
-    if param:
-        for p in param or []:
-            k, unparsed_value = p.split("=", 1)
-            try:
-                v = json.loads(unparsed_value)
-                app.console.print(
-                    f"The parameter value {unparsed_value} is parsed as a JSON string"
-                )
-            except json.JSONDecodeError:
-                v = unparsed_value
-            parameters[k] = v
-
-    if params is not None:
-        parameters = json.loads(params)
-
-    # set up deployment object
-    entrypoint = (
-        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
-    )
-
-    init_kwargs = dict(
-        path=path,
-        entrypoint=entrypoint,
-        version=version,
-        storage=storage,
-        job_variables=job_variables or {},
-    )
-
-    if parameters:
-        init_kwargs["parameters"] = parameters
-
-    if description:
-        init_kwargs["description"] = description
-
-    # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
-    # we let `build_from_flow` load them from the server
-    if schedule or no_schedule:
-        init_kwargs.update(schedule=schedule)
-    if tags:
-        init_kwargs.update(tags=tags)
-    if infrastructure:
-        init_kwargs.update(infrastructure=infrastructure)
-    if work_queue_name:
-        init_kwargs.update(work_queue_name=work_queue_name)
-    if work_pool_name:
-        init_kwargs.update(work_pool_name=work_pool_name)
-
-    deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    deployment = await Deployment.build_from_flow(
-        flow=flow,
-        name=name,
-        output=deployment_loc,
-        skip_upload=skip_upload,
-        apply=False,
-        **init_kwargs,
-    )
-    app.console.print(
-        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
-        style="green",
-    )
-
-    await create_work_queue_and_set_concurrency_limit(
-        deployment.work_queue_name, deployment.work_pool_name, work_queue_concurrency
-    )
-
-    # we process these separately for informative output
-    if not skip_upload:
-        if (
-            deployment.storage
-            and "put-directory" in deployment.storage.get_block_capabilities()
-        ):
-            file_count = await deployment.upload_to_storage()
-            if file_count:
-                app.console.print(
-                    (
-                        f"Successfully uploaded {file_count} files to"
-                        f" {deployment.location}"
-                    ),
-                    style="green",
-                )
-        else:
-            app.console.print(
-                (
-                    f"Deployment storage {deployment.storage} does not have upload"
-                    " capabilities; no files uploaded.  Pass --skip-upload to suppress"
-                    " this warning."
-                ),
-                style="green",
-            )
-
-    if _apply:
-        async with get_client() as client:
-            await check_work_pool_exists(
-                work_pool_name=deployment.work_pool_name, client=client
-            )
-            deployment_id = await deployment.apply()
-            app.console.print(
-                (
-                    f"Deployment '{deployment.flow_name}/{deployment.name}'"
-                    f" successfully created with id '{deployment_id}'."
-                ),
-                style="green",
-            )
-            if deployment.work_pool_name is not None:
-                await _print_deployment_work_pool_instructions(
-                    work_pool_name=deployment.work_pool_name, client=client
-                )
-
-            elif deployment.work_queue_name is not None:
-                app.console.print(
-                    "\nTo execute flow runs from this deployment, start an agent that"
-                    f" pulls work from the {deployment.work_queue_name!r} work queue:"
-                )
-                app.console.print(
-                    f"$ prefect agent start -q {deployment.work_queue_name!r}",
-                    style="blue",
-                )
-            else:
-                app.console.print(
-                    (
-                        "\nThis deployment does not specify a work queue name, which"
-                        " means agents will not be able to pick up its runs. To add a"
-                        " work queue, edit the deployment spec and re-run this command,"
-                        " or visit the deployment in the UI."
-                    ),
-                    style="red",
-                )
 
 
 def _load_json_key_values(

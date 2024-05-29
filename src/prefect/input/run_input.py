@@ -77,8 +77,8 @@ from uuid import UUID, uuid4
 
 import anyio
 import pydantic
+from pydantic import ConfigDict
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.input.actions import (
     create_flow_run_input,
     create_flow_run_input_from_model,
@@ -92,8 +92,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRunInput
     from prefect.states import State
 
-if HAS_PYDANTIC_V2:
-    from prefect._internal.pydantic.v2_schema import create_v2_schema
+from prefect._internal.pydantic.v2_schema import create_v2_schema, is_v2_model
 
 R = TypeVar("R", bound="RunInput")
 T = TypeVar("T", bound="object")
@@ -138,13 +137,12 @@ def keyset_from_base_key(base_key: str) -> Keyset:
 
 class RunInputMetadata(pydantic.BaseModel):
     key: str
-    sender: Optional[str]
+    sender: Optional[str] = None
     receiver: UUID
 
 
 class RunInput(pydantic.BaseModel):
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     _description: Optional[str] = pydantic.PrivateAttr(default=None)
     _metadata: RunInputMetadata = pydantic.PrivateAttr()
@@ -168,7 +166,7 @@ class RunInput(pydantic.BaseModel):
             - flow_run_id (UUID, optional): the flow run ID to save the input for
         """
 
-        if HAS_PYDANTIC_V2:
+        if is_v2_model(cls):
             schema = create_v2_schema(cls.__name__, model_base=cls)
         else:
             schema = cls.schema(by_alias=True)

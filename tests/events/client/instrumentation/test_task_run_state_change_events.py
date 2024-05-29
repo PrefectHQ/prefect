@@ -30,9 +30,9 @@ async def test_task_state_change_happy_path(
 
     @flow
     def happy_path():
-        return happy_little_tree._run()
+        return happy_little_tree(return_state=True)
 
-    flow_state: State[State[str]] = happy_path._run()
+    flow_state: State[State[str]] = happy_path(return_state=True)
 
     task_state: State[str] = await flow_state.result()
     task_run_id = task_state.state_details.task_run_id
@@ -94,9 +94,9 @@ async def test_task_state_change_task_failure(
 
     @flow
     def happy_path():
-        return happy_little_tree._run()
+        return happy_little_tree(return_state=True)
 
-    flow_state = happy_path._run()
+    flow_state = happy_path(return_state=True)
 
     task_state = await flow_state.result(raise_on_failure=False)
     task_run_id = task_state.state_details.task_run_id
@@ -152,15 +152,16 @@ async def test_background_task_state_changes(
     reset_worker_events,
     prefect_client,
     enable_task_scheduling,
+    tmp_path,
 ):
-    storage = LocalFileSystem(basepath="/tmp/prefect")
+    storage = LocalFileSystem(basepath=tmp_path)
     storage.save("test")
 
     @task(result_storage=storage)
     def foo():
         pass
 
-    task_run = foo.submit()
+    task_run = foo.apply_async()
 
     await TaskServer(foo).execute_task_run(task_run)
 

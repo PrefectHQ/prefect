@@ -7,23 +7,16 @@ from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
+import pydantic
 import typer
 import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from yaml.error import YAMLError
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
 
 import prefect
 from prefect._internal.compatibility.deprecated import (
@@ -47,8 +40,8 @@ from prefect.cli._utilities import (
     exit_with_error,
 )
 from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import PrefectClient, ServerType
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.orchestration import ServerType
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -65,14 +58,15 @@ from prefect.deployments.base import (
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
-from prefect.flows import load_flow_from_entrypoint
+from prefect.flows import load_flow_argument_from_entrypoint
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.callables import parameter_schema
+from prefect.utilities.callables import (
+    parameter_schema_from_entrypoint,
+)
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import (
@@ -80,6 +74,9 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 @app.command()
@@ -440,7 +437,7 @@ async def _run_single_deploy(
     deploy_config: Dict,
     actions: Dict,
     options: Optional[Dict] = None,
-    client: PrefectClient = None,
+    client: "PrefectClient" = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
@@ -474,18 +471,10 @@ async def _run_single_deploy(
                 "You can also provide an entrypoint in a prefect.yaml file."
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
-    if deploy_config.get("flow_name") and deploy_config.get("entrypoint"):
-        raise ValueError(
-            "Received an entrypoint and a flow name for this deployment. Please provide"
-            " either an entrypoint or a flow name."
-        )
 
-    # entrypoint logic
-    if deploy_config.get("entrypoint"):
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint, deploy_config["entrypoint"]
-        )
-        deploy_config["flow_name"] = flow.name
+    deploy_config["flow_name"] = load_flow_argument_from_entrypoint(
+        deploy_config["entrypoint"], arg="name"
+    )
 
     deployment_name = deploy_config.get("name")
     if not deployment_name:
@@ -493,7 +482,9 @@ async def _run_single_deploy(
             raise ValueError("A deployment name must be provided.")
         deploy_config["name"] = prompt("Deployment name", default="default")
 
-    deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
+    deploy_config["parameter_openapi_schema"] = parameter_schema_from_entrypoint(
+        deploy_config["entrypoint"]
+    )
 
     deploy_config["schedules"] = _construct_schedules(
         deploy_config,
@@ -520,8 +511,7 @@ async def _run_single_deploy(
                     " another work pool to deploy to."
                 )
                 deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-                    app.console,
-                    client=client,
+                    app.console
                 )
         except ObjectNotFound:
             raise ValueError(
@@ -539,7 +529,7 @@ async def _run_single_deploy(
         if not isinstance(deploy_config.get("work_pool"), dict):
             deploy_config["work_pool"] = {}
         deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-            console=app.console, client=client
+            console=app.console
         )
 
     docker_build_steps = [
@@ -674,8 +664,9 @@ async def _run_single_deploy(
         deploy_config["work_pool"]["job_variables"]["image"] = "{{ build-image.image }}"
 
     if not deploy_config.get("description"):
-        deploy_config["description"] = flow.description
-
+        deploy_config["description"] = load_flow_argument_from_entrypoint(
+            deploy_config["entrypoint"], arg="description"
+        )
     # save deploy_config before templating
     deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec
@@ -700,7 +691,9 @@ async def _run_single_deploy(
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
         enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
-        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema").dict(),
+        parameter_openapi_schema=deploy_config.get(
+            "parameter_openapi_schema"
+        ).model_dump(),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),
@@ -760,6 +753,7 @@ async def _run_single_deploy(
                     f" deployment configuration file[/red] at {prefect_file}"
                 )
             else:
+                deploy_config_before_templating.update({"schedules": _schedules})
                 _save_deployment_to_prefect_file(
                     deploy_config_before_templating,
                     build_steps=build_steps or None,
@@ -841,7 +835,7 @@ async def _run_multi_deploy(
 
 def _construct_schedules(
     deploy_config: Dict,
-) -> List[MinimalDeploymentSchedule]:
+) -> List[DeploymentScheduleCreate]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -869,13 +863,15 @@ def _construct_schedules(
 
 def _schedule_config_to_deployment_schedule(
     schedule_config: Dict,
-) -> MinimalDeploymentSchedule:
+) -> DeploymentScheduleCreate:
     cron = schedule_config.get("cron")
     interval = schedule_config.get("interval")
     anchor_date = schedule_config.get("anchor_date")
     rrule = schedule_config.get("rrule")
     timezone = schedule_config.get("timezone")
     schedule_active = schedule_config.get("active", True)
+    max_active_runs = schedule_config.get("max_active_runs")
+    catchup = schedule_config.get("catchup", False)
 
     if cron:
         cron_kwargs = {"cron": cron, "timezone": timezone}
@@ -904,7 +900,12 @@ def _schedule_config_to_deployment_schedule(
             f"Unknown schedule type. Please provide a valid schedule. schedule={schedule_config}"
         )
 
-    return MinimalDeploymentSchedule(schedule=schedule, active=schedule_active)
+    return DeploymentScheduleCreate(
+        schedule=schedule,
+        active=schedule_active,
+        max_active_runs=max_active_runs,
+        catchup=catchup,
+    )
 
 
 def _merge_with_default_deploy_config(deploy_config: Dict):
@@ -1597,36 +1598,37 @@ def _initialize_deployment_triggers(
     triggers = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
-        triggers.append(pydantic.parse_obj_as(DeploymentTriggerTypes, spec))
+        triggers.append(
+            pydantic.TypeAdapter(DeploymentTriggerTypes).validate_python(spec)
+        )
 
     return triggers
 
 
 async def _create_deployment_triggers(
-    client: PrefectClient,
+    client: "PrefectClient",
     deployment_id: UUID,
     triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]],
 ):
-    if client.server_type.supports_automations():
-        try:
-            # The triggers defined in the deployment spec are, essentially,
-            # anonymous and attempting truly sync them with cloud is not
-            # feasible. Instead, we remove all automations that are owned
-            # by the deployment, meaning that they were created via this
-            # mechanism below, and then recreate them.
-            await client.delete_resource_owned_automations(
-                f"prefect.deployment.{deployment_id}"
-            )
-        except PrefectHTTPStatusError as e:
-            if e.response.status_code == 404:
-                # This Prefect server does not support automations, so we can safely
-                # ignore this 404 and move on.
-                return
-            raise e
+    try:
+        # The triggers defined in the deployment spec are, essentially,
+        # anonymous and attempting truly sync them with cloud is not
+        # feasible. Instead, we remove all automations that are owned
+        # by the deployment, meaning that they were created via this
+        # mechanism below, and then recreate them.
+        await client.delete_resource_owned_automations(
+            f"prefect.deployment.{deployment_id}"
+        )
+    except PrefectHTTPStatusError as e:
+        if e.response.status_code == 404:
+            # This Prefect server does not support automations, so we can safely
+            # ignore this 404 and move on.
+            return
+        raise e
 
-        for trigger in triggers:
-            trigger.set_deployment_id(deployment_id)
-            await client.create_automation(trigger.as_automation())
+    for trigger in triggers:
+        trigger.set_deployment_id(deployment_id)
+        await client.create_automation(trigger.as_automation())
 
 
 def _gather_deployment_trigger_definitions(

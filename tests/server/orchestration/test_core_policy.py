@@ -73,7 +73,7 @@ def fizzling_rule():
 
         async def before_transition(self, initial_state, proposed_state, context):
             # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-            mutated_state = proposed_state.copy()
+            mutated_state = proposed_state.model_copy()
             mutated_state.type = random.choice(
                 list(set(states.StateType) - {initial_state.type, proposed_state.type})
             )
@@ -1226,7 +1226,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1271,7 +1273,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1444,7 +1448,7 @@ class TestTaskConcurrencyLimits:
         cl_create = actions.ConcurrencyLimitCreate(
             tag=tag,
             concurrency_limit=limit,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         cl_model = schemas.core.ConcurrencyLimit(**cl_create)
 
@@ -1694,7 +1698,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -2133,7 +2137,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -2222,7 +2226,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -2994,6 +2998,35 @@ class TestBypassCancellingFlowRunsWithNoInfra:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.CANCELLED
 
+    async def test_rejects_cancelling_resuming_flow_and_sets_to_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Suspended flows should skip the cancelling state and be set immediately to cancelled
+        because they don't have infra to shut down.
+        """
+
+        intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            initial_state_name="Resuming",
+        )
+
+        # Resuming flows have infra pids
+        ctx.run.infrastructure_pid = "my-pid-42"
+
+        async with BypassCancellingFlowRunsWithNoInfra(
+            ctx, *intended_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
+
     async def test_accepts_cancelling_flow_run_with_pid(
         self,
         session,
@@ -3118,7 +3151,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:
@@ -3149,7 +3184,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:

@@ -38,16 +38,39 @@ setup(
         ],
     },
     # Requirements
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=install_requires,
-    extras_require={"dev": dev_requires},
+    extras_require={
+        "dev": dev_requires,
+        # Infrastructure extras
+        "aws": "prefect-aws",
+        "azure": "prefect-azure",
+        "gcp": "prefect-gcp",
+        "docker": "prefect-docker",
+        "kubernetes": "prefect-kubernetes",
+        "shell": "prefect-shell",
+        # Distributed task execution extras
+        "dask": "prefect-dask",
+        "ray": "prefect-ray",
+        # Version control extras
+        "bitbucket": "prefect-bitbucket",
+        "github": "prefect-github",
+        "gitlab": "prefect-gitlab",
+        # Database extras
+        "databricks": "prefect-databricks",
+        "dbt": "prefect-dbt",
+        "snowflake": "prefect-snowflake",
+        "sqlalchemy": "prefect-sqlalchemy",
+        # Monitoring extras
+        "email": "prefect-email",
+        "slack": "prefect-slack",
+    },
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",

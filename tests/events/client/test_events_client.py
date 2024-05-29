@@ -15,28 +15,9 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_EVENTS,
     temporary_settings,
 )
 from prefect.testing.fixtures import Puppeteer, Recorder
-
-
-@pytest.fixture
-def no_viable_settings(events_disabled):
-    with temporary_settings(
-        {
-            PREFECT_API_URL: "https://locally/api",
-            PREFECT_API_KEY: None,
-            PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: False,
-        }
-    ):
-        yield
-
-
-async def test_raises_when_no_viable_client(no_viable_settings):
-    with pytest.raises(RuntimeError, match="does not support events"):
-        get_events_client()
 
 
 @pytest.fixture
@@ -46,7 +27,6 @@ def ephemeral_settings():
             PREFECT_API_URL: None,
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: True,
         }
     ):
         yield
@@ -63,7 +43,6 @@ def server_settings():
             PREFECT_API_URL: "https://locally/api",
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
-            PREFECT_EXPERIMENTAL_EVENTS: True,
         }
     ):
         yield
@@ -80,7 +59,6 @@ def cloud_settings():
             PREFECT_API_URL: "https://cloudy/api/accounts/1/workspaces/2",
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
             PREFECT_API_KEY: "howdy-doody",
-            PREFECT_EXPERIMENTAL_EVENTS: False,
         }
     ):
         yield
@@ -112,7 +90,7 @@ async def test_ephemeral_events_client_can_emit(
 
     mock_http_client().post.assert_called_once_with(
         "/events",
-        json=[example_event_1.dict(json_compatible=True)],
+        json=[example_event_1.model_dump(mode="json")],
     )
 
 

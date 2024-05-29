@@ -6,10 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 from anyio import run_process
+from pydantic import Field
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
 from prefect.blocks.core import Block
-from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
 from prefect.infrastructure.provisioners.cloud_run import CloudRunPushProvisioner
 from prefect.settings import (
@@ -17,12 +16,7 @@ from prefect.settings import (
     load_current_profile,
 )
 from prefect.testing.utilities import AsyncMock
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from prefect.types import SecretDict
 
 default_cloud_run_push_base_job_template = {
     "job_configuration": {
@@ -133,7 +127,7 @@ default_cloud_run_push_base_job_template = {
                     " Prefect image will be used. See"
                     " https://cloud.google.com/run/docs/deploying#images."
                 ),
-                "example": "docker.io/prefecthq/prefect:2-latest",
+                "example": "docker.io/prefecthq/prefect:3-latest",
                 "type": "string",
             },
             "cpu": {

@@ -5,7 +5,7 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import UUID
 
 from anyio import run_process
@@ -17,7 +17,7 @@ from rich.prompt import Confirm
 from rich.syntax import Syntax
 
 from prefect.cli._prompts import prompt, prompt_select_from_table
-from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.client.orchestration import ServerType
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectAlreadyExists
@@ -26,6 +26,9 @@ from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     update_current_profile,
 )
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 class CloudRunPushProvisioner:
@@ -215,7 +218,7 @@ class CloudRunPushProvisioner:
             ) from e
 
     async def _create_gcp_credentials_block(
-        self, block_document_name: str, key: dict, client: PrefectClient
+        self, block_document_name: str, key: dict, client: "PrefectClient"
     ) -> UUID:
         credentials_block_type = await client.read_block_type_by_slug("gcp-credentials")
 
@@ -242,7 +245,9 @@ class CloudRunPushProvisioner:
             )
             return block_doc.id
 
-    async def _create_provision_table(self, work_pool_name: str, client: PrefectClient):
+    async def _create_provision_table(
+        self, work_pool_name: str, client: "PrefectClient"
+    ):
         return Panel(
             dedent(
                 f"""\
@@ -268,7 +273,7 @@ class CloudRunPushProvisioner:
         )
 
     async def _customize_resource_names(
-        self, work_pool_name: str, client: PrefectClient
+        self, work_pool_name: str, client: "PrefectClient"
     ) -> bool:
         self._service_account_name = prompt(
             "Please enter a name for the service account",
@@ -294,7 +299,7 @@ class CloudRunPushProvisioner:
         self,
         work_pool_name: str,
         base_job_template: dict,
-        client: Optional[PrefectClient] = None,
+        client: Optional["PrefectClient"] = None,
     ) -> Dict[str, Any]:
         assert client, "Client injection failed"
         await self._verify_gcloud_ready()
