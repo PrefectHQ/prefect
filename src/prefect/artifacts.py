@@ -195,6 +195,21 @@ class ProgressArtifact(Artifact):
         return self.progress
 
 
+class ImageArtifact(Artifact):
+    """
+    An artifact that will display an image from a publicly accessible URL in the UI.
+
+    Arguments:
+        image_url: The URL of the image to display.
+    """
+
+    image_url: str
+    type: Optional[str] = "image"
+
+    async def format(self) -> str:
+        return self.image_url
+
+
 @inject_client
 async def _create_artifact(
     type: str,
@@ -387,3 +402,32 @@ async def update_progress_artifact(
     )
 
     return artifact_id
+
+
+@sync_compatible
+async def create_image_artifact(
+    image_url: str,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+) -> UUID:
+    """
+    Create an image artifact.
+
+    Arguments:
+        image_url: The URL of the image to display.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The image artifact ID.
+    """
+
+    artifact = await ImageArtifact(
+        key=key,
+        description=description,
+        image_url=image_url,
+    ).create()
+
+    return artifact.id
