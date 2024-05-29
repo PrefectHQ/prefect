@@ -17,9 +17,9 @@
 
       <p-divider class="-my-3" />
 
-      <p-form>
+      <p-form :id="formId" @submit="console.dir($event)">
         <p-label label="Notify me about Prefect updates">
-          <p-text-input v-model="email" placeholder="hello@prefect.io" />
+          <p-text-input v-model="email" placeholder="hello@prefect.io" type="email" required />
         </p-label>
       </p-form>
     </template>
@@ -31,7 +31,7 @@
     </template>
 
     <template #actions>
-      <p-button primary>
+      <p-button primary type="submit" :form="formId">
         Sign up
       </p-button>
     </template>
@@ -42,4 +42,6 @@
   import { ref } from 'vue'
 
   const email = ref<string>()
+
+  const formId = 'join-the-community-modal'
 </script>
