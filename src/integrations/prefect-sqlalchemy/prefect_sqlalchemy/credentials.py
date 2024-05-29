@@ -1,22 +1,10 @@
 """Credential classes used to perform authenticated interactions with SQLAlchemy"""
 
-import warnings
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Mapping, Optional, Sequence, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.blocks.core import Block
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import AnyUrl, BaseModel, Field, SecretStr
-else:
-    from pydantic import AnyUrl, BaseModel, Field, SecretStr
-
-from sqlalchemy.engine import Connection, create_engine
-from sqlalchemy.engine.url import URL, make_url
-from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
-from sqlalchemy.pool import NullPool
+from pydantic import BaseModel, Field, SecretStr
+from sqlalchemy.engine.url import URL
 
 
 class AsyncDriver(Enum):
@@ -119,11 +107,11 @@ class ConnectionComponents(BaseModel):
     host: Optional[str] = Field(
         default=None, description="The host address of the database."
     )
-    port: Optional[str] = Field(
+    port: Optional[int] = Field(
         default=None, description="The port to connect to the database."
     )
-    query: Optional[Dict[str, str]] = Field(
-        default=None,
+    query: Mapping[str, Union[Sequence[str], str]] = Field(
+        default_factory=dict,
         description=(
             "A dictionary of string keys to string values to be passed to the dialect "
             "and/or the DBAPI upon connect. To specify non-string parameters to a "
@@ -138,126 +126,10 @@ class ConnectionComponents(BaseModel):
         Returns:
             The SQLAlchemy engine URL.
         """
-        driver = self.driver
-        drivername = driver.value if isinstance(driver, Enum) else driver
-        password = self.password.get_secret_value() if self.password else None
-        url_params = dict(
-            drivername=drivername,
-            username=self.username,
-            password=password,
-            database=self.database,
-            host=self.host,
-            port=self.port,
-            query=self.query,
-        )
         return URL.create(
-            **{
-                url_key: url_param
-                for url_key, url_param in url_params.items()
-                if url_param is not None
-            }
-        )
-
-
-class DatabaseCredentials(Block):
-    """
-    Block used to manage authentication with a database.
-
-    Attributes:
-        driver: The driver name, e.g. "postgresql+asyncpg"
-        database: The name of the database to use.
-        username: The user name used to authenticate.
-        password: The password used to authenticate.
-        host: The host address of the database.
-        port: The port to connect to the database.
-        query: A dictionary of string keys to string values to be passed to
-            the dialect and/or the DBAPI upon connect. To specify non-string
-            parameters to a Python DBAPI directly, use connect_args.
-        url: Manually create and provide a URL to create the engine,
-            this is useful for external dialects, e.g. Snowflake, because some
-            of the params, such as "warehouse", is not directly supported in
-            the vanilla `sqlalchemy.engine.URL.create` method; do not provide
-            this alongside with other URL params as it will raise a `ValueError`.
-        connect_args: The options which will be passed directly to the
-            DBAPI's connect() method as additional keyword arguments.
-
-    Example:
-        Load stored database credentials:
-        ```python
-        from prefect_sqlalchemy import DatabaseCredentials
-        database_block = DatabaseCredentials.load("BLOCK_NAME")
-        ```
-    """
-
-    _block_type_name = "Database Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/fb3f4debabcda1c5a3aeea4f5b3f94c28845e23e-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-sqlalchemy/credentials/#prefect_sqlalchemy.credentials.DatabaseCredentials"  # noqa
-
-    driver: Optional[Union[AsyncDriver, SyncDriver, str]] = Field(
-        default=None, description="The driver name to use."
-    )
-    username: Optional[str] = Field(
-        default=None, description="The user name used to authenticate."
-    )
-    password: Optional[SecretStr] = Field(
-        default=None, description="The password used to authenticate."
-    )
-    database: Optional[str] = Field(
-        default=None, description="The name of the database to use."
-    )
-    host: Optional[str] = Field(
-        default=None, description="The host address of the database."
-    )
-    port: Optional[str] = Field(
-        default=None, description="The port to connect to the database."
-    )
-    query: Optional[Dict[str, str]] = Field(
-        default=None,
-        description=(
-            "A dictionary of string keys to string values to be passed to the dialect "
-            "and/or the DBAPI upon connect. To specify non-string parameters to a "
-            "Python DBAPI directly, use connect_args."
-        ),
-    )
-    url: Optional[AnyUrl] = Field(
-        default=None,
-        description=(
-            "Manually create and provide a URL to create the engine, this is useful "
-            "for external dialects, e.g. Snowflake, because some of the params, "
-            "such as 'warehouse', is not directly supported in the vanilla "
-            "`sqlalchemy.engine.URL.create` method; do not provide this "
-            "alongside with other URL params as it will raise a `ValueError`."
-        ),
-    )
-    connect_args: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description=(
-            "The options which will be passed directly to the DBAPI's connect() "
-            "method as additional keyword arguments."
-        ),
-    )
-
-    def block_initialization(self):
-        """
-        Initializes the engine.
-        """
-        warnings.warn(
-            "DatabaseCredentials is now deprecated and will be removed March 2023; "
-            "please use SqlAlchemyConnector instead.",
-            DeprecationWarning,
-        )
-        if isinstance(self.driver, AsyncDriver):
-            drivername = self.driver.value
-            self._driver_is_async = True
-        elif isinstance(self.driver, SyncDriver):
-            drivername = self.driver.value
-            self._driver_is_async = False
-        else:
-            drivername = self.driver
-            self._driver_is_async = drivername in AsyncDriver._value2member_map_
-
-        url_params = dict(
-            drivername=drivername,
+            drivername=(
+                self.driver.value if isinstance(self.driver, Enum) else self.driver
+            ),
             username=self.username,
             password=self.password.get_secret_value() if self.password else None,
             database=self.database,
@@ -265,101 +137,3 @@ class DatabaseCredentials(Block):
             port=self.port,
             query=self.query,
         )
-        if not self.url:
-            required_url_keys = ("drivername", "database")
-            if not all(url_params[key] for key in required_url_keys):
-                required_url_keys = ("driver", "database")
-                raise ValueError(
-                    f"If the `url` is not provided, "
-                    f"all of these URL params are required: "
-                    f"{required_url_keys}"
-                )
-            self.rendered_url = URL.create(
-                **{
-                    url_key: url_param
-                    for url_key, url_param in url_params.items()
-                    if url_param is not None
-                }
-            )  # from params
-        else:
-            if any(val for val in url_params.values()):
-                raise ValueError(
-                    f"The `url` should not be provided "
-                    f"alongside any of these URL params: "
-                    f"{url_params.keys()}"
-                )
-            self.rendered_url = make_url(str(self.url))
-
-    def get_engine(self) -> Union["Connection", "AsyncConnection"]:
-        """
-        Returns an authenticated engine that can be
-        used to query from databases.
-
-        Returns:
-            The authenticated SQLAlchemy Connection / AsyncConnection.
-
-        Examples:
-            Create an asynchronous engine to PostgreSQL using URL params.
-            ```python
-            from prefect import flow
-            from prefect_sqlalchemy import DatabaseCredentials, AsyncDriver
-
-            @flow
-            def sqlalchemy_credentials_flow():
-                sqlalchemy_credentials = DatabaseCredentials(
-                    driver=AsyncDriver.POSTGRESQL_ASYNCPG,
-                    username="prefect",
-                    password="prefect_password",
-                    database="postgres"
-                )
-                print(sqlalchemy_credentials.get_engine())
-
-            sqlalchemy_credentials_flow()
-            ```
-
-            Create a synchronous engine to Snowflake using the `url` kwarg.
-            ```python
-            from prefect import flow
-            from prefect_sqlalchemy import DatabaseCredentials, AsyncDriver
-
-            @flow
-            def sqlalchemy_credentials_flow():
-                url = (
-                    "snowflake://<user_login_name>:<password>"
-                    "@<account_identifier>/<database_name>"
-                    "?warehouse=<warehouse_name>"
-                )
-                sqlalchemy_credentials = DatabaseCredentials(url=url)
-                print(sqlalchemy_credentials.get_engine())
-
-            sqlalchemy_credentials_flow()
-            ```
-        """
-        engine_kwargs = dict(
-            url=self.rendered_url,
-            connect_args=self.connect_args or {},
-            poolclass=NullPool,
-        )
-        if self._driver_is_async:
-            engine = create_async_engine(**engine_kwargs)
-        else:
-            engine = create_engine(**engine_kwargs)
-        return engine
-
-    class Config:
-        """Configuration of pydantic."""
-
-        # Support serialization of the 'URL' type
-        arbitrary_types_allowed = True
-        json_encoders = {URL: lambda u: u.render_as_string()}
-
-    def dict(self, *args, **kwargs) -> Dict:
-        """
-        Convert to a dictionary.
-        """
-        # Support serialization of the 'URL' type
-        d = super().dict(*args, **kwargs)
-        d["rendered_url"] = SecretStr(
-            self.rendered_url.render_as_string(hide_password=False)
-        )
-        return d
