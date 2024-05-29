@@ -314,24 +314,34 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
 
     @wraps(async_fn)
-    def coroutine_wrapper(*args, **kwargs):
+    def coroutine_wrapper(*args, _sync: bool = None, **kwargs):
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
         )
 
-        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT:
+        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT or _sync is False:
             return async_fn(*args, **kwargs)
 
         is_async = True
-        try:
-            run_ctx = get_run_context()
-            parent_obj = getattr(run_ctx, "task", None)
-            if not parent_obj:
-                parent_obj = getattr(run_ctx, "flow", None)
-            is_async = getattr(parent_obj, "isasync", True)
-        except MissingContextError:
-            pass
+
+        # if _sync is set, we do as we're told
+        # otherwise, we make some determinations
+        if _sync is None:
+            try:
+                run_ctx = get_run_context()
+                parent_obj = getattr(run_ctx, "task", None)
+                if not parent_obj:
+                    parent_obj = getattr(run_ctx, "flow", None)
+                is_async = getattr(parent_obj, "isasync", True)
+            except MissingContextError:
+                # not in an execution context, make best effort to
+                # decide whether to syncify
+                try:
+                    asyncio.get_running_loop()
+                    is_async = True
+                except RuntimeError:
+                    is_async = False
 
         async def ctx_call():
             """
@@ -345,9 +355,9 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
                 RUNNING_ASYNC_FLAG.reset(token)
             return result
 
-        if force_sync:
+        if _sync is True:
             return run_coro_as_sync(ctx_call())
-        elif RUNNING_ASYNC_FLAG.get() or is_async:
+        elif _sync is False or RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
             return run_coro_as_sync(ctx_call())

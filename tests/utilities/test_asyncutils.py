@@ -279,6 +279,22 @@ def test_sync_compatible_allows_direct_access_to_async_fn():
     assert sync_compatible(foo).aio is foo
 
 
+def test_sync_compatible_allows_forced_behavior_sync():
+    async def foo():
+        return 42
+
+    assert sync_compatible(foo)(_sync=True) == 42
+
+
+async def test_sync_compatible_allows_forced_behavior_sync_and_async():
+    async def foo():
+        return 42
+
+    assert sync_compatible(foo)(_sync=True) == 42
+    assert await sync_compatible(foo)(_sync=False) == 42
+    assert await sync_compatible(foo)() == 42
+
+
 def test_sync_compatible_requires_async_function():
     with pytest.raises(TypeError, match="must be async"):
 

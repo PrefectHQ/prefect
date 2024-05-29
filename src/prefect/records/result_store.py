@@ -16,10 +16,7 @@ class ResultFactoryStore(RecordStore):
     def exists(self, key: str) -> bool:
         try:
             result = self.read(key)
-            # need to pass result as self explicitly when calling .aio
-            run_coro_as_sync(
-                result.get.aio(result)
-            )  # loads and caches value on result object
+            result.get(_sync=True)
             self.cache = result
             return True
         except (ObjectNotFound, ValueError):
