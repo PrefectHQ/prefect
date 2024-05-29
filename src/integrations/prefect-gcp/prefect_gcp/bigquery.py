@@ -95,7 +95,7 @@ async def bigquery_query(
         from prefect_gcp.bigquery import bigquery_query
 
         @flow
-        async def example_bigquery_query_flow():
+        def example_bigquery_query_flow():
             gcp_credentials = GcpCredentials(
                 service_account_file="/path/to/service/account/keyfile.json",
                 project="project"
@@ -111,12 +111,12 @@ async def bigquery_query(
                 ("corpus", "STRING", "romeoandjuliet"),
                 ("min_word_count", "INT64", 250)
             ]
-            result = await bigquery_query_async(
+            result = bigquery_query(
                 query, gcp_credentials, query_params=query_params
             )
             return result
 
-        await example_bigquery_query_flow()
+        example_bigquery_query_flow()
         ```
     """  # noqa
     logger = get_run_logger()
@@ -204,22 +204,23 @@ async def bigquery_create_table(
         from prefect_gcp import GcpCredentials
         from prefect_gcp.bigquery import bigquery_create_table
         from google.cloud.bigquery import SchemaField
+
         @flow
-        async def example_bigquery_create_table_flow():
+        def example_bigquery_create_table_flow():
             gcp_credentials = GcpCredentials(project="project")
             schema = [
                 SchemaField("number", field_type="INTEGER", mode="REQUIRED"),
                 SchemaField("text", field_type="STRING", mode="REQUIRED"),
                 SchemaField("bool", field_type="BOOLEAN")
             ]
-            result = await bigquery_create_table_async(
+            result = bigquery_create_table(
                 dataset="dataset",
                 table="test_table",
                 schema=schema,
                 gcp_credentials=gcp_credentials
             )
             return result
-        await example_bigquery_create_table_flow()
+        example_bigquery_create_table_flow()
         ```
     """
     logger = get_run_logger()
@@ -300,13 +301,13 @@ async def bigquery_insert_stream(
         from google.cloud.bigquery import SchemaField
 
         @flow
-        async def example_bigquery_insert_stream_flow():
+        def example_bigquery_insert_stream_flow():
             gcp_credentials = GcpCredentials(project="project")
             records = [
                 {"number": 1, "text": "abc", "bool": True},
                 {"number": 2, "text": "def", "bool": False},
             ]
-            result = await bigquery_insert_stream_async(
+            result = bigquery_insert_stream(
                 dataset="integrations",
                 table="test_table",
                 records=records,
@@ -314,7 +315,7 @@ async def bigquery_insert_stream(
             )
             return result
 
-        await example_bigquery_insert_stream_flow()
+        example_bigquery_insert_stream_flow()
         ```
     """
     logger = get_run_logger()
@@ -378,9 +379,9 @@ async def bigquery_load_cloud_storage(
         from prefect_gcp.bigquery import bigquery_load_cloud_storage
 
         @flow
-        async def example_bigquery_load_cloud_storage_flow():
+        def example_bigquery_load_cloud_storage_flow():
             gcp_credentials = GcpCredentials(project="project")
-            result = await bigquery_load_cloud_storage_async(
+            result = bigquery_load_cloud_storage(
                 dataset="dataset",
                 table="test_table",
                 uri="uri",
@@ -388,7 +389,7 @@ async def bigquery_load_cloud_storage(
             )
             return result
 
-        await example_bigquery_load_cloud_storage_flow()
+        example_bigquery_load_cloud_storage_flow()
         ```
     """
     logger = get_run_logger()
@@ -478,7 +479,7 @@ async def bigquery_load_file(
         @flow
         async def example_bigquery_load_file_flow():
             gcp_credentials = GcpCredentials(project="project")
-            result = await bigquery_load_file_async(
+            result = bigquery_load_file(
                 dataset="dataset",
                 table="test_table",
                 path="path",
@@ -486,7 +487,7 @@ async def bigquery_load_file(
             )
             return result
 
-        await example_bigquery_load_file_flow()
+        example_bigquery_load_file_flow()
         ```
     """
     logger = get_run_logger()
