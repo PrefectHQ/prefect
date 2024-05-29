@@ -131,7 +131,7 @@ async def test_task_server_handles_aborted_task_run_submission(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run_future = foo_task.apply_async(42)
+    task_run_future = foo_task.apply_async((42,))
 
     await prefect_client.set_task_run_state(
         task_run_future.task_run_id, Running(), force=True
@@ -149,7 +149,7 @@ async def test_task_server_handles_deleted_task_run_submission(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run_future = foo_task.apply_async(42)
+    task_run_future = foo_task.apply_async((42,))
     task_run = task_run_future.task_run
 
     await prefect_client.delete_task_run(task_run_future.task_run_id)
@@ -175,7 +175,7 @@ class TestServe:
         await serve(foo_task)
         mock_task_server_start.assert_called_once()
 
-        task_run_future = foo_task.apply_async(42)
+        task_run_future = foo_task.apply_async((42,))
 
         assert isinstance(task_run_future, PrefectDistributedFuture)
 
@@ -185,7 +185,7 @@ class TestServe:
         await serve(async_foo_task)
         mock_task_server_start.assert_called_once()
 
-        task_run_future = async_foo_task.apply_async(42)
+        task_run_future = async_foo_task.apply_async((42,))
 
         assert isinstance(task_run_future, PrefectDistributedFuture)
 
@@ -197,7 +197,7 @@ async def test_task_server_can_execute_a_single_async_single_task_run(
 ):
     task_server = TaskServer(async_foo_task)
 
-    task_run_future = async_foo_task.apply_async(42)
+    task_run_future = async_foo_task.apply_async((42,))
 
     await task_server.execute_task_run(task_run_future.task_run)
 
@@ -213,7 +213,7 @@ async def test_task_server_can_execute_a_single_sync_single_task_run(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run_future = foo_task.apply_async(42)
+    task_run_future = foo_task.apply_async((42,))
 
     await task_server.execute_task_run(task_run_future.task_run)
 
@@ -335,7 +335,7 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(some_task)
 
-        task_run_future = some_task.apply_async(x="foo")
+        task_run_future = some_task.apply_async(kwargs={"x": "foo"})
 
         await task_server.execute_task_run(task_run_future.task_run)
 
@@ -395,7 +395,7 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(task_with_cache)
 
-        task_run_future = task_with_cache.apply_async(42)
+        task_run_future = task_with_cache.apply_async((42,))
 
         await task_server.execute_task_run(task_run_future.task_run)
 
@@ -407,7 +407,7 @@ class TestTaskServerTaskResults:
 
         assert await updated_task_run.state.result() == 1
 
-        new_task_run_future = task_with_cache.apply_async(42)
+        new_task_run_future = task_with_cache.apply_async((42,))
 
         with caplog.at_level("INFO"):
             await task_server.execute_task_run(new_task_run_future.task_run)
@@ -433,8 +433,8 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(foo, bar)
 
-        foo_task_run_future = foo.apply_async(42)
-        bar_task_run_future = bar.apply_async(foo_task_run_future)
+        foo_task_run_future = foo.apply_async((42,))
+        bar_task_run_future = bar.apply_async((foo_task_run_future,))
 
         await task_server.execute_task_run(foo_task_run_future.task_run)
         assert foo_task_run_future.result() == 42
@@ -450,8 +450,8 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(foo, bar)
 
-        foo_task_run_future = foo.apply_async(42)
-        bar_task_run_future = bar.apply_async(x=foo_task_run_future, y=5)
+        foo_task_run_future = foo.apply_async((42,))
+        bar_task_run_future = bar.apply_async(kwargs={"x": foo_task_run_future, "y": 5})
 
         await task_server.execute_task_run(foo_task_run_future.task_run)
         assert foo_task_run_future.result() == 42
@@ -470,7 +470,7 @@ class TestTaskServerTaskTags:
 
         task_server = TaskServer(task_with_tags)
 
-        task_run_future = task_with_tags.apply_async(42)
+        task_run_future = task_with_tags.apply_async((42,))
 
         await task_server.execute_task_run(task_run_future.task_run)
 
@@ -493,7 +493,7 @@ class TestTaskServerCustomTaskRunName:
 
         task_server = TaskServer(async_foo_task_with_custom_name)
 
-        task_run_future = async_foo_task_with_custom_name.apply_async(42)
+        task_run_future = async_foo_task_with_custom_name.apply_async((42,))
 
         await task_server.execute_task_run(task_run_future.task_run)
 
@@ -518,7 +518,7 @@ class TestTaskServerTaskStateHooks:
 
         task_server = TaskServer(async_foo_task_with_on_completion_hook)
 
-        task_run_future = async_foo_task_with_on_completion_hook.apply_async(42)
+        task_run_future = async_foo_task_with_on_completion_hook.apply_async((42,))
 
         await task_server.execute_task_run(task_run_future.task_run)
 
@@ -566,7 +566,7 @@ class TestTaskServerNestedTasks:
 
         task_server = TaskServer(outer_task)
 
-        task_run_future = outer_task.apply_async(42)
+        task_run_future = outer_task.apply_async((42,))
 
         await task_server.execute_task_run(task_run_future.task_run)
 
@@ -589,7 +589,7 @@ class TestTaskServerNestedTasks:
 
         task_server = TaskServer(background_task)
 
-        task_run_future = background_task.apply_async(42)
+        task_run_future = background_task.apply_async((42,))
 
         await task_server.execute_task_run(task_run_future.task_run)
 

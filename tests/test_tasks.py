@@ -22,11 +22,13 @@ from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
+    ParameterBindError,
     ReservedArgumentError,
     RollBack,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture as NewPrefectFuture
+from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -4130,3 +4132,104 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
+
+
+class TestApplyAsync:
+    async def get_background_task_run_parameters(self, task, parameters_id):
+        factory = await ResultFactory.from_autonomous_task(task)
+        return await factory.read_parameters(parameters_id)
+
+    @pytest.mark.parametrize(
+        "args, kwargs",
+        [
+            ((42, 42), {}),
+            ([42, 42], {}),
+            ((), {"x": 42, "y": 42}),
+            ([42], {"y": 42}),
+        ],
+    )
+    async def test_apply_async_with_args_kwargs(self, args, kwargs):
+        @task
+        def multiply(x, y):
+            return x * y
+
+        task_run = multiply.apply_async(args, kwargs)
+
+        assert await self.get_background_task_run_parameters(
+            multiply, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    def test_apply_async_with_duplicate_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="multiple values for argument 'x'"
+        ):
+            add.apply_async((42,), {"x": 42})
+
+    def test_apply_async_missing_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="missing a required argument: 'y'"
+        ):
+            add.apply_async((42,))
+
+    async def test_apply_async_handles_default_values(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.apply_async((42,))
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    async def test_apply_async_overrides_defaults(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.apply_async((42,), {"y": 100})
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 100}
+
+    async def test_apply_async_with_variadic_args(self):
+        @task
+        def add_em_up(*args):
+            return sum(args)
+
+        task_run = add_em_up.apply_async((42, 42))
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42, 42)}
+
+    async def test_apply_async_with_variadic_kwargs(self):
+        @task
+        def add_em_up(**kwargs):
+            return sum(kwargs.values())
+
+        task_run = add_em_up.apply_async(kwargs={"x": 42, "y": 42})
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"kwargs": {"x": 42, "y": 42}}
+
+    async def test_apply_async_with_variadic_args_and_kwargs(self):
+        @task
+        def add_em_up(*args, **kwargs):
+            return sum(args) + sum(kwargs.values())
+
+        task_run = add_em_up.apply_async((42,), {"y": 42})
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42,), "kwargs": {"y": 42}}
