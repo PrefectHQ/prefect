@@ -71,10 +71,10 @@ def mock_watch(monkeypatch):
     return mock
 
 async def mock_stream(*args, **kwargs):
-            async for event in _mock_pods_stream_that_returns_completed_pod(
+    async for event in _mock_pods_stream_that_returns_completed_pod(
                 *args, **kwargs
-            ):
-                yield event
+    ):
+        yield event
     
 
 
@@ -104,7 +104,7 @@ def mock_anyio_sleep_monotonic(monkeypatch, event_loop):
 
     mock_sleep.current_time = monotonic()
     monkeypatch.setattr("time.monotonic", mock_monotonic)
-    monkeypatch.setattr("asyncio.sleep", mock_sleep)
+    monkeypatch.setattr("anyio.sleep", mock_sleep)
 
 
 @pytest.fixture
@@ -2118,8 +2118,8 @@ class TestKubernetesWorker:
         default_configuration: KubernetesWorkerJobConfiguration,
         flow_run,
     ):
-        mock_watch.return_value.stream = Mock(
-            side_effect=_mock_pods_stream_that_returns_running_pod
+        mock_watch.return_value.stream = mock.Mock(
+            side_effect=mock_stream
         )
 
         # The job should not be completed to start
@@ -2320,7 +2320,7 @@ class TestKubernetesWorker:
                 yield {"object": job, "type": "ADDED"}
 
         async def mock_log_stream(*args, **kwargs):
-            await asyncio.sleep(50)
+            await anyio.sleep(50)
             yield MagicMock()
 
         mock_core_client.return_value.read_namespaced_pod_log.return_value.stream = (
@@ -2494,7 +2494,7 @@ class TestKubernetesWorker:
         mock_anyio_sleep_monotonic,
     ):
         # The job should not be completed to start
-        mock_batch_client.read_namespaced_job.return_value.status.completion_time = None
+        mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
 
         #TODO investigate why it needs type
         async def mock_stream(*args, **kwargs):
@@ -2507,7 +2507,7 @@ class TestKubernetesWorker:
                 job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
 
                 # Sleep a little
-                await asyncio.sleep(10)
+                await anyio.sleep(10)
 
                 # Yield the job then return exiting the stream
                 job.status.completion_time = None
@@ -2520,9 +2520,9 @@ class TestKubernetesWorker:
         default_configuration.job_watch_timeout_seconds = 40
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             result = await k8s_worker.run(flow_run, default_configuration)
-        print(mock_watch.return_value.stream.mock_calls)
+        
         assert result.status_code == -1
-        print(mock_watch.mock_calls)
+        
         mock_watch.return_value.stream.assert_has_calls(
             [
                 mock.call(
@@ -2974,7 +2974,7 @@ class TestKubernetesWorker:
                 task_status=MagicMock(spec=anyio.abc.TaskStatus),
             )
 
-            print(mock_core_client.mock_calls)
+          
             mock_core_client.return_value.list_namespaced_event.assert_called_once_with(
                 default_configuration.namespace
             )

@@ -932,13 +932,19 @@ class KubernetesWorker(BaseWorker):
         """
         while True:
             try:
-                async for event in watch.stream(
+                return watch.stream(
                     func=batch_client.list_namespaced_job,
                     namespace=namespace,
                     field_selector=f"metadata.name={job_name}",
                     **watch_kwargs,
-                ):
-                    yield event
+                )
+                # async for event in watch.stream(
+                #     func=batch_client.list_namespaced_job,
+                #     namespace=namespace,
+                #     field_selector=f"metadata.name={job_name}",
+                #     **watch_kwargs,
+                # ):
+                #     yield event
             except ApiException as e:
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
@@ -975,40 +981,40 @@ class KubernetesWorker(BaseWorker):
         loop = get_running_loop()
         # Calculate the deadline before streaming output
         deadline = (
-            (loop.time() + configuration.job_watch_timeout_seconds)
+            (time.monotonic() + configuration.job_watch_timeout_seconds)
             if configuration.job_watch_timeout_seconds is not None
             else None
         )
 
-        # if configuration.stream_output:
-        #     core_client = CoreV1Api(client)
-        #     logs = await core_client.read_namespaced_pod_log(
-        #         pod.metadata.name,
-        #         configuration.namespace,
-        #         follow=True,
-        #         _preload_content=False,
-        #         container="prefect-job",
-        #     )
-        #     try:
-        #         print("logs:", logs)
-        #         async for log in logs.stream():
-        #             print(log.decode().rstrip())
+        if configuration.stream_output:
+            core_client = CoreV1Api(client)
+            logs = await core_client.read_namespaced_pod_log(
+                pod.metadata.name,
+                configuration.namespace,
+                follow=True,
+                _preload_content=False,
+                container="prefect-job",
+            )
+            try:
+               
+                async for log in logs.stream():
+                    print(log.decode().rstrip())
 
-        #             # Check if we have passed the deadline and should stop streaming
-        #             # logs
-        #             remaining_time = deadline - time.monotonic() if deadline else None
-        #             if deadline and remaining_time <= 0:
-        #                 break
+                    # Check if we have passed the deadline and should stop streaming
+                    # logs
+                    remaining_time = deadline - time.monotonic() if deadline else None
+                    if deadline and remaining_time <= 0:
+                        break
 
-        #     except Exception:
-        #         logger.warning(
-        #             (
-        #                 "Error occurred while streaming logs - "
-        #                 "Job will continue to run but logs will "
-        #                 "no longer be streamed to stdout."
-        #             ),
-        #             exc_info=True,
-        #         )
+            except Exception:
+                logger.warning(
+                    (
+                        "Error occurred while streaming logs - "
+                        "Job will continue to run but logs will "
+                        "no longer be streamed to stdout."
+                    ),
+                    exc_info=True,
+                )
 
         batch_client = BatchV1Api(client)
         # Check if the job is completed before beginning a watch
@@ -1016,9 +1022,14 @@ class KubernetesWorker(BaseWorker):
             name=job_name, namespace=configuration.namespace
         )
         completed = job.status.completion_time is not None
+        print("completed:", completed)
+        print("job.status.completion_time:", job.status.completion_time)
 
         while not completed:
-            remaining_time = math.ceil(deadline - loop.time()) if deadline else None
+            remaining_time = math.ceil(deadline - time.monotonic()) if deadline else None
+            
+            print("deadline:", deadline)
+
             if deadline and remaining_time <= 0:
                 logger.error(
                     f"Job {job_name!r}: Job did not complete within "
@@ -1033,13 +1044,16 @@ class KubernetesWorker(BaseWorker):
             # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
             watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
 
-            async for event in self._job_events(
+            async for event in await self._job_events(
                 watch,
                 batch_client,
                 job_name,
                 configuration.namespace,
                 watch_kwargs,
             ):
+                # print("event:", event)
+                # print("remaining_time:", remaining_time)    
+                # print("time monotonic:", time.monotonic())
                 if event["type"] == "DELETED":
                     logger.error(f"Job {job_name!r}: Job has been deleted.")
                     completed = True
