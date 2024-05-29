@@ -5,15 +5,9 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Optional, Union
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel, Extra, Field
-else:
-    from pydantic import BaseModel, Extra, Field
-
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import Literal
 
 
@@ -22,9 +16,7 @@ class AutoScale(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     max_workers: Optional[int] = Field(
         None,
@@ -48,9 +40,7 @@ class AwsAttributes(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     availability: Optional[Literal["SPOT", "ON_DEMAND", "SPOT_WITH_FALLBACK"]] = Field(
         None,
@@ -268,9 +258,7 @@ class ClusterInstance(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     cluster_id: Optional[str] = Field(
         None,
@@ -302,9 +290,7 @@ class ClusterSize(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     autoscale: Optional[AutoScale] = Field(
         None,
@@ -371,10 +357,7 @@ class ClusterTag(BaseModel):
     An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions>
     """
 
-    class Config:
-        extra = Extra.allow
-
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
 
 class CronSchedule(BaseModel):
@@ -382,9 +365,7 @@ class CronSchedule(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     pause_status: Optional[Literal["PAUSED", "UNPAUSED"]] = Field(
         None,
@@ -418,9 +399,7 @@ class DbfsStorageInfo(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     destination: Optional[str] = Field(
         None, description="DBFS destination. Example: `dbfs:/my/path`"
@@ -432,9 +411,7 @@ class DbtOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     artifacts_headers: Optional[Dict[str, Any]] = Field(
         None,
@@ -458,9 +435,7 @@ class DbtTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     catalog: Optional[str] = Field(
         None,
@@ -522,9 +497,7 @@ class DockerBasicAuth(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     password: Optional[str] = Field(
         None, description="Password for the Docker repository."
@@ -539,9 +512,7 @@ class DockerImage(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     basic_auth: Optional[DockerBasicAuth] = Field(
         None, description="Basic authentication information for Docker repository."
@@ -554,9 +525,7 @@ class Error(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     error_code: Optional[str] = Field(
         None, description="Error code", example="INTERNAL_ERROR"
@@ -575,9 +544,7 @@ class FileStorageInfo(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     destination: Optional[str] = Field(
         None, description="File destination. Example: `file:/my/file.sh`"
@@ -591,9 +558,7 @@ class GitSnapshot(BaseModel):
     Read-only state of the remote repository at the time the job was run. This field is only included on job runs.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     used_commit: Optional[str] = Field(
         None,
@@ -615,9 +580,7 @@ class GitSource(BaseModel):
     An optional specification for a remote repository containing the notebooks used by this job's notebook tasks.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     git_branch: Optional[str] = Field(
         None,
@@ -676,47 +639,20 @@ class GitSource(BaseModel):
     )
 
 
-class GitSource1(BaseModel):
+class GitSource1(RootModel[Union[GitSource, Any, Any, Any]]):
     """
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: Union[GitSource, Any, Any, Any] = Field(
-        ...,
-        description=(
-            "This functionality is in Public Preview.\n\nAn optional specification for"
-            " a remote repository containing the notebooks used by this job's notebook"
-            " tasks."
-        ),
-        example={
-            "git_branch": "main",
-            "git_provider": "gitHub",
-            "git_url": "https://github.com/databricks/databricks-cli",
-        },
-    )
+    model_config = ConfigDict(frozen=True)
 
 
-class GroupName(BaseModel):
+class GroupName(RootModel[str]):
     """
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: str = Field(
-        ...,
-        description=(
-            "Group name. There are two built-in groups: `users` for all users, and"
-            " `admins` for administrators."
-        ),
-        example="users",
-    )
+    model_config = ConfigDict(frozen=True)
 
 
 class IsOwner(str, Enum):
@@ -732,9 +668,7 @@ class JobEmailNotifications(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     no_alert_for_skipped_runs: Optional[bool] = Field(
         None,
@@ -817,9 +751,7 @@ class LogSyncStatus(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     last_attempted: Optional[int] = Field(
         None,
@@ -842,9 +774,7 @@ class MavenLibrary(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     coordinates: str = Field(
         ...,
@@ -878,9 +808,7 @@ class NotebookOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     result: Optional[str] = Field(
         None,
@@ -904,9 +832,7 @@ class NotebookTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     base_parameters: Optional[Dict[str, Any]] = Field(
         None,
@@ -956,38 +882,23 @@ class ParameterPair(BaseModel):
     An object with additional information about why a cluster was terminated. The object keys are one of `TerminationParameter` and the value is the termination information.
     """
 
-    class Config:
-        extra = Extra.allow
-
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
 
-class PermissionLevel(BaseModel):
+class PermissionLevel(RootModel[Union[CanManage, CanManageRun, CanView, IsOwner]]):
     """
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: Union[CanManage, CanManageRun, CanView, IsOwner] = Field(
-        ..., description="Permission level to grant."
-    )
+    model_config = ConfigDict(frozen=True)
 
 
-class PermissionLevelForGroup(BaseModel):
+class PermissionLevelForGroup(RootModel[Union[CanManage, CanManageRun, CanView]]):
     """
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: Union[CanManage, CanManageRun, CanView] = Field(
-        ..., description="Permission level to grant."
-    )
+    model_config = ConfigDict(frozen=True)
 
 
 class PipelineTask(BaseModel):
@@ -995,9 +906,7 @@ class PipelineTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     full_refresh: Optional[bool] = Field(
         False,
@@ -1027,9 +936,7 @@ class PythonPyPiLibrary(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     package: str = Field(
         ...,
@@ -1055,9 +962,7 @@ class PythonWheelTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     entry_point: Optional[str] = Field(
         None,
@@ -1094,9 +999,7 @@ class RCranLibrary(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     package: str = Field(
         ...,
@@ -1118,9 +1021,7 @@ class RepairRunInput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     latest_repair_id: Optional[int] = Field(
         None,
@@ -1191,9 +1092,7 @@ class RunNowInput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     idempotency_token: Optional[str] = Field(
         None,
@@ -1220,9 +1119,7 @@ class PipelineParams(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     full_refresh: Optional[bool] = Field(
         None, description="If true, triggers a full refresh on the delta live table."
@@ -1234,9 +1131,7 @@ class RunParameters(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     dbt_commands: Optional[List] = Field(
         None,
@@ -1359,9 +1254,7 @@ class RunState(BaseModel):
     The result and lifecycle state of the run.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     life_cycle_state: Optional[RunLifeCycleState] = Field(
         None,
@@ -1407,9 +1300,7 @@ class S3StorageInfo(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     canned_acl: Optional[str] = Field(
         None,
@@ -1465,20 +1356,12 @@ class S3StorageInfo(BaseModel):
     )
 
 
-class ServicePrincipalName(BaseModel):
+class ServicePrincipalName(RootModel[str]):
     """
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: str = Field(
-        ...,
-        description="Name of an Azure service principal.",
-        example="9f0621ee-b52b-11ea-b3de-0242ac130004",
-    )
+    model_config = ConfigDict(frozen=True)
 
 
 class SparkConfPair(BaseModel):
@@ -1488,10 +1371,7 @@ class SparkConfPair(BaseModel):
     An arbitrary object where the object key is a configuration property name and the value is a configuration property value.
     """
 
-    class Config:
-        extra = Extra.allow
-
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
 
 class SparkEnvPair(BaseModel):
@@ -1501,10 +1381,7 @@ class SparkEnvPair(BaseModel):
     An arbitrary object where the object key is an environment variable name and the value is an environment variable value.
     """
 
-    class Config:
-        extra = Extra.allow
-
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
 
 class SparkJarTask(BaseModel):
@@ -1512,9 +1389,7 @@ class SparkJarTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     jar_uri: Optional[str] = Field(
         None,
@@ -1551,9 +1426,7 @@ class SparkNodeAwsAttributes(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     is_spot: Optional[bool] = Field(
         None, description="Whether this node is on an Amazon spot instance."
@@ -1565,9 +1438,7 @@ class SparkPythonTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     parameters: Optional[List[str]] = Field(
         None,
@@ -1595,9 +1466,7 @@ class SparkSubmitTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     parameters: Optional[List[str]] = Field(
         None,
@@ -1620,9 +1489,7 @@ class SparkVersion(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     key: Optional[str] = Field(
         None,
@@ -1649,9 +1516,7 @@ class SqlOutputError(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     message: Optional[str] = Field(
         None, description="The error message when execution fails."
@@ -1663,9 +1528,7 @@ class SqlStatementOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     lookup_key: Optional[str] = Field(
         None, description="A key that can be used to look up query details."
@@ -1677,9 +1540,7 @@ class SqlTaskAlert(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     alert_id: str = Field(..., description="The canonical identifier of the SQL alert.")
 
@@ -1689,9 +1550,7 @@ class SqlTaskDashboard(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     dashboard_id: str = Field(
         ..., description="The canonical identifier of the SQL dashboard."
@@ -1703,9 +1562,7 @@ class SqlTaskQuery(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     query_id: str = Field(..., description="The canonical identifier of the SQL query.")
 
@@ -1715,14 +1572,12 @@ class TaskDependency(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     task_key: Optional[str] = None
 
 
-class TaskDependencies(BaseModel):
+class TaskDependencies(List[TaskDependency]):
     """
     See source code for the fields' description.
 
@@ -1731,52 +1586,20 @@ class TaskDependencies(BaseModel):
     This field is required when a job consists of more than one task.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: List[TaskDependency] = Field(
-        ...,
-        description=(
-            "An optional array of objects specifying the dependency graph of the task."
-            " All tasks specified in this field must complete successfully before"
-            " executing this task.\nThe key is `task_key`, and the value is the name"
-            " assigned to the dependent task.\nThis field is required when a job"
-            " consists of more than one task."
-        ),
-        example=[{"task_key": "Previous_Task_Key"}, {"task_key": "Other_Task_Key"}],
-    )
+    model_config = ConfigDict(extra="allow", frozen=True)
 
 
-class TaskDescription(BaseModel):
+class TaskDescription(RootModel[str]):
     """
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: str = Field(
-        ...,
-        description=(
-            "An optional description for this task.\nThe maximum length is 4096 bytes."
-        ),
-        example="This is the description for this task.",
-        max_length=4096,
-    )
+    model_config = ConfigDict(frozen=True)
 
 
-class TaskKey(BaseModel):
-    """
-    See source code for the fields' description.
-    """
-
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: str = Field(
+TaskKeyStr = Annotated[
+    str,
+    Field(
         ...,
         description=(
             "A unique name for the task. This field is used to refer to this task from"
@@ -1784,11 +1607,20 @@ class TaskKey(BaseModel):
             " job.\nOn Update or Reset, this field is used to reference the tasks to be"
             " updated or reset.\nThe maximum length is 100 characters."
         ),
-        example="Task_Key",
+        examples=["Task_Key"],
         max_length=100,
         min_length=1,
-        regex="^[\\w\\-]+$",
-    )
+        pattern="^[\\w\\-]+$",
+    ),
+]
+
+
+class TaskKey(RootModel[TaskKeyStr]):
+    """
+    See source code for the fields' description.
+    """
+
+    model_config = ConfigDict(frozen=True)
 
 
 class TerminationCode(str, Enum):
@@ -1844,9 +1676,7 @@ class TerminationParameter(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     aws_api_error_code: Optional[str] = Field(
         None,
@@ -1969,18 +1799,12 @@ class TriggerType(str, Enum):
     retry = "RETRY"
 
 
-class UserName(BaseModel):
+class UserName(RootModel[str]):
     """
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
-
-    __root__: str = Field(
-        ..., description="Email address for the user.", example="jsmith@example.com"
-    )
+    model_config = ConfigDict(frozen=True)
 
 
 class ViewType(str, Enum):
@@ -2010,9 +1834,7 @@ class OnFailureItem(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     id: Optional[str] = None
 
@@ -2022,9 +1844,7 @@ class OnStartItem(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     id: Optional[str] = None
 
@@ -2034,9 +1854,7 @@ class OnSucces(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     id: Optional[str] = None
 
@@ -2046,9 +1864,7 @@ class WebhookNotifications(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     on_failure: Optional[List[OnFailureItem]] = Field(
         None,
@@ -2085,9 +1901,7 @@ class AccessControlRequestForGroup(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     group_name: Optional[GroupName] = None
     permission_level: Optional[PermissionLevelForGroup] = None
@@ -2098,9 +1912,7 @@ class AccessControlRequestForServicePrincipal(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     permission_level: Optional[PermissionLevel] = None
     service_principal_name: Optional[ServicePrincipalName] = None
@@ -2111,9 +1923,7 @@ class AccessControlRequestForUser(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     permission_level: Optional[PermissionLevel] = None
     user_name: Optional[UserName] = None
@@ -2124,9 +1934,7 @@ class ClusterCloudProviderNodeInfo(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     available_core_quota: Optional[int] = Field(
         None, description="Available CPU core quota."
@@ -2142,9 +1950,7 @@ class ClusterLogConf(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     dbfs: Optional[DbfsStorageInfo] = Field(
         None,
@@ -2168,9 +1974,7 @@ class InitScriptInfo(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     s3: Optional[S3StorageInfo] = Field(
         None,
@@ -2202,9 +2006,7 @@ class Library(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     cran: Optional[RCranLibrary] = Field(
         None, description="If cran, specification of a CRAN library to be installed."
@@ -2269,9 +2071,7 @@ class LibraryFullStatus(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     is_library_for_all_clusters: Optional[bool] = Field(
         None,
@@ -2300,9 +2100,7 @@ class NewCluster(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     autoscale: Optional[AutoScale] = Field(
         None,
@@ -2477,9 +2275,7 @@ class NodeType(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     description: str = Field(
         ...,
@@ -2529,9 +2325,7 @@ class RepairHistoryItem(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     end_time: Optional[int] = Field(
         None, description="The end time of the (repaired) run.", example=1625060863413
@@ -2569,9 +2363,7 @@ class SparkNode(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     host_private_ip: Optional[str] = Field(
         None, description="The private IP address of the host instance."
@@ -2615,9 +2407,7 @@ class SqlAlertOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     output_link: Optional[str] = Field(
         None, description="The link to find the output results."
@@ -2642,9 +2432,7 @@ class SqlDashboardWidgetOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     end_time: Optional[int] = Field(
         None,
@@ -2680,9 +2468,7 @@ class SqlQueryOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     output_link: Optional[str] = Field(
         None, description="The link to find the output results."
@@ -2707,9 +2493,7 @@ class SqlTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     alert: Optional[SqlTaskAlert] = Field(
         None, description="If alert, indicates that this job must refresh a SQL alert."
@@ -2745,9 +2529,7 @@ class TerminationReason(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     code: Optional[TerminationCode] = Field(
         None, description="Status code indicating why a cluster was terminated."
@@ -2769,9 +2551,7 @@ class ViewItem(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     content: Optional[str] = Field(None, description="Content of the view.")
     name: Optional[str] = Field(
@@ -2790,9 +2570,7 @@ class AccessControlRequest(AccessControlRequestForUser, AccessControlRequestForG
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
 
 class ClusterAttributes(BaseModel):
@@ -2800,9 +2578,7 @@ class ClusterAttributes(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     autotermination_minutes: Optional[int] = Field(
         None,
@@ -2974,9 +2750,7 @@ class ClusterInfo(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     autoscale: Optional[AutoScale] = Field(
         None,
@@ -3268,9 +3042,7 @@ class ClusterLibraryStatuses(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     cluster_id: Optional[str] = Field(
         None, description="Unique identifier for the cluster."
@@ -3285,9 +3057,7 @@ class ClusterSpec(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     existing_cluster_id: Optional[str] = Field(
         None,
@@ -3319,9 +3089,7 @@ class EventDetails(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     attributes: Optional[AwsAttributes] = Field(
         None,
@@ -3371,9 +3139,7 @@ class JobCluster(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     job_cluster_key: str = Field(
         ...,
@@ -3382,10 +3148,10 @@ class JobCluster(BaseModel):
             " unique within the job.\n`JobTaskSettings` may refer to this field to"
             " determine which cluster to launch for the task execution."
         ),
-        example="auto_scaling_cluster",
+        examples=["auto_scaling_cluster"],
         max_length=100,
         min_length=1,
-        regex="^[\\w\\-]+$",
+        pattern="^[\\w\\-]+$",
     )
     new_cluster: Optional[NewCluster] = None
 
@@ -3395,9 +3161,7 @@ class JobTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     dbt_task: Optional[DbtTask] = Field(
         None,
@@ -3458,9 +3222,7 @@ class JobTaskSettings(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True, arbitrary_types_allowed=True)
 
     dbt_task: Optional[DbtTask] = Field(
         None,
@@ -3498,7 +3260,7 @@ class JobTaskSettings(BaseModel):
         ),
         max_length=100,
         min_length=1,
-        regex="^[\\w\\-]+$",
+        pattern="^[\\w\\-]+$",
     )
     libraries: Optional[List[Library]] = Field(
         None,
@@ -3606,9 +3368,7 @@ class RepairHistory(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     repair_history: Optional[List[RepairHistoryItem]] = Field(
         None, description="The repair history of the run."
@@ -3620,9 +3380,7 @@ class RunSubmitTaskSettings(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True, arbitrary_types_allowed=True)
 
     dbt_task: Optional[DbtTask] = Field(
         None,
@@ -3714,9 +3472,7 @@ class RunTask(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True, arbitrary_types_allowed=True)
 
     attempt_number: Optional[int] = Field(
         None,
@@ -3885,9 +3641,7 @@ class SqlDashboardOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     widgets: Optional[SqlDashboardWidgetOutput] = Field(
         None,
@@ -3902,9 +3656,7 @@ class SqlOutput(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     alert_output: Optional[SqlAlertOutput] = Field(
         None, description="The output of a SQL alert task, if available."
@@ -3922,9 +3674,7 @@ class AccessControlList(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     access_control_list: Optional[List[AccessControlRequest]] = Field(
         None, description="List of permissions to set on the job."
@@ -3936,9 +3686,7 @@ class ClusterEvent(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     cluster_id: str = Field(
         ..., description="Canonical identifier for the cluster. This field is required."
@@ -3963,9 +3711,7 @@ class JobSettings(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     email_notifications: Optional[JobEmailNotifications] = Field(
         None,
@@ -4016,7 +3762,7 @@ class JobSettings(BaseModel):
                 },
             }
         ],
-        max_items=100,
+        max_length=100,
     )
     max_concurrent_runs: Optional[int] = Field(
         None,
@@ -4118,7 +3864,7 @@ class JobSettings(BaseModel):
                 "timeout_seconds": 86400,
             },
         ],
-        max_items=100,
+        max_length=100,
     )
     timeout_seconds: Optional[int] = Field(
         None,
@@ -4143,9 +3889,7 @@ class Run(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     attempt_number: Optional[int] = Field(
         None,
@@ -4240,7 +3984,7 @@ class Run(BaseModel):
                 },
             }
         ],
-        max_items=100,
+        max_length=100,
     )
     job_id: Optional[int] = Field(
         None,
@@ -4423,7 +4167,7 @@ class Run(BaseModel):
                 "task_key": "Sessionize",
             },
         ],
-        max_items=100,
+        max_length=100,
     )
     trigger: Optional[TriggerType] = Field(
         None, description="The type of trigger that fired this run."
@@ -4435,9 +4179,7 @@ class RunSubmitSettings(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     git_source: Optional[GitSource1] = Field(
         None,
@@ -4521,7 +4263,7 @@ class RunSubmitSettings(BaseModel):
                 "timeout_seconds": 86400,
             },
         ],
-        max_items=100,
+        max_length=100,
     )
     timeout_seconds: Optional[int] = Field(
         None,
@@ -4546,9 +4288,7 @@ class Job(BaseModel):
     See source code for the fields' description.
     """
 
-    class Config:
-        extra = Extra.allow
-        allow_mutation = False
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     created_time: Optional[int] = Field(
         None,

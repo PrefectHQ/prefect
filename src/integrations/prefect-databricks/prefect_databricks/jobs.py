@@ -10,10 +10,9 @@ Databricks jobs
 # OpenAPI spec: jobs-2.1-aws.yaml
 # Updated at: 2022-12-10T01:04:37.047265
 
-from typing import Any, Dict, List, Optional, Union  # noqa
+from typing import Any, Dict, List, Optional
 
 from prefect import task
-
 from prefect_databricks import DatabricksCredentials
 from prefect_databricks.models import jobs as models  # noqa
 from prefect_databricks.rest import HTTPMethod, _unpack_contents, execute_endpoint
