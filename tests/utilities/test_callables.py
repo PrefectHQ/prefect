@@ -821,10 +821,12 @@ class TestEntrypointToSchema:
         tmp_path.joinpath("test.py").write_text(source_code)
 
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "properties": {},
             "title": "Parameters",
             "type": "object",
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_pydantic_base_model_collisions(self, tmp_path: Path):
@@ -848,7 +850,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -877,6 +879,7 @@ class TestEntrypointToSchema:
                 "validate",
                 "foo",
             ],
+            "definitions": {},
         }
 
     def test_function_with_one_required_argument(self, tmp_path: Path):
@@ -888,11 +891,12 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_one_optional_argument(self, tmp_path: Path):
@@ -904,10 +908,12 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "position": 0}},
+            "required": [],
+            "definitions": {},
         }
 
     def test_function_with_one_optional_annotated_argument(self, tmp_path: Path):
@@ -919,12 +925,14 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "default": 42, "type": "integer", "position": 0}
             },
+            "definitions": {},
+            "required": [],
         }
 
     def test_function_with_two_arguments(self, tmp_path: Path):
@@ -936,7 +944,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -944,6 +952,7 @@ class TestEntrypointToSchema:
                 "y": {"title": "y", "default": 5.0, "type": "number", "position": 1},
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_datetime_arguments(self, tmp_path: Path):
@@ -962,63 +971,35 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        if HAS_PYDANTIC_V2:
-            expected_schema = {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "format": "date-time",
-                        "position": 0,
-                        "title": "x",
-                        "type": "string",
-                    },
-                    "y": {
-                        "default": "2025-01-01T00:00:00Z",
-                        "format": "date-time",
-                        "position": 1,
-                        "title": "y",
-                        "type": "string",
-                    },
-                    "z": {
-                        "default": "PT5S",
-                        "format": "duration",
-                        "position": 2,
-                        "title": "z",
-                        "type": "string",
-                    },
+        expected_schema = {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "format": "date-time",
+                    "position": 0,
+                    "title": "x",
+                    "type": "string",
                 },
-                "required": ["x"],
-            }
-        else:
-            expected_schema = {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "title": "x",
-                        "type": "string",
-                        "format": "date-time",
-                        "position": 0,
-                    },
-                    "y": {
-                        "title": "y",
-                        "default": "2025-01-01T00:00:00+00:00",
-                        "type": "string",
-                        "format": "date-time",
-                        "position": 1,
-                    },
-                    "z": {
-                        "title": "z",
-                        "default": 5.0,
-                        "type": "number",
-                        "format": "time-delta",
-                        "position": 2,
-                    },
+                "y": {
+                    "default": "2025-01-01T00:00:00Z",
+                    "format": "date-time",
+                    "position": 1,
+                    "title": "y",
+                    "type": "string",
                 },
-                "required": ["x"],
-            }
-        assert schema.dict() == expected_schema
+                "z": {
+                    "default": "PT5S",
+                    "format": "duration",
+                    "position": 2,
+                    "title": "z",
+                    "type": "string",
+                },
+            },
+            "required": ["x"],
+            "definitions": {},
+        }
+        assert schema.model_dump_for_openapi() == expected_schema
 
     def test_function_with_enum_argument(self, tmp_path: Path):
         class Color(Enum):
@@ -1042,52 +1023,27 @@ class TestEntrypointToSchema:
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
 
-        if HAS_PYDANTIC_V2:
-            expected_schema = {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "allOf": [{"$ref": "#/definitions/Color"}],
-                        "default": "RED",
-                        "position": 0,
-                        "title": "x",
-                    }
-                },
-                "definitions": {
-                    "Color": {
-                        "enum": ["RED", "GREEN", "BLUE"],
-                        "title": "Color",
-                        "type": "string",
-                    }
-                },
-            }
-        else:
-            expected_schema = {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "title": "x",
-                        "default": "RED",
-                        "allOf": [{"$ref": "#/definitions/Color"}],
-                        "position": 0,
-                    }
-                },
-                "definitions": {
-                    "Color": {
-                        "title": "Color",
-                        "description": "An enumeration.",
-                        "enum": [
-                            "RED",
-                            "GREEN",
-                            "BLUE",
-                        ],
-                    }
-                },
-            }
-
-        assert schema.dict() == expected_schema
+        expected_schema = {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    "default": "RED",
+                    "position": 0,
+                    "title": "x",
+                }
+            },
+            "definitions": {
+                "Color": {
+                    "enum": ["RED", "GREEN", "BLUE"],
+                    "title": "Color",
+                    "type": "string",
+                }
+            },
+            "required": [],
+        }
+        assert schema.model_dump_for_openapi() == expected_schema
 
     def test_function_with_generic_arguments(self, tmp_path: Path):
         source_code = dedent(
@@ -1107,82 +1063,41 @@ class TestEntrypointToSchema:
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
 
-        if HAS_PYDANTIC_V2:
-            expected_schema = {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "a": {
-                        "items": {"type": "string"},
-                        "position": 0,
-                        "title": "a",
-                        "type": "array",
-                    },
-                    "b": {"position": 1, "title": "b", "type": "object"},
-                    "c": {"position": 2, "title": "c"},
-                    "d": {
-                        "maxItems": 2,
-                        "minItems": 2,
-                        "position": 3,
-                        "prefixItems": [{"type": "integer"}, {"type": "number"}],
-                        "title": "d",
-                        "type": "array",
-                    },
-                    "e": {
-                        "anyOf": [
-                            {"type": "string"},
-                            {"format": "binary", "type": "string"},
-                            {"type": "integer"},
-                        ],
-                        "position": 4,
-                        "title": "e",
-                    },
+        expected_schema = {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "a": {
+                    "items": {"type": "string"},
+                    "position": 0,
+                    "title": "a",
+                    "type": "array",
                 },
-                "required": ["a", "b", "c", "d", "e"],
-            }
-        else:
-            # pydantic 1.9.0 adds min and max item counts to the parameter schema
-            min_max_items = (
-                {
-                    "minItems": 2,
+                "b": {"position": 1, "title": "b", "type": "object"},
+                "c": {"position": 2, "title": "c"},
+                "d": {
                     "maxItems": 2,
-                }
-                if Version(pydantic.version.VERSION) >= Version("1.9.0")
-                else {}
-            )
-            expected_schema = {
-                "title": "Parameters",
-                "type": "object",
-                "properties": {
-                    "a": {
-                        "title": "a",
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "position": 0,
-                    },
-                    "b": {"title": "b", "type": "object", "position": 1},
-                    "c": {"title": "c", "position": 2},
-                    "d": {
-                        "title": "d",
-                        "type": "array",
-                        "items": [{"type": "integer"}, {"type": "number"}],
-                        **min_max_items,
-                        "position": 3,
-                    },
-                    "e": {
-                        "title": "e",
-                        "anyOf": [
-                            {"type": "string"},
-                            {"type": "string", "format": "binary"},
-                            {"type": "integer"},
-                        ],
-                        "position": 4,
-                    },
+                    "minItems": 2,
+                    "position": 3,
+                    "prefixItems": [{"type": "integer"}, {"type": "number"}],
+                    "title": "d",
+                    "type": "array",
                 },
-                "required": ["a", "b", "c", "d", "e"],
-            }
+                "e": {
+                    "anyOf": [
+                        {"type": "string"},
+                        {"format": "binary", "type": "string"},
+                        {"type": "integer"},
+                    ],
+                    "position": 4,
+                    "title": "e",
+                },
+            },
+            "required": ["a", "b", "c", "d", "e"],
+            "definitions": {},
+        }
 
-        assert schema.dict() == expected_schema
+        assert schema.model_dump_for_openapi() == expected_schema
 
     def test_function_with_user_defined_type(self, tmp_path: Path):
         source_code = dedent(
@@ -1197,11 +1112,12 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_user_defined_pydantic_model(self, tmp_path: Path):
@@ -1220,7 +1136,7 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "definitions": {
                 "Foo": {
                     "properties": {
@@ -1261,7 +1177,7 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1280,6 +1196,7 @@ class TestEntrypointToSchema:
                     "type": "object",
                 }
             },
+            "required": [],
         }
 
     def test_function_with_complex_args_across_v1_and_v2(self, tmp_path: Path):
@@ -1336,20 +1253,17 @@ class TestEntrypointToSchema:
             "description": "An enumeration.",
         }
 
-        if HAS_PYDANTIC_V2:
-            # these overrides represent changes in how pydantic generates schemas in v2
-            datetime_schema["default"] = "2025-01-01T00:00:00Z"
-            duration_schema["default"] = "PT5S"
-            duration_schema["type"] = "string"
-            duration_schema["format"] = "duration"
-            enum_schema.pop("description")
-        else:
-            enum_schema.pop("type")
+        # these overrides represent changes in how pydantic generates schemas in v2
+        datetime_schema["default"] = "2025-01-01T00:00:00Z"
+        duration_schema["default"] = "PT5S"
+        duration_schema["type"] = "string"
+        duration_schema["format"] = "duration"
+        enum_schema.pop("description")
 
         schema = tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
 
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1412,7 +1326,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1425,6 +1339,7 @@ class TestEntrypointToSchema:
                 },
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_function_with_v1_secretstr_from_compat_module(self, tmp_path: Path):
@@ -1438,19 +1353,17 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {
                     "title": "x",
                     "position": 0,
-                    "format": "password",
-                    "type": "string",
-                    "writeOnly": True,
                 },
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_flow_with_args_docstring(self, tmp_path: Path):
@@ -1466,13 +1379,14 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "description": "required argument x", "position": 0}
             },
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_flow_without_args_docstring(self, tmp_path: Path):
@@ -1484,11 +1398,12 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
 
     def test_flow_with_complex_args_docstring(self, tmp_path: Path):
@@ -1511,7 +1426,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1527,6 +1442,7 @@ class TestEntrypointToSchema:
                 },
             },
             "required": ["x", "y"],
+            "definitions": {},
         }
 
     def test_does_not_raise_when_missing_dependencies(self, tmp_path: Path):
@@ -1541,9 +1457,10 @@ class TestEntrypointToSchema:
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
 
-        assert schema.dict() == {
+        assert schema.model_dump_for_openapi() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+            "definitions": {},
         }
