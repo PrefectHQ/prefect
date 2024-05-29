@@ -5,7 +5,7 @@ from uuid import uuid4
 from distributed import Client, Future
 
 from prefect.context import serialize_context
-from prefect.new_task_engine import run_task_async, run_task_sync
+from prefect.task_engine import run_task_async, run_task_sync
 from prefect.tasks import Task
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import collect_task_run_inputs_sync

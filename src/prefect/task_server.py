@@ -16,7 +16,6 @@ from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
-from prefect.new_task_engine import run_task_async, run_task_sync
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_API_URL,
@@ -24,6 +23,7 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
+from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal

@@ -228,7 +228,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
             raise RuntimeError("Task runner is not started")
 
         from prefect.context import FlowRunContext
-        from prefect.new_task_engine import run_task_async, run_task_sync
+        from prefect.task_engine import run_task_async, run_task_sync
 
         task_run_id = uuid.uuid4()
         context = copy_context()
