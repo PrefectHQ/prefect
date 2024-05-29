@@ -3,16 +3,11 @@ Contexts to manage Ray clusters and tasks.
 """
 
 from contextlib import contextmanager
-from typing import Any, Dict
+from typing import Any, Dict, Generator
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect.context import ContextModel, ContextVar
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
 
 
 class RemoteOptionsContext(ContextModel):
@@ -23,6 +18,7 @@ class RemoteOptionsContext(ContextModel):
         current_remote_options: A set of current remote_options in the context.
     """
 
+    __var__: ContextVar = ContextVar("remote_options")
     current_remote_options: Dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
@@ -37,7 +33,9 @@ class RemoteOptionsContext(ContextModel):
 
 
 @contextmanager
-def remote_options(**new_remote_options: Dict[str, Any]) -> Dict[str, Any]:
+def remote_options(
+    **new_remote_options: Dict[str, Any],
+) -> Generator[None, Dict[str, Any], None]:
     """
     Context manager to add keyword arguments to Ray `@remote` calls
     for task runs. If contexts are nested, new options are merged with options

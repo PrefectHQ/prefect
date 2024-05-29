@@ -40,9 +40,9 @@ from prefect.exceptions import (
     RollBack,
     UpstreamTaskError,
 )
+from prefect.futures import PrefectFuture
 from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
-from prefect.new_futures import PrefectFuture
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (

@@ -6,9 +6,9 @@ from uuid import UUID
 import pytest
 
 from prefect.context import TagsContext, tags
-from prefect.new_futures import PrefectFuture
-from prefect.new_task_runners import ThreadPoolTaskRunner
+from prefect.futures import PrefectFuture
 from prefect.states import Completed, Running
+from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.tasks import task
 
 

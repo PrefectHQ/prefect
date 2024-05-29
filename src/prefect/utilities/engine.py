@@ -44,11 +44,11 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging.loggers import (
     get_logger,
     task_run_logger,
 )
-from prefect.new_futures import PrefectFuture as NewPrefectFuture
 from prefect.results import BaseResult
 from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,

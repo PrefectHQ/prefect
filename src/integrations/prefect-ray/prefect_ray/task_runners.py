@@ -81,10 +81,10 @@ from ray.exceptions import GetTimeoutError
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
-from prefect.new_futures import PrefectFuture
+from prefect.futures import PrefectFuture
 from prefect.new_task_engine import run_task_async, run_task_sync
-from prefect.new_task_runners import TaskRunner
 from prefect.states import State, exception_to_crashed_state
+from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
