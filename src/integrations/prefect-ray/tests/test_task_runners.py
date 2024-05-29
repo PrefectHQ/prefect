@@ -56,7 +56,7 @@ def machine_ray_instance():
     Starts a ray instance for the current machine
     """
     try:
-        subprocess.check_call(
+        subprocess.check_output(
             [
                 "ray",
                 "start",
@@ -69,7 +69,7 @@ def machine_ray_instance():
         )
         yield "ray://127.0.0.1:10001"
     except subprocess.CalledProcessError as exc:
-        pytest.fail(f"Failed to start ray: {exc}")
+        pytest.fail(f"Failed to start ray: {exc.stderr}")
     finally:
         subprocess.run(["ray", "stop"])
 
