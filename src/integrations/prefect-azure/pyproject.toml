@@ -7,11 +7,9 @@ name = "prefect-azure"
 description = "Prefect integrations with Microsoft Azure services"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
@@ -29,7 +27,7 @@ dependencies = [
   "azure_identity>=1.10",
   "azure_mgmt_containerinstance>=10.0",
   "azure-mgmt-resource>=21.2",
-  "prefect>=2.14.10",
+  "prefect@git+https://github.com/prefecthq/prefect.git",
 ]
 dynamic = ["version"]
 
@@ -37,11 +35,7 @@ dynamic = ["version"]
 blob_storage = ["azure-storage-blob"]
 cosmos_db = ["azure-cosmos"]
 ml_datastore = ["azureml-core"]
-all_extras = [
-  "azure-cosmos",
-  "azure-storage-blob",
-  "azureml-core",
-]
+all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core"]
 dev = [
   "aiohttp",
   "azure-cosmos",

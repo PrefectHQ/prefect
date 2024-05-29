@@ -4,7 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect-github"
-dependencies = ["sgqlc>=15.0", "prefect>=2.13.5"]
+dependencies = [
+  "sgqlc>=15.0",
+  "prefect@git+https://github.com/prefecthq/prefect.git",
+]
 dynamic = ["version"]
 description = "Prefect integrations interacting with GitHub"
 readme = "README.md"

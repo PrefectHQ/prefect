@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=2.14.10", "pydantic>=2.4"]
+dependencies = ["prefect@git+https://github.com/prefecthq/prefect.git"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
