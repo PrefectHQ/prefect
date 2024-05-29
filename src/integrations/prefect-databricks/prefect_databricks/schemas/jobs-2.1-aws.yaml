@@ -1180,7 +1180,6 @@ components:
       properties:
         name:
           description: The name of the defined parameter. May only contain alphanumeric characters, _, -, and .
-
           example:
             table
         default:
@@ -2458,8 +2457,12 @@ components:
             name: john doe
           type: object
         job_parameters:
-          description:  'A map from keys to values for job-level parameters used in the run, for example
+          description: 'A map from keys to values for job-level parameters used in the run, for example
              `"job_parameters": {"param": "overriding_val"}`.'
+          example:
+            param: overriding_val
+          type: object
+
     RunResultState:
       description: '* `SUCCESS`: The task completed successfully.
 
