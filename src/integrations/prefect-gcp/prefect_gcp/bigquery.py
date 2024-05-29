@@ -477,7 +477,7 @@ async def bigquery_load_file(
         from google.cloud.bigquery import SchemaField
 
         @flow
-        async def example_bigquery_load_file_flow():
+        def example_bigquery_load_file_flow():
             gcp_credentials = GcpCredentials(project="project")
             result = bigquery_load_file(
                 dataset="dataset",
