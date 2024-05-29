@@ -1,3 +1,4 @@
+import io
 import sys
 from pathlib import Path
 from unittest import mock
@@ -125,14 +126,14 @@ def test_streams_progress_to_stdout(howdy: str, registry: str, capsys: CaptureFi
     assert "\nPushing [" in output or "\nLayer already exists" in output
 
 
-# def test_streams_progress_to_given_stream(howdy: str, registry: str):
-#     my_stream = io.StringIO()
+def test_streams_progress_to_given_stream(howdy: str, registry: str):
+    my_stream = io.StringIO()
 
-#     push_image(howdy, registry, "howdy", stream_progress_to=my_stream)
+    push_image(howdy, registry, "howdy", stream_progress_to=my_stream)
 
-#     output = my_stream.getvalue()
+    output = my_stream.getvalue()
 
-#     # spot check a few things we should expect to find in the output
-#     assert "push refers to repository" in output
-#     assert "\nPreparing" in output
-#     assert "\nPushing [" in output or "\nLayer already exists" in output
+    # spot check a few things we should expect to find in the output
+    assert "push refers to repository" in output
+    assert "\nPreparing" in output
+    assert "\nPushing [" in output or "\nLayer already exists" in output
