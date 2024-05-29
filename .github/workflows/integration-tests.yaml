@@ -79,9 +79,9 @@ jobs:
             --name "prefect-server" \
             -d \
             -p 4200:4200 \
-            -e PREFECT_API_URL ${{ env.PREFECT_API_URL }} \
-            -e PREFECT_LOGGING_SERVER_LEVEL ${{ env.PREFECT_LOGGING_SERVER_LEVEL }} \
-            -e PREFECT_EXPERIMENTAL_EVENTS ${{ env.PREFECT_EXPERIMENTAL_EVENTS }} \
+            -e PREFECT_API_URL=${{ env.PREFECT_API_URL }} \
+            -e PREFECT_LOGGING_SERVER_LEVEL=${{ env.PREFECT_LOGGING_SERVER_LEVEL }} \
+            -e PREFECT_EXPERIMENTAL_EVENTS=${{ env.PREFECT_EXPERIMENTAL_EVENTS }} \
             ${{ matrix.server-version.image }} \
             prefect server start --analytics-off --host 0.0.0.0
 
