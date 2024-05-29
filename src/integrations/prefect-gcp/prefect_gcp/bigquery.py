@@ -6,18 +6,12 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from anyio import to_thread
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect import get_run_logger, task
 from prefect.blocks.abstract import DatabaseBlock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import hash_objects
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_gcp.credentials import GcpCredentials
 
 try:
@@ -48,6 +42,7 @@ def _result_sync(func, *args, **kwargs):
 
 
 @task
+@sync_compatible
 async def bigquery_query(
     query: str,
     gcp_credentials: GcpCredentials,
@@ -100,7 +95,7 @@ async def bigquery_query(
         from prefect_gcp.bigquery import bigquery_query
 
         @flow
-        def example_bigquery_query_flow():
+        async def example_bigquery_query_flow():
             gcp_credentials = GcpCredentials(
                 service_account_file="/path/to/service/account/keyfile.json",
                 project="project"
@@ -116,12 +111,12 @@ async def bigquery_query(
                 ("corpus", "STRING", "romeoandjuliet"),
                 ("min_word_count", "INT64", 250)
             ]
-            result = bigquery_query(
+            result = await bigquery_query_async(
                 query, gcp_credentials, query_params=query_params
             )
             return result
 
-        example_bigquery_query_flow()
+        await example_bigquery_query_flow()
         ```
     """  # noqa
     logger = get_run_logger()
@@ -175,6 +170,7 @@ async def bigquery_query(
 
 
 @task
+@sync_compatible
 async def bigquery_create_table(
     dataset: str,
     table: str,
@@ -209,21 +205,21 @@ async def bigquery_create_table(
         from prefect_gcp.bigquery import bigquery_create_table
         from google.cloud.bigquery import SchemaField
         @flow
-        def example_bigquery_create_table_flow():
+        async def example_bigquery_create_table_flow():
             gcp_credentials = GcpCredentials(project="project")
             schema = [
                 SchemaField("number", field_type="INTEGER", mode="REQUIRED"),
                 SchemaField("text", field_type="STRING", mode="REQUIRED"),
                 SchemaField("bool", field_type="BOOLEAN")
             ]
-            result = bigquery_create_table(
+            result = await bigquery_create_table_async(
                 dataset="dataset",
                 table="test_table",
                 schema=schema,
                 gcp_credentials=gcp_credentials
             )
             return result
-        example_bigquery_create_table_flow()
+        await example_bigquery_create_table_flow()
         ```
     """
     logger = get_run_logger()
@@ -269,6 +265,7 @@ async def bigquery_create_table(
 
 
 @task
+@sync_compatible
 async def bigquery_insert_stream(
     dataset: str,
     table: str,
@@ -303,13 +300,13 @@ async def bigquery_insert_stream(
         from google.cloud.bigquery import SchemaField
 
         @flow
-        def example_bigquery_insert_stream_flow():
+        async def example_bigquery_insert_stream_flow():
             gcp_credentials = GcpCredentials(project="project")
             records = [
                 {"number": 1, "text": "abc", "bool": True},
                 {"number": 2, "text": "def", "bool": False},
             ]
-            result = bigquery_insert_stream(
+            result = await bigquery_insert_stream_async(
                 dataset="integrations",
                 table="test_table",
                 records=records,
@@ -317,7 +314,7 @@ async def bigquery_insert_stream(
             )
             return result
 
-        example_bigquery_insert_stream_flow()
+        await example_bigquery_insert_stream_flow()
         ```
     """
     logger = get_run_logger()
@@ -344,6 +341,7 @@ async def bigquery_insert_stream(
 
 
 @task
+@sync_compatible
 async def bigquery_load_cloud_storage(
     dataset: str,
     table: str,
@@ -380,9 +378,9 @@ async def bigquery_load_cloud_storage(
         from prefect_gcp.bigquery import bigquery_load_cloud_storage
 
         @flow
-        def example_bigquery_load_cloud_storage_flow():
+        async def example_bigquery_load_cloud_storage_flow():
             gcp_credentials = GcpCredentials(project="project")
-            result = bigquery_load_cloud_storage(
+            result = await bigquery_load_cloud_storage_async(
                 dataset="dataset",
                 table="test_table",
                 uri="uri",
@@ -390,7 +388,7 @@ async def bigquery_load_cloud_storage(
             )
             return result
 
-        example_bigquery_load_cloud_storage_flow()
+        await example_bigquery_load_cloud_storage_flow()
         ```
     """
     logger = get_run_logger()
@@ -432,6 +430,7 @@ async def bigquery_load_cloud_storage(
 
 
 @task
+@sync_compatible
 async def bigquery_load_file(
     dataset: str,
     table: str,
@@ -477,9 +476,9 @@ async def bigquery_load_file(
         from google.cloud.bigquery import SchemaField
 
         @flow
-        def example_bigquery_load_file_flow():
+        async def example_bigquery_load_file_flow():
             gcp_credentials = GcpCredentials(project="project")
-            result = bigquery_load_file(
+            result = await bigquery_load_file_async(
                 dataset="dataset",
                 table="test_table",
                 path="path",
@@ -487,7 +486,7 @@ async def bigquery_load_file(
             )
             return result
 
-        example_bigquery_load_file_flow()
+        await example_bigquery_load_file_flow()
         ```
     """
     logger = get_run_logger()

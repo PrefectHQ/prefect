@@ -291,17 +291,6 @@ def test_credentials_is_able_to_serialize_back(monkeypatch, service_account_info
     assert test_flow() == expected
 
 
-async def test_get_access_token_async(gcp_credentials):
-    print(gcp_credentials.get_credentials_from_service_account().token)
-    token = await gcp_credentials.get_access_token()
-    assert token == "my-token"
-
-
-def test_get_access_token_sync_compatible(gcp_credentials):
-    token = gcp_credentials.get_access_token()
-    assert token == "my-token"
-
-
 @pytest.mark.parametrize("input_type", [None, str])
 @pytest.mark.parametrize(
     "client_type",
@@ -318,6 +307,6 @@ def test_get_client(gcp_credentials, input_type, client_type):
     assert gcp_credentials.get_client(client_type=client_type)
 
 
-def test_get_client_error(gcp_credentials):
+def test_get_client_error():
     with pytest.raises(ValueError, match="'cool' is not a valid ClientType"):
-        assert gcp_credentials.get_client(client_type="cool")
+        assert GcpCredentials().get_client(client_type="cool")

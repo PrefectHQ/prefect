@@ -2,13 +2,7 @@ import uuid
 from unittest.mock import Mock
 
 import anyio
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 from googleapiclient.errors import HttpError
 from prefect_gcp.credentials import GcpCredentials
@@ -19,9 +13,10 @@ from prefect_gcp.workers.cloud_run import (
     CloudRunWorkerResult,
 )
 
-from prefect.client.schemas import FlowRun
+from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.server.schemas.actions import DeploymentCreate
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.schema_tools.validation import (
     ValidationError as PrefectValidationError,
 )
@@ -112,18 +107,15 @@ class TestCloudRunWorkerJobConfiguration:
         assert container["env"][0]["name"] == "a"
         assert container["env"][0]["value"] == "b"
 
-    def test_populate_image_if_not_present(self, cloud_run_worker_job_config):
-        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
-            "template"
-        ]["spec"]["containers"][0]
+    def test_populate_image_if_not_present(self, cloud_run_worker_v2_job_config):
+        cloud_run_worker_v2_job_config._populate_image_if_not_present()
 
-        assert "image" not in container
-
-        cloud_run_worker_job_config._populate_image_if_not_present()
-
-        # defaults to prefect image
-        assert "image" in container
-        assert container["image"].startswith("docker.io/prefecthq/prefect:")
+        assert (
+            cloud_run_worker_v2_job_config.job_body["template"]["template"][
+                "containers"
+            ][0]["image"]
+            == f"docker.io/{get_prefect_image_name()}"
+        )
 
     def test_populate_image_doesnt_overwrite(self, cloud_run_worker_job_config):
         image = "my-first-image"
@@ -229,16 +221,13 @@ class TestCloudRunWorkerJobConfiguration:
         with pytest.raises(pydantic.ValidationError) as excinfo:
             await CloudRunWorkerJobConfiguration.from_template_and_values(template, {})
 
-        assert excinfo.value.errors() == [
-            {
-                "loc": ("job_body",),
-                "msg": (
-                    "Job is missing required attributes at the following paths: "
-                    "/apiVersion, /kind, /metadata, /spec"
-                ),
-                "type": "value_error",
-            }
-        ]
+        assert len(err := excinfo.value.errors()) == 1
+        assert err[0]["loc"] == ("job_body",)
+        assert "Value error, Job is missing required attributes" in err[0]["msg"]
+        assert all(
+            key in err[0]["msg"]
+            for key in ["/apiVersion", "/kind", "/metadata", "/spec"]
+        )
 
     async def test_validates_for_a_job_body_missing_deeper_attributes(self):
         template = CloudRunWorker.get_default_base_job_template()
@@ -253,17 +242,11 @@ class TestCloudRunWorkerJobConfiguration:
         with pytest.raises(pydantic.ValidationError) as excinfo:
             await CloudRunWorkerJobConfiguration.from_template_and_values(template, {})
 
-        assert excinfo.value.errors() == [
-            {
-                "loc": ("job_body",),
-                "msg": (
-                    "Job is missing required attributes at the following paths: "
-                    "/metadata/annotations, "
-                    "/spec/template/spec/template/spec/containers"
-                ),
-                "type": "value_error",
-            }
-        ]
+        assert len(err := excinfo.value.errors()) == 1
+        assert err[0]["loc"] == ("job_body",)
+        assert "Job is missing required attributes" in err[0]["msg"]
+        assert "/metadata/annotations" in err[0]["msg"]
+        assert "/spec/template/spec/template/spec/containers" in err[0]["msg"]
 
     async def test_validates_for_a_job_with_incompatible_values(self):
         """We should give a human-friendly error when the user provides a custom Job
@@ -292,19 +275,14 @@ class TestCloudRunWorkerJobConfiguration:
         with pytest.raises(pydantic.ValidationError) as excinfo:
             await CloudRunWorkerJobConfiguration.from_template_and_values(template, {})
 
-        assert excinfo.value.errors() == [
-            {
-                "loc": ("job_body",),
-                "msg": (
-                    "Job has incompatible values for the following attributes: "
-                    "/apiVersion must have value 'run.googleapis.com/v1', "
-                    "/kind must have value 'Job', "
-                    "/metadata/annotations/run.googleapis.com~1launch-stage "
-                    "must have value 'BETA'"
-                ),
-                "type": "value_error",
-            }
-        ]
+        assert len(err := excinfo.value.errors()) == 1
+        assert err[0]["loc"] == ("job_body",)
+        assert "/apiVersion must have value 'run.googleapis.com/v1'" in err[0]["msg"]
+        assert "/kind must have value 'Job'" in err[0]["msg"]
+        assert (
+            "/metadata/annotations/run.googleapis.com~1launch-stage must have value 'BETA'"
+            in err[0]["msg"]
+        )
 
 
 class TestCloudRunWorkerValidConfiguration:
@@ -313,7 +291,7 @@ class TestCloudRunWorkerValidConfiguration:
         deployment = DeploymentCreate(
             name="my-deployment",
             flow_id=uuid.uuid4(),
-            infra_overrides={"region": "test-region1", "cpu": cpu},
+            job_variables={"region": "test-region1", "cpu": cpu},
         )
         with pytest.raises(PrefectValidationError) as exc:
             deployment.check_valid_configuration(
@@ -327,7 +305,7 @@ class TestCloudRunWorkerValidConfiguration:
         deployment = DeploymentCreate(
             name="my-deployment",
             flow_id=uuid.uuid4(),
-            infra_overrides={"region": "test-region1", "cpu": cpu},
+            job_variables={"region": "test-region1", "cpu": cpu},
         )
         deployment.check_valid_configuration(
             CloudRunWorker.get_default_base_job_template()
@@ -338,7 +316,7 @@ class TestCloudRunWorkerValidConfiguration:
         deployment = DeploymentCreate(
             name="my-deployment",
             flow_id=uuid.uuid4(),
-            infra_overrides={"region": "test-region1", "memory": memory},
+            job_variables={"region": "test-region1", "memory": memory},
         )
         with pytest.raises(PrefectValidationError) as exc:
             deployment.check_valid_configuration(
@@ -351,7 +329,7 @@ class TestCloudRunWorkerValidConfiguration:
         deployment = DeploymentCreate(
             name="my-deployment",
             flow_id=uuid.uuid4(),
-            infra_overrides={"region": "test-region1", "memory": memory},
+            job_variables={"region": "test-region1", "memory": memory},
         )
         deployment.check_valid_configuration(
             CloudRunWorker.get_default_base_job_template()
