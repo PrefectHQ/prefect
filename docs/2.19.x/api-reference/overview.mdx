@@ -1,0 +1,19 @@
+---
+title: API Reference
+sidebarTitle: Overview
+---
+
+Prefect auto-generates reference documentation for the following components:
+
+*   **[Prefect Python SDK](https://docs.prefect.io/api-ref/python/)**: used to build, test, and execute workflows.
+*   **[Prefect REST API](https://docs.prefect.io/api-ref/rest-api/)**: used by both workflow clients as well as the Prefect UI for orchestration and data retrieval
+*   Prefect Cloud REST API documentation is available at [https://app.prefect.cloud/api/docs](https://app.prefect.cloud/api/docs).
+*   The REST API documentation for a locally hosted open-source Prefect server is available in the [Prefect REST API Reference](https://docs.prefect.io/api-ref/rest-api-reference/).
+*   **[Prefect Server SDK](https://docs.prefect.io/api-ref/server/)**: used primarily by the server to work with workflow metadata and enforce orchestration logic. This is only used directly by Prefect developers and contributors.
+
+<Note>
+**Self-hosted docs**
+
+
+When self-hosting, you can access REST API documentation at the `/docs` endpoint of your [`PREFECT_API_URL`](https://docs.prefect.io/concepts/settings/#prefect_api_url) - for example, if you ran `prefect server start` with no additional configuration you can find this reference at [http://localhost:4200/docs](http://localhost:4200/docs).
+</Note>
