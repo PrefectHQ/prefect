@@ -793,6 +793,7 @@ async def jobs_run_now(
     pipeline_params: Optional[str] = None,
     sql_params: Optional[Dict] = None,
     dbt_commands: Optional[List] = None,
+    job_parameters: Optional[Dict] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Run a job and return the `run_id` of the triggered run.
@@ -908,6 +909,13 @@ async def jobs_run_now(
             ["dbt deps", "dbt seed", "dbt run"]
             ```
 
+        job_parameters:
+            A map from keys to values for job-level parameters used in the run, for example
+             `'job_params': {'param': 'overriding_val'}`, e.g.
+            ```
+            {"param": "overriding_val"}
+            ```
+
     Returns:
         Upon success, a dict of the response. </br>- `run_id: int`</br>- `number_in_job: int`</br>
 
@@ -942,6 +950,7 @@ async def jobs_run_now(
         "pipeline_params": pipeline_params,
         "sql_params": sql_params,
         "dbt_commands": dbt_commands,
+        "job_parameters": job_parameters,
     }
 
     response = await execute_endpoint.fn(
@@ -1134,7 +1143,7 @@ async def jobs_runs_get(
             Whether to include the repair history in the response.
 
     Returns:
-        Upon success, a dict of the response. </br>- `job_id: int`</br>- `run_id: int`</br>- `number_in_job: int`</br>- `creator_user_name: str`</br>- `original_attempt_run_id: int`</br>- `state: "models.RunState"`</br>- `schedule: "models.CronSchedule"`</br>- `tasks: List["models.RunTask"]`</br>- `job_clusters: List["models.JobCluster"]`</br>- `cluster_spec: "models.ClusterSpec"`</br>- `cluster_instance: "models.ClusterInstance"`</br>- `git_source: "models.GitSource"`</br>- `overriding_parameters: "models.RunParameters"`</br>- `start_time: int`</br>- `setup_duration: int`</br>- `execution_duration: int`</br>- `cleanup_duration: int`</br>- `end_time: int`</br>- `trigger: "models.TriggerType"`</br>- `run_name: str`</br>- `run_page_url: str`</br>- `run_type: "models.RunType"`</br>- `attempt_number: int`</br>- `repair_history: List["models.RepairHistoryItem"]`</br>
+        Upon success, a dict of the response. </br>- `job_id: int`</br>- `run_id: int`</br>- `number_in_job: int`</br>- `creator_user_name: str`</br>- `original_attempt_run_id: int`</br>- `state: "models.RunState"`</br>- `schedule: "models.CronSchedule"`</br>- `tasks: List["models.RunTask"]`</br>- `job_clusters: List["models.JobCluster"]`</br>- `cluster_spec: "models.ClusterSpec"`</br>- `cluster_instance: "models.ClusterInstance"`</br>- `git_source: "models.GitSource"`</br>- `overriding_parameters: "models.RunParameters"`</br>- `start_time: int`</br>- `setup_duration: int`</br>- `execution_duration: int`</br>- `cleanup_duration: int`</br>- `end_time: int`</br>- `trigger: "models.TriggerType"`</br>- `run_name: str`</br>- `run_page_url: str`</br>- `run_type: "models.RunType"`</br>- `attempt_number: int`</br>- `repair_history: List["models.RepairHistoryItem"]`</br>- `job_parameters: "models.job_parameters"`</br>
 
     <h4>API Endpoint:</h4>
     `/2.1/jobs/runs/get`
@@ -1347,6 +1356,7 @@ async def jobs_runs_repair(
     pipeline_params: Optional[str] = None,
     sql_params: Optional[Dict] = None,
     dbt_commands: Optional[List] = None,
+    job_parameters: Optional[Dict] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Re-run one or more tasks. Tasks are re-run as part of the original job run, use
@@ -1465,6 +1475,13 @@ async def jobs_runs_repair(
             ["dbt deps", "dbt seed", "dbt run"]
             ```
 
+        job_parameters:
+            A map from keys to values for job-level parameters used in the run, for example
+             `'job_params': {'param': 'overriding_val'}`, e.g.
+            ```
+            {"param": "overriding_val"}
+            ```
+
     Returns:
         Upon success, a dict of the response. </br>- `repair_id: int`</br>
 
@@ -1501,6 +1518,7 @@ async def jobs_runs_repair(
         "pipeline_params": pipeline_params,
         "sql_params": sql_params,
         "dbt_commands": dbt_commands,
+        "job_parameters": job_parameters,
     }
 
     response = await execute_endpoint.fn(

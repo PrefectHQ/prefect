@@ -1176,6 +1176,12 @@ components:
           items:
             type: string
           type: array
+    JobParameters:
+      description: 'Job-level parameters used in the run
+            for example `"job_parameters": {"param": "overriding_val"}`.'
+          example:
+            param: overriding_val
+          type: object
     JobSettings:
       properties:
         email_notifications:
@@ -2245,6 +2251,9 @@ components:
         trigger:
           $ref: '#/components/schemas/TriggerType'
           description: The type of trigger that fired this run.
+        job_parameters:
+          $ref: '#/components/schemas/JobParameters'
+          description: Job-level parameters used in the run
     RunLifeCycleState:
       description: '* `PENDING`: The run has been triggered. If there is not already
         an active run of the same job, the cluster and execution context are being
