@@ -232,11 +232,14 @@ async def average_flow_run_lateness(
 async def flow_run_history(
     history_start: DateTime = Body(..., description="The history's start time."),
     history_end: DateTime = Body(..., description="The history's end time."),
-    history_interval: datetime.timedelta = Body(
+    # Workaround for the fact that FastAPI does not let us configure ser_json_timedelta
+    # to represent timedeltas as floats in JSON.
+    history_interval: float = Body(
         ...,
         description=(
             "The size of each history interval, in seconds. Must be at least 1 second."
         ),
+        json_schema_extra={"format": "time-delta"},
         alias="history_interval_seconds",
     ),
     flows: schemas.filters.FlowFilter = None,
@@ -250,6 +253,9 @@ async def flow_run_history(
     """
     Query for flow run history data across a given range and interval.
     """
+    if isinstance(history_interval, float):
+        history_interval = datetime.timedelta(seconds=history_interval)
+
     if history_interval < datetime.timedelta(seconds=1):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
