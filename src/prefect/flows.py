@@ -5,7 +5,9 @@ Module containing the base workflow class and decorator - for most use cases, us
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+import ast
 import datetime
+import importlib.util
 import inspect
 import json
 import os
@@ -1709,7 +1711,9 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
     )
 
 
-def load_flow_from_entrypoint(entrypoint: str) -> Flow:
+def load_flow_from_entrypoint(
+    entrypoint: str,
+) -> Flow:
     """
     Extract a flow object from a script at an entrypoint by running all of the code in the file.
 
@@ -1943,3 +1947,57 @@ async def load_flow_from_flow_run(
     flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
 
     return flow
+
+
+def load_flow_argument_from_entrypoint(
+    entrypoint: str, arg: str = "name"
+) -> Optional[str]:
+    """
+    Extract a flow argument from an entrypoint string.
+
+    Loads the source code of the entrypoint and extracts the flow argument from the
+    `flow` decorator.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
+            to a flow function
+
+    Returns:
+        The flow argument value
+    """
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        source_code = Path(path).read_text()
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+        spec = importlib.util.find_spec(path)
+        if not spec or not spec.origin:
+            raise ValueError(f"Could not find module {path!r}")
+        source_code = Path(spec.origin).read_text()
+    parsed_code = ast.parse(source_code)
+    func_def = next(
+        (
+            node
+            for node in ast.walk(parsed_code)
+            if isinstance(node, ast.FunctionDef) and node.name == func_name
+        ),
+        None,
+    )
+    if not func_def:
+        raise ValueError(f"Could not find flow {func_name!r} in {path!r}")
+    for decorator in func_def.decorator_list:
+        if (
+            isinstance(decorator, ast.Call)
+            and getattr(decorator.func, "id", "") == "flow"
+        ):
+            for keyword in decorator.keywords:
+                if keyword.arg == arg:
+                    return (
+                        keyword.value.value
+                    )  # Return the string value of the argument
+
+    if arg == "name":
+        return func_name.replace(
+            "_", "-"
+        )  # If no matching decorator or keyword argument is found
