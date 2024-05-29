@@ -26,7 +26,7 @@ on:
 
 jobs:
   compatibility-tests:
-    name: "Integration tests against server@${{ matrix.server-version.version }}"
+    name: "Integration tests @${{ matrix.server-version.version }}"
     timeout-minutes: 10
     runs-on: ubuntu-latest
 
