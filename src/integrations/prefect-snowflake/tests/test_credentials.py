@@ -3,18 +3,12 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
+from prefect_snowflake.credentials import InvalidPemFormat, SnowflakeCredentials
+from prefect_snowflake.database import SnowflakeConnector
+from pydantic import SecretBytes, SecretStr
 
 from prefect import flow
 from prefect.utilities.filesystem import relative_path_to_current_platform
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretBytes, SecretStr
-else:
-    from pydantic import SecretBytes, SecretStr
-
-from prefect_snowflake.credentials import InvalidPemFormat, SnowflakeCredentials
-from prefect_snowflake.database import SnowflakeConnector
 
 
 def test_snowflake_credentials_init(credentials_params):

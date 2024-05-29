@@ -7,11 +7,9 @@ name = "prefect-slack"
 description = "Prefect integrations with Slack"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
@@ -27,7 +25,7 @@ classifiers = [
 dependencies = [
   "aiohttp",
   "slack_sdk>=3.15.1",
-  "prefect>=2.14.10",
+  "prefect@git+https://github.com/prefecthq/prefect.git",
 ]
 dynamic = ["version"]
 

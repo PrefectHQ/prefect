@@ -19,14 +19,9 @@ except ImportError:
     from typing_extensions import Literal
 
 import snowflake.connector
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, SecretBytes, SecretStr, model_validator
 
 from prefect.blocks.abstract import CredentialsBlock
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretBytes, SecretField, SecretStr, root_validator
-else:
-    from pydantic import Field, SecretBytes, SecretField, SecretStr, root_validator
 
 # PEM certificates have the pattern:
 #   -----BEGIN PRIVATE KEY-----
@@ -80,7 +75,9 @@ class SnowflakeCredentials(CredentialsBlock):
     _documentation_url = "https://prefecthq.github.io/prefect-snowflake/credentials/#prefect_snowflake.credentials.SnowflakeCredentials"  # noqa
 
     account: str = Field(
-        ..., description="The snowflake account name.", example="nh12345.us-east-2.aws"
+        ...,
+        description="The snowflake account name.",
+        examples=["nh12345.us-east-2.aws"],
     )
     user: str = Field(..., description="The user name used to authenticate.")
     password: Optional[SecretStr] = Field(
@@ -125,7 +122,7 @@ class SnowflakeCredentials(CredentialsBlock):
         default=None, description="Whether to automatically commit."
     )
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def _validate_auth_kwargs(cls, values):
         """
         Ensure an authorization value has been provided by the user.
@@ -153,7 +150,7 @@ class SnowflakeCredentials(CredentialsBlock):
             )
         return values
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def _validate_token_kwargs(cls, values):
         """
         Ensure an authorization value has been provided by the user.
@@ -166,7 +163,7 @@ class SnowflakeCredentials(CredentialsBlock):
             )
         return values
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def _validate_okta_kwargs(cls, values):
         """
         Ensure an authorization value has been provided by the user.
@@ -250,7 +247,7 @@ class SnowflakeCredentials(CredentialsBlock):
             The decoded secret as bytes.
 
         """
-        if isinstance(secret, (SecretBytes, SecretStr)):
+        if isinstance(secret, (SecretStr, SecretBytes)):
             secret = secret.get_secret_value()
 
         if not isinstance(secret, (bytes, str)) or len(secret) == 0 or secret.isspace():
@@ -323,12 +320,12 @@ class SnowflakeCredentials(CredentialsBlock):
         connect_params = {
             # required to track task's usage in the Snowflake Partner Network Portal
             "application": "Prefect_Snowflake_Collection",
-            **self.dict(exclude_unset=True, exclude={"block_type_slug"}),
+            **self.model_dump(exclude_unset=True, exclude={"block_type_slug"}),
             **connect_kwargs,
         }
 
         for key, value in connect_params.items():
-            if isinstance(value, SecretField):
+            if isinstance(value, (SecretStr, SecretBytes)):
                 connect_params[key] = connect_params[key].get_secret_value()
 
         # set authenticator to the actual okta_endpoint

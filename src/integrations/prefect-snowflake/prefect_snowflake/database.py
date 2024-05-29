@@ -1,23 +1,17 @@
 """Module for querying against Snowflake databases."""
 
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from time import sleep
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect import task
-from prefect.blocks.abstract import DatabaseBlock
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-from prefect.utilities.hashing import hash_objects
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
+from pydantic import Field
 from snowflake.connector.connection import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
+from prefect import task
+from prefect.blocks.abstract import DatabaseBlock
+from prefect.utilities.asyncutils import run_coro_as_sync, run_sync_in_worker_thread
+from prefect.utilities.hashing import hash_objects
 from prefect_snowflake import SnowflakeCredentials
 
 BEGIN_TRANSACTION_STATEMENT = "BEGIN TRANSACTION"
@@ -188,7 +182,7 @@ class SnowflakeConnector(DatabaseBlock):
         input_hash = hash_objects(inputs)
         if input_hash is None:
             raise RuntimeError(
-                "We were not able to hash your inputs, "
+                f"We were not able to hash your inputs, {inputs!r}, "
                 "which resulted in an unexpected data return; "
                 "please open an issue with a reproducible example."
             )
@@ -258,8 +252,7 @@ class SnowflakeConnector(DatabaseBlock):
                 )
         self.logger.info("Successfully reset the cursors.")
 
-    @sync_compatible
-    async def fetch_one(
+    def fetch_one(
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
@@ -314,16 +307,76 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type=cursor_type)
         if new:
+            self.execute(
+                operation, parameters, cursor_type=cursor_type, **execute_kwargs
+            )
+        self.logger.debug("Preparing to fetch a row.")
+        return cursor.fetchone()
+
+    async def fetch_one_async(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        cursor_type: Type[SnowflakeCursor] = SnowflakeCursor,
+        **execute_kwargs: Any,
+    ) -> Tuple[Any]:
+        """
+        Fetch a single result from the database asynchronously.
+        Repeated calls using the same inputs to *any* of the fetch methods of this
+        block will skip executing the operation again, and instead,
+        return the next set of results from the previous execution,
+        until the reset_cursors method is called.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            cursor_type: The class of the cursor to use when creating a Snowflake cursor.
+            **execute_kwargs: Additional options to pass to `cursor.execute_async`.
+
+        Returns:
+            A tuple containing the data returned by the database,
+                where each row is a tuple and each column is a value in the tuple.
+
+        Examples:
+            Fetch one row from the database where address is Space.
+            ```python
+            from prefect_snowflake.database import SnowflakeConnector
+
+            with SnowflakeConnector.load("BLOCK_NAME") as conn:
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                conn.execute_many(
+                    "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
+                    seq_of_parameters=[
+                        {"name": "Ford", "address": "Highway 42"},
+                        {"name": "Unknown", "address": "Space"},
+                        {"name": "Me", "address": "Myway 88"},
+                    ],
+                )
+                result = await conn.fetch_one_async(
+                    "SELECT * FROM customers WHERE address = %(address)s",
+                    parameters={"address": "Space"}
+                )
+                print(result)
+            ```
+        """  # noqa
+        inputs = dict(
+            command=operation,
+            params=parameters,
+            **execute_kwargs,
+        )
+        new, cursor = self._get_cursor(inputs, cursor_type=cursor_type)
+        if new:
             await self._execute_async(cursor, inputs)
         self.logger.debug("Preparing to fetch a row.")
         result = await run_sync_in_worker_thread(cursor.fetchone)
         return result
 
-    @sync_compatible
-    async def fetch_many(
+    def fetch_many(
         self,
         operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Sequence[Dict[str, Any]]] = None,
         size: Optional[int] = None,
         cursor_type: Type[SnowflakeCursor] = SnowflakeCursor,
         **execute_kwargs: Any,
@@ -386,14 +439,122 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type)
         if new:
+            self.execute(cursor, inputs)
+        size = size or self.fetch_size
+        self.logger.debug(f"Preparing to fetch {size} rows.")
+        return cursor.fetchmany(size=size)
+
+    async def fetch_many_async(
+        self,
+        operation: str,
+        parameters: Optional[Sequence[Dict[str, Any]]] = None,
+        size: Optional[int] = None,
+        cursor_type: Type[SnowflakeCursor] = SnowflakeCursor,
+        **execute_kwargs: Any,
+    ) -> List[Tuple[Any]]:
+        """
+        Fetch a limited number of results from the database asynchronously.
+        Repeated calls using the same inputs to *any* of the fetch methods of this
+        block will skip executing the operation again, and instead,
+        return the next set of results from the previous execution,
+        until the reset_cursors method is called.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            size: The number of results to return; if None or 0, uses the value of
+                `fetch_size` configured on the block.
+            cursor_type: The class of the cursor to use when creating a Snowflake cursor.
+            **execute_kwargs: Additional options to pass to `cursor.execute_async`.
+
+        Returns:
+            A list of tuples containing the data returned by the database,
+                where each row is a tuple and each column is a value in the tuple.
+
+        Examples:
+            Repeatedly fetch two rows from the database where address is Highway 42.
+            ```python
+            from prefect_snowflake.database import SnowflakeConnector
+
+            with SnowflakeConnector.load("BLOCK_NAME") as conn:
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                conn.execute_many(
+                    "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
+                    seq_of_parameters=[
+                        {"name": "Marvin", "address": "Highway 42"},
+                        {"name": "Ford", "address": "Highway 42"},
+                        {"name": "Unknown", "address": "Highway 42"},
+                        {"name": "Me", "address": "Highway 42"},
+                    ],
+                )
+                result = conn.fetch_many(
+                    "SELECT * FROM customers WHERE address = %(address)s",
+                    parameters={"address": "Highway 42"},
+                    size=2
+                )
+                print(result)  # Marvin, Ford
+                result = conn.fetch_many(
+                    "SELECT * FROM customers WHERE address = %(address)s",
+                    parameters={"address": "Highway 42"},
+                    size=2
+                )
+                print(result)  # Unknown, Me
+            ```
+        """  # noqa
+        inputs = dict(
+            command=operation,
+            params=parameters,
+            **execute_kwargs,
+        )
+        new, cursor = self._get_cursor(inputs, cursor_type)
+        if new:
             await self._execute_async(cursor, inputs)
         size = size or self.fetch_size
         self.logger.debug(f"Preparing to fetch {size} rows.")
         result = await run_sync_in_worker_thread(cursor.fetchmany, size=size)
         return result
 
-    @sync_compatible
-    async def fetch_all(
+    def fetch_all(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        cursor_type: Type[SnowflakeCursor] = SnowflakeCursor,
+        **execute_kwargs: Any,
+    ) -> List[Tuple[Any]]:
+        """
+        Fetch all results from the database.
+        Repeated calls using the same inputs to *any* of the fetch methods of this
+        block will skip executing the operation again, and instead,
+        return the next set of results from the previous execution,
+        until the reset_cursors method is called.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            cursor_type: The class of the cursor to use when creating a Snowflake cursor.
+            **execute_kwargs: Additional options to pass to `cursor.execute_async`.
+
+        Returns:
+            A list of tuples containing the data returned by the database,
+                where each row is a tuple and each column is a value in the tuple.
+
+        """  # noqa
+        inputs = dict(
+            command=operation,
+            params=parameters,
+            **execute_kwargs,
+        )
+        new, cursor = self._get_cursor(inputs, cursor_type)
+        if new:
+            self.execute(
+                operation, parameters, cursor_type=cursor_type, **execute_kwargs
+            )
+        self.logger.debug("Preparing to fetch all rows.")
+        return cursor.fetchall()
+
+    async def fetch_all_async(
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
@@ -423,10 +584,10 @@ class SnowflakeConnector(DatabaseBlock):
             from prefect_snowflake.database import SnowflakeConnector
 
             with SnowflakeConnector.load("BLOCK_NAME") as conn:
-                conn.execute(
+                await conn.execute_async(
                     "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
                 )
-                conn.execute_many(
+                await conn.execute_many_async(
                     "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
                     seq_of_parameters=[
                         {"name": "Marvin", "address": "Highway 42"},
@@ -435,7 +596,7 @@ class SnowflakeConnector(DatabaseBlock):
                         {"name": "Me", "address": "Myway 88"},
                     ],
                 )
-                result = conn.fetch_all(
+                result = await conn.fetch_all_async(
                     "SELECT * FROM customers WHERE address = %(address)s",
                     parameters={"address": "Highway 42"},
                 )
@@ -454,8 +615,48 @@ class SnowflakeConnector(DatabaseBlock):
         result = await run_sync_in_worker_thread(cursor.fetchall)
         return result
 
-    @sync_compatible
-    async def execute(
+    def execute(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        cursor_type: Type[SnowflakeCursor] = SnowflakeCursor,
+        **execute_kwargs: Any,
+    ) -> None:
+        """
+        Executes an operation on the database. This method is intended to be used
+        for operations that do not return data, such as INSERT, UPDATE, or DELETE.
+        Unlike the fetch methods, this method will always execute the operation
+        upon calling.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            cursor_type: The class of the cursor to use when creating a Snowflake cursor.
+            **execute_kwargs: Additional options to pass to `cursor.execute_async`.
+
+        Examples:
+            Create table named customers with two columns, name and address.
+            ```python
+            from prefect_snowflake.database import SnowflakeConnector
+
+            with SnowflakeConnector.load("BLOCK_NAME") as conn:
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+            ```
+        """  # noqa
+        self._start_connection()
+
+        inputs = dict(
+            command=operation,
+            params=parameters,
+            **execute_kwargs,
+        )
+        with self._connection.cursor(cursor_type) as cursor:
+            run_coro_as_sync(self._execute_async(cursor, inputs))
+        self.logger.info(f"Executed the operation, {operation!r}.")
+
+    async def execute_async(
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
@@ -496,8 +697,53 @@ class SnowflakeConnector(DatabaseBlock):
             await run_sync_in_worker_thread(cursor.execute, **inputs)
         self.logger.info(f"Executed the operation, {operation!r}.")
 
-    @sync_compatible
-    async def execute_many(
+    def execute_many(
+        self,
+        operation: str,
+        seq_of_parameters: List[Dict[str, Any]],
+    ) -> None:
+        """
+        Executes many operations on the database. This method is intended to be used
+        for operations that do not return data, such as INSERT, UPDATE, or DELETE.
+        Unlike the fetch methods, this method will always execute the operations
+        upon calling.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            seq_of_parameters: The sequence of parameters for the operation.
+
+        Examples:
+            Create table and insert three rows into it.
+            ```python
+            from prefect_snowflake.database import SnowflakeConnector
+
+            with SnowflakeConnector.load("BLOCK_NAME") as conn:
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                conn.execute_many(
+                    "INSERT INTO customers (name, address) VALUES (%(name)s, %(address)s);",
+                    seq_of_parameters=[
+                        {"name": "Marvin", "address": "Highway 42"},
+                        {"name": "Ford", "address": "Highway 42"},
+                        {"name": "Unknown", "address": "Space"},
+                    ],
+                )
+            ```
+        """  # noqa
+        self._start_connection()
+
+        inputs = dict(
+            command=operation,
+            seqparams=seq_of_parameters,
+        )
+        with self._connection.cursor() as cursor:
+            cursor.executemany(**inputs)
+        self.logger.info(
+            f"Executed {len(seq_of_parameters)} operations off {operation!r}."
+        )
+
+    async def execute_many_async(
         self,
         operation: str,
         seq_of_parameters: List[Dict[str, Any]],
@@ -582,7 +828,74 @@ class SnowflakeConnector(DatabaseBlock):
 
 
 @task
-async def snowflake_query(
+def snowflake_query(
+    query: str,
+    snowflake_connector: SnowflakeConnector,
+    params: Union[Tuple[Any], Dict[str, Any]] = None,
+    cursor_type: Type[SnowflakeCursor] = SnowflakeCursor,
+    poll_frequency_seconds: int = 1,
+) -> List[Tuple[Any]]:
+    """
+    Executes a query against a Snowflake database.
+
+    Args:
+        query: The query to execute against the database.
+        params: The params to replace the placeholders in the query.
+        snowflake_connector: The credentials to use to authenticate.
+        cursor_type: The type of database cursor to use for the query.
+        poll_frequency_seconds: Number of seconds to wait in between checks for
+            run completion.
+
+    Returns:
+        The output of `response.fetchall()`.
+
+    Examples:
+        Query Snowflake table with the ID value parameterized.
+        ```python
+        from prefect import flow
+        from prefect_snowflake.credentials import SnowflakeCredentials
+        from prefect_snowflake.database import SnowflakeConnector, snowflake_query
+
+
+        @flow
+        def snowflake_query_flow():
+            snowflake_credentials = SnowflakeCredentials(
+                account="account",
+                user="user",
+                password="password",
+            )
+            snowflake_connector = SnowflakeConnector(
+                database="database",
+                warehouse="warehouse",
+                schema="schema",
+                credentials=snowflake_credentials
+            )
+            result = snowflake_query(
+                "SELECT * FROM table WHERE id=%{id_param}s LIMIT 8;",
+                snowflake_connector,
+                params={"id_param": 1}
+            )
+            return result
+
+        snowflake_query_flow()
+        ```
+    """
+    # context manager automatically rolls back failed transactions and closes
+    with snowflake_connector.get_connection() as connection:
+        with connection.cursor(cursor_type) as cursor:
+            response = cursor.execute_async(query, params=params)
+            query_id = response["queryId"]
+            while connection.is_still_running(
+                connection.get_query_status_throw_if_error(query_id)
+            ):
+                sleep(poll_frequency_seconds)
+            cursor.get_results_from_sfqid(query_id)
+            result = cursor.fetchall()
+    return result
+
+
+@task
+async def snowflake_query_async(
     query: str,
     snowflake_connector: SnowflakeConnector,
     params: Union[Tuple[Any], Dict[str, Any]] = None,
@@ -649,7 +962,92 @@ async def snowflake_query(
 
 
 @task
-async def snowflake_multiquery(
+def snowflake_multiquery(
+    queries: List[str],
+    snowflake_connector: SnowflakeConnector,
+    params: Union[Tuple[Any], Dict[str, Any]] = None,
+    cursor_type: Type[SnowflakeCursor] = SnowflakeCursor,
+    as_transaction: bool = False,
+    return_transaction_control_results: bool = False,
+    poll_frequency_seconds: int = 1,
+) -> List[List[Tuple[Any]]]:
+    """
+    Executes multiple queries against a Snowflake database in a shared session.
+    Allows execution in a transaction.
+
+    Args:
+        queries: The list of queries to execute against the database.
+        params: The params to replace the placeholders in the query.
+        snowflake_connector: The credentials to use to authenticate.
+        cursor_type: The type of database cursor to use for the query.
+        as_transaction: If True, queries are executed in a transaction.
+        return_transaction_control_results: Determines if the results of queries
+            controlling the transaction (BEGIN/COMMIT) should be returned.
+        poll_frequency_seconds: Number of seconds to wait in between checks for
+            run completion.
+
+    Returns:
+        List of the outputs of `response.fetchall()` for each query.
+
+    Examples:
+        Query Snowflake table with the ID value parameterized.
+        ```python
+        from prefect import flow
+        from prefect_snowflake.credentials import SnowflakeCredentials
+        from prefect_snowflake.database import SnowflakeConnector, snowflake_multiquery
+
+
+        @flow
+        def snowflake_multiquery_flow():
+            snowflake_credentials = SnowflakeCredentials(
+                account="account",
+                user="user",
+                password="password",
+            )
+            snowflake_connector = SnowflakeConnector(
+                database="database",
+                warehouse="warehouse",
+                schema="schema",
+                credentials=snowflake_credentials
+            )
+            result = snowflake_multiquery(
+                ["SELECT * FROM table WHERE id=%{id_param}s LIMIT 8;", "SELECT 1,2"],
+                snowflake_connector,
+                params={"id_param": 1},
+                as_transaction=True
+            )
+            return result
+
+        snowflake_multiquery_flow()
+        ```
+    """
+    with snowflake_connector.get_connection() as connection:
+        if as_transaction:
+            queries.insert(0, BEGIN_TRANSACTION_STATEMENT)
+            queries.append(END_TRANSACTION_STATEMENT)
+
+        with connection.cursor(cursor_type) as cursor:
+            results = []
+            for query in queries:
+                response = cursor.execute_async(query, params=params)
+                query_id = response["queryId"]
+                while connection.is_still_running(
+                    connection.get_query_status_throw_if_error(query_id)
+                ):
+                    sleep(poll_frequency_seconds)
+                cursor.get_results_from_sfqid(query_id)
+                result = cursor.fetchall()
+                results.append(result)
+
+    # cut off results from BEGIN/COMMIT queries
+    if as_transaction and not return_transaction_control_results:
+        return results[1:-1]
+    else:
+        return results
+
+
+@task
+async def snowflake_multiquery_async(
     queries: List[str],
     snowflake_connector: SnowflakeConnector,
     params: Union[Tuple[Any], Dict[str, Any]] = None,
@@ -734,7 +1132,7 @@ async def snowflake_multiquery(
 
 
 @task
-async def snowflake_query_sync(
+def snowflake_query_sync(
     query: str,
     snowflake_connector: SnowflakeConnector,
     params: Union[Tuple[Any], Dict[str, Any]] = None,
