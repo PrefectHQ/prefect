@@ -494,7 +494,7 @@ async def delete(
     """
     async with get_client() as client:
         try:
-            if not typer.confirm(
+            if is_interactive() and not typer.confirm(
                 (f"Are you sure you want to delete work pool with name {name!r}?"),
                 default=False,
             ):

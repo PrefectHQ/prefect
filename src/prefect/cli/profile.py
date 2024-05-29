@@ -16,7 +16,7 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
 from prefect.exceptions import ObjectNotFound
@@ -180,7 +180,7 @@ def delete(name: str):
             f"Profile {name!r} is the active profile. You must switch profiles before"
             " it can be deleted."
         )
-    if not typer.confirm(
+    if is_interactive() and not typer.confirm(
         (f"Are you sure you want to delete profile with name {name!r}?"),
         default=False,
     ):

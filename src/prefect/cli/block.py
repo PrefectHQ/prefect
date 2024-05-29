@@ -13,7 +13,7 @@ from rich.table import Table
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client import get_client
 from prefect.exceptions import (
     ObjectNotFound,
@@ -217,7 +217,7 @@ async def block_delete(
     async with get_client() as client:
         if slug is None and block_id is not None:
             try:
-                if not typer.confirm(
+                if is_interactive() and not typer.confirm(
                     (f"Are you sure you want to delete block with id {block_id!r}?"),
                     default=False,
                 ):
@@ -236,7 +236,7 @@ async def block_delete(
                 block_document = await client.read_block_document_by_name(
                     block_document_name, block_type_slug, include_secrets=False
                 )
-                if not typer.confirm(
+                if is_interactive() and not typer.confirm(
                     (f"Are you sure you want to delete block with slug {slug!r}?"),
                     default=False,
                 ):
@@ -378,7 +378,7 @@ async def blocktype_delete(
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
-            if not typer.confirm(
+            if is_interactive() and not typer.confirm(
                 (f"Are you sure you want to delete block with id {id!r}?"),
                 default=False,
             ):

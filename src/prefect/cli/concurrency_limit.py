@@ -18,7 +18,7 @@ from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound
 
@@ -153,7 +153,7 @@ async def delete(tag: str):
 
     async with get_client() as client:
         try:
-            if not typer.confirm(
+            if is_interactive() and not typer.confirm(
                 (
                     f"Are you sure you want to delete concurrency limit with tag {tag!r}?"
                 ),
