@@ -2836,7 +2836,7 @@ class PrefectClient:
 
         await self._client.patch(
             f"/artifacts/{artifact_id}",
-            json=artifact.dict(json_compatible=True, exclude_unset=True),
+            json=artifact.model_dump(mode="json", exclude_unset=True),
         )
 
     async def read_artifacts(

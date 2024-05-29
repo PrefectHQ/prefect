@@ -474,7 +474,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
         assert my_artifact.data == progress
         assert my_artifact.type == "progress"
         assert my_artifact.description == "my-description"
@@ -487,7 +487,7 @@ class TestCreateArtifacts:
         )
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
         assert my_artifact.data == progress
         assert my_artifact.type == "progress"
         assert my_artifact.key == "progress-artifact"
@@ -514,9 +514,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_progress_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
         assert my_progress_artifact.task_run_id == task_run_id
@@ -540,9 +538,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_progress_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
         assert my_progress_artifact.task_run_id is None
@@ -558,14 +554,14 @@ class TestUpdateArtifacts:
         artifact_id = await create_progress_artifact(progress)
 
         response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
         assert my_artifact.data == progress
         assert my_artifact.type == "progress"
 
         new_progress = 50.0
         await update_progress_artifact(artifact_id, new_progress)
         response = await client.get(f"/artifacts/{artifact_id}")
-        my_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        my_artifact = schemas.core.Artifact.model_validate(response.json())
         assert my_artifact.data == new_progress
 
     async def test_update_progress_artifact_in_task(self, client):
@@ -590,9 +586,7 @@ class TestUpdateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_progress_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
         assert my_progress_artifact.task_run_id == task_run_id
@@ -617,9 +611,7 @@ class TestUpdateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
-        my_progress_artifact = pydantic.parse_obj_as(
-            schemas.core.Artifact, response.json()
-        )
+        my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
         assert my_progress_artifact.task_run_id is None
