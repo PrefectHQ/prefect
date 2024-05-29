@@ -214,7 +214,6 @@ nav:
               - Task Runners: concepts/task-runners.md
               - Automations: concepts/automations.md
               - Block and Agent-Based Deployments:
-                      - Deployments: concepts/deployments-block-based.md
                       - Infrastructure: concepts/infrastructure.md
                       - Storage: concepts/storage.md
                       - Agents: concepts/agents.md
