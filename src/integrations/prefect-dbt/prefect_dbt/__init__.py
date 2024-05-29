@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 from . import _version
 
 from .cloud import DbtCloudCredentials  # noqa
@@ -24,4 +25,16 @@ try:
 except MissingExtrasRequireError:
     pass
 
-__version__ = _version.__version__
+__all__ = [
+    "DbtCloudCredentials",
+    "DbtCliProfile",
+    "GlobalConfigs",
+    "MissingExtrasRequireError",
+    "TargetConfigs",
+    "DbtCoreOperation",
+    "SnowflakeTargetConfigs",
+    "BigQueryTargetConfigs",
+    "PostgresTargetConfigs",
+]
+
+__version__ = getattr(_version, "__version__")
