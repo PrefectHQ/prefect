@@ -18,15 +18,15 @@ from prefect.client.schemas.sorting import FlowRunSort
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
 from prefect.engine import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.exceptions import CrashedRun, FailedRun, ParameterTypeError, Pause
-from prefect.input.actions import read_flow_run_input
-from prefect.input.run_input import RunInput
-from prefect.new_flow_engine import (
+from prefect.flow_engine import (
     FlowRunEngine,
     load_flow_and_flow_run,
     run_flow,
     run_flow_async,
     run_flow_sync,
 )
+from prefect.input.actions import read_flow_run_input
+from prefect.input.run_input import RunInput
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.utilities.callables import get_call_parameters
 
@@ -1064,7 +1064,7 @@ class TestPauseFlowRun:
 
     async def test_paused_task_polling(self, monkeypatch, prefect_client):
         sleeper = MagicMock(side_effect=[None, None, None, None, None])
-        monkeypatch.setattr("prefect.new_task_engine.time.sleep", sleeper)
+        monkeypatch.setattr("prefect.task_engine.time.sleep", sleeper)
 
         @task
         async def doesnt_pause():

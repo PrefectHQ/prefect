@@ -463,7 +463,7 @@ if __name__ == "__main__":
         exit(1)
 
     try:
-        from prefect.new_flow_engine import (
+        from prefect.flow_engine import (
             load_flow_and_flow_run,
             run_flow_async,
             run_flow_sync,
