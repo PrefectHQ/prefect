@@ -47,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+  import { showToast } from '@prefecthq/prefect-design'
   import { ref } from 'vue'
 
   const showModal = defineModel<boolean>('showModal')
@@ -65,7 +66,7 @@
     error.value = ''
     loading.value = true
     try {
-      const response = await fetch(formEndpoint, {
+      await fetch(formEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +76,8 @@
         redirect: 'manual',
       })
 
-      console.dir(response)
+      showModal.value = false
+      showToast('Successfully subscribed', 'success')
     } catch (err) {
       error.value = 'An error occurred. Please try again.'
       console.error(err)
