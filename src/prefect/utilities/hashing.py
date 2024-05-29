@@ -15,7 +15,8 @@ else:
 
 
 def stable_hash(
-    *args: Union[str, bytes], hash_algo: Callable[..., hashlib._Hash] = _md5
+    *args: Union[str, bytes],
+    hash_algo: Callable[..., hashlib._Hash] = _md5,  # type: ignore
 ) -> str:  # type: ignore
     """Given some arguments, produces a stable 64-bit hash of their contents.
 
