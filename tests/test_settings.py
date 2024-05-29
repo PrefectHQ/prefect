@@ -419,7 +419,7 @@ class TestSettingAccess:
             DeprecationWarning,
             match=(
                 "Setting 'PREFECT_CLOUD_URL' has been deprecated. "
-                "It will not be available after Jun 2023. "
+                "It will not be available after Dec 2025. "
                 "Use `PREFECT_CLOUD_API_URL` instead."
             ),
         ):
