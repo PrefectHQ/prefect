@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal, Optional, Tuple
+from typing import Any, List, Literal, Optional, Tuple
 from uuid import UUID
 
 from prefect.server.schemas.states import StateType
@@ -19,7 +19,7 @@ class GraphArtifact(PrefectBaseModel):
     key: Optional[str]
     type: str
     is_latest: bool
-    data: Optional[float]  # we only return data for progress artifacts for now
+    data: Optional[Any]  # we only return data for progress artifacts for now
 
 
 class Edge(PrefectBaseModel):
