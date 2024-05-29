@@ -19,11 +19,11 @@ except ImportError:
     from typing_extensions import Literal
 
 import snowflake.connector
-from pydantic import Field, Secret, SecretBytes, SecretStr, model_validator
+from pydantic import Field, SecretBytes, SecretStr, model_validator
 
 from prefect.blocks.abstract import CredentialsBlock
 
-PydanticSecret = Union[SecretStr, SecretBytes, Secret]
+PydanticSecret = Union[SecretStr, SecretBytes]
 
 # PEM certificates have the pattern:
 #   -----BEGIN PRIVATE KEY-----
