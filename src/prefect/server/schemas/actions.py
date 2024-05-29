@@ -688,7 +688,7 @@ class BlockSchemaCreate(ActionBaseModel):
     fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
+    block_type_id: UUID = Field(default=..., description="A block type ID")
 
     capabilities: List[str] = Field(
         default_factory=list,
