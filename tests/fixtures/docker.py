@@ -113,7 +113,7 @@ def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     return image_name
 
 
-def _wait_for_registry(url: str, timeout: int = 30) -> bool:
+def _wait_for_registry(url: str, timeout: int = 60) -> bool:
     start = time.time()
     while time.time() - start < timeout:
         try:
