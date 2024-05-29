@@ -72,6 +72,7 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_LOGGING_SERVER_LEVEL: DEBUG
+          PREFECT_EXPERIMENTAL_EVENTS: "true"
         run: >
           docker run \
             --name "prefect-server" \
@@ -79,6 +80,7 @@ jobs:
             -p 4200:4200 \
             -e PREFECT_API_URL:${{ env.PREFECT_API_URL }} \
             -e PREFECT_LOGGING_SERVER_LEVEL:${{ env.PREFECT_LOGGING_SERVER_LEVEL }} \
+            -e PREFECT_EXPERIMENTAL_EVENTS:${{ env.PREFECT_EXPERIMENTAL_EVENTS }}
             ${{ matrix.server-version.image }} \
             prefect server start --analytics-off --host 0.0.0.0
 
