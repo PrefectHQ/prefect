@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 import prefect.results
 from prefect import flow, task
-from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import MissingResult
+from prefect.futures import PrefectDistributedFuture
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     temporary_settings,
@@ -149,9 +149,10 @@ async def test_task_server_handles_deleted_task_run_submission(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run = foo_task.apply_async(42)
+    task_run_future = foo_task.apply_async(42)
+    task_run = task_run_future.task_run
 
-    await prefect_client.delete_task_run(task_run.id)
+    await prefect_client.delete_task_run(task_run_future.task_run_id)
 
     await task_server.execute_task_run(task_run)
 
@@ -174,21 +175,21 @@ class TestServe:
         await serve(foo_task)
         mock_task_server_start.assert_called_once()
 
-        task_run = foo_task.apply_async(42)
+        task_run_future = foo_task.apply_async(42)
 
-        assert isinstance(task_run, TaskRun)
+        assert isinstance(task_run_future, PrefectDistributedFuture)
 
-        assert task_run.state.is_scheduled()
+        assert task_run_future.state.is_scheduled()
 
     async def test_serve_basic_async_task(self, async_foo_task, mock_task_server_start):
         await serve(async_foo_task)
         mock_task_server_start.assert_called_once()
 
-        task_run = async_foo_task.apply_async(42)
+        task_run_future = async_foo_task.apply_async(42)
 
-        assert isinstance(task_run, TaskRun)
+        assert isinstance(task_run_future, PrefectDistributedFuture)
 
-        assert task_run.state.is_scheduled()
+        assert task_run_future.state.is_scheduled()
 
 
 async def test_task_server_can_execute_a_single_async_single_task_run(
@@ -196,11 +197,11 @@ async def test_task_server_can_execute_a_single_async_single_task_run(
 ):
     task_server = TaskServer(async_foo_task)
 
-    task_run = async_foo_task.apply_async(42)
+    task_run_future = async_foo_task.apply_async(42)
 
-    await task_server.execute_task_run(task_run)
+    await task_server.execute_task_run(task_run_future.task_run)
 
-    updated_task_run = await prefect_client.read_task_run(task_run.id)
+    updated_task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
     assert updated_task_run.state.is_completed()
 
@@ -212,11 +213,11 @@ async def test_task_server_can_execute_a_single_sync_single_task_run(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run = foo_task.apply_async(42)
+    task_run_future = foo_task.apply_async(42)
 
-    await task_server.execute_task_run(task_run)
+    await task_server.execute_task_run(task_run_future.task_run)
 
-    updated_task_run = await prefect_client.read_task_run(task_run.id)
+    updated_task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
     assert updated_task_run.state.is_completed()
 
@@ -238,11 +239,13 @@ class TestTaskServerTaskRunRetries:
 
         task_server = TaskServer(task_with_retry)
 
-        task_run = task_with_retry.apply_async()
+        task_run_future = task_with_retry.apply_async()
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -277,11 +280,13 @@ class TestTaskServerTaskRunRetries:
 
         task_server = TaskServer(task_with_retry_condition_fn)
 
-        task_run = task_with_retry_condition_fn.apply_async()
+        task_run_future = task_with_retry_condition_fn.apply_async()
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.type == expected_state
 
@@ -299,11 +304,13 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(some_task)
 
-        task_run = some_task.apply_async()
+        task_run_future = some_task.apply_async()
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -328,11 +335,13 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(some_task)
 
-        task_run = some_task.apply_async(x="foo")
+        task_run_future = some_task.apply_async(x="foo")
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -355,11 +364,13 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(americas_third_largest_city)
 
-        task_run = americas_third_largest_city.apply_async()
+        task_run_future = americas_third_largest_city.apply_async()
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -384,22 +395,26 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(task_with_cache)
 
-        task_run = task_with_cache.apply_async(42)
+        task_run_future = task_with_cache.apply_async(42)
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
         assert await updated_task_run.state.result() == 1
 
-        new_task_run = task_with_cache.apply_async(42)
+        new_task_run_future = task_with_cache.apply_async(42)
 
         with caplog.at_level("INFO"):
-            await task_server.execute_task_run(new_task_run)
+            await task_server.execute_task_run(new_task_run_future.task_run)
 
-        new_updated_task_run = await prefect_client.read_task_run(task_run.id)
+        new_updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert "Finished in state Cached(type=COMPLETED)" in caplog.text
 
@@ -455,11 +470,13 @@ class TestTaskServerTaskTags:
 
         task_server = TaskServer(task_with_tags)
 
-        task_run = task_with_tags.apply_async(42)
+        task_run_future = task_with_tags.apply_async(42)
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -476,11 +493,13 @@ class TestTaskServerCustomTaskRunName:
 
         task_server = TaskServer(async_foo_task_with_custom_name)
 
-        task_run = async_foo_task_with_custom_name.apply_async(42)
+        task_run_future = async_foo_task_with_custom_name.apply_async(42)
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -499,11 +518,13 @@ class TestTaskServerTaskStateHooks:
 
         task_server = TaskServer(async_foo_task_with_on_completion_hook)
 
-        task_run = async_foo_task_with_on_completion_hook.apply_async(42)
+        task_run_future = async_foo_task_with_on_completion_hook.apply_async(42)
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -520,11 +541,13 @@ class TestTaskServerTaskStateHooks:
 
         task_server = TaskServer(task_that_fails)
 
-        task_run = task_that_fails.apply_async()
+        task_run_future = task_that_fails.apply_async()
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_failed()
 
@@ -543,11 +566,13 @@ class TestTaskServerNestedTasks:
 
         task_server = TaskServer(outer_task)
 
-        task_run = outer_task.apply_async(42)
+        task_run_future = outer_task.apply_async(42)
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
@@ -564,11 +589,13 @@ class TestTaskServerNestedTasks:
 
         task_server = TaskServer(background_task)
 
-        task_run = background_task.apply_async(42)
+        task_run_future = background_task.apply_async(42)
 
-        await task_server.execute_task_run(task_run)
+        await task_server.execute_task_run(task_run_future.task_run)
 
-        updated_task_run = await prefect_client.read_task_run(task_run.id)
+        updated_task_run = await prefect_client.read_task_run(
+            task_run_future.task_run_id
+        )
 
         assert updated_task_run.state.is_completed()
 
