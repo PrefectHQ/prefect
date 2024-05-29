@@ -60,8 +60,8 @@ class BitBucketCredentials(CredentialsBlock):
     password: Optional[SecretStr] = Field(
         default=None, description="The password to authenticate to BitBucket."
     )
-    url: str = Field(
-        default="https://api.bitbucket.org/",
+    url: Optional[str] = Field(
+        default=None,
         description="The base URL of a BitBucket instance. Leave blank for BitBucket Cloud.",
         examples=["https://api.bitbucket.org/"],
         title="URL",
