@@ -118,9 +118,13 @@ Read more about configuring work pools
     on a per-deployment basis.
 
     ```yaml
-    # deployment.yaml
+    # prefect.yaml
+    deployments:
     ...
-    infra_overrides: {"my_custom_annotation": "my-custom-value"}
+      - name: my-deployment
+      ...
+      work_pool: my-cloud-run-pool
+        job_variables: {"my_custom_annotation": "my-custom-value"}
     ```
 
     Additionally, fields can be set to prevent configuration at the deployment
@@ -163,7 +167,7 @@ from anyio.abc import TaskStatus  # noqa
 from google.api_core.client_options import ClientOptions
 from googleapiclient import discovery
 from googleapiclient.discovery import Resource
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, field_validator
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
@@ -176,12 +180,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.utilities import Execution, Job, slugify_name
 
@@ -288,7 +286,9 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         "If not provided credentials will be inferred from "
         "the local environment.",
     )
-    job_body: Dict[str, Any] = Field(template=_get_default_job_body_template())
+    job_body: Dict[str, Any] = Field(
+        json_schema_extra=dict(template=_get_default_job_body_template())
+    )
     timeout: Optional[int] = Field(
         default=600,
         gt=0,
@@ -409,7 +409,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         except KeyError:
             raise ValueError("Unable to verify args due to invalid job body template.")
 
-    @validator("job_body")
+    @field_validator("job_body")
+    @classmethod
     def _ensure_job_includes_all_required_components(cls, value: Dict[str, Any]):
         """
         Ensures that the job body includes all required components.
@@ -423,7 +424,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
             )
         return value
 
-    @validator("job_body")
+    @field_validator("job_body")
+    @classmethod
     def _ensure_job_has_compatible_values(cls, value: Dict[str, Any]):
         """Ensure that the job body has compatible values."""
         patch = JsonPatch.from_diff(value, _get_base_job_body())
@@ -453,7 +455,7 @@ class CloudRunWorkerVariables(BaseVariables):
     region: str = Field(
         default="us-central1",
         description="The region where the Cloud Run Job resides.",
-        example="us-central1",
+        examples=["us-central1"],
     )
     credentials: Optional[GcpCredentials] = Field(
         title="GCP Credentials",
@@ -470,7 +472,7 @@ class CloudRunWorkerVariables(BaseVariables):
             "If not set, the latest Prefect image will be used. "
             "See https://cloud.google.com/run/docs/deploying#images."
         ),
-        example="docker.io/prefecthq/prefect:3-latest",
+        examples=["docker.io/prefecthq/prefect:3-latest"],
     )
     cpu: Optional[str] = Field(
         default=None,
@@ -480,8 +482,8 @@ class CloudRunWorkerVariables(BaseVariables):
             "(1000m = 1 CPU). See "
             "https://cloud.google.com/run/docs/configuring/cpu#setting-jobs."
         ),
-        example="1000m",
-        regex=r"^(\d*000)m$",
+        examples=["1000m"],
+        pattern=r"^(\d*000)m$",
     )
     memory: Optional[str] = Field(
         default=None,
@@ -491,8 +493,8 @@ class CloudRunWorkerVariables(BaseVariables):
             "Must be specified in units of 'G', 'Gi', 'M', or 'Mi'. "
             "See https://cloud.google.com/run/docs/configuring/memory-limits#setting."
         ),
-        example="512Mi",
-        regex=r"^\d+(?:G|Gi|M|Mi)$",
+        examples=["512Mi"],
+        pattern=r"^\d+(?:G|Gi|M|Mi)$",
     )
     vpc_connector_name: Optional[str] = Field(
         default=None,
@@ -505,7 +507,7 @@ class CloudRunWorkerVariables(BaseVariables):
         description="The name of the service account to use for the task execution "
         "of Cloud Run Job. By default Cloud Run jobs run as the default "
         "Compute Engine Service Account. ",
-        example="service-account@example.iam.gserviceaccount.com",
+        examples=["service-account@example.iam.gserviceaccount.com"],
     )
     keep_job: Optional[bool] = Field(
         default=False,
@@ -513,10 +515,10 @@ class CloudRunWorkerVariables(BaseVariables):
         description="Keep the completed Cloud Run Job after it has run.",
     )
     timeout: Optional[int] = Field(
+        title="Job Timeout",
         default=600,
         gt=0,
         le=3600,
-        title="Job Timeout",
         description=(
             "The length of time that Prefect will wait for Cloud Run Job state changes."
         ),
