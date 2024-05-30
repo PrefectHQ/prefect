@@ -1,30 +1,19 @@
+import asyncio
 import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import anyio
 import pytest
 from pydantic import BaseModel
 
 import prefect.results
 from prefect import flow, task
 from prefect.exceptions import MissingResult
+from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
-    temporary_settings,
-)
 from prefect.states import Running
 from prefect.task_server import TaskServer, serve
 from prefect.tasks import task_input_hash
-
-
-@pytest.fixture(autouse=True)
-def mock_settings():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
-        }
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True)
@@ -88,6 +77,14 @@ def mock_create_subscription(monkeypatch):
         create_subscription := AsyncMock(),
     )
     return create_subscription
+
+
+@pytest.fixture
+def mock_subscription(monkeypatch):
+    monkeypatch.setattr(
+        "prefect.task_server.Subscription", mock_subscription := MagicMock()
+    )
+    return mock_subscription
 
 
 async def test_task_server_basic_context_management():
@@ -163,14 +160,6 @@ async def test_task_server_handles_deleted_task_run_submission(
 
 @pytest.mark.usefixtures("mock_task_server_start")
 class TestServe:
-    async def test_serve_raises_if_task_scheduling_not_enabled(self, foo_task):
-        with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}):
-            with pytest.raises(
-                RuntimeError,
-                match="set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING to True",
-            ):
-                await serve(foo_task)
-
     async def test_serve_basic_sync_task(self, foo_task, mock_task_server_start):
         await serve(foo_task)
         mock_task_server_start.assert_called_once()
@@ -600,3 +589,177 @@ class TestTaskServerNestedTasks:
         assert updated_task_run.state.is_completed()
 
         assert await updated_task_run.state.result() == 42
+
+
+class TestTaskServerLimit:
+    @pytest.fixture(autouse=True)
+    async def register_localfilesystem(self):
+        """Register LocalFileSystem before running tests to avoid race conditions."""
+        await LocalFileSystem.register_type_and_schema()
+
+    async def test_task_server_respects_limit(self, mock_subscription, prefect_client):
+        @task
+        def slow_task():
+            import time
+
+            time.sleep(1)
+
+        task_server = TaskServer(slow_task, limit=1)
+
+        task_run_1 = slow_task.apply_async()
+        task_run_2 = slow_task.apply_async()
+
+        async def mock_iter():
+            yield task_run_1
+            yield task_run_2
+            # sleep for a second to ensure that task execution starts
+            await asyncio.sleep(1)
+
+        mock_subscription.return_value = mock_iter()
+
+        # only one should run at a time, so we'll move on after 1 second
+        # to ensure that the second task hasn't started
+        with anyio.move_on_after(1):
+            await task_server.start()
+
+        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_1.state.is_completed()
+        assert updated_task_run_2.state.is_scheduled()
+
+    async def test_tasks_execute_when_limit_is_none(
+        self, mock_subscription, prefect_client
+    ):
+        @task
+        def slow_task():
+            import time
+
+            time.sleep(1)
+
+        task_server = TaskServer(slow_task, limit=None)
+
+        task_run_1 = slow_task.apply_async()
+        task_run_2 = slow_task.apply_async()
+
+        async def mock_iter():
+            yield task_run_1
+            yield task_run_2
+            # sleep for a second to ensure that task execution starts
+            await asyncio.sleep(1)
+
+        mock_subscription.return_value = mock_iter()
+
+        # both should run at the same time, so we'll move on after 1 second
+        # to ensure that the second task has started
+        with anyio.move_on_after(1):
+            await task_server.start()
+
+        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_1.state.is_completed()
+        assert updated_task_run_2.state.is_completed()
+
+    async def test_tasks_execute_when_capacity_frees_up(
+        self, mock_subscription, prefect_client
+    ):
+        event = asyncio.Event()
+
+        @task
+        async def slow_task():
+            await asyncio.sleep(1)
+            if event.is_set():
+                raise ValueError("Something went wrong! This event should not be set.")
+            event.set()
+
+        task_server = TaskServer(slow_task, limit=1)
+
+        task_run_1 = slow_task.apply_async()
+        task_run_2 = slow_task.apply_async()
+
+        async def mock_iter():
+            yield task_run_1
+            yield task_run_2
+            # sleep for a second to ensure that task execution starts
+            await asyncio.sleep(1)
+
+        mock_subscription.return_value = mock_iter()
+
+        server_task = asyncio.create_task(task_server.start())
+        await event.wait()
+        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_1.state.is_completed()
+        assert not updated_task_run_2.state.is_completed()
+
+        # clear the event to allow the second task to complete
+        event.clear()
+
+        await event.wait()
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_2.state.is_completed()
+
+        server_task.cancel()
+        await server_task
+
+    async def test_execute_task_run_respects_limit(self, prefect_client):
+        @task
+        def slow_task():
+            import time
+
+            time.sleep(1)
+
+        task_server = TaskServer(slow_task, limit=1)
+
+        task_run_1 = slow_task.apply_async()
+        task_run_2 = slow_task.apply_async()
+
+        try:
+            with anyio.move_on_after(1):
+                # start task server first to avoid race condition between two execute_task_run calls
+                async with task_server:
+                    await asyncio.gather(
+                        task_server.execute_task_run(task_run_1),
+                        task_server.execute_task_run(task_run_2),
+                    )
+        except asyncio.exceptions.CancelledError:
+            # We want to cancel the second task run, so this is expected
+            pass
+
+        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_1.state.is_completed()
+        assert updated_task_run_2.state.is_scheduled()
+
+    async def test_serve_respects_limit(self, prefect_client, mock_subscription):
+        @task
+        def slow_task():
+            import time
+
+            time.sleep(1)
+
+        task_run_1 = slow_task.apply_async()
+        task_run_2 = slow_task.apply_async()
+
+        async def mock_iter():
+            yield task_run_1
+            yield task_run_2
+            # sleep for a second to ensure that task execution starts
+            await asyncio.sleep(1)
+
+        mock_subscription.return_value = mock_iter()
+
+        # only one should run at a time, so we'll move on after 1 second
+        # to ensure that the second task hasn't started
+        with anyio.move_on_after(1):
+            await serve(slow_task, limit=1)
+
+        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_1.state.is_completed()
+        assert updated_task_run_2.state.is_scheduled()

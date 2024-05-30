@@ -44,7 +44,6 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -550,6 +549,7 @@ class Task(Generic[P, R]):
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
@@ -590,6 +590,9 @@ class Task(Generic[P, R]):
 
                 factory = await ResultFactory.from_autonomous_task(self, client=client)
                 await factory.store_parameters(parameters_id, parameters)
+
+            if deferred:
+                state.state_details.deferred = True
 
             # collect task inputs
             task_inputs = {
@@ -1017,7 +1020,7 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
+        if not flow_run_context:
             # TODO: Should we split out background task mapping into a separate method
             # like we do for the `submit`/`apply_async` split?
             parameters_list = expand_mapping_parameters(self.fn, parameters)
@@ -1120,7 +1123,9 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        task_run = run_coro_as_sync(self.create_run(parameters=parameters))
+        task_run = run_coro_as_sync(
+            self.create_run(parameters=parameters, deferred=True)
+        )
         return PrefectDistributedFuture(task_run_id=task_run.id)
 
     def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
@@ -1140,13 +1145,6 @@ class Task(Generic[P, R]):
 
             >>> my_task.serve()
         """
-
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING:
-            raise ValueError(
-                "Task's `serve` method is an experimental feature and must be enabled with "
-                "`prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=True`"
-            )
-
         from prefect.task_server import serve
 
         serve(self, task_runner=task_runner)
