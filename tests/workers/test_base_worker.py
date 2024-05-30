@@ -1951,7 +1951,7 @@ async def test_get_flow_run_logger(
 
 
 class TestInfrastructureIntegration:
-    async def test_agent_crashes_flow_if_infrastructure_submission_fails(
+    async def test_worker_crashes_flow_if_infrastructure_submission_fails(
         self,
         prefect_client: PrefectClient,
         worker_deployment_infra_wq1,

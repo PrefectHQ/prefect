@@ -1006,6 +1006,7 @@ class TestDeploymentRun:
         This test ensures the parameters are set on the created flow run and that
         data types are cast correctly.
         """
+
         await run_sync_in_worker_thread(
             invoke_and_assert,
             ["deployment", "run", deployment_name, "--param", f"name={given}"],

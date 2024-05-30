@@ -440,7 +440,7 @@ class DeploymentResponse(ORMBaseModel):
         description="Whether the deployment is ready to run flows.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
