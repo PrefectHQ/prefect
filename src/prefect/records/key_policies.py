@@ -1,13 +1,20 @@
-from prefect.utilities.collections import AutoEnum
+from typing import List, Optional
+
+from prefect.utilities.hashing import hash_objects
 
 
 class KeyPolicy:
-    pass
+    def compute_key(
+        self, task, run, parameters, flow_parameters, **kwargs
+    ) -> Optional[str]:
+        raise NotImplementedError
 
 
 class DEFAULT(KeyPolicy):
     "Execution run ID only"
-    pass
+
+    def compute_key(self, task, run, parameters, flow_parameters, **kwargs) -> str:
+        return str(run.id)
 
 
 RUN_ID = DEFAULT
@@ -15,7 +22,9 @@ RUN_ID = DEFAULT
 
 class NONE(KeyPolicy):
     "ignore key policies altogether, always run - prevents persistence"
-    pass
+
+    def compute_key(self, task, run, parameters, flow_parameters, **kwargs) -> None:
+        return None
 
 
 class TASK_DEF(KeyPolicy):
@@ -29,7 +38,18 @@ class INPUTS(KeyPolicy):
     And exclude/include config.
     """
 
-    pass
+    def __init__(self, include_flow_params: bool = False, exclude: List[str] = None):
+        self.include_flow_params = include_flow_params
+        self.exclude = exclude or []
+        super().__init__()
+
+    def compute_key(self, task, run, parameters, flow_parameters, **kwargs) -> None:
+        # to_hash = flow_parameters.values() if self.include_flow_params
+
+        for parameter in parameters:
+            pass
+
+        return hash_objects()
 
 
 class CUSTOM(KeyPolicy):
