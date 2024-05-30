@@ -3,7 +3,7 @@ name: Integrations Packages Tests
 on:
   pull_request:
     paths:
-      #- .github/workflows/integration-package-tests.yaml
+      - .github/workflows/integration-package-tests.yaml
       - "**/*.py"
     types: [opened, reopened, synchronize, labeled]
   push:
