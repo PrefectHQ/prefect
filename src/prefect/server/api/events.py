@@ -11,6 +11,7 @@ from starlette.status import WS_1002_PROTOCOL_ERROR
 
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import is_ephemeral_request
+from prefect.server.api.logs import sanitize_user_input
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import messaging, stream
@@ -261,11 +262,14 @@ async def handle_event_count_request(
     time_unit: TimeUnit,
     time_interval: float,
 ) -> List[EventCount]:
+    sanitized_countable = sanitize_user_input(countable)
+    sanitized_time_unit = sanitize_user_input(time_unit)
+    sanitized_time_interval = sanitize_user_input(time_interval)
     logger.debug(
         "countable %s, time_unit %s, time_interval %s, events filter: %s",
-        countable,
-        time_unit,
-        time_interval,
+        sanitized_countable,
+        sanitized_time_unit,
+        sanitized_time_interval,
         filter.model_dump_json(),
     )
 

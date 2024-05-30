@@ -319,6 +319,7 @@ async def test_counting_events_by_day(
     filter: EventFilter,
     count_events: mock.AsyncMock,
     frozen_time: DateTime,
+    caplog,
 ):
     response = await client.post(
         "http://test/api/events/count-by/day",
@@ -351,6 +352,11 @@ async def test_counting_events_by_day(
         countable=Countable.day,
         time_unit=TimeUnit.day,
         time_interval=1.0,
+    )
+
+    assert (
+        "countable Countable.day, time_unit TimeUnit.day, time_interval 1.0, events filter"
+        in caplog.text
     )
 
 

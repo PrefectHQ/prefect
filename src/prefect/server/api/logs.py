@@ -42,3 +42,11 @@ async def read_logs(
         return await models.logs.read_logs(
             session=session, log_filter=logs, offset=offset, limit=limit, sort=sort
         )
+
+
+def sanitize_user_input(input_value):
+    """
+    Sanitize user input for safe logging. Escapes harmful characters such as newlines
+    and carriage returns in strings.
+    """
+    return str(input_value).replace("\n", "").replace("\r", "")
