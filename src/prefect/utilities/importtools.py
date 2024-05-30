@@ -249,10 +249,12 @@ def lazy_import(
     Use this to retain module-level imports for libraries that we don't want to
     actually import until they are needed.
 
-    NOTE: Lazy-loading a subpackage, such as `docker.error`, will eagerly load the
-    containing package (e.g. `docker`) even if it's already been lazy-imported. This can
-    cause unexpected behavior when the lazy version of the package is used because
-    multiple versions of the package may be loaded.
+    NOTE: Lazy-loading a subpackage can cause the subpackage to be imported
+    twice if another non-lazy import also imports the subpackage. For example,
+    using both `lazy_import("docker.errors")` and `import docker.errors` in the
+    same codebase will import `docker.errors` twice and can lead to unexpected
+    behavior, e.g. type check failures and import-time side effects running
+    twice.
 
     Adapted from the [Python documentation][1] and [lazy_loader][2]
 
