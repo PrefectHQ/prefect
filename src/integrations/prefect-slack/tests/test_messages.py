@@ -50,7 +50,7 @@ SLACK_BLOCKS = [
 async def test_send_chat_message(
     slack_credentials: Mock,
     channel: str,
-    text: Optional[str] = None,
+    text: Optional[str],
     attachments: Optional[Sequence[Union[dict[str, Any], "Attachment"]]] = None,
     slack_blocks: Optional[Sequence[Union[dict[str, Any], "Block"]]] = None,
 ):
