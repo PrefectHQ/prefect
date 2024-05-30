@@ -8,6 +8,7 @@
 
 ### Fixes
 - Add handling for multi-word dbt CLI commands — https://github.com/PrefectHQ/prefect/pull/13616
+- Skip on cancellation hooks if runner cant load flow — https://github.com/PrefectHQ/prefect/pull/13669
 
 ### Integrations
 - Add loading state to concurrency limits table — https://github.com/PrefectHQ/prefect-ui-library/pull/2483
