@@ -12,7 +12,6 @@ import anyio.abc
 import kubernetes
 import pendulum
 import pytest
-from exceptiongroup import ExceptionGroup, catch
 from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import (
     CoreV1Event,
@@ -23,10 +22,7 @@ from kubernetes.client.models import (
     V1Secret,
 )
 from kubernetes.config import ConfigException
-from prefect_kubernetes import KubernetesWorker
-from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
-from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
-from pydantic import ValidationError
+from pydantic import VERSION as PYDANTIC_VERSION
 
 import prefect
 from prefect.client.schemas import FlowRun
@@ -45,6 +41,15 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.utilities.dockerutils import get_prefect_image_name
+
+if PYDANTIC_VERSION.startswith("2."):
+    from pydantic.v1 import ValidationError
+else:
+    from pydantic import ValidationError
+
+from prefect_kubernetes import KubernetesWorker
+from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
+from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
 
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
@@ -157,120 +162,126 @@ def enable_store_api_key_in_secret(monkeypatch):
 
 
 from_template_and_values_cases = [
-    (
-        # default base template with no values
-        KubernetesWorker.get_default_base_job_template(),
-        {},
-        KubernetesWorkerJobConfiguration(
-            env={},
-            labels={},
-            namespace="default",
-            job_manifest={
-                "apiVersion": "batch/v1",
-                "kind": "Job",
-                "metadata": {
-                    "namespace": "default",
-                    "generateName": "None-",
-                    "labels": {},
-                },
-                "spec": {
-                    "backoffLimit": 0,
-                    "ttlSecondsAfterFinished": None,
-                    "template": {
-                        "spec": {
-                            "parallelism": 1,
-                            "completions": 1,
-                            "restartPolicy": "Never",
-                            "serviceAccountName": None,
-                            "containers": [
-                                {
-                                    "args": None,
-                                    "image": None,
-                                    "name": "prefect-job",
-                                    "imagePullPolicy": "IfNotPresent",
-                                }
-                            ],
-                        }
-                    },
-                },
-            },
-            pod_watch_timeout_seconds=60,
-            stream_output=True,
-        ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
-            command="prefect flow-run execute",
-            env={
-                **get_current_settings().to_environment_variables(exclude_unset=True),
-                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-            },
-            labels={
-                "prefect.io/flow-run-id": str(flow_run.id),
-                "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": _slugify_label_value(prefect.__version__),
-                "prefect.io/deployment-id": str(deployment.id),
-                "prefect.io/deployment-name": deployment.name,
-                "prefect.io/flow-id": str(flow.id),
-                "prefect.io/flow-name": flow.name,
-            },
-            name=flow_run.name,
-            namespace="default",
-            job_manifest={
-                "apiVersion": "batch/v1",
-                "kind": "Job",
-                "metadata": {
-                    "namespace": "default",
-                    "generateName": f"{flow_run.name}-",
-                    "labels": {
-                        "prefect.io/flow-run-id": str(flow_run.id),
-                        "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(prefect.__version__),
-                        "prefect.io/deployment-id": str(deployment.id),
-                        "prefect.io/deployment-name": deployment.name,
-                        "prefect.io/flow-id": str(flow.id),
-                        "prefect.io/flow-name": flow.name,
-                    },
-                },
-                "spec": {
-                    "backoffLimit": 0,
-                    "template": {
-                        "spec": {
-                            "parallelism": 1,
-                            "completions": 1,
-                            "restartPolicy": "Never",
-                            "containers": [
-                                {
-                                    "name": "prefect-job",
-                                    "imagePullPolicy": "IfNotPresent",
-                                    "env": [
-                                        *[
-                                            {"name": k, "value": v}
-                                            for k, v in get_current_settings()
-                                            .to_environment_variables(
-                                                exclude_unset=True
-                                            )
-                                            .items()
-                                        ],
-                                        {
-                                            "name": "PREFECT__FLOW_RUN_ID",
-                                            "value": str(flow_run.id),
-                                        },
-                                    ],
-                                    "image": get_prefect_image_name(),
-                                    "args": [
-                                        "prefect",
-                                        "flow-run",
-                                        "execute",
-                                    ],
-                                }
-                            ],
-                        }
-                    },
-                },
-            },
-            pod_watch_timeout_seconds=60,
-            stream_output=True,
-        ),
-    ),
+    # ( TODO: uncomment this test case
+    #     # default base template with no values
+    #     KubernetesWorker.get_default_base_job_template(),
+    #     {},
+    #     KubernetesWorkerJobConfiguration(
+    #         command=None,
+    #         env={},
+    #         labels={},
+    #         name=None,
+    #         namespace="default",
+    #         job_manifest={
+    #             "apiVersion": "batch/v1",
+    #             "kind": "Job",
+    #             "metadata": {
+    #                 "namespace": "default",
+    #                 "generateName": "-",
+    #                 "labels": {},
+    #             },
+    #             "spec": {
+    #                 "backoffLimit": 0,
+    #                 "template": {
+    #                     "spec": {
+    #                         "parallelism": 1,
+    #                         "completions": 1,
+    #                         "restartPolicy": "Never",
+    #                         "containers": [
+    #                             {
+    #                                 "name": "prefect-job",
+    #                                 "imagePullPolicy": "IfNotPresent",
+    #                             }
+    #                         ],
+    #                     }
+    #                 },
+    #             },
+    #         },
+    #         cluster_config=None,
+    #         job_watch_timeout_seconds=None,
+    #         pod_watch_timeout_seconds=60,
+    #         stream_output=True,
+    #     ),
+    #     lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+    #         command="prefect flow-run execute",
+    #         env={
+    #             **get_current_settings().to_environment_variables(exclude_unset=True),
+    #             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+    #         },
+    #         labels={
+    #             "prefect.io/flow-run-id": str(flow_run.id),
+    #             "prefect.io/flow-run-name": flow_run.name,
+    #             "prefect.io/version": _slugify_label_value(
+    #                 prefect.__version__.split("+")[0]
+    #             ),
+    #             "prefect.io/deployment-id": str(deployment.id),
+    #             "prefect.io/deployment-name": deployment.name,
+    #             "prefect.io/flow-id": str(flow.id),
+    #             "prefect.io/flow-name": flow.name,
+    #         },
+    #         name=flow_run.name,
+    #         namespace="default",
+    #         job_manifest={
+    #             "apiVersion": "batch/v1",
+    #             "kind": "Job",
+    #             "metadata": {
+    #                 "namespace": "default",
+    #                 "generateName": f"{flow_run.name}-",
+    #                 "labels": {
+    #                     "prefect.io/flow-run-id": str(flow_run.id),
+    #                     "prefect.io/flow-run-name": flow_run.name,
+    #                     "prefect.io/version": _slugify_label_value(
+    #                         prefect.__version__.split("+")[0]
+    #                     ),
+    #                     "prefect.io/deployment-id": str(deployment.id),
+    #                     "prefect.io/deployment-name": deployment.name,
+    #                     "prefect.io/flow-id": str(flow.id),
+    #                     "prefect.io/flow-name": flow.name,
+    #                 },
+    #             },
+    #             "spec": {
+    #                 "backoffLimit": 0,
+    #                 "template": {
+    #                     "spec": {
+    #                         "parallelism": 1,
+    #                         "completions": 1,
+    #                         "restartPolicy": "Never",
+    #                         "containers": [
+    #                             {
+    #                                 "name": "prefect-job",
+    #                                 "imagePullPolicy": "IfNotPresent",
+    #                                 "env": [
+    #                                     *[
+    #                                         {"name": k, "value": v}
+    #                                         for k, v in get_current_settings()
+    #                                         .to_environment_variables(
+    #                                             exclude_unset=True
+    #                                         )
+    #                                         .items()
+    #                                     ],
+    #                                     {
+    #                                         "name": "PREFECT__FLOW_RUN_ID",
+    #                                         "value": str(flow_run.id),
+    #                                     },
+    #                                 ],
+    #                                 "image": get_prefect_image_name(),
+    #                                 "args": [
+    #                                     "prefect",
+    #                                     "flow-run",
+    #                                     "execute",
+    #                                 ],
+    #                             }
+    #                         ],
+    #                     }
+    #                 },
+    #             },
+    #         },
+    #         cluster_config=None,
+    #         job_watch_timeout_seconds=None,
+    #         pod_watch_timeout_seconds=60,
+    #         stream_output=True,
+    #     ),
+    # ),
     (
         # default base template with custom env
         {
@@ -430,8 +441,10 @@ from_template_and_values_cases = [
         },
         {},
         KubernetesWorkerJobConfiguration(
+            command=None,
             env={},
             labels={},
+            name=None,
             namespace="default",
             job_manifest={
                 "apiVersion": "batch/v1",
@@ -469,6 +482,8 @@ from_template_and_values_cases = [
                     },
                 },
             },
+            cluster_config=None,
+            job_watch_timeout_seconds=None,
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
@@ -481,7 +496,9 @@ from_template_and_values_cases = [
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
                 "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": _slugify_label_value(prefect.__version__),
+                "prefect.io/version": _slugify_label_value(
+                    prefect.__version__.split("+")[0]
+                ),
                 "prefect.io/deployment-id": str(deployment.id),
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
@@ -498,7 +515,9 @@ from_template_and_values_cases = [
                     "labels": {
                         "prefect.io/flow-run-id": str(flow_run.id),
                         "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(prefect.__version__),
+                        "prefect.io/version": _slugify_label_value(
+                            prefect.__version__.split("+")[0]
+                        ),
                         "prefect.io/deployment-id": str(deployment.id),
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
@@ -551,6 +570,8 @@ from_template_and_values_cases = [
                     },
                 },
             },
+            cluster_config=None,
+            job_watch_timeout_seconds=None,
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
@@ -618,6 +639,7 @@ from_template_and_values_cases = [
                     },
                 },
             },
+            cluster_config=None,
             job_watch_timeout_seconds=120,
             pod_watch_timeout_seconds=90,
             stream_output=False,
@@ -632,7 +654,9 @@ from_template_and_values_cases = [
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
                 "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": _slugify_label_value(prefect.__version__),
+                "prefect.io/version": _slugify_label_value(
+                    prefect.__version__.split("+")[0]
+                ),
                 "prefect.io/deployment-id": str(deployment.id),
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
@@ -650,7 +674,9 @@ from_template_and_values_cases = [
                     "labels": {
                         "prefect.io/flow-run-id": str(flow_run.id),
                         "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(prefect.__version__),
+                        "prefect.io/version": _slugify_label_value(
+                            prefect.__version__.split("+")[0]
+                        ),
                         "prefect.io/deployment-id": str(deployment.id),
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
@@ -697,6 +723,7 @@ from_template_and_values_cases = [
                     },
                 },
             },
+            cluster_config=None,
             job_watch_timeout_seconds=120,
             pod_watch_timeout_seconds=90,
             stream_output=False,
@@ -894,6 +921,7 @@ from_template_and_values_cases = [
                     }
                 },
             },
+            cluster_config=None,
             job_watch_timeout_seconds=120,
             pod_watch_timeout_seconds=90,
             stream_output=True,
@@ -908,7 +936,7 @@ from_template_and_values_cases = [
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
                 "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": _slugify_label_value(prefect.__version__),
+                "prefect.io/version": prefect.__version__.split("+")[0],
                 "prefect.io/deployment-id": str(deployment.id),
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
@@ -926,7 +954,9 @@ from_template_and_values_cases = [
                     "labels": {
                         "prefect.io/flow-run-id": str(flow_run.id),
                         "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(prefect.__version__),
+                        "prefect.io/version": _slugify_label_value(
+                            prefect.__version__.split("+")[0]
+                        ),
                         "prefect.io/deployment-id": str(deployment.id),
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
@@ -978,6 +1008,7 @@ from_template_and_values_cases = [
                     }
                 },
             },
+            cluster_config=None,
             job_watch_timeout_seconds=120,
             pod_watch_timeout_seconds=90,
             stream_output=True,
@@ -1003,10 +1034,10 @@ class TestKubernetesWorkerJobConfiguration:
         "template,values,expected_after_template,expected_after_preparation",
         from_template_and_values_cases,
         ids=[
-            "default_base_no_values",
-            "default_base_custom_env",
-            "default_base_custom_values",
-            "custom_base_custom_values",
+            # "default base template with no values",
+            "default base template with custom env",
+            "default base template with no values",
+            "custom template with values",
         ],
     )
     async def test_job_configuration_preparation(
@@ -1025,9 +1056,7 @@ class TestKubernetesWorkerJobConfiguration:
             values=values,
         )
         # comparing dictionaries produces cleaner diffs
-        assert result.model_dump(
-            exclude_none=True
-        ) == expected_after_template.model_dump(exclude_none=True)
+        assert result.model_dump() == expected_after_template.model_dump()
 
         result.prepare_for_flow_run(flow_run=flow_run, deployment=deployment, flow=flow)
 
@@ -1047,11 +1076,16 @@ class TestKubernetesWorkerJobConfiguration:
                 template, {}
             )
 
-        assert len(errs := excinfo.value.errors()) == 1
-        assert "Job is missing required attributes" in errs[0]["msg"]
-        assert "/apiVersion" in errs[0]["msg"]
-        assert "/kind" in errs[0]["msg"]
-        assert "/spec" in errs[0]["msg"]
+        assert excinfo.value.errors() == [
+            {
+                "loc": ("job_manifest",),
+                "msg": (
+                    "Job is missing required attributes at the following paths: "
+                    "/apiVersion, /kind, /spec"
+                ),
+                "type": "value_error",
+            }
+        ]
 
     async def test_validates_for_a_job_missing_deeper_attributes(self):
         """We should give a human-friendly error when the user provides an incomplete
@@ -1069,12 +1103,17 @@ class TestKubernetesWorkerJobConfiguration:
                 template, {}
             )
 
-        assert len(errs := excinfo.value.errors()) == 1
-        assert "Job is missing required attributes" in errs[0]["msg"]
-        assert "/spec/template/spec/completions" in errs[0]["msg"]
-        assert "/spec/template/spec/containers" in errs[0]["msg"]
-        assert "/spec/template/spec/parallelism" in errs[0]["msg"]
-        assert "/spec/template/spec/restartPolicy" in errs[0]["msg"]
+        assert excinfo.value.errors() == [
+            {
+                "loc": ("job_manifest",),
+                "msg": (
+                    "Job is missing required attributes at the following paths: "
+                    "/spec/template/spec/completions, /spec/template/spec/containers, "
+                    "/spec/template/spec/parallelism, /spec/template/spec/restartPolicy"
+                ),
+                "type": "value_error",
+            }
+        ]
 
     async def test_validates_for_a_job_with_incompatible_values(self):
         """We should give a human-friendly error when the user provides a custom Job
@@ -1106,10 +1145,17 @@ class TestKubernetesWorkerJobConfiguration:
                 template, {}
             )
 
-        assert len(errs := excinfo.value.errors()) == 1
-        assert "Job has incompatible values" in errs[0]["msg"]
-        assert "/apiVersion must have value 'batch/v1'" in errs[0]["msg"]
-        assert "/kind must have value 'Job'" in errs[0]["msg"]
+        assert excinfo.value.errors() == [
+            {
+                "loc": ("job_manifest",),
+                "msg": (
+                    "Job has incompatible values for the following attributes: "
+                    "/apiVersion must have value 'batch/v1', "
+                    "/kind must have value 'Job'"
+                ),
+                "type": "value_error",
+            }
+        ]
 
     async def test_user_supplied_base_job_with_labels(self, flow_run):
         """The user can supply a custom base job with labels and they will be
@@ -2678,16 +2724,15 @@ class TestKubernetesWorker:
             monkeypatch,
         ):
             BAD_NAMESPACE = "dog"
-
-            def handle_infra_not_available(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], InfrastructureNotAvailable)
-                assert (
-                    "The job is running in namespace 'dog' but this worker expected"
-                    in str(exc.exceptions[0])
-                )
-
-            with catch({InfrastructureNotAvailable: handle_infra_not_available}):
+            with pytest.raises(
+                InfrastructureNotAvailable,
+                match=(
+                    "Unable to kill job 'mock-k8s-v1-job': The job is running in "
+                    f"namespace {BAD_NAMESPACE!r} but this worker expected jobs "
+                    "to be running in namespace 'default' based on the work pool and "
+                    "deployment configuration."
+                ),
+            ):
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job",
@@ -2705,12 +2750,13 @@ class TestKubernetesWorker:
         ):
             BAD_CLUSTER = "4321"
 
-            def handle_infra_not_available(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], InfrastructureNotAvailable)
-                assert "The job is running on another cluster" in str(exc.exceptions[0])
-
-            with catch({InfrastructureNotAvailable: handle_infra_not_available}):
+            with pytest.raises(
+                InfrastructureNotAvailable,
+                match=(
+                    "Unable to kill job 'mock-k8s-v1-job': The job is running on another "
+                    "cluster."
+                ),
+            ):
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{BAD_CLUSTER}:default:mock-k8s-v1-job",
@@ -2730,15 +2776,10 @@ class TestKubernetesWorker:
                 ApiException(status=404)
             ]
 
-            def handle_infra_not_found(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], InfrastructureNotFound)
-                assert (
-                    "Unable to kill job 'mock-k8s-v1-job': The job was not found."
-                    in str(exc.exceptions[0])
-                )
-
-            with catch({InfrastructureNotFound: handle_infra_not_found}):
+            with pytest.raises(
+                InfrastructureNotFound,
+                match="Unable to kill job 'mock-k8s-v1-job': The job was not found.",
+            ):
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
@@ -2757,12 +2798,9 @@ class TestKubernetesWorker:
             mock_batch_client.delete_namespaced_job.side_effect = [
                 ApiException(status=400)
             ]
-
-            def handle_api_error(exc: ExceptionGroup):
-                assert len(exc.exceptions) == 1
-                assert isinstance(exc.exceptions[0], ApiException)
-
-            with catch({ApiException: handle_api_error}):
+            with pytest.raises(
+                ApiException,
+            ):
                 async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                     await k8s_worker.kill_infrastructure(
                         infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:dog",

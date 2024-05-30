@@ -118,7 +118,7 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ObjectMeta, V1Secret
 from pydantic import Field, model_validator
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
-from typing_extensions import Literal
+from typing_extensions import Literal, Self
 
 import prefect
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -268,14 +268,13 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     # internal-use only
     _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_job_manifest(cls, values):
+    @model_validator(mode="after")
+    def _validate_job_manifest(self) -> Self:
         """
         Validates the job manifest by ensuring the presence of required fields
         and checking for compatible values.
         """
-        job_manifest = values["job_manifest"]
+        job_manifest = self.job_manifest
         # Ensure metadata is present
         if "metadata" not in job_manifest:
             job_manifest["metadata"] = {}
@@ -286,7 +285,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
 
         # Ensure namespace is present in metadata
         if "namespace" not in job_manifest["metadata"]:
-            job_manifest["metadata"]["namespace"] = values["namespace"]
+            job_manifest["metadata"]["namespace"] = self.namespace
 
         # Check if job includes all required components
         patch = JsonPatch.from_diff(job_manifest, _get_base_job_manifest())
@@ -311,7 +310,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                 f"{', '.join(incompatible)}"
             )
 
-        return values
+        return self
 
     @staticmethod
     def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
@@ -321,7 +320,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         return {
             "prefect.io/flow-run-id": str(flow_run.id),
             "prefect.io/flow-run-name": flow_run.name,
-            "prefect.io/version": _slugify_label_value(prefect.__version__),
+            "prefect.io/version": _slugify_label_value(
+                prefect.__version__.split("+")[0]
+            ),
         }
 
     def prepare_for_flow_run(
@@ -457,6 +458,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         has_placeholder = len(find_placeholders(manifest_generate_name)) > 0
         # if name wasn't present during template rendering, generateName will be
         # just a hyphen
+
         manifest_generate_name_templated_with_empty_string = (
             manifest_generate_name == "-"
         )
@@ -464,7 +466,6 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             not manifest_generate_name
             or has_placeholder
             or manifest_generate_name_templated_with_empty_string
-            or manifest_generate_name in ("-", "None-")
         ):
             generate_name = None
             if self.name:
