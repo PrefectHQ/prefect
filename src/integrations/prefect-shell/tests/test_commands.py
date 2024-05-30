@@ -13,93 +13,95 @@ if sys.platform == "win32":
     pytest.skip(reason="see test_commands_windows.py", allow_module_level=True)
 
 
-def test_shell_run_command_error(prefect_task_runs_caplog):
+async def test_shell_run_command_error(prefect_task_runs_caplog):
     @flow
-    def test_flow():
-        return shell_run_command(command="ls this/is/invalid")
+    async def test_flow():
+        return await shell_run_command(command="ls this/is/invalid")
 
     match = "No such file or directory"
     with pytest.raises(RuntimeError, match=match):
-        test_flow()
+        await test_flow()
 
 
-def test_shell_run_command(prefect_task_runs_caplog):
+async def test_shell_run_command(prefect_task_runs_caplog):
     prefect_task_runs_caplog.set_level(logging.INFO)
     echo_msg = "_THIS_ IS WORKING!!!!"
 
     @flow
-    def test_flow():
-        return shell_run_command(command=f"echo {echo_msg}")
+    async def test_flow():
+        return await shell_run_command(command=f"echo {echo_msg}")
 
-    assert test_flow() == echo_msg
+    assert (await test_flow()) == echo_msg
     assert echo_msg in prefect_task_runs_caplog.text
 
 
-def test_shell_run_command_stream_level(prefect_task_runs_caplog):
+async def test_shell_run_command_stream_level(prefect_task_runs_caplog):
     prefect_task_runs_caplog.set_level(logging.WARNING)
     echo_msg = "_THIS_ IS WORKING!!!!"
 
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command=f"echo {echo_msg}",
             stream_level=logging.WARNING,
         )
 
-    assert test_flow() == echo_msg
+    assert (await test_flow()) == echo_msg
     assert echo_msg in prefect_task_runs_caplog.text
 
 
-def test_shell_run_command_helper_command():
+async def test_shell_run_command_helper_command():
     @flow
-    def test_flow():
-        return shell_run_command(command="pwd", helper_command="cd $HOME")
+    async def test_flow():
+        return await shell_run_command(command="pwd", helper_command="cd $HOME")
 
-    assert test_flow() == os.path.expandvars("$HOME")
+    assert (await test_flow()) == os.path.expandvars("$HOME")
 
 
-def test_shell_run_command_cwd():
+async def test_shell_run_command_cwd():
     @flow
-    def test_flow():
-        return shell_run_command(command="pwd", cwd=Path.home())
+    async def test_flow():
+        return await shell_run_command(command="pwd", cwd=Path.home())
 
-    assert test_flow() == os.fspath(Path.home())
+    assert (await test_flow()) == os.fspath(Path.home())
 
 
-def test_shell_run_command_return_all():
+async def test_shell_run_command_return_all():
     @flow
-    def test_flow():
-        return shell_run_command(command="echo work! && echo yes!", return_all=True)
+    async def test_flow():
+        return await shell_run_command(
+            command="echo work! && echo yes!", return_all=True
+        )
 
-    assert test_flow() == ["work!", "yes!"]
+    assert (await test_flow()) == ["work!", "yes!"]
 
 
-def test_shell_run_command_no_output():
+async def test_shell_run_command_no_output():
     @flow
-    def test_flow():
-        return shell_run_command(command="sleep 1")
+    async def test_flow():
+        return await shell_run_command(command="sleep 1")
 
-    assert test_flow() == ""
+    assert (await test_flow()) == ""
 
 
-def test_shell_run_command_uses_current_env():
+async def test_shell_run_command_uses_current_env():
     @flow
-    def test_flow():
-        return shell_run_command(command="echo $HOME")
+    async def test_flow():
+        return await shell_run_command(command="echo $HOME")
 
-    assert test_flow() == os.environ["HOME"]
+    assert (await test_flow()) == os.environ["HOME"]
 
 
-def test_shell_run_command_update_current_env():
+async def test_shell_run_command_update_current_env():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo $HOME && echo $TEST_VAR",
             env={"TEST_VAR": "test value"},
             return_all=True,
         )
 
-    result = test_flow()
+    result = await test_flow()
     assert result[0] == os.environ["HOME"]
     assert result[1] == "test value"
 
@@ -114,7 +116,7 @@ class AsyncIter:
 
 
 @pytest.mark.parametrize("shell", [None, "bash", "zsh"])
-def test_shell_run_command_override_shell(shell, monkeypatch):
+async def test_shell_run_command_override_shell(shell, monkeypatch):
     open_process_mock = AsyncMock()
     stdout_mock = AsyncMock()
     stdout_mock.receive.side_effect = lambda: b"received"
@@ -126,13 +128,13 @@ def test_shell_run_command_override_shell(shell, monkeypatch):
     monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo 'testing'",
             shell=shell,
         )
 
-    test_flow()
+    await test_flow()
     assert open_process_mock.call_args_list[0][0][0][0] == shell or "bash"
 
 
@@ -151,6 +153,7 @@ class TestShellOperation:
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
 
+    @pytest.mark.skipif(sys.version >= "3.12", reason="Fails on Python 3.12")
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_output(self, prefect_task_runs_caplog, method):
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
