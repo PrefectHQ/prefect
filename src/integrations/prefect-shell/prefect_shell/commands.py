@@ -12,18 +12,13 @@ from typing import Any, Dict, Generator, List, Optional, Union
 import anyio
 from anyio.abc import Process
 from anyio.streams.text import TextReceiveStream
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import DirectoryPath, Field, PrivateAttr
 
 from prefect import task
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import DirectoryPath, Field, PrivateAttr
-else:
-    from pydantic import DirectoryPath, Field, PrivateAttr
 
 
 @task
@@ -243,7 +238,7 @@ class ShellOperation(JobBlock):
         title="Environment Variables",
         description="Environment variables to use for the subprocess.",
     )
-    working_dir: DirectoryPath = Field(
+    working_dir: Optional[DirectoryPath] = Field(
         default=None,
         title="Working Directory",
         description=(
@@ -251,7 +246,7 @@ class ShellOperation(JobBlock):
             "the command will be executed within."
         ),
     )
-    shell: str = Field(
+    shell: Optional[str] = Field(
         default=None,
         description=(
             "The shell to run the command with; if unset, "
