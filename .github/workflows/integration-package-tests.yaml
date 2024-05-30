@@ -3,7 +3,9 @@ name: Integrations Packages Tests
 on:
   pull_request:
     paths:
-      - "src/integrations/*/**"
+      - .github/workflows/integration-package-tests.yaml
+      - "src/**/*"
+    types: [opened, reopened, synchronize, labeled, unlabeled]
   push:
     branches:
       - main
@@ -12,6 +14,8 @@ on:
 
 jobs:
   prepare-matrix:
+    # These tests will only run if the integration paths are affected, or someone has
+    # added the `integrations` label to the PR
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -27,7 +31,11 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          if [[ $GITHUB_EVENT_NAME == 'pull_request' ]]; then
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'test-all-integrations') }}" == 'true' ]]; then
+            # All of the integration packages were changed since 2.19.2, so this is a
+            # standin for saying "all integrations"
+            COMMIT_RANGE="2.19.2..${{ github.event.pull_request.head.sha }}"
+          elif [[ $GITHUB_EVENT_NAME == 'pull_request' ]]; then
             COMMIT_RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
           else
             COMMIT_RANGE="${{ github.event.before }}..${{ github.event.after }}"
