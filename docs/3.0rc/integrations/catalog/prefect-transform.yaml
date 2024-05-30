@@ -2,5 +2,5 @@ collectionName: prefect-transform
 author: Alessandro Lollo
 authorUrl: https://github.com/AlessandroLollo
 documentation: https://alessandrolollo.github.io/prefect-transform/
-iconUrl: /img/collections/transform.png
+iconUrl: /3.0rc/img/collections/transform.png
 tag: Transform

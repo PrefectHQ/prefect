@@ -2,5 +2,5 @@ collectionName: prefect-azure
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-azure
-iconUrl: /img/collections/azure.png
+iconUrl: /3.0rc/img/collections/azure.png
 tag: Azure
