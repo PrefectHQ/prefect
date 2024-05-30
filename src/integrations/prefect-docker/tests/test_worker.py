@@ -1,5 +1,4 @@
 import copy
-import re
 import uuid
 from unittest.mock import MagicMock, call, patch
 
@@ -10,6 +9,7 @@ import docker.models.containers
 import pytest
 from docker import DockerClient
 from docker.models.containers import Container
+from exceptiongroup import ExceptionGroup
 from packaging import version
 from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.worker import (
@@ -219,11 +219,14 @@ async def test_container_creation_failure_reraises_if_not_name_conflict(
         "test error"
     )
 
-    with pytest.raises(docker.errors.APIError, match="test error"):
+    with pytest.raises(ExceptionGroup) as exc:
         async with DockerWorker(work_pool_name="test") as worker:
             await worker.run(
                 flow_run=flow_run, configuration=default_docker_worker_job_configuration
             )
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], docker.errors.APIError)
+    assert "test error" in str(exc.value.exceptions[0])
 
 
 async def test_uses_image_setting(
@@ -1113,13 +1116,16 @@ async def test_kill_infrastructure_raises_infra_not_available_with_bad_host_url(
             f"API base URL {BAD_BASE_URL}.",
         ]
     )
-    with pytest.raises(InfrastructureNotAvailable, match=re.escape(expected_string)):
+    with pytest.raises(ExceptionGroup) as exc:
         async with DockerWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(
                 infrastructure_pid=f"{BAD_BASE_URL}:{FAKE_CONTAINER_ID}",
                 configuration=default_docker_worker_job_configuration,
                 grace_seconds=0,
             )
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], InfrastructureNotAvailable)
+    assert str(exc.value.exceptions[0]) == expected_string
 
 
 async def test_kill_infrastructure_raises_infra_not_found_with_bad_container_id(
@@ -1128,19 +1134,18 @@ async def test_kill_infrastructure_raises_infra_not_found_with_bad_container_id(
     mock_docker_client.containers.get.side_effect = [docker.errors.NotFound("msg")]
 
     BAD_CONTAINER_ID = "bad-container-id"
-    with pytest.raises(
-        InfrastructureNotFound,
-        match=(
-            f"Unable to stop container {BAD_CONTAINER_ID!r}: The container was not"
-            " found."
-        ),
-    ):
+    with pytest.raises(ExceptionGroup) as exc:
         async with DockerWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(
                 infrastructure_pid=f"{FAKE_BASE_URL}:{BAD_CONTAINER_ID}",
                 configuration=default_docker_worker_job_configuration,
                 grace_seconds=0,
             )
+    assert len(exc.value.exceptions) == 1
+    assert isinstance(exc.value.exceptions[0], InfrastructureNotFound)
+    assert str(exc.value.exceptions[0]) == (
+        f"Unable to stop container {BAD_CONTAINER_ID!r}: The container was not found."
+    )
 
 
 async def test_emits_events(
@@ -1207,13 +1212,15 @@ async def test_emits_event_container_creation_failure(
 
     worker_resource = None
     with patch("prefect_docker.worker.emit_event") as mock_emit:
-        with pytest.raises(docker.errors.APIError, match="test error"):
+        with pytest.raises(ExceptionGroup) as exc:
             async with DockerWorker(work_pool_name="test") as worker:
                 worker_resource = worker._event_resource()
                 await worker.run(
                     flow_run=flow_run,
                     configuration=default_docker_worker_job_configuration,
                 )
+        assert len(exc.value.exceptions) == 1
+        assert isinstance(exc.value.exceptions[0], docker.errors.APIError)
 
         mock_emit.assert_called_once_with(
             event="prefect.docker.container.creation-failed",
