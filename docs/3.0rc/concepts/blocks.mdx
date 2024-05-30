@@ -137,7 +137,7 @@ To update saved block value stored for a given block, overwrite the existing blo
 bucket_block.save(overwrite=True)
 ```
 
-Create a new secret block by setting the `name` parameter to a new value:
+Create a new `S3Bucket` by setting the `name` parameter to a new value:
 
 ```python
 new_bucket_block.save(name="my-new-data-bucket-block")
@@ -360,7 +360,7 @@ class AWSCredentials(Block):
         )
 ```
 
-The `AWSCredentials` block can be used within an S3Bucket block to provide authentication when interacting with an S3 bucket:
+The `AWSCredentials` block can be used within an `S3Bucket` block to provide authentication when interacting with an S3 bucket:
 
 ```python hl_lines="5"
 import io
