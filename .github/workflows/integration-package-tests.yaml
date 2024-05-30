@@ -16,7 +16,7 @@ jobs:
   prepare-matrix:
     # These tests will only run if the integration paths are affected, or someone has
     # added the `integrations` label to the PR
-    if: ${{ github.event_name != 'labeled' || contains(github.event.pull_request.labels.*.name, 'integrations') }}
+    if: ${{ github.event_name != 'labeled' || contains(github.event.pull_request.labels.*.name, 'test-all-integrations') }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -32,7 +32,7 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'integrations') }}" == 'true' ]]; then
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'test-all-integrations') }}" == 'true' ]]; then
             # All of the integration packages were changed since 2.19.2, so this is a
             # standin for saying "all integrations"
             COMMIT_RANGE="2.19.2..${{ github.event.pull_request.head.sha }}"
