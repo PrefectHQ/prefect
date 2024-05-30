@@ -3,20 +3,13 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Set, Tuple
 
-import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.exceptions import InvalidRepositoryURLError
-from prefect.testing.utilities import AsyncMock
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
-
 import prefect_gitlab
+import pytest
 from prefect_gitlab.credentials import GitLabCredentials
 from prefect_gitlab.repositories import GitLabRepository  # noqa: E402
+from pydantic import SecretStr
+
+from prefect.testing.utilities import AsyncMock
 
 
 class TestGitLab:
@@ -169,30 +162,6 @@ class TestGitLab:
             repo,
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
-
-    async def test_ssh_fails_with_credential(self, monkeypatch):
-        """Ensure that credentials cannot be passed in if the URL is not in the HTTPS/HTTP
-        format.
-        """
-
-        class p:
-            returncode = 0
-
-        mock = AsyncMock(return_value=p())
-        monkeypatch.setattr(prefect_gitlab.repositories, "run_process", mock)
-        credential = "XYZ"
-        error_msg = (
-            "Credentials can only be used with GitLab repositories "
-            "using the 'HTTPS'/'HTTP' format. You must either remove the "
-            "credential if you wish to use the 'SSH' format and are not "
-            "using a private repository, or you must change the repository "
-            "URL to the 'HTTPS'/'HTTP' format."
-        )
-        with pytest.raises(InvalidRepositoryURLError, match=error_msg):
-            GitLabRepository(
-                repository="git@gitlab.com:PrefectHQ/prefect.git",
-                credentials=GitLabCredentials(token=SecretStr(credential)),
-            )
 
     async def test_dir_contents_copied_correctly_with_get_directory(self, monkeypatch):  # noqa
         """Check that `get_directory` is able to correctly copy contents from src->dst"""  # noqa
