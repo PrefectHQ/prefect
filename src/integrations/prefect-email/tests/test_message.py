@@ -2,10 +2,9 @@ import base64
 import pathlib
 
 import pytest
-from prefect_email.credentials import EmailServerCredentials
 from prefect_email.message import email_send_message
 
-from prefect import flow  # type: ignore
+from prefect import flow
 
 EMAIL_TO = [
     "someone@email.com",
@@ -31,10 +30,7 @@ EMAIL_TO_BCC = [
 @pytest.mark.parametrize("email_to_cc", EMAIL_TO_CC)
 @pytest.mark.parametrize("email_to_bcc", EMAIL_TO_BCC)
 async def test_email_send_message(
-    email_to: str | list[str] | None,
-    email_to_cc: str | list[str] | None,
-    email_to_bcc: str | list[str] | None,
-    email_server_credentials: EmailServerCredentials,
+    email_to, email_to_cc, email_to_bcc, email_server_credentials
 ):
     subject = "Example Flow Notification"
     msg_plain = "This proves msg plain is attached first!"
@@ -51,7 +47,7 @@ async def test_email_send_message(
             subject=subject,
             msg=msg,
             msg_plain=msg_plain,
-            attachments=[attachment],  # type: ignore
+            attachments=[attachment],
             email_to=email_to,
             email_to_cc=email_to_cc,
             email_to_bcc=email_to_bcc,
@@ -68,10 +64,10 @@ async def test_email_send_message(
     message = await test_flow()
     assert message["Subject"] == subject
     assert message["From"] == email_server_credentials.username
-    assert message.get_payload()[0].get_payload() == msg_plain  # type: ignore
-    assert message.get_payload()[1].get_payload() == msg  # type: ignore
-    attachment = message.get_payload()[2].get_payload()  # type: ignore
-    assert base64.b64decode(attachment) == attachment_text  # type: ignore
+    assert message.get_payload()[0].get_payload() == msg_plain
+    assert message.get_payload()[1].get_payload() == msg
+    attachment = message.get_payload()[2].get_payload()
+    assert base64.b64decode(attachment) == attachment_text
 
     for key, val in email_to_dict.items():
         if isinstance(val, list):

@@ -8,7 +8,7 @@ from typing import Optional, Union
 from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
-from prefect_email.types import SMTPServer, SMTPServerLike, SMTPType
+from prefect_email.types import SMTPServer, SMTPType
 
 
 class EmailServerCredentials(Block):
@@ -54,7 +54,7 @@ class EmailServerCredentials(Block):
             "Unnecessary if SMTP login is not required."
         ),
     )
-    smtp_server: SMTPServerLike = Field(
+    smtp_server: SMTPServer = Field(
         default=SMTPServer.GMAIL,
         description=(
             "Either the hostname of the SMTP server, or one of the "
