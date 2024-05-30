@@ -65,7 +65,7 @@ async def delete_cloud_run_job(flow, flow_run, state):
 
     # retrieve Cloud Run job name
     cloud_run_job_name = await Variable.get(
-        name="crashing-flow-cloud-run-job"
+        name="crashing-flow_cloud_run_job"
     )
 
     # delete Cloud Run job
