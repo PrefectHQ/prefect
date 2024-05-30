@@ -7,12 +7,12 @@
 - Allow flow parameter schema generation when dependencies are missing — https://github.com/PrefectHQ/prefect/pull/13620
 
 ### Fixes
-- Add handling for multi-word dbt CLI commands — https://github.com/PrefectHQ/prefect/pull/13616
-- Skip on cancellation hooks if runner cant load flow — https://github.com/PrefectHQ/prefect/pull/13669
+- Skip on cancellation hooks if runner can't load flow — https://github.com/PrefectHQ/prefect/pull/13669
 
 ### Integrations
 - Add loading state to concurrency limits table in the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/2483
 - Remove old schema properties from deployments in the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/2482
+- Add handling for multi-word dbt CLI commands — https://github.com/PrefectHQ/prefect/pull/13616
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.2...2.19.3
 
