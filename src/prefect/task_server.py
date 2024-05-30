@@ -85,7 +85,7 @@ class TaskServer:
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         self._executor = ThreadPoolExecutor()
-        self._limitter = anyio.CapacityLimiter(limit) if limit else None
+        self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
     @property
     def _client_id(self) -> str:
@@ -146,8 +146,8 @@ class TaskServer:
             keys=[task.task_key for task in self.tasks],
             client_id=self._client_id,
         ):
-            if self._limitter:
-                await self._limitter.acquire_on_behalf_of(task_run.id)
+            if self._limiter:
+                await self._limiter.acquire_on_behalf_of(task_run.id)
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             self._runs_task_group.start_soon(self._submit_scheduled_task_run, task_run)
 
@@ -245,14 +245,14 @@ class TaskServer:
                 return_type="state",
             )
             await asyncio.wrap_future(future)
-        if self._limitter:
-            self._limitter.release_on_behalf_of(task_run.id)
+        if self._limiter:
+            self._limiter.release_on_behalf_of(task_run.id)
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task server."""
         async with self if not self.started else asyncnullcontext():
-            if self._limitter:
-                await self._limitter.acquire_on_behalf_of(task_run.id)
+            if self._limiter:
+                await self._limiter.acquire_on_behalf_of(task_run.id)
             await self._submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
