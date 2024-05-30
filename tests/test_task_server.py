@@ -1,3 +1,4 @@
+import asyncio
 import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -79,6 +80,14 @@ def mock_create_subscription(monkeypatch):
         create_subscription := AsyncMock(),
     )
     return create_subscription
+
+
+@pytest.fixture
+def mock_subscription(monkeypatch):
+    monkeypatch.setattr(
+        "prefect.task_server.Subscription", mock_subscription := MagicMock()
+    )
+    return mock_subscription
 
 
 async def test_task_server_basic_context_management():
@@ -200,6 +209,24 @@ async def test_task_server_can_execute_a_single_sync_single_task_run(
     assert updated_task_run.state.is_completed()
 
     assert await updated_task_run.state.result() == 42
+
+
+async def test_task_server_respects_limit(foo_task, mock_subscription):
+    task_server = TaskServer(foo_task, limit=1)
+
+    task_run_1 = foo_task.apply_async((42,))
+    task_run_2 = foo_task.apply_async((43,))
+
+    async def mock_iter():
+        yield task_run_1
+        yield task_run_2
+        await asyncio.sleep(1)
+
+    mock_subscription.return_value = mock_iter()
+
+    await task_server.start()
+
+    assert mock_subscription.call_count == 1
 
 
 class TestTaskServerTaskRunRetries:
