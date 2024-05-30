@@ -10,7 +10,7 @@ search:
 
 # Rate Limits & Retention Periods <span class="badge cloud"></span>
 
-Prefect Cloud has certain controls in place to ensure stability.
+Prefect Cloud has controls in place to ensure stability.
 
 ## API Rate Limits
 
@@ -23,14 +23,14 @@ Prefect Cloud's API rate limits restrict the number of requests that a single cl
 - 400 requests per minute for Free accounts
 - 2,000 requests per minute for Pro accounts
 
-The Prefect Cloud API will return a `429` response with an appropriate `Retry-After` header if this limit is triggered.
+These endpoints will return a `429` response with an appropriate `Retry-After` header if this limit is triggered.
 
 The `logs` endpoint is limited to:
 
 - 700 logs per minute for Free accounts
 - 10,000 logs per minute for Pro accounts
 
-The Prefect Cloud API will return a `429` response if this limit is triggered.
+The endpoint will return a `429` response if this limit is triggered.
 
 ## Metadata retention period
 
@@ -41,4 +41,4 @@ The retention period is the number of days that metadata is available after it i
 For flow and task runs, it is calculated from the time the run reaches a [terminal state](/concepts/states/#state-types). 
 Subflow runs are reatined independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state.
 
-If you have needs that require a custom retention period, [contact Prefect's Sales team](https://www.prefect.io/pricing).
+If you have needs that require a custom retention period, [contact Prefect's sales team](https://www.prefect.io/pricing).
