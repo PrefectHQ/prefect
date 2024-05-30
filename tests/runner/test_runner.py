@@ -1135,7 +1135,7 @@ class TestRunnerDeployment:
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.path == "."
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
         assert deployment.is_schedule_active is True
 

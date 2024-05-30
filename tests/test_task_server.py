@@ -136,7 +136,7 @@ async def test_task_server_handles_aborted_task_run_submission(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run = foo_task.apply_async(42)
+    task_run = foo_task.apply_async((42,))
 
     await prefect_client.set_task_run_state(task_run.id, Running(), force=True)
 
@@ -150,7 +150,7 @@ async def test_task_server_handles_deleted_task_run_submission(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run = foo_task.apply_async(42)
+    task_run = foo_task.apply_async((42,))
 
     await prefect_client.delete_task_run(task_run.id)
 
@@ -175,7 +175,7 @@ class TestServe:
         await serve(foo_task)
         mock_task_server_start.assert_called_once()
 
-        task_run = foo_task.apply_async(42)
+        task_run = foo_task.apply_async((42,))
 
         assert isinstance(task_run, TaskRun)
 
@@ -185,7 +185,7 @@ class TestServe:
         await serve(async_foo_task)
         mock_task_server_start.assert_called_once()
 
-        task_run = async_foo_task.apply_async(42)
+        task_run = async_foo_task.apply_async((42,))
 
         assert isinstance(task_run, TaskRun)
 
@@ -197,7 +197,7 @@ async def test_task_server_can_execute_a_single_async_single_task_run(
 ):
     task_server = TaskServer(async_foo_task)
 
-    task_run = async_foo_task.apply_async(42)
+    task_run = async_foo_task.apply_async((42,))
 
     await task_server.execute_task_run(task_run)
 
@@ -213,7 +213,7 @@ async def test_task_server_can_execute_a_single_sync_single_task_run(
 ):
     task_server = TaskServer(foo_task)
 
-    task_run = foo_task.apply_async(42)
+    task_run = foo_task.apply_async((42,))
 
     await task_server.execute_task_run(task_run)
 
@@ -329,7 +329,7 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(some_task)
 
-        task_run = some_task.apply_async(x="foo")
+        task_run = some_task.apply_async(kwargs={"x": "foo"})
 
         await task_server.execute_task_run(task_run)
 
@@ -385,7 +385,7 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(task_with_cache)
 
-        task_run = task_with_cache.apply_async(42)
+        task_run = task_with_cache.apply_async((42,))
 
         await task_server.execute_task_run(task_run)
 
@@ -395,7 +395,7 @@ class TestTaskServerTaskResults:
 
         assert await updated_task_run.state.result() == 1
 
-        new_task_run = task_with_cache.apply_async(42)
+        new_task_run = task_with_cache.apply_async((42,))
 
         with caplog.at_level("INFO"):
             await task_server.execute_task_run(new_task_run)
@@ -419,7 +419,7 @@ class TestTaskServerTaskResults:
 
         task_server = TaskServer(foo, bar)
 
-        foo_task_run = foo.apply_async(42)
+        foo_task_run = foo.apply_async((42,))
 
         # Passing a TaskRun object as a dependency to another task run like this would
         # normally fail because we would discover the state (`TaskRun.state`), find it was
@@ -431,7 +431,7 @@ class TestTaskServerTaskResults:
         # we can when tasks receive PrefectFuture objects for runs that a task runner in
         # a flow is managing. For now, though, while we decide what else we want to do
         # in this situation, we'll pass objects through directly as arguments.
-        bar_task_run = bar.apply_async(foo_task_run)
+        bar_task_run = bar.apply_async((foo_task_run,))
 
         await task_server.execute_task_run(foo_task_run)
         updated_task_run = await prefect_client.read_task_run(foo_task_run.id)
@@ -454,7 +454,7 @@ class TestTaskServerTaskTags:
 
         task_server = TaskServer(task_with_tags)
 
-        task_run = task_with_tags.apply_async(42)
+        task_run = task_with_tags.apply_async((42,))
 
         await task_server.execute_task_run(task_run)
 
@@ -475,7 +475,7 @@ class TestTaskServerCustomTaskRunName:
 
         task_server = TaskServer(async_foo_task_with_custom_name)
 
-        task_run = async_foo_task_with_custom_name.apply_async(42)
+        task_run = async_foo_task_with_custom_name.apply_async((42,))
 
         await task_server.execute_task_run(task_run)
 
@@ -498,7 +498,7 @@ class TestTaskServerTaskStateHooks:
 
         task_server = TaskServer(async_foo_task_with_on_completion_hook)
 
-        task_run = async_foo_task_with_on_completion_hook.apply_async(42)
+        task_run = async_foo_task_with_on_completion_hook.apply_async((42,))
 
         await task_server.execute_task_run(task_run)
 
@@ -542,7 +542,7 @@ class TestTaskServerNestedTasks:
 
         task_server = TaskServer(outer_task)
 
-        task_run = outer_task.apply_async(42)
+        task_run = outer_task.apply_async((42,))
 
         await task_server.execute_task_run(task_run)
 
@@ -563,7 +563,7 @@ class TestTaskServerNestedTasks:
 
         task_server = TaskServer(background_task)
 
-        task_run = background_task.apply_async(42)
+        task_run = background_task.apply_async((42,))
 
         await task_server.execute_task_run(task_run)
 
