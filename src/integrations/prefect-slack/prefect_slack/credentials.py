@@ -2,19 +2,13 @@
 
 from typing import Optional
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, SecretStr
+from slack_sdk.web.async_client import AsyncWebClient
+from slack_sdk.webhook.async_client import AsyncWebhookClient
 
 from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationBlock
 from prefect.utilities.asyncutils import sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr
-else:
-    from pydantic import Field, SecretStr
-
-from slack_sdk.web.async_client import AsyncWebClient
-from slack_sdk.webhook.async_client import AsyncWebhookClient
 
 
 class SlackCredentials(Block):
@@ -93,7 +87,7 @@ class SlackWebhook(NotificationBlock):
         default=...,
         title="Webhook URL",
         description="Slack webhook URL which can be used to send messages.",
-        example="https://hooks.slack.com/XXX",
+        examples=["https://hooks.slack.com/XXX"],
     )
 
     def get_client(self) -> AsyncWebhookClient:
