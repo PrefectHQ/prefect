@@ -135,7 +135,9 @@ class GitHubRepository(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_path_str, sub_directory=from_path
             )
 
-            shutil.copytree(src=content_source, dst=content_destination)
+            shutil.copytree(
+                src=content_source, dst=content_destination, dirs_exist_ok=True
+            )
 
 
 @task
