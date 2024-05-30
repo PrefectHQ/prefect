@@ -706,3 +706,32 @@ class TestTaskServerLimit:
 
         assert updated_task_run_1.state.is_completed()
         assert updated_task_run_2.state.is_scheduled()
+
+    async def test_serve_respects_limit(self, prefect_client, mock_subscription):
+        @task
+        def slow_task():
+            import time
+
+            time.sleep(1)
+
+        task_run_1 = slow_task.apply_async()
+        task_run_2 = slow_task.apply_async()
+
+        async def mock_iter():
+            yield task_run_1
+            yield task_run_2
+            # sleep for a second to ensure that task execution starts
+            await asyncio.sleep(1)
+
+        mock_subscription.return_value = mock_iter()
+
+        # only one should run at a time, so we'll move on after 1 second
+        # to ensure that the second task hasn't started
+        with anyio.move_on_after(1):
+            await serve(slow_task, limit=1)
+
+        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+
+        assert updated_task_run_1.state.is_completed()
+        assert updated_task_run_2.state.is_scheduled()
