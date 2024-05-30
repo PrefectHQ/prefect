@@ -42,8 +42,8 @@ async def test_send_chat_message(
     slack_credentials: Mock,
     channel: str,
     text: Optional[str],
-    attachments: Optional[Sequence[Union[dict[str, Any], "Attachment"]]] = None,
-    slack_blocks: Optional[Sequence[Union[dict[str, Any], "Block"]]] = None,
+    attachments: Optional[Sequence[Union[dict[str, Any], "Attachment"]]],
+    slack_blocks: Optional[Sequence[Union[dict[str, Any], "Block"]]],
 ):
     @flow
     async def test_flow():
@@ -67,9 +67,9 @@ async def test_send_chat_message(
 )
 async def test_send_incoming_webhook_message(
     slack_webhook: Mock,
-    text: Optional[str] = None,
-    attachments: Optional[Sequence[Union[dict[str, Any], "Attachment"]]] = None,
-    slack_blocks: Optional[Sequence[Union[dict[str, Any], "Block"]]] = None,
+    text: Optional[str],
+    attachments: Optional[Sequence[Union[dict[str, Any], "Attachment"]]],
+    slack_blocks: Optional[Sequence[Union[dict[str, Any], "Block"]]],
 ):
     @flow
     async def test_flow():
