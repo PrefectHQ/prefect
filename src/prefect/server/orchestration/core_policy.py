@@ -33,7 +33,6 @@ from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
 )
 from prefect.utilities.math import clamped_poisson_interval
@@ -485,16 +484,16 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            # Only if task scheduling is enabled
-            return
-
         if not validated_state:
             # Only if the transition was valid
             return
 
         if context.run.flow_run_id:
             # Only for autonomous tasks
+            return
+
+        if not validated_state.state_details.deferred:
+            # Only for tasks that are deferred
             return
 
         task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
