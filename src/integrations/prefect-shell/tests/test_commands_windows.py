@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, AsyncGenerator, Literal
+from typing import Any, AsyncGenerator, Literal, Optional
 
 import pytest
 from prefect_shell.commands import ShellOperation, shell_run_command
@@ -192,7 +192,7 @@ class AsyncIter:
 
 @pytest.mark.parametrize("shell", [None, "powershell", "powershell.exe"])
 def test_shell_run_command_override_shell(
-    shell: None | Literal["powershell"] | Literal["powershell.exe"],
+    shell: Optional[Literal["powershell", "powershell.exe"]],
     monkeypatch: pytest.MonkeyPatch,
 ):
     open_process_mock = AsyncMock()
@@ -230,7 +230,7 @@ class TestShellOperation:
         assert op.run() == ["Hello"]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_error(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_error(self, method: Literal["run", "trigger"]):
         op = ShellOperation(commands=["throw"])
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
@@ -239,7 +239,7 @@ class TestShellOperation:
     async def test_output(
         self,
         prefect_task_runs_caplog: pytest.LogCaptureFixture,
-        method: Literal["run"] | Literal["trigger"],
+        method: Literal["run", "trigger"],
     ):
         op = ShellOperation(commands=["echo 'testing'"])
         assert await self.execute(op, method) == ["testing"]
@@ -250,19 +250,19 @@ class TestShellOperation:
         assert "completed with return code 0" in records[2].message
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_current_env(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_current_env(self, method: Literal["run", "trigger"]):
         op = ShellOperation(commands=["echo $env:USERPROFILE"])
         assert await self.execute(op, method) == [os.environ["USERPROFILE"]]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_updated_env(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_updated_env(self, method: Literal["run", "trigger"]):
         op = ShellOperation(
             commands=["echo $env:TEST_VAR"], env={"TEST_VAR": "test value"}
         )
         assert await self.execute(op, method) == ["test value"]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_cwd(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_cwd(self, method: Literal["run", "trigger"]):
         op = ShellOperation(commands=["Get-Location"], working_dir=Path.home())
         assert os.fspath(Path.home()) in (await self.execute(op, method))
 

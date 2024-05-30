@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, AsyncGenerator, Literal
+from typing import Any, AsyncGenerator, Literal, Optional
 
 import pytest
 from prefect_shell.commands import ShellOperation, shell_run_command
@@ -119,7 +119,7 @@ class AsyncIter:
 
 @pytest.mark.parametrize("shell", [None, "bash", "zsh"])
 def test_shell_run_command_override_shell(
-    shell: None | Literal["bash"] | Literal["zsh"], monkeypatch: pytest.MonkeyPatch
+    shell: Optional[Literal["bash", "zsh"]], monkeypatch: pytest.MonkeyPatch
 ):
     open_process_mock = AsyncMock()
     stdout_mock = AsyncMock()
@@ -152,7 +152,7 @@ class TestShellOperation:
             return await proc.fetch_result()
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_error(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_error(self, method: Literal["run", "trigger"]):
         op = ShellOperation(commands=["ls this/is/invalid"])
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
@@ -161,7 +161,7 @@ class TestShellOperation:
     async def test_output(
         self,
         prefect_task_runs_caplog: pytest.LogCaptureFixture,
-        method: Literal["run"] | Literal["trigger"],
+        method: Literal["run", "trigger"],
     ):
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
         assert await self.execute(op, method) == ["testing", "the output", "good"]
@@ -175,7 +175,7 @@ class TestShellOperation:
     async def test_stream_output(
         self,
         prefect_task_runs_caplog: pytest.LogCaptureFixture,
-        method: Literal["run"] | Literal["trigger"],
+        method: Literal["run", "trigger"],
     ):
         # If stream_output is False, there should be output,
         # but no logs from the shell process
@@ -189,17 +189,17 @@ class TestShellOperation:
         assert "completed with return code 0" in records[1].message
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_current_env(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_current_env(self, method: Literal["run", "trigger"]):
         op = ShellOperation(commands=["echo $HOME"])
         assert await self.execute(op, method) == [os.environ["HOME"]]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_updated_env(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_updated_env(self, method: Literal["run", "trigger"]):
         op = ShellOperation(commands=["echo $HOME"], env={"HOME": "test_home"})
         assert await self.execute(op, method) == ["test_home"]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_cwd(self, method: Literal["run"] | Literal["trigger"]):
+    async def test_cwd(self, method: Literal["run", "trigger"]):
         op = ShellOperation(commands=["pwd"], working_dir=Path.home())
         assert await self.execute(op, method) == [os.fspath(Path.home())]
 
@@ -208,10 +208,8 @@ class TestShellOperation:
     async def test_updated_shell(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        method: Literal["run"] | Literal["trigger"],
-        shell: (
-            None | Literal["bash"] | Literal["zsh"] | Literal["BASH"] | Literal["ZSH"]
-        ),
+        method: Literal["run", "trigger"],
+        shell: Optional[Literal["bash", "zsh", "BASH", "ZSH"]],
     ):
         open_process_mock = AsyncMock(name="open_process")
         stdout_mock = AsyncMock(name="stdout_mock")
@@ -231,7 +229,7 @@ class TestShellOperation:
     async def test_select_powershell(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        method: Literal["run"] | Literal["trigger"],
+        method: Literal["run", "trigger"],
     ):
         open_process_mock = AsyncMock(name="open_process")
         stdout_mock = AsyncMock(name="stdout_mock")
