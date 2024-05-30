@@ -18,6 +18,10 @@ async def serve(
         ...,
         help="The paths to one or more tasks, in the form of `./path/to/file.py:task_func_name`.",
     ),
+    limit: int = typer.Option(
+        10,
+        help="The maximum number of tasks that can be run concurrently. Defaults to 10.",
+    ),
 ):
     """
     Serve the provided tasks so that their runs may be submitted to and
@@ -27,6 +31,7 @@ async def serve(
         entrypoints: List of strings representing the paths to one or more
             tasks. Each path should be in the format
             `./path/to/file.py:task_func_name`.
+        limit: The maximum number of tasks that can be run concurrently.
     """
     tasks = []
 
@@ -47,4 +52,4 @@ async def serve(
                 f"Error: {module!r} has no function {task_name!r}.", style="red"
             )
 
-    await task_serve(*tasks)
+    await task_serve(*tasks, limit=limit)
