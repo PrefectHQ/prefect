@@ -40,6 +40,7 @@ Examples:
     private_gitlab_block.save()
 ```
 """
+
 import io
 import urllib.parse
 from distutils.dir_util import copy_tree
@@ -47,19 +48,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 
-from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, HttpUrl, validator
-else:
-    from pydantic import Field, HttpUrl, validator
-
 from prefect_gitlab.credentials import GitLabCredentials
 
 # Create get_directory retry settings
@@ -79,10 +73,7 @@ class GitLabRepository(ReadableDeploymentStorage):
     """
 
     _block_type_name = "GitLab Repository"
-    _logo_url = HttpUrl(
-        url="https://images.ctfassets.net/gm98wzqotmnx/55edIimT4g9gbjhkh5a3Sp/dfdb9391d8f45c2e93e72e3a4d350771/gitlab-logo-500.png?h=250",  # noqa
-        scheme="https",
-    )
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/55edIimT4g9gbjhkh5a3Sp/dfdb9391d8f45c2e93e72e3a4d350771/gitlab-logo-500.png?h=250"
     _description = "Interact with files stored in GitLab repositories."
 
     repository: str = Field(
@@ -106,29 +97,6 @@ class GitLabRepository(ReadableDeploymentStorage):
         description="An optional GitLab Credentials block for authenticating with "
         "private GitLab repos.",
     )
-
-    @validator("credentials")
-    def _ensure_credentials_go_with_http(cls, v: str, values: dict) -> str:
-        """Ensure that credentials are not provided with 'SSH' formatted GitLub URLs.
-        Note: validates `access_token` specifically so that it only fires when
-        private repositories are used.
-        """
-        if v is not None:
-            if urllib.parse.urlparse(values["repository"]).scheme not in [
-                "https",
-                "http",
-            ]:
-                raise InvalidRepositoryURLError(
-                    (
-                        "Credentials can only be used with GitLab repositories "
-                        "using the 'HTTPS'/'HTTP' format. You must either remove the "
-                        "credential if you wish to use the 'SSH' format and are not "
-                        "using a private repository, or you must change the repository "
-                        "URL to the 'HTTPS'/'HTTP' format."
-                    )
-                )
-
-        return v
 
     def _create_repo_url(self) -> str:
         """Format the URL provided to the `git clone` command.
