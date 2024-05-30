@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - client/*
       - src/prefect/**/*.py
       - requirements.txt
       - requirements-client.txt
@@ -13,6 +14,7 @@ on:
     branches:
       - main
     paths:
+      - client/*
       - src/prefect/**/*.py
       - requirements.txt
       - requirements-client.txt

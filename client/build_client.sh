@@ -3,11 +3,11 @@
 CWD=$(pwd)
 
 # if running in GH Actions, this will already be set
-if [ -z ${TMPDIR+x} ]; 
-    then 
+if [ -z ${TMPDIR+x} ];
+    then
         TMPDIR=$(mktemp -d);
-        echo "Using workspace at $TMPDIR"; 
-    else echo "Using workspace at $TMPDIR"; 
+        echo "Using workspace at $TMPDIR";
+    else echo "Using workspace at $TMPDIR";
 fi
 
 # init the workspace
@@ -18,9 +18,12 @@ cd $TMPDIR/src/prefect
 rm -rf cli/
 rm -rf deployments/recipes/
 rm -rf deployments/templates
-rm infrastructure/submission.py
-rm server/__init__.py
-find ./server -not -path "./server/api/*" -delete
+rm -rf server/__init__.py
+find ./server \
+    -not -path "./server" \
+    -not -path "./server/api" \
+    -not -path "./server/api/*" \
+    -delete
 rm -rf server/database
 rm -rf server/models
 rm -rf server/orchestration
@@ -52,7 +55,7 @@ if [ -z ${CI} ];
         echo "Build and smoke test completed successfully. Final results:";
         echo "$(du -sh $VIRTUAL_ENV)";
         deactivate;
-    else echo "Skipping local build"; 
+    else echo "Skipping local build";
 fi
 
 cd $CWD
