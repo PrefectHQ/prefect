@@ -265,7 +265,9 @@ def test_copying_file_from_alternative_base(
 def test_can_use_working_tree_as_context(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
-    with ImageBuilder(prefect_base_image, context=contexts / "no-dockerfile") as image:
+    with ImageBuilder(
+        prefect_base_image, context=contexts / "tree-as-context"
+    ) as image:
         image.add_line("WORKDIR /tiny/")
         image.copy("hello.txt", "hello.txt")
         image.add_line('ENTRYPOINT [ "/bin/cat", "hello.txt" ]')
