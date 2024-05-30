@@ -83,7 +83,7 @@ def crashing_flow():
     """Save the flow run name (i.e. Cloud Run job name) as a 
     Variable. It then executes a task that ends up crashing."""
     flow_run_name = prefect.runtime.flow_run.name
-    cloud_run_job_name = Variable.set(name="crashing-flow-cloud-run-job", value=flow_run_name, overwrite=True)
+    cloud_run_job_name = Variable.set(name="crashing_flow_cloud_run_job", value=flow_run_name, overwrite=True)
 
     my_task_that_crashes()
 
