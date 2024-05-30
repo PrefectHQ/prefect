@@ -302,11 +302,6 @@ class FlowRunUpdate(ActionBaseModel):
 class TaskRunCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a task run"""
 
-    id: Optional[UUID] = Field(
-        default=None,
-        description="The ID to use for the task run. If not provided, a random UUID will be generated.",
-    )
-
     # TaskRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
         default=None, description="The state of the task run to create"
