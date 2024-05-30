@@ -1,11 +1,17 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
-from kubernetes.client import AppsV1Api, BatchV1Api, CoreV1Api, CustomObjectsApi, models
-from kubernetes.client.exceptions import ApiException
+from kubernetes_asyncio.client import (
+    AppsV1Api,
+    BatchV1Api,
+    CoreV1Api,
+    CustomObjectsApi,
+    models,
+)
+from kubernetes_asyncio.client.exceptions import ApiException
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.jobs import KubernetesJob
 
@@ -92,7 +98,7 @@ def kubernetes_credentials(kube_config_dict):
 
 @pytest.fixture
 def _mock_api_app_client(monkeypatch):
-    app_client = MagicMock(spec=AppsV1Api)
+    app_client = MagicMock(spec=AppsV1Api, return_value=AsyncMock())
 
     @contextmanager
     def get_client(self, _):
@@ -107,11 +113,11 @@ def _mock_api_app_client(monkeypatch):
 
 
 @pytest.fixture
-def _mock_api_batch_client(monkeypatch):
-    batch_client = MagicMock(spec=BatchV1Api)
+async def _mock_api_batch_client(monkeypatch):
+    batch_client = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
 
-    @contextmanager
-    def get_client(self, _):
+    @asynccontextmanager
+    async def get_client(self, _):
         yield batch_client
 
     monkeypatch.setattr(
@@ -124,7 +130,7 @@ def _mock_api_batch_client(monkeypatch):
 
 @pytest.fixture
 def _mock_api_core_client(monkeypatch):
-    core_client = MagicMock(spec=CoreV1Api)
+    core_client = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
 
     @contextmanager
     def get_client(self, _):
@@ -140,7 +146,7 @@ def _mock_api_core_client(monkeypatch):
 
 @pytest.fixture
 def _mock_api_custom_objects_client(monkeypatch):
-    custom_objects_client = MagicMock(spec=CustomObjectsApi)
+    custom_objects_client = MagicMock(spec=CustomObjectsApi, return_value=AsyncMock())
 
     @contextmanager
     def get_client(self, _):
@@ -156,18 +162,18 @@ def _mock_api_custom_objects_client(monkeypatch):
 
 @pytest.fixture
 def mock_create_namespaced_job(monkeypatch):
-    mock_v1_job = MagicMock(
+    mock_v1_job = AsyncMock(
         return_value=models.V1Job(metadata=models.V1ObjectMeta(name="test"))
     )
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api.create_namespaced_job", mock_v1_job
+        "kubernetes_asyncio.client.BatchV1Api.create_namespaced_job", mock_v1_job
     )
     return mock_v1_job
 
 
 @pytest.fixture
 def mock_read_namespaced_job_status(monkeypatch):
-    mock_v1_job_status = MagicMock(
+    mock_v1_job_status = AsyncMock(
         return_value=models.V1Job(
             metadata=models.V1ObjectMeta(
                 name="test", labels={"controller-uid": "test"}
@@ -188,7 +194,7 @@ def mock_read_namespaced_job_status(monkeypatch):
         )
     )
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api.read_namespaced_job_status",
+        "kubernetes_asyncio.client.BatchV1Api.read_namespaced_job_status",
         mock_v1_job_status,
     )
     return mock_v1_job_status
@@ -196,11 +202,11 @@ def mock_read_namespaced_job_status(monkeypatch):
 
 @pytest.fixture
 def mock_delete_namespaced_job(monkeypatch):
-    mock_v1_job = MagicMock(
+    mock_v1_job = AsyncMock(
         return_value=models.V1Job(metadata=models.V1ObjectMeta(name="test"))
     )
     monkeypatch.setattr(
-        "kubernetes.client.BatchV1Api.delete_namespaced_job", mock_v1_job
+        "kubernetes_asyncio.client.BatchV1Api.delete_namespaced_job", mock_v1_job
     )
     return mock_v1_job
 
@@ -208,7 +214,7 @@ def mock_delete_namespaced_job(monkeypatch):
 @pytest.fixture
 def mock_stream_timeout(monkeypatch):
     monkeypatch.setattr(
-        "kubernetes.watch.Watch.stream",
+        "kubernetes_asyncio.watch.Watch.stream",
         MagicMock(side_effect=ApiException(status=408)),
     )
 
@@ -216,7 +222,7 @@ def mock_stream_timeout(monkeypatch):
 @pytest.fixture
 def mock_pod_log(monkeypatch):
     monkeypatch.setattr(
-        "kubernetes.watch.Watch.stream",
+        "kubernetes_asyncio.watch.Watch.stream",
         MagicMock(return_value=["test log"]),
     )
 
@@ -234,7 +240,7 @@ def mock_list_namespaced_pod(monkeypatch):
     mock_pod_list = MagicMock(return_value=result)
 
     monkeypatch.setattr(
-        "kubernetes.client.CoreV1Api.list_namespaced_pod", mock_pod_list
+        "kubernetes_asyncio.client.CoreV1Api.list_namespaced_pod", mock_pod_list
     )
     return mock_pod_list
 
@@ -243,7 +249,9 @@ def mock_list_namespaced_pod(monkeypatch):
 def read_pod_logs(monkeypatch):
     pod_log = MagicMock(return_value="test log")
 
-    monkeypatch.setattr("kubernetes.client.CoreV1Api.read_namespaced_pod_log", pod_log)
+    monkeypatch.setattr(
+        "kubernetes_asyncio.client.CoreV1Api.read_namespaced_pod_log", pod_log
+    )
     return pod_log
 
 

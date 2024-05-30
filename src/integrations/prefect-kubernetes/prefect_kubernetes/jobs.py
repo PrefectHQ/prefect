@@ -10,7 +10,7 @@ from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import task
 from prefect.blocks.abstract import JobBlock, JobRun
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 
 if PYDANTIC_VERSION.startswith("2."):
     from pydantic.v1 import Field
@@ -63,9 +63,8 @@ async def create_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.create_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.create_namespaced_job(
             namespace=namespace,
             body=new_job,
             **kube_kwargs,
@@ -113,9 +112,8 @@ async def delete_namespaced_job(
         ```
     """
 
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.delete_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.delete_namespaced_job(
             name=job_name,
             body=delete_options,
             namespace=namespace,
@@ -156,9 +154,8 @@ async def list_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.list_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.list_namespaced_job(
             namespace=namespace,
             **kube_kwargs,
         )
@@ -208,9 +205,8 @@ async def patch_namespaced_job(
         ```
     """
 
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.patch_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.patch_namespaced_job(
             name=job_name,
             namespace=namespace,
             body=job_updates,
@@ -256,9 +252,8 @@ async def read_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.read_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.read_namespaced_job(
             name=job_name,
             namespace=namespace,
             **kube_kwargs,
@@ -303,9 +298,8 @@ async def replace_namespaced_job(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.replace_namespaced_job,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.replace_namespaced_job(
             name=job_name,
             body=new_job,
             namespace=namespace,
@@ -348,9 +342,8 @@ async def read_namespaced_job_status(
             )
         ```
     """
-    with kubernetes_credentials.get_client("batch") as batch_v1_client:
-        return await run_sync_in_worker_thread(
-            batch_v1_client.read_namespaced_job_status,
+    async with kubernetes_credentials.get_client("batch") as batch_v1_client:
+        return await batch_v1_client.read_namespaced_job_status(
             name=job_name,
             namespace=namespace,
             **kube_kwargs,
