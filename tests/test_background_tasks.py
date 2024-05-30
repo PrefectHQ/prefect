@@ -21,7 +21,6 @@ from prefect.server.api.task_runs import TaskQueue
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT,
@@ -43,16 +42,6 @@ def local_filesystem(tmp_path):
     block = LocalFileSystem(basepath=tmp_path)
     block.save("test-fs", overwrite=True)
     return block
-
-
-@pytest.fixture(autouse=True)
-def allow_experimental_task_scheduling():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
-        }
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True)

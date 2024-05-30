@@ -1486,6 +1486,11 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 The port the worker's webserver should bind to.
 """
 
+PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the task scheduling service in the server application.
+"""
+
 PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
     str,
     default="local-file-system/prefect-task-scheduling",
@@ -1550,11 +1555,6 @@ Whether or not to enable the experimental workspace dashboard.
 PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
-"""
-Whether or not to enable experimental task scheduling.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
