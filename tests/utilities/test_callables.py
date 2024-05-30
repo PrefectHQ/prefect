@@ -946,12 +946,10 @@ class TestEntrypointToSchema:
         tmp_path.joinpath("test.py").write_text(source_code)
 
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "properties": {},
             "title": "Parameters",
             "type": "object",
-            "required": [],
-            "definitions": {},
         }
 
     def test_function_with_pydantic_base_model_collisions(self, tmp_path: Path):
@@ -975,7 +973,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1004,7 +1002,6 @@ class TestEntrypointToSchema:
                 "validate",
                 "foo",
             ],
-            "definitions": {},
         }
 
     def test_function_with_one_required_argument(self, tmp_path: Path):
@@ -1016,12 +1013,11 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
-            "definitions": {},
         }
 
     def test_function_with_one_optional_argument(self, tmp_path: Path):
@@ -1033,12 +1029,10 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "position": 0}},
-            "required": [],
-            "definitions": {},
         }
 
     def test_function_with_one_optional_annotated_argument(self, tmp_path: Path):
@@ -1050,14 +1044,12 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "default": 42, "type": "integer", "position": 0}
             },
-            "definitions": {},
-            "required": [],
         }
 
     def test_function_with_two_arguments(self, tmp_path: Path):
@@ -1069,7 +1061,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1077,7 +1069,6 @@ class TestEntrypointToSchema:
                 "y": {"title": "y", "default": 5.0, "type": "number", "position": 1},
             },
             "required": ["x"],
-            "definitions": {},
         }
 
     def test_function_with_datetime_arguments(self, tmp_path: Path):
@@ -1122,9 +1113,8 @@ class TestEntrypointToSchema:
                 },
             },
             "required": ["x"],
-            "definitions": {},
         }
-        assert schema.model_dump_for_openapi() == expected_schema
+        assert schema.dict() == expected_schema
 
     def test_function_with_enum_argument(self, tmp_path: Path):
         class Color(Enum):
@@ -1166,9 +1156,8 @@ class TestEntrypointToSchema:
                     "type": "string",
                 }
             },
-            "required": [],
         }
-        assert schema.model_dump_for_openapi() == expected_schema
+        assert schema.dict() == expected_schema
 
     def test_function_with_generic_arguments(self, tmp_path: Path):
         source_code = dedent(
@@ -1219,10 +1208,9 @@ class TestEntrypointToSchema:
                 },
             },
             "required": ["a", "b", "c", "d", "e"],
-            "definitions": {},
         }
 
-        assert schema.model_dump_for_openapi() == expected_schema
+        assert schema.dict() == expected_schema
 
     def test_function_with_user_defined_type(self, tmp_path: Path):
         source_code = dedent(
@@ -1237,12 +1225,11 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
-            "definitions": {},
         }
 
     def test_function_with_user_defined_pydantic_model(self, tmp_path: Path):
@@ -1261,7 +1248,7 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "definitions": {
                 "Foo": {
                     "properties": {
@@ -1302,7 +1289,7 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1321,7 +1308,6 @@ class TestEntrypointToSchema:
                     "type": "object",
                 }
             },
-            "required": [],
         }
 
     def test_function_with_complex_args_across_v1_and_v2(self, tmp_path: Path):
@@ -1388,7 +1374,7 @@ class TestEntrypointToSchema:
         schema = tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
 
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1451,7 +1437,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1464,7 +1450,6 @@ class TestEntrypointToSchema:
                 },
             },
             "required": ["x"],
-            "definitions": {},
         }
 
     def test_function_with_v1_secretstr_from_compat_module(self, tmp_path: Path):
@@ -1478,17 +1463,19 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {
                     "title": "x",
                     "position": 0,
+                    "type": "string",
+                    "format": "password",
+                    "writeOnly": True,
                 },
             },
             "required": ["x"],
-            "definitions": {},
         }
 
     def test_flow_with_args_docstring(self, tmp_path: Path):
@@ -1504,14 +1491,13 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "x": {"title": "x", "description": "required argument x", "position": 0}
             },
             "required": ["x"],
-            "definitions": {},
         }
 
     def test_flow_without_args_docstring(self, tmp_path: Path):
@@ -1523,12 +1509,11 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
-            "definitions": {},
         }
 
     def test_flow_with_complex_args_docstring(self, tmp_path: Path):
@@ -1551,7 +1536,7 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -1567,7 +1552,6 @@ class TestEntrypointToSchema:
                 },
             },
             "required": ["x", "y"],
-            "definitions": {},
         }
 
     def test_does_not_raise_when_missing_dependencies(self, tmp_path: Path):
@@ -1582,10 +1566,9 @@ class TestEntrypointToSchema:
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
 
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
-            "definitions": {},
         }
