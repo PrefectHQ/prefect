@@ -736,8 +736,7 @@ class KubernetesWorker(BaseWorker):
                 client = ApiClient()
             except config.ConfigException:
                 # If in-cluster config fails, load the local kubeconfig
-                await config.load_kube_config()
-                client = ApiClient()
+                client = await config.new_client_from_config()
 
         yield client
 
@@ -804,6 +803,8 @@ class KubernetesWorker(BaseWorker):
                 configuration=configuration, client=client
             )
         try:
+            with open("job_manifest.json", "w") as f:
+                json.dump(configuration.__dict__, f)
             batch_client = BatchV1Api(client)
             job = await batch_client.create_namespaced_job(
                 configuration.namespace,
@@ -931,13 +932,19 @@ class KubernetesWorker(BaseWorker):
         """
         while True:
             try:
-                async for event in watch.stream(
+                return watch.stream(
                     func=batch_client.list_namespaced_job,
                     namespace=namespace,
                     field_selector=f"metadata.name={job_name}",
                     **watch_kwargs,
-                ):
-                    yield event
+                )
+                # async for event in watch.stream(
+                #     func=batch_client.list_namespaced_job,
+                #     namespace=namespace,
+                #     field_selector=f"metadata.name={job_name}",
+                #     **watch_kwargs,
+                # ):
+                #     yield event
             except ApiException as e:
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
@@ -974,7 +981,7 @@ class KubernetesWorker(BaseWorker):
         loop = get_running_loop()
         # Calculate the deadline before streaming output
         deadline = (
-            (loop.time() + configuration.job_watch_timeout_seconds)
+            (time.monotonic() + configuration.job_watch_timeout_seconds)
             if configuration.job_watch_timeout_seconds is not None
             else None
         )
@@ -988,9 +995,9 @@ class KubernetesWorker(BaseWorker):
                 _preload_content=False,
                 container="prefect-job",
             )
-
             try:
-                async for log in logs.content:
+               
+                async for log in logs.stream():
                     print(log.decode().rstrip())
 
                     # Check if we have passed the deadline and should stop streaming
@@ -1015,9 +1022,14 @@ class KubernetesWorker(BaseWorker):
             name=job_name, namespace=configuration.namespace
         )
         completed = job.status.completion_time is not None
+        print("completed:", completed)
+        print("job.status.completion_time:", job.status.completion_time)
 
         while not completed:
-            remaining_time = math.ceil(deadline - loop.time()) if deadline else None
+            remaining_time = math.ceil(deadline - time.monotonic()) if deadline else None
+            
+            print("deadline:", deadline)
+
             if deadline and remaining_time <= 0:
                 logger.error(
                     f"Job {job_name!r}: Job did not complete within "
@@ -1032,13 +1044,16 @@ class KubernetesWorker(BaseWorker):
             # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
             watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
 
-            async for event in self._job_events(
+            async for event in await self._job_events(
                 watch,
                 batch_client,
                 job_name,
                 configuration.namespace,
                 watch_kwargs,
             ):
+                # print("event:", event)
+                # print("remaining_time:", remaining_time)    
+                # print("time monotonic:", time.monotonic())
                 if event["type"] == "DELETED":
                     logger.error(f"Job {job_name!r}: Job has been deleted.")
                     completed = True
@@ -1161,7 +1176,7 @@ class KubernetesWorker(BaseWorker):
         # memory/CPU requests, or a volume that wasn't available, or a node with an
         # available GPU.
         logger.error(f"Job {job_name!r}: Pod never started.")
-        self._log_recent_events(logger, job_name, last_pod_name, configuration, client)
+        await self._log_recent_events(logger, job_name, last_pod_name, configuration, client)
 
     async def _log_recent_events(
         self,
@@ -1174,12 +1189,13 @@ class KubernetesWorker(BaseWorker):
         """Look for reasons why a Job may not have been able to schedule a Pod, or why
         a Pod may not have been able to start and log them to the provided logger."""
         from kubernetes_asyncio.client.models import CoreV1Event, CoreV1EventList
-
+       
         def best_event_time(event: CoreV1Event) -> datetime:
             """Choose the best timestamp from a Kubernetes event"""
             return event.event_time or event.last_timestamp
+        
 
-        async def log_event(event: CoreV1Event):
+        def log_event(event: CoreV1Event):
             """Log an event in one of a few formats to the provided logger"""
             if event.count and event.count > 1:
                 logger.info(
@@ -1198,14 +1214,16 @@ class KubernetesWorker(BaseWorker):
                     best_event_time(event),
                     event.message,
                 )
-
-            core_client = CoreV1Api(client)
-
-            events: CoreV1EventList = await core_client.list_namespaced_event(
+            
+        core_client = CoreV1Api(client)
+            
+        events: CoreV1EventList = await core_client.list_namespaced_event(
                 configuration.namespace
             )
-            event: CoreV1Event
-            for event in sorted(events.items, key=best_event_time):
+        
+        
+        event: CoreV1Event
+        for event in sorted(events.items, key=best_event_time):
                 if (
                     event.involved_object.api_version == "batch/v1"
                     and event.involved_object.kind == "Job"

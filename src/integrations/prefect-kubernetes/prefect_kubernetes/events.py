@@ -83,7 +83,6 @@ class KubernetesEventsReplicator:
 
         core_client = kubernetes_asyncio.client.CoreV1Api(api_client=self._client)
 
-        print(self._watch)
         async for event in self._watch.stream(
             func=core_client.list_namespaced_pod,
             namespace=self._namespace,
