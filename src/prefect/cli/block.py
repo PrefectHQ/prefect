@@ -8,6 +8,7 @@ from types import ModuleType
 from typing import List, Optional, Type
 
 import typer
+import yaml
 from rich.table import Table
 
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -70,6 +71,54 @@ def display_block_type(block_type):
     )
 
     return block_type_table
+
+
+def display_block_schema_properties(block_schema_fields):
+    required = block_schema_fields.get("required", [])
+    properties = block_schema_fields.get("properties", {})
+
+    block_schema_yaml_table = Table(
+        title="Schema Properties",
+        show_header=False,
+        show_footer=False,
+        show_lines=True,
+        expand=True,
+    )
+    block_schema_yaml_table.add_column(style="cyan")
+    block_schema_yaml_table.add_column()
+
+    for property_name, property_schema in properties.items():
+        if property_name in required:
+            property_schema["required"] = True
+
+        block_schema_yaml_table.add_row(
+            property_name, yaml.dump(property_schema, default_flow_style=False)
+        )
+
+    return block_schema_yaml_table
+
+
+def display_block_schema_extra_definitions(block_schema_definitions):
+    extra_definitions_table = Table(
+        title="Extra Definitions", show_header=False, show_footer=False, expand=True
+    )
+    extra_definitions_table.add_column(style="cyan")
+    extra_definitions_table.add_column()
+    extra_definitions_table.add_column()
+
+    for definition_name, definition_schema in block_schema_definitions.items():
+        for index, (property_name, property_schema) in enumerate(
+            definition_schema.get("properties", {}).items()
+        ):
+            # We'll set the definition column for the first row of each group only
+            # to give visual whitespace between each group
+            extra_definitions_table.add_row(
+                definition_name if index == 0 else None,
+                property_name,
+                yaml.dump(property_schema, default_flow_style=False),
+            )
+
+    return extra_definitions_table
 
 
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
@@ -356,6 +405,21 @@ async def blocktype_inspect(
             exit_with_error(f"Block type {slug!r} not found!")
 
         app.console.print(display_block_type(block_type))
+
+        try:
+            latest_schema = await client.get_most_recent_block_schema_for_block_type(
+                block_type.id
+            )
+        except Exception:
+            exit_with_error(f"Failed to fetch latest schema for the {slug} block type")
+
+        app.console.print(display_block_schema_properties(latest_schema.fields))
+
+        latest_schema_extra_definitions = latest_schema.fields.get("definitions")
+        if latest_schema_extra_definitions:
+            app.console.print(
+                display_block_schema_extra_definitions(latest_schema_extra_definitions)
+            )
 
 
 @blocktypes_app.command("delete")
