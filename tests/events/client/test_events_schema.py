@@ -1,4 +1,5 @@
 import json
+from datetime import timezone
 from uuid import UUID, uuid4
 
 import pendulum
@@ -68,7 +69,7 @@ def test_client_events_may_have_multiple_related_resources():
 
 def test_json_representation():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=pendulum.DateTime(2021, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -81,10 +82,10 @@ def test_json_representation():
         follows=uuid4(),
     )
 
-    jsonified = json.loads(event.json().encode())
+    jsonified = json.loads(event.model_dump_json())
 
     assert jsonified == {
-        "occurred": event.occurred.isoformat(),
+        "occurred": "2021-02-03T04:05:06.000007Z",
         "event": "hello",
         "resource": {"prefect.resource.id": "hello"},
         "related": [

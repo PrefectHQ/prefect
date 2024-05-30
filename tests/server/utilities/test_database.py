@@ -6,14 +6,7 @@ from typing import List
 from unittest import mock
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,7 +115,7 @@ class TestPydantic:
 
     async def test_write_dict_to_Pydantic(self, session):
         p_model = PydanticModel(x=100)
-        s_model = SQLPydanticModel(data=p_model.dict())
+        s_model = SQLPydanticModel(data=p_model.model_dump())
         session.add(s_model)
         await session.flush()
 
@@ -197,9 +190,7 @@ class TestPydantic:
 
         # enum enforced by application
         stmt = sa.select(SQLPydanticModel)
-        with pytest.raises(
-            pydantic.ValidationError, match="(not a valid enumeration member)"
-        ):
+        with pytest.raises(pydantic.ValidationError):
             await session.execute(stmt)
 
 

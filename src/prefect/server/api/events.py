@@ -1,13 +1,13 @@
 import base64
 from typing import List, Optional
 
-from prefect._vendor.fastapi import Response, WebSocket, status
-from prefect._vendor.fastapi.exceptions import HTTPException
-from prefect._vendor.fastapi.param_functions import Depends, Path
-from prefect._vendor.fastapi.params import Body, Query
-from prefect._vendor.starlette.requests import Request
-from prefect._vendor.starlette.status import WS_1002_PROTOCOL_ERROR
+from fastapi import Response, WebSocket, status
+from fastapi.exceptions import HTTPException
+from fastapi.param_functions import Depends, Path
+from fastapi.params import Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
+from starlette.status import WS_1002_PROTOCOL_ERROR
 
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import is_ephemeral_request
@@ -60,7 +60,7 @@ async def stream_events_in(websocket: WebSocket) -> None:
     try:
         async with messaging.create_event_publisher() as publisher:
             async for event_json in websocket.iter_text():
-                event = Event.parse_raw(event_json)
+                event = Event.model_validate_json(event_json)
                 await publisher.publish_event(event.receive())
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
         pass  # it's fine if a client disconnects either normally or abnormally
@@ -93,7 +93,7 @@ async def stream_workspace_events_out(
         wants_backfill = message.get("backfill", True)
 
         try:
-            filter = EventFilter.parse_obj(message["filter"])
+            filter = EventFilter.model_validate(message["filter"])
         except Exception as e:
             return await websocket.close(
                 WS_1002_PROTOCOL_ERROR, reason=f"Invalid filter: {e}"
@@ -115,7 +115,7 @@ async def stream_workspace_events_out(
                 for event in sorted(backfill, key=lambda e: e.occurred):
                     backfilled_ids.add(event.id)
                     await websocket.send_json(
-                        {"type": "event", "event": event.dict(json_compatible=True)}
+                        {"type": "event", "event": event.model_dump(mode="json")}
                     )
 
             # ...before resuming the ongoing stream of events
@@ -125,7 +125,7 @@ async def stream_workspace_events_out(
                     continue
 
                 await websocket.send_json(
-                    {"type": "event", "event": event.dict(json_compatible=True)}
+                    {"type": "event", "event": event.model_dump(mode="json")}
                 )
 
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
@@ -217,8 +217,8 @@ async def read_account_events_page(
 
 def generate_next_page_link(
     request: Request,
-    page_token: "str | None",
-) -> "str | None":
+    page_token: Optional[str],
+) -> Optional[str]:
     if not page_token:
         return None
 
@@ -266,7 +266,7 @@ async def handle_event_count_request(
         countable,
         time_unit,
         time_interval,
-        filter.json(),
+        filter.model_dump_json(),
     )
 
     try:

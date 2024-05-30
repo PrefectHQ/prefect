@@ -17,15 +17,15 @@ import asyncpg
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from prefect._vendor.fastapi import APIRouter, Depends, FastAPI, Request, status
-from prefect._vendor.fastapi.encoders import jsonable_encoder
-from prefect._vendor.fastapi.exceptions import RequestValidationError
-from prefect._vendor.fastapi.middleware.cors import CORSMiddleware
-from prefect._vendor.fastapi.middleware.gzip import GZipMiddleware
-from prefect._vendor.fastapi.openapi.utils import get_openapi
-from prefect._vendor.fastapi.responses import JSONResponse
-from prefect._vendor.fastapi.staticfiles import StaticFiles
-from prefect._vendor.starlette.exceptions import HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 import prefect
 import prefect.server.api as api
@@ -91,6 +91,7 @@ API_ROUTERS = (
     api.events.router,
     api.automations.router,
     api.templates.router,
+    api.ui.flows.router,
     api.ui.flow_runs.router,
     api.ui.schemas.router,
     api.ui.task_runs.router,
@@ -577,7 +578,7 @@ def create_app(
         if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
             service_instances.append(services.foreman.Foreman())
 
-        if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
+        if prefect.settings.PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED.value():
             service_instances.append(services.task_scheduling.TaskSchedulingTimeouts())
 
         if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():

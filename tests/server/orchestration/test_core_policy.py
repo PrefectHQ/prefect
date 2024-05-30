@@ -23,6 +23,7 @@ from prefect.server.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
+    CopyTaskParametersID,
     EnforceCancellingToCancelledTransition,
     EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
@@ -73,7 +74,7 @@ def fizzling_rule():
 
         async def before_transition(self, initial_state, proposed_state, context):
             # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-            mutated_state = proposed_state.copy()
+            mutated_state = proposed_state.model_copy()
             mutated_state.type = random.choice(
                 list(set(states.StateType) - {initial_state.type, proposed_state.type})
             )
@@ -218,6 +219,84 @@ class TestCopyScheduledTime:
         )
 
         scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
+        async with scheduling_rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert await scheduling_rule.invalid()
+
+
+class TestCopyTaskParametersID:
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [
+            states.StateType.SCHEDULED,
+            states.StateType.PENDING,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.PENDING,
+            states.StateType.RUNNING,
+        ],
+    )
+    async def test_task_parameters_id_copied_from_scheduled_to_pending(
+        self,
+        session,
+        initialize_orchestration,
+        initial_state_type,
+        proposed_state_type,
+    ):
+        intended_transition = (initial_state_type, proposed_state_type)
+        task_parameters_id = uuid4()
+
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"task_parameters_id": task_parameters_id},
+        )
+
+        async with CopyTaskParametersID(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type == proposed_state_type
+        assert (
+            ctx.validated_state.state_details.task_parameters_id == task_parameters_id
+        )
+
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [
+            states.StateType.SCHEDULED,
+            states.StateType.PENDING,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.COMPLETED,
+            states.StateType.FAILED,
+            states.StateType.CANCELLED,
+            states.StateType.CRASHED,
+        ],
+    )
+    async def test_task_parameters_id_not_copied_for_other_transitions(
+        self,
+        session,
+        initialize_orchestration,
+        initial_state_type,
+        proposed_state_type,
+    ):
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"task_parameters_id": uuid4()},
+        )
+
+        scheduling_rule = CopyTaskParametersID(ctx, *intended_transition)
         async with scheduling_rule as ctx:
             await ctx.validate_proposed_state()
 
@@ -1226,7 +1305,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1271,7 +1352,9 @@ class TestTransitionsFromTerminalStatesRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         if run_type == "task":
@@ -1444,7 +1527,7 @@ class TestTaskConcurrencyLimits:
         cl_create = actions.ConcurrencyLimitCreate(
             tag=tag,
             concurrency_limit=limit,
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         cl_model = schemas.core.ConcurrencyLimit(**cl_create)
 
@@ -1694,7 +1777,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -2133,7 +2216,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -2222,7 +2305,7 @@ class TestTaskConcurrencyLimits:
             TO_STATES = ALL_ORCHESTRATION_STATES
 
             async def before_transition(self, initial_state, proposed_state, context):
-                mutated_state = proposed_state.copy()
+                mutated_state = proposed_state.model_copy()
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
@@ -3147,7 +3230,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:
@@ -3178,7 +3263,9 @@ class TestAddUnknownResultRule:
             session,
             run_type,
             *intended_transition,
-            initial_state_data=result_type.construct().dict() if result_type else None,
+            initial_state_data=result_type.model_construct().model_dump()
+            if result_type
+            else None,
         )
 
         async with AddUnknownResult(ctx, *intended_transition) as ctx:

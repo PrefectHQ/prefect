@@ -72,22 +72,65 @@ Example:
 """
 
 import inspect
-from contextlib import AsyncExitStack
-from typing import Awaitable, Callable, Dict, Optional, Union
-from uuid import UUID
+from contextlib import ExitStack
+from typing import Any, Callable, Dict, Iterable, Optional, Set, Union
 
 import distributed
 
-from prefect.client.schemas.objects import State
-from prefect.context import FlowRunContext
+from prefect.client.schemas.objects import State, TaskRunInput
 from prefect.futures import PrefectFuture
-from prefect.states import exception_to_crashed_state
-from prefect.task_runners import BaseTaskRunner, R, TaskConcurrencyType
+from prefect.task_runners import TaskRunner
+from prefect.tasks import Task
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
+from prefect_dask.client import PrefectDaskClient
 
 
-class DaskTaskRunner(BaseTaskRunner):
+class PrefectDaskFuture(PrefectFuture[distributed.Future]):
+    """
+    A Prefect future that wraps a distributed.Future. This future is used
+    when the task run is submitted to a DaskTaskRunner.
+    """
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        try:
+            result = self._wrapped_future.result(timeout=timeout)
+        except Exception:
+            # either the task failed or the timeout was reached
+            return
+        if isinstance(result, State):
+            self._final_state = result
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> Any:
+        if not self._final_state:
+            try:
+                future_result = self._wrapped_future.result(timeout=timeout)
+            except distributed.TimeoutError as exc:
+                raise TimeoutError(
+                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                ) from exc
+
+            if isinstance(future_result, State):
+                self._final_state = future_result
+            else:
+                return future_result
+
+        _result = self._final_state.result(
+            raise_on_failure=raise_on_failure, fetch=True
+        )
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
+        if inspect.isawaitable(_result):
+            _result = run_coro_as_sync(_result)
+        return _result
+
+
+class DaskTaskRunner(TaskRunner):
     """
     A parallel task_runner that submits tasks to the `dask.distributed` scheduler.
     By default a temporary `distributed.LocalCluster` is created (and
@@ -153,11 +196,11 @@ class DaskTaskRunner(BaseTaskRunner):
     def __init__(
         self,
         cluster: Optional[distributed.deploy.Cluster] = None,
-        address: str = None,
-        cluster_class: Union[str, Callable] = None,
-        cluster_kwargs: dict = None,
-        adapt_kwargs: dict = None,
-        client_kwargs: dict = None,
+        address: Optional[str] = None,
+        cluster_class: Union[str, Callable, None] = None,
+        cluster_kwargs: Optional[Dict] = None,
+        adapt_kwargs: Optional[Dict] = None,
+        client_kwargs: Optional[Dict] = None,
     ):
         # Validate settings and infer defaults
         if address:
@@ -170,11 +213,6 @@ class DaskTaskRunner(BaseTaskRunner):
             if cluster_class or cluster_kwargs:
                 raise ValueError(
                     "Cannot specify `cluster` and `cluster_class`/`cluster_kwargs`"
-                )
-            if not cluster.asynchronous:
-                raise ValueError(
-                    "The cluster must have `asynchronous=True` to be "
-                    "used with `DaskTaskRunner`."
                 )
         else:
             if isinstance(cluster_class, str):
@@ -210,19 +248,27 @@ class DaskTaskRunner(BaseTaskRunner):
         self.client_kwargs = client_kwargs
 
         # Runtime attributes
-        self._client: "distributed.Client" = None
+        self._client: PrefectDaskClient = None
         self._cluster: "distributed.deploy.Cluster" = cluster
-        self._dask_futures: Dict[str, "distributed.Future"] = {}
+
+        self._exit_stack = ExitStack()
 
         super().__init__()
 
-    @property
-    def concurrency_type(self) -> TaskConcurrencyType:
-        return (
-            TaskConcurrencyType.PARALLEL
-            if self.cluster_kwargs.get("processes")
-            else TaskConcurrencyType.CONCURRENT
-        )
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if an instance has the same settings as this task runner.
+        """
+        if isinstance(other, DaskTaskRunner):
+            return (
+                self.address == other.address
+                and self.cluster_class == other.cluster_class
+                and self.cluster_kwargs == other.cluster_kwargs
+                and self.adapt_kwargs == other.adapt_kwargs
+                and self.client_kwargs == other.client_kwargs
+            )
+        else:
+            return False
 
     def duplicate(self):
         """
@@ -236,26 +282,13 @@ class DaskTaskRunner(BaseTaskRunner):
             client_kwargs=self.client_kwargs,
         )
 
-    def __eq__(self, other: object) -> bool:
-        """
-        Check if an instance has the same settings as this task runner.
-        """
-        if type(self) == type(other):
-            return (
-                self.address == other.address
-                and self.cluster_class == other.cluster_class
-                and self.cluster_kwargs == other.cluster_kwargs
-                and self.adapt_kwargs == other.adapt_kwargs
-                and self.client_kwargs == other.client_kwargs
-            )
-        else:
-            return NotImplemented
-
-    async def submit(
+    def submit(
         self,
-        key: UUID,
-        call: Callable[..., Awaitable[State[R]]],
-    ) -> None:
+        task: Task,
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDaskFuture:
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
@@ -263,42 +296,21 @@ class DaskTaskRunner(BaseTaskRunner):
 
         # unpack the upstream call in order to cast Prefect futures to Dask futures
         # where possible to optimize Dask task scheduling
-        call_kwargs = self._optimize_futures(call.keywords)
+        parameters = self._optimize_futures(parameters)
 
-        if "task_run" in call_kwargs:
-            task_run = call_kwargs["task_run"]
-            flow_run = FlowRunContext.get().flow_run
-            # Dask displays the text up to the first '-' as the name; the task run key
-            # should include the task run name for readability in the Dask console.
-            # For cases where the task run fails and reruns for a retried flow run,
-            # the flow run count is included so that the new key will not match
-            # the failed run's key, therefore not retrieving from the Dask cache.
-            dask_key = f"{task_run.name}-{task_run.id.hex}-{flow_run.run_count}"
-        else:
-            dask_key = str(key)
-
-        self._dask_futures[key] = self._client.submit(
-            call.func,
-            key=dask_key,
-            # Dask defaults to treating functions are pure, but we set this here for
-            # explicit expectations. If this task run is submitted to Dask twice, the
-            # result of the first run should be returned. Subsequent runs would return
-            # `Abort` exceptions if they were submitted again.
-            pure=True,
-            **call_kwargs,
+        future = self._client.submit(
+            task,
+            parameters=parameters,
+            wait_for=wait_for,
+            dependencies=dependencies,
+            return_type="state",
         )
-
-    def _get_dask_future(self, key: UUID) -> "distributed.Future":
-        """
-        Retrieve the dask future corresponding to a Prefect future.
-        The Dask future is for the `run_fn`, which should return a `State`.
-        """
-        return self._dask_futures[key]
+        return PrefectDaskFuture(wrapped_future=future, task_run_id=future.task_run_id)
 
     def _optimize_futures(self, expr):
         def visit_fn(expr):
-            if isinstance(expr, PrefectFuture):
-                dask_future = self._dask_futures.get(expr.key)
+            if isinstance(expr, PrefectDaskFuture):
+                dask_future = expr.wrapped_future
                 if dask_future is not None:
                     return dask_future
             # Fallback to return the expression unaltered
@@ -306,23 +318,14 @@ class DaskTaskRunner(BaseTaskRunner):
 
         return visit_collection(expr, visit_fn=visit_fn, return_data=True)
 
-    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
-        future = self._get_dask_future(key)
-        try:
-            return await future.result(timeout=timeout)
-        except distributed.TimeoutError:
-            return None
-        except BaseException as exc:
-            return await exception_to_crashed_state(exc)
-
-    async def _start(self, exit_stack: AsyncExitStack):
+    def __enter__(self):
         """
         Start the task runner and prep for context exit.
         - Creates a cluster if an external address is not set.
         - Creates a client to connect to the cluster.
-        - Pushes a call to wait for all running futures to complete on exit.
         """
-
+        super().__enter__()
+        exit_stack = self._exit_stack.__enter__()
         if self._cluster:
             self.logger.info(f"Connecting to existing Dask cluster {self._cluster}")
             self._connect_to = self._cluster
@@ -340,18 +343,17 @@ class DaskTaskRunner(BaseTaskRunner):
                 f"Creating a new Dask cluster with "
                 f"`{to_qualified_name(self.cluster_class)}`"
             )
-            self._connect_to = self._cluster = await exit_stack.enter_async_context(
-                self.cluster_class(asynchronous=True, **self.cluster_kwargs)
+            self._connect_to = self._cluster = exit_stack.enter_context(
+                self.cluster_class(**self.cluster_kwargs)
             )
-            if self.adapt_kwargs:
-                adapt_response = self._cluster.adapt(**self.adapt_kwargs)
-                if inspect.isawaitable(adapt_response):
-                    await adapt_response
 
-        self._client = await exit_stack.enter_async_context(
-            distributed.Client(
-                self._connect_to, asynchronous=True, **self.client_kwargs
-            )
+            if self.adapt_kwargs:
+                maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
+                if inspect.isawaitable(maybe_coro):
+                    run_coro_as_sync(maybe_coro)
+
+        self._client = exit_stack.enter_context(
+            PrefectDaskClient(self._connect_to, **self.client_kwargs)
         )
 
         if self._client.dashboard_link:
@@ -359,19 +361,8 @@ class DaskTaskRunner(BaseTaskRunner):
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )
 
-    def __getstate__(self):
-        """
-        Allow the `DaskTaskRunner` to be serialized by dropping
-        the `distributed.Client`, which contains locks.
-        Must be deserialized on a dask worker.
-        """
-        data = self.__dict__.copy()
-        data.update({k: None for k in {"_client", "_cluster", "_connect_to"}})
-        return data
+        return self
 
-    def __setstate__(self, data: dict):
-        """
-        Restore the `distributed.Client` by loading the client on a dask worker.
-        """
-        self.__dict__.update(data)
-        self._client = distributed.get_client()
+    def __exit__(self, *args):
+        self._exit_stack.__exit__(*args)
+        super().__exit__(*args)

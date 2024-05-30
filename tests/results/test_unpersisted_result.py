@@ -41,8 +41,8 @@ async def test_unpersisted_result_create_and_get_no_cache(value):
 @pytest.mark.parametrize("value", TEST_VALUES)
 async def test_unpersisted_result_missing_after_json_roundtrip(value):
     result = await UnpersistedResult.create(value)
-    serialized = result.json()
-    deserialized = UnpersistedResult.parse_raw(serialized)
+    serialized = result.model_dump_json()
+    deserialized = UnpersistedResult.model_validate_json(serialized)
     with pytest.raises(MissingResult):
         await deserialized.get()
 

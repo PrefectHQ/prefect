@@ -93,14 +93,14 @@ def example_event_3(start_of_test: pendulum.DateTime) -> Event:
             "wonder-type": "amazement",
         },
         related=[
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": "something-valuable",
                     "prefect.resource.role": "shiny",
                     "name": "gold",
                 }
             ),
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": "something-glittery",
                     "prefect.resource.role": "sparkle",
@@ -262,7 +262,7 @@ def capturing_publisher() -> Generator[Type[CapturingPublisher], None, None]:
 
 def captured_events(capturing_publisher: CapturingPublisher) -> List[ReceivedEvent]:
     return [
-        ReceivedEvent.parse_raw(message.data)
+        ReceivedEvent.model_validate_json(message.data)
         for message in capturing_publisher.messages
     ]
 

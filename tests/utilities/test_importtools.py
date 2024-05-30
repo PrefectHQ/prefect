@@ -2,6 +2,7 @@ import importlib.util
 import runpy
 import sys
 from pathlib import Path
+from textwrap import dedent
 from types import ModuleType
 
 import pytest
@@ -14,6 +15,7 @@ from prefect.utilities.importtools import (
     from_qualified_name,
     import_object,
     lazy_import,
+    safe_load_namespace,
     to_qualified_name,
 )
 
@@ -207,3 +209,79 @@ def test_import_object_from_module_with_relative_imports_expected_failures(
         # Python would raise the same error
         with pytest.raises((ValueError, ImportError)):
             runpy.run_module(import_path)
+
+
+def test_safe_load_namespace():
+    source_code = dedent(
+        """
+        import math
+        from datetime import datetime
+        from pydantic import BaseModel
+                         
+        class MyModel(BaseModel):
+            x: int
+                         
+        def my_fn():
+            return 42
+
+        x = 10
+        y = math.sqrt(x)
+        now = datetime.now()
+    """
+    )
+
+    namespace = safe_load_namespace(source_code)
+
+    # module-level imports should be present
+    assert "math" in namespace
+    assert "datetime" in namespace
+    assert "BaseModel" in namespace
+    # module-level variables should not be present
+    assert "x" not in namespace
+    assert "y" not in namespace
+    assert "now" not in namespace
+    # module-level classes should be present
+    assert "MyModel" in namespace
+    # module-level functions should be present
+    assert "my_fn" in namespace
+
+    assert namespace["MyModel"].__name__ == "MyModel"
+
+
+def test_safe_load_namespace_ignores_import_errors():
+    source_code = dedent(
+        """
+        import flibbidy
+                         
+        from pydantic import BaseModel
+                         
+        class MyModel(BaseModel):
+            x: int
+    """
+    )
+
+    # should not raise an ImportError
+    namespace = safe_load_namespace(source_code)
+
+    assert "flibbidy" not in namespace
+    # other imports and classes should be present
+    assert "BaseModel" in namespace
+    assert "MyModel" in namespace
+    assert namespace["MyModel"].__name__ == "MyModel"
+
+
+def test_safe_load_namespace_ignore_class_declaration_errors():
+    source_code = dedent(
+        """
+        from fake_pandas import DataFrame
+                         
+        class CoolDataFrame(DataFrame):
+            pass
+    """
+    )
+
+    # should not raise any errors
+    namespace = safe_load_namespace(source_code)
+
+    assert "DataFrame" not in namespace
+    assert "CoolDataFrame" not in namespace

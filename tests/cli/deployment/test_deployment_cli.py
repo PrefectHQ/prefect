@@ -5,8 +5,8 @@ import pytest
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
-from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
-from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterId
+from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
@@ -103,7 +103,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -142,12 +141,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            (
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--no-schedule",
-            ),
             ("deployment", "schedule", "clear", "-y", "rence-griffith/test-deployment"),
         ],
     )
@@ -183,33 +176,9 @@ class TestDeploymentSchedules:
             expected_code=0,
         )
 
-    def test_set_schedule_with_no_schedule_and_schedule_options_raises(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "424242",
-                "--no-schedule",
-            ],
-            expected_code=1,
-            expected_output_contains=(
-                "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule`"
-                " must be provided"
-            ),
-        )
-
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                (
-                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
-                    " `--no-schedule` must be provided"
-                ),
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
@@ -235,13 +204,6 @@ class TestDeploymentSchedules:
         "commands,error",
         [
             [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                (
-                    "Exactly one of `--interval`, `--rrule`, `--cron` or"
-                    " `--no-schedule` must be provided"
-                ),
-            ],
-            [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
             ],
@@ -257,7 +219,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -288,7 +249,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -320,7 +280,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -353,7 +312,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -389,7 +347,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -417,7 +374,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -438,7 +394,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -458,7 +413,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -490,7 +444,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -518,7 +471,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment-2"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment-2"),
         ],
     )
@@ -533,43 +485,6 @@ class TestDeploymentSchedules:
             expected_output_contains=[
                 "Deployment 'rence-griffith/test-deployment-2' not found!"
             ],
-        )
-
-    def test_pausing_and_resuming_schedules_with_pause_schedule(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "pause-schedule",
-                "rence-griffith/test-deployment",
-            ],
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=["'active': False"],
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "resume-schedule",
-                "rence-griffith/test-deployment",
-            ],
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=["'active': True"],
         )
 
     def test_pausing_and_resuming_schedules_with_schedule_pause(
@@ -615,15 +530,6 @@ class TestDeploymentSchedules:
             expected_output_contains=["'active': True"],
         )
 
-    def test_pause_schedule_deployment_not_found_raises(self, flojo):
-        invoke_and_assert(
-            ["deployment", "pause-schedule", "rence-griffith/test-deployment-2"],
-            expected_code=1,
-            expected_output_contains=[
-                "Deployment 'rence-griffith/test-deployment-2' not found!"
-            ],
-        )
-
     def test_schedule_pause_deployment_not_found_raises(self, flojo, flojo_deployment):
         invoke_and_assert(
             [
@@ -639,34 +545,9 @@ class TestDeploymentSchedules:
             ],
         )
 
-    def test_pause_schedule_multiple_schedules_raises(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "schedule",
-                "create",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "1800",
-            ],
-            expected_code=0,
-            expected_output_contains="Created deployment schedule!",
-        )
-
-        invoke_and_assert(
-            ["deployment", "pause-schedule", "rence-griffith/test-deployment"],
-            expected_code=1,
-            expected_output_contains=[
-                "Deployment 'rence-griffith/test-deployment' has multiple schedules."
-                " Use `prefect deployment schedule pause <deployment_name>"
-                " <schedule_id>`"
-            ],
-        )
-
     @pytest.mark.parametrize(
         "commands",
         [
-            ("deployment", "set-schedule", "rence-griffith/test-deployment"),
             ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
         ],
     )
@@ -689,16 +570,12 @@ class TestDeploymentSchedules:
                 "inspect",
                 "rence-griffith/test-deployment",
             ],
-            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00+00:00'"],
+            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00Z'"],
         )
 
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                "An anchor date can only be provided with an interval schedule",
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "An anchor date can only be provided with an interval schedule",
@@ -723,10 +600,6 @@ class TestDeploymentSchedules:
     @pytest.mark.parametrize(
         "commands,error",
         [
-            [
-                ("deployment", "set-schedule", "rence-griffith/test-deployment"),
-                "The anchor date must be a valid date string.",
-            ],
             [
                 ("deployment", "schedule", "create", "rence-griffith/test-deployment"),
                 "The anchor date must be a valid date string.",
@@ -1133,6 +1006,7 @@ class TestDeploymentRun:
         This test ensures the parameters are set on the created flow run and that
         data types are cast correctly.
         """
+
         await run_sync_in_worker_thread(
             invoke_and_assert,
             ["deployment", "run", deployment_name, "--param", f"name={given}"],

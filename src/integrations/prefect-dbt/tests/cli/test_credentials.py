@@ -1,12 +1,6 @@
 import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1.error_wrappers import ValidationError
-else:
-    from pydantic.error_wrappers import ValidationError
-
 from prefect_dbt.cli.credentials import DbtCliProfile, GlobalConfigs, TargetConfigs
+from pydantic import ValidationError
 
 
 @pytest.mark.parametrize("configs_type", ["dict", "model"])
@@ -14,8 +8,8 @@ def test_dbt_cli_profile_init(configs_type):
     target_configs = dict(type="snowflake", schema="schema")
     global_configs = dict(use_colors=False)
     if configs_type == "model":
-        target_configs = TargetConfigs.parse_obj(target_configs)
-        global_configs = GlobalConfigs.parse_obj(global_configs)
+        target_configs = TargetConfigs.model_validate(target_configs)
+        global_configs = GlobalConfigs.model_validate(global_configs)
 
     dbt_cli_profile = DbtCliProfile(
         name="test_name",
@@ -30,7 +24,7 @@ def test_dbt_cli_profile_init(configs_type):
 
 def test_dbt_cli_profile_init_validation_failed():
     # 6 instead of 2 now because it tries to validate each of the Union types
-    with pytest.raises(ValidationError, match="6 validation errors for DbtCliProfile"):
+    with pytest.raises(ValidationError):
         DbtCliProfile(
             name="test_name", target="dev", target_configs={"extras": {"field": "abc"}}
         )

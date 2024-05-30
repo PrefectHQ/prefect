@@ -1,14 +1,7 @@
 from uuid import UUID, uuid4
 
 import pendulum
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 
 from prefect.server.schemas.states import (
@@ -33,7 +26,8 @@ class TestState:
 
     def test_state_raises_validation_error_for_invalid_type(self):
         with pytest.raises(
-            pydantic.ValidationError, match="(value is not a valid enumeration member)"
+            pydantic.ValidationError,
+            match="1 validation error for State\ntype\n  Input should be",
         ):
             State(type="Running")
 
@@ -49,14 +43,14 @@ class TestState:
     def test_state_copy_does_not_create_insertable_object(self):
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
-        new_state = state.copy()
+        new_state = state.model_copy()
         # Same UUID
         assert new_state.id == state.id
 
     def test_state_copy_with_field_reset_creates_insertable_object(self):
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
-        new_state = state.copy(reset_fields=True)
+        new_state = state.reset_fields()
         # New UUID
         assert new_state.id != state.id
         assert isinstance(new_state.id, UUID)
