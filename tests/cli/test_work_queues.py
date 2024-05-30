@@ -524,6 +524,7 @@ class TestDelete:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"work-queue delete {work_queue.name}",
+            user_input="y",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
@@ -533,6 +534,7 @@ class TestDelete:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"work-queue delete {work_queue.id}",
+            user_input="y",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
@@ -548,6 +550,7 @@ class TestDelete:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=cmd,
+            user_input="y",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
