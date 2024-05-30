@@ -1,16 +1,12 @@
 """Module containing Docker host settings."""
+
 from typing import Any, Dict, Optional
 
 import docker
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect import get_run_logger
 from prefect.blocks.core import Block
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
 
 
 class _ContextManageableDockerClient(docker.DockerClient):

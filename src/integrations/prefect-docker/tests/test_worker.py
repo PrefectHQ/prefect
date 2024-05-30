@@ -1161,7 +1161,7 @@ async def test_emits_events(
 
     worker_resource = worker._event_resource()
     worker_resource["prefect.resource.role"] = "worker"
-    worker_related_resource = RelatedResource(__root__=worker_resource)
+    worker_related_resource = RelatedResource(worker_resource)
 
     mock_emit.assert_has_calls(
         [
