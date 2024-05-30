@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json  # noqa: I001
 import math
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
@@ -54,13 +55,17 @@ class Artifact(ArtifactRequest):
         Returns:
             - The created artifact.
         """
+        from prefect.context import MissingContextError, get_run_context
 
         client, _ = get_or_create_client(client)
         task_run_id, flow_run_id = get_task_and_flow_run_ids()
 
-        if not flow_run_id:
-            logger.warning(
-                "Deprecation warning: Artifact creation outside of a flow run is deprecated and will be removed in a later version."
+        try:
+            get_run_context()
+        except MissingContextError:
+            warnings.warn(
+                "Artifact creation outside of a flow or task run is deprecated and will be removed in a later version.",
+                FutureWarning,
             )
 
         return await client.create_artifact(
