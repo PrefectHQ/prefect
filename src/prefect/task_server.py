@@ -251,6 +251,8 @@ class TaskServer:
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task server."""
         async with self if not self.started else asyncnullcontext():
+            if self._limitter:
+                await self._limitter.acquire_on_behalf_of(task_run.id)
             await self._submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
