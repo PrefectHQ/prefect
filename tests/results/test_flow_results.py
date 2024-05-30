@@ -357,8 +357,12 @@ async def test_child_flow_result_missing_with_null_return(prefect_client):
 
 @pytest.mark.parametrize("empty_type", [dict, list])
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_empty_result_is_retained(persist_result, empty_type):
-    @flow(persist_result=persist_result)
+def test_flow_empty_result_is_retained(
+    persist_result: bool, empty_type, tmp_path: Path
+):
+    storage = LocalFileSystem(basepath=tmp_path)
+
+    @flow(persist_result=persist_result, result_storage=storage)
     def my_flow():
         return empty_type()
 
@@ -377,13 +381,16 @@ def test_flow_empty_result_is_retained(persist_result, empty_type):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_resultlike_result_is_retained(persist_result, resultlike):
+def test_flow_resultlike_result_is_retained(
+    persist_result: bool, resultlike, tmp_path: Path
+):
     """
     Since Pydantic will coerce dictionaries into `BaseResult` types, we need to be sure
     that user dicts that look like a bit like results do not cause problems
     """
+    storage = LocalFileSystem(basepath=tmp_path)
 
-    @flow(persist_result=persist_result)
+    @flow(persist_result=persist_result, result_storage=storage)
     def my_flow():
         return resultlike
 
@@ -401,8 +408,12 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_state_result_is_respected(persist_result, return_state):
-    @flow(persist_result=persist_result)
+def test_flow_state_result_is_respected(
+    persist_result: bool, return_state, tmp_path: Path
+):
+    storage = LocalFileSystem(basepath=tmp_path)
+
+    @flow(persist_result=persist_result, result_storage=storage)
     def my_flow():
         return return_state
 
@@ -430,9 +441,13 @@ def test_flow_state_result_is_respected(persist_result, return_state):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_server_state_schema_result_is_respected(persist_result, return_state):
+def test_flow_server_state_schema_result_is_respected(
+    persist_result: bool, return_state, tmp_path: Path
+):
+    storage = LocalFileSystem(basepath=tmp_path)
+
     # Tests for backwards compatibility with server-side state return values
-    @flow(persist_result=persist_result)
+    @flow(persist_result=persist_result, result_storage=storage)
     def my_flow():
         return return_state
 
