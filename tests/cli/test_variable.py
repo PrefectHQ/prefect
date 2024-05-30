@@ -1,9 +1,31 @@
+import sys
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from typer import Exit
 
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
 from prefect.testing.cli import invoke_and_assert
+
+
+@pytest.fixture(autouse=True)
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.variable.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture
@@ -89,6 +111,7 @@ def test_inspect_variable(variable):
 def test_delete_variable_doesnt_exist():
     invoke_and_assert(
         ["variable", "delete", "doesnt_exist"],
+        user_input="y",
         expected_output_contains="Variable 'doesnt_exist' not found",
         expected_code=1,
     )
@@ -160,6 +183,7 @@ def test_set_overwrite_variable(variable):
 def test_unset_variable_doesnt_exist():
     invoke_and_assert(
         ["variable", "unset", "doesnt_exist"],
+        user_input="y",
         expected_output_contains="Variable 'doesnt_exist' not found",
         expected_code=1,
     )
@@ -168,14 +192,25 @@ def test_unset_variable_doesnt_exist():
 def test_unset_variable(variable):
     invoke_and_assert(
         ["variable", "unset", variable.name],
+        user_input="y",
         expected_output_contains=f"Unset variable {variable.name!r}.",
         expected_code=0,
+    )
+
+
+def test_unset_variable_without_confirmation_aborts(variable):
+    invoke_and_assert(
+        ["variable", "unset", variable.name],
+        user_input="n",
+        expected_output_contains="Unset aborted.",
+        expected_code=1,
     )
 
 
 def test_delete_variable(variable):
     invoke_and_assert(
         ["variable", "delete", variable.name],
+        user_input="y",
         expected_output_contains=f"Unset variable {variable.name!r}.",
         expected_code=0,
     )

@@ -1,4 +1,7 @@
+import sys
+
 import pytest
+from typer import Exit
 
 import prefect.context
 import prefect.settings
@@ -22,6 +25,25 @@ from prefect.testing.cli import invoke_and_assert
 FROM_DEFAULT = "(from defaults)"
 FROM_ENV = "(from env)"
 FROM_PROFILE = "(from profile)"
+
+
+@pytest.fixture(autouse=True)
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.config.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture(autouse=True)
@@ -181,7 +203,8 @@ def test_unset_retains_other_keys():
             "unset",
             "PREFECT_API_KEY",
         ],
-        expected_output="""
+        user_input="y",
+        expected_output_contains="""
             Unset 'PREFECT_API_KEY'.
             Updated profile 'foo'.
             """,
@@ -214,7 +237,8 @@ def test_unset_warns_if_present_in_environment(monkeypatch):
             "unset",
             "PREFECT_API_KEY",
         ],
-        expected_output="""
+        user_input="y",
+        expected_output_contains="""
             Unset 'PREFECT_API_KEY'.
             'PREFECT_API_KEY' is also set by an environment variable. Use `unset PREFECT_API_KEY` to clear it.
             Updated profile 'foo'.
@@ -291,7 +315,8 @@ def test_unset_multiple_settings():
             "PREFECT_API_KEY",
             "PREFECT_TEST_SETTING",
         ],
-        expected_output="""
+        user_input="y",
+        expected_output_contains="""
             Unset 'PREFECT_API_KEY'.
             Unset 'PREFECT_TEST_SETTING'.
             Updated profile 'foo'.
