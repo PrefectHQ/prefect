@@ -596,7 +596,7 @@ def reset_sys_modules():
     importlib.invalidate_caches()
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="module")
 def leaves_no_extraneous_files():
     """This fixture will fail a test if it seems to have left new files or directories
     in the root of the local working tree.  For performance, it only checks for changes
