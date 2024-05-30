@@ -5,7 +5,7 @@ on:
     paths:
       - .github/workflows/integration-package-tests.yaml
       - "src/**/*"
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
   push:
     branches:
       - main
@@ -16,7 +16,6 @@ jobs:
   prepare-matrix:
     # These tests will only run if the integration paths are affected, or someone has
     # added the `integrations` label to the PR
-    if: ${{ github.event_name != 'labeled' || contains(github.event.pull_request.labels.*.name, 'test-all-integrations') }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
