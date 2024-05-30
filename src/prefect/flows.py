@@ -601,7 +601,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -763,7 +763,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         pause_on_shutdown: bool = True,
         print_starting_message: bool = True,
         limit: Optional[int] = None,
@@ -980,7 +980,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
@@ -1241,7 +1241,7 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        from prefect.new_flow_engine import run_flow, run_flow_sync
+        from prefect.flow_engine import run_flow, run_flow_sync
 
         run_kwargs = dict(
             flow=self,
