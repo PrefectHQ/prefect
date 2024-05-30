@@ -44,6 +44,7 @@ dev = [
   "pytest-asyncio",
   "pytest",
   "pytest-xdist",
+  "requests<2.32.0",
 ]
 
 [project.urls]
