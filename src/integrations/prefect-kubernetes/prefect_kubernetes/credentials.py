@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator, Dict, Optional, Type, Union
+from typing import Dict, Optional, Type, Union
 
 import yaml
 from kubernetes_asyncio import config
@@ -73,7 +73,9 @@ class KubernetesClusterConfig(Block):
         return value
 
     @classmethod
-    def from_file(cls: Type[Self], path: Path = None, context_name: str = None) -> Self:
+    async def from_file(
+        cls: Type[Self], path: Path = None, context_name: str = None
+    ) -> Self:
         """
         Create a cluster config from the a Kubernetes config file.
 
@@ -112,7 +114,6 @@ class KubernetesClusterConfig(Block):
         """
         Returns a Kubernetes API client for this cluster config.
         """
-
         return await config.kube_config.new_client_from_config_dict(
             config_dict=self.config, context=self.context_name
         )
@@ -155,7 +156,7 @@ class KubernetesCredentials(Block):
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
         configuration: Optional[Configuration] = None,
-    ) -> AsyncGenerator[KubernetesClient, None]:
+    ) -> KubernetesClient:
         """Convenience method for retrieving a Kubernetes API client for deployment resources.
 
         Args:
@@ -168,8 +169,9 @@ class KubernetesCredentials(Block):
             ```python
             from prefect_kubernetes.credentials import KubernetesCredentials
 
-            with KubernetesCredentials.get_client("core") as core_v1_client:
-                for pod in core_v1_client.list_namespaced_pod():
+            async with KubernetesCredentials.get_client("core") as core_v1_client:
+                pods = await core_v1_client.list_namespaced_pod()
+                for pod in pods.items:
                     print(pod.metadata.name)
             ```
         """
