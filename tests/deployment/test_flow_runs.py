@@ -26,7 +26,7 @@ class TestRunDeployment:
         flow_id = await prefect_client.create_flow_from_name("foo")
 
         deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment", flow_id=flow_id
+            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
         )
         deployment = await prefect_client.read_deployment(deployment_id)
 

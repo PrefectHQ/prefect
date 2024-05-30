@@ -165,7 +165,7 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(None)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(default_factory=dict)
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",

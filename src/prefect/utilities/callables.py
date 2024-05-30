@@ -231,7 +231,10 @@ class ParameterSchema(pydantic.BaseModel):
     definitions: Dict[str, Any] = pydantic.Field(default_factory=dict)
 
     def model_dump_for_openapi(self) -> Dict[str, Any]:
-        return self.model_dump(mode="python", exclude_none=True)
+        result = self.model_dump(mode="python", exclude_none=True)
+        if "required" in result and not result["required"]:
+            del result["required"]
+        return result
 
 
 def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:

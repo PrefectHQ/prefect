@@ -294,7 +294,7 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
 
     async def test_project_deploy_with_default_work_pool(
         self, project_dir, prefect_client
@@ -324,7 +324,7 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
 
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir, prefect_client: PrefectClient
@@ -2923,7 +2923,7 @@ class TestMultiDeploy:
         assert deployment1.enforce_parameter_schema is True
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
-        assert deployment2.enforce_parameter_schema is False
+        assert deployment2.enforce_parameter_schema
 
         # Check if the third deployment was not created
         with pytest.raises(ObjectNotFound):

@@ -182,7 +182,7 @@ class RunnerDeployment(BaseModel):
         description="The triggers that should cause this deployment to run.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the Prefect API should enforce the parameter schema for"
             " this deployment."
@@ -463,7 +463,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -599,7 +599,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
@@ -697,7 +697,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
-        enforce_parameter_schema: bool = False,
+        enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,

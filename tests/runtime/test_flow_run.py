@@ -5,6 +5,7 @@ import pendulum
 import pytest
 
 from prefect import flow, states, tags, task
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
@@ -459,7 +460,7 @@ class TestParentDeploymentId:
             assert flow_run.parent_deployment_id is None
 
     async def test_parent_deployment_id_pulls_from_api_when_needed(
-        self, monkeypatch, prefect_client
+        self, monkeypatch, prefect_client: PrefectClient
     ):
         assert flow_run.parent_deployment_id is None
 

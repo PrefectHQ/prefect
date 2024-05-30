@@ -1621,6 +1621,8 @@ class PrefectClient:
             the ID of the deployment in the backend
         """
 
+        if parameter_openapi_schema is None:
+            parameter_openapi_schema = {}
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
