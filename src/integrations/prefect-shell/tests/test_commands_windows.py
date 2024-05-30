@@ -16,11 +16,13 @@ if sys.platform != "win32":
 
 def test_shell_run_command_error_windows(prefect_task_runs_caplog):
     @flow
-    def test_flow():
-        return shell_run_command(command="throw", return_all=True, shell="powershell")
+    async def test_flow():
+        return await shell_run_command(
+            command="throw", return_all=True, shell="powershell"
+        )
 
     with pytest.raises(RuntimeError, match="Exception"):
-        test_flow()
+        await test_flow()
 
     assert len(prefect_task_runs_caplog.records) == 7
 
@@ -30,15 +32,13 @@ def test_shell_run_command_windows(prefect_task_runs_caplog):
     echo_msg = "WORKING"
 
     @flow
-    def test_flow():
-        msg = shell_run_command(
+    async def test_flow():
+        msg = await shell_run_command(
             command=f"echo {echo_msg}", return_all=True, shell="powershell"
         )
         return msg
 
-    print(prefect_task_runs_caplog.text)
-
-    assert " ".join(test_flow()) == echo_msg
+    assert " ".join(await test_flow()) == echo_msg
     for record in prefect_task_runs_caplog.records:
         if "WORKING" in record.msg:
             break  # it's in the records
@@ -51,8 +51,8 @@ def test_shell_run_command_stream_level_windows(prefect_task_runs_caplog):
     echo_msg = "WORKING"
 
     @flow
-    def test_flow():
-        msg = shell_run_command(
+    async def test_flow():
+        msg = await shell_run_command(
             command=f"echo {echo_msg}",
             stream_level=logging.WARNING,
             return_all=True,
@@ -62,7 +62,7 @@ def test_shell_run_command_stream_level_windows(prefect_task_runs_caplog):
 
     print(prefect_task_runs_caplog.text)
 
-    assert " ".join(test_flow()) == echo_msg
+    assert " ".join(await test_flow()) == echo_msg
     for record in prefect_task_runs_caplog.records:
         if "WORKING" in record.msg:
             break  # it's in the records
@@ -72,65 +72,65 @@ def test_shell_run_command_stream_level_windows(prefect_task_runs_caplog):
 
 def test_shell_run_command_helper_command_windows():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="Get-Location",
             helper_command="cd $env:USERPROFILE",
             shell="powershell",
             return_all=True,
         )
 
-    assert os.path.expandvars("$USERPROFILE") in test_flow()
+    assert os.path.expandvars("$USERPROFILE") in await test_flow()
 
 
 def test_shell_run_command_cwd():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo 'work!'; Get-Location",
             shell="powershell",
             cwd=Path.home(),
             return_all=True,
         )
 
-    assert os.fspath(Path.home()) in test_flow()
+    assert os.fspath(Path.home()) in await test_flow()
 
 
 def test_shell_run_command_return_all():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo 'work!'; echo 'yes!'", return_all=True, shell="powershell"
         )
 
-    result = test_flow()
+    result = await test_flow()
     assert result[0].rstrip() == "work!"
     assert result[1].rstrip() == "yes!"
 
 
 def test_shell_run_command_no_output_windows():
     @flow
-    def test_flow():
-        return shell_run_command(command="sleep 1", shell="powershell")
+    async def test_flow():
+        return await shell_run_command(command="sleep 1", shell="powershell")
 
-    assert test_flow() == ""
+    assert await test_flow() == ""
 
 
 def test_shell_run_command_uses_current_env_windows():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo $env:USERPROFILE", return_all=True, shell="powershell"
         )
 
-    result = test_flow()
+    result = await test_flow()
     assert result[0].rstrip() == os.environ["USERPROFILE"]
 
 
 def test_shell_run_command_update_current_env_windows():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo $env:USERPROFILE ; echo $env:TEST_VAR",
             helper_command="$env:TEST_VAR = 'test value'",
             env={"TEST_VAR": "test value"},
@@ -138,42 +138,44 @@ def test_shell_run_command_update_current_env_windows():
             shell="powershell",
         )
 
-    result = test_flow()
+    result = await test_flow()
     assert os.environ["USERPROFILE"] in " ".join(result)
     assert "test value" in result
 
 
 def test_shell_run_command_ensure_suffix_ps1():
     @flow
-    def test_flow():
-        return shell_run_command(command="1 + 1", shell="powershell", extension=".zzz")
+    async def test_flow():
+        return await shell_run_command(
+            command="1 + 1", shell="powershell", extension=".zzz"
+        )
 
-    result = test_flow()
+    result = await test_flow()
     assert result == "2"
 
 
 def test_shell_run_command_ensure_tmp_file_removed():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo 'clean up after yourself!'", shell="powershell"
         )
 
-    test_flow()
+    await test_flow()
     temp_dir = os.environ["TEMP"]
     assert len(glob.glob(f"{temp_dir}\\prefect-*.ps1")) == 0
 
 
 def test_shell_run_command_throw_exception_on_nonzero_exit_code():
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="ping ???",
             shell="powershell",  # ping ??? returns exit code 1
         )
 
     with pytest.raises(RuntimeError, match=r"Command failed with exit code 1"):
-        test_flow()
+        await test_flow()
 
 
 class AsyncIter:
@@ -198,13 +200,13 @@ def test_shell_run_command_override_shell(shell, monkeypatch):
     monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
     @flow
-    def test_flow():
-        return shell_run_command(
+    async def test_flow():
+        return await shell_run_command(
             command="echo 'testing'",
             shell=shell,
         )
 
-    test_flow()
+    await test_flow()
     assert open_process_mock.call_args_list[0][0][0][0] == shell or "powershell"
 
 
