@@ -153,7 +153,7 @@ class TestShellOperation:
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
 
-    @pytest.xfail(sys.version >= "3.12", reason="Fails on Python 3.12")
+    @pytest.xfail(sys.version >= "3.12")
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_output(self, prefect_task_runs_caplog, method):
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
