@@ -32,7 +32,7 @@ def test_email_server_credentials_get_server(
         smtp_server=smtp_server,
         smtp_type=smtp_type,
     ).get_server()
-    if smtp_type.value.lower() == "insecure":  # type: ignore
+    if smtp_type.lower() == "insecure":  # type: ignore
         assert getattr(server, "username") == "username"
         assert getattr(server, "password") == "password"
     assert getattr(server, "server").lower() == "smtp.gmail.com"

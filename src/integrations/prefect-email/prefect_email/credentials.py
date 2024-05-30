@@ -111,6 +111,7 @@ class EmailServerCredentials(Block):
                     else self.smtp_type.value
                 ),
             )
+            return server
         elif self.smtp_type == SMTPType.SSL:
             server = SMTP_SSL(
                 host=(

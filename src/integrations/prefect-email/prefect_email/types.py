@@ -35,7 +35,10 @@ class SMTPServer(Enum):
     @classmethod
     def _missing_(cls, value: object):
         if isinstance(value, str):
-            return getattr(cls, value.upper())
+            if value.upper() in cls.__members__:
+                return getattr(cls, value.upper())
+            else:
+                return cls(value.lower())
 
 
 SMTPServerLike: TypeAlias = Union[SMTPServer, str]
