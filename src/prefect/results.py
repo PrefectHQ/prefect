@@ -23,7 +23,7 @@ from typing_extensions import ParamSpec, Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingResult
+from prefect.exceptions import MissingResult, ObjectAlreadyExists
 from prefect.filesystems import (
     LocalFileSystem,
     ReadableFileSystem,
@@ -103,13 +103,17 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
             )
 
         try:
-            await block.save(name, overwrite=False)
-            return block
+            block = await block.save(name, overwrite=False)
         except ValueError as e:
             if "already in use" not in str(e):
                 raise e
+        except ObjectAlreadyExists:
+            # Another client created the block before we reached this line
+            pass
+        else:
+            block = await Block.load(default_storage_name)
 
-        return await Block.load(default_storage_name)
+        return block
 
     try:
         return _default_task_scheduling_storages[cache_key]
