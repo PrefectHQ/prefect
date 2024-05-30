@@ -12,7 +12,7 @@
 
 ### Integrations
 - Add loading state to concurrency limits table in the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/2483
-- Remove old schema properties from deployments — https://github.com/PrefectHQ/prefect-ui-library/pull/2482
+- Remove old schema properties from deployments in the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/2482
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.2...2.19.3
 
