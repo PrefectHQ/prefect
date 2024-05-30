@@ -34,15 +34,6 @@ SLACK_BLOCKS = [
 ]
 
 
-# channel: str,
-# slack_credentials: SlackCredentials,
-# text: Optional[str] = None,
-# attachments: Optional[
-#     Sequence[Union[dict[str, Any], "slack_sdk.models.attachments.Attachment"]]
-# ] = None,
-# slack_blocks: Optional[
-#     Sequence[Union[dict[str, Any], "slack_sdk.models.blocks.Block"]]
-# ] = None,
 @pytest.mark.parametrize(
     ["channel", "text", "attachments", "slack_blocks"],
     product(CHANNELS, TEXT, ATTACHMENTS, SLACK_BLOCKS),
