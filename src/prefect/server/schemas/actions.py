@@ -174,13 +174,13 @@ class DeploymentCreate(ActionBaseModel):
         description="A list of schedules for the deployment.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
-        default=None,
+        default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
     )
     parameters: Dict[str, Any] = Field(
@@ -688,7 +688,7 @@ class BlockSchemaCreate(ActionBaseModel):
     fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
+    block_type_id: UUID = Field(default=..., description="A block type ID")
 
     capabilities: List[str] = Field(
         default_factory=list,

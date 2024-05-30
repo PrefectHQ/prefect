@@ -486,11 +486,14 @@ async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     start_time: DateTime = Body(None, description="The earliest date to schedule"),
     end_time: DateTime = Body(None, description="The latest date to schedule"),
-    min_time: datetime.timedelta = Body(
+    # Workaround for the fact that FastAPI does not let us configure ser_json_timedelta
+    # to represent timedeltas as floats in JSON.
+    min_time: float = Body(
         None,
         description=(
             "Runs will be scheduled until at least this long after the `start_time`"
         ),
+        json_schema_extra={"format": "time-delta"},
     ),
     min_runs: int = Body(None, description="The minimum number of runs to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
@@ -509,6 +512,9 @@ async def schedule_deployment(
         - At least `min_runs` runs will be generated
         - Runs will be generated until at least `start_time + min_time` is reached
     """
+    if isinstance(min_time, float):
+        min_time = datetime.timedelta(seconds=min_time)
+
     async with db.session_context(begin_transaction=True) as session:
         await models.deployments.schedule_runs(
             session=session,
