@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from prefect.exceptions import MissingResult
@@ -200,14 +202,20 @@ async def test_task_with_uncached_but_literal_result(prefect_client):
     ],
 )
 @pytest.mark.parametrize("source", ["child", "parent"])
-async def test_task_result_serializer(prefect_client, source, serializer):
-    @flow(result_serializer=serializer if source == "parent" else None)
+async def test_task_result_serializer(
+    prefect_client, source, serializer, tmp_path: Path
+):
+    @flow(
+        result_serializer=serializer if source == "parent" else None,
+        result_storage=LocalFileSystem(basepath=tmp_path),
+    )
     def foo():
         return bar(return_state=True)
 
     @task(
         result_serializer=serializer if source == "child" else None,
         persist_result=True,
+        result_storage=LocalFileSystem(basepath=tmp_path),
     )
     def bar():
         return 1
