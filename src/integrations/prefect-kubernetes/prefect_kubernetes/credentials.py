@@ -106,7 +106,6 @@ class KubernetesClusterConfig(Block):
         # Load the entire config file
         config_file_contents = path.read_text()
         config_dict = yaml.safe_load(config_file_contents)
-
         return cls(config=config_dict, context_name=context_name)
 
     async def get_api_client(self) -> "ApiClient":
@@ -174,14 +173,28 @@ class KubernetesCredentials(Block):
                     print(pod.metadata.name)
             ```
         """
-        client_config = configuration or Configuration()
+        client_configuration = configuration or Configuration()
+        if self.cluster_config:
+            config_dict = self.cluster_config.config
+            context = self.cluster_config.context_name
 
-        async with ApiClient(configuration=client_config):
-            yield self.get_resource_specific_client(client_type)
+            # Use Configuration to load configuration from a dictionary
+        
+            await config.load_kube_config_from_dict(
+                config_dict=config_dict,
+                context=context,
+                client_configuration=client_configuration,
+            )
+        async with ApiClient(configuration=client_configuration) as api_client:
+            try:
+                yield await self.get_resource_specific_client(client_type,api_client=api_client)
+            finally:
+                await api_client.close()
 
-    def get_resource_specific_client(
+    async def get_resource_specific_client(
         self,
         client_type: str,
+        api_client: ApiClient,
     ) -> Union[AppsV1Api, BatchV1Api, CoreV1Api]:
         """
         Utility function for configuring a generic Kubernetes client.
@@ -210,16 +223,16 @@ class KubernetesCredentials(Block):
         """
 
         if self.cluster_config:
-            self.cluster_config.configure_client()
+            await self.cluster_config.configure_client()
         else:
             try:
-                print("Loading in-cluster config")
                 config.load_incluster_config()
             except ConfigException:
-                config.load_kube_config()
+                await config.load_kube_config()
 
         try:
-            return K8S_CLIENT_TYPES[client_type]()
+            print("api_client", api_client)
+            return K8S_CLIENT_TYPES[client_type](api_client)
         except KeyError:
             raise ValueError(
                 f"Invalid client type provided '{client_type}'."
