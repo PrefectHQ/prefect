@@ -2,12 +2,19 @@
 
 ## Release 2.19.3
 
+### New method for generating parameter schemas without dependencies
+
+`prefect deploy` now works even when dependencies are missing from the current environment. This can speed up deployment via CI by removing the need to install dependencies before deploying your flows.
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13620
+- https://github.com/PrefectHQ/prefect/pull/13315
+
 ### Enhancements
 - Provide URL in CLI output upon work pool creation — https://github.com/PrefectHQ/prefect/pull/13597
-- Allow flow parameter schema generation when dependencies are missing — https://github.com/PrefectHQ/prefect/pull/13620
 
 ### Fixes
-- Skip on cancellation hooks if runner can't load flow — https://github.com/PrefectHQ/prefect/pull/13669
+- Ensure graceful cancellation of flow runs corresponding to deleted deployments — https://github.com/PrefectHQ/prefect/pull/13669
 
 ### Integrations
 - Add loading state to concurrency limits table in the Prefect UI — https://github.com/PrefectHQ/prefect-ui-library/pull/2483
