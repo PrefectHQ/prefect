@@ -54,7 +54,7 @@ async def test_single_entrypoint():
             expected_code=0,
         )
 
-        task_serve.assert_awaited_once()
+        task_serve.assert_awaited_once_with(mock.ANY, limit=10)
         served_tasks = task_serve.call_args_list[0][0]
         assert len(served_tasks) == 1
         assert served_tasks[0].name == "do_the_dishes"
@@ -75,7 +75,7 @@ async def test_multiple_entrypoints():
             expected_code=0,
         )
 
-        task_serve.assert_awaited_once()
+        task_serve.assert_awaited_once_with(mock.ANY, mock.ANY, limit=10)
         served_tasks = task_serve.call_args_list[0][0]
         assert len(served_tasks) == 2
         assert served_tasks[0].name == "do_the_dishes"
