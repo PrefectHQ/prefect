@@ -3,13 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import anyio
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
-
+import pydantic
 import pytest
 from google.cloud.aiplatform_v1.types.job_service import CancelCustomJobRequest
 from google.cloud.aiplatform_v1.types.job_state import JobState
@@ -69,16 +63,12 @@ class TestVertexAIWorkerJobConfiguration:
                 base_job_template, {"credentials": gcp_credentials}
             )
 
-        assert excinfo.value.errors() == [
-            {
-                "loc": ("job_spec",),
-                "msg": (
-                    "Job is missing required attributes at the following paths: "
-                    "/maximum_run_time_hours, /worker_pool_specs"
-                ),
-                "type": "value_error",
-            }
-        ]
+        assert len(errs := excinfo.value.errors()) == 1
+        loc, msg, type_ = [errs[0].get(k) for k in ("loc", "msg", "type")]
+        assert "job_spec" in str(loc)
+        assert type_ == "value_error"
+        assert "/maximum_run_time_hours" in msg
+        assert "/worker_pool_specs" in msg
 
     async def test_validate_incomplete_worker_pool_spec(self, gcp_credentials):
         base_job_template = VertexAIWorker.get_default_base_job_template()
@@ -101,18 +91,13 @@ class TestVertexAIWorkerJobConfiguration:
                 base_job_template, {"credentials": gcp_credentials}
             )
 
-        assert excinfo.value.errors() == [
-            {
-                "loc": ("job_spec",),
-                "msg": (
-                    "Job is missing required attributes at the following paths: "
-                    "/worker_pool_specs/0/container_spec/image_uri, "
-                    "/worker_pool_specs/0/disk_spec, "
-                    "/worker_pool_specs/0/machine_spec/machine_type"
-                ),
-                "type": "value_error",
-            }
-        ]
+        assert len(errs := excinfo.value.errors()) == 1
+        loc, msg, type_ = [errs[0].get(k) for k in ("loc", "msg", "type")]
+        assert "job_spec" in str(loc)
+        assert type_ == "value_error"
+        assert "/worker_pool_specs/0/container_spec/image_uri" in msg
+        assert "/worker_pool_specs/0/disk_spec" in msg
+        assert "/worker_pool_specs/0/machine_spec/machine_type" in msg
 
     def test_gcp_project(self, job_config: VertexAIWorkerJobConfiguration):
         assert job_config.project == "gcp_credentials_project"

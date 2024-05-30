@@ -1,4 +1,4 @@
-""" <!-- # noqa -->
+"""<!-- # noqa -->
 
 Module containing the custom worker used for executing flow runs as Vertex AI Custom Jobs.
 
@@ -18,6 +18,7 @@ prefect worker start --pool 'my-vertex-pool'
 Read more about configuring work pools
 [here](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-overview).
 """
+
 import asyncio
 import datetime
 import re
@@ -27,7 +28,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import anyio
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, field_validator
+from slugify import slugify
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
@@ -38,14 +40,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
-from slugify import slugify
-
 from prefect_gcp.credentials import GcpCredentials
 
 # to prevent "Failed to load collection" from surfacing
@@ -86,7 +80,7 @@ class VertexAIWorkerVariables(BaseVariables):
 
     region: str = Field(
         description="The region where the Vertex AI Job resides.",
-        example="us-central1",
+        examples=["us-central1"],
     )
     image: str = Field(
         title="Image Name",
@@ -96,7 +90,7 @@ class VertexAIWorkerVariables(BaseVariables):
             "to the project and region where the container image is stored. See "
             "https://cloud.google.com/vertex-ai/docs/training/create-custom-container"
         ),
-        example="gcr.io/your-project/your-repo:latest",
+        examples=["gcr.io/your-project/your-repo:latest"],
     )
     credentials: Optional[GcpCredentials] = Field(
         title="GCP Credentials",
@@ -120,7 +114,7 @@ class VertexAIWorkerVariables(BaseVariables):
             "The type of accelerator to attach to the machine. "
             "See https://cloud.google.com/vertex-ai/docs/reference/rest/v1/MachineSpec"
         ),
-        example="NVIDIA_TESLA_K80",
+        examples=["NVIDIA_TESLA_K80"],
         default=None,
     )
     accelerator_count: Optional[int] = Field(
@@ -129,7 +123,7 @@ class VertexAIWorkerVariables(BaseVariables):
             "The number of accelerators to attach to the machine. "
             "See https://cloud.google.com/vertex-ai/docs/reference/rest/v1/MachineSpec"
         ),
-        example=1,
+        examples=[1],
         default=None,
     )
     boot_disk_type: str = Field(
@@ -226,7 +220,7 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
 
     region: str = Field(
         description="The region where the Vertex AI Job resides.",
-        example="us-central1",
+        examples=["us-central1"],
     )
     credentials: Optional[GcpCredentials] = Field(
         title="GCP Credentials",
@@ -237,31 +231,33 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
     )
 
     job_spec: Dict[str, Any] = Field(
-        template={
-            "service_account_name": "{{ service_account_name }}",
-            "network": "{{ network }}",
-            "reserved_ip_ranges": "{{ reserved_ip_ranges }}",
-            "maximum_run_time_hours": "{{ maximum_run_time_hours }}",
-            "worker_pool_specs": [
-                {
-                    "replica_count": 1,
-                    "container_spec": {
-                        "image_uri": "{{ image }}",
-                        "command": "{{ command }}",
-                        "args": [],
-                    },
-                    "machine_spec": {
-                        "machine_type": "{{ machine_type }}",
-                        "accelerator_type": "{{ accelerator_type }}",
-                        "accelerator_count": "{{ accelerator_count }}",
-                    },
-                    "disk_spec": {
-                        "boot_disk_type": "{{ boot_disk_type }}",
-                        "boot_disk_size_gb": "{{ boot_disk_size_gb }}",
-                    },
-                }
-            ],
-        }
+        json_schema_extra=dict(
+            template={
+                "service_account_name": "{{ service_account_name }}",
+                "network": "{{ network }}",
+                "reserved_ip_ranges": "{{ reserved_ip_ranges }}",
+                "maximum_run_time_hours": "{{ maximum_run_time_hours }}",
+                "worker_pool_specs": [
+                    {
+                        "replica_count": 1,
+                        "container_spec": {
+                            "image_uri": "{{ image }}",
+                            "command": "{{ command }}",
+                            "args": [],
+                        },
+                        "machine_spec": {
+                            "machine_type": "{{ machine_type }}",
+                            "accelerator_type": "{{ accelerator_type }}",
+                            "accelerator_count": "{{ accelerator_count }}",
+                        },
+                        "disk_spec": {
+                            "boot_disk_type": "{{ boot_disk_type }}",
+                            "boot_disk_size_gb": "{{ boot_disk_size_gb }}",
+                        },
+                    }
+                ],
+            }
+        ),
     )
     job_watch_poll_interval: float = Field(
         default=5.0,
@@ -347,7 +343,8 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
 
         self.job_spec["service_account_name"] = service_account_to_use
 
-    @validator("job_spec")
+    @field_validator("job_spec")
+    @classmethod
     def _ensure_job_spec_includes_required_attributes(cls, value: Dict[str, Any]):
         """
         Ensures that the job spec includes all required components.

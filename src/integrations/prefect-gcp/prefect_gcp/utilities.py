@@ -3,13 +3,8 @@ from __future__ import annotations
 from typing import Optional
 
 from googleapiclient.discovery import Resource
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel
 from slugify import slugify
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
 
 
 def slugify_name(name: str, max_length: int = 30) -> Optional[str]:
