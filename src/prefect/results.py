@@ -103,7 +103,7 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
             )
 
         try:
-            block = await block.save(name, overwrite=False)
+            await block.save(name, overwrite=False)
         except ValueError as e:
             if "already in use" not in str(e):
                 raise e
