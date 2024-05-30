@@ -319,7 +319,7 @@ async def deploy(
         ),
     ),
     enforce_parameter_schema: bool = typer.Option(
-        False,
+        True,
         "--enforce-parameter-schema",
         help=(
             "Whether to enforce the parameter schema on this deployment. If set to"
@@ -382,7 +382,6 @@ async def deploy(
         "triggers": trigger,
         "param": param,
         "params": params,
-        "enforce_parameter_schema": enforce_parameter_schema,
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(
@@ -421,6 +420,7 @@ async def deploy(
             options["names"] = [
                 name.split("/", 1)[-1] if "/" in name else name for name in parsed_names
             ]
+            options["enforce_parameter_schema"] = enforce_parameter_schema
 
             await _run_single_deploy(
                 deploy_config=deploy_configs[0] if deploy_configs else {},
@@ -690,10 +690,10 @@ async def _run_single_deploy(
         version=deploy_config.get("version"),
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
-        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", False),
+        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", True),
         parameter_openapi_schema=deploy_config.get(
             "parameter_openapi_schema"
-        ).model_dump(),
+        ).model_dump_for_openapi(),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),

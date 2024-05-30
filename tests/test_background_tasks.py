@@ -101,7 +101,7 @@ def async_foo_task_with_result_storage(async_foo_task, local_filesystem):
 
 async def test_task_submission_with_parameters_uses_default_storage(foo_task):
     foo_task_without_result_storage = foo_task.with_options(result_storage=None)
-    task_run = foo_task_without_result_storage.apply_async(42)
+    task_run = foo_task_without_result_storage.apply_async((42,))
 
     result_factory = await result_factory_from_task(foo_task)
 
@@ -124,14 +124,14 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
             await Block.load("local-file-system/my-tasks")
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
-        task_run_a = foo_task_without_result_storage.apply_async(42)
+        task_run_a = foo_task_without_result_storage.apply_async((42,))
 
         storage_before = await Block.load("local-file-system/my-tasks")
         assert isinstance(storage_before, LocalFileSystem)
         assert storage_before.basepath == str(tmp_path / "some-storage")
 
         foo_task_without_result_storage = foo_task.with_options(result_storage=None)
-        task_run_b = foo_task_without_result_storage.apply_async(24)
+        task_run_b = foo_task_without_result_storage.apply_async((24,))
 
         storage_after = await Block.load("local-file-system/my-tasks")
         assert isinstance(storage_after, LocalFileSystem)
@@ -148,7 +148,7 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
 async def test_task_submission_creates_a_scheduled_task_run(
     foo_task_with_result_storage,
 ):
-    task_run = foo_task_with_result_storage.apply_async(42)
+    task_run = foo_task_with_result_storage.apply_async((42,))
     assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(foo_task_with_result_storage)
@@ -161,7 +161,7 @@ async def test_task_submission_creates_a_scheduled_task_run(
 
 
 async def test_sync_task_not_awaitable_in_async_context(foo_task):
-    task_run = foo_task.apply_async(42)
+    task_run = foo_task.apply_async((42,))
     assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(foo_task)
@@ -176,7 +176,7 @@ async def test_sync_task_not_awaitable_in_async_context(foo_task):
 async def test_async_task_submission_creates_a_scheduled_task_run(
     async_foo_task_with_result_storage,
 ):
-    task_run = async_foo_task_with_result_storage.apply_async(42)
+    task_run = async_foo_task_with_result_storage.apply_async((42,))
     assert task_run.state.is_scheduled()
 
     result_factory = await result_factory_from_task(async_foo_task_with_result_storage)
@@ -191,7 +191,7 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
 async def test_scheduled_tasks_are_enqueued_server_side(
     foo_task_with_result_storage: Task,
 ):
-    client_run: TaskRun = foo_task_with_result_storage.apply_async(42)
+    client_run: TaskRun = foo_task_with_result_storage.apply_async((42,))
     assert client_run.state.is_scheduled()
 
     enqueued_run: ServerTaskRun = await TaskQueue.for_key(client_run.task_key).get()
@@ -232,7 +232,7 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
     await service.start(loops=1)
 
     # schedule a task
-    task_run: TaskRun = foo_task_with_result_storage.apply_async(42)
+    task_run: TaskRun = foo_task_with_result_storage.apply_async((42,))
     assert task_run.state.is_scheduled()
 
     # pull the task from the queue to make sure it's cleared; this simulates when a task
@@ -267,7 +267,7 @@ async def test_scheduled_tasks_are_restored_at_server_startup(
 async def test_stuck_pending_tasks_are_reenqueued(
     foo_task_with_result_storage: Task, prefect_client: "PrefectClient"
 ):
-    task_run: TaskRun = foo_task_with_result_storage.apply_async(42)
+    task_run: TaskRun = foo_task_with_result_storage.apply_async((42,))
     assert task_run.state.is_scheduled()
 
     # now we simulate a stuck task by having the TaskServer try to run it but fail
