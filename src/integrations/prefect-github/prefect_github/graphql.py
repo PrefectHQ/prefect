@@ -13,6 +13,7 @@ from anyio import to_thread
 from sgqlc.operation import Operation, Selection
 
 from prefect import task
+from prefect.utilities.asyncutils import sync_compatible
 from prefect_github import GitHubCredentials
 from prefect_github.utils import camel_to_snake_case
 
@@ -61,6 +62,7 @@ def _subset_return_fields(
 
 
 @task
+@sync_compatible
 async def execute_graphql(
     op: Union[Operation, str],
     github_credentials: GitHubCredentials,
