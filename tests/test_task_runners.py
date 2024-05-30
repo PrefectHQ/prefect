@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 
 from prefect.context import TagsContext, tags
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.states import Completed, Running
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.tasks import task
@@ -32,7 +32,7 @@ async def context_matters_async(param1=None, param2=None):
     return TagsContext.get().current_tags
 
 
-class MockFuture(PrefectFuture):
+class MockFuture(PrefectWrappedFuture):
     def __init__(self, data: Any = 42):
         super().__init__(uuid.uuid4(), Future())
         self._data = data
