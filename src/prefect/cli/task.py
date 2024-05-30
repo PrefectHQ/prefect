@@ -19,9 +19,8 @@ async def serve(
     ),
 ):
     """
-    Starts a task server that runs scheduled tasks.
-
-    This command initiates a task server which will monitor and execute the specified tasks.
+    Serve the provided tasks so that their runs may be submitted to and
+    executed in the engine.
 
     Args:
         entrypoints: List of strings representing the paths to one or more
