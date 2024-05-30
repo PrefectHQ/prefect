@@ -78,9 +78,7 @@ from prefect.deployments.runner import (
 )
 from prefect.deployments.schedules import FlexibleScheduleList
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
-from prefect.exceptions import (
-    Abort,
-)
+from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.server import start_webserver
@@ -1130,12 +1128,18 @@ class Runner:
         Run the hooks for a flow.
         """
         if state.is_cancelling():
-            flow = await load_flow_from_flow_run(
-                flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
-            )
-            hooks = flow.on_cancellation or []
+            try:
+                flow = await load_flow_from_flow_run(
+                    flow_run, client=self._client, storage_base_path=str(self._tmp_dir)
+                )
+                hooks = flow.on_cancellation or []
 
-            await _run_hooks(hooks, flow_run, flow, state)
+                await _run_hooks(hooks, flow_run, flow, state)
+            except ObjectNotFound:
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.warning(
+                    f"Runner cannot retrieve flow to execute cancellation hooks for flow run {flow_run.id!r}."
+                )
 
     async def _run_on_crashed_hooks(
         self,
