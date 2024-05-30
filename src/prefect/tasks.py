@@ -549,6 +549,7 @@ class Task(Generic[P, R]):
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
@@ -589,6 +590,9 @@ class Task(Generic[P, R]):
 
                 factory = await ResultFactory.from_autonomous_task(self, client=client)
                 await factory.store_parameters(parameters_id, parameters)
+
+            if deferred:
+                state.state_details.deferred = True
 
             # collect task inputs
             task_inputs = {
@@ -1119,7 +1123,7 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return run_coro_as_sync(self.create_run(parameters=parameters))
+        return run_coro_as_sync(self.create_run(parameters=parameters, deferred=True))
 
     def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to
