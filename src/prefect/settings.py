@@ -777,7 +777,7 @@ This value sets the default retry delay seconds for all tasks.
 This value does not overwrite individually set retry delay seconds
 """
 
-PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(int, default=30)
+PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(int, default=1)
 """
 The number of seconds to wait before retrying when a task run
 cannot secure a concurrency slot from the server.
