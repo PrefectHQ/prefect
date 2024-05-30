@@ -7,12 +7,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as ADefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.resource import ResourceManagementClient
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr, root_validator
-else:
-    from pydantic import Field, SecretStr, root_validator
+from pydantic import Field, SecretStr, model_validator
 
 try:
     from azure.cosmos import CosmosClient
@@ -119,7 +114,8 @@ class AzureBlobStorageCredentials(Block):
         ),
     )
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def check_connection_string_or_account_url(
         cls, values: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -518,7 +514,8 @@ class AzureContainerInstanceCredentials(Block):
         ),
     )
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def validate_credential_kwargs(cls, values):
         """
         Validates that if any of `client_id`, `tenant_id`, or `client_secret` are

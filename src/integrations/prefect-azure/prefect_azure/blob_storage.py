@@ -10,7 +10,8 @@ from azure.core.exceptions import ResourceNotFoundError
 if TYPE_CHECKING:
     from azure.storage.blob import BlobProperties
 
-from pydantic import VERSION as PYDANTIC_VERSION
+
+from pydantic import Field
 
 from prefect import task
 from prefect.blocks.abstract import ObjectStorageBlock
@@ -18,12 +19,6 @@ from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
 from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import filter_files
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_azure.credentials import AzureBlobStorageCredentials
 
 
