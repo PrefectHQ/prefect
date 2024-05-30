@@ -1,4 +1,7 @@
 from enum import Enum
+from typing import Union
+
+from typing_extensions import TypeAlias
 
 
 class SMTPType(Enum):
@@ -33,3 +36,6 @@ class SMTPServer(Enum):
     def _missing_(cls, value: object):
         if isinstance(value, str):
             return getattr(cls, value.upper())
+
+
+SMTPServerLike: TypeAlias = Union[SMTPServer, str]
