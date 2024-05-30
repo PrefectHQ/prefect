@@ -1,15 +1,7 @@
 ---
+title: Blocks
 description: Prefect blocks package configuration storage, infrastructure, and secrets for use with deployments or flow scripts.
-tags:
-  - blocks
-  - storage
-  - secrets
-  - configuration
-search:
-  boost: 2
 ---
-
-# Blocks
 
 Prefect blocks store configuration and provide an interface for interacting with external systems.
 
@@ -46,12 +38,10 @@ These block types can be created via the UI and used without installing any addi
 | [Azure](/concepts/filesystems/#azure)                                                                                | `azure`                                               | Stores data as a file on Azure Data Lake and Azure Blob Storage.                   |
 | [Custom Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.CustomWebhookNotificationBlock)                 | `custom-webhook`                                                | Calls custom webhooks.                                                |
 | [Discord Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.DiscordWebhook)                               | `discord-webhook`                                                | Calls Discord webhooks.                                                |
-| [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime)                                          | `date-time`                                              | Stores a datetime value.                                             |
 | [Docker Container](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer)                          | `docker-container`                                       | Runs a command in a container.                                                              |
 | [Docker Registry](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry)                     | `docker-registry`                                        | Connects to a Docker registry.  Requires a Docker Engine to be connectable.                     |
 | [GCS](/concepts/filesystems/#gcs)                                                                                    | `gcs`                                                    | Store data as a file on Google Cloud Storage.                               |
 | [GitHub](/concepts/filesystems/#github)                                                                              | `github`                                                 | Interacts with files stored on public GitHub repositories.                                    |
-| [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON)                                                   | `json`                                                   | Stores JSON data.                                           |
 | [Kubernetes Cluster Config](/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig)   | <span class="no-wrap">`kubernetes-cluster-config`</span> | Stores configuration for interaction with Kubernetes clusters.                                 |
 | [Kubernetes Job](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob)                              | `kubernetes-job`                                         | Runs a command as a Kubernetes Job.                                                         |
 | [Local File System](/concepts/filesystems/#local-filesystem)                                                         | `local-file-system`                                      | Stores data as a file on a local file system.
@@ -66,12 +56,11 @@ These block types can be created via the UI and used without installing any addi
 | [Sendgrid Email](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SendgridEmail)                  | `sendgrid-email`                                         | Sends notifications via Sendgrid email.                                         |
 | [Slack Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook)                    | `slack-webhook`                                          | Sends notifications via a provided Slack webhook.                      |
 | [SMB](/concepts/filesystems/#smb)                                                                                    | `smb`                                                    | Stores data as a file on a SMB share.                                                     |
-| [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String)                                               | `string`                                                 | Stores a string value.                                         |
 | [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS)                          | `twilio-sms`                                             | Sends notifications via Twilio SMS.                                                       |
 
 !!! Warning
     The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the the corresponding `S3Bucket`, `AzureBlobStorageCredentials`, `GCSBucket`, and `GitHubRepository` blocks found in the [Prefect integration libraries](/integrations/).
-
+    The JSON, DateTime, and String blocks are deprecated in favor of [Variables](/concepts/variables/).
 ## Blocks in Prefect integration libraries
 
 Some block types that appear in the UI can be created immediately, and then the corresponding integration library must be installed for use.
@@ -129,12 +118,13 @@ Blocks are classes that subclass the `Block` base class. They can be instantiate
 
 ### Instantiate blocks
 
-To instantiate a block that stores a JSON value, use the `JSON` block:
+To instantiate a block that stores an S3 bucket value, use the `S3Bucket` block:
 
 ```python
-from prefect.blocks.system import JSON
+from prefect_aws.s3 import S3Bucket
 
-json_block = JSON(value={"the_answer": 42})
+bucket_block = S3Bucket(bucket_name="data-bucket")
+
 ```
 
 ### Save blocks
@@ -142,19 +132,19 @@ json_block = JSON(value={"the_answer": 42})
 To retrieve this saved value use the `.save()` method:
 
 ```python
-json_block.save(name="life-the-universe-everything")
+bucket_block.save(name="my-data-bucket-block")
 ```
 
 To update saved block value stored for a given block, overwrite the existing block by passing `overwrite=True`:
 
 ```python
-json_block.save(overwrite=True)
+bucket_block.save(overwrite=True)
 ```
 
-Create a new JSON block by setting the `name` parameter to a new value:
+Create a new secret block by setting the `name` parameter to a new value:
 
 ```python
-json_block.save(name="actually-life-the-universe-everything")
+new_bucket_block.save(name="my-new-data-bucket-block")
 ```
 
 Note that blocks can also be created and updated via the [Prefect UI](/ui/blocks/).
@@ -165,26 +155,26 @@ The block name can be used to load the block:
 
 ```python hl_lines="6"
 from prefect import flow
-from prefect.blocks.system import JSON
+from prefect_aws.s3 import S3Bucket
 
 @flow
-def what_is_the_answer():
-    json_block = JSON.load("life-the-universe-everything")
-    print(json_block.value["the_answer"])
+def what_is_the_bucket():
+    bucket = S3Bucket.load("my-data-bucket-block")
+    print(bucket.bucket_name)
 
 if __name__ == "__main__":
-    what_is_the_answer() # 42
+    what_is_the_bucket() # data-bucket
 ```
 
 Alternatively, load a block with the unique slug that is a combination of the block type slug and the block name.
 
-To load our JSON block from above, run the following:
+To load our S3Bucket block from above, run the following:
 
 ```python hl_lines="3"
-from prefect.blocks.core import Block
+from prefect_aws.s3 import S3Bucket
 
-json_block = Block.load("json/life-the-universe-everything")
-print(json_block.value["the-answer"]) #42
+s3_block = Block.load("S3Bucket/my_s3_bucket_block")
+print(s3_bucket.bucket_name) # data-bucket
 ```
 
 
@@ -195,13 +185,13 @@ Delete a block with the `.delete()` method:
 ```python
 from prefect.blocks.core import Block
 
-Block.delete("json/life-the-universe-everything")
+Block.delete("s3-bucket/my-data-bucket-block")
 ```
 
 Alternatively, use the CLI to delete specific blocks with a given slug or id:
 
 ```bash
-prefect block delete json/life-the-universe-everything
+prefect block delete s3-bucket/my-data-bucket-block
 ```
 
 ```bash
@@ -296,7 +286,7 @@ Here's an example of a block that uses `SecretDict`:
 from typing import Dict
 
 from prefect.blocks.core import Block
-from prefect.types import SecretDict
+from prefect.blocks.fields import SecretDict
 
 
 class SystemConfiguration(Block):
