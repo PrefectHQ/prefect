@@ -2,5 +2,5 @@ collectionName: prefect-ray
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-ray
-iconUrl: /img/collections/ray.png
+iconUrl: /3.0rc/img/collections/ray.png
 tag: Ray

@@ -2,5 +2,5 @@ collectionName: prefect-docker
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-docker
-iconUrl: /img/collections/docker.png
+iconUrl: /3.0rc/img/collections/docker.png
 tag: Docker

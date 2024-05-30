@@ -2,5 +2,5 @@ collectionName: prefect-databricks
 author: Prefect
 authorUrl: https://prefect.io
 documentation: https://prefecthq.github.io/prefect-databricks/
-iconUrl: /img/collections/databricks.png
+iconUrl: /3.0rc/img/collections/databricks.png
 tag: Databricks
