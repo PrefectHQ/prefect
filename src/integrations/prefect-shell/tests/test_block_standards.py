@@ -10,7 +10,7 @@ def find_module_blocks():
     blocks = get_registry_for_type(Block)
     module_blocks = [
         block
-        for block in blocks.values()
+        for block in blocks.values()  # type: ignore
         if to_qualified_name(block).startswith("prefect_shell")
     ]
     return module_blocks
@@ -19,5 +19,5 @@ def find_module_blocks():
 @pytest.mark.parametrize("block", find_module_blocks())
 class TestAllBlocksAdhereToStandards(BlockStandardTestSuite):
     @pytest.fixture
-    def block(self, block):
-        return block
+    def block(self, block):  # type: ignore
+        return block  # type: ignore

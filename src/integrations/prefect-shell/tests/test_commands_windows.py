@@ -3,18 +3,21 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any, AsyncGenerator, Literal
 
 import pytest
 from prefect_shell.commands import ShellOperation, shell_run_command
 
-from prefect import flow
+from prefect import flow  # type: ignore
 from prefect.testing.utilities import AsyncMock
 
 if sys.platform != "win32":
     pytest.skip(reason="see test_commands.py", allow_module_level=True)
 
 
-def test_shell_run_command_error_windows(prefect_task_runs_caplog):
+def test_shell_run_command_error_windows(
+    prefect_task_runs_caplog: pytest.LogCaptureFixture,
+):
     @flow
     def test_flow():
         return shell_run_command(command="throw", return_all=True, shell="powershell")
@@ -25,7 +28,7 @@ def test_shell_run_command_error_windows(prefect_task_runs_caplog):
     assert len(prefect_task_runs_caplog.records) == 7
 
 
-def test_shell_run_command_windows(prefect_task_runs_caplog):
+def test_shell_run_command_windows(prefect_task_runs_caplog: pytest.LogCaptureFixture):
     prefect_task_runs_caplog.set_level(logging.INFO)
     echo_msg = "WORKING"
 
@@ -38,7 +41,7 @@ def test_shell_run_command_windows(prefect_task_runs_caplog):
 
     print(prefect_task_runs_caplog.text)
 
-    assert " ".join(test_flow()) == echo_msg
+    assert " ".join(test_flow()) == echo_msg  # type: ignore
     for record in prefect_task_runs_caplog.records:
         if "WORKING" in record.msg:
             break  # it's in the records
@@ -46,7 +49,9 @@ def test_shell_run_command_windows(prefect_task_runs_caplog):
         raise AssertionError
 
 
-def test_shell_run_command_stream_level_windows(prefect_task_runs_caplog):
+def test_shell_run_command_stream_level_windows(
+    prefect_task_runs_caplog: pytest.LogCaptureFixture,
+):
     prefect_task_runs_caplog.set_level(logging.WARNING)
     echo_msg = "WORKING"
 
@@ -62,7 +67,7 @@ def test_shell_run_command_stream_level_windows(prefect_task_runs_caplog):
 
     print(prefect_task_runs_caplog.text)
 
-    assert " ".join(test_flow()) == echo_msg
+    assert " ".join(test_flow()) == echo_msg  # type: ignore
     for record in prefect_task_runs_caplog.records:
         if "WORKING" in record.msg:
             break  # it's in the records
@@ -80,7 +85,7 @@ def test_shell_run_command_helper_command_windows():
             return_all=True,
         )
 
-    assert os.path.expandvars("$USERPROFILE") in test_flow()
+    assert os.path.expandvars("$USERPROFILE") in test_flow()  # type: ignore
 
 
 def test_shell_run_command_cwd():
@@ -93,7 +98,7 @@ def test_shell_run_command_cwd():
             return_all=True,
         )
 
-    assert os.fspath(Path.home()) in test_flow()
+    assert os.fspath(Path.home()) in test_flow()  # type: ignore
 
 
 def test_shell_run_command_return_all():
@@ -104,8 +109,8 @@ def test_shell_run_command_return_all():
         )
 
     result = test_flow()
-    assert result[0].rstrip() == "work!"
-    assert result[1].rstrip() == "yes!"
+    assert result[0].rstrip() == "work!"  # type: ignore
+    assert result[1].rstrip() == "yes!"  # type: ignore
 
 
 def test_shell_run_command_no_output_windows():
@@ -124,7 +129,7 @@ def test_shell_run_command_uses_current_env_windows():
         )
 
     result = test_flow()
-    assert result[0].rstrip() == os.environ["USERPROFILE"]
+    assert result[0].rstrip() == os.environ["USERPROFILE"]  # type: ignore
 
 
 def test_shell_run_command_update_current_env_windows():
@@ -139,8 +144,8 @@ def test_shell_run_command_update_current_env_windows():
         )
 
     result = test_flow()
-    assert os.environ["USERPROFILE"] in " ".join(result)
-    assert "test value" in result
+    assert os.environ["USERPROFILE"] in " ".join(result)  # type: ignore
+    assert "test value" in result  # type: ignore
 
 
 def test_shell_run_command_ensure_suffix_ps1():
@@ -177,16 +182,19 @@ def test_shell_run_command_throw_exception_on_nonzero_exit_code():
 
 
 class AsyncIter:
-    def __init__(self, items):
+    def __init__(self, items: list[Any]):
         self.items = items
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> AsyncGenerator[Any, Any]:
         for item in self.items:
             yield item
 
 
 @pytest.mark.parametrize("shell", [None, "powershell", "powershell.exe"])
-def test_shell_run_command_override_shell(shell, monkeypatch):
+def test_shell_run_command_override_shell(
+    shell: None | Literal["powershell"] | Literal["powershell.exe"],
+    monkeypatch: pytest.MonkeyPatch,
+):
     open_process_mock = AsyncMock()
     stdout_mock = AsyncMock()
     stdout_mock.receive.side_effect = lambda: b"received"
@@ -209,7 +217,7 @@ def test_shell_run_command_override_shell(shell, monkeypatch):
 
 
 class TestShellOperation:
-    async def execute(self, op, method):
+    async def execute(self, op: ShellOperation, method: Literal["run", "trigger"]):
         if method == "run":
             return await op.run()
         elif method == "trigger":
@@ -222,13 +230,17 @@ class TestShellOperation:
         assert op.run() == ["Hello"]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_error(self, method):
+    async def test_error(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(commands=["throw"])
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_output(self, prefect_task_runs_caplog, method):
+    async def test_output(
+        self,
+        prefect_task_runs_caplog: pytest.LogCaptureFixture,
+        method: Literal["run"] | Literal["trigger"],
+    ):
         op = ShellOperation(commands=["echo 'testing'"])
         assert await self.execute(op, method) == ["testing"]
         records = prefect_task_runs_caplog.records
@@ -238,30 +250,30 @@ class TestShellOperation:
         assert "completed with return code 0" in records[2].message
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_current_env(self, method):
+    async def test_current_env(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(commands=["echo $env:USERPROFILE"])
         assert await self.execute(op, method) == [os.environ["USERPROFILE"]]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_updated_env(self, method):
+    async def test_updated_env(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(
             commands=["echo $env:TEST_VAR"], env={"TEST_VAR": "test value"}
         )
         assert await self.execute(op, method) == ["test value"]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_cwd(self, method):
+    async def test_cwd(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(commands=["Get-Location"], working_dir=Path.home())
         assert os.fspath(Path.home()) in (await self.execute(op, method))
 
-    async def test_context_manager(self):
+    async def test_async_context_manager(self):
         async with ShellOperation(commands=["echo 'testing'"]) as op:
             proc = await op.trigger()
             await proc.wait_for_completion()
-            await proc.fetch_result() == ["testing"]
+            await proc.fetch_result() == ["testing"]  # type: ignore
 
-    def test_async_context_manager(self):
+    def test_context_manager(self):
         with ShellOperation(commands=["echo 'testing'"]) as op:
             proc = op.trigger()
-            proc.wait_for_completion()
-            proc.fetch_result() == ["testing", ""]
+            proc.wait_for_completion()  # type: ignore
+            proc.fetch_result() == ["testing", ""]  # type: ignore

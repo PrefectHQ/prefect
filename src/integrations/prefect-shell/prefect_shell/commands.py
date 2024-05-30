@@ -10,33 +10,29 @@ from contextlib import AsyncExitStack, contextmanager
 from typing import Any, Dict, Generator, List, Optional, Union
 
 import anyio
-from anyio.abc import Process
+from anyio.abc import AnyByteReceiveStream, Process
 from anyio.streams.text import TextReceiveStream
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import DirectoryPath, Field, PrivateAttr
 
-from prefect import task
+from prefect import task  # type: ignore
 from prefect.blocks.abstract import JobBlock, JobRun
-from prefect.logging import get_run_logger
+from prefect.logging import get_run_logger  # type: ignore
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.processutils import open_process
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import DirectoryPath, Field, PrivateAttr
-else:
-    from pydantic import DirectoryPath, Field, PrivateAttr
+from prefect.utilities.processutils import open_process  # type: ignore
 
 
 @task
+@sync_compatible
 async def shell_run_command(
     command: str,
-    env: Optional[dict] = None,
+    env: Optional[dict[str, Any]] = None,
     helper_command: Optional[str] = None,
     shell: Optional[str] = None,
     extension: Optional[str] = None,
     return_all: bool = False,
     stream_level: int = logging.INFO,
-    cwd: Union[str, bytes, os.PathLike, None] = None,
-) -> Union[List, str]:
+    cwd: Union[str, bytes, os.PathLike[str], None] = None,
+) -> Union[list[Any], str]:
     """
     Runs arbitrary shell commands.
 
@@ -73,7 +69,7 @@ async def shell_run_command(
         example_shell_run_command_flow()
         ```
     """
-    logger = get_run_logger()
+    logger = get_run_logger()  # type: ignore
 
     current_env = os.environ.copy()
     current_env.update(env or {})
@@ -103,14 +99,14 @@ async def shell_run_command(
         async with await anyio.open_process(
             shell_command, env=current_env, cwd=cwd
         ) as process:
-            async for text in TextReceiveStream(process.stdout):
+            async for text in TextReceiveStream(process.stdout):  # type: ignore
                 logger.log(level=stream_level, msg=text)
-                lines.extend(text.rstrip().split("\n"))
+                lines.extend(text.rstrip().split("\n"))  # type: ignore
 
             await process.wait()
             if process.returncode:
                 stderr = "\n".join(
-                    [text async for text in TextReceiveStream(process.stderr)]
+                    [text async for text in TextReceiveStream(process.stderr)]  # type: ignore
                 )
                 if not stderr and lines:
                     stderr = f"{lines[-1]}\n"
@@ -122,11 +118,11 @@ async def shell_run_command(
         if os.path.exists(tmp.name):
             os.remove(tmp.name)
 
-    line = lines[-1] if lines else ""
-    return lines if return_all else line
+    line = lines[-1] if lines else ""  # type: ignore
+    return lines if return_all else line  # type: ignore
 
 
-class ShellProcess(JobRun):
+class ShellProcess(JobRun[object]):
     """
     A class representing a shell process.
     """
@@ -156,7 +152,7 @@ class ShellProcess(JobRun):
         """
         return self._process.returncode
 
-    async def _capture_output(self, source):
+    async def _capture_output(self, source: AnyByteReceiveStream) -> None:
         """
         Capture output from source.
         """
@@ -164,18 +160,18 @@ class ShellProcess(JobRun):
             text = output.rstrip()
             if self._shell_operation.stream_output:
                 self.logger.info(f"PID {self.pid} stream output:{os.linesep}{text}")
-            self._output.extend(text.split(os.linesep))
+            self._output.extend(text.split(os.linesep))  # type: ignore
 
     @sync_compatible
-    async def wait_for_completion(self) -> None:
+    async def wait_for_completion(self) -> None:  # type: ignore
         """
         Wait for the shell command to complete after a process is triggered.
         """
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
         await asyncio.gather(
-            self._capture_output(self._process.stdout),
-            self._capture_output(self._process.stderr),
+            self._capture_output(self._process.stdout),  # type: ignore
+            self._capture_output(self._process.stderr),  # type: ignore
         )
         await self._process.wait()
 
@@ -197,7 +193,7 @@ class ShellProcess(JobRun):
         """
         if self._process.returncode is None:
             self.logger.info("Process is still running, result may be incomplete.")
-        return self._output
+        return self._output  # type: ignore
 
 
 class ShellOperation(JobBlock):
@@ -231,8 +227,8 @@ class ShellOperation(JobBlock):
     """
 
     _block_type_name = "Shell Operation"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/0b47a017e1b40381de770c17647c49cdf6388d1c-250x250.png"  # noqa: E501
-    _documentation_url = "https://prefecthq.github.io/prefect-shell/commands/#prefect_shell.commands.ShellOperation"  # noqa: E501
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/0b47a017e1b40381de770c17647c49cdf6388d1c-250x250.png"  # type: ignore
+    _documentation_url = "https://prefecthq.github.io/prefect-shell/commands/#prefect_shell.commands.ShellOperation"  # type: ignore
 
     commands: List[str] = Field(
         default=..., description="A list of commands to execute sequentially."
@@ -243,7 +239,7 @@ class ShellOperation(JobBlock):
         title="Environment Variables",
         description="Environment variables to use for the subprocess.",
     )
-    working_dir: DirectoryPath = Field(
+    working_dir: Optional[DirectoryPath] = Field(
         default=None,
         title="Working Directory",
         description=(
@@ -251,7 +247,7 @@ class ShellOperation(JobBlock):
             "the command will be executed within."
         ),
     )
-    shell: str = Field(
+    shell: Optional[str] = Field(
         default=None,
         description=(
             "The shell to run the command with; if unset, "
@@ -305,10 +301,10 @@ class ShellOperation(JobBlock):
             temp_file.close()
 
             trigger_command = [shell, temp_file.name]
-            yield trigger_command
+            yield trigger_command  # type: ignore
         finally:
-            if os.path.exists(temp_file.name):
-                os.remove(temp_file.name)
+            if os.path.exists(temp_file.name):  # type: ignore
+                os.remove(temp_file.name)  # type: ignore
 
     def _compile_kwargs(self, **open_kwargs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -424,7 +420,7 @@ class ShellOperation(JobBlock):
         """
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any):
         """
         Asynchronous version of the exit method.
         """
@@ -436,8 +432,8 @@ class ShellOperation(JobBlock):
         """
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info: Any):
         """
         Exit the context of the job block.
         """
-        self.close()
+        self.close()  # type: ignore

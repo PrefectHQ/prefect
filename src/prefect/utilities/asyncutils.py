@@ -300,7 +300,7 @@ def in_async_main_thread() -> bool:
 
 def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
-    Converts an async function into a dual async and sync function.
+    Converts an async function into a dual async and sync function. sssssss
 
     When the returned function is called, we will attempt to determine the best way
     to enter the async function.

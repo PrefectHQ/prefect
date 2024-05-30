@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.fixture(scope="function")
-def prefect_caplog(caplog):
+def prefect_caplog(caplog: pytest.LogCaptureFixture):
     logger = logging.getLogger("prefect")
 
     # TODO: Determine a better pattern for this and expose for all tests
@@ -17,7 +17,7 @@ def prefect_caplog(caplog):
 
 
 @pytest.fixture(scope="function")
-def prefect_task_runs_caplog(prefect_caplog):
+def prefect_task_runs_caplog(prefect_caplog: pytest.LogCaptureFixture):
     logger = logging.getLogger("prefect.task_runs")
 
     # TODO: Determine a better pattern for this and expose for all tests

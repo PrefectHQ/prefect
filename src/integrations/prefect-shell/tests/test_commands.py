@@ -2,28 +2,29 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any, AsyncGenerator, Literal
 
 import pytest
 from prefect_shell.commands import ShellOperation, shell_run_command
 
-from prefect import flow
+from prefect import flow  # type: ignore
 from prefect.testing.utilities import AsyncMock
 
 if sys.platform == "win32":
     pytest.skip(reason="see test_commands_windows.py", allow_module_level=True)
 
 
-def test_shell_run_command_error(prefect_task_runs_caplog):
+def test_shell_run_command_error(prefect_task_runs_caplog: pytest.LogCaptureFixture):
     @flow
     def test_flow():
         return shell_run_command(command="ls this/is/invalid")
 
     match = "No such file or directory"
     with pytest.raises(RuntimeError, match=match):
-        test_flow()
+        test_flow()  # type: ignore
 
 
-def test_shell_run_command(prefect_task_runs_caplog):
+def test_shell_run_command(prefect_task_runs_caplog: pytest.LogCaptureFixture):
     prefect_task_runs_caplog.set_level(logging.INFO)
     echo_msg = "_THIS_ IS WORKING!!!!"
 
@@ -31,11 +32,14 @@ def test_shell_run_command(prefect_task_runs_caplog):
     def test_flow():
         return shell_run_command(command=f"echo {echo_msg}")
 
+    test_flow()
     assert test_flow() == echo_msg
     assert echo_msg in prefect_task_runs_caplog.text
 
 
-def test_shell_run_command_stream_level(prefect_task_runs_caplog):
+def test_shell_run_command_stream_level(
+    prefect_task_runs_caplog: pytest.LogCaptureFixture,
+):
     prefect_task_runs_caplog.set_level(logging.WARNING)
     echo_msg = "_THIS_ IS WORKING!!!!"
 
@@ -100,21 +104,23 @@ def test_shell_run_command_update_current_env():
         )
 
     result = test_flow()
-    assert result[0] == os.environ["HOME"]
-    assert result[1] == "test value"
+    assert result[0] == os.environ["HOME"]  # type: ignore
+    assert result[1] == "test value"  # type: ignore
 
 
 class AsyncIter:
-    def __init__(self, items):
+    def __init__(self, items: list[Any]):
         self.items = items
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> AsyncGenerator[Any, Any]:
         for item in self.items:
             yield item
 
 
 @pytest.mark.parametrize("shell", [None, "bash", "zsh"])
-def test_shell_run_command_override_shell(shell, monkeypatch):
+def test_shell_run_command_override_shell(
+    shell: None | Literal["bash"] | Literal["zsh"], monkeypatch: pytest.MonkeyPatch
+):
     open_process_mock = AsyncMock()
     stdout_mock = AsyncMock()
     stdout_mock.receive.side_effect = lambda: b"received"
@@ -137,7 +143,7 @@ def test_shell_run_command_override_shell(shell, monkeypatch):
 
 
 class TestShellOperation:
-    async def execute(self, op, method):
+    async def execute(self, op: ShellOperation, method: Literal["run", "trigger"]):
         if method == "run":
             return await op.run()
         elif method == "trigger":
@@ -146,13 +152,17 @@ class TestShellOperation:
             return await proc.fetch_result()
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_error(self, method):
+    async def test_error(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(commands=["ls this/is/invalid"])
         with pytest.raises(RuntimeError, match="return code"):
             await self.execute(op, method)
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_output(self, prefect_task_runs_caplog, method):
+    async def test_output(
+        self,
+        prefect_task_runs_caplog: pytest.LogCaptureFixture,
+        method: Literal["run"] | Literal["trigger"],
+    ):
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
         assert await self.execute(op, method) == ["testing", "the output", "good"]
         records = prefect_task_runs_caplog.records
@@ -162,7 +172,11 @@ class TestShellOperation:
         assert "completed with return code 0" in records[2].message
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_stream_output(self, prefect_task_runs_caplog, method):
+    async def test_stream_output(
+        self,
+        prefect_task_runs_caplog: pytest.LogCaptureFixture,
+        method: Literal["run"] | Literal["trigger"],
+    ):
         # If stream_output is False, there should be output,
         # but no logs from the shell process
         op = ShellOperation(
@@ -175,23 +189,30 @@ class TestShellOperation:
         assert "completed with return code 0" in records[1].message
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_current_env(self, method):
+    async def test_current_env(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(commands=["echo $HOME"])
         assert await self.execute(op, method) == [os.environ["HOME"]]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_updated_env(self, method):
+    async def test_updated_env(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(commands=["echo $HOME"], env={"HOME": "test_home"})
         assert await self.execute(op, method) == ["test_home"]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_cwd(self, method):
+    async def test_cwd(self, method: Literal["run"] | Literal["trigger"]):
         op = ShellOperation(commands=["pwd"], working_dir=Path.home())
         assert await self.execute(op, method) == [os.fspath(Path.home())]
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
     @pytest.mark.parametrize("shell", [None, "bash", "zsh", "BASH", "ZSH"])
-    async def test_updated_shell(self, monkeypatch, method, shell):
+    async def test_updated_shell(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        method: Literal["run"] | Literal["trigger"],
+        shell: (
+            None | Literal["bash"] | Literal["zsh"] | Literal["BASH"] | Literal["ZSH"]
+        ),
+    ):
         open_process_mock = AsyncMock(name="open_process")
         stdout_mock = AsyncMock(name="stdout_mock")
         stdout_mock.receive.side_effect = lambda: b"received"
@@ -207,7 +228,11 @@ class TestShellOperation:
         assert open_process_mock.call_args_list[0][0][0][0] == (shell or "bash").lower()
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
-    async def test_select_powershell(self, monkeypatch, method):
+    async def test_select_powershell(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        method: Literal["run"] | Literal["trigger"],
+    ):
         open_process_mock = AsyncMock(name="open_process")
         stdout_mock = AsyncMock(name="stdout_mock")
         stdout_mock.receive.side_effect = lambda: b"received"
@@ -223,14 +248,14 @@ class TestShellOperation:
         )
         assert open_process_mock.call_args_list[0][0][0][0] == "powershell"
 
-    async def test_context_manager(self):
+    def test_context_manager(self):
+        with ShellOperation(commands=["echo 'testing'"]) as op:
+            proc = op.trigger()
+            proc.wait_for_completion()  # type: ignore
+            assert proc.fetch_result() == ["testing"]  # type: ignore
+
+    async def test_async_context_manager(self):
         async with ShellOperation(commands=["echo 'testing'"]) as op:
             proc = await op.trigger()
             await proc.wait_for_completion()
-            await proc.fetch_result() == ["testing"]
-
-    def test_async_context_manager(self):
-        with ShellOperation(commands=["echo 'testing'"]) as op:
-            proc = op.trigger()
-            proc.wait_for_completion()
-            proc.fetch_result() == ["testing"]
+            assert await proc.fetch_result() == ["testing"]
