@@ -9,8 +9,8 @@ GitHub query_repository* tasks and the GitHub storage block.
 
 import io
 import shlex
+import shutil
 from datetime import datetime
-from distutils.dir_util import copy_tree
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterable, Optional, Tuple, Union
@@ -135,7 +135,7 @@ class GitHubRepository(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_path_str, sub_directory=from_path
             )
 
-            copy_tree(src=content_source, dst=content_destination)
+            shutil.copytree(src=content_source, dst=content_destination)
 
 
 @task
