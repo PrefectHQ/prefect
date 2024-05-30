@@ -115,7 +115,7 @@ class KubernetesClusterConfig(Block):
         """
         Returns a Kubernetes API client for this cluster config.
         """
-        return config.kube_config.new_client_from_config_dict(
+        return await config.kube_config.new_client_from_config_dict(
             config_dict=self.config, context=self.context_name
         )
 
