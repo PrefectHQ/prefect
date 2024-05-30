@@ -109,8 +109,6 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
                 raise e
         except ObjectAlreadyExists:
             # Another client created the block before we reached this line
-            pass
-        else:
             block = await Block.load(default_storage_name)
 
         return block
