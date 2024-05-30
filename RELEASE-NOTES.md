@@ -1,5 +1,21 @@
 # Prefect Release Notes
 
+## Release 2.19.3
+
+### Enhancements
+- Provide URL in CLI output upon work pool creation — https://github.com/PrefectHQ/prefect/pull/13597
+- Allow flow parameter schema generation when dependencies are missing — https://github.com/PrefectHQ/prefect/pull/13620
+
+### Fixes
+- Add handling for multi-word dbt CLI commands — https://github.com/PrefectHQ/prefect/pull/13616
+
+### Integrations
+- Add loading state to concurrency limits table — https://github.com/PrefectHQ/prefect-ui-library/pull/2483
+- Remove old schema properties from deployments — https://github.com/PrefectHQ/prefect-ui-library/pull/2482
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.2...2.19.3
+
+
 ## Release 2.19.0
 
 ### Support for major infrastructure and distributed task integrations
