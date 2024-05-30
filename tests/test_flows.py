@@ -1785,7 +1785,7 @@ class TestSubflowRunLogs:
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = (await state.result()).state_details.flow_run_id
 
-        await _wait_for_logs(prefect_client, expected_num_logs=3)
+        await _wait_for_logs(prefect_client, expected_num_logs=6)
 
         logs = await prefect_client.read_logs()
         log_messages = [log.message for log in logs]
