@@ -233,7 +233,6 @@ class KubernetesCredentials(Block):
                 await config.load_kube_config()
 
         try:
-            print("api_client", api_client)
             return K8S_CLIENT_TYPES[client_type](api_client)
         except KeyError:
             raise ValueError(
