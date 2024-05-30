@@ -16,22 +16,14 @@ from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterable, Optional, Tuple, Union
 from urllib.parse import urlparse, urlunparse
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
+from sgqlc.operation import Operation
 
 from prefect import task
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
-from sgqlc.operation import Operation
-
 from prefect_github import GitHubCredentials
-from prefect_github.exceptions import InvalidRepositoryURLError
 from prefect_github.graphql import _execute_graphql_op, _subset_return_fields
 from prefect_github.schemas import graphql_schema
 from prefect_github.utils import initialize_return_fields_defaults, strip_kwargs
@@ -65,23 +57,6 @@ class GitHubRepository(ReadableDeploymentStorage):
         default=None,
         description="An optional GitHubCredentials block for using private GitHub repos.",  # noqa: E501
     )
-
-    @validator("credentials")
-    def _ensure_credentials_go_with_https(cls, v: str, values: dict):
-        """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs."""
-        if v is not None:
-            if urlparse(values["repository_url"]).scheme != "https":
-                raise InvalidRepositoryURLError(
-                    (
-                        "Crendentials can only be used with GitHub repositories "
-                        "using the 'HTTPS' format. You must either remove the "
-                        "credential if you wish to use the 'SSH' format and are not "
-                        "using a private repository, or you must change the repository "
-                        "url to the 'HTTPS' format. "
-                    )
-                )
-
-        return v
 
     def _create_repo_url(self) -> str:
         """Format the URL provided to the `git clone` command.

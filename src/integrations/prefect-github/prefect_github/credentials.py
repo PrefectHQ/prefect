@@ -2,16 +2,10 @@
 
 import warnings
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, SecretStr
+from sgqlc.endpoint.http import HTTPEndpoint
 
 from prefect.blocks.abstract import CredentialsBlock
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr
-else:
-    from pydantic import Field, SecretStr
-
-from sgqlc.endpoint.http import HTTPEndpoint
 
 
 class GitHubCredentials(CredentialsBlock):
