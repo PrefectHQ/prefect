@@ -15,7 +15,7 @@ from rich.table import Table
 from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
 from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -536,6 +536,11 @@ async def delete(
     )
     async with get_client() as client:
         try:
+            if is_interactive() and not typer.confirm(
+                (f"Are you sure you want to delete work queue with name {name!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
             await client.delete_work_queue_by_id(id=queue_id)
         except ObjectNotFound:
             if pool:
