@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "src/integrations/*/**"
+    types: [opened, reopened, synchronize, labeled]
   push:
     branches:
       - main
@@ -12,6 +13,9 @@ on:
 
 jobs:
   prepare-matrix:
+    # These tests will only run if the integration paths are affected, or someone has
+    # added the `integrations` label to the PR
+    if: github.event_name != 'labeled' || contains(github.event.pull_request.labels.*.name, 'integrations')
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
