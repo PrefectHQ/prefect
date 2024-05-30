@@ -8,23 +8,9 @@ import prefect.results
 from prefect import flow, task
 from prefect.exceptions import MissingResult
 from prefect.futures import PrefectDistributedFuture
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
-    temporary_settings,
-)
 from prefect.states import Running
 from prefect.task_server import TaskServer, serve
 from prefect.tasks import task_input_hash
-
-
-@pytest.fixture(autouse=True)
-def mock_settings():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
-        }
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True)
@@ -163,14 +149,6 @@ async def test_task_server_handles_deleted_task_run_submission(
 
 @pytest.mark.usefixtures("mock_task_server_start")
 class TestServe:
-    async def test_serve_raises_if_task_scheduling_not_enabled(self, foo_task):
-        with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: False}):
-            with pytest.raises(
-                RuntimeError,
-                match="set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING to True",
-            ):
-                await serve(foo_task)
-
     async def test_serve_basic_sync_task(self, foo_task, mock_task_server_start):
         await serve(foo_task)
         mock_task_server_start.assert_called_once()

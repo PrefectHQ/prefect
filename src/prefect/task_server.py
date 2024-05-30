@@ -4,10 +4,13 @@ import os
 import signal
 import socket
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack
+from contextvars import copy_context
 from typing import List
 
 import anyio
+import anyio.abc
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task, get_client
@@ -19,7 +22,6 @@ from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
@@ -79,6 +81,7 @@ class TaskServer:
             )
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._executor = ThreadPoolExecutor()
 
     @property
     def _client_id(self) -> str:
@@ -140,7 +143,7 @@ class TaskServer:
             client_id=self._client_id,
         ):
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            await self._submit_scheduled_task_run(task_run)
+            self._runs_task_group.start_soon(self._submit_scheduled_task_run, task_run)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
@@ -225,13 +228,17 @@ class TaskServer:
                 return_type="state",
             )
         else:
-            run_task_sync(
+            context = copy_context()
+            future = self._executor.submit(
+                context.run,
+                run_task_sync,
                 task=task,
                 task_run_id=task_run.id,
                 task_run=task_run,
                 parameters=parameters,
                 return_type="state",
             )
+            await asyncio.wrap_future(future)
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task server."""
@@ -245,7 +252,8 @@ class TaskServer:
             self._client = get_client()
 
         await self._exit_stack.enter_async_context(self._client)
-        await self._runs_task_group.__aenter__()
+        await self._exit_stack.enter_async_context(self._runs_task_group)
+        self._exit_stack.enter_context(self._executor)
 
         self.started = True
         return self
@@ -253,7 +261,6 @@ class TaskServer:
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task server...")
         self.started = False
-        await self._runs_task_group.__aexit__(*exc_info)
         await self._exit_stack.__aexit__(*exc_info)
 
 
@@ -285,12 +292,6 @@ async def serve(*tasks: Task):
             serve(say, yell)
         ```
     """
-    if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-        raise RuntimeError(
-            "To enable task scheduling, set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING"
-            " to True."
-        )
-
     task_server = TaskServer(*tasks)
     try:
         await task_server.start()

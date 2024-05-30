@@ -44,7 +44,6 @@ from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -1017,7 +1016,7 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
+        if not flow_run_context:
             # TODO: Should we split out background task mapping into a separate method
             # like we do for the `submit`/`apply_async` split?
             parameters_list = expand_mapping_parameters(self.fn, parameters)
@@ -1140,13 +1139,6 @@ class Task(Generic[P, R]):
 
             >>> my_task.serve()
         """
-
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING:
-            raise ValueError(
-                "Task's `serve` method is an experimental feature and must be enabled with "
-                "`prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=True`"
-            )
-
         from prefect.task_server import serve
 
         serve(self, task_runner=task_runner)
