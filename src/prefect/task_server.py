@@ -22,7 +22,6 @@ from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
@@ -293,12 +292,6 @@ async def serve(*tasks: Task):
             serve(say, yell)
         ```
     """
-    if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-        raise RuntimeError(
-            "To enable task scheduling, set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING"
-            " to True."
-        )
-
     task_server = TaskServer(*tasks)
     try:
         await task_server.start()
