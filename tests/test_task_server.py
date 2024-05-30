@@ -606,8 +606,8 @@ class TestTaskServerLimit:
 
         task_server = TaskServer(slow_task, limit=1)
 
-        task_run_1 = slow_task.apply_async()
-        task_run_2 = slow_task.apply_async()
+        task_run_1 = slow_task.apply_async().task_run
+        task_run_2 = slow_task.apply_async().task_run
 
         async def mock_iter():
             yield task_run_1
@@ -639,8 +639,8 @@ class TestTaskServerLimit:
 
         task_server = TaskServer(slow_task, limit=None)
 
-        task_run_1 = slow_task.apply_async()
-        task_run_2 = slow_task.apply_async()
+        task_run_1 = slow_task.apply_async().task_run
+        task_run_2 = slow_task.apply_async().task_run
 
         async def mock_iter():
             yield task_run_1
@@ -675,8 +675,8 @@ class TestTaskServerLimit:
 
         task_server = TaskServer(slow_task, limit=1)
 
-        task_run_1 = slow_task.apply_async()
-        task_run_2 = slow_task.apply_async()
+        task_run_1 = slow_task.apply_async().task_run
+        task_run_2 = slow_task.apply_async().task_run
 
         async def mock_iter():
             yield task_run_1
@@ -714,8 +714,8 @@ class TestTaskServerLimit:
 
         task_server = TaskServer(slow_task, limit=1)
 
-        task_run_1 = slow_task.apply_async()
-        task_run_2 = slow_task.apply_async()
+        task_run_1 = slow_task.apply_async().task_run
+        task_run_2 = slow_task.apply_async().task_run
 
         try:
             with anyio.move_on_after(1):
@@ -742,8 +742,8 @@ class TestTaskServerLimit:
 
             time.sleep(1)
 
-        task_run_1 = slow_task.apply_async()
-        task_run_2 = slow_task.apply_async()
+        task_run_1 = slow_task.apply_async().task_run
+        task_run_2 = slow_task.apply_async().task_run
 
         async def mock_iter():
             yield task_run_1
