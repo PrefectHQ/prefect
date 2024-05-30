@@ -22,8 +22,13 @@
       <p-divider class="-my-3" />
 
       <p-form :id="formId" @submit="signUpForEmailUpdates">
-        <p-label v-slot="{ id }" label="Notify me about Prefect updates">
-          <p-text-input :id v-model="email" placeholder="hello@prefect.io" type="email" required />
+        <p-label v-slot="{ id }" label="Notify me about Prefect updates" :state :message="state.error">
+          <p-text-input
+            :id
+            v-model="email"
+            placeholder="hello@prefect.io"
+            :state
+          />
         </p-label>
       </p-form>
 
@@ -48,6 +53,8 @@
 
 <script setup lang="ts">
   import { showToast } from '@prefecthq/prefect-design'
+  import { isEmail, isRequired } from '@prefecthq/prefect-ui-library'
+  import { useValidation } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
 
   const showModal = defineModel<boolean>('showModal')
@@ -57,12 +64,17 @@
 
   const formId = 'join-the-community-modal'
   const email = ref<string>()
+  const { validate, state } = useValidation(email, [isRequired('Email'), isEmail('Email')])
 
   const loading = ref(false)
   const error = ref('')
 
   const formEndpoint = 'https://getform.io/f/eapderva'
   async function signUpForEmailUpdates(): Promise<void> {
+    if (!await validate()) {
+      return
+    }
+
     error.value = ''
     loading.value = true
     try {
