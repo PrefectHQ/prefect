@@ -3,6 +3,7 @@ from typing import List
 import typer
 
 from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.task_server import serve as task_serve
 from prefect.utilities.importtools import import_object
@@ -31,22 +32,19 @@ async def serve(
 
     for entrypoint in entrypoints:
         if ".py:" not in entrypoint:
-            app.console.print(
+            exit_with_error(
                 (
                     f"Error: Invalid entrypoint format {entrypoint!r}. It "
                     "must be of the form `./path/to/file.py:task_func_name`."
-                ),
-                style="red",
+                )
             )
-            raise typer.Exit(1)
 
         try:
             tasks.append(import_object(entrypoint))
         except Exception:
             module, task_name = entrypoint.split(":")
-            app.console.print(
+            exit_with_error(
                 f"Error: {module!r} has no function {task_name!r}.", style="red"
             )
-            raise typer.Exit(1)
 
     await task_serve(*tasks)
