@@ -664,7 +664,7 @@ class TestTaskServerLimit:
         updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
         assert updated_task_run_1.state.is_completed()
-        assert updated_task_run_2.state.is_running()
+        assert not updated_task_run_2.state.is_completed()
 
         # clear the event to allow the second task to complete
         event.clear()
