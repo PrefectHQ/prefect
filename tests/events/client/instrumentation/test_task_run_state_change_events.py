@@ -148,11 +148,13 @@ async def test_background_task_state_changes(
     def foo():
         pass
 
-    task_run = foo.apply_async()
+    task_run_future = foo.apply_async()
 
-    await TaskServer(foo).execute_task_run(task_run)
+    await TaskServer(foo).execute_task_run(task_run_future.task_run)
 
-    task_run_states = await prefect_client.read_task_run_states(task_run.id)
+    task_run_states = await prefect_client.read_task_run_states(
+        task_run_future.task_run_id
+    )
 
     await asserting_events_worker.drain()
 

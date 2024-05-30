@@ -95,6 +95,7 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
             HandleTaskTerminalStateTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
+            CopyTaskParametersID,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -585,6 +586,30 @@ class WaitForScheduledTime(BaseOrchestrationRule):
         if delay_seconds > 0:
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"
+            )
+
+
+class CopyTaskParametersID(BaseOrchestrationRule):
+    """
+    Ensures a task's parameters ID is copied from Scheduled to Pending and from
+    Pending to Running states.
+
+    If a parameters ID has been included on the proposed state, the parameters ID
+    on the initial state will be ignored.
+    """
+
+    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING]
+    TO_STATES = [StateType.PENDING, StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if not proposed_state.state_details.task_parameters_id:
+            proposed_state.state_details.task_parameters_id = (
+                initial_state.state_details.task_parameters_id
             )
 
 
