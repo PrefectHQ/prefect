@@ -37,7 +37,6 @@ from prefect.exceptions import (
     Abort,
     Pause,
     PrefectException,
-    RollBack,
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
@@ -50,7 +49,6 @@ from prefect.settings import (
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
-    Completed,
     Failed,
     Paused,
     Pending,
@@ -363,7 +361,11 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=result_factory,
             )
         )
-        transaction.stage(terminal_state.data)
+        transaction.stage(
+            terminal_state.data,
+            on_rollback_hooks=self.task.on_rollback_hooks,
+            on_commit_hooks=self.task.on_commit_hooks,
+        )
         terminal_state.state_details = self._compute_state_details(
             include_cache_expiration=True
         )
@@ -408,16 +410,6 @@ class TaskRunEngine(Generic[P, R]):
                 name="TimedOut",
             )
             self.set_state(state)
-
-    def handle_rollback(self, exc: RollBack) -> None:
-        message = "Task run raised RollBack error, rolled back transaction."
-        self.logger.error(message)
-        state = Completed(
-            data=exc,
-            message=message,
-            name="RolledBack",
-        )
-        self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
@@ -584,9 +576,7 @@ def run_task_sync(
                                 key=run.compute_transaction_key(),
                                 store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
-                                txn.add_task(run.task)
-
-                                if txn.committed:
+                                if txn.is_committed():
                                     result = txn.read()
                                 else:
                                     result = task.fn(*call_args, **call_kwargs)  # type: ignore
@@ -596,8 +586,6 @@ def run_task_sync(
                                 # in order to get the proper result serialization
                                 run.handle_success(result, transaction=txn)
 
-                    except RollBack as exc:
-                        run.handle_rollback(exc)
                     except TimeoutError as exc:
                         run.handle_timeout(exc)
                     except Exception as exc:
@@ -660,9 +648,7 @@ async def run_task_async(
                                 key=run.compute_transaction_key(),
                                 store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
-                                txn.add_task(run.task)
-
-                                if txn.committed:
+                                if txn.is_committed():
                                     result = txn.read()
                                 else:
                                     result = await task.fn(*call_args, **call_kwargs)  # type: ignore
@@ -672,8 +658,6 @@ async def run_task_async(
                                 # in order to get the proper result serialization
                                 run.handle_success(result, transaction=txn)
 
-                    except RollBack as exc:
-                        run.handle_rollback(exc)
                     except TimeoutError as exc:
                         run.handle_timeout(exc)
                     except Exception as exc:
