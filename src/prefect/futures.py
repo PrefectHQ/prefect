@@ -84,7 +84,7 @@ class PrefectFuture(abc.ABC):
         """
 
 
-class PrefectWrappedFuture(PrefectFuture, Generic[F]):
+class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
     """
     A Prefect future that wraps another future object.
     """
