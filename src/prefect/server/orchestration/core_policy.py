@@ -492,6 +492,10 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
             # Only for autonomous tasks
             return
 
+        if not validated_state.state_details.deferred:
+            # Only for tasks that are deferred
+            return
+
         task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
         queue: TaskQueue = TaskQueue.for_key(task_run.task_key)
 

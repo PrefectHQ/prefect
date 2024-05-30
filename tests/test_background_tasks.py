@@ -139,6 +139,7 @@ async def test_task_submission_creates_a_scheduled_task_run(
 ):
     task_run = foo_task_with_result_storage.apply_async((42,))
     assert task_run.state.is_scheduled()
+    assert task_run.state.state_details.deferred is True
 
     result_factory = await result_factory_from_task(foo_task_with_result_storage)
 
@@ -205,6 +206,18 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     client_run_dict["state"].pop("updated")
 
     assert enqueued_run_dict == client_run_dict
+
+
+async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
+    foo_task: Task,
+):
+    # Regression test for https://github.com/PrefectHQ/prefect/issues/13674
+    # where executing a task would cause it to be enqueue server-side
+    # and executed twice.
+    foo_task(x=42)
+
+    with pytest.raises(asyncio.QueueEmpty):
+        TaskQueue.for_key(foo_task.task_key).get_nowait()
 
 
 @pytest.fixture

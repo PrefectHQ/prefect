@@ -104,9 +104,11 @@ class TaskSchedulingTimeouts(LoopService):
                 )
                 continue
 
-            rescheduled = states.Scheduled()
-            rescheduled.state_details.task_parameters_id = (
-                prior_scheduled_state.state_details.task_parameters_id
+            rescheduled = states.Scheduled(
+                state_details={
+                    "deferred": True,
+                    "task_parameters_id": prior_scheduled_state.state_details.task_parameters_id,
+                }
             )
 
             await models.task_runs.set_task_run_state(

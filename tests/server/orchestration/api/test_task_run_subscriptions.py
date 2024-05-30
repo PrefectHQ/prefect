@@ -242,7 +242,7 @@ async def preexisting_runs(session: AsyncSession, reset_task_queues) -> List[Tas
                 flow_run_id=None,
                 task_key="mytasks.taskA",
                 dynamic_key="mytasks.taskA-1",
-                state=server_states.Scheduled(),
+                state=server_states.Scheduled(state_details={"deferred": True}),
             ),
         )
     )
@@ -254,7 +254,7 @@ async def preexisting_runs(session: AsyncSession, reset_task_queues) -> List[Tas
                 flow_run_id=None,
                 task_key="mytasks.taskA",
                 dynamic_key="mytasks.taskA-2",
-                state=server_states.Scheduled(),
+                state=server_states.Scheduled(state_details={"deferred": True}),
             ),
         )
     )
