@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
   "prefect@git+https://github.com/prefecthq/prefect.git",
   "docker>=6.1.1",
+  "exceptiongroup",
 ]
 dynamic = ["version"]
 
