@@ -207,6 +207,14 @@ class ImageArtifact(Artifact):
     type: Optional[str] = "image"
 
     async def format(self) -> str:
+        """
+        This method is used to format the artifact data so it can be properly sent
+        to the API when the .create() method is called. It is async because the
+        method is awaited in the parent class.
+
+        Returns:
+            str: The image URL.
+        """
         return self.image_url
 
 
