@@ -54,8 +54,15 @@ class Artifact(ArtifactRequest):
         Returns:
             - The created artifact.
         """
+
         client, _ = get_or_create_client(client)
         task_run_id, flow_run_id = get_task_and_flow_run_ids()
+
+        if not flow_run_id:
+            logger.warning(
+                "Deprecation warning: Artifact creation outside of a flow run is deprecated and will be removed in a later version."
+            )
+
         return await client.create_artifact(
             artifact=ArtifactRequest(
                 type=self.type,
