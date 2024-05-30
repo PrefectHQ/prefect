@@ -70,7 +70,7 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
             for image in docker.images.list(filters=filters):
                 for tag in image.tags:
                     docker.images.remove(tag, force=True)
-        except NotFound:
+        except docker.errors.NotFound:
             logger.warning("Failed to clean up Docker objects")
 
 
