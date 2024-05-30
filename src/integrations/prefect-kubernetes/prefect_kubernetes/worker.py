@@ -737,8 +737,10 @@ class KubernetesWorker(BaseWorker):
             except config.ConfigException:
                 # If in-cluster config fails, load the local kubeconfig
                 client = await config.new_client_from_config()
-
-        yield client
+        try:
+            yield client
+        finally:
+            await client.close()
 
     async def _replace_api_key_with_secret(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
