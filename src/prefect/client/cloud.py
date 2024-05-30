@@ -10,7 +10,7 @@ import prefect.context
 import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas import Workspace
-from prefect.exceptions import PrefectException
+from prefect.exceptions import ObjectNotFound, PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_CLOUD_API_URL,
@@ -121,8 +121,10 @@ class CloudClient:
                 status.HTTP_403_FORBIDDEN,
             ):
                 raise CloudUnauthorizedError
+            elif exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise ObjectNotFound(http_exc=exc) from exc
             else:
-                raise exc
+                raise
 
         if res.status_code == status.HTTP_204_NO_CONTENT:
             return

@@ -94,6 +94,7 @@ def test_delete_flow_run_fails_correctly():
     missing_flow_run_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
     invoke_and_assert(
         command=["flow-run", "delete", missing_flow_run_id],
+        user_input="y",
         expected_output_contains=f"Flow run '{missing_flow_run_id}' not found!",
         expected_code=1,
     )
@@ -102,6 +103,7 @@ def test_delete_flow_run_fails_correctly():
 def test_delete_flow_run_succeeds(prefect_client, flow_run):
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
+        user_input="y",
         expected_output_contains=f"Successfully deleted flow run '{str(flow_run.id)}'.",
         expected_code=0,
     )
