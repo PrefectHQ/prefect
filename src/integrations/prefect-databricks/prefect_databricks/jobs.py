@@ -89,6 +89,7 @@ async def jobs_create(
     git_source: "models.GitSource" = None,
     format: Optional[str] = None,
     access_control_list: Optional[List["models.AccessControlRequest"]] = None,
+    parameters: Optional[List["models.JobParameter"]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Create a new job.
@@ -335,6 +336,8 @@ async def jobs_create(
             value is always set to `'MULTI_TASK'`, e.g. `MULTI_TASK`.
         access_control_list:
             List of permissions to set on the job.
+        parameters:
+            Job-level parameter definitions.
 
     Returns:
         Upon success, a dict of the response. </br>- `job_id: int`</br>
@@ -372,6 +375,7 @@ async def jobs_create(
         "git_source": git_source,
         "format": format,
         "access_control_list": access_control_list,
+        "parameters": parameters,
     }
 
     response = await execute_endpoint.fn(
@@ -740,6 +744,8 @@ async def jobs_reset(
                 ignored in Create/Update/Reset calls. When using the Jobs
                 API 2.1 this value is always set to `'MULTI_TASK'`, e.g.
                 `MULTI_TASK`.
+            - job_settings:
+                Job-level parameter definitions.
 
     Returns:
         Upon success, an empty dict.
@@ -1920,6 +1926,8 @@ async def jobs_update(
                 ignored in Create/Update/Reset calls. When using the Jobs
                 API 2.1 this value is always set to `'MULTI_TASK'`, e.g.
                 `MULTI_TASK`.
+            - parameters:
+                Job-level parameter definitions.
         fields_to_remove:
             Remove top-level fields in the job settings. Removing nested fields is
             not supported. This field is optional, e.g.

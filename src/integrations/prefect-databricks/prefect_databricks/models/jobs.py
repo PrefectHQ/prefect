@@ -3903,7 +3903,7 @@ class JobSettings(BaseModel):
     )
     parameters: Optional[List[JobParameter]] = Field(
         None,
-        description=(" Job-level parameter definitions."),
+        description=("Job-level parameter definitions."),
     )
 
 
