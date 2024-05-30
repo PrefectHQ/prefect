@@ -42,8 +42,8 @@ Examples:
 """
 
 import io
+import shutil
 import urllib.parse
-from distutils.dir_util import copy_tree
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
@@ -181,4 +181,4 @@ class GitLabRepository(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copy_tree(src=content_source, dst=content_destination)
+            shutil.copytree(src=content_source, dst=content_destination)
