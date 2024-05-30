@@ -15,10 +15,10 @@ class EmailServerMethodsMock:
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Exception):
         return False
 
-    def send_message(self, message):
+    def send_message(self, message: str):
         return message
 
 
@@ -30,21 +30,21 @@ def email_server_credentials():
 
 
 class SMTPMock(MagicMock):
-    def __init__(self, server, port, context=None):
+    def __init__(self, server: str, port: int, context: MagicMock):
         super().__init__()
         self.server = server
         self.port = port
         self.context = context
 
-    def login(self, username, password):
+    def login(self, username: str, password: str):
         self.username = username
         self.password = password
 
-    def starttls(self, context=None):
+    def starttls(self, context: MagicMock):
         self.context = context
 
 
 @pytest.fixture
-def smtp(monkeypatch):
+def smtp(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("prefect_email.credentials.SMTP", SMTPMock)
     monkeypatch.setattr("prefect_email.credentials.SMTP_SSL", SMTPMock)
