@@ -14,12 +14,7 @@ from kubernetes.client import (
 )
 from kubernetes.config.kube_config import list_kube_config_contexts
 from prefect_kubernetes.credentials import KubernetesClusterConfig
-from pydantic.version import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
+from pydantic import ValidationError
 
 sample_base64_string = base64.b64encode(b"hello marvin from the other side")
 
@@ -116,7 +111,7 @@ async def test_instantiation_from_str():
 
 async def test_instantiation_from_invalid_str():
     with pytest.raises(
-        pydantic.ValidationError,
+        ValidationError,
         match=re.escape(
             "1 validation error for KubernetesClusterConfig\nconfig\n  value is not a"
             " valid dict (type=type_error.dict)"

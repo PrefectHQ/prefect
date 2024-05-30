@@ -6,19 +6,12 @@ from typing import Any, Dict, Optional, Type, Union
 
 import yaml
 from kubernetes.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
+from typing_extensions import Self
 
 from prefect import task
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
-from typing_extensions import Self
-
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log

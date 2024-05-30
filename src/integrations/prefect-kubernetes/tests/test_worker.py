@@ -22,7 +22,10 @@ from kubernetes.client.models import (
     V1Secret,
 )
 from kubernetes.config import ConfigException
-from pydantic import VERSION as PYDANTIC_VERSION
+from prefect_kubernetes import KubernetesWorker
+from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
+from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
+from pydantic import ValidationError
 
 import prefect
 from prefect.client.schemas import FlowRun
@@ -41,15 +44,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.utilities.dockerutils import get_prefect_image_name
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
-
-from prefect_kubernetes import KubernetesWorker
-from prefect_kubernetes.utilities import _slugify_label_value, _slugify_name
-from prefect_kubernetes.worker import KubernetesWorkerJobConfiguration
 
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
