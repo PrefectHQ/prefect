@@ -21,7 +21,6 @@ from prefect.server.api.task_runs import TaskQueue
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.services.task_scheduling import TaskSchedulingTimeouts
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT,
@@ -43,16 +42,6 @@ def local_filesystem(tmp_path):
     block = LocalFileSystem(basepath=tmp_path)
     block.save("test-fs", overwrite=True)
     return block
-
-
-@pytest.fixture(autouse=True)
-def allow_experimental_task_scheduling():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
-        }
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True)
@@ -150,6 +139,7 @@ async def test_task_submission_creates_a_scheduled_task_run(
 ):
     task_run = foo_task_with_result_storage.apply_async((42,))
     assert task_run.state.is_scheduled()
+    assert task_run.state.state_details.deferred is True
 
     result_factory = await result_factory_from_task(foo_task_with_result_storage)
 
@@ -216,6 +206,18 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     client_run_dict["state"].pop("updated")
 
     assert enqueued_run_dict == client_run_dict
+
+
+async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
+    foo_task: Task,
+):
+    # Regression test for https://github.com/PrefectHQ/prefect/issues/13674
+    # where executing a task would cause it to be enqueue server-side
+    # and executed twice.
+    foo_task(x=42)
+
+    with pytest.raises(asyncio.QueueEmpty):
+        TaskQueue.for_key(foo_task.task_key).get_nowait()
 
 
 @pytest.fixture
