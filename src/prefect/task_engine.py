@@ -23,6 +23,7 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -532,7 +533,9 @@ class TaskRunEngine(Generic[P, R]):
 
                     # flush all logs if this is not a "top" level run
                     if not (FlowRunContext.get() or TaskRunContext.get()):
-                        run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
+                        from_sync.call_soon_in_loop_thread(
+                            create_call(APILogHandler.aflush)
+                        )
 
                     self._is_started = False
                     self._client = None
