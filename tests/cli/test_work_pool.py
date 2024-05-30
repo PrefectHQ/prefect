@@ -456,6 +456,7 @@ class TestDelete:
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
             f"work-pool delete {work_pool.name}",
+            user_input="y",
         )
         assert res.exit_code == 0
         with pytest.raises(ObjectNotFound):
