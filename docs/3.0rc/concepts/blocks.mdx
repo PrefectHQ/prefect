@@ -21,7 +21,7 @@ Blocks can be shared with other users in your Prefect Cloud workspace.
 
 To see block types available for configuration, use `prefect block type ls` from the CLI or navigate to the **Blocks** page in the UI and click **+**.
 
-![The block catalogue in the UI](/img/ui/block-library.png)
+![The block catalogue in the UI](/3.0rc/img/ui/block-library.png)
 
 !!! tip "Blocks and parameters"
     Blocks are useful for configuration that needs to be shared across flow runs and between flows.
@@ -39,19 +39,15 @@ These block types can be created via the UI and used without installing any addi
 | [Custom Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.CustomWebhookNotificationBlock)                 | `custom-webhook`                                                | Calls custom webhooks.                                                |
 | [Discord Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.DiscordWebhook)                               | `discord-webhook`                                                | Calls Discord webhooks.                                                |
 | [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime)                                          | `date-time`                                              | Stores a datetime value.                                             |
-| [Docker Container](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer)                          | `docker-container`                                       | Runs a command in a container.                                                              |
-| [Docker Registry](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry)                     | `docker-registry`                                        | Connects to a Docker registry.  Requires a Docker Engine to be connectable.                     |
 | [GCS](/concepts/filesystems/#gcs)                                                                                    | `gcs`                                                    | Store data as a file on Google Cloud Storage.                               |
 | [GitHub](/concepts/filesystems/#github)                                                                              | `github`                                                 | Interacts with files stored on public GitHub repositories.                                    |
 | [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON)                                                   | `json`                                                   | Stores JSON data.                                           |
 | [Kubernetes Cluster Config](/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig)   | <span class="no-wrap">`kubernetes-cluster-config`</span> | Stores configuration for interaction with Kubernetes clusters.                                 |
-| [Kubernetes Job](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob)                              | `kubernetes-job`                                         | Runs a command as a Kubernetes Job.                                                         |
 | [Local File System](/concepts/filesystems/#local-filesystem)                                                         | `local-file-system`                                      | Stores data as a file on a local file system.
 | [Mattermost Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.Mattermost)                               | `mattermost-webhook`                                                | Sends notifications via a provided Mattermost webhook. |
 | [Microsoft Teams Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook) | `ms-teams-webhook`                                       | Sends notifications via a provided Microsoft Teams webhook.                           |
 | [Opsgenie Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.OpsgenieWebhook)              | `opsgenie-webhook`                                       | Sends notifications via a provided Opsgenie webhook.                             |
 | [Pager Duty Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.PagerDutyWebHook)           | `pager-duty-webhook`                                     | Sends notifications via a provided PagerDuty webhook.                                  |
-| [Process](/concepts/infrastructure/#process)                                                                         | `process`                                                | Run a command in a new process.                                                                   |
 | [Remote File System](/concepts/filesystems/#remote-file-system)                                                      | `remote-file-system`                                     | Stores data as a file on any remote file system that supports `fsspec`.                  |
 | [S3](/concepts/filesystems/#s3)                                                                                      | `s3`                                                     | Stores data as a file on AWS S3.                               |
 | [Secret](/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret)                                               | `secret`                                           | Stores a secret value. The value will be obfuscated when this block is logged or shown in the UI. |

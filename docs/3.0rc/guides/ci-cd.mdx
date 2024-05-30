@@ -30,7 +30,7 @@ In this scenario, deploying flows involves building and pushing Docker images, s
 
 Create secrets for GitHub Actions in your repository under **Settings -> Secrets and variables -> Actions -> New repository secret**:
 
-![Creating a GitHub Actions secret](/img/guides/github-secrets.png)
+![Creating a GitHub Actions secret](/3.0rc/img/guides/github-secrets.png)
 
 ### Write a GitHub workflow
 
@@ -211,7 +211,7 @@ For reference, the examples below live in their respective branches of [this rep
 
 After pushing commits to your repository, GitHub automatically triggers a run of your workflow. Monitor the status of running and completed workflows from the **Actions** tab of your repository.
 
-![A GitHub Action triggered via push](/img/guides/github-actions-trigger.png)
+![A GitHub Action triggered via push](/3.0rc/img/guides/github-actions-trigger.png)
 
 View the logs from each workflow step as they run. The `Prefect Deploy` step includes output about your image build and push, and the creation/update of your deployment.
 

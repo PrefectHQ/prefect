@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any, AsyncGenerator, Dict
@@ -280,6 +281,11 @@ async def assess_sequence_automation():
 
 
 if __name__ == "__main__":
+    if os.getenv("SERVER_VERSION") == "9.9.9+for.the.tests":
+        raise NotImplementedError(
+            "Prefect Cloud has its own automation assessment integration test."
+        )
+
     asyncio.run(assess_reactive_automation())
     asyncio.run(assess_proactive_automation())
     asyncio.run(assess_compound_automation())
