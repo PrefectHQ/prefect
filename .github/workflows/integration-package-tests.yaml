@@ -40,6 +40,15 @@ jobs:
           python scripts/generate_integration_package_tests_matrix.py "$COMMIT_RANGE" > matrix.json
           cat matrix.json
           echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+      - name: Generate matrix
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'integrations') }}
+        run: |
+          # All of the integration packages were changed since 2.19.2, so this is a
+          # standin for saying "all integrations"
+          COMMIT_RANGE="2.19.2..${{ github.event.pull_request.head.sha }}"
+          python scripts/generate_integration_package_tests_matrix.py "$COMMIT_RANGE" > matrix.json
+          cat matrix.json
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
   run-tests:
     timeout-minutes: 20
