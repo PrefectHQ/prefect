@@ -466,6 +466,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             not manifest_generate_name
             or has_placeholder
             or manifest_generate_name_templated_with_empty_string
+            or manifest_generate_name == "None-"
         ):
             generate_name = None
             if self.name:
