@@ -3,23 +3,17 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import VERSION as PYDANTIC_VERSION
+from prefect_snowflake.credentials import InvalidPemFormat, SnowflakeCredentials
+from prefect_snowflake.database import SnowflakeConnector
+from pydantic import SecretBytes, SecretStr
 
 from prefect import flow
 from prefect.utilities.filesystem import relative_path_to_current_platform
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretBytes, SecretStr
-else:
-    from pydantic import SecretBytes, SecretStr
-
-from prefect_snowflake.credentials import InvalidPemFormat, SnowflakeCredentials
-from prefect_snowflake.database import SnowflakeConnector
-
 
 def test_snowflake_credentials_init(credentials_params):
     snowflake_credentials = SnowflakeCredentials(**credentials_params)
-    actual_credentials_params = snowflake_credentials.dict()
+    actual_credentials_params = snowflake_credentials.model_dump()
     for param in credentials_params:
         actual = actual_credentials_params[param]
         expected = credentials_params[param]
@@ -98,7 +92,7 @@ def test_snowflake_credentials_support_endpoint_overrides_okta_endpoint(
 
 def test_snowflake_private_credentials_init(private_credentials_params):
     snowflake_credentials = SnowflakeCredentials(**private_credentials_params)
-    actual_credentials_params = snowflake_credentials.dict()
+    actual_credentials_params = snowflake_credentials.model_dump()
     for param in private_credentials_params:
         actual = actual_credentials_params[param]
         expected = private_credentials_params[param]
@@ -233,7 +227,7 @@ def test_snowflake_credentials_validate_private_key_path_init(
     private_key_path_credentials_params,
 ):
     snowflake_credentials = SnowflakeCredentials(**private_key_path_credentials_params)
-    actual_credentials_params = snowflake_credentials.dict()
+    actual_credentials_params = snowflake_credentials.model_dump()
     for param in private_key_path_credentials_params:
         actual = actual_credentials_params[param]
         expected = private_key_path_credentials_params[param]

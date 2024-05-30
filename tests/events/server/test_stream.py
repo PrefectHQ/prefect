@@ -19,7 +19,7 @@ def event1() -> Event:
     return Event(
         occurred=pendulum.now("UTC"),
         event="was.radical",
-        resource=Resource(__root__={"prefect.resource.id": "my.resources"}),
+        resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"hello": "world"},
         id=uuid4(),
     )
@@ -30,7 +30,7 @@ def event2() -> Event:
     return Event(
         occurred=pendulum.now("UTC"),
         event="was.super.awesome",
-        resource=Resource(__root__={"prefect.resource.id": "my.resources"}),
+        resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},
         id=uuid4(),
     )
@@ -41,7 +41,7 @@ def event3() -> Event:
     return Event(
         occurred=pendulum.now("UTC"),
         event="you.betcha",
-        resource=Resource(__root__={"prefect.resource.id": "my.resources"}),
+        resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},
         id=uuid4(),
     )
@@ -152,7 +152,7 @@ async def test_maximum_backlog(
     # now send one more message than the queue can hold
     for i in range(stream.SUBSCRIPTION_BACKLOG + 1):
         await messaging.publish(
-            [received_event1.copy(update={"id": uuid4(), "event": str(i)})]
+            [received_event1.model_copy(update={"id": uuid4(), "event": str(i)})]
         )
 
     # let the pending messages in the Pub/Sub queue get distributed
@@ -194,7 +194,7 @@ async def test_two_subscriptions_get_all_events(
 
 @pytest.fixture
 async def filter_by_events(default_liberal_filter: EventFilter) -> EventFilter:
-    by_event = default_liberal_filter.copy()
+    by_event = default_liberal_filter.model_copy()
     by_event.event = EventNameFilter(name=["was.radical", "you.betcha"])
     return by_event
 

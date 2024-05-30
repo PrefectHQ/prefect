@@ -1,7 +1,7 @@
 from typing import Any, TypeVar
 
 import orjson
-from pydantic.v1 import BaseModel
+from pydantic import BaseModel
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)

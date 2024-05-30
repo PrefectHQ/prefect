@@ -418,10 +418,8 @@ async def deployment(
     flow_function,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -441,7 +439,7 @@ async def deployment(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -456,10 +454,8 @@ async def deployment_with_version(
     flow_function,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -479,7 +475,7 @@ async def deployment_with_version(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
             version="1.0",
         ),
@@ -495,10 +491,8 @@ async def deployment_2(
     flow_function,
     storage_document_id,
     work_queue_1,  # attached to a work pool called the work_pool fixture named "test-work-pool"
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -518,7 +512,7 @@ async def deployment_2(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue_1.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -533,12 +527,9 @@ async def deployment_in_default_work_pool(
     flow_function,
     storage_document_id,
     work_queue,  # not attached to a work pool
+    simple_parameter_schema,
 ):
     """This will create a deployment in the default work pool called `default-agent-pool`"""
-
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -553,12 +544,20 @@ async def deployment_in_default_work_pool(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name=work_queue.name,
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue.id,
         ),
     )
     await session.commit()
     return deployment
+
+
+@pytest.fixture
+def simple_parameter_schema():
+    def hello(name=None):
+        pass
+
+    return parameter_schema(hello)
 
 
 @pytest.fixture
@@ -568,10 +567,8 @@ async def deployment_in_non_default_work_pool(
     flow_function,
     storage_document_id,
     work_queue_1,
+    simple_parameter_schema,
 ):
-    def hello(name: str):
-        pass
-
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -586,7 +583,7 @@ async def deployment_in_non_default_work_pool(
             path="./subdir",
             entrypoint="/file.py:flow",
             work_queue_name="wq",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1111,7 +1108,7 @@ async def worker_deployment_wq1(
     flow_function,
     work_queue_1,
 ):
-    def hello(name: str):
+    def hello(name: str = "world"):
         pass
 
     deployment = await models.deployments.create_deployment(
@@ -1126,7 +1123,7 @@ async def worker_deployment_wq1(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1136,7 +1133,7 @@ async def worker_deployment_wq1(
 
 @pytest.fixture
 async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1):
-    def hello(name: str):
+    def hello(name: str = "world"):
         pass
 
     deployment = await models.deployments.create_deployment(
@@ -1151,7 +1148,7 @@ async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_1.id,
         ),
     )
@@ -1166,7 +1163,7 @@ async def worker_deployment_wq_2(
     flow_function,
     work_queue_2,
 ):
-    def hello(name: str):
+    def hello(name: str = "world"):
         pass
 
     deployment = await models.deployments.create_deployment(
@@ -1181,7 +1178,7 @@ async def worker_deployment_wq_2(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema=parameter_schema(hello),
+            parameter_openapi_schema=parameter_schema(hello).model_dump_for_openapi(),
             work_queue_id=work_queue_2.id,
         ),
     )
@@ -1201,4 +1198,4 @@ async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)

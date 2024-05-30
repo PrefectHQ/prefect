@@ -4,7 +4,9 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+import pytest
+from pydantic import SecretStr
+
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.deployments.steps.core import run_step
@@ -17,12 +19,6 @@ from prefect.runner.storage import (
     create_storage_from_url,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import SecretStr
-else:
-    from pydantic import SecretStr
-import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -750,9 +746,12 @@ class TestBlockStorageAdapter:
         assert storage1 == storage2
 
     async def test_eq_method_different_block(self, test_block: Block):
+        class FakeDeploymentStorage(ReadableDeploymentStorage):
+            def get_directory(self, *args, **kwargs):
+                pass
+
         storage1 = BlockStorageAdapter(block=test_block)
-        different_block = MagicMock(spec=ReadableDeploymentStorage)
-        storage2 = BlockStorageAdapter(block=different_block)
+        storage2 = BlockStorageAdapter(block=FakeDeploymentStorage())
         assert storage1 != storage2
 
     async def test_eq_method_different_type(self, test_block: Block):

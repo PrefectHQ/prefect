@@ -27,16 +27,16 @@ def test_result_literal_create_and_get_sync(value):
 @pytest.mark.parametrize("value", LITERAL_VALUES)
 async def test_result_literal_json_roundtrip(value):
     result = await LiteralResult.create(value)
-    serialized = result.json()
-    deserialized = LiteralResult.parse_raw(serialized)
+    serialized = result.model_dump_json()
+    deserialized = LiteralResult.model_validate_json(serialized)
     assert await deserialized.get() == value
 
 
 @pytest.mark.parametrize("value", LITERAL_VALUES)
 async def test_result_literal_json_roundtrip_base_result_parser(value):
     result = await LiteralResult.create(value)
-    serialized = result.json()
-    deserialized = BaseResult.parse_raw(serialized)
+    serialized = result.model_dump_json()
+    deserialized = BaseResult.model_validate_json(serialized)
     assert await deserialized.get() == value
 
 
@@ -63,7 +63,7 @@ async def test_result_literal_null_is_distinguishable_from_none():
     """
     result = await LiteralResult.create(None)
     assert result is not None
-    serialized = result.json()
+    serialized = result.model_dump_json()
     assert serialized is not None
     assert serialized != "null"
     assert json.loads(serialized) is not None

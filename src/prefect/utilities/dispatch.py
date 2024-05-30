@@ -90,8 +90,10 @@ def get_dispatch_key(
 
 @classmethod
 def _register_subclass_of_base_type(cls, **kwargs):
-    if cls.__init_subclass_original__:
+    if hasattr(cls, "__init_subclass_original__"):
         cls.__init_subclass_original__(**kwargs)
+    elif hasattr(cls, "__pydantic_init_subclass_original__"):
+        cls.__pydantic_init_subclass_original__(**kwargs)
 
     # Do not register abstract base classes
     if abc.ABC in getattr(cls, "__bases__", []):
@@ -114,8 +116,14 @@ def register_base_type(cls: T) -> T:
         registry[base_key] = cls
 
     # Add automatic subtype registration
-    cls.__init_subclass_original__ = getattr(cls, "__init_subclass__")
-    cls.__init_subclass__ = _register_subclass_of_base_type
+    if hasattr(cls, "__pydantic_init_subclass__"):
+        cls.__pydantic_init_subclass_original__ = getattr(
+            cls, "__pydantic_init_subclass__"
+        )
+        cls.__pydantic_init_subclass__ = _register_subclass_of_base_type
+    else:
+        cls.__init_subclass_original__ = getattr(cls, "__init_subclass__")
+        cls.__init_subclass__ = _register_subclass_of_base_type
 
     return cls
 

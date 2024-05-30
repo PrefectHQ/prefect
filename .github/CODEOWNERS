@@ -2,10 +2,10 @@
 *                                    @PrefectHQ/open-source
 
 # backend
-/src/prefect/server                   @PrefectHQ/open-source @zangell44
+/src/prefect/server                  @PrefectHQ/open-source @zangell44
 
 # ui
-/ui                            @pleek91 @znicholasbrown
+/ui                                  @PrefectHQ/frontend
 
 # documentation
 /docs                                @PrefectHQ/docs
@@ -24,4 +24,4 @@ mkdocs.insiders.yml                  @PrefectHQ/docs
 /tests/events                         @chrisguidry
 
 # integrations
-/src/integrations             @desertaxle @zzstoatzz
+/src/integrations                     @desertaxle @zzstoatzz

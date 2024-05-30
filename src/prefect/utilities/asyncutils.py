@@ -4,6 +4,7 @@ Utilities for interoperability with async functions and workers from various con
 
 import asyncio
 import inspect
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -25,9 +26,16 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.from_thread
+import anyio.to_thread
 import sniffio
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
+from prefect._internal.concurrency.api import _cast_to_call, from_sync
+from prefect._internal.concurrency.threads import (
+    get_run_sync_loop,
+    in_run_sync_loop,
+)
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -42,7 +50,13 @@ EVENT_LOOP_GC_REFS = {}
 
 PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
-RUN_ASYNC_FLAG = ContextVar("run_async", default=False)
+RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=False)
+RUNNING_ASYNC_FLAG = ContextVar("run_async", default=False)
+BACKGROUND_TASKS: set[asyncio.Task] = set()
+background_task_lock = threading.Lock()
+
+# Thread-local storage to keep track of worker thread state
+_thread_local = threading.local()
 
 logger = get_logger()
 
@@ -80,12 +94,47 @@ def is_async_gen_fn(func):
     return inspect.isasyncgenfunction(func)
 
 
-def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
+def create_task(coroutine: Coroutine) -> asyncio.Task:
     """
-    Runs a coroutine from a synchronous context. A thread will be spawned
-    to run the event loop if necessary, which allows coroutines to run in
-    environments like Jupyter notebooks where the event loop runs on the main
-    thread.
+    Replacement for asyncio.create_task that will ensure that tasks aren't
+    garbage collected before they complete. Allows for "fire and forget"
+    behavior in which tasks can be created and the application can move on.
+    Tasks can also be awaited normally.
+
+    See https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+    for details (and essentially this implementation)
+    """
+
+    task = asyncio.create_task(coroutine)
+
+    # Add task to the set. This creates a strong reference.
+    # Take a lock because this might be done from multiple threads.
+    with background_task_lock:
+        BACKGROUND_TASKS.add(task)
+
+    # To prevent keeping references to finished tasks forever,
+    # make each task remove its own reference from the set after
+    # completion:
+    task.add_done_callback(BACKGROUND_TASKS.discard)
+
+    return task
+
+
+def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
+    """
+    Note: this is an OLD implementation of `run_coro_as_sync` which liberally created
+    new threads and new loops. This works, but prevents sharing any objects
+    across coroutines, in particular httpx clients, which are very expensive to
+    instantiate.
+
+    This is here for historical purposes and can be removed if/when it is no
+    longer needed for reference.
+
+    ---
+
+    Runs a coroutine from a synchronous context. A thread will be spawned to run
+    the event loop if necessary, which allows coroutines to run in environments
+    like Jupyter notebooks where the event loop runs on the main thread.
 
     Args:
         coroutine: The coroutine to run.
@@ -94,26 +143,23 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
         The return value of the coroutine.
 
     Example:
-        Basic usage:
-        ```python
-        async def my_async_function(x: int) -> int:
+        Basic usage: ```python async def my_async_function(x: int) -> int:
             return x + 1
 
-        run_sync(my_async_function(1))
-        ```
+        run_sync(my_async_function(1)) ```
     """
 
     # ensure context variables are properly copied to the async frame
     async def context_local_wrapper():
         """
         Wrapper that is submitted using copy_context().run to ensure
-        the RUN_ASYNC_FLAG mutations are tightly scoped to this coroutine's frame.
+        the RUNNING_ASYNC_FLAG mutations are tightly scoped to this coroutine's frame.
         """
-        token = RUN_ASYNC_FLAG.set(True)
+        token = RUNNING_ASYNC_FLAG.set(True)
         try:
             result = await coroutine
         finally:
-            RUN_ASYNC_FLAG.reset(token)
+            RUNNING_ASYNC_FLAG.reset(token)
         return result
 
     context = copy_context()
@@ -131,12 +177,75 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
     return result
 
 
+def run_coro_as_sync(
+    coroutine: Awaitable[R],
+    force_new_thread: bool = False,
+    wait_for_result: bool = True,
+) -> R:
+    """
+    Runs a coroutine from a synchronous context, as if it were a synchronous
+    function.
+
+    The coroutine is scheduled to run in the "run sync" event loop, which is
+    running in its own thread and is started the first time it is needed. This
+    allows us to share objects like async httpx clients among all coroutines
+    running in the loop.
+
+    If run_sync is called from within the run_sync loop, it will run the
+    coroutine in a new thread, because otherwise a deadlock would occur. Note
+    that this behavior should not appear anywhere in the Prefect codebase or in
+    user code.
+
+    Args:
+        coroutine (Awaitable): The coroutine to be run as a synchronous function.
+        force_new_thread (bool, optional): If True, the coroutine will always be run in a new thread.
+            Defaults to False.
+        wait_for_result (bool, optional): If True, the function will wait for the coroutine to complete
+            and return the result. If False, the function will submit the coroutine to the "run sync"
+            event loop and return immediately, where it will eventually be run. Defaults to True.
+
+    Returns:
+        The result of the coroutine if wait_for_result is True, otherwise None.
+    """
+
+    async def coroutine_wrapper():
+        """
+        Set flags so that children (and grandchildren...) of this task know they are running in a new
+        thread and do not try to run on the run_sync thread, which would cause a
+        deadlock.
+        """
+        token1 = RUNNING_IN_RUN_SYNC_LOOP_FLAG.set(True)
+        token2 = RUNNING_ASYNC_FLAG.set(True)
+        try:
+            # use `asyncio.create_task` because it copies context variables automatically
+            task = create_task(coroutine)
+            if wait_for_result:
+                return await task
+        finally:
+            RUNNING_IN_RUN_SYNC_LOOP_FLAG.reset(token1)
+            RUNNING_ASYNC_FLAG.reset(token2)
+
+    # if we are already in the run_sync loop, or a descendent of a coroutine
+    # that is running in the run_sync loop, we need to run this coroutine in a
+    # new thread
+    if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get() or force_new_thread:
+        return from_sync.call_in_new_thread(coroutine_wrapper)
+
+    # otherwise, we can run the coroutine in the run_sync loop
+    # and wait for the result
+    else:
+        call = _cast_to_call(coroutine_wrapper)
+        runner = get_run_sync_loop()
+        runner.submit(call)
+        return call.result()
+
+
 async def run_sync_in_worker_thread(
     __fn: Callable[..., T], *args: Any, **kwargs: Any
 ) -> T:
     """
     Runs a sync function in a new worker thread so that the main thread's event loop
-    is not blocked
+    is not blocked.
 
     Unlike the anyio function, this defaults to a cancellable thread and does not allow
     passing arguments to the anyio function so users can pass kwargs to their function.
@@ -145,9 +254,15 @@ async def run_sync_in_worker_thread(
     thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    return await anyio.to_thread.run_sync(
-        call, cancellable=True, limiter=get_thread_limiter()
+    result = await anyio.to_thread.run_sync(
+        call_with_mark, call, abandon_on_cancel=True, limiter=get_thread_limiter()
     )
+    return result
+
+
+def call_with_mark(call):
+    mark_as_worker_thread()
+    return call()
 
 
 def run_async_from_worker_thread(
@@ -165,13 +280,12 @@ def run_async_in_new_loop(__fn: Callable[..., Awaitable[T]], *args: Any, **kwarg
     return anyio.run(partial(__fn, *args, **kwargs))
 
 
+def mark_as_worker_thread():
+    _thread_local.is_worker_thread = True
+
+
 def in_async_worker_thread() -> bool:
-    try:
-        anyio.from_thread.threadlocals.current_async_module
-    except AttributeError:
-        return False
-    else:
-        return True
+    return getattr(_thread_local, "is_worker_thread", False)
 
 
 def in_async_main_thread() -> bool:
@@ -200,44 +314,53 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
 
     @wraps(async_fn)
-    def coroutine_wrapper(*args, **kwargs):
+    def coroutine_wrapper(*args, _sync: bool = None, **kwargs):
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
         )
 
-        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT:
+        if PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT or _sync is False:
             return async_fn(*args, **kwargs)
 
         is_async = True
-        try:
-            run_ctx = get_run_context()
-            parent_obj = getattr(run_ctx, "task", None)
-            if not parent_obj:
-                parent_obj = getattr(run_ctx, "flow", None)
-            is_async = getattr(parent_obj, "isasync", True)
-        except MissingContextError:
-            pass
+
+        # if _sync is set, we do as we're told
+        # otherwise, we make some determinations
+        if _sync is None:
+            try:
+                run_ctx = get_run_context()
+                parent_obj = getattr(run_ctx, "task", None)
+                if not parent_obj:
+                    parent_obj = getattr(run_ctx, "flow", None)
+                is_async = getattr(parent_obj, "isasync", True)
+            except MissingContextError:
+                # not in an execution context, make best effort to
+                # decide whether to syncify
+                try:
+                    asyncio.get_running_loop()
+                    is_async = True
+                except RuntimeError:
+                    is_async = False
 
         async def ctx_call():
             """
             Wrapper that is submitted using copy_context().run to ensure
-            mutations of RUN_ASYNC_FLAG are tightly scoped to this coroutine's frame.
+            mutations of RUNNING_ASYNC_FLAG are tightly scoped to this coroutine's frame.
             """
-            token = RUN_ASYNC_FLAG.set(True)
+            token = RUNNING_ASYNC_FLAG.set(True)
             try:
                 result = await async_fn(*args, **kwargs)
             finally:
-                RUN_ASYNC_FLAG.reset(token)
+                RUNNING_ASYNC_FLAG.reset(token)
             return result
 
-        if force_sync:
-            return run_sync(ctx_call())
-        elif RUN_ASYNC_FLAG.get() or is_async:
-            context = copy_context()
-            return context.run(ctx_call)
+        if _sync is True:
+            return run_coro_as_sync(ctx_call())
+        elif _sync is False or RUNNING_ASYNC_FLAG.get() or is_async:
+            return ctx_call()
         else:
-            return run_sync(ctx_call())
+            return run_coro_as_sync(ctx_call())
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.

@@ -7,10 +7,10 @@ import linecache
 import sys
 import threading
 from types import FrameType
-from typing import List
+from typing import List, Optional
 
 """
-The following functions are derived from dask/distributed which is licensed under the 
+The following functions are derived from dask/distributed which is licensed under the
 BSD 3-Clause License.
 
 Copyright (c) 2015, Anaconda, Inc. and contributors
@@ -75,7 +75,7 @@ def repr_frame(frame: FrameType) -> str:
 def call_stack(frame: FrameType) -> List[str]:
     """Create a call text stack from a frame"""
     L = []
-    cur_frame: FrameType | None = frame
+    cur_frame: Optional[FrameType] = frame
     while cur_frame:
         L.append(repr_frame(cur_frame))
         cur_frame = cur_frame.f_back

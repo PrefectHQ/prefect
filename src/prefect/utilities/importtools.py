@@ -1,3 +1,4 @@
+import ast
 import importlib
 import importlib.util
 import os
@@ -14,7 +15,7 @@ from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Union
 import fsspec
 
 from prefect.exceptions import ScriptError
-from prefect.logging import get_logger
+from prefect.logging.loggers import get_logger
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
 logger = get_logger(__name__)
@@ -358,3 +359,70 @@ class AliasedModuleLoader(Loader):
         if self.callback is not None:
             self.callback(self.alias)
         sys.modules[self.alias] = root_module
+
+
+def safe_load_namespace(source_code: str):
+    """
+    Safely load a namespace from source code.
+
+    This function will attempt to import all modules and classes defined in the source
+    code. If an import fails, the error is caught and the import is skipped. This function
+    will also attempt to compile and evaluate class and function definitions locally.
+
+    Args:
+        source_code: The source code to load
+
+    Returns:
+        The namespace loaded from the source code. Can be used when evaluating source
+        code.
+    """
+    parsed_code = ast.parse(source_code)
+
+    namespace = {}
+
+    # Walk through the AST and find all import statements
+    for node in ast.walk(parsed_code):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                module_name = alias.name
+                as_name = alias.asname if alias.asname else module_name
+                try:
+                    # Attempt to import the module
+                    namespace[as_name] = importlib.import_module(module_name)
+                    logger.debug("Successfully imported %s", module_name)
+                except ImportError as e:
+                    logger.debug(f"Failed to import {module_name}: {e}")
+        elif isinstance(node, ast.ImportFrom):
+            module_name = node.module
+            if module_name is None:
+                continue
+            try:
+                module = importlib.import_module(module_name)
+                for alias in node.names:
+                    name = alias.name
+                    asname = alias.asname if alias.asname else name
+                    try:
+                        # Get the specific attribute from the module
+                        attribute = getattr(module, name)
+                        namespace[asname] = attribute
+                    except AttributeError as e:
+                        logger.debug(
+                            "Failed to retrieve %s from %s: %s", name, module_name, e
+                        )
+            except ImportError as e:
+                logger.debug("Failed to import from %s: %s", node.module, e)
+
+    # Handle local class definitions
+    for node in ast.walk(parsed_code):
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef)):
+            try:
+                # Compile and execute each class and function definition locally
+                code = compile(
+                    ast.Module(body=[node], type_ignores=[]),
+                    filename="<ast>",
+                    mode="exec",
+                )
+                exec(code, namespace)
+            except Exception as e:
+                logger.debug("Failed to compile class definition: %s", e)
+    return namespace

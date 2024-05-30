@@ -337,17 +337,24 @@ async def act(firing: Firing):
 
     async with messaging.create_actions_publisher() as publisher:
         for action in actions:
-            await publisher.publish_data(action.json().encode(), {})
+            await publisher.publish_data(action.model_dump_json().encode(), {})
 
 
-_events_clock_lock = asyncio.Lock()
+__events_clock_lock: Optional[asyncio.Lock] = None
 _events_clock: Optional[float] = None
 _events_clock_updated: Optional[float] = None
 
 
+def _events_clock_lock() -> asyncio.Lock:
+    global __events_clock_lock
+    if __events_clock_lock is None:
+        __events_clock_lock = asyncio.Lock()
+    return __events_clock_lock
+
+
 async def update_events_clock(event: ReceivedEvent):
     global _events_clock, _events_clock_updated
-    async with _events_clock_lock:
+    async with _events_clock_lock():
         # we want the offset to be negative to represent that we are always
         # processing events behind realtime...
         now = pendulum.now("UTC").float_timestamp
@@ -376,7 +383,7 @@ async def get_events_clock_offset() -> float:
     ensure that in low volume environments, we don't end up getting huge offsets."""
     global _events_clock, _events_clock_updated
 
-    async with _events_clock_lock:
+    async with _events_clock_lock():
         if _events_clock is None or _events_clock_updated is None:
             return 0.0
 
@@ -388,7 +395,7 @@ async def get_events_clock_offset() -> float:
 
 async def reset_events_clock():
     global _events_clock, _events_clock_updated
-    async with _events_clock_lock:
+    async with _events_clock_lock():
         _events_clock = None
         _events_clock_updated = None
 
@@ -546,7 +553,14 @@ next_proactive_runs: Dict[TriggerID, DateTime] = {}
 # This lock governs any changes to the set of loaded automations; any routine that will
 # add/remove automations must be holding this lock when it does so.  It's best to use
 # the methods below to access the loaded set of automations.
-automations_lock = asyncio.Lock()
+__automations_lock: Optional[asyncio.Lock] = None
+
+
+def _automations_lock() -> asyncio.Lock:
+    global __automations_lock
+    if __automations_lock is None:
+        __automations_lock = asyncio.Lock()
+    return __automations_lock
 
 
 def find_interested_triggers(event: ReceivedEvent) -> Collection[EventTrigger]:
@@ -584,7 +598,7 @@ async def automation_changed(
     automation_id: UUID,
     event: Literal["automation__created", "automation__updated", "automation__deleted"],
 ):
-    async with automations_lock:
+    async with _automations_lock():
         if event in ("automation__deleted", "automation__updated"):
             forget_automation(automation_id)
 
@@ -603,7 +617,7 @@ async def load_automations(db: PrefectDBInterface, session: AsyncSession):
 
     result = await session.execute(query)
     for automation in result.scalars().all():
-        load_automation(Automation.from_orm(automation))
+        load_automation(Automation.model_validate(automation, from_attributes=True))
 
     logger.debug(
         "Loaded %s automations with %s triggers", len(automations_by_id), len(triggers)
@@ -1076,7 +1090,7 @@ async def consumer(
         if await event_has_been_seen(event_id):
             return
 
-        event = ReceivedEvent.parse_raw(message.data)
+        event = ReceivedEvent.model_validate_json(message.data)
 
         try:
             await reactive_evaluation(event)

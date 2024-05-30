@@ -203,7 +203,7 @@ class RemoveResumingIndicator(BaseUniversalTransform):
         if api_version is None or api_version >= Version("0.8.4"):
             if proposed_state.is_running() or proposed_state.is_final():
                 if context.run.empirical_policy.resuming:
-                    updated_policy = context.run.empirical_policy.dict()
+                    updated_policy = context.run.empirical_policy.model_dump()
                     updated_policy["resuming"] = False
                     context.run.empirical_policy = FlowRunPolicy(**updated_policy)
 
@@ -281,17 +281,7 @@ class UpdateSubflowParentTask(BaseUniversalTransform):
         # only applies to flow runs with a parent task run id
         if context.run.parent_task_run_id is not None:
             # avoid mutation of the flow run state
-            subflow_parent_task_state = context.validated_state.copy(
-                reset_fields=True,
-                include={
-                    "type",
-                    "timestamp",
-                    "name",
-                    "message",
-                    "state_details",
-                    "data",
-                },
-            )
+            subflow_parent_task_state = context.validated_state.fresh_copy()
 
             # set the task's "child flow run id" to be the subflow run id
             subflow_parent_task_state.state_details.child_flow_run_id = context.run.id

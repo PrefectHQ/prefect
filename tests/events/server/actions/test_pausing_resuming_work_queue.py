@@ -5,16 +5,8 @@ from uuid import uuid4
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    import pydantic.v1 as pydantic
-    from pydantic.v1 import ValidationError
-else:
-    import pydantic
-    from pydantic import ValidationError
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -30,19 +22,20 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import work_queues
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 from prefect.server.schemas.core import WorkQueue
+from prefect.utilities.pydantic import parse_obj_as
 
 
 def test_source_determines_if_work_queue_id_is_required_or_allowed():
-    with pytest.raises(ValidationError, match="work_queue_id is required"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkQueue(source="selected")
 
-    with pytest.raises(ValidationError, match="work_queue_id is required"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkQueue(source="selected")
 
-    with pytest.raises(ValidationError, match="work_queue_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.PauseWorkQueue(source="inferred", work_queue_id=uuid4())
 
-    with pytest.raises(ValidationError, match="work_queue_id is not allowed"):
+    with pytest.raises(ValidationError):
         actions.ResumeWorkQueue(source="inferred", work_queue_id=uuid4())
 
 
@@ -55,7 +48,7 @@ async def patrols_queue(
         work_queue=WorkQueueCreate(name="Patrols"),
     )
     await session.commit()
-    return WorkQueue.from_orm(patrols_queue)
+    return WorkQueue.model_validate(patrols_queue, from_attributes=True)
 
 
 @pytest.fixture
@@ -407,7 +400,7 @@ async def test_inferring_work_queue_requires_recognizable_resource_id(
     resume_the_associated_queue: TriggeredAction,
 ):
     assert resume_the_associated_queue.triggering_event
-    resume_the_associated_queue.triggering_event.related = pydantic.parse_obj_as(
+    resume_the_associated_queue.triggering_event.related = parse_obj_as(
         List[RelatedResource],
         [
             {
@@ -445,7 +438,7 @@ async def test_pausing_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",
@@ -474,7 +467,7 @@ async def test_resuming_success_event(
 
     assert event.event == "prefect.automation.action.executed"
     assert event.related == [
-        RelatedResource.parse_obj(
+        RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",

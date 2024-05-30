@@ -1,365 +1,284 @@
-"""
-Interface and implementations of various task runners.
-
-[Task Runners](/concepts/task-runners/) in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task runners outside of configuring and initializing them for a flow.
-
-Example:
-    ```
-    >>> from prefect import flow, task
-    >>> from prefect.task_runners import SequentialTaskRunner
-    >>> from typing import List
-    >>>
-    >>> @task
-    >>> def say_hello(name):
-    ...     print(f"hello {name}")
-    >>>
-    >>> @task
-    >>> def say_goodbye(name):
-    ...     print(f"goodbye {name}")
-    >>>
-    >>> @flow(task_runner=SequentialTaskRunner())
-    >>> def greetings(names: List[str]):
-    ...     for name in names:
-    ...         say_hello(name)
-    ...         say_goodbye(name)
-    >>>
-    >>> greetings(["arthur", "trillian", "ford", "marvin"])
-    hello arthur
-    goodbye arthur
-    hello trillian
-    goodbye trillian
-    hello ford
-    goodbye ford
-    hello marvin
-    goodbye marvin
-    ```
-
-    Switching to a `DaskTaskRunner`:
-    ```
-    >>> from prefect_dask.task_runners import DaskTaskRunner
-    >>> flow.task_runner = DaskTaskRunner()
-    >>> greetings(["arthur", "trillian", "ford", "marvin"])
-    hello arthur
-    goodbye arthur
-    hello trillian
-    hello ford
-    goodbye marvin
-    hello marvin
-    goodbye ford
-    goodbye trillian
-    ```
-
-For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
-"""
 import abc
-from contextlib import AsyncExitStack, asynccontextmanager
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Dict,
-    Optional,
-    Set,
-    TypeVar,
+import asyncio
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
+from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, Optional, Set
+
+from typing_extensions import ParamSpec, Self, TypeVar
+
+from prefect.client.schemas.objects import TaskRunInput
+from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
+from prefect.futures import PrefectConcurrentFuture, PrefectFuture
+from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.utilities.annotations import allow_failure, quote, unmapped
+from prefect.utilities.callables import (
+    collapse_variadic_parameters,
+    explode_variadic_parameter,
+    get_parameter_defaults,
 )
-from uuid import UUID
-
-import anyio
-
-from prefect._internal.concurrency.primitives import Event
-from prefect.client.schemas.objects import State
-from prefect.logging import get_logger
-from prefect.states import exception_to_crashed_state
-from prefect.utilities.collections import AutoEnum
+from prefect.utilities.collections import isiterable
 
 if TYPE_CHECKING:
-    import anyio.abc
+    from prefect.tasks import Task
+
+P = ParamSpec("P")
+T = TypeVar("T")
+F = TypeVar("F", bound=PrefectFuture)
 
 
-T = TypeVar("T", bound="BaseTaskRunner")
-R = TypeVar("R")
-
-
-class TaskConcurrencyType(AutoEnum):
-    SEQUENTIAL = AutoEnum.auto()
-    CONCURRENT = AutoEnum.auto()
-    PARALLEL = AutoEnum.auto()
-
-
-CONCURRENCY_MESSAGES = {
-    TaskConcurrencyType.SEQUENTIAL: "sequentially",
-    TaskConcurrencyType.CONCURRENT: "concurrently",
-    TaskConcurrencyType.PARALLEL: "in parallel",
-}
-
-
-class BaseTaskRunner(metaclass=abc.ABCMeta):
-    def __init__(self) -> None:
-        self.logger = get_logger(f"task_runner.{self.name}")
-        self._started: bool = False
-
-    @property
-    @abc.abstractmethod
-    def concurrency_type(self) -> TaskConcurrencyType:
-        pass  # noqa
-
-    @property
-    def name(self):
-        return type(self).__name__.lower().replace("taskrunner", "")
-
-    def duplicate(self):
-        """
-        Return a new task runner instance with the same options.
-        """
-        # The base class returns `NotImplemented` to indicate that this is not yet
-        # implemented by a given task runner.
-        return NotImplemented
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Returns true if the task runners use the same options.
-        """
-        if type(other) == type(self) and (
-            # Compare public attributes for naive equality check
-            # Subclasses should implement this method with a check init option equality
-            {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
-            == {k: v for k, v in other.__dict__.items() if not k.startswith("_")}
-        ):
-            return True
-        else:
-            return NotImplemented
-
-    @abc.abstractmethod
-    async def submit(
-        self,
-        key: UUID,
-        call: Callable[..., Awaitable[State[R]]],
-    ) -> None:
-        """
-        Submit a call for execution and return a `PrefectFuture` that can be used to
-        get the call result.
-
-        Args:
-            task_run: The task run being submitted.
-            task_key: A unique key for this orchestration run of the task. Can be used
-                for caching.
-            call: The function to be executed
-            run_kwargs: A dict of keyword arguments to pass to `call`
-
-        Returns:
-            A future representing the result of `call` execution
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
-        """
-        Given a `PrefectFuture`, wait for its return state up to `timeout` seconds.
-        If it is not finished after the timeout expires, `None` should be returned.
-
-        Implementers should be careful to ensure that this function never returns or
-        raises an exception.
-        """
-        raise NotImplementedError()
-
-    @asynccontextmanager
-    async def start(
-        self: T,
-    ) -> AsyncIterator[T]:
-        """
-        Start the task runner, preparing any resources necessary for task submission.
-
-        Children should implement `_start` to prepare and clean up resources.
-
-        Yields:
-            The prepared task runner
-        """
-        if self._started:
-            raise RuntimeError("The task runner is already started!")
-
-        async with AsyncExitStack() as exit_stack:
-            self.logger.debug("Starting task runner...")
-            try:
-                await self._start(exit_stack)
-                self._started = True
-                yield self
-            finally:
-                self.logger.debug("Shutting down task runner...")
-                self._started = False
-
-    async def _start(self, exit_stack: AsyncExitStack) -> None:
-        """
-        Create any resources required for this task runner to submit work.
-
-        Cleanup of resources should be submitted to the `exit_stack`.
-        """
-        pass  # noqa
-
-    def __str__(self) -> str:
-        return type(self).__name__
-
-
-class SequentialTaskRunner(BaseTaskRunner):
+class TaskRunner(abc.ABC, Generic[F]):
     """
-    A simple task runner that executes calls as they are submitted.
+    Abstract base class for task runners.
 
-    If writing synchronous tasks, this runner will always execute tasks sequentially.
-    If writing async tasks, this runner will execute tasks sequentially unless grouped
-    using `anyio.create_task_group` or `asyncio.gather`.
-    """
+    A task runner is responsible for submitting tasks to the task run engine running
+    in an execution environment. Submitted tasks are non-blocking and return a future
+    object that can be used to wait for the task to complete and retrieve the result.
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._results: Dict[str, State] = {}
-
-    @property
-    def concurrency_type(self) -> TaskConcurrencyType:
-        return TaskConcurrencyType.SEQUENTIAL
-
-    def duplicate(self):
-        return type(self)()
-
-    async def submit(
-        self,
-        key: UUID,
-        call: Callable[..., Awaitable[State[R]]],
-    ) -> None:
-        # Run the function immediately and store the result in memory
-        try:
-            result = await call()
-        except BaseException as exc:
-            result = await exception_to_crashed_state(exc)
-
-        self._results[key] = result
-
-    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
-        return self._results[key]
-
-
-class ConcurrentTaskRunner(BaseTaskRunner):
-    """
-    A concurrent task runner that allows tasks to switch when blocking on IO.
-    Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
-
-    Example:
-        ```
-        Using a thread for concurrency:
-        >>> from prefect import flow
-        >>> from prefect.task_runners import ConcurrentTaskRunner
-        >>> @flow(task_runner=ConcurrentTaskRunner)
-        >>> def my_flow():
-        >>>     ...
-        ```
+    Task runners are context managers and should be used in a `with` block to ensure
+    proper cleanup of resources.
     """
 
     def __init__(self):
-        # TODO: Consider adding `max_workers` support using anyio capacity limiters
-
-        # Runtime attributes
-        self._task_group: anyio.abc.TaskGroup = None
-        self._result_events: Dict[UUID, Event] = {}
-        self._results: Dict[UUID, Any] = {}
-        self._keys: Set[UUID] = set()
-
-        super().__init__()
+        self.logger = get_logger(f"task_runner.{self.name}")
+        self._started = False
 
     @property
-    def concurrency_type(self) -> TaskConcurrencyType:
-        return TaskConcurrencyType.CONCURRENT
+    def name(self):
+        """The name of this task runner"""
+        return type(self).__name__.lower().replace("taskrunner", "")
 
-    def duplicate(self):
-        return type(self)()
+    @abc.abstractmethod
+    def duplicate(self) -> Self:
+        """Return a new instance of this task runner with the same configuration."""
+        ...
 
-    async def submit(
+    @abc.abstractmethod
+    def submit(
         self,
-        key: UUID,
-        call: Callable[[], Awaitable[State[R]]],
-    ) -> None:
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> F:
+        """
+        Submit a task to the task run engine.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
+        """
+        ...
+
+    def map(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+    ) -> Iterable[F]:
+        """
+        Submit multiple tasks to the task run engine.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            An iterable of future objects that can be used to wait for the tasks to
+            complete and retrieve the results.
+        """
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
 
-        if not self._task_group:
-            raise RuntimeError(
-                "The concurrent task runner cannot be used to submit work after "
-                "serialization."
-            )
-
-        # Create an event to set on completion
-        self._result_events[key] = Event()
-
-        # Rely on the event loop for concurrency
-        self._task_group.start_soon(self._run_and_store_result, key, call)
-
-    async def wait(
-        self,
-        key: UUID,
-        timeout: float = None,
-    ) -> Optional[State]:
-        if not self._task_group:
-            raise RuntimeError(
-                "The concurrent task runner cannot be used to wait for work after "
-                "serialization."
-            )
-
-        return await self._get_run_result(key, timeout)
-
-    async def _run_and_store_result(
-        self, key: UUID, call: Callable[[], Awaitable[State[R]]]
-    ):
-        """
-        Simple utility to store the orchestration result in memory on completion
-
-        Since this run is occurring on the main thread, we capture exceptions to prevent
-        task crashes from crashing the flow run.
-        """
-        try:
-            result = await call()
-        except BaseException as exc:
-            result = await exception_to_crashed_state(exc)
-
-        self._results[key] = result
-        self._result_events[key].set()
-
-    async def _get_run_result(
-        self, key: UUID, timeout: float = None
-    ) -> Optional[State]:
-        """
-        Block until the run result has been populated.
-        """
-        result = None  # retval on timeout
-
-        # Note we do not use `asyncio.wrap_future` and instead use an `Event` to avoid
-        # stdlib behavior where the wrapped future is cancelled if the parent future is
-        # cancelled (as it would be during a timeout here)
-        with anyio.move_on_after(timeout):
-            await self._result_events[key].wait()
-            result = self._results[key]
-
-        return result  # timeout reached
-
-    async def _start(self, exit_stack: AsyncExitStack):
-        """
-        Start the process pool
-        """
-        self._task_group = await exit_stack.enter_async_context(
-            anyio.create_task_group()
+        from prefect.utilities.engine import (
+            collect_task_run_inputs_sync,
+            resolve_inputs_sync,
         )
 
-    def __getstate__(self):
-        """
-        Allow the `ConcurrentTaskRunner` to be serialized by dropping the task group.
-        """
-        data = self.__dict__.copy()
-        data.update({k: None for k in {"_task_group"}})
-        return data
+        # We need to resolve some futures to map over their data, collect the upstream
+        # links beforehand to retain relationship tracking.
+        task_inputs = {
+            k: collect_task_run_inputs_sync(v, max_depth=0)
+            for k, v in parameters.items()
+        }
 
-    def __setstate__(self, data: dict):
+        # Resolve the top-level parameters in order to get mappable data of a known length.
+        # Nested parameters will be resolved in each mapped child where their relationships
+        # will also be tracked.
+        parameters = resolve_inputs_sync(parameters, max_depth=0)
+
+        # Ensure that any parameters in kwargs are expanded before this check
+        parameters = explode_variadic_parameter(task.fn, parameters)
+
+        iterable_parameters = {}
+        static_parameters = {}
+        annotated_parameters = {}
+        for key, val in parameters.items():
+            if isinstance(val, (allow_failure, quote)):
+                # Unwrap annotated parameters to determine if they are iterable
+                annotated_parameters[key] = val
+                val = val.unwrap()
+
+            if isinstance(val, unmapped):
+                static_parameters[key] = val.value
+            elif isiterable(val):
+                iterable_parameters[key] = list(val)
+            else:
+                static_parameters[key] = val
+
+        if not len(iterable_parameters):
+            raise MappingMissingIterable(
+                "No iterable parameters were received. Parameters for map must "
+                f"include at least one iterable. Parameters: {parameters}"
+            )
+
+        iterable_parameter_lengths = {
+            key: len(val) for key, val in iterable_parameters.items()
+        }
+        lengths = set(iterable_parameter_lengths.values())
+        if len(lengths) > 1:
+            raise MappingLengthMismatch(
+                "Received iterable parameters with different lengths. Parameters for map"
+                f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
+            )
+
+        map_length = list(lengths)[0]
+
+        futures = []
+        for i in range(map_length):
+            call_parameters = {
+                key: value[i] for key, value in iterable_parameters.items()
+            }
+            call_parameters.update(
+                {key: value for key, value in static_parameters.items()}
+            )
+
+            # Add default values for parameters; these are skipped earlier since they should
+            # not be mapped over
+            for key, value in get_parameter_defaults(task.fn).items():
+                call_parameters.setdefault(key, value)
+
+            # Re-apply annotations to each key again
+            for key, annotation in annotated_parameters.items():
+                call_parameters[key] = annotation.rewrap(call_parameters[key])
+
+            # Collapse any previously exploded kwargs
+            call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
+
+            futures.append(
+                self.submit(
+                    task=task,
+                    parameters=call_parameters,
+                    wait_for=wait_for,
+                    dependencies=task_inputs,
+                )
+            )
+
+        return futures
+
+    def __enter__(self):
+        if self._started:
+            raise RuntimeError("This task runner is already started")
+
+        self.logger.debug("Starting task runner")
+        self._started = True
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.logger.debug("Stopping task runner")
+        self._started = False
+
+
+class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
+    def __init__(self):
+        super().__init__()
+        self._executor: Optional[ThreadPoolExecutor] = None
+
+    def duplicate(self) -> "ThreadPoolTaskRunner":
+        return type(self)()
+
+    def submit(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectConcurrentFuture:
         """
-        When deserialized, we will no longer have a reference to the task group.
+        Submit a task to the task run engine running in a separate thread.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
         """
-        self.__dict__.update(data)
-        self._task_group = None
+        if not self._started or self._executor is None:
+            raise RuntimeError("Task runner is not started")
+
+        from prefect.context import FlowRunContext
+        from prefect.task_engine import run_task_async, run_task_sync
+
+        task_run_id = uuid.uuid4()
+        context = copy_context()
+
+        flow_run_ctx = FlowRunContext.get()
+        if flow_run_ctx:
+            get_run_logger(flow_run_ctx).info(
+                f"Submitting task {task.name} to thread pool executor..."
+            )
+        else:
+            self.logger.info(f"Submitting task {task.name} to thread pool executor...")
+
+        if task.isasync:
+            # TODO: Explore possibly using a long-lived thread with an event loop
+            # for better performance
+            future = self._executor.submit(
+                context.run,
+                asyncio.run,
+                run_task_async(
+                    task=task,
+                    task_run_id=task_run_id,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                    return_type="state",
+                    dependencies=dependencies,
+                ),
+            )
+        else:
+            future = self._executor.submit(
+                context.run,
+                run_task_sync,
+                task=task,
+                task_run_id=task_run_id,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type="state",
+                dependencies=dependencies,
+            )
+        prefect_future = PrefectConcurrentFuture(
+            task_run_id=task_run_id, wrapped_future=future
+        )
+        return prefect_future
+
+    def __enter__(self):
+        super().__enter__()
+        self._executor = ThreadPoolExecutor()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self._executor is not None:
+            self._executor.shutdown()
+            self._executor = None
+        super().__exit__(exc_type, exc_value, traceback)

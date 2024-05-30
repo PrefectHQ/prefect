@@ -385,7 +385,9 @@ class BaseQueryComponents(ABC):
             schemas.responses.WorkerFlowRunResponse(
                 work_pool_id=r.run_work_pool_id,
                 work_queue_id=r.run_work_queue_id,
-                flow_run=schemas.core.FlowRun.from_orm(r.FlowRun),
+                flow_run=schemas.core.FlowRun.model_validate(
+                    r.FlowRun, from_attributes=True
+                ),
             )
             for r in result
         ]
@@ -594,6 +596,8 @@ class BaseQueryComponents(ABC):
                     created=artifact.created,
                     key=artifact.key,
                     type=artifact.type,
+                    # We're only using the data field for progress artifacts for now
+                    data=artifact.data if artifact.type == "progress" else None,
                     is_latest=artifact.key is None
                     or latest_in_collection_id is not None,
                 )

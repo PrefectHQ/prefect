@@ -79,8 +79,8 @@ async def create_deployment(
     deployment.updated = pendulum.now("UTC")
 
     schedules = deployment.schedules
-    insert_values = deployment.dict(
-        shallow=True, exclude_unset=True, exclude={"schedules"}
+    insert_values = deployment.model_dump_for_orm(
+        exclude_unset=True, exclude={"schedules"}
     )
 
     # The job_variables field in client and server schemas is named
@@ -89,8 +89,7 @@ async def create_deployment(
     if job_variables:
         insert_values["infra_overrides"] = job_variables
 
-    conflict_update_fields = deployment.dict(
-        shallow=True,
+    conflict_update_fields = deployment.model_dump_for_orm(
         exclude_unset=True,
         exclude={"id", "created", "created_by", "schedules", "job_variables"},
     )
@@ -183,8 +182,7 @@ async def update_deployment(
 
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = deployment.dict(
-        shallow=True,
+    update_data = deployment.model_dump_for_orm(
         exclude_unset=True,
         exclude={"work_pool_name"},
     )
@@ -633,7 +631,7 @@ async def _generate_scheduled_flow_runs(
                     "state": schemas.states.Scheduled(
                         scheduled_time=date,
                         message="Flow run scheduled",
-                    ).dict(),
+                    ).model_dump(),
                     "state_type": schemas.states.StateType.SCHEDULED,
                     "state_name": "Scheduled",
                     "next_scheduled_start_time": date,
@@ -786,7 +784,7 @@ async def create_deployment_schedules(
 
     schedules_with_deployment_id = []
     for schedule in schedules:
-        data = schedule.dict()
+        data = schedule.model_dump()
         data["deployment_id"] = deployment_id
         schedules_with_deployment_id.append(data)
 
@@ -797,7 +795,10 @@ async def create_deployment_schedules(
     session.add_all(models)
     await session.flush()
 
-    return [schemas.core.DeploymentSchedule.from_orm(m) for m in models]
+    return [
+        schemas.core.DeploymentSchedule.model_validate(m, from_attributes=True)
+        for m in models
+    ]
 
 
 async def read_deployment_schedules(
@@ -829,7 +830,10 @@ async def read_deployment_schedules(
 
     result = await session.execute(query)
 
-    return [schemas.core.DeploymentSchedule.from_orm(s) for s in result.scalars().all()]
+    return [
+        schemas.core.DeploymentSchedule.model_validate(s, from_attributes=True)
+        for s in result.scalars().all()
+    ]
 
 
 async def update_deployment_schedule(
@@ -855,7 +859,7 @@ async def update_deployment_schedule(
                 orm_models.DeploymentSchedule.deployment_id == deployment_id,
             )
         )
-        .values(**schedule.dict(exclude_none=True))
+        .values(**schedule.model_dump(exclude_none=True))
     )
 
     return result.rowcount > 0

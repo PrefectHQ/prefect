@@ -10,16 +10,10 @@ from typing import Any, Dict, Optional, Union
 import google.auth
 import google.auth.transport.requests
 from google.oauth2.service_account import Credentials
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, field_validator, model_validator
 
 from prefect.blocks.abstract import CredentialsBlock
-from prefect.blocks.fields import SecretDict
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, root_validator, validator
-else:
-    from pydantic import Field, root_validator, validator
+from prefect.types import SecretDict
 
 try:
     from google.cloud.bigquery import Client as BigQueryClient
@@ -148,7 +142,7 @@ class GcpCredentials(CredentialsBlock):
         return hash(
             (
                 hash(self.service_account_file),
-                hash(frozenset(self.service_account_info.dict().items()))
+                hash(frozenset(self.service_account_info.get_secret_value().items()))
                 if self.service_account_info
                 else None,
                 hash(self.project),
@@ -156,23 +150,20 @@ class GcpCredentials(CredentialsBlock):
             )
         )
 
-    @root_validator
-    def _provide_one_service_account_source(cls, values):
+    @model_validator(mode="after")
+    def _provide_one_service_account_source(self):
         """
         Ensure that only a service account file or service account info ias provided.
         """
-        both_service_account = (
-            values.get("service_account_info") is not None
-            and values.get("service_account_file") is not None
-        )
-        if both_service_account:
+        if self.service_account_info and self.service_account_file:
             raise ValueError(
                 "Only one of service_account_info or service_account_file "
                 "can be specified at once"
             )
-        return values
+        return self
 
-    @validator("service_account_file")
+    @field_validator("service_account_file")
+    @classmethod
     def _check_service_account_file(cls, file):
         """Get full path of provided file and make sure that it exists."""
         if not file:
@@ -183,7 +174,8 @@ class GcpCredentials(CredentialsBlock):
             raise ValueError("The provided path to the service account is invalid")
         return service_account_file
 
-    @validator("service_account_info", pre=True)
+    @field_validator("service_account_info", mode="before")
+    @classmethod
     def _convert_json_string_json_service_account_info(cls, value):
         """
         Converts service account info provided as a json formatted string
@@ -233,15 +225,14 @@ class GcpCredentials(CredentialsBlock):
             credentials, _ = google.auth.default()
         return credentials
 
-    @sync_compatible
-    async def get_access_token(self):
+    def get_access_token(self):
         """
         See: https://stackoverflow.com/a/69107745
         Also: https://www.jhanley.com/google-cloud-creating-oauth-access-tokens-for-rest-api-calls/
         """  # noqa
         request = google.auth.transport.requests.Request()
         credentials = self.get_credentials_from_service_account()
-        await run_sync_in_worker_thread(credentials.refresh, request)
+        credentials.refresh(request)
         return credentials.token
 
     def get_client(

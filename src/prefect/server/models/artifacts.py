@@ -21,8 +21,8 @@ async def _insert_into_artifact_collection(
     """
     Inserts a new artifact into the artifact_collection table or updates it.
     """
-    insert_values = artifact.dict(
-        shallow=True, exclude_unset=True, exclude={"id", "updated", "created"}
+    insert_values = artifact.model_dump_for_orm(
+        exclude_unset=True, exclude={"id", "updated", "created"}
     )
     upsert_new_latest_id = (
         db.insert(orm_models.ArtifactCollection)
@@ -82,7 +82,7 @@ async def _insert_into_artifact(
     insert_stmt = db.insert(orm_models.Artifact).values(
         created=now,
         updated=now,
-        **artifact.dict(exclude={"created", "updated"}, shallow=True),
+        **artifact.model_dump_for_orm(exclude={"created", "updated"}),
     )
     await session.execute(insert_stmt)
 
@@ -407,7 +407,7 @@ async def update_artifact(
     Returns:
         bool: True if the update was successful, False otherwise
     """
-    update_artifact_data = artifact.dict(shallow=True, exclude_unset=True)
+    update_artifact_data = artifact.model_dump_for_orm(exclude_unset=True)
 
     update_artifact_stmt = (
         sa.update(orm_models.Artifact)
@@ -415,17 +415,17 @@ async def update_artifact(
         .values(**update_artifact_data)
     )
 
-    await session.execute(update_artifact_stmt)
+    artifact_result = await session.execute(update_artifact_stmt)
 
-    update_artifact_collection_data = artifact.dict(shallow=True, exclude_unset=True)
+    update_artifact_collection_data = artifact.model_dump_for_orm(exclude_unset=True)
     update_artifact_collection_stmt = (
         sa.update(orm_models.ArtifactCollection)
         .where(orm_models.ArtifactCollection.latest_id == artifact_id)
         .values(**update_artifact_collection_data)
     )
-    result = await session.execute(update_artifact_collection_stmt)
+    collection_result = await session.execute(update_artifact_collection_stmt)
 
-    return result.rowcount > 0
+    return artifact_result.rowcount + collection_result.rowcount > 0
 
 
 async def delete_artifact(

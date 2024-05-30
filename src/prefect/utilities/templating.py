@@ -1,7 +1,17 @@
 import enum
 import os
 import re
-from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Set, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    NamedTuple,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from prefect.client.utilities import inject_client
 from prefect.utilities.annotations import NotSet
@@ -301,7 +311,7 @@ async def resolve_block_document_references(
 
 
 @inject_client
-async def resolve_variables(template: T, client: "PrefectClient" = None):
+async def resolve_variables(template: T, client: Optional["PrefectClient"] = None):
     """
     Resolve variables in a template by replacing each variable placeholder with the
     value of the variable.

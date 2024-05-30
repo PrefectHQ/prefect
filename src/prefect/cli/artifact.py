@@ -8,7 +8,7 @@ from rich.table import Table
 from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
@@ -133,7 +133,7 @@ async def inspect(
         if not artifacts:
             exit_with_error(f"Artifact {key!r} not found.")
 
-        artifacts = [a.dict(json_compatible=True) for a in artifacts]
+        artifacts = [a.model_dump(mode="json") for a in artifacts]
 
         app.console.print(Pretty(artifacts))
 
@@ -162,14 +162,13 @@ async def delete(
     async with get_client() as client:
         if artifact_id is not None:
             try:
-                confirm_delete = typer.confirm(
+                if is_interactive() and not typer.confirm(
                     (
                         "Are you sure you want to delete artifact with id"
                         f" {artifact_id!r}?"
                     ),
                     default=False,
-                )
-                if not confirm_delete:
+                ):
                     exit_with_error("Deletion aborted.")
 
                 await client.delete_artifact(artifact_id)
@@ -187,14 +186,13 @@ async def delete(
                     " artifact id with the --id flag."
                 )
 
-            confirm_delete = typer.confirm(
+            if is_interactive() and not typer.confirm(
                 (
                     f"Are you sure you want to delete {len(artifacts)} artifact(s) with"
                     f" key {key!r}?"
                 ),
                 default=False,
-            )
-            if not confirm_delete:
+            ):
                 exit_with_error("Deletion aborted.")
 
             for a in artifacts:
