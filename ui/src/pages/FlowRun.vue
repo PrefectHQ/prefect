@@ -56,7 +56,6 @@
     FlowRunResults,
     FlowRunFilteredList,
     useFavicon,
-    useDeployment,
     CopyableWrapper,
     isPendingStateType,
     useTabs,
@@ -97,7 +96,6 @@
   ])
   const tab = useRouteQueryParam('tab', 'Logs')
   const { tabs } = useTabs(computedTabs, tab)
-
 
   const parentFlowRunIds = computed(() => [flowRunId.value])
   const { filter: subflowsFilter } = useFlowRunsFilter({
