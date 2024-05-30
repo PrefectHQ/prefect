@@ -4,8 +4,7 @@ on:
   pull_request:
     paths:
       #- .github/workflows/integration-package-tests.yaml
-      - "src/**"
-      - "tests/**"
+      - "**/*.py"
     types: [opened, reopened, synchronize, labeled]
   push:
     branches:
