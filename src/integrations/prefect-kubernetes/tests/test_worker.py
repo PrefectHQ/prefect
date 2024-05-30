@@ -2956,7 +2956,12 @@ class TestKubernetesWorker:
     ):
         """Regression test for #87, where workers were giving only very vague
         information about the reason a pod was never scheduled."""
-        mock_watch.return_value.stream = _mock_pods_stream_that_returns_running_pod
+        async def mock_stream(*args, **kwargs):
+            if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+                yield {"object": job, "type": "ADDED"}
+
+        mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(
                 flow_run=flow_run,
@@ -2994,7 +2999,7 @@ class TestKubernetesWorker:
             logger = k8s_worker.get_flow_run_logger(flow_run)
 
             mock_client = mock.Mock()
-            k8s_worker._log_recent_events(
+            await k8s_worker._log_recent_events(
                 logger, "mock-job", "my-pod", default_configuration, mock_client
             )
 
