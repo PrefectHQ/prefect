@@ -178,3 +178,35 @@ class TestRollBacks:
             assert txn.rollback() is False  # rollback failed
 
         assert get_transaction() is None
+
+
+class TestTransactionState:
+    @pytest.mark.parametrize("state", TransactionState.__members__.values())
+    def test_state_and_methods_are_consistent(self, state):
+        "Not the best test, but it does the job"
+        txn = Transaction(state=state)
+        assert txn.is_active() == (txn.state.name == "ACTIVE")
+        assert txn.is_pending() == (txn.state.name == "PENDING")
+        assert txn.is_committed() == (txn.state.name == "COMMITTED")
+        assert txn.is_staged() == (txn.state.name == "STAGED")
+        assert txn.is_rolled_back() == (txn.state.name == "ROLLED_BACK")
+
+    def test_happy_state_lifecycle(self):
+        txn = Transaction()
+        assert txn.is_pending()
+
+        with txn:
+            assert txn.is_active()
+
+        assert txn.is_committed()
+
+    def test_unhappy_state_lifecycle(self):
+        txn = Transaction()
+        assert txn.is_pending()
+
+        with pytest.raises(ValueError, match="foo"):
+            with txn:
+                assert txn.is_active()
+                raise ValueError("foo")
+
+        assert txn.is_rolled_back()

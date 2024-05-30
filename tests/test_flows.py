@@ -4067,6 +4067,36 @@ class TestTransactions:
         assert data2["called"] is True
         assert data1["called"] is True
 
+    def test_task_failure_causes_previous_to_rollback(self):
+        data1, data2 = {}, {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_rollback
+        def rollback(txn):
+            data1["called"] = True
+
+        @task
+        def task2():
+            raise RuntimeError("oopsie")
+
+        @task2.on_rollback
+        def rollback2(txn):
+            data2["called"] = True
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+
+        main(return_state=True)
+
+        assert "called" not in data2
+        assert data1["called"] is True
+
     def test_commit_isnt_called_on_rollback(self):
         data = {}
 
