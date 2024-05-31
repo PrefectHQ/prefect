@@ -7,7 +7,7 @@ When running workflow applications, it can be helpful to create long-running pro
 In this guide you'll learn how to set up a systemd service to create long-running Prefect processes that poll for scheduled flow runs.
 
 A systemd service is ideal for running a long-lived process on a Linux VM or physical Linux server.
-We will leverage systemd and see how to automatically start a [Prefect worker](/concepts/work-pools/#worker-overview) or long-lived [`serve` process](/concepts/flows/#serving-a-flow) when Linux starts.
+We will leverage systemd and see how to automatically start a [Prefect worker](/3.0rc/concepts/work-pools/#worker-overview) or long-lived [`serve` process](/3.0rc/concepts/flows/#serving-a-flow) when Linux starts.
 This approach provides resilience by automatically restarting the process if it crashes.
 
 In this guide we will:
@@ -21,7 +21,7 @@ In this guide we will:
 * An environment with a linux operating system with [systemd](https://systemd.io/) and Python 3.9 or later.
 * A superuser account (you can run `sudo` commands).
 * A Prefect Cloud account, or a local instance of a Prefect server running on your network.
-* If daemonizing a worker, you'll need a Prefect [deployment](/concepts/deployments/) with a [work pool](/concepts/work-pools/) your worker can connect to.
+* If daemonizing a worker, you'll need a Prefect [deployment](/3.0rc/concepts/deployments/) with a [work pool](/3.0rc/concepts/work-pools/) your worker can connect to.
 
 If using an [AWS t2-micro EC2 instance](https://aws.amazon.com/ec2/instance-types/t2/) with an AWS Linux image, you can install Python and pip with `sudo yum install -y python3 python3-pip`.
 
@@ -184,4 +184,4 @@ You now have a systemd service that starts when your system boots, and will rest
 If you want to set up a long-lived process on a Windows machine the pattern is similar.
 Instead of systemd, you can use [NSSM](https://nssm.cc/).
 
-Check out other [Prefect guides](/guides/) to see what else you can do with Prefect!
+Check out other [Prefect guides](/3.0rc/guides/) to see what else you can do with Prefect!

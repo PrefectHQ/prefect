@@ -271,7 +271,7 @@ def get_shirt_order():
 
 This code causes the flow run to continually pause until the user enters a valid age.
 
-As an additional step, you can use an [automation](/concepts/automations) or [notification](/concepts/notifications/) to alert the user to the error.
+As an additional step, you can use an [automation](/3.0rc/concepts/automations) or [notification](/3.0rc/concepts/notifications/) to alert the user to the error.
 
 ## Send and receive input at runtime
 
@@ -407,7 +407,7 @@ async def sender():
         print(greeting)
 ```
 
-An iterator helps keep track of the inputs your flow has already received. If you want your flow to suspend and then resume later, save the keys of the inputs you've seen so the flow can read them back out when it resumes. You might use a [Block](/concepts/blocks/), such as a `JSONBlock`.
+An iterator helps keep track of the inputs your flow has already received. If you want your flow to suspend and then resume later, save the keys of the inputs you've seen so the flow can read them back out when it resumes. You might use a [Block](/3.0rc/concepts/blocks/), such as a `JSONBlock`.
 
 The following flow receives input for 30 seconds then suspends itself, which exits the flow and tears down infrastructure:
 
