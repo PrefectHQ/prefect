@@ -1261,7 +1261,6 @@ class TestReadDeployments:
             str(deployment_id_2),
         }
 
-
     async def test_read_deployments_applies_limit(self, deployments, client):
         response = await client.post("/deployments/filter", json=dict(limit=1))
         assert response.status_code == status.HTTP_200_OK
