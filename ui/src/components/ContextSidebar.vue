@@ -50,7 +50,7 @@
   import { routes } from '@/router'
 
   const can = useCan()
-  const canSeeWorkPools = computed(() => can.access.work_pools && can.read.work_pool)
+  const canSeeWorkPools = computed(() => can.read.work_pool)
 
   const { showModal: showJoinCommunityModal, open: openJoinCommunityModal } = useShowModal()
   const { value: joinTheCommunityModalDismissed } = useStorage('local', 'join-the-community-modal-dismissed', false)
