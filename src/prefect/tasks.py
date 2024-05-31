@@ -1033,7 +1033,7 @@ class Task(Generic[P, R]):
             # TODO: Make this non-blocking once we can return a list of futures
             # instead of a list of task runs
             return [
-                run_coro_as_sync(self.create_run(parameters=parameters))
+                run_coro_as_sync(self.create_run(parameters=parameters, deferred=True))
                 for parameters in parameters_list
             ]
 

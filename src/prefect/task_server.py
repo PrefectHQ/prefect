@@ -199,9 +199,11 @@ class TaskServer:
         )
 
         try:
+            new_state = Pending()
+            new_state.state_details.deferred = True
             state = await propose_state(
                 client=get_client(),  # TODO prove that we cannot use self._client here
-                state=Pending(),
+                state=new_state,
                 task_run_id=task_run.id,
             )
         except Abort as exc:

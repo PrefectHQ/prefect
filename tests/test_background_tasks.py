@@ -127,10 +127,10 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
         result_factory = await result_factory_from_task(foo_task)
         assert await result_factory.read_parameters(
             task_run_future_a.task_run.state.state_details.task_parameters_id
-        ) == {"x": 42}
+        ) == {"parameters": {"x": 42}, "context": mock.ANY}
         assert await result_factory.read_parameters(
             task_run_future_b.task_run.state.state_details.task_parameters_id
-        ) == {"x": 24}
+        ) == {"parameters": {"x": 24}, "context": mock.ANY}
 
 
 async def test_task_submission_creates_a_scheduled_task_run(
@@ -146,7 +146,7 @@ async def test_task_submission_creates_a_scheduled_task_run(
         task_run_future.task_run.state.state_details.task_parameters_id
     )
 
-    assert parameters == dict(x=42)
+    assert parameters == {"parameters": {"x": 42}, "context": mock.ANY}
 
 
 async def test_sync_task_not_awaitable_in_async_context(foo_task):
@@ -159,7 +159,7 @@ async def test_sync_task_not_awaitable_in_async_context(foo_task):
         task_run_future.task_run.state.state_details.task_parameters_id
     )
 
-    assert parameters == dict(x=42)
+    assert parameters == {"parameters": {"x": 42}, "context": mock.ANY}
 
 
 async def test_async_task_submission_creates_a_scheduled_task_run(
@@ -174,7 +174,7 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
         task_run_future.task_run.state.state_details.task_parameters_id
     )
 
-    assert parameters == dict(x=42)
+    assert parameters == {"parameters": {"x": 42}, "context": mock.ANY}
 
 
 async def test_scheduled_tasks_are_enqueued_server_side(
