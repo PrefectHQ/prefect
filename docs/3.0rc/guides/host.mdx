@@ -8,7 +8,7 @@ description: Hosting Prefect Sever
     If you would like to host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
 </Note>
 
-After installing Prefect, you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), and an [API server](/api-ref/) instance backed by a database and a UI.
+After installing Prefect, you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), and an [API server](/3.0rc/api-ref/) instance backed by a database and a UI.
 
 ### Steps
 
@@ -20,7 +20,7 @@ prefect server start
 
 2. Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser.
 
-![Viewing the dashboard in the Prefect UI.](/3.0rc/img/ui/self-hosted-server-dashboard.png)
+![Viewing the dashboard in the Prefect UI.](/3.0rc//img/ui/self-hosted-server-dashboard.png)
 
 3. Shut down the Prefect server with \<kdb> ctrl \</kbd> + \<kdb> c \</kbd> in the terminal.
 
@@ -28,15 +28,15 @@ prefect server start
 
 A self-hosted Prefect server instance and Prefect Cloud share a common set of features. Prefect Cloud includes the following additional features:
 
-- [Workspaces](/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
-- [Automations](/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
-- [Email notifications](/cloud/automations/) &mdash; send email alerts from Prefect's servers based on automation triggers.
-- [Service accounts](/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
-- [Custom role-based access controls (RBAC)](/cloud/users/roles/) &mdash; assign users granular permissions to perform activities within an account or workspace.
-- [Single Sign-on (SSO)](/cloud/users/sso/) &mdash; authentication using your identity provider.
-- [Audit Log](/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
+- [Workspaces](/3.0rc/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
+- [Automations](/3.0rc/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
+- [Email notifications](/3.0rc/cloud/automations/) &mdash; send email alerts from Prefect's servers based on automation triggers.
+- [Service accounts](/3.0rc/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
+- [Custom role-based access controls (RBAC)](/3.0rc/cloud/users/roles/) &mdash; assign users granular permissions to perform activities within an account or workspace.
+- [Single Sign-on (SSO)](/3.0rc/cloud/users/sso/) &mdash; authentication using your identity provider.
+- [Audit Log](/3.0rc/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
 
-Read more about Prefect Cloud in the [Cloud](/cloud/) section.
+Read more about Prefect Cloud in the [Cloud](/3.0rc/cloud/) section.
 
 ### Configure a Prefect server instance
 
@@ -49,9 +49,9 @@ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 !!! tip "`PREFECT_API_URL` required when running Prefect inside a container"
     You must set the API server address to use Prefect within a container, such as a Docker container.
 
-    You can save the API server address in a [Prefect profile](/concepts/settings/). Whenever that profile is active, the API endpoint is at that address.
+    You can save the API server address in a [Prefect profile](/3.0rc/concepts/settings/). Whenever that profile is active, the API endpoint is at that address.
 
-    See [Profiles & Configuration](/concepts/settings/) for more information on profiles and configurable Prefect settings.
+    See [Profiles & Configuration](/3.0rc/concepts/settings/) for more information on profiles and configurable Prefect settings.
 
 ## The Prefect database
 
@@ -203,13 +203,13 @@ prefect server database downgrade -y -r d20618ce678e
 
 To downgrade all migrations, use the `base` revision.
 
-See the [contributing docs](/contributing/overview/#adding-database-migrations) to create new database migrations.
+See the [contributing docs](/3.0rc/contributing/overview/#adding-database-migrations) to create new database migrations.
 
 ## Notifications
 
-[Prefect Cloud](/cloud/) gives you access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-hosted Prefect server.
+[Prefect Cloud](/3.0rc/cloud/) gives you access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-hosted Prefect server.
 
-Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
+Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/3.0rc/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
 
 Prefect supports sending notifications through:
 
@@ -224,13 +224,13 @@ Prefect supports sending notifications through:
 - Twilio SMS
 
 !!! cloud-ad "Notifications in Prefect Cloud"
-    Prefect Cloud uses the robust [Automations](/cloud/automations/) interface to enable notifications related to flow run state changes and work pool status.
+    Prefect Cloud uses the robust [Automations](/3.0rc/cloud/automations/) interface to enable notifications related to flow run state changes and work pool status.
 
 ### Configure notifications
 
 To configure a notification in a Prefect server, go to the **Notifications** page and select **Create Notification** or the **+** button.
 
-![Creating a notification in the Prefect UI](/3.0rc/img/ui/create-email-notification.png)
+![Creating a notification in the Prefect UI](/3.0rc//img/ui/create-email-notification.png)
 
 You can choose:
 
@@ -252,4 +252,4 @@ When the conditions of the notification are triggered, you’ll receive a messag
 
 On the **Notifications** page you can pause, edit, or delete any configured notification.
 
-![Viewing all configured notifications in the Prefect UI](/3.0rc/img/ui/notifications.png)
+![Viewing all configured notifications in the Prefect UI](/3.0rc//img/ui/notifications.png)

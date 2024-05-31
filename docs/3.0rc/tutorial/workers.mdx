@@ -43,7 +43,7 @@ graph TD
 <Tip>
 Notice above that the worker is in charge of provisioning the _flow run infrastructure_.
 In the context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run.
-Different [worker types](/concepts/work-pools/#worker-types) create different types of flow run infrastructure.
+Different [worker types](/3.0rc/concepts/work-pools/#worker-types) create different types of flow run infrastructure.
 </Tip>
 
 Next, create a work pool and worker to deploy your tutorial flow. You will execute it later with the Prefect API.
@@ -57,7 +57,7 @@ Using the **Docker** work pool type means that all work sent to this work pool r
 <Tip>
     **Other work pool types**
 
-    There are [work pool types](/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
+    There are [work pool types](/3.0rc/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
     Kubernetes is also a popular work pool type.
 </Tip>
 
@@ -111,7 +111,7 @@ You should now see a `Ready` status indicator on your work pool.
 
 Keep this terminal session active for the worker to continue to pick up jobs.
 Since you are running this worker locally, the worker will terminate if you close the terminal.
-In a production setting this worker should run as a [daemonized or managed process](/guides/deployment/daemonize/).
+In a production setting this worker should run as a [daemonized or managed process](/3.0rc/guides/deployment/daemonize/).
 
 Next, deploy your tutorial flow to `my-docker-pool`.
 
@@ -119,7 +119,7 @@ Next, deploy your tutorial flow to `my-docker-pool`.
 
 From the previous steps, you now have:
 
-1. [A flow](/tutorial/flows/)
+1. [A flow](/3.0rc/tutorial/flows/)
 2. A work pool
 3. A worker
 
@@ -218,7 +218,7 @@ Prefect builds a custom Docker image containing your workflow code that the work
 
 To update your deployment, modify your script and rerun it. You'll need to make one update to specify a value for `job_variables` to ensure your Docker worker can successfully execute scheduled runs for this flow. See the example below.
 
-The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override default values in the specified work pool's [base job template](/concepts/work-pools/#base-job-template).
+The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override default values in the specified work pool's [base job template](/3.0rc/concepts/work-pools/#base-job-template).
 
 When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), we recommend including an `image_pull_policy` job_variable set to `Never`. However, for production workflows, push images to a remote registry for more reliability and accessibility.
 
@@ -281,10 +281,10 @@ prefect deployment run 'get_repo_info/my-deployment'
 
 ## Learn more
 
-- Learn how to configure deployments in YAML with [`prefect.yaml`](/guides/prefect-deploy/).
-- [Concepts](/concepts/) contain deep dives into Prefect components
-- [Guides](/guides/) provide step-by-step recipes for common Prefect operations including:
-  - [Deploying flows on Kubernetes](/guides/deployment/kubernetes/)
-  - [Deploying flows in Docker](/guides/deployment/docker/)
-  - [Deploying flows on serverless infrastructure](/guides/deployment/serverless-workers/)
-  - [Daemonizing workers](/guides/deployment/daemonize/)
+- Learn how to configure deployments in YAML with [`prefect.yaml`](/3.0rc/guides/prefect-deploy/).
+- [Concepts](/3.0rc/concepts/) contain deep dives into Prefect components
+- [Guides](/3.0rc/guides/) provide step-by-step recipes for common Prefect operations including:
+  - [Deploying flows on Kubernetes](/3.0rc/guides/deployment/kubernetes/)
+  - [Deploying flows in Docker](/3.0rc/guides/deployment/docker/)
+  - [Deploying flows on serverless infrastructure](/3.0rc/guides/deployment/serverless-workers/)
+  - [Daemonizing workers](/3.0rc/guides/deployment/daemonize/)

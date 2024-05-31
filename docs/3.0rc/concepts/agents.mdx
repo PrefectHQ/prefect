@@ -4,13 +4,13 @@ description: Prefect agents are like untyped workers.
 ---
 
 !!! warning "Workers are recommended"
-    Agents are part of the block-based deployment model. [Work Pools and Workers](/concepts/work-pools/) simplify the specification of a flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
+    Agents are part of the block-based deployment model. [Work Pools and Workers](/3.0rc/concepts/work-pools/) simplify the specification of a flow's infrastructure and runtime environment. If you have existing agents, you can [upgrade from agents to workers](/3.0rc/guides/upgrade-guide-agents-to-workers/) to significantly enhance the experience of deploying flows.
 
 ## Agent overview
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs.
 
-Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
+Agents poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/3.0rc/concepts/settings/) with the `PREFECT_AGENT_QUERY_INTERVAL` setting.
 
 It is possible for multiple agent processes to be started for a single work pool. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
 

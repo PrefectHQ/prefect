@@ -12,11 +12,11 @@ For example, you can use separate workspaces to isolate dev, staging, and prod e
 When you first log into Prefect Cloud, you will be prompted to create your own initial workspace.
 After creating your workspace, you'll be able to view flow runs, flows, deployments, and other workspace-specific features in the Prefect Cloud UI.
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](/3.0rc/img/ui/cloud-new-workspace.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](/3.0rc//img/ui/cloud-new-workspace.png)
 
 Select a workspace name in the navigation menu to see all workspaces you can access.
 
-![Viewing all available workspaces in the Prefect Cloud UI.](/3.0rc/img/ui/all-workspaces.png)
+![Viewing all available workspaces in the Prefect Cloud UI.](/3.0rc//img/ui/all-workspaces.png)
 
 Your list of available workspaces may include:
 
@@ -26,12 +26,12 @@ Your list of available workspaces may include:
 !!! cloud-ad "Workspace-specific features"
     Each workspace keeps track of its own:
 
-    - [Flow runs](/ui/flow-runs/) and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
-    - [Flows](/concepts/flows/) associated with flow runs or deployments observed by the Prefect Cloud API
-    - [Deployments](/concepts/deployments/)
-    - [Work pools](/concepts/work-pools/)
-    - [Blocks](/ui/blocks/)
-    - [Automations](/concepts/automations/)
+    - [Flow runs](/3.0rc/ui/flow-runs/) and task runs executed in an environment that is [syncing with the workspace](/3.0rc/ui/cloud/#workspaces)
+    - [Flows](/3.0rc/concepts/flows/) associated with flow runs or deployments observed by the Prefect Cloud API
+    - [Deployments](/3.0rc/concepts/deployments/)
+    - [Work pools](/3.0rc/concepts/work-pools/)
+    - [Blocks](/3.0rc/ui/blocks/)
+    - [Automations](/3.0rc/concepts/automations/)
 
 Your user permissions within workspaces may vary.
 Account admins can assign roles and permissions at the workspace level.
@@ -46,7 +46,7 @@ You'll be prompted to configure:
 - The **Workspace Name** must be unique within the account.
 - An optional description for the workspace.
 
-![Creating a new workspace in the Prefect Cloud UI.](/3.0rc/img/ui/create-workspace.png)
+![Creating a new workspace in the Prefect Cloud UI.](/3.0rc//img/ui/create-workspace.png)
 
 Select **Create** to create the new workspace.
 The number of available workspaces varies by [Prefect Cloud plan](https://www.prefect.io/pricing/).
@@ -56,7 +56,7 @@ See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces
 
 Within a workspace, select **Settings -> General** to view or edit workspace details.  
 
-![Managing a workspace in the Prefect Cloud UI.](/3.0rc/img/ui/workspace-settings.png)
+![Managing a workspace in the Prefect Cloud UI.](/3.0rc//img/ui/workspace-settings.png)
 
 On this page you can edit workspace details or delete the workspace.
 
@@ -65,15 +65,15 @@ On this page you can edit workspace details or delete the workspace.
 
 ## Workspace access <span class="badge pro"></span> <span class="badge custom"></span>
 
-Within a Prefect Cloud Pro or Custom tier account, Workspace Owners can invite other people to be members and provision [service accounts](/ui/service-accounts/) to a workspace.
-In addition to giving the user access to the workspace, a Workspace Owner assigns a [workspace role](/ui/roles/) to the user.
+Within a Prefect Cloud Pro or Custom tier account, Workspace Owners can invite other people to be members and provision [service accounts](/3.0rc/ui/service-accounts/) to a workspace.
+In addition to giving the user access to the workspace, a Workspace Owner assigns a [workspace role](/3.0rc/ui/roles/) to the user.
 The role specifies the scope of permissions for the user within the workspace.
 
 As a Workspace Owner, select **Workspaces -> Sharing** to manage members and service accounts for the workspace.
 
 If you've previously invited individuals to your account or provisioned service accounts, you'll see them listed here.
 
-![Managing sharing in a workspace in the Prefect Cloud UI.](/3.0rc/img/ui/workspace-sharing.png)
+![Managing sharing in a workspace in the Prefect Cloud UI.](/3.0rc//img/ui/workspace-sharing.png)
 
 To invite someone to an account, select the Members **+** icon. You can select from a list of existing account members.
 
@@ -105,7 +105,7 @@ Workspace transfer retains existing workspace configuration and flow run history
 To transfer a workspace, select **Settings**  -> **General** within the workspace.
 Then, from the three dot menu in the upper right of the page, select **Transfer**.
 
-![Initiating a workspace transfer in the Prefect Cloud UI.](/3.0rc/img/ui/workspace-transfer.png)
+![Initiating a workspace transfer in the Prefect Cloud UI.](/3.0rc//img/ui/workspace-transfer.png)
 
 The **Transfer Workspace** page shows the workspace to be transferred on the left.
 Select the target account for the workspace on the right.
