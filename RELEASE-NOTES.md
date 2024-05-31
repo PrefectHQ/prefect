@@ -123,7 +123,6 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13670
 - https://github.com/PrefectHQ/prefect/pull/13723
 
-### Bug fixes and quality of life improvements
 
 
 ### Enhancements
