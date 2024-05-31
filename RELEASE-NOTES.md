@@ -30,6 +30,7 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13276
 - https://github.com/PrefectHQ/prefect/pull/13611
 - https://github.com/PrefectHQ/prefect/pull/13547
+- https://github.com/PrefectHQ/prefect/pull/13706
 
 ### Transactional semantics - Rollback and commit hooks that facilitate idempotent python code
 
@@ -112,6 +113,8 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13280
 - https://github.com/PrefectHQ/prefect/pull/13696
 - https://github.com/PrefectHQ/prefect/pull/13668
+- https://github.com/PrefectHQ/prefect/pull/13670
+- https://github.com/PrefectHQ/prefect/pull/13723
 
 ### Bug fixes and quality of life improvements
 
@@ -126,6 +129,7 @@ See the following pull requests for implementation details:
 - Migrate schemas to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13574
 - Removes block auto-instrumentation — https://github.com/PrefectHQ/prefect/pull/13407
 - Migrate all uses of the banned characters validation to a self-validator — https://github.com/PrefectHQ/prefect/pull/13370
+- Ignore and warn on unrecognized settings - https://github.com/PrefectHQ/prefect/pull/13624
 
 ### Fixes
 - Remove unnecessary flow run infra override access checks — https://github.com/PrefectHQ/prefect/pull/13401
@@ -159,14 +163,18 @@ See the following pull requests for implementation details:
 - Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 - Removing references to deprecated block types and add disclaimer — https://github.com/PrefectHQ/prefect/pull/13651
 - Edit review of Execution section — https://github.com/PrefectHQ/prefect/pull/13253
+- Remove `storage` concept page and refs - https://github.com/PrefectHQ/prefect/pull/13630
 
 ### Integrations
-- Migrate `prefect-email` to pydantic2 — https://github.com/PrefectHQ/prefect/pull/13654
-- Migrate `prefect-slack` to pydantic 2 — https://github.com/PrefectHQ/prefect/pull/13673
-- Migrate `prefect-shell` to pydantic 2 — https://github.com/PrefectHQ/prefect/pull/13675
-- Migrate `prefect-gcp` to pydantic 2 — https://github.com/PrefectHQ/prefect/pull/13650
+- Migrate `prefect-dbt` to pydantic v2 - https://github.com/PrefectHQ/prefect/pull/13718
+- Migrate `prefect-email` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13654
+- Migrate `prefect-slack` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13673
+- Migrate `prefect-shell` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13675
+- Migrate `prefect-gcp` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13650
 - Migrate `prefect-github` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13655
 - Migrate `prefect-gitlab` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13656
+- Migrate `prefect-docker` to pydantic v2 - https://github.com/PrefectHQ/prefect/pull/13697
+- Migrate `prefect-sqlalchemy` to pydantic v2 - https://github.com/PrefectHQ/prefect/pull/13700
 - Add `PrefectDistributedClient` to `prefect-dask` — https://github.com/PrefectHQ/prefect/pull/13537
 - Update `RayTaskRunner` for compatibility with new engine — https://github.com/PrefectHQ/prefect/pull/13575
 - Update `DaskTaskRunner` for compatibility with the updated engine — https://github.com/PrefectHQ/prefect/pull/13555
@@ -195,6 +203,7 @@ See the following pull requests for implementation details:
 - Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
 - Remove old task runners and futures modules — https://github.com/PrefectHQ/prefect/pull/13593
 - Remove is_state — https://github.com/PrefectHQ/prefect/pull/13569
+- Remove deprecated options from `prefect work-queue` and refs to agents - https://github.com/PrefectHQ/prefect/pull/13638
 
 ### Contributors
 - @bsignoret
