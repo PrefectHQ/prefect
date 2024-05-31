@@ -6,7 +6,7 @@ We're excited to announce the release candidate of Prefect 3.0. It's the most fl
 
 ### Run tasks independently of flows
 
-You can now run, serve, and submit tasks outside of flows and inside of other tasks.
+You can now run and serve tasks outside of flows and inside of other tasks.
 
 ```python
 from prefect import task
