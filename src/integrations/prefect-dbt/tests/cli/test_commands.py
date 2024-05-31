@@ -393,18 +393,18 @@ class TestDbtCoreOperation:
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
-def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+async def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
-    def test_flow():
-        return run_dbt_build(
+    async def test_flow():
+        return await run_dbt_build(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
             create_summary_artifact=True,
         )
 
-    test_flow()
-    assert (a := Artifact.get(key="foo"))
+    await test_flow()
+    assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt build Task Summary")
     assert "my_first_dbt_model" in a.data
@@ -412,9 +412,9 @@ def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare):
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
-def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+async def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
-    def test_flow():
+    async def test_flow():
         return run_dbt_test(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
@@ -422,8 +422,8 @@ def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
             create_summary_artifact=True,
         )
 
-    test_flow()
-    assert (a := Artifact.get(key="foo"))
+    await test_flow()
+    assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt test Task Summary")
     assert "my_first_dbt_model" in a.data
@@ -431,18 +431,18 @@ def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
-def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+async def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
-    def test_flow():
-        return run_dbt_snapshot(
+    async def test_flow():
+        return await run_dbt_snapshot(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
             create_summary_artifact=True,
         )
 
-    test_flow()
-    assert (a := Artifact.get(key="foo"))
+    await test_flow()
+    assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt snapshot Task Summary")
     assert "my_first_dbt_model" in a.data
@@ -450,18 +450,18 @@ def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_bare):
 
 
 @pytest.mark.usefixtures("dbt_runner_model_result")
-def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare):
+async def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
-    def test_flow():
-        return run_dbt_seed(
+    async def test_flow():
+        return await run_dbt_seed(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
             create_summary_artifact=True,
         )
 
-    test_flow()
-    assert (a := Artifact.get(key="foo"))
+    await test_flow()
+    assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt seed Task Summary")
     assert "my_first_dbt_model" in a.data
@@ -480,7 +480,7 @@ def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
         )
 
     test_flow()
-    assert (a := Artifact.get(key="foo"))
+    assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt run Task Summary")
     assert "my_first_dbt_model" in a.data
@@ -510,7 +510,7 @@ def test_run_dbt_model_creates_unsuccessful_artifact(
         Exception, match="dbt task result success: False with exception: None"
     ):
         test_flow()
-    assert (a := Artifact.get(key="foo"))
+    assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt run Task Summary")
     assert "my_first_dbt_model" in a.data
