@@ -95,6 +95,7 @@ def main(
 async def version():
     """Get the current Prefect version."""
     import sqlite3
+    import pkg_resources
 
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
@@ -122,6 +123,15 @@ async def version():
         server_type = "<client error>"
 
     version_info["Server type"] = server_type.lower()
+
+    pydantic_version: str
+
+    try:
+        pydantic_version = pkg_resources.get_distribution("pydantic").version
+    except pkg_resources.DistributionNotFound:
+        pydantic_version = "Not installed"
+
+    version_info['Pydantic version'] = pydantic_version
 
     # TODO: Consider adding an API route to retrieve this information?
     if server_type == ServerType.EPHEMERAL.value:
