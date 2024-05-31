@@ -2,25 +2,65 @@
 
 ## Release 3.0rc1
 
-### Breaking Changes
-- Remove `prefect deployment build` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13366
-- Remove `prefect agent` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13365
-- Remove prefect `deployment apply` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13367
-- Remove `PrefectAgent` class — https://github.com/PrefectHQ/prefect/pull/13374
-- Remove prefect.software — https://github.com/PrefectHQ/prefect/pull/13375
-- Remove `deployments` module — https://github.com/PrefectHQ/prefect/pull/13373
-- Remove `EcsTask` from `main` — https://github.com/PrefectHQ/prefect/pull/13417
-- Remove `AzureContainerInstanceJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13418
-- Remove `VertexAICustomTrainingJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13419
-- Remove `CloudRunJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13420
-- Remove infrastructure blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13424
-- Remove `Infrastructure`, `BlockWorker` from `main` — https://github.com/PrefectHQ/prefect/pull/13430
-- Remove deprecated storage blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13410
-- Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
-- Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
-- Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
+We're excited to announce the release candidate of Prefect 3.0. This version of Prefect is our best, most flexible, and fastest yet, and introduces or newly open sources several exciting new features. Install it by running pip install prefect==3.0rc1 and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
 
-### Exciting New Features 🎉
+### Autonomous tasks 
+Users can now run, serve, and submit tasks outside of flows and inside of other tasks.
+
+```python
+from prefect import task
+
+@task
+def my_background_task(name: str):
+    print(f"Hello, {name}!")
+
+if __name__ == "__main__":
+    my_background_task.delay("ford")
+```
+
+### Transactional orchestration SDK
+
+Rollback and commit hooks that facilitate idempotent python code
+
+```python
+@task
+def first_task():
+    print('first')
+
+@first_task.on_rollback
+def roll(txn):
+    print('rolling back')
+
+@task
+def second_task():
+    raise RuntimeError("oopsie")
+
+@flow
+def txn_flow():
+    with transaction():
+        first_task()
+        second_task()
+```
+
+### Open source Events and Automations
+
+Trigger actions such as notifications, orchestration actions, or API calls in response to Prefect or external events.
+
+### More flexible variables and new artifact types
+
+Variables can now be any JSON compatible type including dicts, lists, and integers. Progress and Image artifacts make it easy to add visual annotations to your flow run execution graph.
+
+### Faster and better CLI
+
+Improved CLI speed and several added commands and conveniences.
+
+### Updated navigation, styling, and interaction design
+
+A new runs page displays flow and task run executions, and an improved sidebar and switcher makes navigating the app simpler than ever.
+
+### Many bug fixes and quality of life improvements
+
+
 - Create and manage automations in the UI — https://github.com/PrefectHQ/prefect/pull/13293
 - Add Event Feed and Event pages to the ui — https://github.com/PrefectHQ/prefect/pull/13521
 
@@ -154,6 +194,24 @@
 - Add `PrefectDistributedClient` to `prefect-dask` — https://github.com/PrefectHQ/prefect/pull/13537
 - Update `RayTaskRunner` for compatibility with new engine — https://github.com/PrefectHQ/prefect/pull/13575
 - Update `DaskTaskRunner` for compatibility with the updated engine — https://github.com/PrefectHQ/prefect/pull/13555
+
+### Breaking Changes
+- Remove `prefect deployment build` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13366
+- Remove `prefect agent` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13365
+- Remove prefect `deployment apply` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13367
+- Remove `PrefectAgent` class — https://github.com/PrefectHQ/prefect/pull/13374
+- Remove prefect.software — https://github.com/PrefectHQ/prefect/pull/13375
+- Remove `deployments` module — https://github.com/PrefectHQ/prefect/pull/13373
+- Remove `EcsTask` from `main` — https://github.com/PrefectHQ/prefect/pull/13417
+- Remove `AzureContainerInstanceJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13418
+- Remove `VertexAICustomTrainingJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13419
+- Remove `CloudRunJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13420
+- Remove infrastructure blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13424
+- Remove `Infrastructure`, `BlockWorker` from `main` — https://github.com/PrefectHQ/prefect/pull/13430
+- Remove deprecated storage blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13410
+- Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
+- Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
+- Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
 
 ### Contributors
 - @bsignoret
