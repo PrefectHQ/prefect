@@ -162,10 +162,7 @@
 
 ### Contributors
 - @bsignoret
-- @cicdw
 - @jaraics
-- @mitchnielsen
-- @stellardave
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.0...preview
 
