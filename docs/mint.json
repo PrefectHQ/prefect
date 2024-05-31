@@ -16,8 +16,7 @@
     "dark": "#2D6DF6"
   },
   "versions": [
-    "3.0rc",
-    "2.19.x"
+    "3.0rc"
   ],
   "feedback": {
     "thumbsRating": true
