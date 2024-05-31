@@ -1,4 +1,5 @@
 """Utilities for common interactions with the dbt Cloud API"""
+
 from json import JSONDecodeError
 from typing import Any, Dict, Optional
 
