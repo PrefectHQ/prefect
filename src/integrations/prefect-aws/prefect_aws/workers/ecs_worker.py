@@ -63,6 +63,8 @@ from slugify import slugify
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
+from prefect.client.orchestration import PrefectClient
+from prefect.client.utilities import inject_client
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -72,6 +74,9 @@ from prefect.workers.base import (
     BaseVariables,
     BaseWorker,
     BaseWorkerResult,
+    apply_values,
+    resolve_block_document_references,
+    resolve_variables,
 )
 from prefect_aws.credentials import AwsCredentials, ClientType
 
@@ -157,7 +162,7 @@ def _default_task_run_request_template() -> dict:
     return yaml.safe_load(DEFAULT_TASK_RUN_REQUEST_TEMPLATE)
 
 
-def _drop_empty_keys_from_task_definition(taskdef: dict):
+def _drop_empty_keys_from_dict(taskdef: dict):
     """
     Recursively drop keys with 'empty' values from a task definition dict.
 
@@ -167,11 +172,11 @@ def _drop_empty_keys_from_task_definition(taskdef: dict):
         if not value:
             taskdef.pop(key)
         if isinstance(value, dict):
-            _drop_empty_keys_from_task_definition(value)
+            _drop_empty_keys_from_dict(value)
         if isinstance(value, list):
             for v in value:
                 if isinstance(v, dict):
-                    _drop_empty_keys_from_task_definition(v)
+                    _drop_empty_keys_from_dict(v)
 
 
 def _get_container(containers: List[dict], name: str) -> Optional[dict]:
@@ -278,6 +283,17 @@ class ECSJobConfiguration(BaseJobConfiguration):
     cluster: Optional[str] = Field(default=None)
     match_latest_revision_in_family: bool = Field(default=False)
 
+    execution_role_arn: Optional[str] = Field(
+        title="Execution Role ARN",
+        default=None,
+        description=(
+            "An execution role to use for the task. This controls the permissions of "
+            "the task when it is launching. If this value is not null, it will "
+            "override the value in the task definition. An execution role must be "
+            "provided to capture logs from the container."
+        ),
+    )
+
     @model_validator(mode="after")
     def task_run_request_requires_arn_if_no_task_definition_given(self) -> Self:
         """
@@ -373,6 +389,39 @@ class ECSJobConfiguration(BaseJobConfiguration):
                 "You must provide a `vpc_id` to enable custom `network_configuration`."
             )
         return self
+
+    @classmethod
+    @inject_client
+    async def from_template_and_values(
+        cls,
+        base_job_template: dict,
+        values: dict,
+        client: Optional[PrefectClient] = None,
+    ):
+        """Creates a valid worker configuration object from the provided base
+        configuration and overrides.
+
+        Important: this method expects that the base_job_template was already
+        validated server-side.
+        """
+
+        job_config: Dict[str, Any] = base_job_template["job_configuration"]
+        variables_schema = base_job_template["variables"]
+        variables = cls._get_base_config_defaults(
+            variables_schema.get("properties", {})
+        )
+        variables.update(values)
+
+        _drop_empty_keys_from_dict(variables)  # TODO: investigate why this is necessary
+
+        populated_configuration = apply_values(template=job_config, values=variables)
+        populated_configuration = await resolve_block_document_references(
+            template=populated_configuration, client=client
+        )
+        populated_configuration = await resolve_variables(
+            template=populated_configuration, client=client
+        )
+        return cls(**populated_configuration)
 
 
 class ECSVariables(BaseVariables):
@@ -1669,8 +1718,8 @@ class ECSWorker(BaseWorker):
 
             taskdef.setdefault("networkMode", "bridge")
 
-        _drop_empty_keys_from_task_definition(taskdef_1)
-        _drop_empty_keys_from_task_definition(taskdef_2)
+        _drop_empty_keys_from_dict(taskdef_1)
+        _drop_empty_keys_from_dict(taskdef_2)
 
         # Clear fields that change on registration for comparison
         for field in ECS_POST_REGISTRATION_FIELDS:

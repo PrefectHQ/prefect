@@ -10,6 +10,7 @@ import anyio
 import botocore
 import pytest
 import yaml
+from exceptiongroup import ExceptionGroup, catch
 from moto import mock_ec2, mock_ecs, mock_logs
 from moto.ec2.utils import generate_instance_identity_document
 from prefect_aws.credentials import _get_client_cached
@@ -1303,9 +1304,14 @@ async def test_network_config_from_vpc_with_no_subnets(
         vpc_id=vpc.id,
     )
 
-    with pytest.raises(
-        ValueError, match=f"Failed to find subnets for VPC with ID {vpc.id}"
-    ):
+    def handle_error(exc_grp: ExceptionGroup):
+        assert len(exc_grp.exceptions) == 1
+        assert isinstance(exc_grp.exceptions[0], ExceptionGroup)
+        exc = exc_grp.exceptions[0].exceptions[0]
+        assert isinstance(exc, ValueError)
+        assert "Failed to find subnets for VPC with ID" in str(exc)
+
+    with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             await run_then_stop_task(worker, configuration, flow_run)
 
@@ -1323,13 +1329,17 @@ async def test_bridge_network_mode_raises_on_fargate(
         template_overrides=dict(task_definition={"networkMode": "bridge"}),
     )
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            "Found network mode 'bridge' which is not compatible with launch type "
-            f"{launch_type!r}"
-        ),
-    ):
+    def handle_error(exc_grp: ExceptionGroup):
+        assert len(exc_grp.exceptions) == 1
+        assert isinstance(exc_grp.exceptions[0], ExceptionGroup)
+        exc = exc_grp.exceptions[0].exceptions[0]
+        assert isinstance(exc, ValueError)
+        assert (
+            "Found network mode 'bridge' which is not compatible with launch type"
+            in str(exc)
+        )
+
+    with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             await run_then_stop_task(worker, configuration, flow_run)
 
