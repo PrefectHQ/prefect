@@ -4,7 +4,7 @@ Command line interface for working with work queues.
 
 import warnings
 from textwrap import dedent
-from typing import List, Optional, Union
+from typing import Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -67,15 +67,6 @@ async def create(
     limit: int = typer.Option(
         None, "-l", "--limit", help="The concurrency limit to set on the queue."
     ),
-    tags: List[str] = typer.Option(
-        None,
-        "-t",
-        "--tag",
-        help=(
-            "DEPRECATED: One or more optional tags. This option will be removed on"
-            " 2023-02-23."
-        ),
-    ),
     pool: Optional[str] = typer.Option(
         None,
         "-p",
@@ -92,25 +83,11 @@ async def create(
     """
     Create a work queue.
     """
-    if tags:
-        app.console.print(
-            (
-                "Supplying `tags` for work queues is deprecated. This work "
-                "queue will use legacy tag-matching behavior. "
-                "This option will be removed on 2023-02-23."
-            ),
-            style="red",
-        )
-
-    if pool and tags:
-        exit_with_error(
-            "Work queues created with tags cannot specify work pools or set priorities."
-        )
 
     async with get_client() as client:
         try:
             result = await client.create_work_queue(
-                name=name, tags=tags or None, work_pool_name=pool, priority=priority
+                name=name, work_pool_name=pool, priority=priority
             )
             if limit is not None:
                 await client.update_work_queue(
@@ -122,41 +99,24 @@ async def create(
         except ObjectNotFound:
             exit_with_error(f"Work pool with name: {pool!r} not found.")
 
-    if tags:
-        tags_message = f"tags - {', '.join(sorted(tags))}\n" or ""
-        output_msg = dedent(
-            f"""
-            Created work queue with properties:
-                name - {name!r}
-                id - {result.id}
-                concurrency limit - {limit}
-                {tags_message}
-            Start an agent to pick up flow runs from the work queue:
-                prefect agent start -q '{result.name}'
+    if not pool:
+        # specify the default work pool name after work queue creation to allow the server
+        # to handle a bunch of logic associated with agents without work pools
+        pool = DEFAULT_AGENT_WORK_POOL_NAME
+    output_msg = dedent(
+        f"""
+        Created work queue with properties:
+            name - {name!r}
+            work pool - {pool!r}
+            id - {result.id}
+            concurrency limit - {limit}
+        Start a worker to pick up flow runs from the work queue:
+            prefect worker start -q '{result.name} -p {pool}'
 
-            Inspect the work queue:
-                prefect work-queue inspect '{result.name}'
-            """
-        )
-    else:
-        if not pool:
-            # specify the default work pool name after work queue creation to allow the server
-            # to handle a bunch of logic associated with agents without work pools
-            pool = DEFAULT_AGENT_WORK_POOL_NAME
-        output_msg = dedent(
-            f"""
-            Created work queue with properties:
-                name - {name!r}
-                work pool - {pool!r}
-                id - {result.id}
-                concurrency limit - {limit}
-            Start an agent to pick up flow runs from the work queue:
-                prefect agent start -q '{result.name} -p {pool}'
-
-            Inspect the work queue:
-                prefect work-queue inspect '{result.name}'
-            """
-        )
+        Inspect the work queue:
+            prefect work-queue inspect '{result.name}'
+        """
+    )
     exit_with_success(output_msg)
 
 
