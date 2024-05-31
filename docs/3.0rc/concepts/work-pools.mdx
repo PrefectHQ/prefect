@@ -7,7 +7,7 @@ Work pools and workers bridge the Prefect _orchestration environment_ with your 
 
 ## Work pool overview
 
-Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [workers](#worker-overview) (or less ideally, [agents](/concepts/agents)) to poll the work pool for flow runs to execute. [Push work pools](/guides/deployment/push-work-pools) can submit runs directly to your serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. [Managed work pools](/guides/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
+Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [workers](#worker-overview) to poll the work pool for flow runs to execute. [Push work pools](/guides/deployment/push-work-pools) can submit runs directly to your serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. [Managed work pools](/guides/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 !!! tip "Work pools are like pub/sub topics"
     It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) workers through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the worker that will execute their runs, making it easy to promote runs through environments or even debug locally.
@@ -70,7 +70,6 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
 
     | Infrastructure Type                  | Description                                                                                                                |
     | ------------------------------       | -------------------------------------------------------------------------------------------------------------------------- |
-    | Prefect Agent                        | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                              |
     | Process                              | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                    |
     | AWS Elastic Container Service        | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.               |
     | Azure Container Instances            | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                      |
@@ -89,7 +88,6 @@ If you don't use the `--type` flag to specify an infrastructure type, you are pr
 
     | Infrastructure Type           | Description              |
     | ----------------------------  | ------------------------ |
-    | Prefect Agent                 | Execute flow runs on heterogeneous infrastructure using infrastructure blocks.                                                  |
     | Process                       | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                       |
     | AWS Elastic Container Service | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.                  |
     | Azure Container Instances     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                         |
