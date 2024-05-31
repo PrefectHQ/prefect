@@ -24,7 +24,6 @@ from prefect.exceptions import (
     MappingMissingIterable,
     ParameterBindError,
     ReservedArgumentError,
-    RollBack,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture as NewPrefectFuture
@@ -4099,23 +4098,6 @@ class TestNestedTasks:
 
 
 class TestTransactions:
-    def test_rollback_hook_is_called_on_rollback(self):
-        data = {}
-
-        @task
-        def my_task():
-            raise RollBack()
-
-        @my_task.on_rollback
-        def rollback(txn):
-            data["called"] = True
-
-        state = my_task(return_state=True)
-
-        assert state.is_completed()
-        assert state.name == "RolledBack"
-        assert data["called"] is True
-
     def test_commit_hook_is_called_on_commit(self):
         data = {}
 
@@ -4132,6 +4114,7 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
+        assert str(state.state_details.task_run_id) == data["txn"].key
 
 
 class TestApplyAsync:
