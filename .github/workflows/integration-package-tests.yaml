@@ -4,13 +4,13 @@ on:
   pull_request:
     paths:
       - .github/workflows/integration-package-tests.yaml
-      - "src/**/*"
+      - "src/**/*.py"
     types: [opened, reopened, synchronize, labeled, unlabeled]
   push:
     branches:
       - main
     paths:
-      - "src/integrations/*/**"
+      - "src/integrations/*/**.py"
 
 jobs:
   prepare-matrix:
