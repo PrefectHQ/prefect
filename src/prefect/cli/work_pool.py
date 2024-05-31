@@ -582,14 +582,13 @@ async def get_default_base_job_template(
     Examples:
         $ prefect work-pool get-default-base-job-template --type kubernetes
     """
-
     base_job_template = await get_default_base_job_template_for_infrastructure_type(
         type
     )
     if base_job_template is None:
         exit_with_error(
             f"Unknown work pool type {type!r}. "
-            "Please choose from yo yo yo "
+            "Please choose from"
             f" {', '.join(await get_available_work_pool_types())}."
         )
 
