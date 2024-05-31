@@ -3,7 +3,7 @@ title: Push Work to Serverless Computing Infrastructure
 description: Learn how to use Prefect push work pools to schedule work on serverless infrastructure without having to run a worker.
 ---
 
-Push [work pools](/concepts/work-pools/#work-pool-overview) are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without running a worker.
+Push [work pools](/3.0rc/concepts/work-pools/#work-pool-overview) are a special type of work pool that allows Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without running a worker.
 Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, and Modal.
 
 In this guide you will:
@@ -582,7 +582,7 @@ Click **Create** to start configuring your push work pool by selecting a push op
 
 === "AWS ECS"
 
-    Each step has several optional fields that are detailed in the [work pools documentation](/concepts/work-pools/). 
+    Each step has several optional fields that are detailed in the [work pools documentation](/3.0rc/concepts/work-pools/). 
     Select the block you created under the AWS Credentials field. 
     This will allow Prefect Cloud to securely interact with your ECS cluster.
 
@@ -593,13 +593,13 @@ Click **Create** to start configuring your push work pool by selecting a push op
 
 === "Google Cloud Run"
 
-    Each step has several optional fields that are detailed in the [work pools documentation](/concepts/work-pools/). 
+    Each step has several optional fields that are detailed in the [work pools documentation](/3.0rc/concepts/work-pools/). 
     Select the block you created under the GCP Credentials field. 
     This will allow Prefect Cloud to securely interact with your GCP project.
 
 === "Modal"
 
-    Each step has several optional fields that are detailed in the [work pools documentation](/concepts/work-pools/). 
+    Each step has several optional fields that are detailed in the [work pools documentation](/3.0rc/concepts/work-pools/). 
     Select the block you created under the Modal Credentials field. 
     This will allow Prefect Cloud to securely interact with your Modal account.
 
@@ -607,7 +607,7 @@ Create your pool and you are ready to deploy flows to your Push work pool.
 
 ## Deployment
 
-Deployment details are described in the deployments [concept section](/concepts/deployments/).
+Deployment details are described in the deployments [concept section](/3.0rc/concepts/deployments/).
 Your deployment needs to be configured to send flow runs to our push work pool.
 For example, if you create a deployment through the interactive command line experience, choose the work pool you just created. If you are deploying an existing `prefect.yaml` file, the deployment would contain:
 
@@ -630,6 +630,6 @@ You'll see the flow start running without ever having to poll the work pool, bec
 
 ## Next steps
 
-Learn more about workers and work pools in the [Prefect concept documentation](/concepts/work-pools/).
+Learn more about workers and work pools in the [Prefect concept documentation](/3.0rc/concepts/work-pools/).
 
-Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying Flows to Work Pools and Workers guide](/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying Flows to Work Pools and Workers guide](/3.0rc/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).

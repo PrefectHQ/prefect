@@ -13,7 +13,7 @@ To create flow runs in a local or remote execution environment and use either Pr
 Configure a local execution environment to use Prefect Cloud as the API server for flow runs. In other words, "log in" to Prefect Cloud from a local environment where you want to run a flow.
 
 1. Open a new terminal session.
-2. [Install Prefect](/getting-started/installation/) in the environment in which you want to execute flow runs.
+2. [Install Prefect](/3.0rc/getting-started/installation/) in the environment in which you want to execute flow runs.
 
 <div class="terminal">
 ```bash
@@ -84,12 +84,12 @@ $ prefect config set PREFECT_API_KEY="[API-KEY]"
 
 When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` value directly from the page URL.
 
-In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect server start`. See [Settings](/concepts/settings/) for details.
+In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect server start`. See [Settings](/3.0rc/concepts/settings/) for details.
 
 !!! note "Environment variables"
-    You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
+    You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/3.0rc/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
 
-See the [Flow orchestration with Prefect](/tutorial/flows/) tutorial for examples.
+See the [Flow orchestration with Prefect](/3.0rc/tutorial/flows/) tutorial for examples.
 
 ## Install requirements in execution environments
 

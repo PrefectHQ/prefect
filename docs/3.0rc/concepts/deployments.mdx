@@ -82,7 +82,7 @@ They are still valid flows that will be monitored by the API and observable in t
     Deployment metadata references code that exists in potentially diverse locations within your environment.
     This separation of concerns means that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
 
-    This is the heart of the Prefect hybrid model: there's a boundary between your proprietary assets, such as your flow code, and the Prefect backend (including [Prefect Cloud](/cloud/)). 
+    This is the heart of the Prefect hybrid model: there's a boundary between your proprietary assets, such as your flow code, and the Prefect backend (including [Prefect Cloud](/3.0rc/cloud/)). 
 
 ### Scheduling and parametrization
 
@@ -91,11 +91,11 @@ Just as flows can be called as functions with different input values, so can dep
 
 The six fields here capture the necessary metadata to perform such actions:
 
-- **`schedules`**: a list of [schedule objects](/concepts/schedules/).
+- **`schedules`**: a list of [schedule objects](/3.0rc/concepts/schedules/).
 Most of the convenient interfaces for creating deployments allow users to avoid creating this object themselves.
-For example, when [updating a deployment schedule in the UI](/concepts/schedules/#creating-schedules-through-the-ui) basic information such as a cron string or interval is all that's required.
+For example, when [updating a deployment schedule in the UI](/3.0rc/concepts/schedules/#creating-schedules-through-the-ui) basic information such as a cron string or interval is all that's required.
 - **`trigger`** (Cloud-only): triggers allow you to define event-based rules for running a deployment.
-For more information see [Automations](/concepts/automations/).
+For more information see [Automations](/3.0rc/concepts/automations/).
 - **`parameter_openapi_schema`**: an [OpenAPI compatible schema](https://swagger.io/specification/) that defines the types and defaults for the flow's parameters.
 This is used by both the UI and the backend to expose options for creating manual runs as well as type validation.
 - **`parameters`**: default values of flow parameters that this deployment will pass on each run.
@@ -108,7 +108,7 @@ These can be overwritten through a trigger or when manually creating a custom ru
 
 #### Running a deployed flow from within Python flow code
 
-Prefect provides a [`run_deployment` function](/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) that can be used to schedule the run of an existing deployment when your Python code executes.
+Prefect provides a [`run_deployment` function](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) that can be used to schedule the run of an existing deployment when your Python code executes.
 
 ```python
 from prefect.deployments import run_deployment
@@ -141,7 +141,7 @@ def my_flow():
     run_deployment(name="my_other_flow/my_deployment_name", as_subflow=False)
 ```
 
-The return value of `run_deployment` is a [FlowRun](/api-ref/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) object containing metadata about the scheduled run. You
+The return value of `run_deployment` is a [FlowRun](/3.0rc/api-ref/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) object containing metadata about the scheduled run. You
 can use this object to retrieve information about the run after calling
 `run_deployment`:
 
@@ -162,7 +162,7 @@ def main():
 
 !!! tip "Using the Prefect client"
     For more information on using the Prefect client to interact with Prefect's
-    REST API, see [our guide](/guides/using-the-client/).
+    REST API, see [our guide](/3.0rc/guides/using-the-client/).
 
 ## Versioning and bookkeeping
 
@@ -175,14 +175,14 @@ For example if you leverage `git` to manage code changes, use either a tag or co
 - **`tags`**: tags are a mechanism for grouping related work together across a diverse set of objects. Tags set on a deployment will be inherited by that deployment's flow runs. These tags can then be used to filter what runs are displayed on the primary UI dashboard, allowing you to customize different views into your work. In addition, in Prefect Cloud you can easily find objects through searching by tag.
 
 All of these bits of metadata can be leveraged to great effect by injecting them into the processes that Prefect is orchestrating. For example you can use both run ID and versions to organize files that you produce from your workflows, or by associating your flow run's tags with the metadata of a job it orchestrates.
-This metadata is available during execution through [Prefect runtime](/guides/runtime-context/).
+This metadata is available during execution through [Prefect runtime](/3.0rc/guides/runtime-context/).
 
 !!! tip "Everything has a version"
     Deployments aren't the only entity in Prefect with a version attached; both flows and tasks also have versions that can be set through their respective decorators. These versions will be sent to the API anytime the flow or task is run and thereby allow you to audit your changes across all levels.
 
 ### Workers and Work Pools
 
-[Workers and work pools](/concepts/work-pools/) are an advanced deployment pattern that allow you to dynamically provision infrastructure for each flow run.
+[Workers and work pools](/3.0rc/concepts/work-pools/) are an advanced deployment pattern that allow you to dynamically provision infrastructure for each flow run.
 In addition, the work pool job template interface allows users to create and govern opinionated interfaces to their workflow infrastructure.
 To do this, a deployment using workers needs to evaluate the following fields:
 
@@ -196,7 +196,7 @@ This field is often used for things such as Docker image names, Kubernetes annot
 Pull steps allow users to highly decouple their workflow architecture.
 For example, a common use of pull steps is to dynamically pull code from remote filesystems such as GitHub with each run of their deployment.
 
-For more information see [the guide to deploying with a worker](/guides/prefect-deploy/).
+For more information see [the guide to deploying with a worker](/3.0rc/guides/prefect-deploy/).
 
 ## Two approaches to deployments
 
@@ -204,10 +204,10 @@ There are two primary ways to deploy flows with Prefect, differentiated by how m
 
 In one setup, deploying Prefect flows is analogous to deploying a webserver - users author their workflows and then start a long-running process (often within a Docker container) that is responsible for managing all of the runs for the associated deployment(s).
 
-In the other setup, you do a little extra up-front work to set up a [work pool and a base job template that defines how individual flow runs will be submitted to infrastructure](/guides/prefect-deploy).
+In the other setup, you do a little extra up-front work to set up a [work pool and a base job template that defines how individual flow runs will be submitted to infrastructure](/3.0rc/guides/prefect-deploy).
 
-Prefect provides several [types of work pools](/concepts/work-pools/#work-pool-types) corresponding to different types of infrastructure.
-Prefect Cloud provides a [Prefect Managed work pool](/guides/managed-execution/) option that is the simplest way to run workflows remotely.
+Prefect provides several [types of work pools](/3.0rc/concepts/work-pools/#work-pool-types) corresponding to different types of infrastructure.
+Prefect Cloud provides a [Prefect Managed work pool](/3.0rc/guides/managed-execution/) option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
 Some work pool types require a client-side worker to submit job definitions to the appropriate infrastructure with each run.
@@ -218,7 +218,7 @@ Read further to decide which setup is best for your situation.
 
 ### Serving flows on long-lived infrastructure
 
-When you have several flows running regularly, [the `serve` method](/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/concepts/flows/#serving-multiple-flows-at-once) is a great option for managing multiple flows simultaneously.
+When you have several flows running regularly, [the `serve` method](/3.0rc/concepts/flows/#serving-a-flow) of the `Flow` object or [the `serve` utility](/3.0rc/concepts/flows/#serving-multiple-flows-at-once) is a great option for managing multiple flows simultaneously.
 
 Once you have authored your flow and decided on its deployment settings as described above, all that's left is to run this long-running process in a location of your choosing.
 The process will stay in communication with the Prefect API, monitoring for work and submitting each run within an individual subprocess.
@@ -240,9 +240,9 @@ However, there are a few reasons you might consider running flows on dynamically
 
 ### Dynamically provisioning infrastructure with work pools
 
-[Work pools](/concepts/work-pools/) allow Prefect to exercise greater control of the infrastructure on which flows run.
-Options for [serverless work pools](/guides/deployment/serverless-workers/) allow you to scale to zero when workflows aren't running.
-Prefect even provides you with the ability to [provision cloud infrastructure via a single CLI command](/guides/deployment/push-work-pools/#automatically-creating-a-new-push-work-pool-and-provisioning-infrastructure), if you use a Prefect Cloud push work pool option.
+[Work pools](/3.0rc/concepts/work-pools/) allow Prefect to exercise greater control of the infrastructure on which flows run.
+Options for [serverless work pools](/3.0rc/guides/deployment/serverless-workers/) allow you to scale to zero when workflows aren't running.
+Prefect even provides you with the ability to [provision cloud infrastructure via a single CLI command](/3.0rc/guides/deployment/push-work-pools/#automatically-creating-a-new-push-work-pool-and-provisioning-infrastructure), if you use a Prefect Cloud push work pool option.
 
 With work pools:
 

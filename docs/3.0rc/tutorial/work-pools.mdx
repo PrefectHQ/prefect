@@ -9,7 +9,7 @@ Work pools are a bridge between the Prefect orchestration layer and infrastructu
 To transition from persistent infrastructure to dynamic infrastructure, use `flow.deploy` instead of `flow.serve`.
 
 <Tip>
-    **[Choosing Between `flow.deploy()` and `flow.serve()`](/concepts/deployments/#two-approaches-to-deployments)**
+    **[Choosing Between `flow.deploy()` and `flow.serve()`](/3.0rc/concepts/deployments/#two-approaches-to-deployments)**
 
     Earlier in the tutorial you used `serve` to deploy your flows.
     For many use cases, `serve` is sufficient to meet scheduling and orchestration needs.
@@ -34,9 +34,9 @@ Other advantages to using work pools include:
 
 - Configuring default infrastructure configurations on your work pools that all jobs inherit and can override.
 - Allowing platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
-- Allowing work pools to prioritize (or limit) flow runs through the use of [work queues](/concepts/work-pools/#work-queues).
+- Allowing work pools to prioritize (or limit) flow runs through the use of [work queues](/3.0rc/concepts/work-pools/#work-queues).
 
-Prefect provides several [types of work pools](/concepts/work-pools/#work-pool-types).
+Prefect provides several [types of work pools](/3.0rc/concepts/work-pools/#work-pool-types).
 Prefect Cloud provides a Prefect Managed work pool option that is the simplest way to run workflows remotely.
 A cloud-provider account, such as AWS, is not required with a Prefect Managed work pool.
 
@@ -47,7 +47,7 @@ A cloud-provider account, such as AWS, is not required with a Prefect Managed wo
     
     This tutorial uses Prefect Cloud to deploy flows to work pools.
     Managed execution and push work pools are available in [Prefect Cloud](https://www.prefect.io/cloud) only.
-    If you are not using Prefect Cloud, learn more about work pools below and then proceed to the [next tutorial](/tutorial/workers/) that uses worker-based work pools.
+    If you are not using Prefect Cloud, learn more about work pools below and then proceed to the [next tutorial](/3.0rc/tutorial/workers/) that uses worker-based work pools.
 
 </Note>
 
@@ -83,7 +83,7 @@ Now that you’ve set up your work pool, you can deploy a flow to it. Deploy you
 
 From the previous steps, you now have:
 
-1. [A flow](/tutorial/flows/)
+1. [A flow](/3.0rc/tutorial/flows/)
 2. A work pool
 
 Update your `repo_info.py` file to create a deployment in Prefect Cloud.
@@ -180,7 +180,7 @@ prefect deployment run 'get_repo_info/my-deployment'
 ```
 
 Prefect Managed work pools are a great way to get started with Prefect.  
-See the [Managed Execution guide](/guides/managed-execution/) for more details.
+See the [Managed Execution guide](/3.0rc/guides/managed-execution/) for more details.
 
 For more control over the infrastructure that your flows run on, we recommend Prefect Cloud's push work pools.
 
@@ -295,10 +295,10 @@ Note that you only need to include an object of the `DeploymentImage` class with
 Otherwise, you can pass `image="my-image:latest"` to `deploy`.
 
 Also note that the `cron` argument schedules the deployment to run at 1:00 AM every day.
-See the [schedules](/concepts/schedules/) docs for more information on scheduling options.
+See the [schedules](/3.0rc/concepts/schedules/) docs for more information on scheduling options.
 
-See the [Push Work Pool guide](/guides/deployment/push-work-pools/) for more details and example commands for each cloud provider.
+See the [Push Work Pool guide](/3.0rc/guides/deployment/push-work-pools/) for more details and example commands for each cloud provider.
 
 ## Next steps 
 
-If you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect server instance, continue to the [next section of the tutorial](/tutorial/workers/). You will learn how to use work pools that rely on a worker and customize Docker images for container-based infrastructure.
+If you need more control over your infrastructure, want to run your workflows in Kubernetes, or are running a self-hosted Prefect server instance, continue to the [next section of the tutorial](/3.0rc/tutorial/workers/). You will learn how to use work pools that rely on a worker and customize Docker images for container-based infrastructure.

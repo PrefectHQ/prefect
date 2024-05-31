@@ -12,8 +12,8 @@ The Prefect CLI allows you to execute and schedule shell commands as Prefect flo
 ## Prerequisites
 Before you begin, ensure you have:
 
-- A basic understanding of Prefect flows. Start with the [Getting Started](/getting-started/quickstart/) guide if necessary.
-- A recent version of Prefect installed in your command line environment. Follow these [instructions](/getting-started/installation/) if you have any issues.
+- A basic understanding of Prefect flows. Start with the [Getting Started](/3.0rc/getting-started/quickstart/) guide if necessary.
+- A recent version of Prefect installed in your command line environment. Follow these [instructions](/3.0rc/getting-started/installation/) if you have any issues.
 
 ## The `watch` command
 The `watch` command wraps any shell command in a Prefect flow for instant execution. This is ideal for quick tasks or integrating shell scripts into your workflows.
@@ -33,7 +33,7 @@ This command makes a request to `wttr.in`, a console-oriented weather service, a
 - **Visibility and logging:** Use Prefect's logging to track the execution and output of your shell tasks.
 
 ## Deploy with `serve`
-To run shell commands on a schedule, the `serve` command creates a Prefect [deployment](/concepts/deployments/) for regular execution. This is a quick way to create a deployment served by Prefect.
+To run shell commands on a schedule, the `serve` command creates a Prefect [deployment](/3.0rc/concepts/deployments/) for regular execution. This is a quick way to create a deployment served by Prefect.
 
 ### Example usage
 To set up a daily weather report for Chicago at 9 AM, use the `serve` command as follows:
@@ -49,4 +49,4 @@ To shut down your server and pause your scheduled runs, hit `ctrl` + `c` in the 
 ### Benefits of `serve`
 - **Automated scheduling:** Schedule shell commands to run automatically, ensuring critical updates are generated and available on time.
 - **Centralized workflow management:** Manage and monitor your scheduled shell commands inside Prefect for a unified workflow overview.
-- **Configurable execution:** Customize execution frequency, [concurrency limits](/guides/global-concurrency-limits/), and other parameters to suit your project's needs and resources.
+- **Configurable execution:** Customize execution frequency, [concurrency limits](/3.0rc/guides/global-concurrency-limits/), and other parameters to suit your project's needs and resources.
