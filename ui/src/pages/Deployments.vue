@@ -10,14 +10,14 @@
       </template>
 
       <template v-else>
-        <DeploymentsList @delete="deploymentsSubscription.refresh" />
+        <DeploymentList @delete="deploymentsSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsList, PageHeadingDeployments, DeploymentsPageEmptyState, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
+  import { DeploymentList, PageHeadingDeployments, DeploymentsPageEmptyState, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

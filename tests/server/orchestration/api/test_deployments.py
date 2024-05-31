@@ -1246,6 +1246,21 @@ class TestReadDeployments:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
 
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                flow_or_deployment_name=schemas.filters.DeploymentOrFlowNameFilter(
+                    like_=flow.name
+                )
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/deployments/filter", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert {deployment["id"] for deployment in response.json()} == {
+            str(deployment_id_1),
+            str(deployment_id_2),
+        }
+
     async def test_read_deployments_applies_limit(self, deployments, client):
         response = await client.post("/deployments/filter", json=dict(limit=1))
         assert response.status_code == status.HTTP_200_OK
