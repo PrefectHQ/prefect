@@ -2,15 +2,9 @@
 
 from typing import Any, Dict, Optional, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect.blocks.core import Block
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_dbt.cli.configs import GlobalConfigs, TargetConfigs
 
 try:

@@ -1,15 +1,9 @@
 from pathlib import Path
 
+from prefect_dbt.cli.configs import SnowflakeTargetConfigs
 from prefect_snowflake.credentials import SnowflakeCredentials
 from prefect_snowflake.database import SnowflakeConnector
-from pydantic import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import SecretBytes, SecretStr
-else:
-    from pydantic import SecretBytes, SecretStr
-
-from prefect_dbt.cli.configs import SnowflakeTargetConfigs
+from pydantic import SecretBytes, SecretStr
 
 
 def test_snowflake_target_configs_get_configs():

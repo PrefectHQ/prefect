@@ -1,4 +1,5 @@
 """Module containing models for Snowflake configs"""
+
 from typing import Any, Dict, Optional
 
 try:
@@ -6,12 +7,8 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-from pydantic import VERSION as PYDANTIC_VERSION
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic import Field
 
 from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
