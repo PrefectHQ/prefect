@@ -23,7 +23,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "prefect>=3.0.0rc1",
   "pydantic>=2.4",
   "atlassian-python-api>=3.32.1,!=3.41.5,!=3.41.6,!=3.41.7,!=3.41.8",
 ]
@@ -55,7 +55,7 @@ prefect_bitbucket = "prefect_bitbucket"
 [tool.setuptools_scm]
 version_file = "prefect_bitbucket/_version.py"
 root = "../../.."
-tag_regex = "^prefect-bitbucket-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-bitbucket-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-bitbucket-*[0-9]*"'
 

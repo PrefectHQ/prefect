@@ -23,7 +23,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "prefect>=3.0.0rc1",
   "google-api-python-client>=2.20.0",
   "google-cloud-storage>=2.0.0",
   "tenacity>=8.0.0",
@@ -75,7 +75,7 @@ prefect_gcp = "prefect_gcp"
 [tool.setuptools_scm]
 version_file = "prefect_gcp/_version.py"
 root = "../../.."
-tag_regex = "^prefect-gcp-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-gcp-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-gcp-*[0-9]*"'
 
