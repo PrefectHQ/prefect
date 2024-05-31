@@ -57,12 +57,6 @@ class PrefectException(Exception):
     """
 
 
-class RollBack(PrefectException):
-    """
-    Raised to force a transaction to roll back.
-    """
-
-
 class CrashedRun(PrefectException):
     """
     Raised when the result from a crashed run is retrieved.

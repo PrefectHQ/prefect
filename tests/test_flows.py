@@ -4049,7 +4049,38 @@ class TestTransactions:
 
         @task
         def task2():
-            raise prefect.exceptions.RollBack()
+            pass
+
+        @task2.on_rollback
+        def rollback2(txn):
+            data2["called"] = True
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+                raise ValueError("oopsie")
+
+        main(return_state=True)
+
+        assert data2["called"] is True
+        assert data1["called"] is True
+
+    def test_task_failure_causes_previous_to_rollback(self):
+        data1, data2 = {}, {}
+
+        @task
+        def task1():
+            pass
+
+        @task1.on_rollback
+        def rollback(txn):
+            data1["called"] = True
+
+        @task
+        def task2():
+            raise RuntimeError("oopsie")
 
         @task2.on_rollback
         def rollback2(txn):
@@ -4063,7 +4094,7 @@ class TestTransactions:
 
         main(return_state=True)
 
-        assert data2["called"] is True
+        assert "called" not in data2
         assert data1["called"] is True
 
     def test_commit_isnt_called_on_rollback(self):
@@ -4079,7 +4110,7 @@ class TestTransactions:
 
         @task
         def task2():
-            raise prefect.exceptions.RollBack()
+            raise ValueError("oopsie")
 
         @flow
         def main():
@@ -4096,9 +4127,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_name_from_entrypoint(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow(name="My custom name")
         def flow_function(name: str) -> str:
             return name
@@ -4116,9 +4147,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_name_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow
         def flow_function(name: str) -> str:
             return name
@@ -4136,9 +4167,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_description_from_entrypoint(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow(description="My custom description")
         def flow_function(name: str) -> str:
             return name
@@ -4156,9 +4187,9 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_flow_description_from_entrypoint_no_description(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
-                            
+
         @flow
         def flow_function(name: str) -> str:
             return name
@@ -4176,7 +4207,7 @@ class TestLoadFlowArgumentFromEntrypoint:
     def test_load_no_flow(self, tmp_path: Path):
         flow_source = dedent(
             """
-                            
+
         from prefect import flow
         """
         )
