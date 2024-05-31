@@ -76,13 +76,12 @@ from pydantic import (
     fields,
     model_validator,
 )
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect._internal.schemas.validators import validate_settings
 from prefect.exceptions import MissingProfileError
-from prefect.types import NonNegativeDuration, PositiveDuration
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
@@ -1116,7 +1115,7 @@ this many scheduled runs, depending on the value of
 """
 
 PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
-    PositiveDuration,
+    timedelta,
     default=timedelta(days=100),
 )
 """The scheduler will create new runs up to this far in the
@@ -1127,7 +1126,7 @@ scheduled. Defaults to 100 days (`8640000` seconds).
 """
 
 PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
-    PositiveDuration,
+    timedelta,
     default=timedelta(hours=1),
 )
 """The scheduler will create new runs at least this far in the
@@ -1156,7 +1155,7 @@ this often. Defaults to `5`.
 """
 
 PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
-    PositiveDuration,
+    timedelta,
     default=timedelta(seconds=15),
 )
 """The late runs service will mark runs as late after they
@@ -1262,9 +1261,7 @@ Note: Enabling this setting requires corresponding support in the client for
 CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
 """
 
-PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(
-    PositiveDuration, default=timedelta(hours=1)
-)
+PREFECT_SERVER_CSRF_TOKEN_EXPIRATION = Setting(timedelta, default=timedelta(hours=1))
 """
 Specifies the duration for which a CSRF token remains valid after being issued
 by the server.
@@ -1489,6 +1486,11 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 The port the worker's webserver should bind to.
 """
 
+PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the task scheduling service in the server application.
+"""
+
 PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
     str,
     default="local-file-system/prefect-task-scheduling",
@@ -1521,7 +1523,7 @@ The maximum number of retries to queue for submission.
 """
 
 PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
-    NonNegativeDuration,
+    timedelta,
     default=timedelta(seconds=30),
 )
 """
@@ -1553,11 +1555,6 @@ Whether or not to enable the experimental workspace dashboard.
 PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
-"""
-Whether or not to enable experimental task scheduling.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
@@ -1660,16 +1657,12 @@ PREFECT_API_SERVICES_TRIGGERS_ENABLED = Setting(bool, default=True)
 Whether or not to start the triggers service in the server application.
 """
 
-PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(
-    PositiveDuration, default=timedelta(seconds=60)
-)
+PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER = Setting(timedelta, default=timedelta(seconds=60))
 """
 The amount of time to retain expired automation buckets
 """
 
-PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(
-    PositiveDuration, default=timedelta(seconds=5)
-)
+PREFECT_EVENTS_PROACTIVE_GRANULARITY = Setting(timedelta, default=timedelta(seconds=5))
 """
 How frequently proactive automations are evaluated
 """
@@ -1689,9 +1682,7 @@ PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL = Setting(float, default=5, 
 The maximum number of seconds between flushes of the event persister.
 """
 
-PREFECT_EVENTS_RETENTION_PERIOD = Setting(
-    NonNegativeDuration, default=timedelta(days=7)
-)
+PREFECT_EVENTS_RETENTION_PERIOD = Setting(timedelta, default=timedelta(days=7))
 """
 The amount of time to retain events in the database.
 """
@@ -1702,7 +1693,7 @@ Whether or not to allow streaming events out of via websockets.
 """
 
 PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL = Setting(
-    PositiveDuration, default=timedelta(minutes=5)
+    timedelta, default=timedelta(minutes=5)
 )
 """
 How long to cache related resource data for emitting server-side vents
@@ -1726,9 +1717,14 @@ for __name, __setting in SETTING_VARIABLES.items():
 
 # Dynamically create a pydantic model that includes all of our settings
 
+
+class PrefectBaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+
 SettingsFieldsMixin: Type[BaseSettings] = create_model(
     "SettingsFieldsMixin",
-    __base__=BaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
+    __base__=PrefectBaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
     **{
         setting.name: (setting.type, setting.field)
         for setting in SETTING_VARIABLES.values()
@@ -2010,6 +2006,7 @@ class Profile(BaseModel):
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path] = None
+    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     @field_validator("settings", mode="before")
     def map_names_to_settings(cls, value):
@@ -2047,8 +2044,6 @@ class Profile(BaseModel):
                 )
                 changed.append((setting, setting.deprecated_renamed_to))
         return changed
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ProfilesCollection:
