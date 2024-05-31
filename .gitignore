@@ -37,7 +37,7 @@ env/
 venv/
 
 # Documentation artifacts
-schema.json
+# schema.json
 site/
 .cache/
 src/mkdocs-material
