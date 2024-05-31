@@ -6,7 +6,7 @@ from asyncio import Event, sleep
 from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, call
+from unittest.mock import ANY, MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
@@ -4141,7 +4141,7 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             multiply, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"x": 42, "y": 42}}
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
     def test_with_duplicate_values(self):
         @task
@@ -4172,7 +4172,7 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"x": 42, "y": 42}}
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
     async def test_overrides_defaults(self):
         @task
@@ -4183,7 +4183,7 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"x": 42, "y": 100}}
+        ) == {"parameters": {"x": 42, "y": 100}, "context": ANY}
 
     async def test_with_variadic_args(self):
         @task
@@ -4194,7 +4194,7 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"args": (42, 42)}}
+        ) == {"parameters": {"args": (42, 42)}, "context": ANY}
 
     async def test_with_variadic_kwargs(self):
         @task
@@ -4205,7 +4205,7 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}}
+        ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}, "context": ANY}
 
     async def test_with_variadic_args_and_kwargs(self):
         @task
@@ -4216,7 +4216,7 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}}
+        ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
 
     async def test_with_wait_for(self):
         task_run_id = uuid4()
@@ -4230,7 +4230,11 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             multiply, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"x": 42, "y": 42}, "wait_for": [wait_for_future]}
+        ) == {
+            "parameters": {"x": 42, "y": 42},
+            "wait_for": [wait_for_future],
+            "context": ANY,
+        }
 
     async def test_with_only_wait_for(self):
         task_run_id = uuid4()
@@ -4244,7 +4248,7 @@ class TestApplyAsync:
 
         assert await self.get_background_task_run_parameters(
             the_answer, future.state.state_details.task_parameters_id
-        ) == {"wait_for": [wait_for_future]}
+        ) == {"wait_for": [wait_for_future], "context": ANY}
 
     async def test_with_dependencies(self):
         task_run_id = uuid4()
@@ -4286,7 +4290,7 @@ class TestDelay:
 
         assert await self.get_background_task_run_parameters(
             multiply, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"x": 42, "y": 42}}
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
     def test_delay_with_duplicate_values(self):
         @task
@@ -4317,7 +4321,7 @@ class TestDelay:
 
         assert await self.get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"x": 42, "y": 42}}
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
     async def test_delay_overrides_defaults(self):
         @task
@@ -4328,7 +4332,7 @@ class TestDelay:
 
         assert await self.get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"x": 42, "y": 100}}
+        ) == {"parameters": {"x": 42, "y": 100}, "context": ANY}
 
     async def test_delay_with_variadic_args(self):
         @task
@@ -4339,7 +4343,7 @@ class TestDelay:
 
         assert await self.get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"args": (42, 42)}}
+        ) == {"parameters": {"args": (42, 42)}, "context": ANY}
 
     async def test_delay_with_variadic_kwargs(self):
         @task
@@ -4350,7 +4354,7 @@ class TestDelay:
 
         assert await self.get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}}
+        ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}, "context": ANY}
 
     async def test_delay_with_variadic_args_and_kwargs(self):
         @task
@@ -4361,4 +4365,4 @@ class TestDelay:
 
         assert await self.get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
-        ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}}
+        ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}

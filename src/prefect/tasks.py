@@ -39,6 +39,7 @@ from prefect.context import (
     PrefectObjectRegistry,
     TagsContext,
     TaskRunContext,
+    serialize_context,
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
@@ -591,7 +592,8 @@ class Task(Generic[P, R]):
                 self.persist_result = True
 
                 factory = await ResultFactory.from_autonomous_task(self, client=client)
-                data = {}
+                context = serialize_context()
+                data: Dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
