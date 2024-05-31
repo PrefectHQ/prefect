@@ -1,0 +1,779 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Prefect",
+  "logo": {
+    "light": "/logos/logo-word-black.svg",
+    "dark": "/logos/logo-word-white.svg"
+  },
+  "modeToggle": {
+    "default": "dark",
+    "isHidden": false
+  },
+  "favicon": "/logos/favicon.png",
+  "colors": {
+    "primary": "#2D6DF6",
+    "light": "#5F92FF",
+    "dark": "#2D6DF6"
+  },
+  "versions": [
+    "3.0rc"
+  ],
+  "feedback": {
+    "thumbsRating": true
+  },
+  "tabs": [
+    {
+      "name": "API References",
+      "url": "3.0rc/api-ref"
+    },
+    {
+      "name": "Integrations",
+      "url": "3.0rc/integrations"
+    },
+    {
+      "name": "Contribute",
+      "url": "3.0rc/community"
+    }
+  ],
+  "api": {
+    "playground": {
+      "mode": "simple"
+    }
+  },
+  "topbarCtaButton": {
+    "name": "GET STARTED",
+    "url": "https://app.prefect.cloud/auth/login"
+  },
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/PrefectHQ/prefect"
+    },
+    {
+      "name": "Contact",
+      "icon": "envelope",
+      "url": "https://www.prefect.io/"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/getting-started/index",
+        "3.0rc/getting-started/installation",
+        "3.0rc/getting-started/quickstart"
+      ]
+    },
+    {
+      "group": "Tutorial",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/tutorial/index",
+        "3.0rc/tutorial/flows",
+        "3.0rc/tutorial/tasks",
+        "3.0rc/tutorial/deployments",
+        "3.0rc/tutorial/work-pools",
+        "3.0rc/tutorial/workers"
+      ]
+    },
+    {
+      "group": "How-to Guides",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/guides/index",
+        {
+          "group": "Development",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/guides/host",
+            "3.0rc/guides/settings",
+            "3.0rc/guides/testing",
+            "3.0rc/guides/global-concurrency-limits",
+            "3.0rc/guides/runtime-context",
+            "3.0rc/guides/variables",
+            "3.0rc/guides/using-the-client",
+            "3.0rc/guides/creating-interactive-workflows",
+            "3.0rc/guides/automations",
+            "3.0rc/guides/webhooks",
+            "3.0rc/guides/terraform-provider",
+            "3.0rc/guides/ci-cd",
+            "3.0rc/guides/specifying-upstream-dependencies",
+            "3.0rc/guides/secrets",
+            "3.0rc/guides/recipes"
+          ]
+        },
+        {
+          "group": "Execution",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/guides/docker",
+            "3.0rc/guides/state-change-hooks",
+            "3.0rc/guides/dask-ray-task-runners",
+            "3.0rc/guides/moving-data",
+            "3.0rc/guides/big-data",
+            "3.0rc/guides/logs",
+            "3.0rc/guides/troubleshooting",
+            "3.0rc/guides/managed-execution",
+            "3.0rc/guides/cli-shell"
+          ]
+        },
+        {
+          "group": "Work Pools",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/guides/prefect-deploy",
+            "3.0rc/guides/upgrade-guide-agents-to-workers",
+            "3.0rc/guides/deployment/storage-guide",
+            "3.0rc/guides/deployment/kubernetes",
+            "3.0rc/guides/deployment/push-work-pools",
+            "3.0rc/guides/deployment/serverless-workers",
+            "3.0rc/guides/deployment/daemonize",
+            "3.0rc/guides/deployment/developing-a-new-worker-type",
+            "3.0rc/guides/deployment/overriding-job-variables"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Concepts",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/concepts/index",
+        "3.0rc/concepts/flows",
+        "3.0rc/concepts/tasks",
+        "3.0rc/concepts/deployments",
+        "3.0rc/concepts/work-pools",
+        "3.0rc/concepts/schedules",
+        "3.0rc/concepts/results",
+        "3.0rc/concepts/artifacts",
+        "3.0rc/concepts/states",
+        "3.0rc/concepts/blocks",
+        "3.0rc/concepts/task-runners",
+        "3.0rc/concepts/automations",
+        {
+          "group": "Block and Agent-Based Deployments",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/concepts/agents"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Cloud",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/cloud/index",
+        "3.0rc/cloud/workspaces",
+        {
+          "group": "Users",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/cloud/users/index",
+            "3.0rc/cloud/users/roles",
+            "3.0rc/cloud/users/api-keys",
+            "3.0rc/cloud/users/service-accounts",
+            "3.0rc/cloud/users/sso",
+            "3.0rc/cloud/users/audit-log",
+            "3.0rc/cloud/users/object-access-control-lists",
+            "3.0rc/cloud/users/teams"
+          ]
+        },
+        "3.0rc/cloud/rate-limits",
+        "3.0rc/cloud/connecting",
+        "3.0rc/cloud/events",
+        "3.0rc/cloud/incidents"
+      ]
+    },
+    {
+      "group": "Integrations",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/integrations/index",
+        "3.0rc/integrations/usage",
+        "3.0rc/integrations/contribute",
+        {
+          "group": "Libraries",
+          "version": "3.0rc",
+          "pages": [
+            {
+              "group": "AWS",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-aws/index",
+                {
+                  "group": "Guides",
+                  "version": "3.0rc",
+                  "pages": [
+                    "3.0rc/integrations/prefect-aws/ecs_guide"
+                  ]
+                },
+                "3.0rc/integrations/prefect-aws/batch",
+                "3.0rc/integrations/prefect-aws/client_waiter",
+                "3.0rc/integrations/prefect-aws/credentials",
+                "3.0rc/integrations/prefect-aws/ecs_worker",
+                "3.0rc/integrations/prefect-aws/ecs",
+                "3.0rc/integrations/prefect-aws/glue_job",
+                "3.0rc/integrations/prefect-aws/lambda_function",
+                {
+                  "group": "Deployments",
+                  "version": "3.0rc",
+                  "pages": [
+                    "3.0rc/integrations/prefect-aws/deployments/steps"
+                  ]
+                },
+                "3.0rc/integrations/prefect-aws/s3",
+                "3.0rc/integrations/prefect-aws/secrets_manager"
+              ]
+            },
+            {
+              "group": "Azure",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-azure/index",
+                "3.0rc/integrations/prefect-azure/aci_worker",
+                "3.0rc/integrations/prefect-azure/credentials",
+                "3.0rc/integrations/prefect-azure/blob_storage",
+                "3.0rc/integrations/prefect-azure/cosmos_db",
+                "3.0rc/integrations/prefect-azure/ml_datastore",
+                "3.0rc/integrations/prefect-azure/container_instance",
+                "3.0rc/integrations/prefect-azure/container_instance_worker",
+                {
+                  "group": "Deployments",
+                  "version": "3.0rc",
+                  "pages": [
+                    "3.0rc/integrations/prefect-azure/deployments/steps"
+                  ]
+                }
+              ]
+            },
+            {
+              "group": "Bitbucket",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-bitbucket/index",
+                "3.0rc/integrations/prefect-bitbucket/credentials",
+                "3.0rc/integrations/prefect-bitbucket/repository"
+              ]
+            },
+            {
+              "group": "Dask",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-dask/index",
+                "3.0rc/integrations/prefect-dask/usage_guide",
+                "3.0rc/integrations/prefect-dask/task_runners",
+                "3.0rc/integrations/prefect-dask/utils"
+              ]
+            },
+            {
+              "group": "Databricks",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-databricks/index",
+                "3.0rc/integrations/prefect-databricks/credentials",
+                "3.0rc/integrations/prefect-databricks/jobs",
+                "3.0rc/integrations/prefect-databricks/rest",
+                "3.0rc/integrations/prefect-databricks/flows"
+              ]
+            },
+            {
+              "group": "dbt",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-dbt/index",
+                {
+                  "group": "Cloud",
+                  "version": "3.0rc",
+                  "pages": [
+                    "3.0rc/integrations/prefect-dbt/cloud/credentials",
+                    "3.0rc/integrations/prefect-dbt/cloud/jobs",
+                    "3.0rc/integrations/prefect-dbt/cloud/runs",
+                    "3.0rc/integrations/prefect-dbt/cloud/clients",
+                    "3.0rc/integrations/prefect-dbt/cloud/models",
+                    "3.0rc/integrations/prefect-dbt/cloud/utils"
+                  ]
+                },
+                {
+                  "group": "CLI",
+                  "version": "3.0rc",
+                  "pages": [
+                    "3.0rc/integrations/prefect-dbt/cli/credentials",
+                    "3.0rc/integrations/prefect-dbt/cli/commands",
+                    {
+                      "group": "Configs",
+                      "version": "3.0rc",
+                      "pages": [
+                        "3.0rc/integrations/prefect-dbt/cli/configs/base",
+                        "3.0rc/integrations/prefect-dbt/cli/configs/bigquery",
+                        "3.0rc/integrations/prefect-dbt/cli/configs/postgres",
+                        "3.0rc/integrations/prefect-dbt/cli/configs/snowflake"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "group": "Docker",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-docker/index",
+                "3.0rc/integrations/prefect-docker/host",
+                "3.0rc/integrations/prefect-docker/credentials",
+                "3.0rc/integrations/prefect-docker/containers",
+                "3.0rc/integrations/prefect-docker/images",
+                "3.0rc/integrations/prefect-docker/worker"
+              ]
+            },
+            {
+              "group": "Email",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-email/index",
+                "3.0rc/integrations/prefect-email/credentials",
+                "3.0rc/integrations/prefect-email/message"
+              ]
+            },
+            {
+              "group": "GCP",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-gcp/index",
+                "3.0rc/integrations/prefect-gcp/gcp-worker-guide",
+                "3.0rc/integrations/prefect-gcp/credentials",
+                "3.0rc/integrations/prefect-gcp/cloud_storage",
+                "3.0rc/integrations/prefect-gcp/bigquery",
+                "3.0rc/integrations/prefect-gcp/secret_manager",
+                "3.0rc/integrations/prefect-gcp/cloud_run",
+                "3.0rc/integrations/prefect-gcp/aiplatform",
+                "3.0rc/integrations/prefect-gcp/deployments/steps",
+                {
+                  "group": "Email",
+                  "version": "3.0rc",
+                  "pages": [
+                    "3.0rc/integrations/prefect-gcp/cloud_run_worker",
+                    "3.0rc/integrations/prefect-gcp/cloud_run_worker_v2",
+                    "3.0rc/integrations/prefect-gcp/vertex_worker"
+                  ]
+                }
+              ]
+            },
+            {
+              "group": "GitHub",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-github/index",
+                "3.0rc/integrations/prefect-github/credentials",
+                "3.0rc/integrations/prefect-github/graphql",
+                "3.0rc/integrations/prefect-github/mutations",
+                "3.0rc/integrations/prefect-github/organization",
+                "3.0rc/integrations/prefect-github/repository",
+                "3.0rc/integrations/prefect-github/repository_owner",
+                "3.0rc/integrations/prefect-github/user",
+                "3.0rc/integrations/prefect-github/utils",
+                "3.0rc/integrations/prefect-github/viewer"
+              ]
+            },
+            {
+              "group": "Gitlab",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-gitlab/index",
+                "3.0rc/integrations/prefect-gitlab/credentials",
+                "3.0rc/integrations/prefect-gitlab/repositories"
+              ]
+            },
+            {
+              "group": "Kubernetes",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-kubernetes/index",
+                "3.0rc/integrations/prefect-kubernetes/credentials",
+                "3.0rc/integrations/prefect-kubernetes/custom_objects",
+                "3.0rc/integrations/prefect-kubernetes/deployments",
+                "3.0rc/integrations/prefect-kubernetes/exceptions",
+                "3.0rc/integrations/prefect-kubernetes/flows",
+                "3.0rc/integrations/prefect-kubernetes/jobs",
+                "3.0rc/integrations/prefect-kubernetes/pods",
+                "3.0rc/integrations/prefect-kubernetes/services",
+                "3.0rc/integrations/prefect-kubernetes/utilities",
+                "3.0rc/integrations/prefect-kubernetes/worker"
+              ]
+            },
+            {
+              "group": "Ray",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-ray/index",
+                "3.0rc/integrations/prefect-ray/task-runners"
+              ]
+            },
+            {
+              "group": "Shell",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-shell/index",
+                "3.0rc/integrations/prefect-shell/commands"
+              ]
+            },
+            {
+              "group": "Slack",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-slack/index",
+                "3.0rc/integrations/prefect-slack/credentials",
+                "3.0rc/integrations/prefect-slack/messages"
+              ]
+            },
+            {
+              "group": "Snowflake",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-snowflake/index",
+                "3.0rc/integrations/prefect-snowflake/credentials",
+                "3.0rc/integrations/prefect-snowflake/database"
+              ]
+            },
+            {
+              "group": "SQLAlchemy",
+              "version": "3.0rc",
+              "pages": [
+                "3.0rc/integrations/prefect-sqlalchemy/index",
+                "3.0rc/integrations/prefect-sqlalchemy/credentials",
+                "3.0rc/integrations/prefect-sqlalchemy/database"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Python SDK",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/api-ref/python/index"
+      ]
+    },
+    {
+      "group": "REST API",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/api-ref/rest-api/index",
+        "3.0rc/api-ref/rest-api/cloud-rest-api-reference"
+      ]
+    },
+    {
+      "group": "Server API",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/api-ref/server/index",
+        {
+          "group": "Root",
+          "pages": [
+            "3.0rc/api-ref/server/root/health-check",
+            "3.0rc/api-ref/server/root/orion-info",
+            "3.0rc/api-ref/server/root/hello",
+            "3.0rc/api-ref/server/root/perform-readiness-check"
+          ]
+        },
+        {
+          "group": "Flows",
+          "pages": [
+            "3.0rc/api-ref/server/flows/create-flow",
+            "3.0rc/api-ref/server/flows/read-flow",
+            "3.0rc/api-ref/server/flows/delete-flow",
+            "3.0rc/api-ref/server/flows/update-flow",
+            "3.0rc/api-ref/server/flows/count-flows",
+            "3.0rc/api-ref/server/flows/read-flow-by-name",
+            "3.0rc/api-ref/server/flows/read-flows",
+            "3.0rc/api-ref/server/flows/count-deployments-by-flow",
+            "3.0rc/api-ref/server/flows/next-runs-by-flow"
+          ]
+        },
+        {
+          "group": "Flow Runs",
+          "pages": [
+            "3.0rc/api-ref/server/flow-runs/create-flow-run",
+            "3.0rc/api-ref/server/flow-runs/read-flow-run",
+            "3.0rc/api-ref/server/flow-runs/delete-flow-run",
+            "3.0rc/api-ref/server/flow-runs/update-flow-run",
+            "3.0rc/api-ref/server/flow-runs/count-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/average-flow-run-lateness",
+            "3.0rc/api-ref/server/flow-runs/flow-run-history",
+            "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v1",
+            "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v2",
+            "3.0rc/api-ref/server/flow-runs/resume-flow-run",
+            "3.0rc/api-ref/server/flow-runs/read-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/set-flow-run-state",
+            "3.0rc/api-ref/server/flow-runs/create-flow-run-input",
+            "3.0rc/api-ref/server/flow-runs/filter-flow-run-input",
+            "3.0rc/api-ref/server/flow-runs/read-flow-run-input",
+            "3.0rc/api-ref/server/flow-runs/delete-flow-run-input",
+            "3.0rc/api-ref/server/flow-runs/read-flow-run-history"
+          ]
+        },
+        {
+          "group": "Task Runs",
+          "pages": [
+            "3.0rc/api-ref/server/task-runs/create-task-run",
+            "3.0rc/api-ref/server/task-runs/read-task-run",
+            "3.0rc/api-ref/server/task-runs/delete-task-run",
+            "3.0rc/api-ref/server/task-runs/update-task-run",
+            "3.0rc/api-ref/server/task-runs/count-task-runs",
+            "3.0rc/api-ref/server/task-runs/task-run-history",
+            "3.0rc/api-ref/server/task-runs/read-task-runs",
+            "3.0rc/api-ref/server/task-runs/set-task-run-state",
+            "3.0rc/api-ref/server/task-runs/read-dashboard-task-run-counts",
+            "3.0rc/api-ref/server/task-runs/read-task-run-counts-by-state"
+          ]
+        },
+        {
+          "group": "Flow Run States",
+          "pages": [
+            "3.0rc/api-ref/server/flow-run-states/read-flow-run-state",
+            "3.0rc/api-ref/server/flow-run-states/read-flow-run-states"
+          ]
+        },
+        {
+          "group": "Task Run States",
+          "pages": [
+            "3.0rc/api-ref/server/task-run-states/read-task-run-state",
+            "3.0rc/api-ref/server/task-run-states/read-task-run-states"
+          ]
+        },
+        {
+          "group": "Flow Run Notification Policies",
+          "pages": [
+            "3.0rc/api-ref/server/flow-run-notification-policies/create-flow-run-notification-policy",
+            "3.0rc/api-ref/server/flow-run-notification-policies/read-flow-run-notification-policy",
+            "3.0rc/api-ref/server/flow-run-notification-policies/delete-flow-run-notification-policy",
+            "3.0rc/api-ref/server/flow-run-notification-policies/update-flow-run-notification-policy",
+            "3.0rc/api-ref/server/flow-run-notification-policies/read-flow-run-notification-policies"
+          ]
+        },
+        {
+          "group": "Deployments",
+          "pages": [
+            "3.0rc/api-ref/server/deployments/create-deployment",
+            "3.0rc/api-ref/server/deployments/read-deployment",
+            "3.0rc/api-ref/server/deployments/delete-deployment",
+            "3.0rc/api-ref/server/deployments/update-deployment",
+            "3.0rc/api-ref/server/deployments/read-deployment-by-name",
+            "3.0rc/api-ref/server/deployments/read-deployments",
+            "3.0rc/api-ref/server/deployments/get-scheduled-flow-runs-for-deployments",
+            "3.0rc/api-ref/server/deployments/count-deployments",
+            "3.0rc/api-ref/server/deployments/schedule-deployment",
+            "3.0rc/api-ref/server/deployments/resume-deployment",
+            "3.0rc/api-ref/server/deployments/resume-deployment-1",
+            "3.0rc/api-ref/server/deployments/pause-deployment",
+            "3.0rc/api-ref/server/deployments/pause-deployment-1",
+            "3.0rc/api-ref/server/deployments/create-flow-run-from-deployment",
+            "3.0rc/api-ref/server/deployments/work-queue-check-for-deployment",
+            "3.0rc/api-ref/server/deployments/read-deployment-schedules",
+            "3.0rc/api-ref/server/deployments/create-deployment-schedules",
+            "3.0rc/api-ref/server/deployments/delete-deployment-schedule",
+            "3.0rc/api-ref/server/deployments/update-deployment-schedule"
+          ]
+        },
+        {
+          "group": "SavedSearches",
+          "pages": [
+            "3.0rc/api-ref/server/savedsearches/create-saved-search",
+            "3.0rc/api-ref/server/savedsearches/read-saved-search",
+            "3.0rc/api-ref/server/savedsearches/delete-saved-search",
+            "3.0rc/api-ref/server/savedsearches/read-saved-searches"
+          ]
+        },
+        {
+          "group": "Logs",
+          "pages": [
+            "3.0rc/api-ref/server/logs/create-logs",
+            "3.0rc/api-ref/server/logs/read-logs"
+          ]
+        },
+        {
+          "group": "Concurrency Limits",
+          "pages": [
+            "3.0rc/api-ref/server/concurrency-limits/create-concurrency-limit",
+            "3.0rc/api-ref/server/concurrency-limits/read-concurrency-limit",
+            "3.0rc/api-ref/server/concurrency-limits/delete-concurrency-limit",
+            "3.0rc/api-ref/server/concurrency-limits/read-concurrency-limit-by-tag",
+            "3.0rc/api-ref/server/concurrency-limits/delete-concurrency-limit-by-tag",
+            "3.0rc/api-ref/server/concurrency-limits/read-concurrency-limits",
+            "3.0rc/api-ref/server/concurrency-limits/reset-concurrency-limit-by-tag"
+          ]
+        },
+        {
+          "group": "Concurrency Limits V2",
+          "pages": [
+            "3.0rc/api-ref/server/concurrency-limits-v2/create-concurrency-limit-v2",
+            "3.0rc/api-ref/server/concurrency-limits-v2/read-concurrency-limit-v2",
+            "3.0rc/api-ref/server/concurrency-limits-v2/delete-concurrency-limit-v2",
+            "3.0rc/api-ref/server/concurrency-limits-v2/update-concurrency-limit-v2",
+            "3.0rc/api-ref/server/concurrency-limits-v2/read-all-concurrency-limits-v2",
+            "3.0rc/api-ref/server/concurrency-limits-v2/bulk-increment-active-slots",
+            "3.0rc/api-ref/server/concurrency-limits-v2/bulk-decrement-active-slots"
+          ]
+        },
+        {
+          "group": "Block types",
+          "pages": [
+            "3.0rc/api-ref/server/block-types/create-block-type",
+            "3.0rc/api-ref/server/block-types/read-block-type-by-id",
+            "3.0rc/api-ref/server/block-types/delete-block-type",
+            "3.0rc/api-ref/server/block-types/update-block-type",
+            "3.0rc/api-ref/server/block-types/read-block-type-by-slug",
+            "3.0rc/api-ref/server/block-types/read-block-types",
+            "3.0rc/api-ref/server/block-types/read-block-documents-for-block-type",
+            "3.0rc/api-ref/server/block-types/read-block-document-by-name-for-block-type",
+            "3.0rc/api-ref/server/block-types/install-system-block-types"
+          ]
+        },
+        {
+          "group": "Block documents",
+          "pages": [
+            "3.0rc/api-ref/server/block-documents/create-block-document",
+            "3.0rc/api-ref/server/block-documents/read-block-documents",
+            "3.0rc/api-ref/server/block-documents/count-block-documents",
+            "3.0rc/api-ref/server/block-documents/read-block-document-by-id",
+            "3.0rc/api-ref/server/block-documents/delete-block-document",
+            "3.0rc/api-ref/server/block-documents/update-block-document-data"
+          ]
+        },
+        {
+          "group": "Work Pools",
+          "pages": [
+            "3.0rc/api-ref/server/work-pools/create-work-pool",
+            "3.0rc/api-ref/server/work-pools/read-work-pool",
+            "3.0rc/api-ref/server/work-pools/delete-work-pool",
+            "3.0rc/api-ref/server/work-pools/update-work-pool",
+            "3.0rc/api-ref/server/work-pools/read-work-pools",
+            "3.0rc/api-ref/server/work-pools/count-work-pools",
+            "3.0rc/api-ref/server/work-pools/get-scheduled-flow-runs",
+            "3.0rc/api-ref/server/work-pools/create-work-queue",
+            "3.0rc/api-ref/server/work-pools/read-work-queue",
+            "3.0rc/api-ref/server/work-pools/delete-work-queue",
+            "3.0rc/api-ref/server/work-pools/update-work-queue",
+            "3.0rc/api-ref/server/work-pools/read-work-queues",
+            "3.0rc/api-ref/server/work-pools/worker-heartbeat",
+            "3.0rc/api-ref/server/work-pools/read-workers",
+            "3.0rc/api-ref/server/work-pools/delete-worker"
+          ]
+        },
+        {
+          "group": "Work Queues",
+          "pages": [
+            "3.0rc/api-ref/server/work-queues/create-work-queue",
+            "3.0rc/api-ref/server/work-queues/read-work-queue",
+            "3.0rc/api-ref/server/work-queues/delete-work-queue",
+            "3.0rc/api-ref/server/work-queues/update-work-queue",
+            "3.0rc/api-ref/server/work-queues/read-work-queue-by-name",
+            "3.0rc/api-ref/server/work-queues/read-work-queue-runs",
+            "3.0rc/api-ref/server/work-queues/read-work-queues",
+            "3.0rc/api-ref/server/work-queues/read-work-queue-status"
+          ]
+        },
+        {
+          "group": "Artifacts",
+          "pages": [
+            "3.0rc/api-ref/server/artifacts/create-artifact",
+            "3.0rc/api-ref/server/artifacts/read-artifact",
+            "3.0rc/api-ref/server/artifacts/delete-artifact",
+            "3.0rc/api-ref/server/artifacts/update-artifact",
+            "3.0rc/api-ref/server/artifacts/read-latest-artifact",
+            "3.0rc/api-ref/server/artifacts/read-artifacts",
+            "3.0rc/api-ref/server/artifacts/read-latest-artifacts",
+            "3.0rc/api-ref/server/artifacts/count-artifacts",
+            "3.0rc/api-ref/server/artifacts/count-latest-artifacts"
+          ]
+        },
+        {
+          "group": "Block schemas",
+          "pages": [
+            "3.0rc/api-ref/server/block-schemas/create-block-schema",
+            "3.0rc/api-ref/server/block-schemas/read-block-schema-by-id",
+            "3.0rc/api-ref/server/block-schemas/delete-block-schema",
+            "3.0rc/api-ref/server/block-schemas/read-block-schemas",
+            "3.0rc/api-ref/server/block-schemas/read-block-schema-by-checksum"
+          ]
+        },
+        {
+          "group": "Block capabilities",
+          "pages": [
+            "3.0rc/api-ref/server/block-capabilities/read-available-block-capabilities"
+          ]
+        },
+        {
+          "group": "Collections",
+          "pages": [
+            "3.0rc/api-ref/server/collections/read-view-content"
+          ]
+        },
+        {
+          "group": "Variables",
+          "pages": [
+            "3.0rc/api-ref/server/variables/create-variable",
+            "3.0rc/api-ref/server/variables/read-variable",
+            "3.0rc/api-ref/server/variables/delete-variable",
+            "3.0rc/api-ref/server/variables/update-variable",
+            "3.0rc/api-ref/server/variables/read-variable-by-name",
+            "3.0rc/api-ref/server/variables/delete-variable-by-name",
+            "3.0rc/api-ref/server/variables/update-variable-by-name",
+            "3.0rc/api-ref/server/variables/read-variables",
+            "3.0rc/api-ref/server/variables/count-variables"
+          ]
+        },
+        {
+          "group": "Events",
+          "pages": [
+            "3.0rc/api-ref/server/events/create-events",
+            "3.0rc/api-ref/server/events/read-events",
+            "3.0rc/api-ref/server/events/read-account-events-page",
+            "3.0rc/api-ref/server/events/count-account-events"
+          ]
+        },
+        {
+          "group": "Automations",
+          "pages": [
+            "3.0rc/api-ref/server/automations/create-automation",
+            "3.0rc/api-ref/server/automations/read-automation",
+            "3.0rc/api-ref/server/automations/update-automation",
+            "3.0rc/api-ref/server/automations/delete-automation",
+            "3.0rc/api-ref/server/automations/patch-automation",
+            "3.0rc/api-ref/server/automations/read-automations",
+            "3.0rc/api-ref/server/automations/count-automations",
+            "3.0rc/api-ref/server/automations/read-automations-related-to-resource",
+            "3.0rc/api-ref/server/automations/delete-automations-owned-by-resource",
+            "3.0rc/api-ref/server/automations/validate-template"
+          ]
+        },
+        {
+          "group": "UI",
+          "pages": [
+            "3.0rc/api-ref/server/ui/validate-obj"
+          ]
+        },
+        {
+          "group": "Admin",
+          "pages": [
+            "3.0rc/api-ref/server/admin/read-settings",
+            "3.0rc/api-ref/server/admin/read-version",
+            "3.0rc/api-ref/server/admin/clear-database",
+            "3.0rc/api-ref/server/admin/drop-database",
+            "3.0rc/api-ref/server/admin/create-database"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Community",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/community/index"
+      ]
+    }
+  ]
+}

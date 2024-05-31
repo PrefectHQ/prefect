@@ -9,7 +9,11 @@ from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
-from prefect.futures import PrefectConcurrentFuture, PrefectFuture
+from prefect.futures import (
+    PrefectConcurrentFuture,
+    PrefectDistributedFuture,
+    PrefectFuture,
+)
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
@@ -228,7 +232,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
             raise RuntimeError("Task runner is not started")
 
         from prefect.context import FlowRunContext
-        from prefect.new_task_engine import run_task_async, run_task_sync
+        from prefect.task_engine import run_task_async, run_task_sync
 
         task_run_id = uuid.uuid4()
         context = copy_context()
@@ -282,3 +286,48 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
             self._executor.shutdown()
             self._executor = None
         super().__exit__(exc_type, exc_value, traceback)
+
+
+class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
+    def __init__(self):
+        super().__init__()
+
+    def duplicate(self) -> "PrefectTaskRunner":
+        return type(self)()
+
+    def submit(
+        self,
+        task: "Task",
+        parameters: Dict[str, Any],
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDistributedFuture:
+        """
+        Submit a task to the task run engine running in a separate thread.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
+        """
+        if not self._started:
+            raise RuntimeError("Task runner is not started")
+        from prefect.context import FlowRunContext
+
+        flow_run_ctx = FlowRunContext.get()
+        if flow_run_ctx:
+            get_run_logger(flow_run_ctx).info(
+                f"Submitting task {task.name} to for execution by a Prefect task server..."
+            )
+        else:
+            self.logger.info(
+                f"Submitting task {task.name} to for execution by a Prefect task server..."
+            )
+
+        return task.apply_async(
+            kwargs=parameters, wait_for=wait_for, dependencies=dependencies
+        )

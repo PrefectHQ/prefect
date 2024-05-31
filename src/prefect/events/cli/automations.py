@@ -16,7 +16,7 @@ from rich.text import Text
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.events.schemas.automations import Automation
 from prefect.exceptions import PrefectHTTPStatusError
@@ -310,7 +310,7 @@ async def delete(
             automation = await client.read_automation(id)
             if not automation:
                 exit_with_error(f"Automation with id {id!r} not found.")
-            if not typer.confirm(
+            if is_interactive() and not typer.confirm(
                 (f"Are you sure you want to delete automation with id {id!r}?"),
                 default=False,
             ):
@@ -328,7 +328,7 @@ async def delete(
                 exit_with_error(
                     f"Multiple automations found with name {name!r}. Please specify an id with the `--id` flag instead."
                 )
-            if not typer.confirm(
+            if is_interactive() and not typer.confirm(
                 (f"Are you sure you want to delete automation with name {name!r}?"),
                 default=False,
             ):

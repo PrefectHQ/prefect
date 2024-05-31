@@ -1,10 +1,31 @@
+import sys
 from uuid import uuid4
 
 import pendulum
 import pytest
+from typer import Exit
 
 from prefect.server import models, schemas
 from prefect.testing.cli import invoke_and_assert
+
+
+@pytest.fixture(autouse=True)
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.artifact.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture
