@@ -11,6 +11,7 @@ from prefect.server.database.alembic_commands import alembic_upgrade
 from prefect.testing.fixtures import *  # noqa
 from prefect.testing.utilities import prefect_test_harness
 from prefect.utilities.dockerutils import IMAGE_LABELS, silence_docker_warnings
+from anyio import to_thread
 
 with silence_docker_warnings():
     import docker
@@ -27,7 +28,7 @@ def prefect_db():
     Sets up test harness for temporary DB during test runs.
     """
     with prefect_test_harness():
-        alembic_upgrade()
+        asyncio.run(to_thread.run_sync(alembic_upgrade))
         yield
 
 
