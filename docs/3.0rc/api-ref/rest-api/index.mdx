@@ -19,13 +19,12 @@ Prefect Cloud and a locally hosted Prefect server each provide a REST API.
 - Prefect Cloud:
     - [Interactive Prefect Cloud REST API documentation](https://app.prefect.cloud/api/docs)
     - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
-- A Locally hosted open-source Prefect server:
-    - Interactive REST API documentation for a locally hosted open-source Prefect server is available at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
-    - [Prefect REST API documentation](/api-ref/rest-api-reference/)
-
+- A self-hosted server instance:
+    - Interactive REST API documentation for a self-hosted Prefect server instance is available under **Server API** on the sidebar naviagtion or at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/concepts/settings/#prefect_api_url) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
+    
 ## Interacting with the REST API
 
-You have many options to interact with the Prefect REST API:
+You can interact with the Prefect REST API in several ways:
 
 - Create an instance of [`PrefectClient`](/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient) 
 - Use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
