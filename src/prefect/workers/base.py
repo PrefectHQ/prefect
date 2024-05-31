@@ -1117,6 +1117,7 @@ class BaseWorker(abc.ABC):
 
     async def __aexit__(self, *exc_info):
         self._logger.debug("Exiting worker context...")
+        print("Exiting worker context...")
         await self.teardown(*exc_info)
 
     def __repr__(self):

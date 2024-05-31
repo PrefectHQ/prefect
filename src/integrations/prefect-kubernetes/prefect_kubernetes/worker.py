@@ -867,7 +867,7 @@ class KubernetesWorker(BaseWorker):
         try:
             yield BatchV1Api(api_client=client)
         finally:
-            client.close()
+            await client.close()
 
     async def _get_infrastructure_pid(self, job: "V1Job", client: "ApiClient") -> str:
         """
@@ -1138,6 +1138,7 @@ class KubernetesWorker(BaseWorker):
         last_phase = None
         last_pod_name: Optional[str] = None
         core_client = CoreV1Api(client)
+        print(watch)
         async for event in watch.stream(
             func=core_client.list_namespaced_pod,
             namespace=configuration.namespace,
@@ -1150,9 +1151,9 @@ class KubernetesWorker(BaseWorker):
             phase = pod.status.phase
             if phase != last_phase:
                 logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
-
+            print(watch)
             if phase != "Pending":
-                await watch.stop()
+                watch.stop()
                 return pod
 
             last_phase = phase
