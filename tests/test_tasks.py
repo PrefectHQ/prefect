@@ -4216,3 +4216,104 @@ class TestApplyAsync:
         assert await self.get_background_task_run_parameters(
             add_em_up, task_run.state.state_details.task_parameters_id
         ) == {"args": (42,), "kwargs": {"y": 42}}
+
+
+class TestDelay:
+    async def get_background_task_run_parameters(self, task, parameters_id):
+        factory = await ResultFactory.from_autonomous_task(task)
+        return await factory.read_parameters(parameters_id)
+
+    @pytest.mark.parametrize(
+        "args, kwargs",
+        [
+            ((42, 42), {}),
+            ([42, 42], {}),
+            ((), {"x": 42, "y": 42}),
+            ([42], {"y": 42}),
+        ],
+    )
+    async def test_delay_with_args_kwargs(self, args, kwargs):
+        @task
+        def multiply(x, y):
+            return x * y
+
+        task_run = multiply.delay(*args, **kwargs)
+
+        assert await self.get_background_task_run_parameters(
+            multiply, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    def test_delay_with_duplicate_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="multiple values for argument 'x'"
+        ):
+            add.delay(42, x=42)
+
+    def test_delay_missing_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="missing a required argument: 'y'"
+        ):
+            add.delay(42)
+
+    async def test_delay_handles_default_values(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.delay(42)
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    async def test_delay_overrides_defaults(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.delay(42, y=100)
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 100}
+
+    async def test_delay_with_variadic_args(self):
+        @task
+        def add_em_up(*args):
+            return sum(args)
+
+        task_run = add_em_up.delay(42, 42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42, 42)}
+
+    async def test_delay_with_variadic_kwargs(self):
+        @task
+        def add_em_up(**kwargs):
+            return sum(kwargs.values())
+
+        task_run = add_em_up.delay(x=42, y=42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"kwargs": {"x": 42, "y": 42}}
+
+    async def test_delay_with_variadic_args_and_kwargs(self):
+        @task
+        def add_em_up(*args, **kwargs):
+            return sum(args) + sum(kwargs.values())
+
+        task_run = add_em_up.delay(42, y=42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42,), "kwargs": {"y": 42}}
