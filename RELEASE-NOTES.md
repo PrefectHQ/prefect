@@ -143,7 +143,6 @@
 - migrate `prefect-email` to pydantic2 — https://github.com/PrefectHQ/prefect/pull/13654
 - migrate `prefect-slack` to pydantic 2 — https://github.com/PrefectHQ/prefect/pull/13673
 - Allows us to run integration package unit tests by adding a PR label — https://github.com/PrefectHQ/prefect/pull/13665
-- Add release notes for 2.19.3 — https://github.com/PrefectHQ/prefect/pull/13677
 - Adjustments to make sure that the client build still works — https://github.com/PrefectHQ/prefect/pull/13682
 - Add ability to limit concurrent runs for a task server — https://github.com/PrefectHQ/prefect/pull/13662
 - Mark tasks as being `deferred` when using `apply_async` — https://github.com/PrefectHQ/prefect/pull/13681
