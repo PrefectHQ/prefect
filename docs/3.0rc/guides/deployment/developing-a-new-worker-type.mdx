@@ -4,18 +4,18 @@ description: Learn how to create a Prefect worker to run your flows.
 ---
 
 !!! warning "Advanced Topic"
-    This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
+    This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/3.0rc/concepts/work-pools/#worker-types) instead.
 
 Prefect workers are responsible for setting up execution infrastructure and starting flow runs on that infrastructure.
 
-A list of available workers can be found [here](/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
+A list of available workers can be found [here](/3.0rc/concepts/work-pools/#worker-types). What if you want to execute your flow runs on infrastructure that doesn't have an available worker type? This tutorial will walk you through creating a custom worker that can run your flows on your chosen infrastructure.
 
 ## Worker configuration
 
 When setting up an execution environment for a flow run, a worker receives configuration for the infrastructure it is designed to work with. Examples of configuration values include memory allocation, CPU allocation, credentials, image name, etc. The worker then uses this configuration to create the execution environment and start the flow run.
 
 !!! tip "How are the configuration values populated?"
-    The work pool that a worker polls for flow runs has a [base job template](/concepts/work-pools/#base-job-template) associated with it. The template is the contract for how configuration values populate for each flow run.
+    The work pool that a worker polls for flow runs has a [base job template](/3.0rc/concepts/work-pools/#base-job-template) associated with it. The template is the contract for how configuration values populate for each flow run.
 
     The keys in the `job_configuration` section of this base job template match the worker's configuration class attributes. The values in the `job_configuration` section of the base job template are used to populate the attributes of the worker's configuration class.
 
@@ -23,7 +23,7 @@ When setting up an execution environment for a flow run, a worker receives confi
 
 ### Implementing a `BaseJobConfiguration` subclass
 
-A worker developer defines their worker's configuration to function with a class extending [`BaseJobConfiguration`](/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration).
+A worker developer defines their worker's configuration to function with a class extending [`BaseJobConfiguration`](/3.0rc/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration).
 
 `BaseJobConfiguration` has attributes that are common to all workers:
 
@@ -34,7 +34,7 @@ A worker developer defines their worker's configuration to function with a class
 | `labels` | The labels assigned to the created execution environment for metadata purposes. |
 | `command` | The command to use when starting a flow run. |
 
-Prefect sets values for each attribute before giving the configuration to the worker. If you want to customize the values of these attributes, use the [`prepare_for_flow_run`](/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration.prepare_for_flow_run) method.
+Prefect sets values for each attribute before giving the configuration to the worker. If you want to customize the values of these attributes, use the [`prepare_for_flow_run`](/3.0rc/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration.prepare_for_flow_run) method.
 
 Here's an example `prepare_for_flow_run` method that adds a label to the execution environment:
 
@@ -412,7 +412,7 @@ Most of the execution logic is omitted from the example above, but it shows that
     3. Monitor the execution
     4. Get the execution's final status from the infrastructure and return a `BaseWorkerResult` object
 
-To see other examples of worker implementations, see the [`ProcessWorker`](/api-ref/prefect/workers/process/) and [`KubernetesWorker`](https://prefecthq.github.io/prefect-kubernetes/worker/) implementations.
+To see other examples of worker implementations, see the [`ProcessWorker`](/3.0rc/api-ref/prefect/workers/process/) and [`KubernetesWorker`](https://prefecthq.github.io/prefect-kubernetes/worker/) implementations.
 
 ### Integrating with the Prefect CLI
 

@@ -75,7 +75,6 @@ class DbtConfigs(Block, abc.ABC):
                 override_configs_json.update(configs_json)
             else:
                 if field_name in configs_json.keys() and not self.allow_field_overrides:
-
                     raise ValueError(
                         f"The keyword, {field_name}, has already been provided in "
                         f"TargetConfigs; remove duplicated keywords to continue"
