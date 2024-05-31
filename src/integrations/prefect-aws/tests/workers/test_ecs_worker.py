@@ -1129,14 +1129,17 @@ async def test_network_config_from_custom_settings_invalid_subnet(
 
     session = aws_credentials.get_boto3_session()
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            r"Subnets \['sn-8asdas'\] not found within VPC with ID "
-            + vpc.id
-            + r"\.Please check that VPC is associated with supplied subnets\."
-        ),
-    ):
+    def handle_error(exc_group: ExceptionGroup):
+        assert len(exc_group.exceptions) == 1
+        assert isinstance(exc_group.exceptions[0], ExceptionGroup)
+        assert len(exc_group.exceptions[0].exceptions) == 1
+        assert isinstance(exc_group.exceptions[0].exceptions[0], ValueError)
+        assert (
+            f"Subnets ['sn-8asdas'] not found within VPC with ID {vpc.id}."
+            "Please check that VPC is associated with supplied subnets."
+        ) in str(exc_group.exceptions[0].exceptions[0])
+
+    with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             original_run_task = worker._create_task_run
             mock_run_task = MagicMock(side_effect=original_run_task)
@@ -1171,14 +1174,26 @@ async def test_network_config_from_custom_settings_invalid_subnet_multiple_vpc_s
 
     session = aws_credentials.get_boto3_session()
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            rf"Subnets \['{invalid_subnet_id}', '{subnet.id}'\] not found within VPC"
-            f" with ID {vpc.id}.Please check that VPC is associated with supplied"
-            " subnets."
-        ),
-    ):
+    # with pytest.raises(
+    #     ValueError,
+    #     match=(
+    #         rf"Subnets \['{invalid_subnet_id}', '{subnet.id}'\] not found within VPC"
+    #         f" with ID {vpc.id}.Please check that VPC is associated with supplied"
+    #         " subnets."
+    #     ),
+    # ):
+
+    def handle_error(exc_group: ExceptionGroup):
+        assert len(exc_group.exceptions) == 1
+        assert isinstance(exc_group.exceptions[0], ExceptionGroup)
+        assert len(exc_group.exceptions[0].exceptions) == 1
+        assert isinstance(exc_group.exceptions[0].exceptions[0], ValueError)
+        assert (
+            f"Subnets ['{invalid_subnet_id}', '{subnet.id}'] not found within VPC with ID"
+            f" {vpc.id}.Please check that VPC is associated with supplied subnets."
+        ) in str(exc_group.exceptions[0].exceptions[0])
+
+    with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             original_run_task = worker._create_task_run
             mock_run_task = MagicMock(side_effect=original_run_task)
@@ -1286,7 +1301,14 @@ async def test_network_config_missing_default_vpc(
 
     configuration = await construct_configuration(aws_credentials=aws_credentials)
 
-    with pytest.raises(ValueError, match="Failed to find the default VPC"):
+    def handle_error(exc_grp: ExceptionGroup):
+        assert len(exc_grp.exceptions) == 1
+        assert isinstance(exc_grp.exceptions[0], ExceptionGroup)
+        exc = exc_grp.exceptions[0].exceptions[0]
+        assert isinstance(exc, ValueError)
+        assert "Failed to find default VPC" in str(exc)
+
+    with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             await run_then_stop_task(worker, configuration, flow_run)
 
