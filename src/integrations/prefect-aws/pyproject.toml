@@ -41,10 +41,6 @@ dev = [
   "flake8",
   "interrogate",
   "isort",
-  "mkdocs",
-  "mkdocs-gen-files",
-  "mkdocs-material",
-  "mkdocstrings-python-legacy",
   # moto 4.2.5 broke something fairly deep in our test suite https://github.com/PrefectHQ/prefect-aws/issues/318
   "moto >= 3.1.16, < 4.2.5",
   "mypy",

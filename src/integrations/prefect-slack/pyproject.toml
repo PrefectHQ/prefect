@@ -33,10 +33,6 @@ dynamic = ["version"]
 dev = [
   "coverage",
   "interrogate",
-  "mkdocs-gen-files",
-  "mkdocs-material",
-  "mkdocs",
-  "mkdocstrings[python]",
   "mypy",
   "pillow",
   "pre-commit",
