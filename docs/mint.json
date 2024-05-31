@@ -16,8 +16,7 @@
     "dark": "#2D6DF6"
   },
   "versions": [
-    "3.0rc",
-    "2.19.x"
+    "3.0rc"
   ],
   "feedback": {
     "thumbsRating": true
@@ -549,14 +548,6 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/community/index"
-      ]
-    },
-    {
-      "group": "Getting Started",
-      "version": "2.19.x",
-      "pages": [
-        "getting-started/overview",
-        "getting-started/installation"
       ]
     }
   ],
