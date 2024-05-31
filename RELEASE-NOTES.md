@@ -2,25 +2,6 @@
 
 ## Release 3.0rc1
 
-### Breaking Changes
-- Remove `prefect deployment build` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13366
-- Remove `prefect agent` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13365
-- Remove prefect `deployment apply` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13367
-- Remove `PrefectAgent` class — https://github.com/PrefectHQ/prefect/pull/13374
-- Remove prefect.software — https://github.com/PrefectHQ/prefect/pull/13375
-- Remove `deployments` module — https://github.com/PrefectHQ/prefect/pull/13373
-- Remove `EcsTask` from `main` — https://github.com/PrefectHQ/prefect/pull/13417
-- Remove `AzureContainerInstanceJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13418
-- Remove `VertexAICustomTrainingJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13419
-- Remove `CloudRunJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13420
-- Remove infrastructure blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13424
-- Remove `Infrastructure`, `BlockWorker` from `main` — https://github.com/PrefectHQ/prefect/pull/13430
-- Remove deprecated storage blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13410
-- Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
-- Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
-- Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
-- Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
-- Remove old task runners and futures modules — https://github.com/PrefectHQ/prefect/pull/13593
 We're excited to announce the release candidate of Prefect 3.0. This version of Prefect is our best, most flexible, and fastest yet, and introduces or newly open sources several exciting new features. Install it by running pip install prefect==3.0rc1 and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
 
 ### Autonomous tasks 
@@ -225,6 +206,8 @@ A new runs page displays flow and task run executions, and an improved sidebar a
 - Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
 - Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
 - Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
+- Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
+- Remove old task runners and futures modules — https://github.com/PrefectHQ/prefect/pull/13593
 
 ### Contributors
 - @bsignoret
