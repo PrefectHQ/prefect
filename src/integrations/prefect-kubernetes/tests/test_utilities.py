@@ -172,8 +172,8 @@ def mock_cluster_config(monkeypatch):
         [],
         {"context": {"cluster": FAKE_CLUSTER}},
     )
-    monkeypatch.setattr("kubernetes.config", mock)
-    monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
+    monkeypatch.setattr("kubernetes_asyncio.config", mock)
+    monkeypatch.setattr("kubernetes_asyncio.config.ConfigException", ConfigException)
     return mock
 
 

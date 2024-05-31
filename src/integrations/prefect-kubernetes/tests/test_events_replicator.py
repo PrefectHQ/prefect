@@ -10,7 +10,7 @@ from prefect_kubernetes.events import EVICTED_REASONS, KubernetesEventsReplicato
 from prefect.events import RelatedResource
 from prefect.utilities.importtools import lazy_import
 
-kubernetes = lazy_import("kubernetes")
+kubernetes_asyncio = lazy_import("kubernetes_asyncio")
 
 
 @pytest.fixture
@@ -163,7 +163,7 @@ def replicator(client, worker_resource, related_resources):
 
 
 async def test_lifecycle(replicator):
-    mock_watch = MagicMock(spec=kubernetes.watch.Watch)
+    mock_watch = AsyncMock(spec=kubernetes_asyncio.watch.Watch)
 
     with patch.object(replicator, "_watch", mock_watch):
         async with replicator:
@@ -175,7 +175,7 @@ async def test_lifecycle(replicator):
 
 @pytest.mark.asyncio
 async def test_replicate_successful_pod_events(replicator, successful_pod_stream):
-    mock_watch = AsyncMock(spec=kubernetes.watch.Watch)
+    mock_watch = AsyncMock(spec=kubernetes_asyncio.watch.Watch)
     mock_watch.stream.return_value = successful_pod_stream
 
     event_count = 0
@@ -270,7 +270,7 @@ async def test_replicate_successful_pod_events(replicator, successful_pod_stream
 
 @pytest.mark.asyncio
 async def test_replicate_failed_pod_events(replicator, failed_pod_stream):
-    mock_watch = AsyncMock(spec=kubernetes.watch.Watch)
+    mock_watch = AsyncMock(spec=kubernetes_asyncio.watch.Watch)
     mock_watch.stream.return_value = failed_pod_stream
 
     event_count = 0
@@ -363,7 +363,7 @@ async def test_replicate_failed_pod_events(replicator, failed_pod_stream):
 
 @pytest.mark.asyncio
 async def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
-    mock_watch = AsyncMock(spec=kubernetes.watch.Watch)
+    mock_watch = AsyncMock(spec=kubernetes_asyncio.watch.Watch)
     mock_watch.stream.return_value = evicted_pod_stream
 
     event_count = 0
