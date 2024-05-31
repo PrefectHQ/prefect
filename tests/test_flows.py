@@ -47,7 +47,11 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import (
+    Flow,
+    load_flow_argument_from_entrypoint,
+    load_flow_from_entrypoint,
+)
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -3882,3 +3886,100 @@ class TestFlowDeploy:
         )
 
         assert not capsys.readouterr().out
+
+
+class TestLoadFlowArgumentFromEntrypoint:
+    def test_load_flow_name_from_entrypoint(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow(name="My custom name")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "My custom name"
+
+    def test_load_flow_name_from_entrypoint_no_name(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "name")
+
+        assert result == "flow-function"
+
+    def test_load_flow_description_from_entrypoint(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow(description="My custom description")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "description")
+
+        assert result == "My custom description"
+
+    def test_load_flow_description_from_entrypoint_no_description(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+                            
+        @flow
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_argument_from_entrypoint(entrypoint, "description")
+
+        assert result is None
+
+    def test_load_no_flow(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+                            
+        from prefect import flow
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        with pytest.raises(ValueError, match="Could not find flow"):
+            load_flow_argument_from_entrypoint(entrypoint, "name")
