@@ -204,7 +204,7 @@ See the following pull requests for implementation details:
 - Remove `Infrastructure`, `BlockWorker` from `main` — https://github.com/PrefectHQ/prefect/pull/13430
 - Remove deprecated storage blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13410
 - Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
-- Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
+- Remove old engine — https://github.com/PrefectHQ/prefect/pull/13542
 - Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
 - Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
 - Remove old task runners and futures modules — https://github.com/PrefectHQ/prefect/pull/13593
