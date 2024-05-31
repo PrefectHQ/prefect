@@ -1,7 +1,6 @@
 """Module containing docker credentials."""
 
 import docker
-from pydantic import VERSION as PYDANTIC_VERSION
 from pydantic import Field, SecretStr
 
 from prefect import get_run_logger

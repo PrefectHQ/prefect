@@ -28,10 +28,9 @@ import docker.errors
 import packaging.version
 from docker import DockerClient
 from docker.models.containers import Container
-from pydantic import VERSION as PYDANTIC_VERSION
 from pydantic import AfterValidator, Field
 from slugify import slugify
-from typing_extensions import Literal
+from typing_extensions import Annotated, Literal
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
@@ -47,7 +46,6 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
     parse_image_tag,
 )
-from typing_extensions import Annotated
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
 
