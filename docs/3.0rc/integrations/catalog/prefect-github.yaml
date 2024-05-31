@@ -2,5 +2,5 @@ collectionName: prefect-github
 author: Prefect
 authorUrl: https://prefect.io
 documentation: prefect-github
-iconUrl: /img/collections/github.png
+iconUrl: /3.0rc/img/collections/github.png
 tag: GitHub

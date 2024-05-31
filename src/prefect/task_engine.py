@@ -23,6 +23,7 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -37,7 +38,6 @@ from prefect.exceptions import (
     Abort,
     Pause,
     PrefectException,
-    RollBack,
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
@@ -50,7 +50,6 @@ from prefect.settings import (
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
-    Completed,
     Failed,
     Paused,
     Pending,
@@ -233,11 +232,6 @@ class TaskRunEngine(Generic[P, R]):
         if not self.parameters:
             return {}
 
-        # We don't resolve parameters for task runs that are not part of a flow run, AKA
-        # autonomous tasks.
-        if self.task_run and not self.task_run.flow_run_id:
-            return self.parameters
-
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
             try:
@@ -363,7 +357,11 @@ class TaskRunEngine(Generic[P, R]):
                 result_factory=result_factory,
             )
         )
-        transaction.stage(terminal_state.data)
+        transaction.stage(
+            terminal_state.data,
+            on_rollback_hooks=self.task.on_rollback_hooks,
+            on_commit_hooks=self.task.on_commit_hooks,
+        )
         terminal_state.state_details = self._compute_state_details(
             include_cache_expiration=True
         )
@@ -408,16 +406,6 @@ class TaskRunEngine(Generic[P, R]):
                 name="TimedOut",
             )
             self.set_state(state)
-
-    def handle_rollback(self, exc: RollBack) -> None:
-        message = "Task run raised RollBack error, rolled back transaction."
-        self.logger.error(message)
-        state = Completed(
-            data=exc,
-            message=message,
-            name="RolledBack",
-        )
-        self.set_state(state)
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
@@ -532,7 +520,9 @@ class TaskRunEngine(Generic[P, R]):
 
                     # flush all logs if this is not a "top" level run
                     if not (FlowRunContext.get() or TaskRunContext.get()):
-                        run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
+                        from_sync.call_soon_in_loop_thread(
+                            create_call(APILogHandler.aflush)
+                        )
 
                     self._is_started = False
                     self._client = None
@@ -584,9 +574,7 @@ def run_task_sync(
                                 key=run.compute_transaction_key(),
                                 store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
-                                txn.add_task(run.task)
-
-                                if txn.committed:
+                                if txn.is_committed():
                                     result = txn.read()
                                 else:
                                     result = task.fn(*call_args, **call_kwargs)  # type: ignore
@@ -596,8 +584,6 @@ def run_task_sync(
                                 # in order to get the proper result serialization
                                 run.handle_success(result, transaction=txn)
 
-                    except RollBack as exc:
-                        run.handle_rollback(exc)
                     except TimeoutError as exc:
                         run.handle_timeout(exc)
                     except Exception as exc:
@@ -660,9 +646,7 @@ async def run_task_async(
                                 key=run.compute_transaction_key(),
                                 store=ResultFactoryStore(result_factory=result_factory),
                             ) as txn:
-                                txn.add_task(run.task)
-
-                                if txn.committed:
+                                if txn.is_committed():
                                     result = txn.read()
                                 else:
                                     result = await task.fn(*call_args, **call_kwargs)  # type: ignore
@@ -672,8 +656,6 @@ async def run_task_async(
                                 # in order to get the proper result serialization
                                 run.handle_success(result, transaction=txn)
 
-                    except RollBack as exc:
-                        run.handle_rollback(exc)
                     except TimeoutError as exc:
                         run.handle_timeout(exc)
                     except Exception as exc:
