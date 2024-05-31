@@ -159,7 +159,6 @@
           "group": "Block and Agent-Based Deployments",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/concepts/storage",
             "3.0rc/concepts/agents"
           ]
         }
@@ -442,7 +441,7 @@
               ]
             },
             {
-              "group": "AQLAlchemy",
+              "group": "SQLAlchemy",
               "version": "3.0rc",
               "pages": [
                 "3.0rc/integrations/prefect-sqlalchemy/index",
@@ -455,12 +454,18 @@
       ]
     },
     {
+      "group": "Python SDK",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/api-ref/python/index"
+      ]
+    },
+    {
       "group": "REST API",
       "version": "3.0rc",
       "pages": [
         "3.0rc/api-ref/rest-api/index",
-        "3.0rc/api-ref/rest-api/cloud-rest-api-reference",
-        "3.0rc/api-ref/ref"
+        "3.0rc/api-ref/rest-api/cloud-rest-api-reference"
       ]
     },
     {
