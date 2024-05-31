@@ -1155,16 +1155,14 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
-        ...
+    ) -> Awaitable[T]: ...
 
     @overload
     def __call__(
         self: "Flow[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     def __call__(
@@ -1172,8 +1170,7 @@ class Flow(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]:
-        ...
+    ) -> State[T]: ...
 
     def __call__(
         self,
@@ -1316,8 +1313,7 @@ class Flow(Generic[P, R]):
 
 
 @overload
-def flow(__fn: Callable[P, R]) -> Flow[P, R]:
-    ...
+def flow(__fn: Callable[P, R]) -> Flow[P, R]: ...
 
 
 @overload
@@ -1348,8 +1344,7 @@ def flow(
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-) -> Callable[[Callable[P, R]], Flow[P, R]]:
-    ...
+) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
 
 def flow(
@@ -1913,7 +1908,14 @@ def load_flow_argument_from_entrypoint(
         (
             node
             for node in ast.walk(parsed_code)
-            if isinstance(node, ast.FunctionDef) and node.name == func_name
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
         ),
         None,
     )
