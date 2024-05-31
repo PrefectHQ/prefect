@@ -10,7 +10,7 @@ on:
     branches:
       - main
     paths:
-      - "src/integrations/*/**"
+      - "src/integrations/*/**.py"
 
 jobs:
   prepare-matrix:
