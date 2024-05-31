@@ -97,6 +97,53 @@ In the above example, the `create_link_artifact` method is used within a flow to
 The `link` parameter is used to specify the external resource to be linked to, and `link_text` is used to specify the text to be displayed for the link.
 An optional `description` could also be added for context.
 
+### Creating progress artifacts
+
+Progress artifacts are useful for tracking the progress of long-running tasks. They render dynamically on the flow run timeline in the Prefect UI, providing a visually rich indicator of a task run's progress.
+
+To create a progress artifact, use the `create_progress_artifact()` function. To update the progress of a progress artifact, use the `update_progress_artifact()` function.
+
+![Progress artifact example](/3.0rc/img/ui/progress-artfiact-example.png)
+
+```python
+from time import sleep
+
+from prefect import flow, task
+from prefect.artifacts import (
+    create_progress_artifact,
+    update_progress_artifact,
+)
+
+
+def fetch_batch(i: int):
+    # Simulate fetching a batch of data
+    sleep(2)
+
+
+@task
+def fetch_in_batches():
+    progress_artifact_id = create_progress_artifact(
+        progress=0.0,
+        description="Indicates the progress of fetching data in batches.",
+    )
+    for i in range(1, 11):
+        fetch_batch(i)
+        update_progress_artifact(artifact_id=progress_artifact_id, progress=i * 10)
+
+
+@flow
+def etl():
+    fetch_in_batches()
+
+
+if __name__ == "__main__":
+    etl()
+
+```
+
+Note that progress artifacts are updated using a separate `update_progress_artifact()` function. This is because we're not tracking revisions between versions of an artifact, we're updating an existing artifact in place.
+
+
 ### Creating Markdown artifacts
 
 To create a Markdown artifact, you can use the `create_markdown_artifact()` function.
@@ -194,6 +241,36 @@ if __name__ == "__main__":
 ![Table artifact with customer info](/3.0rc/img/ui/table-artifact-info.png)
 As you can see, you don't need to create an artifact in a flow run context.
 You can create one anywhere in a Python script and see it in the Prefect UI.
+
+### Create image artifacts
+
+Image artifacts render publically available images in the Prefect UI for easy visualization & association with a task or flow run.
+
+```python
+from prefect import flow, task
+from prefect.artifacts import (
+    create_image_artifact,
+)
+
+
+@task
+def create_image():
+    # Do something to create an image and upload to a url
+    image_url = "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZmQydzBjOHQ2M3BhdWJ4M3V1MGtoZGxuNmloeGh6b2dvaHhpaHg0eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3KC2jD2QcBOSc/giphy.gif"
+    create_image_artifact(image_url=image_url, description="A gif.", key="gif")
+    return image_url
+
+
+@flow
+def my_flow():
+    return create_image()
+
+
+if __name__ == "__main__":
+    image_url = my_flow()
+    print(f"Image URL: {image_url}")
+
+```
 
 ## Managing artifacts
 
