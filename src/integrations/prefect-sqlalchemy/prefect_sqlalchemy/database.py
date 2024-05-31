@@ -3,11 +3,11 @@
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pydantic import AnyUrl, ConfigDict, Field, SecretStr, computed_field
+from pydantic import AnyUrl, ConfigDict, Field
 from sqlalchemy import __version__ as SQLALCHEMY_VERSION
 from sqlalchemy.engine import Connection, Engine, create_engine
 from sqlalchemy.engine.cursor import CursorResult
-from sqlalchemy.engine.url import URL, make_url
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from sqlalchemy.sql import text
 from typing_extensions import Literal

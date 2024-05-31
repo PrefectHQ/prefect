@@ -1,7 +1,6 @@
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from unittest.mock import MagicMock
 
-import cloudpickle
 import pytest
 from prefect_sqlalchemy.credentials import (
     AsyncDriver,
