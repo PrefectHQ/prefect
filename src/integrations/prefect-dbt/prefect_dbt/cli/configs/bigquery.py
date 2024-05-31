@@ -1,4 +1,5 @@
 """Module containing models for BigQuery configs"""
+
 from typing import Any, Dict, Optional
 
 from google.auth.transport.requests import Request
@@ -10,10 +11,7 @@ except ImportError:
 
 from pydantic import VERSION as PYDANTIC_VERSION
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic import Field
 
 from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
@@ -83,8 +81,9 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
         if self_copy.project is not None:
             self_copy.credentials.project = None
         all_configs_json = self._populate_configs_json(
-            {}, self_copy.__fields__, model=self_copy
+            {}, self_copy.model_fields, model=self_copy
         )
+        print(self_copy.model_fields, all_configs_json)
 
         # decouple prefect-gcp from prefect-dbt
         # by mapping all the keys dbt gcp accepts

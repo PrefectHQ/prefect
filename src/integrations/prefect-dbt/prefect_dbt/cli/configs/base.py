@@ -8,10 +8,7 @@ from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect.blocks.core import Block
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import BaseModel, Field, SecretField
-else:
-    from pydantic import BaseModel, Field, SecretField
+from pydantic import BaseModel, Field
 
 
 class DbtConfigs(Block, abc.ABC):
@@ -62,7 +59,8 @@ class DbtConfigs(Block, abc.ABC):
                     field_value = getattr(model, field.alias)
                 # override the name with alias so dbt parser can recognize the keyword;
                 # e.g. schema_ -> schema, returns the original name if no alias is set
-                field_name = field.alias
+                if field.alias:
+                    field_name = field.alias
             else:
                 field_value = field
 
@@ -72,7 +70,7 @@ class DbtConfigs(Block, abc.ABC):
 
             if isinstance(field_value, BaseModel):
                 configs_json = self._populate_configs_json(
-                    configs_json, field_value.__fields__, model=field_value
+                    configs_json, field_value.model_fields, model=field_value
                 )
             elif field_name == "extras":
                 configs_json = self._populate_configs_json(
@@ -82,11 +80,12 @@ class DbtConfigs(Block, abc.ABC):
                 override_configs_json.update(configs_json)
             else:
                 if field_name in configs_json.keys() and not self.allow_field_overrides:
+
                     raise ValueError(
                         f"The keyword, {field_name}, has already been provided in "
                         f"TargetConfigs; remove duplicated keywords to continue"
                     )
-                if isinstance(field_value, SecretField):
+                if hasattr(field_value, "get_secret_value"):
                     field_value = field_value.get_secret_value()
                 elif isinstance(field_value, Path):
                     field_value = str(field_value)
@@ -105,7 +104,7 @@ class DbtConfigs(Block, abc.ABC):
         Returns:
             A configs JSON.
         """
-        return self._populate_configs_json({}, self.__fields__, model=self)
+        return self._populate_configs_json({}, self.model_fields, model=self)
 
 
 class BaseTargetConfigs(DbtConfigs, abc.ABC):

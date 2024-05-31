@@ -1,4 +1,5 @@
 """Module containing tasks and flows for interacting with dbt Cloud jobs"""
+
 import asyncio
 import shlex
 import time
@@ -13,10 +14,7 @@ from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import FlowRunContext
 from prefect.utilities.asyncutils import sync_compatible
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic import Field
 
 from typing_extensions import Literal
 
@@ -399,7 +397,7 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
             )
             try:
                 retry_filtered_models_attempts -= 1
-                run_data = await retry_dbt_cloud_job_run_subset_and_wait_for_completion(
+                run_data = retry_dbt_cloud_job_run_subset_and_wait_for_completion(
                     dbt_cloud_credentials=dbt_cloud_credentials,
                     run_id=run_id,
                     trigger_job_run_options=trigger_job_run_options,
@@ -626,7 +624,7 @@ async def retry_dbt_cloud_job_run_subset_and_wait_for_completion(
     flow_run_context = FlowRunContext.get()
     task_runner_type = type(flow_run_context.task_runner)
 
-    run_data = await trigger_dbt_cloud_job_run_and_wait_for_completion.with_options(
+    run_data = trigger_dbt_cloud_job_run_and_wait_for_completion.with_options(
         task_runner=task_runner_type()
     )(
         dbt_cloud_credentials=dbt_cloud_credentials,
@@ -840,7 +838,9 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             # dbt --fail-fast run, -s, bad_mod --vars '{"env": "prod"}' to:
             # dbt --fail-fast run -s other_mod bad_mod --vars '{"env": "prod"}'
             command_start, select_arg, command_end = command.partition(select_arg)
-            modified_command = f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
+            modified_command = (
+                f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
+            )
         else:
             # dbt --fail-fast, build, --vars '{"env": "prod"}' to:
             # dbt --fail-fast build --select bad_model --vars '{"env": "prod"}'

@@ -9,17 +9,12 @@ from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.results import NodeStatus, RunExecutionResult
 from prefect_shell.commands import ShellOperation
 from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, validator
 
 from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
 from prefect.states import Failed
 from prefect.utilities.filesystem import relative_path_to_current_platform
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
 from prefect_dbt.cli.credentials import DbtCliProfile
 
 
@@ -316,18 +311,18 @@ class DbtCoreOperation(ShellOperation):
         ),
     )
 
-    @validator("commands", always=True)
-    def _has_a_dbt_command(cls, commands):
-        """
-        Check that the commands contain a dbt command.
-        """
-        if not any("dbt " in command for command in commands):
-            raise ValueError(
-                "None of the commands are a valid dbt sub-command; see dbt --help, "
-                "or use prefect_shell.ShellOperation for non-dbt related "
-                "commands instead"
-            )
-        return commands
+    # @validator("commands", always=True)
+    # def _has_a_dbt_command(cls, commands):
+    #     """
+    #     Check that the commands contain a dbt command.
+    #     """
+    #     if not any("dbt " in command for command in commands):
+    #         raise ValueError(
+    #             "None of the commands are a valid dbt sub-command; see dbt --help, "
+    #             "or use prefect_shell.ShellOperation for non-dbt related "
+    #             "commands instead"
+    #         )
+    #     return commands
 
     def _find_valid_profiles_dir(self) -> PosixPath:
         """
