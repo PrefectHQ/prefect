@@ -15,6 +15,9 @@
 - Remove `CloudRunJob` from `main` — https://github.com/PrefectHQ/prefect/pull/13420
 - Remove infrastructure blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13424
 - Remove `Infrastructure`, `BlockWorker` from `main` — https://github.com/PrefectHQ/prefect/pull/13430
+- Remove deprecated storage blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13410
+- Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
+- Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
 
 ### Exciting New Features 🎉
 - Create and manage automations in the UI — https://github.com/PrefectHQ/prefect/pull/13293
@@ -90,12 +93,10 @@
 - Edit review of Execution section — https://github.com/PrefectHQ/prefect/pull/13253
 - Removes block auto-instrumentation — https://github.com/PrefectHQ/prefect/pull/13407
 - Disable integration tests for main — https://github.com/PrefectHQ/prefect/pull/13409
-- Remove deprecated storage blocks from `main` — https://github.com/PrefectHQ/prefect/pull/13410
 - Remove private run methods — https://github.com/PrefectHQ/prefect/pull/13414
 - Add autouse fixture to modify cwd — https://github.com/PrefectHQ/prefect/pull/13416
 - Update sync compat in preparation for new engine — https://github.com/PrefectHQ/prefect/pull/13438
 - More test prep — https://github.com/PrefectHQ/prefect/pull/13449
-- Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
 - More test progress — https://github.com/PrefectHQ/prefect/pull/13452
 - New engine logging — https://github.com/PrefectHQ/prefect/pull/13450
 - Flow run names and engine tests — https://github.com/PrefectHQ/prefect/pull/13454
@@ -107,7 +108,6 @@
 - Enable new engine experimental setting by default — https://github.com/PrefectHQ/prefect/pull/13477
 - Task Hook decorators — https://github.com/PrefectHQ/prefect/pull/13534
 - Flow hook decorators — https://github.com/PrefectHQ/prefect/pull/13535
-- Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
 - Add button to hide/show subflow on dashboard page — https://github.com/PrefectHQ/prefect/pull/13280
 - Adds `PrefectDistributedClient` to `prefect-dask` — https://github.com/PrefectHQ/prefect/pull/13537
 - Add apply_async to schedule pending tasks — https://github.com/PrefectHQ/prefect/pull/13547
@@ -131,14 +131,12 @@
 - Remove old task runners and futures modules — https://github.com/PrefectHQ/prefect/pull/13593
 - Correcting API schemas to maintain compatibility with Cloud — https://github.com/PrefectHQ/prefect/pull/13623
 - Add _sync flag to sync compatible fns — https://github.com/PrefectHQ/prefect/pull/13627
-- Bumping compatibility tests to latest on main — https://github.com/PrefectHQ/prefect/pull/13635
 - Update `apply_async` interface to mirror `multiprocessing` equivalent — https://github.com/PrefectHQ/prefect/pull/13643
 - Bringing back the integration tests — https://github.com/PrefectHQ/prefect/pull/13645
 - Update task server to run received tasks concurrently — https://github.com/PrefectHQ/prefect/pull/13653
 - Disable the automations-assessment test for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/13659
 - migrate `prefect-github` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13655
 - migrate `prefect-gitlab` to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13656
-- Bumping compat-tests — https://github.com/PrefectHQ/prefect/pull/13671
 - Add a Join the Community CTA — https://github.com/PrefectHQ/prefect/pull/13668
 - migrate `prefect-email` to pydantic2 — https://github.com/PrefectHQ/prefect/pull/13654
 - migrate `prefect-slack` to pydantic 2 — https://github.com/PrefectHQ/prefect/pull/13673
