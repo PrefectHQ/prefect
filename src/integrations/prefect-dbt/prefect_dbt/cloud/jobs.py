@@ -834,9 +834,7 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             # dbt --fail-fast run, -s, bad_mod --vars '{"env": "prod"}' to:
             # dbt --fail-fast run -s other_mod bad_mod --vars '{"env": "prod"}'
             command_start, select_arg, command_end = command.partition(select_arg)
-            modified_command = (
-                f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
-            )
+            modified_command = f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
         else:
             # dbt --fail-fast, build, --vars '{"env": "prod"}' to:
             # dbt --fail-fast build --select bad_model --vars '{"env": "prod"}'
