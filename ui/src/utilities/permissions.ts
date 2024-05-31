@@ -3,7 +3,6 @@ import { InjectionKey } from 'vue'
 
 const featureFlags = [
   'access:workers',
-  'access:work_pools',
   'access:artifacts',
   'access:deploymentStatus',
   'access:workQueueStatus',
