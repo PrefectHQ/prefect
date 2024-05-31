@@ -20,8 +20,8 @@ pip install --upgrade prefect
 Different components may use different versions of Prefect:
 
 * **Cloud** will generally always be the newest version. Cloud is continuously deployed by the Prefect team. When using a self-hosted server, you can control this version.
-* **Workers and agents** typically don't change versions frequently, and are usually whatever the latest version was at the time of creation. Workers and agents provision infrastructure for flow runs, so upgrading them may help with infrastructure problems.
-* **Flows** could use a different version than the worker or agent that created them, especially when running in different environments. Suppose your worker and flow both use the latest official Docker image, but your worker was created a month ago. Your worker will often be on an older version than your flow.
+* **Workers** typically don't change versions frequently, and are usually whatever the latest version was at the time of creation. Workers provision infrastructure for flow runs, so upgrading them may help with infrastructure problems.
+* **Flows** could use a different version than the worker that created them, especially when running in different environments. Suppose your worker and flow both use the latest official Docker image, but your worker was created a month ago. Your worker will often be on an older version than your flow.
 
 !!! note "Integration Versions"
     Keep in mind that [integrations](/integrations/) are versioned and released independently of the core Prefect library. They should be upgraded simultaneously with the core library, using the same method.
@@ -33,7 +33,7 @@ In many cases, there will be an informative stack trace in Prefect's [logs](/con
 There are two types of logs:
 
 * **Flow and task logs** are always scoped to a flow. They are sent to Prefect and are viewable in the UI.
-* **Worker and agent logs** are not scoped to a flow and may have more information on what happened before the flow started. These logs are generally only available where the worker or agent is running.
+* **Worker logs** are not scoped to a flow and may have more information on what happened before the flow started. These logs are generally only available where the worker is running.
 
 If your flow and task logs are empty, there may have been an infrastructure issue that prevented your flow from starting. Check your worker logs for more details.
 
@@ -69,11 +69,11 @@ curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/a
 !!! note "Formatting JSON"
     Python comes with a helpful [tool](https://docs.python.org/3/library/json.html#module-json.tool) for formatting JSON. Append the following to the end of the command above to make the output more readable: `| python -m json.tool`
 
-Make sure your actor is a member of the workspace you are working in. Within a workspace, an actor has a [role](/cloud/users/roles/) which grants them certain permissions. Insufficient permissions will result in an error. For example, starting an agent or worker with the **Viewer** role, will result in errors.
+Make sure your actor is a member of the workspace you are working in. Within a workspace, an actor has a [role](/cloud/users/roles/) which grants them certain permissions. Insufficient permissions will result in an error. For example, starting a worker with the **Viewer** role, will result in errors.
 
 ## Execution
 
-Prefect flows can be executed locally by the user, or remotely by a worker or agent. Local execution generally means that you - the user - run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow via a [deployment](/concepts/deployments/), optionally on different infrastructure.
+Prefect flows can be executed locally by the user, or remotely by a worker. Local execution generally means that you - the user - run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow via a [deployment](/concepts/deployments/), optionally on different infrastructure.
 
 With remote execution, the creation of your flow run happens separately from its execution. Flow runs are assigned to a work pool and a work queue. For flow runs to execute, a worker must be subscribed to the work pool and work queue, otherwise the flow runs will go from `Scheduled` to `Late`. Ensure that your work pool and work queue have a subscribed worker.
 
