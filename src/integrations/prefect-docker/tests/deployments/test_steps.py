@@ -16,7 +16,7 @@ import prefect
 import prefect.utilities.dockerutils
 
 FAKE_CONTAINER_ID = "fake-id"
-FAKE_BASE_URL = "http+docker://my-url"
+FAKE_BASE_URL = "my-url"
 FAKE_DEFAULT_TAG = "2022-08-31t18-01-32-00-00"
 FAKE_IMAGE_NAME = "registry/repo"
 FAKE_TAG = "mytag"
