@@ -5,6 +5,7 @@ import pendulum
 import pytest
 
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import TaskRun
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.dependencies import (
     provide_task_orchestration_parameters,
@@ -68,7 +69,9 @@ class TestCreateTaskRunState:
         assert task_run.run_count == 2
         assert task_run.total_run_time == (dt2 - dt)
 
-    async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
+    async def test_failed_becomes_awaiting_retry(
+        self, task_run: TaskRun, client, session
+    ):
         # first ensure the task run's flow run is in a running state
         await models.flow_runs.set_flow_run_state(
             session=session,
@@ -79,7 +82,7 @@ class TestCreateTaskRunState:
 
         # set max retries to 1
         # copy to trigger ORM updates
-        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy = task_run.empirical_policy.model_copy()
         task_run.empirical_policy.retries = 1
         await session.flush()
 
@@ -107,7 +110,7 @@ class TestCreateTaskRunState:
     async def test_failed_doesnt_retry_if_flag_set(self, task_run, client, session):
         # set max retries to 1
         # copy to trigger ORM updates
-        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy = task_run.empirical_policy.model_copy()
         task_run.empirical_policy.retries = 1
         await session.flush()
 

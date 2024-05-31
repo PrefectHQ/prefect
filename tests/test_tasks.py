@@ -22,11 +22,12 @@ from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
+    ParameterBindError,
     ReservedArgumentError,
-    RollBack,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.new_futures import PrefectFuture as NewPrefectFuture
+from prefect.futures import PrefectFuture as NewPrefectFuture
+from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -36,7 +37,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import State
-from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import Transaction
@@ -739,7 +739,7 @@ class TestTaskFutures:
 
             # TODO: The ids are not equal here, why?
             # task_run = await prefect_client.read_task_run(state.state_details.task_run_id)
-            # assert task_run.state.dict(exclude={"data"}) == state.dict(exclude={"data"})
+            # assert task_run.state.model_dump(exclude={"data"}) == state.model_dump(exclude={"data"})
 
         await my_flow()
 
@@ -2441,7 +2441,7 @@ async def _wait_for_logs(
         if flow_run_id
         else None
     )
-    for _ in range(5):
+    while True:
         logs = await prefect_client.read_logs(log_filter=log_filter)
         if logs:
             break
@@ -3163,105 +3163,6 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
-
-    # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
-        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
-        1/100th the value of their input, starting with the longest sleep first. If the tasks
-        do not execute sequentially, we expect the later tasks to append before the earlier.
-        """
-
-        @task
-        def sleepy_task(n, mock_item):
-            time.sleep(n / 100)
-            mock_item(n)
-            return n
-
-        @flow
-        def my_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        nums = [i for i in range(10, 0, -1)]
-
-        mock_item = MagicMock()
-        my_flow(mock_item, nums)
-        assert mock_item.call_args_list != [call(n) for n in nums]
-
-        @flow(task_runner=SequentialTaskRunner())
-        def seq_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        sync_mock_item = MagicMock()
-        seq_flow(sync_mock_item, nums)
-
-        assert sync_mock_item.call_args_list == [call(n) for n in nums]
-
-    # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
-        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
-        1/100th the value of their input, starting with the longest sleep first. If the tasks
-        do not execute sequentially, we expect the later tasks to append before the earlier.
-        """
-
-        @task
-        def sleepy_task(n, mock_item):
-            time.sleep(n / 100)
-            mock_item(n)
-            return n
-
-        @flow
-        async def my_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        nums = [i for i in range(10, 0, -1)]
-
-        mock_item = MagicMock()
-        await my_flow(mock_item, nums)
-        assert mock_item.call_args_list != [call(n) for n in nums]
-
-        @flow(task_runner=SequentialTaskRunner())
-        async def seq_flow(mock_item, nums):
-            sleepy_task.map(nums, unmapped(mock_item))
-
-        sync_mock_item = MagicMock()
-        await seq_flow(sync_mock_item, nums)
-
-        assert sync_mock_item.call_args_list == [call(n) for n in nums]
-
-    # Will not be supported in new engine - SequentialTaskRunner will be removed
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
-        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
-        1/100th the value of their input, starting with the longest sleep first. If the tasks
-        do not execute sequentially, we expect the later tasks to append before the earlier.
-        """
-
-        @task
-        async def sleepy_task(n, mock_item):
-            time.sleep(n / 100)
-            mock_item(n)
-            return n
-
-        @flow
-        async def my_flow(mock_item, nums):
-            await sleepy_task.map(nums, unmapped(mock_item))
-
-        nums = [i for i in range(10, 0, -1)]
-
-        mock_item = MagicMock()
-        await my_flow(mock_item, nums)
-        assert mock_item.call_args_list != [call(n) for n in nums]
-
-        @flow(task_runner=SequentialTaskRunner())
-        async def seq_flow(mock_item, nums):
-            await sleepy_task.map(nums, unmapped(mock_item))
-
-        sync_mock_item = MagicMock()
-        await seq_flow(sync_mock_item, nums)
-
-        assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
 
 class TestTaskConstructorValidation:
@@ -4197,23 +4098,6 @@ class TestNestedTasks:
 
 
 class TestTransactions:
-    def test_rollback_hook_is_called_on_rollback(self):
-        data = {}
-
-        @task
-        def my_task():
-            raise RollBack()
-
-        @my_task.on_rollback
-        def rollback(txn):
-            data["called"] = True
-
-        state = my_task(return_state=True)
-
-        assert state.is_completed()
-        assert state.name == "RolledBack"
-        assert data["called"] is True
-
     def test_commit_hook_is_called_on_commit(self):
         data = {}
 
@@ -4230,3 +4114,206 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
+        assert str(state.state_details.task_run_id) == data["txn"].key
+
+
+class TestApplyAsync:
+    async def get_background_task_run_parameters(self, task, parameters_id):
+        factory = await ResultFactory.from_autonomous_task(task)
+        return await factory.read_parameters(parameters_id)
+
+    @pytest.mark.parametrize(
+        "args, kwargs",
+        [
+            ((42, 42), {}),
+            ([42, 42], {}),
+            ((), {"x": 42, "y": 42}),
+            ([42], {"y": 42}),
+        ],
+    )
+    async def test_apply_async_with_args_kwargs(self, args, kwargs):
+        @task
+        def multiply(x, y):
+            return x * y
+
+        task_run = multiply.apply_async(args, kwargs)
+
+        assert await self.get_background_task_run_parameters(
+            multiply, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    def test_apply_async_with_duplicate_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="multiple values for argument 'x'"
+        ):
+            add.apply_async((42,), {"x": 42})
+
+    def test_apply_async_missing_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="missing a required argument: 'y'"
+        ):
+            add.apply_async((42,))
+
+    async def test_apply_async_handles_default_values(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.apply_async((42,))
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    async def test_apply_async_overrides_defaults(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.apply_async((42,), {"y": 100})
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 100}
+
+    async def test_apply_async_with_variadic_args(self):
+        @task
+        def add_em_up(*args):
+            return sum(args)
+
+        task_run = add_em_up.apply_async((42, 42))
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42, 42)}
+
+    async def test_apply_async_with_variadic_kwargs(self):
+        @task
+        def add_em_up(**kwargs):
+            return sum(kwargs.values())
+
+        task_run = add_em_up.apply_async(kwargs={"x": 42, "y": 42})
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"kwargs": {"x": 42, "y": 42}}
+
+    async def test_apply_async_with_variadic_args_and_kwargs(self):
+        @task
+        def add_em_up(*args, **kwargs):
+            return sum(args) + sum(kwargs.values())
+
+        task_run = add_em_up.apply_async((42,), {"y": 42})
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42,), "kwargs": {"y": 42}}
+
+
+class TestDelay:
+    async def get_background_task_run_parameters(self, task, parameters_id):
+        factory = await ResultFactory.from_autonomous_task(task)
+        return await factory.read_parameters(parameters_id)
+
+    @pytest.mark.parametrize(
+        "args, kwargs",
+        [
+            ((42, 42), {}),
+            ([42, 42], {}),
+            ((), {"x": 42, "y": 42}),
+            ([42], {"y": 42}),
+        ],
+    )
+    async def test_delay_with_args_kwargs(self, args, kwargs):
+        @task
+        def multiply(x, y):
+            return x * y
+
+        task_run = multiply.delay(*args, **kwargs)
+
+        assert await self.get_background_task_run_parameters(
+            multiply, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    def test_delay_with_duplicate_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="multiple values for argument 'x'"
+        ):
+            add.delay(42, x=42)
+
+    def test_delay_missing_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="missing a required argument: 'y'"
+        ):
+            add.delay(42)
+
+    async def test_delay_handles_default_values(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.delay(42)
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 42}
+
+    async def test_delay_overrides_defaults(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        task_run = add.delay(42, y=100)
+
+        assert await self.get_background_task_run_parameters(
+            add, task_run.state.state_details.task_parameters_id
+        ) == {"x": 42, "y": 100}
+
+    async def test_delay_with_variadic_args(self):
+        @task
+        def add_em_up(*args):
+            return sum(args)
+
+        task_run = add_em_up.delay(42, 42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42, 42)}
+
+    async def test_delay_with_variadic_kwargs(self):
+        @task
+        def add_em_up(**kwargs):
+            return sum(kwargs.values())
+
+        task_run = add_em_up.delay(x=42, y=42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"kwargs": {"x": 42, "y": 42}}
+
+    async def test_delay_with_variadic_args_and_kwargs(self):
+        @task
+        def add_em_up(*args, **kwargs):
+            return sum(args) + sum(kwargs.values())
+
+        task_run = add_em_up.delay(42, y=42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, task_run.state.state_details.task_parameters_id
+        ) == {"args": (42,), "kwargs": {"y": 42}}

@@ -20,10 +20,10 @@ from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import FlowFilter
-from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -279,17 +279,17 @@ async def inspect(name: str):
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
 
-        deployment_json = deployment.dict(json_compatible=True)
+        deployment_json = deployment.model_dump(mode="json")
 
         if deployment.infrastructure_document_id:
             deployment_json["infrastructure"] = Block._from_block_document(
                 await client.read_block_document(deployment.infrastructure_document_id)
-            ).dict(
+            ).model_dump(
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
         deployment_json["automations"] = [
-            a.dict()
+            a.model_dump()
             for a in await client.read_resource_related_automations(
                 f"prefect.deployment.{deployment.id}"
             )
@@ -550,11 +550,11 @@ async def list_schedules(deployment_name: str):
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-    def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
+    def sort_by_created_key(schedule: DeploymentScheduleCreate):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
         return pendulum.now("utc") - schedule.created
 
-    def schedule_details(schedule: DeploymentSchedule) -> str:
+    def schedule_details(schedule: DeploymentScheduleCreate) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
             return f"interval: {schedule.schedule.interval}s"
         elif isinstance(schedule.schedule, CronSchedule):
@@ -920,6 +920,13 @@ async def delete(
     async with get_client() as client:
         if name is None and deployment_id is not None:
             try:
+                if is_interactive() and not typer.confirm(
+                    (
+                        f"Are you sure you want to delete deployment with id {deployment_id!r}?"
+                    ),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment_id)
                 exit_with_success(f"Deleted deployment '{deployment_id}'.")
             except ObjectNotFound:
@@ -927,6 +934,11 @@ async def delete(
         elif name is not None:
             try:
                 deployment = await client.read_deployment_by_name(name)
+                if is_interactive() and not typer.confirm(
+                    (f"Are you sure you want to delete deployment with name {name!r}?"),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment.id)
                 exit_with_success(f"Deleted deployment '{name}'.")
             except ObjectNotFound:

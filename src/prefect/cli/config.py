@@ -5,14 +5,14 @@ Command line interface for working with profiles
 import os
 from typing import List, Optional
 
-import pydantic.v1 as pydantic
+import pydantic
 import typer
 
 import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 
 help_message = """
     Commands for interacting with Prefect settings.
@@ -118,6 +118,11 @@ def unset(settings: List[str]):
         if setting not in profile.settings:
             exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
 
+    if is_interactive() and not typer.confirm(
+        f"Are you sure you want to unset the following settings: {settings!r}?",
+    ):
+        exit_with_error("Unset aborted.")
+
     profiles.update_profile(
         name=profile.name, settings={setting: None for setting in parsed}
     )
@@ -196,10 +201,10 @@ def view(
     settings_output = []
 
     # The combination of environment variables and profile settings that are in use
-    profile_overrides = current_profile_settings.dict(exclude_unset=True)
+    profile_overrides = current_profile_settings.model_dump(exclude_unset=True)
 
     # Used to see which settings in current_profile_settings came from env vars
-    env_overrides = env_settings.dict(exclude_unset=True)
+    env_overrides = env_settings.model_dump(exclude_unset=True)
 
     for key, value in profile_overrides.items():
         source = "env" if env_overrides.get(key) is not None else "profile"
@@ -207,7 +212,7 @@ def view(
         settings_output.append(f"{key}='{value}'{source_blurb}")
 
     if show_defaults:
-        for key, value in default_settings.dict().items():
+        for key, value in default_settings.model_dump().items():
             if key not in profile_overrides:
                 source_blurb = " (from defaults)" if show_sources else ""
                 settings_output.append(f"{key}='{value}'{source_blurb}")

@@ -17,12 +17,13 @@ from unittest.mock import MagicMock
 import anyio
 import pendulum
 import pytest
-from prefect._vendor.starlette import status
+from starlette import status
 
 import prefect.runner
 from prefect import flow, serve, task
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import MinimalDeploymentSchedule, StateType
+from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
@@ -297,7 +298,7 @@ class TestRunner:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -453,7 +454,7 @@ class TestRunner:
 
             await prefect_client.set_flow_run_state(
                 flow_run_id=flow_run.id,
-                state=flow_run.state.copy(
+                state=flow_run.state.model_copy(
                     update={"name": "Cancelling", "type": StateType.CANCELLING}
                 ),
             )
@@ -473,6 +474,86 @@ class TestRunner:
         assert flow_run.state.is_cancelled()
         # check to make sure on_cancellation hook was called
         assert "This flow was cancelled!" in caplog.text
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_warns_if_unable_to_load_cancellation_hooks(
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+        in_temporary_runner_directory: None,
+        temp_storage: MockStorage,
+    ):
+        runner = Runner(query_seconds=2)
+
+        temp_storage.code = dedent(
+            """\
+            from time import sleep
+
+            from prefect import flow
+            from prefect.logging.loggers import flow_run_logger
+
+            def on_cancellation(flow, flow_run, state):
+                logger = flow_run_logger(flow_run, flow)
+                logger.info("This flow was cancelled!")
+
+            @flow(on_cancellation=[on_cancellation], log_prints=True)
+            def cancel_flow(sleep_time: int = 100):
+                sleep(sleep_time)
+            """
+        )
+
+        deployment_id = await runner.add_flow(
+            await flow.from_source(
+                source=temp_storage, entrypoint="flows.py:cancel_flow"
+            ),
+            name=__file__,
+        )
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(runner.start)
+
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment_id
+            )
+
+            # Need to wait for polling loop to pick up flow run and
+            # start execution
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_running():
+                    break
+
+            await prefect_client.delete_deployment(deployment_id=deployment_id)
+
+            await prefect_client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=flow_run.state.model_copy(
+                    update={"name": "Cancelling", "type": StateType.CANCELLING}
+                ),
+            )
+
+            # Need to wait for polling loop to pick up flow run and then
+            # finish cancellation
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_cancelled():
+                    break
+
+            await runner.stop()
+            tg.cancel_scope.cancel()
+
+        # Cancellation hook should not have been called successfully
+        # but the flow run should still be cancelled correctly
+        assert flow_run.state.is_cancelled()
+        assert "This flow was cancelled!" not in caplog.text
+        assert (
+            "Runner cannot retrieve flow to execute cancellation hooks for flow run"
+            in caplog.text
+        )
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_crashed_hooks_for_remotely_stored_flows(
@@ -832,7 +913,7 @@ class TestRunnerDeployment:
             dummy_flow_1,
             __file__,
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -884,7 +965,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ],
@@ -1030,7 +1111,7 @@ class TestRunnerDeployment:
             dummy_flow_1_entrypoint,
             __file__,
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),
@@ -1088,7 +1169,7 @@ class TestRunnerDeployment:
                     {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
-                            MinimalDeploymentSchedule(
+                            DeploymentScheduleCreate(
                                 schedule=CronSchedule(cron="* * * * *"), active=True
                             )
                         ]
@@ -1134,7 +1215,7 @@ class TestRunnerDeployment:
         assert deployment.work_pool_name is None
         assert deployment.work_queue_name is None
         assert deployment.path == "."
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
         assert deployment.is_schedule_active is True
 
@@ -1266,7 +1347,7 @@ class TestRunnerDeployment:
             entrypoint="flows.py:test_flow",
             name="test-deployment",
             schedules=[
-                MinimalDeploymentSchedule(
+                DeploymentScheduleCreate(
                     schedule=CronSchedule(cron="* * * * *"), active=True
                 ),
                 IntervalSchedule(interval=datetime.timedelta(days=1)),

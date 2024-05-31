@@ -8,7 +8,6 @@ from typing import Optional
 
 import httpx
 import typer
-from prefect._vendor.starlette import status
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
@@ -17,9 +16,10 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
+from prefect.exceptions import ObjectNotFound
 from prefect.utilities.collections import AutoEnum
 
 profile_app = PrefectTyper(
@@ -78,7 +78,7 @@ def create(
             exit_with_error(f"Profile {from_name!r} not found.")
 
         # Create a copy of the profile with a new name and add to the collection
-        profiles.add_profile(profiles[from_name].copy(update={"name": name}))
+        profiles.add_profile(profiles[from_name].model_copy(update={"name": name}))
     else:
         profiles.add_profile(prefect.settings.Profile(name=name, settings={}))
 
@@ -180,7 +180,11 @@ def delete(name: str):
             f"Profile {name!r} is the active profile. You must switch profiles before"
             " it can be deleted."
         )
-
+    if is_interactive() and not typer.confirm(
+        (f"Are you sure you want to delete profile with name {name!r}?"),
+        default=False,
+    ):
+        exit_with_error("Deletion aborted.")
     profiles.remove_profile(name)
 
     verb = "Removed"
@@ -203,7 +207,7 @@ def rename(name: str, new_name: str):
     if new_name in profiles:
         exit_with_error(f"Profile {new_name!r} already exists.")
 
-    profiles.add_profile(profiles[name].copy(update={"name": new_name}))
+    profiles.add_profile(profiles[name].model_copy(update={"name": new_name}))
     profiles.remove_profile(name)
 
     # If the active profile was renamed switch the active profile to the new name.
@@ -271,27 +275,26 @@ async def check_orion_connection():
     except CloudUnauthorizedError:
         # if the Cloud 2.0 API exists and fails to authenticate, notify the user
         return ConnectionStatus.CLOUD_UNAUTHORIZED
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-            # if the route does not exist, attempt to connect as a hosted Prefect
-            # instance
-            try:
-                # inform the user if Prefect API endpoints exist, but there are
-                # connection issues
-                client = get_client(httpx_settings=httpx_settings)
-                async with client:
-                    connect_error = await client.api_healthcheck()
-                if connect_error is not None:
-                    return ConnectionStatus.ORION_ERROR
-                elif client.server_type == ServerType.EPHEMERAL:
-                    # if the client is using an ephemeral Prefect app, inform the user
-                    return ConnectionStatus.EPHEMERAL
-                else:
-                    return ConnectionStatus.ORION_CONNECTED
-            except Exception as exc:
+    except ObjectNotFound:
+        # if the route does not exist, attempt to connect as a hosted Prefect
+        # instance
+        try:
+            # inform the user if Prefect API endpoints exist, but there are
+            # connection issues
+            client = get_client(httpx_settings=httpx_settings)
+            async with client:
+                connect_error = await client.api_healthcheck()
+            if connect_error is not None:
                 return ConnectionStatus.ORION_ERROR
-        else:
-            return ConnectionStatus.CLOUD_ERROR
+            elif client.server_type == ServerType.EPHEMERAL:
+                # if the client is using an ephemeral Prefect app, inform the user
+                return ConnectionStatus.EPHEMERAL
+            else:
+                return ConnectionStatus.ORION_CONNECTED
+        except Exception:
+            return ConnectionStatus.ORION_ERROR
+    except httpx.HTTPStatusError:
+        return ConnectionStatus.CLOUD_ERROR
     except TypeError:
         # if no Prefect API URL has been set, httpx will throw a TypeError
         try:

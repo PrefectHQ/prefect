@@ -286,7 +286,10 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(data))
+    if isinstance(data, BaseResult):
+        return Completed(data=data)
+    else:
+        return Completed(data=await result_factory.create_result(data))
 
 
 @sync_compatible
@@ -462,7 +465,7 @@ def Scheduled(
     Returns:
         State: a Scheduled state
     """
-    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
     elif state_details.scheduled_time:
@@ -548,7 +551,7 @@ def Paused(
     Returns:
         State: a Paused state
     """
-    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
 
     if state_details.pause_timeout:
         raise ValueError("An extra pause timeout was provided in state_details")

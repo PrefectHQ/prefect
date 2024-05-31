@@ -1,22 +1,25 @@
 import pytest
 
-from prefect.records import Record
-from prefect.tasks import task
-from prefect.transactions import CommitMode, Transaction, get_transaction
+from prefect.transactions import (
+    CommitMode,
+    Transaction,
+    TransactionState,
+    get_transaction,
+)
 
 
 def test_basic_init():
     txn = Transaction()
-    assert txn.record is None
-    assert txn.rolled_back is False
-    assert txn.committed is False
+    assert txn.store is None
+    assert txn.state == TransactionState.PENDING
+    assert txn.is_pending()
     assert txn.commit_mode is None
 
 
 def test_equality():
     txn1 = Transaction()
     txn2 = Transaction()
-    txn3 = Transaction(record=Record("test"))
+    txn3 = Transaction(key="test")
     assert txn1 == txn2
     assert txn1 != txn3
 
@@ -30,9 +33,9 @@ class TestGetTxn:
 
     def test_nested_get_transaction(self):
         assert get_transaction() is None
-        with Transaction(record=Record("outer")) as outer:
+        with Transaction(key="outer") as outer:
             assert get_transaction() == outer
-            with Transaction(record=Record("inner")) as inner:
+            with Transaction(key="inner") as inner:
                 assert get_transaction() == inner
             assert get_transaction() == outer
         assert get_transaction() is None
@@ -54,9 +57,9 @@ class TestGetParent:
             assert txn.get_parent() is None
 
     def test_get_parent_with_parent(self):
-        with Transaction(record=Record("outer")) as outer:
+        with Transaction(key="outer") as outer:
             assert outer.get_parent() is None
-            with Transaction(record=Record("inner")) as inner:
+            with Transaction(key="inner") as inner:
                 assert inner.get_parent() == outer
             assert outer.get_parent() is None
 
@@ -64,66 +67,66 @@ class TestGetParent:
 class TestCommitMode:
     def test_txns_auto_commit(self):
         with Transaction() as txn:
-            assert txn.committed is False
-        assert txn.committed is True
+            assert txn.is_active()
+            assert not txn.is_committed()
+        assert txn.is_committed()
 
-        outer_rec, inner_rec = Record("outer"), Record("inner")
-        with Transaction(record=outer_rec) as outer:
-            assert outer.committed is False
-            with Transaction(record=inner_rec) as inner:
+        with Transaction(key="outer") as outer:
+            assert not outer.is_committed()
+            with Transaction(key="inner") as inner:
                 pass
-            assert inner.committed is True
-        assert outer.committed is True
+            assert inner.is_committed()
+        assert outer.is_committed()
 
     def test_txns_dont_commit_on_exception(self):
         with pytest.raises(ValueError, match="foo"):
             with Transaction() as txn:
                 raise ValueError("foo")
 
-        assert txn.committed is False
+        assert not txn.is_committed()
+        assert txn.is_rolled_back()
 
     def test_txns_dont_commit_on_rollback(self):
         with Transaction() as txn:
             txn.rollback()
 
-        assert txn.committed is False
+        assert not txn.is_committed()
+        assert txn.is_rolled_back()
 
     def test_txns_dont_auto_commit_with_lazy_parent(self):
-        outer_rec, inner_rec = Record("outer"), Record("inner")
-        with Transaction(record=outer_rec, commit_mode=CommitMode.LAZY) as outer:
-            assert outer.committed is False
+        with Transaction(key="outer", commit_mode=CommitMode.LAZY) as outer:
+            assert not outer.is_committed()
 
-            with Transaction(record=inner_rec) as inner:
+            with Transaction(key="inner") as inner:
                 pass
 
-            assert inner.committed is False
+            assert not inner.is_committed()
 
-        assert outer.committed is True
-        assert inner.committed is True
+        assert outer.is_committed()
+        assert inner.is_committed()
 
     def test_txns_commit_with_lazy_parent_if_eager(self):
-        outer_rec, inner_rec = Record("outer"), Record("inner")
-        with Transaction(record=outer_rec, commit_mode=CommitMode.LAZY) as outer:
-            assert outer.committed is False
+        with Transaction(key="outer", commit_mode=CommitMode.LAZY) as outer:
+            assert not outer.is_committed()
 
-            with Transaction(record=inner_rec, commit_mode=CommitMode.EAGER) as inner:
+            with Transaction(key="inner", commit_mode=CommitMode.EAGER) as inner:
                 pass
 
-            assert inner.committed is True
+            assert inner.is_committed()
 
-        assert outer.committed is True
+        assert outer.is_committed()
 
-    def test_txns_commit_off_rolls_back(self):
+    def test_txns_commit_off_rolls_back_on_exit(self):
         with Transaction(commit_mode=CommitMode.OFF) as txn:
-            assert txn.committed is False
-        assert txn.committed is False
-        assert txn.rolled_back is True
+            assert not txn.is_committed()
+        assert not txn.is_committed()
+        assert txn.is_rolled_back()
 
     def test_txns_commit_off_doesnt_roll_back_if_committed(self):
         with Transaction(commit_mode=CommitMode.OFF) as txn:
             txn.commit()
-        assert txn.committed is True
-        assert txn.rolled_back is False
+        assert txn.is_committed()
+        assert not txn.is_rolled_back()
 
     def test_error_in_commit_triggers_rollback(self):
         class BadTxn(Transaction):
@@ -133,81 +136,35 @@ class TestCommitMode:
         with Transaction() as txn:
             txn.add_child(BadTxn())
 
-        assert txn.committed is False
-        assert txn.rolled_back is True
+        assert not txn.is_committed()
+        assert txn.is_rolled_back()
 
 
 class TestRollBacks:
     def test_rollback_flag_is_set(self):
         with Transaction() as txn:
-            assert txn.rolled_back is False
+            assert not txn.is_rolled_back()
             txn.rollback()
-            assert txn.rolled_back is True
+            assert txn.is_rolled_back()
 
     def test_txns_rollback_on_exception(self):
         with pytest.raises(ValueError, match="foo"):
             with Transaction() as txn:
                 raise ValueError("foo")
 
-        assert txn.rolled_back is True
-
-    def test_rollback_flag_gates_rollback(self):
-        data = {}
-
-        @task
-        def my_task():
-            pass
-
-        @my_task.on_rollback
-        def rollback(txn):
-            data["called"] = True
-
-        with Transaction() as txn:
-            txn.add_task(my_task, None)
-            txn.rolled_back = True
-            txn.rollback()
-
-        assert data.get("called") is None
+        assert txn.is_rolled_back()
 
     def test_rollback_flag_propagates_up(self):
-        with Transaction(record=Record("outer")) as outer:
-            assert outer.rolled_back is False
-            with Transaction(record=Record("inner")) as inner:
-                assert inner.rolled_back is False
-                with Transaction(record=Record("nested")) as nested:
-                    assert nested.rolled_back is False
+        with Transaction(key="outer") as outer:
+            assert not outer.is_rolled_back()
+            with Transaction(key="inner") as inner:
+                assert not inner.is_rolled_back()
+                with Transaction(key="nested") as nested:
+                    assert not nested.is_rolled_back()
                     nested.rollback()
-                    assert nested.rolled_back is True
-                assert inner.rolled_back is True
-            assert outer.rolled_back is True
-
-    def test_nested_rollbacks_have_accurate_active_txn(self):
-        data = {}
-
-        @task
-        def outer_task():
-            pass
-
-        @outer_task.on_rollback
-        def rollback(txn):
-            data["outer"] = txn.record.key
-
-        @task
-        def inner_task():
-            pass
-
-        @inner_task.on_rollback
-        def inner_rollback(txn):
-            data["inner"] = txn.record.key
-
-        with Transaction(record=Record("outer")) as txn:
-            txn.add_task(outer_task, None)
-            with Transaction(record=Record("inner")) as inner:
-                inner.add_task(inner_task, None)
-                inner.rollback()
-
-        assert data["inner"] == "inner"
-        assert data["outer"] == "outer"
+                    assert nested.is_rolled_back()
+                assert inner.is_rolled_back()
+        assert outer.is_rolled_back()
 
     def test_failed_rollback_resets_txn(self):
         class BadTxn(Transaction):
@@ -216,8 +173,40 @@ class TestRollBacks:
 
         assert get_transaction() is None
 
-        with Transaction(record=Record("outer")) as txn:
+        with Transaction(key="outer") as txn:
             txn.add_child(BadTxn())
             assert txn.rollback() is False  # rollback failed
 
         assert get_transaction() is None
+
+
+class TestTransactionState:
+    @pytest.mark.parametrize("state", TransactionState.__members__.values())
+    def test_state_and_methods_are_consistent(self, state):
+        "Not the best test, but it does the job"
+        txn = Transaction(state=state)
+        assert txn.is_active() == (txn.state.name == "ACTIVE")
+        assert txn.is_pending() == (txn.state.name == "PENDING")
+        assert txn.is_committed() == (txn.state.name == "COMMITTED")
+        assert txn.is_staged() == (txn.state.name == "STAGED")
+        assert txn.is_rolled_back() == (txn.state.name == "ROLLED_BACK")
+
+    def test_happy_state_lifecycle(self):
+        txn = Transaction()
+        assert txn.is_pending()
+
+        with txn:
+            assert txn.is_active()
+
+        assert txn.is_committed()
+
+    def test_unhappy_state_lifecycle(self):
+        txn = Transaction()
+        assert txn.is_pending()
+
+        with pytest.raises(ValueError, match="foo"):
+            with txn:
+                assert txn.is_active()
+                raise ValueError("foo")
+
+        assert txn.is_rolled_back()

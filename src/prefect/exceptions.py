@@ -8,7 +8,7 @@ from types import ModuleType, TracebackType
 from typing import Callable, Dict, Iterable, List, Optional, Type
 
 from httpx._exceptions import HTTPStatusError
-from pydantic.v1 import ValidationError
+from pydantic import ValidationError
 from rich.traceback import Traceback
 from typing_extensions import Self
 
@@ -54,12 +54,6 @@ def exception_traceback(exc: Exception) -> str:
 class PrefectException(Exception):
     """
     Base exception type for Prefect errors.
-    """
-
-
-class RollBack(PrefectException):
-    """
-    Raised to force a transaction to roll back.
     """
 
 

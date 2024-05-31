@@ -1,1 +1,1 @@
-from .records import Record
+from .store import RecordStore

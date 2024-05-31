@@ -2,27 +2,26 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
     Any,
-    Dict,
+    Callable,
+    Generator,
     List,
     Optional,
     Type,
     TypeVar,
 )
-from uuid import UUID
 
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from pydantic import Field
 
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
-from prefect.context import ContextModel, TaskRunContext
-from prefect.records import Record
-from prefect.tasks import Task
+from prefect.context import ContextModel
+from prefect.records import RecordStore
 from prefect.utilities.collections import AutoEnum
 
 T = TypeVar("T")
+
+
+class IsolationLevel(AutoEnum):
+    READ_COMMITTED = AutoEnum.auto()
+    SERIALIZABLE = AutoEnum.auto()
 
 
 class CommitMode(AutoEnum):
@@ -31,19 +30,45 @@ class CommitMode(AutoEnum):
     OFF = AutoEnum.auto()
 
 
+class TransactionState(AutoEnum):
+    PENDING = AutoEnum.auto()
+    ACTIVE = AutoEnum.auto()
+    STAGED = AutoEnum.auto()
+    COMMITTED = AutoEnum.auto()
+    ROLLED_BACK = AutoEnum.auto()
+
+
 class Transaction(ContextModel):
     """
     A base model for transaction state.
     """
 
-    record: Record = None
-    tasks: List[Task] = Field(default_factory=list)
-    state: Dict[UUID, Dict[str, Any]] = Field(default_factory=dict)
+    store: Optional[RecordStore] = None
+    key: Optional[str] = None
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
-    committed: bool = False
-    rolled_back: bool = False
+    state: TransactionState = TransactionState.PENDING
+    on_commit_hooks: List[Callable[["Transaction"], None]] = Field(default_factory=list)
+    on_rollback_hooks: List[Callable[["Transaction"], None]] = Field(
+        default_factory=list
+    )
+    _staged_value: Any = None
     __var__ = ContextVar("transaction")
+
+    def is_committed(self) -> bool:
+        return self.state == TransactionState.COMMITTED
+
+    def is_rolled_back(self) -> bool:
+        return self.state == TransactionState.ROLLED_BACK
+
+    def is_staged(self) -> bool:
+        return self.state == TransactionState.STAGED
+
+    def is_pending(self) -> bool:
+        return self.state == TransactionState.PENDING
+
+    def is_active(self) -> bool:
+        return self.state == TransactionState.ACTIVE
 
     def __enter__(self):
         if self._token is not None:
@@ -60,6 +85,9 @@ class Transaction(ContextModel):
             else:
                 self.commit_mode = CommitMode.EAGER
 
+        # this needs to go before begin, which could set the state to committed
+        self.state = TransactionState.ACTIVE
+        self.begin()
         self._token = self.__var__.set(self)
         return self
 
@@ -76,13 +104,14 @@ class Transaction(ContextModel):
         if self.commit_mode == CommitMode.EAGER:
             self.commit()
 
-        parent = self.get_parent()
+        # if parent, let them take responsibility
+        if self.get_parent():
+            self.reset()
+            return
 
-        if parent:
-            # parent takes responsibility
-            parent.add_child(self)
-        elif self.commit_mode == CommitMode.OFF:
-            # no one took responsibility to commit, rolling back
+        if self.commit_mode == CommitMode.OFF:
+            # if no one took responsibility to commit, rolling back
+            # note that rollback returns if already committed
             self.rollback()
         elif self.commit_mode == CommitMode.LAZY:
             # no one left to take responsibility for committing
@@ -90,13 +119,28 @@ class Transaction(ContextModel):
 
         self.reset()
 
-        # do this below reset so that get_transaction() returns the relevant txn
-        if parent and self.rolled_back:
-            parent.rollback()
+    def begin(self):
+        # currently we only support READ_COMMITTED isolation
+        # i.e., no locking behavior
+        if self.store and self.store.exists(key=self.key):
+            self.state = TransactionState.COMMITTED
+
+    def read(self) -> dict:
+        return self.store.read(key=self.key)
 
     def reset(self) -> None:
+        parent = self.get_parent()
+
+        if parent:
+            # parent takes responsibility
+            parent.add_child(self)
+
         self.__var__.reset(self._token)
         self._token = None
+
+        # do this below reset so that get_transaction() returns the relevant txn
+        if parent and self.state == TransactionState.ROLLED_BACK:
+            parent.rollback()
 
     def add_child(self, transaction: "Transaction") -> None:
         self.children.append(transaction)
@@ -110,33 +154,45 @@ class Transaction(ContextModel):
         return parent
 
     def commit(self) -> bool:
-        if self.rolled_back or self.committed:
+        if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
             return False
 
         try:
             for child in self.children:
                 child.commit()
 
-            for tsk in self.tasks:
-                for hook in tsk.on_commit_hooks:
-                    hook(self)
+            for hook in self.on_commit_hooks:
+                hook(self)
 
-            self.committed = True
+            if self.store:
+                self.store.write(key=self.key, value=self._staged_value)
+            self.state = TransactionState.COMMITTED
             return True
         except Exception:
             self.rollback()
             return False
 
+    def stage(
+        self, value: dict, on_rollback_hooks: list, on_commit_hooks: list
+    ) -> None:
+        """
+        Stage a value to be committed later.
+        """
+        if self.state != TransactionState.COMMITTED:
+            self._staged_value = value
+            self.on_rollback_hooks += on_rollback_hooks
+            self.on_commit_hooks += on_commit_hooks
+            self.state = TransactionState.STAGED
+
     def rollback(self) -> bool:
-        if self.rolled_back or self.committed:
+        if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
             return False
 
         try:
-            for tsk in reversed(self.tasks):
-                for hook in tsk.on_rollback_hooks:
-                    hook(self)
+            for hook in reversed(self.on_rollback_hooks):
+                hook(self)
 
-            self.rolled_back = True
+            self.state = TransactionState.ROLLED_BACK
 
             for child in reversed(self.children):
                 child.rollback()
@@ -145,38 +201,9 @@ class Transaction(ContextModel):
         except Exception:
             return False
 
-    def add_task(self, task: Task, task_run_id: UUID) -> None:
-        self.tasks.append(task)
-        self.state[task_run_id] = {}
-
     @classmethod
     def get_active(cls: Type[T]) -> Optional[T]:
         return cls.__var__.get(None)
-
-    def get(self, var: str) -> Any:
-        ctx = TaskRunContext.get()
-        if not ctx:
-            raise RuntimeError(
-                "Transaction state can only be set from within a task run context."
-            )
-        if ctx.task_run not in self.state:
-            raise RuntimeError(
-                "Task run initiated outside the scope of this transcation."
-            )
-        return self.state[ctx.task_run].get(var)
-
-    def set(self, var: str, val: Any) -> None:
-        ctx = TaskRunContext.get()
-        if not ctx:
-            raise RuntimeError(
-                "Transaction state can only be set from within a task run context."
-            )
-        if ctx.task_run not in self.state:
-            raise RuntimeError(
-                "Task run initiated outside the scope of this transcation."
-            )
-
-        self.state[ctx.task_run][var] = val
 
 
 def get_transaction() -> Transaction:
@@ -185,7 +212,9 @@ def get_transaction() -> Transaction:
 
 @contextmanager
 def transaction(
-    record: Record = None, commit_mode: CommitMode = CommitMode.LAZY
-) -> Transaction:
-    with Transaction(record=record, commit_mode=commit_mode) as txn:
+    key: Optional[str] = None,
+    store: Optional[RecordStore] = None,
+    commit_mode: CommitMode = CommitMode.LAZY,
+) -> Generator[Transaction, None, None]:
+    with Transaction(key=key, store=store, commit_mode=commit_mode) as txn:
         yield txn

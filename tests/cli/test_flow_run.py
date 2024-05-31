@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.exceptions
 from prefect import flow
@@ -94,6 +94,7 @@ def test_delete_flow_run_fails_correctly():
     missing_flow_run_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
     invoke_and_assert(
         command=["flow-run", "delete", missing_flow_run_id],
+        user_input="y",
         expected_output_contains=f"Flow run '{missing_flow_run_id}' not found!",
         expected_code=1,
     )
@@ -102,6 +103,7 @@ def test_delete_flow_run_fails_correctly():
 def test_delete_flow_run_succeeds(prefect_client, flow_run):
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
+        user_input="y",
         expected_output_contains=f"Successfully deleted flow run '{str(flow_run.id)}'.",
         expected_code=0,
     )
@@ -369,7 +371,7 @@ def flow_run_factory(prefect_client):
                 name="prefect.flow_runs",
                 level=20,
                 message=f"Log {i} from flow_run {flow_run.id}.",
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=DateTime.now(),
                 flow_run_id=flow_run.id,
             )
             for i in range(num_logs)

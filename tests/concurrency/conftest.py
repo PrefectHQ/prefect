@@ -14,7 +14,7 @@ async def concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ async def other_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ async def concurrency_limit_with_decay(session: AsyncSession) -> ConcurrencyLimi
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)
 
 
 @pytest.fixture
@@ -56,4 +56,4 @@ async def other_concurrency_limit_with_decay(
 
     await session.commit()
 
-    return ConcurrencyLimitV2.from_orm(concurrency_limit)
+    return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)

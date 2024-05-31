@@ -1,4 +1,4 @@
-r"""
+"""
 Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
@@ -33,23 +33,23 @@ import anyio
 import anyio._backends._asyncio
 import anyio.abc
 import pendulum
-from pydantic.v1 import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic_extra_types.pendulum_dt import DateTime
 from sniffio import AsyncLibraryNotFoundError
+from typing_extensions import Self
 
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect._internal.schemas.fields import DateTimeTZ
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
-from prefect.new_task_runners import TaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
-from prefect.task_runners import BaseTaskRunner
+from prefect.task_runners import TaskRunner
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 # Define the global settings context variable
 # This will be populated downstream but must be null here to facilitate loading the
 # default settings.
-GLOBAL_SETTINGS_CONTEXT = None
+GLOBAL_SETTINGS_CONTEXT = None  # type: ignore
 
 
 def serialize_context() -> Dict[str, Any]:
@@ -137,12 +137,11 @@ class ContextModel(BaseModel):
 
     # The context variable for storing data must be defined by the child class
     __var__: ContextVar
-    _token: Token = PrivateAttr(None)
-
-    class Config:
-        # allow_mutation = False
-        arbitrary_types_allowed = True
-        extra = "forbid"
+    _token: Optional[Token] = PrivateAttr(None)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        extra="forbid",
+    )
 
     def __enter__(self):
         if self._token is not None:
@@ -161,10 +160,13 @@ class ContextModel(BaseModel):
         self._token = None
 
     @classmethod
-    def get(cls: Type[T]) -> Optional[T]:
+    def get(cls: Type[Self]) -> Optional[Self]:
+        """Get the current context instance"""
         return cls.__var__.get(None)
 
-    def copy(self, **kwargs):
+    def model_copy(
+        self: Self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
+    ):
         """
         Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
@@ -178,8 +180,8 @@ class ContextModel(BaseModel):
         Returns:
             A new model instance.
         """
+        new = super().model_copy(update=update, deep=deep)
         # Remove the token on copy to avoid re-entrance errors
-        new = super().copy(**kwargs)
         new._token = None
         return new
 
@@ -187,9 +189,7 @@ class ContextModel(BaseModel):
         """
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
-        return self.dict(
-            exclude_unset=True,
-        )
+        return self.model_dump(exclude_unset=True)
 
 
 class PrefectObjectRegistry(ContextModel):
@@ -203,7 +203,7 @@ class PrefectObjectRegistry(ContextModel):
         capture_failures: If set, failures during __init__ will be silenced and tracked.
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
     _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
         default_factory=lambda: defaultdict(list)
@@ -343,12 +343,12 @@ class RunContext(ContextModel):
         client: The Prefect client instance being used for API communication
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={"start_time", "input_keyset"},
             exclude_unset=True,
         )
@@ -374,7 +374,7 @@ class EngineContext(RunContext):
     flow: Optional["Flow"] = None
     flow_run: Optional[FlowRun] = None
     autonomous_task_run: Optional[TaskRun] = None
-    task_runner: Union[BaseTaskRunner, TaskRunner]
+    task_runner: TaskRunner
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
@@ -408,10 +408,10 @@ class EngineContext(RunContext):
     # Events worker to emit events to Prefect Cloud
     events: Optional[EventsWorker] = None
 
-    __var__ = ContextVar("flow_run")
+    __var__: ContextVar = ContextVar("flow_run")
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={
                 "flow_run",
                 "flow",
@@ -448,7 +448,7 @@ class TaskRunContext(RunContext):
     __var__ = ContextVar("task_run")
 
     def serialize(self):
-        return self.dict(
+        return self.model_dump(
             include={
                 "task_run",
                 "task",
@@ -737,7 +737,7 @@ def root_settings_context():
 
 
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
-GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None
+GLOBAL_OBJECT_REGISTRY: Optional[ContextManager[PrefectObjectRegistry]] = None
 
 
 def initialize_object_registry():

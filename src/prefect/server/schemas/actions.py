@@ -4,26 +4,19 @@ Reduced schemas for accepting API actions.
 
 import json
 from copy import deepcopy
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-import orjson
-from pydantic.v1 import (
-    Field,
-    HttpUrl,
-    root_validator,
-    validator,
-)
+import pendulum
+from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    get_or_create_state_name,
     raise_on_name_alphanumeric_dashes_only,
     raise_on_name_alphanumeric_underscores_only,
     remove_old_deployment_fields,
-    set_default_scheduled_time,
     set_deployment_schedules,
     validate_cache_key_length,
     validate_max_metadata_length,
@@ -34,18 +27,17 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
 )
-from prefect.server.schemas.core import STRICT_VARIABLE_TYPES
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTimeTZ
-from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
+    MAX_VARIABLE_NAME_LENGTH,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
     NonNegativeInteger,
     PositiveInteger,
+    StrictVariableValue,
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
@@ -75,24 +67,7 @@ def validate_variable_name(value):
 
 
 class ActionBaseModel(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
-
-    def __iter__(self):
-        # By default, `pydantic.BaseModel.__iter__` yields from `self.__dict__` directly
-        # instead  of going through `_iter`. We want tor retain our custom logic in
-        # `_iter` during `dict(model)` calls which is what Pydantic uses for
-        # `parse_obj(model)`
-        yield from self._iter(to_dict=True)
-
-    def _iter(self, *args, **kwargs) -> Generator[tuple, None, None]:
-        # Drop fields that are marked as `ignored` from json and dictionary outputs
-        exclude = kwargs.pop("exclude", None) or set()
-        for name, field in self.__fields__.items():
-            if field.field_info.extra.get("ignored"):
-                exclude.add(name)
-
-        return super()._iter(*args, **kwargs, exclude=exclude)
+    model_config = ConfigDict(extra="forbid")
 
 
 class FlowCreate(ActionBaseModel):
@@ -138,7 +113,8 @@ class DeploymentScheduleCreate(ActionBaseModel):
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
-    @validator("max_scheduled_runs")
+    @field_validator("max_scheduled_runs")
+    @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
@@ -168,23 +144,16 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
-    @validator("max_scheduled_runs")
+    @field_validator("max_scheduled_runs")
+    @classmethod
     def validate_max_scheduled_runs(cls, v):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
 
 
-class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
+class DeploymentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a deployment."""
-
-    @root_validator
-    def populate_schedules(cls, values):
-        return set_deployment_schedules(values)
-
-    @root_validator(pre=True)
-    def remove_old_fields(cls, values):
-        return remove_old_deployment_fields(values)
 
     name: str = Field(
         default=...,
@@ -205,13 +174,13 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
         description="A list of schedules for the deployment.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
-        default=None,
+        default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
     )
     parameters: Dict[str, Any] = Field(
@@ -270,19 +239,31 @@ class DeploymentCreate(DeprecatedInfraOverridesField, ActionBaseModel):
                 ignore_required=True,
             )
 
-    @validator("parameters")
-    def _validate_parameters_conform_to_schema(cls, value, values):
-        return validate_parameters_conform_to_schema(value, values)
+    @model_validator(mode="before")
+    def populate_schedules(cls, values):
+        return set_deployment_schedules(values)
 
-    @validator("parameter_openapi_schema")
-    def _validate_parameter_openapi_schema(cls, value, values):
-        return validate_parameter_openapi_schema(value, values)
+    @model_validator(mode="before")
+    @classmethod
+    def remove_old_fields(cls, values):
+        return remove_old_deployment_fields(values)
+
+    @model_validator(mode="before")
+    def _validate_parameters_conform_to_schema(cls, values):
+        values["parameters"] = validate_parameters_conform_to_schema(
+            values.get("parameters", {}), values
+        )
+        values["parameter_openapi_schema"] = validate_parameter_openapi_schema(
+            values.get("parameter_openapi_schema"), values
+        )
+        return values
 
 
-class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
+class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
 
@@ -331,9 +312,7 @@ class DeploymentUpdate(DeprecatedInfraOverridesField, ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def check_valid_configuration(self, base_job_template: dict):
         """
@@ -376,7 +355,8 @@ class FlowRunUpdate(ActionBaseModel):
     infrastructure_pid: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -401,20 +381,25 @@ class StateCreate(ActionBaseModel):
         description="The details of the state to create",
     )
 
-    timestamp: Optional[DateTimeTZ] = Field(
-        default=None,
-        repr=False,
-        ignored=True,
-    )
-    id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
+    @model_validator(mode="after")
+    def default_name_from_type(self):
+        """If a name is not provided, use the type"""
+        # if `type` is not in `values` it means the `type` didn't pass its own
+        # validation check and an error will be raised after this function is called
+        name = self.name
+        if name is None and self.type:
+            self.name = " ".join([v.capitalize() for v in self.type.value.split("_")])
+        return self
 
-    @validator("name", always=True)
-    def default_name_from_type(cls, v, *, values, **kwargs):
-        return get_or_create_state_name(v, values)
+    @model_validator(mode="after")
+    def default_scheduled_start_time(self):
+        from prefect.server.schemas.states import StateType
 
-    @root_validator
-    def default_scheduled_start_time(cls, values):
-        return set_default_scheduled_time(cls, values)
+        if self.type == StateType.SCHEDULED:
+            if not self.state_details.scheduled_time:
+                self.state_details.scheduled_time = pendulum.now("utc")
+
+        return self
 
 
 class TaskRunCreate(ActionBaseModel):
@@ -453,7 +438,7 @@ class TaskRunCreate(ActionBaseModel):
             " the task run."
         ),
     )
-    cache_expiration: Optional[DateTimeTZ] = Field(
+    cache_expiration: Optional[DateTime] = Field(
         default=None, description="Specifies when the cached state should expire."
     )
     task_version: Optional[str] = Field(
@@ -481,11 +466,13 @@ class TaskRunCreate(ActionBaseModel):
         description="The inputs to the task run.",
     )
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
-    @validator("cache_key")
+    @field_validator("cache_key")
+    @classmethod
     def validate_cache_key(cls, cache_key):
         return validate_cache_key_length(cache_key)
 
@@ -497,7 +484,8 @@ class TaskRunUpdate(ActionBaseModel):
         default_factory=lambda: generate_slug(2), examples=["my-task-run"]
     )
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -558,10 +546,8 @@ class FlowRunCreate(ActionBaseModel):
         deprecated=True,
     )
 
-    class Config(ActionBaseModel.Config):
-        json_dumps = orjson_dumps_extra_compatible
-
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -604,7 +590,8 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     work_queue_name: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
-    @validator("name", pre=True)
+    @field_validator("name", mode="before")
+    @classmethod
     def set_name(cls, name):
         return get_or_create_run_name(name)
 
@@ -663,10 +650,10 @@ class BlockTypeCreate(ActionBaseModel):
 
     name: Name = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
-    logo_url: Optional[HttpUrl] = Field(
+    logo_url: Optional[str] = Field(  # TODO: HttpUrl
         default=None, description="Web URL for the block type's logo"
     )
-    documentation_url: Optional[HttpUrl] = Field(
+    documentation_url: Optional[str] = Field(  # TODO: HttpUrl
         default=None, description="Web URL for the block type's documentation"
     )
     description: Optional[str] = Field(
@@ -679,16 +666,14 @@ class BlockTypeCreate(ActionBaseModel):
     )
 
     # validators
-    _validate_slug_format = validator("slug", allow_reuse=True)(
-        validate_block_type_slug
-    )
+    _validate_slug_format = field_validator("slug")(validate_block_type_slug)
 
 
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[schemas.core.HttpUrl] = Field(None)
-    documentation_url: Optional[schemas.core.HttpUrl] = Field(None)
+    logo_url: Optional[str] = Field(None)  # TODO: HttpUrl
+    documentation_url: Optional[str] = Field(None)  # TODO: HttpUrl
     description: Optional[str] = Field(None)
     code_example: Optional[str] = Field(None)
 
@@ -703,7 +688,7 @@ class BlockSchemaCreate(ActionBaseModel):
     fields: Dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
+    block_type_id: UUID = Field(default=..., description="A block type ID")
 
     capabilities: List[str] = Field(
         default_factory=list,
@@ -739,11 +724,9 @@ class BlockDocumentCreate(ActionBaseModel):
         ),
     )
 
-    _validate_name_format = validator("name", allow_reuse=True)(
-        validate_block_document_name
-    )
+    _validate_name_format = field_validator("name")(validate_block_document_name)
 
-    @root_validator
+    @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(cls, values):
         return validate_name_present_on_nonanonymous_blocks(values)
 
@@ -776,7 +759,7 @@ class BlockDocumentReferenceCreate(ActionBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
-    @root_validator
+    @model_validator(mode="before")
     def validate_parent_and_ref_are_different(cls, values):
         return validate_parent_and_ref_diff(values)
 
@@ -787,7 +770,7 @@ class LogCreate(ActionBaseModel):
     name: str = Field(default=..., description="The logger name.")
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
-    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
+    timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
 
@@ -840,7 +823,7 @@ class WorkPoolCreate(ActionBaseModel):
         default=None, description="A concurrency limit for the work pool."
     )
 
-    _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
+    _validate_base_job_template = field_validator("base_job_template")(
         validate_base_job_template
     )
 
@@ -853,7 +836,7 @@ class WorkPoolUpdate(ActionBaseModel):
     base_job_template: Optional[Dict[str, Any]] = Field(None)
     concurrency_limit: Optional[NonNegativeInteger] = Field(None)
 
-    _validate_base_job_template = validator("base_job_template", allow_reuse=True)(
+    _validate_base_job_template = field_validator("base_job_template")(
         validate_base_job_template
     )
 
@@ -897,7 +880,7 @@ class WorkQueueUpdate(ActionBaseModel):
     )
     concurrency_limit: Optional[NonNegativeInteger] = Field(None)
     priority: Optional[PositiveInteger] = Field(None)
-    last_polled: Optional[DateTimeTZ] = Field(None)
+    last_polled: Optional[DateTime] = Field(None)
 
     # DEPRECATED
 
@@ -937,7 +920,8 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
         ],
     )
 
-    @validator("message_template")
+    @field_validator("message_template")
+    @classmethod
     def validate_message_template_variables(cls, v):
         return validate_message_template_variables(v)
 
@@ -951,7 +935,8 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     block_document_id: Optional[UUID] = Field(None)
     message_template: Optional[str] = Field(None)
 
-    @validator("message_template")
+    @field_validator("message_template")
+    @classmethod
     def validate_message_template_variables(cls, v):
         return validate_message_template_variables(v)
 
@@ -1011,11 +996,11 @@ class ArtifactCreate(ActionBaseModel):
 
         return cls(data=data, **artifact_info)
 
-    _validate_metadata_length = validator("metadata_")(validate_max_metadata_length)
-
-    _validate_artifact_format = validator("key", allow_reuse=True)(
-        validate_artifact_key
+    _validate_metadata_length = field_validator("metadata_")(
+        validate_max_metadata_length
     )
+
+    _validate_artifact_format = field_validator("key")(validate_artifact_key)
 
 
 class ArtifactUpdate(ActionBaseModel):
@@ -1025,7 +1010,7 @@ class ArtifactUpdate(ActionBaseModel):
     description: Optional[str] = Field(None)
     metadata_: Optional[Dict[str, str]] = Field(None)
 
-    _validate_metadata_length = validator("metadata_", allow_reuse=True)(
+    _validate_metadata_length = field_validator("metadata_")(
         validate_max_metadata_length
     )
 
@@ -1037,9 +1022,9 @@ class VariableCreate(ActionBaseModel):
         default=...,
         description="The name of the variable",
         examples=["my-variable"],
-        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: STRICT_VARIABLE_TYPES = Field(
+    value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
@@ -1051,21 +1036,7 @@ class VariableCreate(ActionBaseModel):
     )
 
     # validators
-    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
-
-    @validator("value")
-    def validate_value(cls, v):
-        try:
-            json_string = orjson.dumps(v)
-        except orjson.JSONDecodeError:
-            raise ValueError("Variable value must be serializable to JSON.")
-
-        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
-            raise ValueError(
-                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
-            )
-
-        return v
+    _validate_name_format = field_validator("name")(validate_variable_name)
 
 
 class VariableUpdate(ActionBaseModel):
@@ -1075,9 +1046,9 @@ class VariableUpdate(ActionBaseModel):
         default=None,
         description="The name of the variable",
         examples=["my-variable"],
-        max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
+        max_length=MAX_VARIABLE_NAME_LENGTH,
     )
-    value: STRICT_VARIABLE_TYPES = Field(
+    value: StrictVariableValue = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
@@ -1088,19 +1059,5 @@ class VariableUpdate(ActionBaseModel):
         examples=[["tag-1", "tag-2"]],
     )
 
-    @validator("value")
-    def validate_value(cls, v):
-        try:
-            json_string = orjson.dumps(v)
-        except orjson.JSONDecodeError:
-            raise ValueError("Variable value must be serializable to JSON.")
-
-        if len(json_string) > schemas.core.MAX_VARIABLE_VALUE_LENGTH:
-            raise ValueError(
-                f"value must less than {schemas.core.MAX_VARIABLE_VALUE_LENGTH} characters when serialized."
-            )
-
-        return v
-
     # validators
-    _validate_name_format = validator("name", allow_reuse=True)(validate_variable_name)
+    _validate_name_format = field_validator("name")(validate_variable_name)

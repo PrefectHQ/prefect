@@ -6,14 +6,9 @@ from functools import partial
 from smtplib import SMTP, SMTP_SSL
 from typing import Optional, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, SecretStr, field_validator
 
 from prefect.blocks.core import Block
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr, validator
-else:
-    from pydantic import Field, SecretStr, validator
 
 
 class SMTPType(Enum):
@@ -141,15 +136,16 @@ class EmailServerCredentials(Block):
         ),
     )
 
-    @validator("smtp_server", pre=True)
-    def _cast_smtp_server(cls, value):
+    @field_validator("smtp_server", mode="before")
+    def _cast_smtp_server(cls, value: str):
         """
         Cast the smtp_server to an SMTPServer Enum member, if valid.
         """
         return _cast_to_enum(value, SMTPServer)
 
-    @validator("smtp_type", pre=True)
-    def _cast_smtp_type(cls, value):
+    @field_validator("smtp_type", mode="before")
+    @classmethod
+    def _cast_smtp_type(cls, value: str):
         """
         Cast the smtp_type to an SMTPType Enum member, if valid.
         """

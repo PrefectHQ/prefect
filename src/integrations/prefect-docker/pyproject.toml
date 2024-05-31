@@ -22,7 +22,12 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=2.13.5", "docker>=6.1.1"]
+dependencies = [
+  "prefect@git+https://github.com/prefecthq/prefect.git",
+  "docker>=6.1.1",
+  "exceptiongroup",
+  "requests<2.30.0",
+]
 dynamic = ["version"]
 
 [project.optional-dependencies]

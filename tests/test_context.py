@@ -24,7 +24,6 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
-from prefect.new_task_runners import ThreadPoolTaskRunner
 from prefect.results import ResultFactory
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
@@ -37,7 +36,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.task_runners import SequentialTaskRunner
+from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class ExampleContext(ContextModel):
@@ -66,7 +65,7 @@ def test_single_context_object_cannot_be_entered_multiple_times():
 def test_copied_context_object_can_be_reentered():
     context = ExampleContext(x=1)
     with context:
-        with context.copy():
+        with context.model_copy():
             assert ExampleContext.get().x == 1
 
 
@@ -93,7 +92,7 @@ async def test_flow_run_context(prefect_client):
     def foo():
         pass
 
-    test_task_runner = SequentialTaskRunner()
+    test_task_runner = ThreadPoolTaskRunner()
     flow_run = await prefect_client.create_flow_run(foo)
     result_factory = await ResultFactory.from_flow(foo)
 
@@ -158,7 +157,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
     def bar():
         pass
 
-    test_task_runner = SequentialTaskRunner()
+    test_task_runner = ThreadPoolTaskRunner()
     flow_run = await prefect_client.create_flow_run(foo)
     task_run = await prefect_client.create_task_run(bar, flow_run.id, dynamic_key="")
 
@@ -393,7 +392,7 @@ class TestSettingsContext:
 
     @pytest.mark.usefixtures("remove_existing_settings_context")
     def test_root_settings_context_accessible_in_new_loop(self):
-        from anyio import start_blocking_portal
+        from anyio.from_thread import start_blocking_portal
 
         with start_blocking_portal() as portal:
             result = portal.call(get_settings_context)

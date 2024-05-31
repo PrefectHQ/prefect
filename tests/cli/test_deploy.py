@@ -25,6 +25,7 @@ from prefect.cli.deploy import (
     _initialize_deployment_triggers,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -47,7 +48,6 @@ from prefect.server.schemas.actions import (
     BlockDocumentCreate,
     BlockSchemaCreate,
     BlockTypeCreate,
-    WorkPoolCreate,
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -294,7 +294,7 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
 
     async def test_project_deploy_with_default_work_pool(
         self, project_dir, prefect_client
@@ -324,10 +324,10 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
 
     async def test_project_deploy_with_no_deployment_file(
-        self, project_dir, prefect_client
+        self, project_dir, prefect_client: PrefectClient
     ):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -2923,7 +2923,7 @@ class TestMultiDeploy:
         assert deployment1.enforce_parameter_schema is True
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
-        assert deployment2.enforce_parameter_schema is False
+        assert deployment2.enforce_parameter_schema
 
         # Check if the third deployment was not created
         with pytest.raises(ObjectNotFound):

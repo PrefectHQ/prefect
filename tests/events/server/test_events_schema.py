@@ -1,17 +1,11 @@
 import json
+from datetime import timezone
 from uuid import uuid4
 
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
-
+from pydantic import ValidationError
 
 from prefect.server.events.schemas.events import (
     Event,
@@ -32,13 +26,11 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
             id=uuid4(),
         )
 
-    assert error.value.errors() == [
-        {
-            "loc": ("occurred",),
-            "msg": "field required",
-            "type": "value_error.missing",
-        },
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["loc"] == ("occurred",)
+    assert error["msg"] == "Field required"
+    assert error["type"] == "missing"
 
     with pytest.raises(ValidationError) as error:
         Event(
@@ -47,9 +39,11 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
             resource={"prefect.resource.id": "hello"},
         )
 
-    assert error.value.errors() == [
-        {"loc": ("id",), "msg": "field required", "type": "value_error.missing"},
-    ]
+    assert len(error.value.errors()) == 1
+    (error,) = error.value.errors()
+    assert error["loc"] == ("id",)
+    assert error["msg"] == "Field required"
+    assert error["type"] == "missing"
 
 
 def test_client_events_may_have_empty_related_resources():
@@ -191,7 +185,7 @@ def test_server_events_can_be_received_from_client_events_with_times(
 
 def test_json_representation():
     event = ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=pendulum.DateTime(2021, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -201,13 +195,13 @@ def test_json_representation():
         ],
         payload={"hello": "world"},
         id=uuid4(),
-        received=pendulum.now("UTC"),
+        received=pendulum.DateTime(2021, 2, 3, 4, 5, 6, 78, tzinfo=timezone.utc),
     )
 
-    jsonified = json.loads(event.json().encode())
+    jsonified = json.loads(event.model_dump_json())
 
     assert jsonified == {
-        "occurred": event.occurred.isoformat(),
+        "occurred": "2021-02-03T04:05:06.000007Z",
         "event": "hello",
         "resource": {"prefect.resource.id": "hello"},
         "related": [
@@ -218,7 +212,7 @@ def test_json_representation():
         "payload": {"hello": "world"},
         "id": str(event.id),
         "follows": None,
-        "received": event.received.isoformat(),
+        "received": "2021-02-03T04:05:06.000078Z",
     }
 
 
