@@ -244,7 +244,9 @@ You can create one anywhere in a Python script and see it in the Prefect UI.
 
 ### Create image artifacts
 
-Image artifacts render publically available images in the Prefect UI for easy visualization & association with a task or flow run.
+Image artifacts render publically available images in the Prefect UI for easy visualization & association with a task or flow run. To create an image artifact, use the `create_image_artifact()` function.
+
+![Image artifact example](/3.0rc/img/ui/image-artfiact-example.png)
 
 ```python
 from prefect import flow, task
@@ -271,6 +273,8 @@ if __name__ == "__main__":
     print(f"Image URL: {image_url}")
 
 ```
+
+Note: The image URL must be publicly accessible for the Prefect UI to render it. If you would like to create an artifact for a private image, you can use the `create_link_artifact()` function instead.
 
 ## Managing artifacts
 
