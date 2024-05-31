@@ -1,3 +1,4 @@
+import sys
 from datetime import timedelta
 from typing import Generator, List
 from unittest import mock
@@ -6,6 +7,7 @@ from uuid import UUID, uuid4
 import orjson
 import pytest
 import yaml
+from typer import Exit
 
 from prefect.events.actions import CancelFlowRun, DoNothing, PauseAutomation
 from prefect.events.schemas.automations import (
@@ -18,6 +20,25 @@ from prefect.events.schemas.automations import (
     PrefectMetric,
 )
 from prefect.testing.cli import invoke_and_assert
+
+
+@pytest.fixture(autouse=True)
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.events.cli.automations.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @pytest.fixture
