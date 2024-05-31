@@ -40,9 +40,6 @@
       "mode": "simple"
     }
   },
-  "openapi": [
-    "/3.0rc/api-ref/server/schema.json"
-  ],
   "topbarCtaButton": {
     "name": "GET STARTED",
     "url": "https://app.prefect.cloud/auth/login"
