@@ -153,9 +153,6 @@
 - Add Task.delay() — https://github.com/PrefectHQ/prefect/pull/13695
 - Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 
-## New Contributors
-* @jaraics made their first contribution in https://github.com/PrefectHQ/prefect/pull/13144
-* @mitchnielsen made their first contribution in https://github.com/PrefectHQ/prefect/pull/13562
 ### Integrations
 
 ### Contributors
