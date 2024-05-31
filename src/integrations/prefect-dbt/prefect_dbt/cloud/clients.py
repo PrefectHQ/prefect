@@ -1,4 +1,5 @@
 """Module containing clients for interacting with the dbt Cloud API"""
+
 from typing import Any, Dict, List, Optional
 
 from httpx import AsyncClient, Response

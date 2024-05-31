@@ -1,4 +1,5 @@
 """Module containing models for BigQuery configs"""
+
 from typing import Any, Dict, Optional
 
 from google.auth.transport.requests import Request

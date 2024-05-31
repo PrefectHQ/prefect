@@ -128,9 +128,9 @@ class TestCloudRunWorkerJobV2Configuration:
     def test_remove_vpc_access_if_connector_unset(
         self, cloud_run_worker_v2_job_config, vpc_access
     ):
-        cloud_run_worker_v2_job_config.job_body["template"]["template"][
-            "vpcAccess"
-        ] = vpc_access
+        cloud_run_worker_v2_job_config.job_body["template"]["template"]["vpcAccess"] = (
+            vpc_access
+        )
 
         cloud_run_worker_v2_job_config._remove_vpc_access_if_unset()
 

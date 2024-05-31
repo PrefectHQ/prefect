@@ -1,4 +1,5 @@
 """Module containing models used for passing data to dbt Cloud"""
+
 from typing import List, Optional
 
 from pydantic import VERSION as PYDANTIC_VERSION

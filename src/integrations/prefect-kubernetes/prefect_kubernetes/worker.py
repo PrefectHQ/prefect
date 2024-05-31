@@ -385,9 +385,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # a list of dicts. Might be able to improve this in the future with a better
         # default `env` value and better typing.
         else:
-            self.job_manifest["spec"]["template"]["spec"]["containers"][0][
-                "env"
-            ] = transformed_env
+            self.job_manifest["spec"]["template"]["spec"]["containers"][0]["env"] = (
+                transformed_env
+            )
 
     def _update_prefect_api_url_if_local_server(self):
         """If the API URL has been set by the base environment rather than the by the
@@ -752,9 +752,9 @@ class KubernetesWorker(BaseWorker):
             )
             # Store configuration so that we can delete the secret when the worker shuts
             # down
-            self._created_secrets[
-                (secret.metadata.name, secret.metadata.namespace)
-            ] = configuration
+            self._created_secrets[(secret.metadata.name, secret.metadata.namespace)] = (
+                configuration
+            )
             new_api_env_entry = {
                 "name": "PREFECT_API_KEY",
                 "valueFrom": {"secretKeyRef": {"name": secret_name, "key": "value"}},

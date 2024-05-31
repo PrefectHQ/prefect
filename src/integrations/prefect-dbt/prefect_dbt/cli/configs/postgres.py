@@ -1,4 +1,5 @@
 """Module containing models for Postgres configs"""
+
 import warnings
 from typing import Any, Dict, Union
 

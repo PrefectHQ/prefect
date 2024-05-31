@@ -1,4 +1,4 @@
-""" Utilities for working with the Python Kubernetes API. """
+"""Utilities for working with the Python Kubernetes API."""
 
 import socket
 import sys
@@ -43,9 +43,9 @@ def enable_socket_keep_alive(client: ApiClient) -> None:
         TCP_KEEP_ALIVE = 0x10
         socket_options.append((socket.IPPROTO_TCP, TCP_KEEP_ALIVE, 30))
 
-    client.rest_client.pool_manager.connection_pool_kw[
-        "socket_options"
-    ] = socket_options
+    client.rest_client.pool_manager.connection_pool_kw["socket_options"] = (
+        socket_options
+    )
 
 
 def convert_manifest_to_model(

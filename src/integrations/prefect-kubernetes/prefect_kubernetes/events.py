@@ -122,9 +122,9 @@ class KubernetesEventsReplicator:
             for container_status in pod.status.container_statuses:
                 if container_status.state.terminated.reason in EVICTED_REASONS:
                     pod_phase = "evicted"
-                    resource[
-                        "kubernetes.reason"
-                    ] = container_status.state.terminated.reason
+                    resource["kubernetes.reason"] = (
+                        container_status.state.terminated.reason
+                    )
                     break
 
         return emit_event(

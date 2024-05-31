@@ -1,4 +1,5 @@
 """Tasks for interacting with AWS S3"""
+
 import asyncio
 import io
 import os
@@ -394,7 +395,6 @@ async def s3_list_objects(
 
 
 class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock):
-
     """
     Block used to store data using AWS S3 or S3-compatible object storage like MinIO.
 

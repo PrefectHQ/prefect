@@ -339,9 +339,9 @@ async def delete_secret(
 
     delete_secret_kwargs: Dict[str, Union[str, int, bool]] = dict(SecretId=secret_name)
     if force_delete_without_recovery:
-        delete_secret_kwargs[
-            "ForceDeleteWithoutRecovery"
-        ] = force_delete_without_recovery
+        delete_secret_kwargs["ForceDeleteWithoutRecovery"] = (
+            force_delete_without_recovery
+        )
     else:
         delete_secret_kwargs["RecoveryWindowInDays"] = recovery_window_in_days
 

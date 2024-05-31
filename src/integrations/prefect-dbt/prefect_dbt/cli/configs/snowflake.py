@@ -1,4 +1,5 @@
 """Module containing models for Snowflake configs"""
+
 from typing import Any, Dict, Optional
 
 try:

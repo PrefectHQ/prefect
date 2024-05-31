@@ -49,6 +49,7 @@ Examples:
     ```
 
 """
+
 import json
 from typing import Literal, Optional
 

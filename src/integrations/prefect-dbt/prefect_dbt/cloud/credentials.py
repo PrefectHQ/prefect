@@ -1,4 +1,5 @@
 """Module containing credentials for interacting with dbt Cloud"""
+
 from typing import Union
 
 from pydantic import VERSION as PYDANTIC_VERSION

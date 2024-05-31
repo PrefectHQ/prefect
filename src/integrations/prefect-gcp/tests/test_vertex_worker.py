@@ -127,9 +127,9 @@ class TestVertexAIWorkerJobConfiguration:
             "worker_pool_specs"
         ][0]["container_spec"]["command"]
 
-        job_config.job_spec["worker_pool_specs"][0]["container_spec"][
-            "command"
-        ] = "echo -n hello"
+        job_config.job_spec["worker_pool_specs"][0]["container_spec"]["command"] = (
+            "echo -n hello"
+        )
         job_config.prepare_for_flow_run(flow_run, None, None)
         assert ["echo", "-n", "hello"] == job_config.job_spec["worker_pool_specs"][0][
             "container_spec"
