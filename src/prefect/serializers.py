@@ -35,10 +35,10 @@ if HAS_PYDANTIC_V2:
         BaseModel,
         Field,
         ValidationError,
-        parse_obj_as,
         root_validator,
         validator,
     )
+    from pydantic import parse_obj_as
 else:
     from pydantic import (
         BaseModel,
