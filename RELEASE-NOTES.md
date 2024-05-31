@@ -34,6 +34,8 @@ See the following pull requests for implementation details:
 ### Transactional semantics - Rollback and commit hooks that facilitate idempotent python code
 
 ```python
+from prefect import flow, task
+from prefect.transactions import transaction
 @task
 def first_task():
     print('first')
