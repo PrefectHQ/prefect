@@ -82,8 +82,9 @@ jobs:
         # install uv, the package, and bleeding edge prefect
         run: |
           python -m pip install -U uv
+          uv pip install --upgrade --system -e ../../../
           uv pip install --upgrade --system -e .[dev]
-          uv pip install --upgrade --system ../../../
+
 
       - name: Run tests
         if: matrix.package != 'prefect-ray'
