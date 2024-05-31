@@ -261,14 +261,6 @@ async def handle_event_count_request(
     time_unit: TimeUnit,
     time_interval: float,
 ) -> List[EventCount]:
-    logger.debug(
-        "countable %s, time_unit %s, time_interval %s, events filter: %s",
-        countable,
-        time_unit,
-        time_interval,
-        filter.model_dump_json(),
-    )
-
     try:
         return await database.count_events(
             session=session,
