@@ -313,19 +313,6 @@ class DbtCoreOperation(ShellOperation):
         ),
     )
 
-    # @validator("commands", always=True)
-    # def _has_a_dbt_command(cls, commands):
-    #     """
-    #     Check that the commands contain a dbt command.
-    #     """
-    #     if not any("dbt " in command for command in commands):
-    #         raise ValueError(
-    #             "None of the commands are a valid dbt sub-command; see dbt --help, "
-    #             "or use prefect_shell.ShellOperation for non-dbt related "
-    #             "commands instead"
-    #         )
-    #     return commands
-
     def _find_valid_profiles_dir(self) -> PosixPath:
         """
         Ensure that there is a profiles.yml available for use.
