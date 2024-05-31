@@ -1444,10 +1444,14 @@ async def test_run_task_error_handling(
         "botocore.client.BaseClient._make_api_call", new=mock_make_api_call
     ):
         async with ECSWorker(work_pool_name="test") as worker:
-            with pytest.raises(RuntimeError, match="Failed to run ECS task") as exc:
-                await run_then_stop_task(worker, configuration, flow_run)
 
-    assert exc.value.args[0] == "Failed to run ECS task: string"
+            def handle_error(exc_grp: ExceptionGroup):
+                assert len(exc_grp.exceptions) == 1
+                assert isinstance(exc_grp.exceptions[0], RuntimeError)
+                assert exc_grp.exceptions[0].args[0] == "Failed to run ECS task: string"
+
+            with catch({RuntimeError: handle_error}):
+                await run_then_stop_task(worker, configuration, flow_run)
 
 
 @pytest.mark.usefixtures("ecs_mocks")
