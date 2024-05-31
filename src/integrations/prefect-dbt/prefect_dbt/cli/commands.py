@@ -16,9 +16,11 @@ from prefect.artifacts import create_markdown_artifact
 from prefect.states import Failed
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect_dbt.cli.credentials import DbtCliProfile
+from prefect.utilities.asyncutils import sync_compatible
 
 
 @task
+@sync_compatible
 async def trigger_dbt_cli_command(
     command: str,
     profiles_dir: Optional[Union[Path, str]] = None,

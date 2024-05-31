@@ -53,10 +53,7 @@ class DbtConfigs(Block, abc.ABC):
         for field_name, field in fields.items():
             if model is not None:
                 # get actual value from model
-                try:
-                    field_value = getattr(model, field_name)
-                except AttributeError:
-                    field_value = getattr(model, field.alias)
+                field_value = getattr(model, field_name, None)
                 # override the name with alias so dbt parser can recognize the keyword;
                 # e.g. schema_ -> schema, returns the original name if no alias is set
                 if field.alias:

@@ -83,7 +83,6 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
         all_configs_json = self._populate_configs_json(
             {}, self_copy.model_fields, model=self_copy
         )
-        print(self_copy.model_fields, all_configs_json)
 
         # decouple prefect-gcp from prefect-dbt
         # by mapping all the keys dbt gcp accepts
