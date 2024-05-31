@@ -66,6 +66,7 @@ jobs:
       - name: Install python packages
         run: |
           python -m pip install -U uv
+          uv cache clean
           uv pip install --upgrade --system .
 
       - name: Start server@${{ matrix.server-version.version }}
