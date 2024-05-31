@@ -159,7 +159,7 @@
 - @bsignoret
 * @jaraics made their first contribution in https://github.com/PrefectHQ/prefect/pull/13144
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.0...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.19.0...3.0rc1
 
 ## Release 2.19.3
 
