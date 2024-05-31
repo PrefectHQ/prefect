@@ -208,7 +208,7 @@ See the following pull requests for implementation details:
 - Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
 - Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
 - Remove old task runners and futures modules — https://github.com/PrefectHQ/prefect/pull/13593
-- Remove is_state — https://github.com/PrefectHQ/prefect/pull/13569
+- Remove `is_state` — https://github.com/PrefectHQ/prefect/pull/13569
 - Remove deprecated options from `prefect work-queue` and refs to agents - https://github.com/PrefectHQ/prefect/pull/13638
 
 ### Contributors
