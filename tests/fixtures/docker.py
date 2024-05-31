@@ -20,7 +20,7 @@ from prefect.utilities.dockerutils import (
 
 with silence_docker_warnings():
     from docker import DockerClient
-    from docker.errors import APIError, ImageNotFound
+    from docker.errors import APIError, ImageNotFound, NotFound
     from docker.models.containers import Container
 
 
@@ -70,7 +70,7 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
             for image in docker.images.list(filters=filters):
                 for tag in image.tags:
                     docker.images.remove(tag, force=True)
-        except docker.errors.NotFound:
+        except NotFound:
             logger.warning("Failed to clean up Docker objects")
 
 
