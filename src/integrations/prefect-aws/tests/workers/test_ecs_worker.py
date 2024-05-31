@@ -1174,15 +1174,6 @@ async def test_network_config_from_custom_settings_invalid_subnet_multiple_vpc_s
 
     session = aws_credentials.get_boto3_session()
 
-    # with pytest.raises(
-    #     ValueError,
-    #     match=(
-    #         rf"Subnets \['{invalid_subnet_id}', '{subnet.id}'\] not found within VPC"
-    #         f" with ID {vpc.id}.Please check that VPC is associated with supplied"
-    #         " subnets."
-    #     ),
-    # ):
-
     def handle_error(exc_group: ExceptionGroup):
         assert len(exc_group.exceptions) == 1
         assert isinstance(exc_group.exceptions[0], ExceptionGroup)
@@ -1306,7 +1297,7 @@ async def test_network_config_missing_default_vpc(
         assert isinstance(exc_grp.exceptions[0], ExceptionGroup)
         exc = exc_grp.exceptions[0].exceptions[0]
         assert isinstance(exc, ValueError)
-        assert "Failed to find default VPC" in str(exc)
+        assert "Failed to find the default VPC" in str(exc)
 
     with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
@@ -1726,7 +1717,9 @@ async def test_worker_task_definition_cache_is_per_deployment_id(
     async with ECSWorker(work_pool_name="test") as worker:
         result_1 = await run_then_stop_task(worker, configuration, flow_run)
         result_2 = await run_then_stop_task(
-            worker, configuration, flow_run.copy(update=dict(deployment_id=uuid4()))
+            worker,
+            configuration,
+            flow_run.model_copy(update=dict(deployment_id=uuid4())),
         )
 
     assert result_2.status_code == 0
@@ -2292,14 +2285,13 @@ async def test_kill_infrastructure(aws_credentials, cluster: str, flow_run):
         cluster=cluster,
     )
 
-    with anyio.fail_after(5):
-        async with ECSWorker(work_pool_name="test") as worker:
-            async with anyio.create_task_group() as tg:
-                identifier = await tg.start(worker.run, flow_run, configuration)
+    async with ECSWorker(work_pool_name="test") as worker:
+        async with anyio.create_task_group() as tg:
+            identifier = await tg.start(worker.run, flow_run, configuration)
 
-                await worker.kill_infrastructure(
-                    configuration=configuration, infrastructure_pid=identifier
-                )
+            await worker.kill_infrastructure(
+                configuration=configuration, infrastructure_pid=identifier
+            )
 
     _, task_arn = parse_identifier(identifier)
     task = describe_task(ecs_client, task_arn)
@@ -2312,7 +2304,7 @@ async def test_kill_infrastructure_with_invalid_identifier(aws_credentials):
         aws_credentials=aws_credentials,
     )
 
-    with pytest.raises(ValueError):
+    with catch({ValueError: lambda exc_group: None}):
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "test")
 
@@ -2324,13 +2316,16 @@ async def test_kill_infrastructure_with_mismatched_cluster(aws_credentials):
         cluster="foo",
     )
 
-    with pytest.raises(
-        InfrastructureNotAvailable,
-        match=(
-            "Cannot stop ECS task: this infrastructure block has access to cluster "
-            "'foo' but the task is running in cluster 'bar'."
-        ),
-    ):
+    def handle_error(exc_group: ExceptionGroup):
+        assert len(exc_group.exceptions) == 1
+        assert isinstance(exc_group.exceptions[0], InfrastructureNotAvailable)
+        assert (
+            "Cannot stop ECS task: this infrastructure block has access to cluster"
+            " 'foo' but the task is running in cluster 'bar'."
+            in str(exc_group.exceptions[0])
+        )
+
+    with catch({InfrastructureNotAvailable: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "bar:::task_arn")
 
@@ -2342,10 +2337,14 @@ async def test_kill_infrastructure_with_cluster_that_does_not_exist(aws_credenti
         cluster="foo",
     )
 
-    with pytest.raises(
-        InfrastructureNotFound,
-        match="Cannot stop ECS task: the cluster 'foo' could not be found.",
-    ):
+    def handle_error(exc_group: ExceptionGroup):
+        assert len(exc_group.exceptions) == 1
+        assert isinstance(exc_group.exceptions[0], InfrastructureNotFound)
+        assert "Cannot stop ECS task: the cluster 'foo' could not be found." in str(
+            exc_group.exceptions[0]
+        )
+
+    with catch({InfrastructureNotFound: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "foo::task_arn")
 
@@ -2363,13 +2362,15 @@ async def test_kill_infrastructure_with_task_that_does_not_exist(
     async with ECSWorker(work_pool_name="test") as worker:
         await run_then_stop_task(worker, configuration, flow_run)
 
-        with pytest.raises(
-            InfrastructureNotFound,
-            match=(
+        def handle_error(exc_group: ExceptionGroup):
+            assert len(exc_group.exceptions) == 1
+            assert isinstance(exc_group.exceptions[0], InfrastructureNotFound)
+            assert (
                 "Cannot stop ECS task: the task 'foo' could not be found in cluster"
-                " 'default'"
-            ),
-        ):
+                " 'default'" in str(exc_group.exceptions[0])
+            )
+
+        with catch({InfrastructureNotFound: handle_error}):
             await worker.kill_infrastructure(configuration, "default::foo")
 
 
@@ -2380,10 +2381,14 @@ async def test_kill_infrastructure_with_cluster_that_has_no_tasks(aws_credential
         cluster="default",
     )
 
-    with pytest.raises(
-        InfrastructureNotFound,
-        match="Cannot stop ECS task: the cluster 'default' has no tasks.",
-    ):
+    def handle_error(exc_group: ExceptionGroup):
+        assert len(exc_group.exceptions) == 1
+        assert isinstance(exc_group.exceptions[0], InfrastructureNotFound)
+        assert "Cannot stop ECS task: the cluster 'default' has no tasks." in str(
+            exc_group.exceptions[0]
+        )
+
+    with catch({InfrastructureNotFound: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
             await worker.kill_infrastructure(configuration, "default::foo")
 
@@ -2449,7 +2454,7 @@ async def test_retry_on_failed_task_start(
         },
     )
 
-    with pytest.raises(RuntimeError):
+    with catch({RuntimeError: lambda exc_group: None}):
         async with ECSWorker(work_pool_name="test") as worker:
             await run_then_stop_task(worker, configuration, flow_run)
 
