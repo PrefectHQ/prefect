@@ -322,7 +322,7 @@ async def construct_configuration_with_job_template(
     template_overrides: dict, **variables: dict
 ):
     variables: ECSVariables = ECSVariables(**variables)
-    print(f"Using variables: {variables.model_dump_json(indent=2, exclude_none=True)}")
+    print(f"Using variables: {variables.model_dump_json(indent=2)}")
 
     base_template = ECSWorker.get_default_base_job_template()
     for key in template_overrides:
@@ -336,7 +336,7 @@ async def construct_configuration_with_job_template(
     configuration: ECSJobConfiguration = (
         await ECSJobConfiguration.from_template_and_values(
             base_job_template=base_template,
-            values={**variables.model_dump(exclude_none=True)},
+            values={**variables.model_dump()},
         )
     )
     print(f"Constructed test configuration: {configuration.model_dump_json(indent=2)}")
