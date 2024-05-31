@@ -1,6 +1,6 @@
 import pytest
-from kubernetes.client.exceptions import ApiValueError
-from kubernetes.client.models import V1Job
+from kubernetes_asyncio.client.exceptions import ApiValueError
+from kubernetes_asyncio.client.models import V1Job
 from prefect_kubernetes.jobs import (
     KubernetesJob,
     create_namespaced_job,

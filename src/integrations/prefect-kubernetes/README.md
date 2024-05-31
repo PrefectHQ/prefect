@@ -112,7 +112,7 @@ def kubernetes_orchestrator():
 #### Patch an existing deployment
 
 ```python
-from kubernetes.client.models import V1Deployment
+from kubernetes_asyncio.client.models import V1Deployment
 
 from prefect import flow
 from prefect_kubernetes.credentials import KubernetesCredentials

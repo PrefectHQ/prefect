@@ -114,7 +114,7 @@ def _mock_api_app_client(monkeypatch):
 
 @pytest.fixture
 async def _mock_api_batch_client(monkeypatch):
-    batch_client = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
+    batch_client = AsyncMock(spec=BatchV1Api, return_value=AsyncMock())
 
     @asynccontextmanager
     async def get_client(self, _):

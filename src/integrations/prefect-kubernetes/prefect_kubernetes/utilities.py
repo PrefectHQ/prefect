@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 from typing import Optional, TypeVar, Union
 
-from kubernetes.client import ApiClient
-from kubernetes.client import models as k8s_models
+from kubernetes_asyncio.client import ApiClient
+from kubernetes_asyncio.client import models as k8s_models
 from slugify import slugify
 
 from prefect.infrastructure.kubernetes import KubernetesJob, KubernetesManifest

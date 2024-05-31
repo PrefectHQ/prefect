@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from kubernetes.client.models import V1DeleteOptions, V1Service, V1ServiceList
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Service, V1ServiceList
 
 from prefect import task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -34,7 +34,7 @@ async def create_namespaced_service(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.services import create_namespaced_service
-        from kubernetes.client.models import V1Service
+        from kubernetes_asyncio.client.models import V1Service
 
         @flow
         def create_service_flow():
@@ -165,7 +165,7 @@ async def patch_namespaced_service(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.services import patch_namespaced_service
-        from kubernetes.client.models import V1Service
+        from kubernetes_asyncio.client.models import V1Service
 
         @flow
         def kubernetes_orchestrator():
@@ -256,7 +256,7 @@ async def replace_namespaced_service(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.services import replace_namespaced_service
-        from kubernetes.client.models import V1Service
+        from kubernetes_asyncio.client.models import V1Service
 
         @flow
         def kubernetes_orchestrator():

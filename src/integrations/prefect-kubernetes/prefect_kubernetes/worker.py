@@ -108,7 +108,6 @@ import math
 import os
 import shlex
 import time
-from asyncio import get_running_loop
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
@@ -601,7 +600,6 @@ class KubernetesWorker(BaseWorker):
                 final state of the flow run
         """
         logger = self.get_flow_run_logger(flow_run)
-
         async with self._get_configured_kubernetes_client(configuration) as client:
             logger.info("Creating Kubernetes job...")
 
@@ -1022,10 +1020,11 @@ class KubernetesWorker(BaseWorker):
             name=job_name, namespace=configuration.namespace
         )
         completed = job.status.completion_time is not None
-    
 
         while not completed:
-            remaining_time = math.ceil(deadline - time.monotonic()) if deadline else None
+            remaining_time = (
+                math.ceil(deadline - time.monotonic()) if deadline else None
+            )
 
             if deadline and remaining_time <= 0:
                 logger.error(
@@ -1169,7 +1168,9 @@ class KubernetesWorker(BaseWorker):
         # memory/CPU requests, or a volume that wasn't available, or a node with an
         # available GPU.
         logger.error(f"Job {job_name!r}: Pod never started.")
-        await self._log_recent_events(logger, job_name, last_pod_name, configuration, client)
+        await self._log_recent_events(
+            logger, job_name, last_pod_name, configuration, client
+        )
 
     async def _log_recent_events(
         self,
@@ -1182,11 +1183,10 @@ class KubernetesWorker(BaseWorker):
         """Look for reasons why a Job may not have been able to schedule a Pod, or why
         a Pod may not have been able to start and log them to the provided logger."""
         from kubernetes_asyncio.client.models import CoreV1Event, CoreV1EventList
-       
+
         def best_event_time(event: CoreV1Event) -> datetime:
             """Choose the best timestamp from a Kubernetes event"""
             return event.event_time or event.last_timestamp
-        
 
         def log_event(event: CoreV1Event):
             """Log an event in one of a few formats to the provided logger"""
@@ -1207,29 +1207,28 @@ class KubernetesWorker(BaseWorker):
                     best_event_time(event),
                     event.message,
                 )
-            
+
         core_client = CoreV1Api(client)
-            
+
         events: CoreV1EventList = await core_client.list_namespaced_event(
-                configuration.namespace
-            )
-        
-        
+            configuration.namespace
+        )
+
         event: CoreV1Event
         for event in sorted(events.items, key=best_event_time):
-                if (
-                    event.involved_object.api_version == "batch/v1"
-                    and event.involved_object.kind == "Job"
-                    and event.involved_object.namespace == configuration.namespace
-                    and event.involved_object.name == job_name
-                ):
-                    log_event(event)
+            if (
+                event.involved_object.api_version == "batch/v1"
+                and event.involved_object.kind == "Job"
+                and event.involved_object.namespace == configuration.namespace
+                and event.involved_object.name == job_name
+            ):
+                log_event(event)
 
-                if (
-                    pod_name
-                    and event.involved_object.api_version == "v1"
-                    and event.involved_object.kind == "Pod"
-                    and event.involved_object.namespace == configuration.namespace
-                    and event.involved_object.name == pod_name
-                ):
-                    log_event(event)
+            if (
+                pod_name
+                and event.involved_object.api_version == "v1"
+                and event.involved_object.kind == "Pod"
+                and event.involved_object.namespace == configuration.namespace
+                and event.involved_object.name == pod_name
+            ):
+                log_event(event)

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Type, Union
 
 import yaml
-from kubernetes.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect import task
@@ -53,7 +53,7 @@ async def create_namespaced_job(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.jobs import create_namespaced_job
-        from kubernetes.client.models import V1Job
+        from kubernetes_asyncio.client.models import V1Job
 
         @flow
         def kubernetes_orchestrator():
@@ -97,7 +97,7 @@ async def delete_namespaced_job(
     Example:
         Delete "my-job" in the default namespace:
         ```python
-        from kubernetes.client.models import V1DeleteOptions
+        from kubernetes_asyncio.client.models import V1DeleteOptions
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.jobs import delete_namespaced_job
@@ -193,7 +193,7 @@ async def patch_namespaced_job(
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.jobs import patch_namespaced_job
 
-        from kubernetes.client.models import V1Job
+        from kubernetes_asyncio.client.models import V1Job
 
         @flow
         def kubernetes_orchestrator():

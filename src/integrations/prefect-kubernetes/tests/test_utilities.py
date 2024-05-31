@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock
 
 import pytest
-from kubernetes.client import models as k8s_models
-from kubernetes.config import ConfigException
+from kubernetes_asyncio.client import models as k8s_models
+from kubernetes_asyncio.config import ConfigException
 from prefect_kubernetes.utilities import (
     convert_manifest_to_model,
     enable_socket_keep_alive,
@@ -172,8 +172,8 @@ def mock_cluster_config(monkeypatch):
         [],
         {"context": {"cluster": FAKE_CLUSTER}},
     )
-    monkeypatch.setattr("kubernetes.config", mock)
-    monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
+    monkeypatch.setattr("kubernetes_asyncio.config", mock)
+    monkeypatch.setattr("kubernetes_asyncio.config.ConfigException", ConfigException)
     return mock
 
 

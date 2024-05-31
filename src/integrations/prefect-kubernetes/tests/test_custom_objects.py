@@ -1,5 +1,5 @@
 import pytest
-from kubernetes.client.exceptions import ApiValueError
+from kubernetes_asyncio.client.exceptions import ApiValueError
 from prefect_kubernetes.custom_objects import (
     create_namespaced_custom_object,
     delete_namespaced_custom_object,
