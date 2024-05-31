@@ -193,7 +193,7 @@ See the following pull requests for implementation details:
 ### Breaking Changes
 - Remove `prefect deployment build` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13366
 - Remove `prefect agent` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13365
-- Remove prefect `deployment apply` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13367
+- Remove `prefect deployment apply` CLI from `main` — https://github.com/PrefectHQ/prefect/pull/13367
 - Remove `PrefectAgent` class — https://github.com/PrefectHQ/prefect/pull/13374
 - Remove prefect.software — https://github.com/PrefectHQ/prefect/pull/13375
 - Remove `deployments` module — https://github.com/PrefectHQ/prefect/pull/13373
