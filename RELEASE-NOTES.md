@@ -150,7 +150,7 @@ See the following pull requests for implementation details:
 ### Documentation
 - Transition documentation hosting from Netlify to Mintlify — https://github.com/PrefectHQ/prefect/pull/13634
 - Add Python 3.12 to list of Docker images — https://github.com/PrefectHQ/prefect/pull/13321
-- Update index.md — https://github.com/PrefectHQ/prefect/pull/13353
+- Update `index.md` — https://github.com/PrefectHQ/prefect/pull/13353
 - Tutorial section docs — https://github.com/PrefectHQ/prefect/pull/13297
 - Fix jinja template in automations doc — https://github.com/PrefectHQ/prefect/pull/13422
 - Edit of development section docs — https://github.com/PrefectHQ/prefect/pull/13247
