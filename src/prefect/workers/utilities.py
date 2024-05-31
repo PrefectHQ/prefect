@@ -25,7 +25,6 @@ async def get_available_work_pool_types() -> List[str]:
                     "Unable to get worker metadata from the collections registry",
                     exc_info=True,
                 )
-    getLogger().warning("*******************************************")
     return sorted(filter(None, work_pool_types))
 
 
