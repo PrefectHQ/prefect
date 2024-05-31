@@ -12,7 +12,7 @@
       </template>
 
       <template #deployments>
-        <DeploymentsList :filter="deploymentsFilter" prefix="deployments" />
+        <DeploymentList :filter="deploymentsFilter" prefix="deployments" />
       </template>
 
       <template #runs>
@@ -23,7 +23,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsList, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/prefect-ui-library'
+  import { DeploymentList, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
