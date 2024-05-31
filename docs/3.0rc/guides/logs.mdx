@@ -7,7 +7,7 @@ Prefect enables you to log a variety of useful information about your flow and t
 
 Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect server with `prefect server start`.
 
-View and filter logs in the [UI](/3.0rc/ui/flow-runs/#inspect-a-flow-run) or access log records through the API.
+View and filter logs in the [UI](/3.0rc/cloud/flow-runs/#inspect-a-flow-run) or access log records through the API.
 
 Prefect enables fine-grained customization of log levels for flows and tasks, including configuration for default levels and log message formatting.
 
@@ -32,7 +32,7 @@ Completed('All states completed.')
 ```
 </div>
 
-See logs for a flow run in the UI by navigating to the [**Flow Runs**](/3.0rc/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
+See logs for a flow run in the UI by navigating to the [**Flow Runs**](/3.0rc/cloud/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
 ![Viewing logs for a flow run in the Prefect UI](/3.0rc//img/ui/flow-run-details.png)
 
@@ -44,7 +44,7 @@ Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNIN
 
 ### Logging settings
 
-Prefect provides several settings to configure [logging level and loggers](/3.0rc/concepts/logs/).
+Prefect provides several settings to configure [logging level and loggers](/3.0rc/guides/logs/).
 
 By default, Prefect displays `INFO`-level and above logging records. Change this level to `DEBUG` and see `DEBUG`-level logs created by Prefect as well. You may need to change the log level used by loggers from other libraries to see their log records.
 

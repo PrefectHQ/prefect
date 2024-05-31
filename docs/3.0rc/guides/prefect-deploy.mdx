@@ -29,7 +29,7 @@ Work pool-based deployments contain information about the infrastructure type an
 Work pool-based deployment infrastructure options include the following:
 
 - Process - runs flow in a subprocess. In most cases, you're better off using `.serve`.
-- [Docker](/3.0rc/guides/deployment/docker/) - runs flows in an ephemeral Docker container.
+- [Docker](/3.0rc/guides/docker/) - runs flows in an ephemeral Docker container.
 - [Kubernetes](/3.0rc/guides/deployment/kubernetes/) - runs flows as a Kubernetes Job.
 - [Serverless Cloud Provider options](/3.0rc/guides/deployment/serverless-workers/) - runs flows in a Docker container in a serverless cloud provider environment, such as AWS ECS, Azure Container Instance, Google Cloud Run, or Vertex AI.
 
@@ -854,9 +854,9 @@ deployments:
 So long as our `build` steps produce fields called `image_name` and `tag`, every time we deploy a new version of our deployment, the `{{ build-image.image }}` variable will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
-    The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/3.0rc/guides/deployment/docker/) which produces both the `image_name` and `tag` fields.
+    The most commonly used build step is [`prefect_docker.deployments.steps.build_docker_image`](/3.0rc/guides/docker/) which produces both the `image_name` and `tag` fields.
 
-    For an example, [check out the deployments tutorial](/3.0rc/guides/deployment/docker/).
+    For an example, [check out the deployments tutorial](/3.0rc/guides/docker/).
 
 A `prefect.yaml` file can have multiple deployment configurations that control the behavior of several deployments.
 These deployments can be managed independently of one another, allowing you to deploy the same flow with different configurations in the same codebase.
