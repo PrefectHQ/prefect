@@ -30,7 +30,7 @@ from prefect.testing.utilities import assert_does_not_warn
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CONTAINER_ID = "fake-id"
-FAKE_BASE_URL = "http+docker://my-url"
+FAKE_BASE_URL = "my-url"
 
 
 @pytest.fixture(autouse=True)
