@@ -18,7 +18,7 @@ Automations provide a flexible and powerful framework for automatically taking a
 
 The **Automations** page provides an overview of all configured automations for your workspace.
 
-![Viewing automations for a workspace in Prefect Cloud.](/3.0rc//img/ui/automations.png)
+![Viewing automations for a workspace in Prefect Cloud.](/3.0rc/img/ui/automations.png)
 
 Selecting the toggle next to an automation pauses execution of the automation.
 
@@ -52,7 +52,7 @@ Triggers specify the conditions under which your action should be performed. The
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to fire in the absence of an expected event.
 
-![Configuring a trigger for an automation in Prefect Cloud.](/3.0rc//img/ui/automations-trigger.png)
+![Configuring a trigger for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-trigger.png)
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be taken on the flow itself, such as canceling or restarting it. Or the action could take the form of a notification so someone can take manual remediation steps. Or you could set both actions to to take place when the trigger occurs.
 
@@ -73,7 +73,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Declare an incident (available on Pro and Custom plans)
 - Change the state of a flow run
 
-![Configuring an action for an automation in Prefect Cloud.](/3.0rc//img/ui/automations-action.png)
+![Configuring an action for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-action.png)
 
 ### Creating automations In Python code
 
@@ -138,7 +138,7 @@ Each automation has a single trigger that, when fired, will cause all of its ass
 
 Event triggers are the most common types of trigger, and they are intended to react to the presence or absence of an event happening in your workspace.  Event triggers are indicated with `{"type": "event"}`.
 
-![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/3.0rc//img/ui/automations-custom.png)
+![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/3.0rc/img/ui/automations-custom.png)
 
 The schema that defines an event trigger is as follows:
 
@@ -762,7 +762,7 @@ Automation notifications support sending notifications via any predefined block 
 - Microsoft Teams message to a channel
 - Email to a configured email address
 
-![Configuring notifications for an automation in Prefect Cloud.](/3.0rc//img/ui/automations-notifications.png)
+![Configuring notifications for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-notifications.png)
 
 ## Templating with Jinja
 
@@ -795,7 +795,7 @@ Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 
 The resulting Slack webhook notification would look something like this:
 
-![Configuring notifications for an automation in Prefect Cloud.](/3.0rc//img/ui/templated-notification.png)
+![Configuring notifications for an automation in Prefect Cloud.](/3.0rc/img/ui/templated-notification.png)
 
 You could include `flow` and `deployment` properties.
 

@@ -104,7 +104,7 @@ deployments:
 
 We should then be able to see the job variables in the `Configuration` tab of the deployment in the UI:
 
-![Job variables in the UI](/3.0rc//img/guides/job-variables.png)
+![Job variables in the UI](/3.0rc/img/guides/job-variables.png)
 
 #### Using existing environment variables
 If you want to use environment variables that are already set in your local environment, you can template these in the `prefect.yaml` file using the `{{ $ENV_VAR_NAME }}` syntax:
@@ -175,7 +175,7 @@ python demo_project/daily_flow.py
 </div>
 ... will deploy the flow with the specified job variables, which should then be visible in the UI under the `Configuration` tab.
 
-![Job variables in the UI](/3.0rc//img/guides/job-variables.png)
+![Job variables in the UI](/3.0rc/img/guides/job-variables.png)
 
 
 ## How to override job variables on a flow run
@@ -186,7 +186,7 @@ When running flows, you can pass in job variables that override any values set o
 
 Custom runs allow you to pass in a dictionary of variables into your flow run infrastructure. Using the same `env` example from above, we could do the following:
 
-![Job variables via custom run](/3.0rc//img/ui/deployment-job-variables.png)
+![Job variables via custom run](/3.0rc/img/ui/deployment-job-variables.png)
 
 ### Using the CLI
 
@@ -203,6 +203,6 @@ prefect deployment run \
 
 Additionally, runs kicked off via automation actions can use job variables, including ones rendered from Jinja templates.
 
-![Job variables via automation action](/3.0rc//img/ui/automations-action-job-variable.png)
+![Job variables via automation action](/3.0rc/img/ui/automations-action-job-variable.png)
 
 

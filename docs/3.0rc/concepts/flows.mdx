@@ -41,7 +41,7 @@ However you run the flow, the Prefect API monitors the flow run, capturing flow 
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](/3.0rc//img/ui/timeline-flows.png)
+![Prefect UI](/3.0rc/img/ui/timeline-flows.png)
 
 ## Writing flows
 
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     hello_world.visualize()
 ```
 
-![A simple flow visualized with the .visualize() method](/3.0rc//img/orchestration/hello-flow-viz.png)
+![A simple flow visualized with the .visualize() method](/3.0rc/img/orchestration/hello-flow-viz.png)
 
 Prefect cannot automatically produce a schematic for dynamic workflows, such as those with loops or if/else control flow.
 In this case, you can provide tasks with mock return values for use in the `visualize()` call.
@@ -315,7 +315,7 @@ if __name__ == "__main__":
     viz_return_value_tracked.visualize()
 ```
 
-![A flow with return values visualized with the .visualize() method](/3.0rc//img/orchestration/viz-return-value-tracked.png)
+![A flow with return values visualized with the .visualize() method](/3.0rc/img/orchestration/viz-return-value-tracked.png)
 
 ## Composing flows
 
@@ -1167,7 +1167,7 @@ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
-![Prefect UI](/3.0rc//img/ui/flow-run-cancellation-ui.png)
+![Prefect UI](/3.0rc/img/ui/flow-run-cancellation-ui.png)
 
 ## Timeouts
 
