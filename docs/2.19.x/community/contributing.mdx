@@ -4,12 +4,12 @@ title: Contributing
 
 Thanks for considering contributing to Prefect!
 
-Setting up a development environment
+Set up a development environment
 -----------------------------------------------------------------------------------------------
 
 First, download the source code and install an editable version of the Python package:
 
-```python
+```bash
 # Clone the repository
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
@@ -26,30 +26,26 @@ pip install -e ".[dev]"
 # Setup pre-commit hooks for required formatting
 
 pre-commit install
-
 ```
-
 
 If you don't want to install the pre-commit hooks, you can manually install the formatting dependencies with:
 
-```
+```bash
 pip install $(./scripts/precommit-versions.py)
 
 ```
-
 
 You'll need to run `black` and `ruff` before a contribution can be accepted.
 
 After installation, you can run the test suite with `pytest`:
 
-```
+```bash
 # Run all the tests
 pytest tests
 
 # Run a subset of tests
 
 pytest tests/test_flows.py
-
 ```
 
 <Tip>
@@ -111,19 +107,19 @@ The Prefect CLI provides several helpful commands to aid development.
 
 Start all services with hot-reloading on code changes (requires UI dependencies to be installed):
 
-```
+```bash
 prefect dev start
 ```
 
 Start a Prefect API that reloads on code changes:
 
-```
+```bash
 prefect dev api
 ```
 
 Start a Prefect worker that reloads on code changes:
 
-```
+```bash
 prefect dev agent
 ```
 
@@ -133,73 +129,45 @@ Developing the Prefect UI requires that [npm](https://github.com/npm/cli) is ins
 
 Start a development UI that reloads on code changes:
 
-```
+```bash
 prefect dev ui
 ```
 
 Build the static UI (the UI served by `prefect server start`):
 
-```
+```bash
 prefect dev build-ui
 ```
 
-### Docs Development
+### Docs development
 
-Prefect uses [mintilify](https://www.mkdocs.org/) for the docs website and the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. While we use `mkdocs-material-insiders` for production, builds can still happen without the extra plugins. Deploy previews are available on pull requests, so you'll be able to browse the final look of your changes before merging.
-
-To build the docs:
-```
-mkdocs build
-```
-
-To serve the docs locally at [http://127.0.0.1:8000/](http://127.0.0.1:8000/):
-```
-mkdocs serve
-```
-
-For additional mkdocs help and options:
-```
-mkdocs --help
-```
-
-We use the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) theme. To add additional JavaScript or CSS to the docs, please see the theme documentation [here](https://squidfunk.github.io/mkdocs-material/customization/).
-
-Internal developers can install the production theme by running:
-
-```
-pip install -e git+https://github.com/PrefectHQ/mkdocs-material-insiders.git#egg=mkdocs-material
-mkdocs build # or mkdocs build --config-file mkdocs.insiders.yml if needed
-
-```
-
+Prefect uses [Mintilify](https://mintlify.com) for docs building and hosting. 
+The docs source is hosted on GitHub at [prefecthq/prefect/docs](https://github.com/PrefectHQ/prefect/tree/main/docs).
+Please see instructions there for setting up your development environment.
 
 ### Kubernetes development
 
 Generate a manifest to deploy a development API to a local kubernetes cluster:
 
-```
+```bash
 prefect dev kubernetes-manifest
 
 ```
 
-
 To access the Prefect UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. For example:
 
-```
+```bash
 kubectl port-forward deployment/prefect-dev 4200:4200
-
 ```
-
 
 This forwards port 4200 on the default internal loop IP for localhost to the Prefect server deployment.
 
 To tell the local `prefect` command how to communicate with the Prefect API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
 
-```
+```bash
 export PREFECT_API_URL=http://localhost:4200/api
 
 ```
-
 
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Prefect API running in Kubernetes when using local Prefect CLI commands.
 
@@ -207,7 +175,7 @@ Since you previously configured port forwarding for the localhost port to the Ku
 
 To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example, if you wanted to add a new column to the `flow_run` table, you would add a new column to the `FlowRun` model:
 
-```
+```bash
 # src/prefect/server/database/orm_models.py
 
 @declarative_mixin
@@ -215,7 +183,6 @@ class ORMFlowRun(ORMRun):
     """SQLAlchemy model of a flow run."""
     ...
     new_column = Column(String, nullable=True) # <-- add this line
-
 ```
 
 
@@ -223,11 +190,10 @@ Next, you will need to generate new migration files. You must generate a new mig
 
 To generate a new migration file, run the following command:
 
-```
+```bash
 prefect server database revision --autogenerate -m "<migration name>"
 
 ```
-
 
 Try to make your migration name brief but descriptive. For example:
 
@@ -247,10 +213,8 @@ The new migration can be found in the `src/prefect/server/database/migrations/ve
 
 After you have inspected the migration file, you can apply the migration to your database by running the following command:
 
-```
+```bash
 prefect server database upgrade -y
-
 ```
-
 
 Once you have successfully created and applied migrations for all database types, make sure to update `MIGRATION-NOTES.md` to document your additions.
