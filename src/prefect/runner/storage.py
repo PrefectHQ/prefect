@@ -385,6 +385,14 @@ class RemoteStorage:
     def _filesystem(self) -> fsspec.AbstractFileSystem:
         scheme, _, _, _, _ = urlsplit(self._url)
 
+        # If the scheme isn't represented in the available protocols
+        # assumes a local file path
+        if scheme not in fsspec.available_protocols():
+            self._logger.debug(
+                "fsspec not recognized in Source URL, will utilize local for LocalFileSystem"
+            )
+            scheme = "local"
+
         def replace_blocks_with_values(obj: Any) -> Any:
             if isinstance(obj, Block):
                 if hasattr(obj, "get"):
