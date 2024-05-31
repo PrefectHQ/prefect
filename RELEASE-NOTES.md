@@ -157,7 +157,7 @@ See the following pull requests for implementation details:
 - Update `index.md` — https://github.com/PrefectHQ/prefect/pull/13353
 - Improve tutorial section — https://github.com/PrefectHQ/prefect/pull/13297
 - Fix jinja template in automations doc — https://github.com/PrefectHQ/prefect/pull/13422
-- Edit of development section docs — https://github.com/PrefectHQ/prefect/pull/13247
+- Update development section docs — https://github.com/PrefectHQ/prefect/pull/13247
 - Update Ray integration docs — https://github.com/PrefectHQ/prefect/pull/13467
 - Update Variables docs to include JSON types — https://github.com/PrefectHQ/prefect/pull/13493
 - Update quickstart guide for usability — https://github.com/PrefectHQ/prefect/pull/13562
