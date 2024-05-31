@@ -24,7 +24,7 @@
       </template>
 
       <template #deployments>
-        <DeploymentsList :filter="deploymentsFilter" />
+        <DeploymentList :filter="deploymentsFilter" />
       </template>
     </p-tabs>
 
@@ -46,7 +46,7 @@
     useTabs,
     WorkersTable,
     CodeBanner,
-    DeploymentsList,
+    DeploymentList,
     useDeploymentsFilter
   } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
