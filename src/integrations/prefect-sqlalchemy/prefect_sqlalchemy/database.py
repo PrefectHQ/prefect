@@ -1,190 +1,24 @@
 """Tasks for querying a database with SQLAlchemy"""
 
-import contextlib
-import warnings
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect import task
-from prefect.blocks.abstract import CredentialsBlock, DatabaseBlock
-from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.hashing import hash_objects
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import AnyUrl, Field, SecretStr
-else:
-    from pydantic import AnyUrl, Field, SecretStr
-
+from pydantic import AnyUrl, ConfigDict, Field
 from sqlalchemy import __version__ as SQLALCHEMY_VERSION
 from sqlalchemy.engine import Connection, Engine, create_engine
 from sqlalchemy.engine.cursor import CursorResult
-from sqlalchemy.engine.url import URL, make_url
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from sqlalchemy.sql import text
 from typing_extensions import Literal
 
+from prefect.blocks.abstract import CredentialsBlock, DatabaseBlock
+from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.hashing import hash_objects
 from prefect_sqlalchemy.credentials import (
     AsyncDriver,
     ConnectionComponents,
-    DatabaseCredentials,
 )
-
-
-@contextlib.asynccontextmanager
-async def _connect(
-    engine: Union["AsyncEngine", "Engine"],
-    async_supported: bool,
-) -> Union["AsyncConnection", "Connection"]:
-    """
-    Helper method to create a connection to the database, either
-    synchronously or asynchronously.
-    """
-    try:
-        # a context manager nested within a context manager!
-        if async_supported:
-            async with engine.connect() as connection:
-                yield connection
-        else:
-            with engine.connect() as connection:
-                yield connection
-    finally:
-        dispose = engine.dispose()
-        if async_supported:
-            await dispose
-
-
-async def _execute(
-    connection: Union["AsyncConnection", "Connection"],
-    query: str,
-    params: Optional[Union[Tuple[Any], Dict[str, Any]]],
-    async_supported: bool,
-) -> "CursorResult":
-    """
-    Helper method to execute database queries or statements, either
-    synchronously or asynchronously.
-    """
-    result = connection.execute(text(query), params)
-    if async_supported:
-        result = await result
-        await connection.commit()
-    elif SQLALCHEMY_VERSION.startswith("2."):
-        connection.commit()
-    return result
-
-
-@task
-async def sqlalchemy_execute(
-    statement: str,
-    sqlalchemy_credentials: "DatabaseCredentials",
-    params: Optional[Union[Tuple[Any], Dict[str, Any]]] = None,
-):
-    """
-    Executes a SQL DDL or DML statement; useful for creating tables and inserting rows
-    since this task does not return any objects.
-
-    Args:
-        statement: The statement to execute against the database.
-        sqlalchemy_credentials: The credentials to use to authenticate.
-        params: The params to replace the placeholders in the query.
-
-    Examples:
-        Create table named customers and insert values.
-        ```python
-        from prefect_sqlalchemy import DatabaseCredentials, AsyncDriver
-        from prefect_sqlalchemy.database import sqlalchemy_execute
-        from prefect import flow
-
-        @flow
-        def sqlalchemy_execute_flow():
-            sqlalchemy_credentials = DatabaseCredentials(
-                driver=AsyncDriver.SQLITE_AIOSQLITE,
-                database="prefect.db",
-            )
-            sqlalchemy_execute(
-                "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);",
-                sqlalchemy_credentials,
-            )
-            sqlalchemy_execute(
-                "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                sqlalchemy_credentials,
-                params={"name": "Marvin", "address": "Highway 42"}
-            )
-
-        sqlalchemy_execute_flow()
-        ```
-    """
-    warnings.warn(
-        "sqlalchemy_query is now deprecated and will be removed March 2023; "
-        "please use SqlAlchemyConnector execute_* methods instead.",
-        DeprecationWarning,
-    )
-    # do not return anything or else results in the error:
-    # This result object does not return rows. It has been closed automatically
-    engine = sqlalchemy_credentials.get_engine()
-    async_supported = sqlalchemy_credentials._driver_is_async
-    async with _connect(engine, async_supported) as connection:
-        await _execute(connection, statement, params, async_supported)
-
-
-@task
-async def sqlalchemy_query(
-    query: str,
-    sqlalchemy_credentials: "DatabaseCredentials",
-    params: Optional[Union[Tuple[Any], Dict[str, Any]]] = None,
-    limit: Optional[int] = None,
-) -> List[Tuple[Any]]:
-    """
-    Executes a SQL query; useful for querying data from existing tables.
-
-    Args:
-        query: The query to execute against the database.
-        sqlalchemy_credentials: The credentials to use to authenticate.
-        params: The params to replace the placeholders in the query.
-        limit: The number of rows to fetch. Note, this parameter is
-            executed on the client side, i.e. passed to `fetchmany`.
-            To limit on the server side, add the `LIMIT` clause, or
-            the dialect's equivalent clause, like `TOP`, to the query.
-
-    Returns:
-        The fetched results.
-
-    Examples:
-        Query postgres table with the ID value parameterized.
-        ```python
-        from prefect_sqlalchemy import DatabaseCredentials, AsyncDriver
-        from prefect_sqlalchemy.database import sqlalchemy_query
-        from prefect import flow
-
-        @flow
-        def sqlalchemy_query_flow():
-            sqlalchemy_credentials = DatabaseCredentials(
-                driver=AsyncDriver.SQLITE_AIOSQLITE,
-                database="prefect.db",
-            )
-            result = sqlalchemy_query(
-                "SELECT * FROM customers WHERE name = :name;",
-                sqlalchemy_credentials,
-                params={"name": "Marvin"},
-            )
-            return result
-
-        sqlalchemy_query_flow()
-        ```
-    """
-    warnings.warn(
-        "sqlalchemy_query is now deprecated and will be removed March 2023; "
-        "please use SqlAlchemyConnector fetch_* methods instead.",
-        DeprecationWarning,
-    )
-    engine = sqlalchemy_credentials.get_engine()
-    async_supported = sqlalchemy_credentials._driver_is_async
-    async with _connect(engine, async_supported) as connection:
-        result = await _execute(connection, query, params, async_supported)
-        # some databases, like sqlite, require a connection still open to fetch!
-        rows = result.fetchall() if limit is None else result.fetchmany(limit)
-    return rows
 
 
 class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
@@ -248,8 +82,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     """
 
     _block_type_name = "SQLAlchemy Connector"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3c7dff04f70aaf4528e184a3b028f9e40b98d68c-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector"  # noqa
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3c7dff04f70aaf4528e184a3b028f9e40b98d68c-250x250.png"  # type: ignore
+    _documentation_url = "https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector"  # type: ignore
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     connection_info: Union[ConnectionComponents, AnyUrl] = Field(
         default=...,
@@ -271,26 +106,8 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     )
 
     _engine: Optional[Union[AsyncEngine, Engine]] = None
-    _exit_stack: Union[ExitStack, AsyncExitStack] = None
-    _unique_results: Dict[str, CursorResult] = None
-
-    class Config:
-        """Configuration of pydantic."""
-
-        # Support serialization of the 'URL' type
-        arbitrary_types_allowed = True
-        json_encoders = {URL: lambda u: u.render_as_string()}
-
-    def dict(self, *args, **kwargs) -> Dict:
-        """
-        Convert to a dictionary.
-        """
-        # Support serialization of the 'URL' type
-        d = super().dict(*args, **kwargs)
-        d["_rendered_url"] = SecretStr(
-            self._rendered_url.render_as_string(hide_password=False)
-        )
-        return d
+    _exit_stack: Optional[Union[ExitStack, AsyncExitStack]] = None
+    _unique_results: Optional[Dict[str, CursorResult]] = None
 
     def block_initialization(self):
         """
