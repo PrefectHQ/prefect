@@ -343,7 +343,7 @@ class TestMap:
             assert task_run.state.is_scheduled()
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
-            ) == {"x": i + 1}
+            ) == {"parameters": {"x": i + 1}, "context": mock.ANY}
 
     async def test_map_with_implicitly_unmapped_kwargs(self):
         @task
