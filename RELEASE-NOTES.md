@@ -2,10 +2,10 @@
 
 ## Release 3.0rc1
 
-We're excited to announce the release candidate of Prefect 3.0. This version of Prefect is our best, most flexible, and fastest yet, and introduces or newly open sources several exciting new features. Install it by running pip install prefect==3.0rc1 and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
+We're excited to announce the release candidate of Prefect 3.0. It's the most flexible, powerful, fastest version of Prefect yet. Prefect 3.0 open sources several exciting new features. Install it by running pip install prefect==3.0rc1 and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
 
 ### Autonomous tasks 
-Users can now run, serve, and submit tasks outside of flows and inside of other tasks.
+You can now run, serve, and submit tasks outside of flows and inside of other tasks.
 
 ```python
 from prefect import task
@@ -32,7 +32,7 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13611
 - https://github.com/PrefectHQ/prefect/pull/13547
 
-### Transactional orchestration SDK
+### Transactional semantics
 
 Rollback and commit hooks that facilitate idempotent python code
 
@@ -119,15 +119,14 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13696
 - https://github.com/PrefectHQ/prefect/pull/13668
 
-### Many bug fixes and quality of life improvements
-
+### Bug fixes and quality of life improvements
 
 
 ### Enhancements
 - Create artifact for unsuccessful dbt task runs — https://github.com/PrefectHQ/prefect/pull/13348
-- Add filter on task_run.expected_start_time — https://github.com/PrefectHQ/prefect/pull/13491
+- Add filter on `task_run.expected_start_time` — https://github.com/PrefectHQ/prefect/pull/13491
 - Add utilities to serialize context to a dictionary and hydrate context from a dictionary — https://github.com/PrefectHQ/prefect/pull/13529
-- Add flow UI endpoints for deployment count and next run — https://github.com/PrefectHQ/prefect/pull/13544
+- Add API endpoints for deployment count and next flow run — https://github.com/PrefectHQ/prefect/pull/13544
 - Allow flow parameter schema generation when dependencies are missing — https://github.com/PrefectHQ/prefect/pull/13315
 - Change the default value for `enforce_parameter_schema` from `False` to `True` — https://github.com/PrefectHQ/prefect/pull/13594
 - Migrate schemas to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13574
@@ -135,10 +134,10 @@ See the following pull requests for implementation details:
 - Migrate all uses of the banned characters validation to a self-validator — https://github.com/PrefectHQ/prefect/pull/13370
 
 ### Fixes
-- Remove old flow run infra override access checks — https://github.com/PrefectHQ/prefect/pull/13401
+- Remove unnecessary flow run infra override access checks — https://github.com/PrefectHQ/prefect/pull/13401
 - Enforce False case for flow run id is null — https://github.com/PrefectHQ/prefect/pull/13464
 - Fix workspace variable hydration to allow for JSON data — https://github.com/PrefectHQ/prefect/pull/13548
-- Clean up unused settings/experimental workpool flags PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS and PREFECT_EXPERIMENTAL_WARN_WORK_POOLS — https://github.com/PrefectHQ/prefect/pull/13144
+- Remove unused settings/experimental work pool flags: `PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS` and `PREFECT_EXPERIMENTAL_WARN_WORK_POOLS` — https://github.com/PrefectHQ/prefect/pull/13144
 - Pin `pydantic>=2.7` for `Secret` — https://github.com/PrefectHQ/prefect/pull/13613
 - Skip on cancellation hooks if runner can't load flow — https://github.com/PrefectHQ/prefect/pull/13660
 - Refactor lazy imports to avoid accidental eager imports — https://github.com/PrefectHQ/prefect/pull/13296
@@ -149,8 +148,8 @@ See the following pull requests for implementation details:
 - Add `prefect.yaml` and cli support for new schedule fields — https://github.com/PrefectHQ/prefect/pull/13318
 
 ### Documentation
-- Change docs to Mintlify — https://github.com/PrefectHQ/prefect/pull/13634
-- Add Python 3.12 to list of Docker images in docs — https://github.com/PrefectHQ/prefect/pull/13321
+- Transition documentation hosting from Netlify to Mintlify — https://github.com/PrefectHQ/prefect/pull/13634
+- Add Python 3.12 to list of Docker images — https://github.com/PrefectHQ/prefect/pull/13321
 - Update index.md — https://github.com/PrefectHQ/prefect/pull/13353
 - Tutorial section docs — https://github.com/PrefectHQ/prefect/pull/13297
 - Fix jinja template in automations doc — https://github.com/PrefectHQ/prefect/pull/13422
