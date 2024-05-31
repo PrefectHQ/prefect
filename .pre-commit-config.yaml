@@ -1,26 +1,26 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.2.1"
-    hooks:
-      - id: ruff
-        language_version: python3
-        args: [--fix, --exit-non-zero-on-fix, --show-fixes]
-      - id: ruff-format
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
-    hooks:
-      - id: codespell
-        exclude: package-lock.json|_vendor/.*
-  - repo: https://github.com/netromdk/vermin
-    rev: v1.6.0
-    hooks:
-      - id: vermin
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.9.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - pydantic>=1.10.0,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0
-          - types-cachetools==5.3.0.5
-          - types-pyyaml==6.0.12.9
-        files: ^(src/prefect/server/models/agents\.py|src/prefect/server/models/flows\.py|src/prefect/concurrency/.*|src/prefect/events/.*|src/prefect/input/.*)$
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: "v0.2.1"
+      hooks:
+          - id: ruff
+            language_version: python3
+            args: [--fix, --exit-non-zero-on-fix, --show-fixes]
+          - id: ruff-format
+    - repo: https://github.com/codespell-project/codespell
+      rev: v2.2.6
+      hooks:
+          - id: codespell
+            exclude: package-lock.json|_vendor/.*|docs/.*
+    - repo: https://github.com/netromdk/vermin
+      rev: v1.6.0
+      hooks:
+          - id: vermin
+    - repo: https://github.com/pre-commit/mirrors-mypy
+      rev: v1.9.0
+      hooks:
+          - id: mypy
+            additional_dependencies:
+                - pydantic>=1.10.0,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0
+                - types-cachetools==5.3.0.5
+                - types-pyyaml==6.0.12.9
+            files: ^(src/prefect/server/models/agents\.py|src/prefect/server/models/flows\.py|src/prefect/concurrency/.*|src/prefect/events/.*|src/prefect/input/.*)$
