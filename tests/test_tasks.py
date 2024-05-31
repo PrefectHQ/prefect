@@ -6,8 +6,8 @@ from asyncio import Event, sleep
 from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, call
-from uuid import UUID
+from unittest.mock import ANY, MagicMock, call
+from uuid import UUID, uuid4
 
 import anyio
 import pytest
@@ -22,11 +22,13 @@ from prefect.context import TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
+    ParameterBindError,
     ReservedArgumentError,
-    RollBack,
 )
 from prefect.filesystems import LocalFileSystem
+from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
+from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
@@ -4097,23 +4099,6 @@ class TestNestedTasks:
 
 
 class TestTransactions:
-    def test_rollback_hook_is_called_on_rollback(self):
-        data = {}
-
-        @task
-        def my_task():
-            raise RollBack()
-
-        @my_task.on_rollback
-        def rollback(txn):
-            data["called"] = True
-
-        state = my_task(return_state=True)
-
-        assert state.is_completed()
-        assert state.name == "RolledBack"
-        assert data["called"] is True
-
     def test_commit_hook_is_called_on_commit(self):
         data = {}
 
@@ -4130,3 +4115,254 @@ class TestTransactions:
         assert state.is_completed()
         assert state.name == "Completed"
         assert isinstance(data["txn"], Transaction)
+        assert str(state.state_details.task_run_id) == data["txn"].key
+
+
+class TestApplyAsync:
+    async def get_background_task_run_parameters(self, task, parameters_id):
+        factory = await ResultFactory.from_autonomous_task(task)
+        return await factory.read_parameters(parameters_id)
+
+    @pytest.mark.parametrize(
+        "args, kwargs",
+        [
+            ((42, 42), {}),
+            ([42, 42], {}),
+            ((), {"x": 42, "y": 42}),
+            ([42], {"y": 42}),
+        ],
+    )
+    async def test_with_args_kwargs(self, args, kwargs):
+        @task
+        def multiply(x, y):
+            return x * y
+
+        future = multiply.apply_async(args, kwargs)
+
+        assert await self.get_background_task_run_parameters(
+            multiply, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
+
+    def test_with_duplicate_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="multiple values for argument 'x'"
+        ):
+            add.apply_async((42,), {"x": 42})
+
+    def test_missing_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="missing a required argument: 'y'"
+        ):
+            add.apply_async((42,))
+
+    async def test_handles_default_values(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        future = add.apply_async((42,))
+
+        assert await self.get_background_task_run_parameters(
+            add, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
+
+    async def test_overrides_defaults(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        future = add.apply_async((42,), {"y": 100})
+
+        assert await self.get_background_task_run_parameters(
+            add, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"x": 42, "y": 100}, "context": ANY}
+
+    async def test_with_variadic_args(self):
+        @task
+        def add_em_up(*args):
+            return sum(args)
+
+        future = add_em_up.apply_async((42, 42))
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"args": (42, 42)}, "context": ANY}
+
+    async def test_with_variadic_kwargs(self):
+        @task
+        def add_em_up(**kwargs):
+            return sum(kwargs.values())
+
+        future = add_em_up.apply_async(kwargs={"x": 42, "y": 42})
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}, "context": ANY}
+
+    async def test_with_variadic_args_and_kwargs(self):
+        @task
+        def add_em_up(*args, **kwargs):
+            return sum(args) + sum(kwargs.values())
+
+        future = add_em_up.apply_async((42,), {"y": 42})
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
+
+    async def test_with_wait_for(self):
+        task_run_id = uuid4()
+        wait_for_future = PrefectDistributedFuture(task_run_id=task_run_id)
+
+        @task
+        def multiply(x, y):
+            return x * y
+
+        future = multiply.apply_async((42, 42), wait_for=[wait_for_future])
+
+        assert await self.get_background_task_run_parameters(
+            multiply, future.state.state_details.task_parameters_id
+        ) == {
+            "parameters": {"x": 42, "y": 42},
+            "wait_for": [wait_for_future],
+            "context": ANY,
+        }
+
+    async def test_with_only_wait_for(self):
+        task_run_id = uuid4()
+        wait_for_future = PrefectDistributedFuture(task_run_id=task_run_id)
+
+        @task
+        def the_answer():
+            return 42
+
+        future = the_answer.apply_async(wait_for=[wait_for_future])
+
+        assert await self.get_background_task_run_parameters(
+            the_answer, future.state.state_details.task_parameters_id
+        ) == {"wait_for": [wait_for_future], "context": ANY}
+
+    async def test_with_dependencies(self):
+        task_run_id = uuid4()
+
+        @task
+        def add(x, y):
+            return x + y
+
+        future = add.apply_async(
+            (42, 42), dependencies={"x": {TaskRunResult(id=task_run_id)}}
+        )
+
+        assert future.task_run.task_inputs == {
+            "x": [TaskRunResult(id=task_run_id)],
+            "y": [],
+        }
+
+
+class TestDelay:
+    async def get_background_task_run_parameters(self, task, parameters_id):
+        factory = await ResultFactory.from_autonomous_task(task)
+        return await factory.read_parameters(parameters_id)
+
+    @pytest.mark.parametrize(
+        "args, kwargs",
+        [
+            ((42, 42), {}),
+            ([42, 42], {}),
+            ((), {"x": 42, "y": 42}),
+            ([42], {"y": 42}),
+        ],
+    )
+    async def test_delay_with_args_kwargs(self, args, kwargs):
+        @task
+        def multiply(x, y):
+            return x * y
+
+        future = multiply.delay(*args, **kwargs)
+
+        assert await self.get_background_task_run_parameters(
+            multiply, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
+
+    def test_delay_with_duplicate_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="multiple values for argument 'x'"
+        ):
+            add.delay(42, x=42)
+
+    def test_delay_missing_values(self):
+        @task
+        def add(x, y):
+            return x + y
+
+        with pytest.raises(
+            ParameterBindError, match="missing a required argument: 'y'"
+        ):
+            add.delay(42)
+
+    async def test_delay_handles_default_values(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        future = add.delay(42)
+
+        assert await self.get_background_task_run_parameters(
+            add, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
+
+    async def test_delay_overrides_defaults(self):
+        @task
+        def add(x, y=42):
+            return x + y
+
+        future = add.delay(42, y=100)
+
+        assert await self.get_background_task_run_parameters(
+            add, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"x": 42, "y": 100}, "context": ANY}
+
+    async def test_delay_with_variadic_args(self):
+        @task
+        def add_em_up(*args):
+            return sum(args)
+
+        future = add_em_up.delay(42, 42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"args": (42, 42)}, "context": ANY}
+
+    async def test_delay_with_variadic_kwargs(self):
+        @task
+        def add_em_up(**kwargs):
+            return sum(kwargs.values())
+
+        future = add_em_up.delay(x=42, y=42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}, "context": ANY}
+
+    async def test_delay_with_variadic_args_and_kwargs(self):
+        @task
+        def add_em_up(*args, **kwargs):
+            return sum(args) + sum(kwargs.values())
+
+        future = add_em_up.delay(42, y=42)
+
+        assert await self.get_background_task_run_parameters(
+            add_em_up, future.state.state_details.task_parameters_id
+        ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}

@@ -1,0 +1,37 @@
+#topbar-cta-button a {
+  display: flex;
+  align-items: center;
+  padding: 0.8rem 1.1rem !important; /* Increase the vertical padding */
+  gap: 0.5rem;
+  background-color: #2D6DF6;
+  color: #fff !important;
+  border-radius: 0.25rem;
+  font-weight: 400;
+  letter-spacing: 0.4px;
+}
+
+#topbar-cta-button span.z-10 {
+  color: inherit !important; /* This will override the text color set by the classes */
+}
+
+#topbar-cta-button span.z-10.dark\:text-primary-light {
+  color: inherit !important; /* This will override the dark mode text color */
+}
+
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+/* Base font settings */
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Other custom styles */
+p {
+    font-family: 'Inter', sans-serif;
+}

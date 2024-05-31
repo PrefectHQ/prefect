@@ -23,7 +23,6 @@ class TestFunctionToSchema:
             "properties": {},
             "title": "Parameters",
             "type": "object",
-            "required": [],
             "definitions": {},
         }
 
@@ -100,7 +99,6 @@ class TestFunctionToSchema:
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"default": 42, "position": 0, "title": "x"}},
-            "required": [],
             "definitions": {},
         }
 
@@ -120,7 +118,6 @@ class TestFunctionToSchema:
                     "type": "integer",
                 }
             },
-            "required": [],
             "definitions": {},
         }
 
@@ -201,7 +198,6 @@ class TestFunctionToSchema:
                     "title": "x",
                 }
             },
-            "required": [],
             "definitions": {
                 "Color": {
                     "enum": ["RED", "GREEN", "BLUE"],
@@ -334,7 +330,6 @@ class TestFunctionToSchema:
                     "title": "foo",
                 }
             },
-            "required": [],
             "definitions": {
                 "Foo": {
                     "properties": {"bar": {"title": "Bar", "type": "string"}},
@@ -516,7 +511,6 @@ class TestMethodToSchema:
                 "properties": {},
                 "title": "Parameters",
                 "type": "object",
-                "required": [],
                 "definitions": {},
             }
 
@@ -552,7 +546,6 @@ class TestMethodToSchema:
                         "title": "color",
                     }
                 },
-                "required": [],
                 "definitions": {
                     "Color": {
                         "enum": ["RED", "GREEN", "BLUE"],
@@ -825,7 +818,6 @@ class TestEntrypointToSchema:
             "properties": {},
             "title": "Parameters",
             "type": "object",
-            "required": [],
             "definitions": {},
         }
 
@@ -912,7 +904,6 @@ class TestEntrypointToSchema:
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "position": 0}},
-            "required": [],
             "definitions": {},
         }
 
@@ -932,7 +923,6 @@ class TestEntrypointToSchema:
                 "x": {"title": "x", "default": 42, "type": "integer", "position": 0}
             },
             "definitions": {},
-            "required": [],
         }
 
     def test_function_with_two_arguments(self, tmp_path: Path):
@@ -1041,7 +1031,6 @@ class TestEntrypointToSchema:
                     "type": "string",
                 }
             },
-            "required": [],
         }
         assert schema.model_dump_for_openapi() == expected_schema
 
@@ -1196,7 +1185,6 @@ class TestEntrypointToSchema:
                     "type": "object",
                 }
             },
-            "required": [],
         }
 
     def test_function_with_complex_args_across_v1_and_v2(self, tmp_path: Path):

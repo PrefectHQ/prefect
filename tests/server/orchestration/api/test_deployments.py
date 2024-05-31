@@ -956,7 +956,7 @@ class TestCreateDeployment:
             " 'string'" in response.text
         )
 
-    async def test_create_deployment_does_not_enforce_schema_by_default(
+    async def test_create_deployment_enforces_schema_by_default(
         self,
         client,
         flow,
@@ -977,7 +977,7 @@ class TestCreateDeployment:
             "/deployments/",
             json=data,
         )
-        assert response.status_code == 201
+        assert response.status_code == 422
 
     async def test_create_deployment_parameter_enforcement_allows_partial_parameters(
         self,
@@ -1245,6 +1245,21 @@ class TestReadDeployments:
         response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
+
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                flow_or_deployment_name=schemas.filters.DeploymentOrFlowNameFilter(
+                    like_=flow.name
+                )
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/deployments/filter", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert {deployment["id"] for deployment in response.json()} == {
+            str(deployment_id_1),
+            str(deployment_id_2),
+        }
 
     async def test_read_deployments_applies_limit(self, deployments, client):
         response = await client.post("/deployments/filter", json=dict(limit=1))
@@ -1548,10 +1563,7 @@ class TestUpdateDeployment:
         assert response.json()["schedule"] is None
 
     async def test_update_deployment_with_multiple_schedules(
-        self,
-        session,
-        client,
-        flow,
+        self, session, client, flow, simple_parameter_schema
     ):
         schedule1 = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
@@ -1566,7 +1578,6 @@ class TestUpdateDeployment:
             manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
-            parameters={"foo": "bar"},
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule1,
@@ -1577,9 +1588,10 @@ class TestUpdateDeployment:
                     active=False,
                 ),
             ],
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
         ).model_dump(mode="json")
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.json()
 
         deployment_id = response.json()["id"]
         original_schedule_ids = [
@@ -1610,7 +1622,7 @@ class TestUpdateDeployment:
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
-        assert response.status_code == 204
+        assert response.status_code == 204, response.json()
 
         response = await client.get(
             f"/deployments/{deployment_id}",
