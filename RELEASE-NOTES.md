@@ -2,11 +2,11 @@
 
 ## Release 3.0rc1
 
-We're excited to announce the release candidate of Prefect 3.0. It's the most flexible, powerful, fastest version of Prefect yet. Prefect 3.0 includes several exciting new features. Install it by running `pip install prefect==3.0rc1` and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
+We're excited to announce the release candidate of Prefect 3.0. It's the most flexible, powerful, fastest version of Prefect yet. Prefect 3.0 includes several exciting new features. Install it by running `pip install prefect==3.0.0rc1` and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
 
 ### Run tasks independently of flows
 
-You can now run, serve, and submit tasks outside of flows and inside of other tasks.
+You can now run and serve tasks outside of flows and inside of other tasks.
 
 ```python
 from prefect import task
