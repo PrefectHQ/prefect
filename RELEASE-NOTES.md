@@ -18,6 +18,8 @@ if __name__ == "__main__":
     my_background_task.delay("ford")
 ```
 
+See the following pull requests for implementation details:
+
 ### Transactional orchestration SDK
 
 Rollback and commit hooks that facilitate idempotent python code
@@ -42,21 +44,44 @@ def txn_flow():
         second_task()
 ```
 
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13480
+
 ### Open source Events and Automations
 
 Trigger actions such as notifications, orchestration actions, or API calls in response to Prefect or external events.
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13293
+- https://github.com/PrefectHQ/prefect/pull/13521
+- https://github.com/PrefectHQ/prefect/pull/13335
 
 ### More flexible variables and new artifact types
 
 Variables can now be any JSON compatible type including dicts, lists, and integers. Progress and Image artifacts make it easy to add visual annotations to your flow run execution graph.
 
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13500
+- https://github.com/PrefectHQ/prefect/pull/13520
+- https://github.com/PrefectHQ/prefect/pull/13469
+- https://github.com/PrefectHQ/prefect/pull/13641
+- https://github.com/PrefectHQ/prefect/pull/13605
+
 ### Faster and better CLI
 
 Improved CLI speed and several added commands and conveniences.
 
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13292
+- https://github.com/PrefectHQ/prefect/pull/13596
+- https://github.com/PrefectHQ/prefect/pull/13606
+- https://github.com/PrefectHQ/prefect/pull/13533
+
 ### Updated navigation, styling, and interaction design
 
 A new runs page displays flow and task run executions, and an improved sidebar and switcher makes navigating the app simpler than ever.
+
+See the following pull requests for implementation details:
 
 ### Many bug fixes and quality of life improvements
 
@@ -67,22 +92,13 @@ A new runs page displays flow and task run executions, and an improved sidebar a
 ### Enhancements
 - Create artifact for unsuccessful dbt task runs — https://github.com/PrefectHQ/prefect/pull/13348
 - [New Engine] Add the ability to map tasks — https://github.com/PrefectHQ/prefect/pull/13431
-- enable cli autocompletion — https://github.com/PrefectHQ/prefect/pull/13292
 - Fixes failing task tests for new engine — https://github.com/PrefectHQ/prefect/pull/13456
 - Add filter on task_run.expected_start_time — https://github.com/PrefectHQ/prefect/pull/13491
-- server side json variables — https://github.com/PrefectHQ/prefect/pull/13500
-- variable cli updates — https://github.com/PrefectHQ/prefect/pull/13520
 - Add utilities to serialize context to a dictionary and hydrate context from a dictionary — https://github.com/PrefectHQ/prefect/pull/13529
-- Add flow ui endpoints — https://github.com/PrefectHQ/prefect/pull/13544
-- Provide URL in CLI output upon work pool creation — https://github.com/PrefectHQ/prefect/pull/13596
+- Add flow UI endpoints for deployment count and next run — https://github.com/PrefectHQ/prefect/pull/13544
 - Allow flow parameter schema generation when dependencies are missing — https://github.com/PrefectHQ/prefect/pull/13315
-- Enhancement: Progress Artifact — https://github.com/PrefectHQ/prefect/pull/13469
-- using new json variables ui — https://github.com/PrefectHQ/prefect/pull/13605
 - Change the default value for `enforce_parameter_schema` from `False` to `True` — https://github.com/PrefectHQ/prefect/pull/13594
-- Show latest blocks schema on `prefect block type inspect <slug>` — https://github.com/PrefectHQ/prefect/pull/13533
-- Prompt confirmation to any object deletion via CLI — https://github.com/PrefectHQ/prefect/pull/13606
 - Add `prefect task serve` CLI command to start task server — https://github.com/PrefectHQ/prefect/pull/13676
-- Enhancement: ImageArtifact — https://github.com/PrefectHQ/prefect/pull/13641
 - Expose `limit` in `prefect task serve` — https://github.com/PrefectHQ/prefect/pull/13684
 
 ### Fixes
@@ -101,6 +117,7 @@ A new runs page displays flow and task run executions, and an improved sidebar a
 - Add `prefect.yaml` and cli support for new schedule fields — https://github.com/PrefectHQ/prefect/pull/13318
 
 ### Documentation
+- Change docs to Mintlify — https://github.com/PrefectHQ/prefect/pull/13634
 - Add Python 3.12 to list of Docker images in docs — https://github.com/PrefectHQ/prefect/pull/13321
 - Update index.md — https://github.com/PrefectHQ/prefect/pull/13353
 - Tutorial section docs — https://github.com/PrefectHQ/prefect/pull/13297
@@ -109,49 +126,39 @@ A new runs page displays flow and task run executions, and an improved sidebar a
 - Update Ray integration docs — https://github.com/PrefectHQ/prefect/pull/13467
 - clarifying that variables can be json types, screenshot — https://github.com/PrefectHQ/prefect/pull/13493
 - Update quickstart guide for usability — https://github.com/PrefectHQ/prefect/pull/13562
-- Change docs to Mintlify — https://github.com/PrefectHQ/prefect/pull/13634
 - Cleanup for new docs — https://github.com/PrefectHQ/prefect/pull/13640
 - Remove `deployments-block-based` concept page and refs for 3.0 — https://github.com/PrefectHQ/prefect/pull/13626
 - Remove `infrastructure` concept page and refs for 3.0 — https://github.com/PrefectHQ/prefect/pull/13629
 - Update docs image paths and remove outdated images — https://github.com/PrefectHQ/prefect/pull/13666
 - Remove references to prefect.software from docs — https://github.com/PrefectHQ/prefect/pull/13382
 - Update host.md — https://github.com/PrefectHQ/prefect/pull/13351
+- Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 
 ### Uncategorized
 - Pin the lower bounds of `pydantic` and `sqlalchemy` for 3.x line — https://github.com/PrefectHQ/prefect/pull/13329
 - use v1 validation error — https://github.com/PrefectHQ/prefect/pull/13332
-- The events subsystem will not be experimental in 3.x — https://github.com/PrefectHQ/prefect/pull/13335
 - Migrating all uses of the banned characters validation to a self-validator — https://github.com/PrefectHQ/prefect/pull/13370
-- Fixing stray files from the test suite, with a utility to notify us about them — https://github.com/PrefectHQ/prefect/pull/13380
-- Removes an unused/deprecated parameter from CodeQL checks — https://github.com/PrefectHQ/prefect/pull/13390
 - Edit review of Execution section — https://github.com/PrefectHQ/prefect/pull/13253
 - Removes block auto-instrumentation — https://github.com/PrefectHQ/prefect/pull/13407
-- Disable integration tests for main — https://github.com/PrefectHQ/prefect/pull/13409
 - Remove private run methods — https://github.com/PrefectHQ/prefect/pull/13414
-- Add autouse fixture to modify cwd — https://github.com/PrefectHQ/prefect/pull/13416
 - Update sync compat in preparation for new engine — https://github.com/PrefectHQ/prefect/pull/13438
 - More test progress — https://github.com/PrefectHQ/prefect/pull/13452
 - New engine logging — https://github.com/PrefectHQ/prefect/pull/13450
 - Flow run names and engine tests — https://github.com/PrefectHQ/prefect/pull/13454
 - Feature: Runs page — https://github.com/PrefectHQ/prefect/pull/13395
-- Revert "Replace `declarative_mixin` with `DeclarativeBase` for all models" — https://github.com/PrefectHQ/prefect/pull/13471
-- Restore "Replace `declarative_mixin` with `DeclarativeBase` for all models" — https://github.com/PrefectHQ/prefect/pull/13472
 - Fix deployments in the new engine — https://github.com/PrefectHQ/prefect/pull/13484
-- [New Engine] Add support for `on_crashed`, `on_cancellation`, and `on_running` hooks — https://github.com/PrefectHQ/prefect/pull/13480
 - Enable new engine experimental setting by default — https://github.com/PrefectHQ/prefect/pull/13477
 - Task Hook decorators — https://github.com/PrefectHQ/prefect/pull/13534
 - Flow hook decorators — https://github.com/PrefectHQ/prefect/pull/13535
 - Add button to hide/show subflow on dashboard page — https://github.com/PrefectHQ/prefect/pull/13280
 - Add apply_async to schedule pending tasks — https://github.com/PrefectHQ/prefect/pull/13547
 - Wire up basic transaction mechanics — https://github.com/PrefectHQ/prefect/pull/13559
-- Remove is_state — https://github.com/PrefectHQ/prefect/pull/13569
 - Remove extra log flushes — https://github.com/PrefectHQ/prefect/pull/13568
 - Move run_sync to dedicated thread/loop and create client context — https://github.com/PrefectHQ/prefect/pull/13573
 - Add tests for running coros — https://github.com/PrefectHQ/prefect/pull/13580
 - Flush logs at the end of flows/tasks — https://github.com/PrefectHQ/prefect/pull/13578
 - Chdir on test to prevent file writes — https://github.com/PrefectHQ/prefect/pull/13583
 - Record spec — https://github.com/PrefectHQ/prefect/pull/13572
-- adding note on artifact retention — https://github.com/PrefectHQ/prefect/pull/13592
 - Refactor to match transaction keys to storage keys — https://github.com/PrefectHQ/prefect/pull/13582
 - Updates background task creation to avoid use of old engine — https://github.com/PrefectHQ/prefect/pull/13589
 - V2 schemas — https://github.com/PrefectHQ/prefect/pull/13574
@@ -164,7 +171,6 @@ A new runs page displays flow and task run executions, and an improved sidebar a
 - Update task server to run received tasks concurrently — https://github.com/PrefectHQ/prefect/pull/13653
 - Add a Join the Community CTA — https://github.com/PrefectHQ/prefect/pull/13668
 - Allows us to run integration package unit tests by adding a PR label — https://github.com/PrefectHQ/prefect/pull/13665
-- Adjustments to make sure that the client build still works — https://github.com/PrefectHQ/prefect/pull/13682
 - Add ability to limit concurrent runs for a task server — https://github.com/PrefectHQ/prefect/pull/13662
 - Mark tasks as being `deferred` when using `apply_async` — https://github.com/PrefectHQ/prefect/pull/13681
 - removing references to deprecated block types, adding disclaimer — https://github.com/PrefectHQ/prefect/pull/13651
@@ -172,7 +178,6 @@ A new runs page displays flow and task run executions, and an improved sidebar a
 - Small Transaction refactor — https://github.com/PrefectHQ/prefect/pull/13692
 - adding in empty state import — https://github.com/PrefectHQ/prefect/pull/13696
 - Add Task.delay() — https://github.com/PrefectHQ/prefect/pull/13695
-- Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 
 ### Integrations
 - Migrate `prefect-email` to pydantic2 — https://github.com/PrefectHQ/prefect/pull/13654
@@ -208,6 +213,7 @@ A new runs page displays flow and task run executions, and an improved sidebar a
 - Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
 - Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
 - Remove old task runners and futures modules — https://github.com/PrefectHQ/prefect/pull/13593
+- Remove is_state — https://github.com/PrefectHQ/prefect/pull/13569
 
 ### Contributors
 - @bsignoret
