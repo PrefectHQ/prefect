@@ -29,6 +29,8 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13684
 - https://github.com/PrefectHQ/prefect/pull/13676
 - https://github.com/PrefectHQ/prefect/pull/13276
+- https://github.com/PrefectHQ/prefect/pull/13611
+- https://github.com/PrefectHQ/prefect/pull/13547
 
 ### Transactional orchestration SDK
 
@@ -55,6 +57,7 @@ def txn_flow():
 ```
 
 See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/13559
 - https://github.com/PrefectHQ/prefect/pull/13534
 - https://github.com/PrefectHQ/prefect/pull/13535
 - https://github.com/PrefectHQ/prefect/pull/13480
@@ -67,6 +70,14 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13264
 - https://github.com/PrefectHQ/prefect/pull/13337
 - https://github.com/PrefectHQ/prefect/pull/13456
+- https://github.com/PrefectHQ/prefect/pull/13572
+- https://github.com/PrefectHQ/prefect/pull/13582
+- https://github.com/PrefectHQ/prefect/pull/13627
+- https://github.com/PrefectHQ/prefect/pull/13568
+- https://github.com/PrefectHQ/prefect/pull/13438
+- https://github.com/PrefectHQ/prefect/pull/13573
+- https://github.com/PrefectHQ/prefect/pull/13578
+- https://github.com/PrefectHQ/prefect/pull/13414
 
 ### Open source Events and Automations
 
@@ -106,12 +117,11 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13395
 - https://github.com/PrefectHQ/prefect/pull/13280
 - https://github.com/PrefectHQ/prefect/pull/13696
+- https://github.com/PrefectHQ/prefect/pull/13668
 
 ### Many bug fixes and quality of life improvements
 
 
-- Create and manage automations in the UI — https://github.com/PrefectHQ/prefect/pull/13293
-- Add Event Feed and Event pages to the ui — https://github.com/PrefectHQ/prefect/pull/13521
 
 ### Enhancements
 - Create artifact for unsuccessful dbt task runs — https://github.com/PrefectHQ/prefect/pull/13348
@@ -120,6 +130,9 @@ See the following pull requests for implementation details:
 - Add flow UI endpoints for deployment count and next run — https://github.com/PrefectHQ/prefect/pull/13544
 - Allow flow parameter schema generation when dependencies are missing — https://github.com/PrefectHQ/prefect/pull/13315
 - Change the default value for `enforce_parameter_schema` from `False` to `True` — https://github.com/PrefectHQ/prefect/pull/13594
+- Migrate schemas to pydantic v2 — https://github.com/PrefectHQ/prefect/pull/13574
+- Removes block auto-instrumentation — https://github.com/PrefectHQ/prefect/pull/13407
+- Migrate all uses of the banned characters validation to a self-validator — https://github.com/PrefectHQ/prefect/pull/13370
 
 ### Fixes
 - Remove old flow run infra override access checks — https://github.com/PrefectHQ/prefect/pull/13401
@@ -129,6 +142,8 @@ See the following pull requests for implementation details:
 - Pin `pydantic>=2.7` for `Secret` — https://github.com/PrefectHQ/prefect/pull/13613
 - Skip on cancellation hooks if runner can't load flow — https://github.com/PrefectHQ/prefect/pull/13660
 - Refactor lazy imports to avoid accidental eager imports — https://github.com/PrefectHQ/prefect/pull/13296
+- Allow block registration to use client schemas for server model creation — https://github.com/PrefectHQ/prefect/pull/13602
+- Replace our customized `Duration` types with plain `timedelta`s — https://github.com/PrefectHQ/prefect/pull/13603
 
 ### Experimental
 - Add `prefect.yaml` and cli support for new schedule fields — https://github.com/PrefectHQ/prefect/pull/13318
@@ -151,30 +166,6 @@ See the following pull requests for implementation details:
 - Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 - Removing references to deprecated block types and add disclaimer — https://github.com/PrefectHQ/prefect/pull/13651
 - Edit review of Execution section — https://github.com/PrefectHQ/prefect/pull/13253
-
-### Uncategorized
-- Pin the lower bounds of `pydantic` and `sqlalchemy` for 3.x line — https://github.com/PrefectHQ/prefect/pull/13329
-- use v1 validation error — https://github.com/PrefectHQ/prefect/pull/13332
-- Migrating all uses of the banned characters validation to a self-validator — https://github.com/PrefectHQ/prefect/pull/13370
-- Removes block auto-instrumentation — https://github.com/PrefectHQ/prefect/pull/13407
-- Remove private run methods — https://github.com/PrefectHQ/prefect/pull/13414
-- Update sync compat in preparation for new engine — https://github.com/PrefectHQ/prefect/pull/13438
-- Add apply_async to schedule pending tasks — https://github.com/PrefectHQ/prefect/pull/13547
-- Wire up basic transaction mechanics — https://github.com/PrefectHQ/prefect/pull/13559
-- Remove extra log flushes — https://github.com/PrefectHQ/prefect/pull/13568
-- Move run_sync to dedicated thread/loop and create client context — https://github.com/PrefectHQ/prefect/pull/13573
-- Add tests for running coros — https://github.com/PrefectHQ/prefect/pull/13580
-- Flush logs at the end of flows/tasks — https://github.com/PrefectHQ/prefect/pull/13578
-- Chdir on test to prevent file writes — https://github.com/PrefectHQ/prefect/pull/13583
-- Record spec — https://github.com/PrefectHQ/prefect/pull/13572
-- Refactor to match transaction keys to storage keys — https://github.com/PrefectHQ/prefect/pull/13582
-- V2 schemas — https://github.com/PrefectHQ/prefect/pull/13574
-- Allow block registration to use client schemas for server model creation — https://github.com/PrefectHQ/prefect/pull/13602
-- Replace our customized `Duration` types with plain `timedelta`s — https://github.com/PrefectHQ/prefect/pull/13603
-- Correcting API schemas to maintain compatibility with Cloud — https://github.com/PrefectHQ/prefect/pull/13623
-- Add _sync flag to sync compatible fns — https://github.com/PrefectHQ/prefect/pull/13627
-- Add a Join the Community CTA — https://github.com/PrefectHQ/prefect/pull/13668
-- Add a naive distributed future — https://github.com/PrefectHQ/prefect/pull/13611
 
 ### Integrations
 - Migrate `prefect-email` to pydantic2 — https://github.com/PrefectHQ/prefect/pull/13654
