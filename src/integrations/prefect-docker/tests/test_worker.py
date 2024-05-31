@@ -10,7 +10,6 @@ import pytest
 from docker import DockerClient
 from docker.models.containers import Container
 from exceptiongroup import ExceptionGroup
-from packaging import version
 from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.worker import (
     CONTAINER_LABELS,
@@ -18,7 +17,6 @@ from prefect_docker.worker import (
     DockerWorkerJobConfiguration,
 )
 
-import prefect
 from prefect.client.schemas import FlowRun
 from prefect.events import RelatedResource
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
@@ -391,14 +389,9 @@ async def test_uses_env_setting(
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
 
-    flow_run_id = (
-        str(flow_run.id)
-        if version.parse(prefect.__version__) >= version.parse("2.13.5")
-        else flow_run.id.hex
-    )
     assert call_env == {
         **get_current_settings().to_environment_variables(exclude_unset=True),
-        "PREFECT__FLOW_RUN_ID": flow_run_id,
+        "PREFECT__FLOW_RUN_ID": str(flow_run.id),
         "foo": "FOO",
         "bar": "BAR",
     }
