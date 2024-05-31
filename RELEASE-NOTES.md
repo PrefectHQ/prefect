@@ -4,7 +4,9 @@
 
 We're excited to announce the release candidate of Prefect 3.0. It's the most flexible, powerful, fastest version of Prefect yet. Prefect 3.0 includes several exciting new features. Install it by running `pip install prefect==3.0rc1` and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
 
-### Run tasks independently of flows - You can now run, serve, and submit tasks outside of flows and inside of other tasks.
+### Run tasks independently of flows
+
+You can now run, serve, and submit tasks outside of flows and inside of other tasks.
 
 ```python
 from prefect import task
@@ -32,7 +34,9 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13547
 - https://github.com/PrefectHQ/prefect/pull/13706
 
-### Transactional semantics - Rollback and commit hooks that facilitate idempotent python code
+### Transactional semantics
+
+Rollback and commit hooks that facilitate idempotent python code
 
 ```python
 from prefect import flow, task
@@ -56,7 +60,7 @@ def txn_flow():
         second_task()
 if __name__ == "__main__":
     txn_flow()
-
+```
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13559
 - https://github.com/PrefectHQ/prefect/pull/13534
@@ -80,14 +84,16 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13578
 - https://github.com/PrefectHQ/prefect/pull/13414
 
-### Open source Events and Automations - Trigger actions, such as sending notifications, pausing schedules, starting flow runs and more in response to Prefect events.
+### Open source Events and Automations
+Trigger actions, such as sending notifications, pausing schedules, starting flow runs and more in response to Prefect events.
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13293
 - https://github.com/PrefectHQ/prefect/pull/13521
 - https://github.com/PrefectHQ/prefect/pull/13335
 
-### More flexible variables and new artifact types - Variables can now be any JSON compatible type including dicts, lists, and integers. Progress and Image artifacts make it easy to add visual annotations to your flow run graph.
+### More flexible variables and new artifact types
+Variables can now be any JSON compatible type including dicts, lists, and integers. Progress and Image artifacts make it easy to add visual annotations to your flow run graph.
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13500
@@ -106,7 +112,8 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13606
 - https://github.com/PrefectHQ/prefect/pull/13533
 
-### Updated navigation, styling, and interaction design - The new Runs page displays both flow and task run information, and an improved sidebar and switcher makes navigating Prefect simpler than ever.
+### Updated navigation, styling, and interaction design
+The new Runs page displays both flow and task run information, and an improved sidebar and switcher makes navigating Prefect simpler than ever.
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13395
