@@ -58,7 +58,7 @@ PREFECT_API_URL="http://127.0.0.1:4200/api"
 
 !!! tip "`PREFECT_API_URL` setting for workers"
 
-    If using a [worker](/3.0rc/concepts/work-pools/) (agent and block-based deployments are legacy) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/3.0rc/concepts/settings/) must be set for the environment in which your worker is running.
+    If using a [worker](/3.0rc/concepts/work-pools/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/3.0rc/concepts/settings/) must be set for the environment in which your worker is running.
 
     For the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
@@ -154,8 +154,6 @@ You can also include default values with `--show-defaults`:
 ```bash
 $ prefect config view --show-defaults
 PREFECT_PROFILE='default'
-PREFECT_AGENT_PREFETCH_SECONDS='10' (from defaults)
-PREFECT_AGENT_QUERY_INTERVAL='5.0' (from defaults)
 PREFECT_API_KEY='None' (from defaults)
 PREFECT_API_REQUEST_TIMEOUT='60.0' (from defaults)
 PREFECT_API_URL='None' (from defaults)
