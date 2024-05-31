@@ -150,10 +150,10 @@ class PrefectDistributedFuture(PrefectFuture):
     any task run scheduled in Prefect's API.
     """
 
-    def __init__(self, *args, **kwargs):
-        self._client = kwargs.pop("client", None)
+    def __init__(self, task_run_id: uuid.UUID):
         self._task_run = None
-        super().__init__(*args, **kwargs)
+        self._client = None
+        super().__init__(task_run_id=task_run_id)
 
     @property
     def client(self):
@@ -208,6 +208,11 @@ class PrefectDistributedFuture(PrefectFuture):
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+    def __eq__(self, other):
+        if not isinstance(other, PrefectDistributedFuture):
+            return False
+        return self.task_run_id == other.task_run_id
 
 
 def resolve_futures_to_states(

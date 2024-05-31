@@ -130,8 +130,12 @@ async def test_task_server_handles_aborted_task_run_submission(
 
     task_run_future = foo_task.apply_async((42,))
 
+    new_state = Running()
+    new_state.state_details.deferred = True
     await prefect_client.set_task_run_state(
-        task_run_future.task_run_id, Running(), force=True
+        task_run_future.task_run_id,
+        new_state,
+        force=True,
     )
 
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)

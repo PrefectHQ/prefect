@@ -83,7 +83,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
-class AutonomousTaskPolicy(BaseOrchestrationPolicy):
+class BackgroundTaskPolicy(BaseOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order.
     """
@@ -473,7 +473,7 @@ class RetryFailedTasks(BaseOrchestrationRule):
 
 class EnqueueScheduledTasks(BaseOrchestrationRule):
     """
-    Enqueues autonomous task runs when they are scheduled
+    Enqueues background task runs when they are scheduled
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -487,10 +487,6 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
     ) -> None:
         if not validated_state:
             # Only if the transition was valid
-            return
-
-        if context.run.flow_run_id:
-            # Only for autonomous tasks
             return
 
         if not validated_state.state_details.deferred:

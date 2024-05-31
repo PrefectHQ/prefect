@@ -141,7 +141,8 @@ class TestPrefectDistributedFuture:
     def test_with_client(self, task_run):
         mock_client = mock.MagicMock()
         mock_client.read_task_run = mock.MagicMock()
-        future = PrefectDistributedFuture(task_run_id=task_run.id, client=mock_client)
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+        future._client = mock_client
         future.wait(timeout=0.25)
         mock_client.read_task_run.assert_called_with(task_run_id=task_run.id)
 
