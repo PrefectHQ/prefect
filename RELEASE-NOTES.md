@@ -19,15 +19,10 @@
 - Remove `prefect-agent` as a possible work pool type — https://github.com/PrefectHQ/prefect/pull/13444
 - Bye bye old engine — https://github.com/PrefectHQ/prefect/pull/13542
 - Remove Python 3.8 support — https://github.com/PrefectHQ/prefect/pull/13331
-
-### Exciting New Features 🎉
-- Create and manage automations in the UI — https://github.com/PrefectHQ/prefect/pull/13293
-- Add Event Feed and Event pages to the ui — https://github.com/PrefectHQ/prefect/pull/13521
+- Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
 
 ### Enhancements
 - Create artifact for unsuccessful dbt task runs — https://github.com/PrefectHQ/prefect/pull/13348
-- prefect-dbt artifact consolidation and markdown fixes — https://github.com/PrefectHQ/prefect/pull/13379
-- prefect-dbt - Cause unsuccessful dbt tasks to fail — https://github.com/PrefectHQ/prefect/pull/13405
 - [New Engine] Add the ability to map tasks — https://github.com/PrefectHQ/prefect/pull/13431
 - enable cli autocompletion — https://github.com/PrefectHQ/prefect/pull/13292
 - Fixes failing task tests for new engine — https://github.com/PrefectHQ/prefect/pull/13456
@@ -41,7 +36,7 @@
 - Enhancement: Progress Artifact — https://github.com/PrefectHQ/prefect/pull/13469
 - using new json variables ui — https://github.com/PrefectHQ/prefect/pull/13605
 - Change the default value for `enforce_parameter_schema` from `False` to `True` — https://github.com/PrefectHQ/prefect/pull/13594
-- feat(cli): show latest blocks schema on `prefect block type inspect <slug>` — https://github.com/PrefectHQ/prefect/pull/13533
+- Show latest blocks schema on `prefect block type inspect <slug>` — https://github.com/PrefectHQ/prefect/pull/13533
 - Prompt confirmation to any object deletion via CLI — https://github.com/PrefectHQ/prefect/pull/13606
 - Add `prefect task serve` CLI command to start task server — https://github.com/PrefectHQ/prefect/pull/13676
 - Enhancement: ImageArtifact — https://github.com/PrefectHQ/prefect/pull/13641
@@ -85,7 +80,6 @@
 - Chore: Update prefect-design  — https://github.com/PrefectHQ/prefect/pull/13326
 - The events subsystem will not be experimental in 3.x — https://github.com/PrefectHQ/prefect/pull/13335
 - Update host.md — https://github.com/PrefectHQ/prefect/pull/13351
-- Remove `deprecated` module and its references — https://github.com/PrefectHQ/prefect/pull/13345
 - Migrating all uses of the banned characters validation to a self-validator — https://github.com/PrefectHQ/prefect/pull/13370
 - Fixing stray files from the test suite, with a utility to notify us about them — https://github.com/PrefectHQ/prefect/pull/13380
 - Removes an unused/deprecated parameter from CodeQL checks — https://github.com/PrefectHQ/prefect/pull/13390
@@ -129,9 +123,7 @@
 - Correcting API schemas to maintain compatibility with Cloud — https://github.com/PrefectHQ/prefect/pull/13623
 - Add _sync flag to sync compatible fns — https://github.com/PrefectHQ/prefect/pull/13627
 - Update `apply_async` interface to mirror `multiprocessing` equivalent — https://github.com/PrefectHQ/prefect/pull/13643
-- Bringing back the integration tests — https://github.com/PrefectHQ/prefect/pull/13645
 - Update task server to run received tasks concurrently — https://github.com/PrefectHQ/prefect/pull/13653
-- Disable the automations-assessment test for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/13659
 - Add a Join the Community CTA — https://github.com/PrefectHQ/prefect/pull/13668
 - Allows us to run integration package unit tests by adding a PR label — https://github.com/PrefectHQ/prefect/pull/13665
 - Adjustments to make sure that the client build still works — https://github.com/PrefectHQ/prefect/pull/13682
@@ -154,6 +146,8 @@
 - Add `PrefectDistributedClient` to `prefect-dask` — https://github.com/PrefectHQ/prefect/pull/13537
 - Update `RayTaskRunner` for compatibility with new engine — https://github.com/PrefectHQ/prefect/pull/13575
 - Update `DaskTaskRunner` for compatibility with the updated engine — https://github.com/PrefectHQ/prefect/pull/13555
+- prefect-dbt artifact consolidation and markdown fixes — https://github.com/PrefectHQ/prefect/pull/13379
+- prefect-dbt - Cause unsuccessful dbt tasks to fail — https://github.com/PrefectHQ/prefect/pull/13405
 
 ### Contributors
 - @bsignoret
