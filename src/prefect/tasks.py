@@ -566,22 +566,24 @@ class Task(Generic[P, R]):
             client = get_client()
 
         async with client:
-            is_autonomous_task = not flow_run_context
-
-            if is_autonomous_task:
+            if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
-                state = Scheduled()
             else:
                 dynamic_key = _dynamic_key_for_task_run(
                     context=flow_run_context, task=self
                 )
                 task_run_name = f"{self.name}-{dynamic_key}"
+
+            if deferred:
+                state = Scheduled()
+                state.state_details.deferred = True
+            else:
                 state = Pending()
 
-            # store parameters for autonomous tasks so that task servers
+            # store parameters for background tasks so that task servers
             # can retrieve them at runtime
-            if is_autonomous_task and parameters:
+            if deferred and (parameters or wait_for):
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -589,10 +591,12 @@ class Task(Generic[P, R]):
                 self.persist_result = True
 
                 factory = await ResultFactory.from_autonomous_task(self, client=client)
-                await factory.store_parameters(parameters_id, parameters)
-
-            if deferred:
-                state.state_details.deferred = True
+                data = {}
+                if parameters:
+                    data["parameters"] = parameters
+                if wait_for:
+                    data["wait_for"] = wait_for
+                await factory.store_parameters(parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -1049,6 +1053,8 @@ class Task(Generic[P, R]):
         self,
         args: Optional[Tuple[Any, ...]] = None,
         kwargs: Optional[Dict[str, Any]] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> PrefectDistributedFuture:
         """
         Create a pending task run for a task server to execute.
@@ -1124,7 +1130,12 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         task_run = run_coro_as_sync(
-            self.create_run(parameters=parameters, deferred=True)
+            self.create_run(
+                parameters=parameters,
+                deferred=True,
+                wait_for=wait_for,
+                extra_task_inputs=dependencies,
+            )
         )
         return PrefectDistributedFuture(task_run_id=task_run.id)
 

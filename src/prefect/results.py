@@ -78,7 +78,7 @@ _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {
 
 async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
-    Generate a default file system for autonomous task parameter/result storage.
+    Generate a default file system for background task parameter/result storage.
     """
     default_storage_name, storage_path = cache_key = (
         PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value(),

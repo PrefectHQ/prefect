@@ -171,12 +171,15 @@ class TaskServer:
         # state_details. If there is no parameters_id, then the task was created
         # without parameters.
         parameters = {}
+        wait_for = []
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
             factory = await ResultFactory.from_autonomous_task(task)
             try:
-                parameters = await factory.read_parameters(parameters_id)
+                parameters_and_wait_for = await factory.read_parameters(parameters_id)
+                parameters = parameters_and_wait_for.get("parameters", {})
+                wait_for = parameters_and_wait_for.get("wait_for", [])
             except Exception as exc:
                 logger.exception(
                     f"Failed to read parameters for task run {task_run.id!r}",
@@ -231,6 +234,7 @@ class TaskServer:
                 task_run_id=task_run.id,
                 task_run=task_run,
                 parameters=parameters,
+                wait_for=wait_for,
                 return_type="state",
             )
         else:
@@ -242,6 +246,7 @@ class TaskServer:
                 task_run_id=task_run.id,
                 task_run=task_run,
                 parameters=parameters,
+                wait_for=wait_for,
                 return_type="state",
             )
             await asyncio.wrap_future(future)
