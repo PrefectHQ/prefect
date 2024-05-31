@@ -110,8 +110,8 @@ async def create(
             work pool - {pool!r}
             id - {result.id}
             concurrency limit - {limit}
-        Start an agent to pick up flow runs from the work queue:
-            prefect agent start -q '{result.name} -p {pool}'
+        Start a worker to pick up flow runs from the work queue:
+            prefect worker start -q '{result.name} -p {pool}'
 
         Inspect the work queue:
             prefect work-queue inspect '{result.name}'
