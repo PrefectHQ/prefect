@@ -360,7 +360,7 @@ class TestMap:
             assert task_run.state.is_scheduled()
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
-            ) == {"x": i + 1, "unmappable": 42}
+            ) == {"parameters": {"x": i + 1, "unmappable": 42}, "context": mock.ANY}
 
     async def test_async_map_with_implicitly_unmapped_kwargs(self):
         @task
@@ -377,7 +377,7 @@ class TestMap:
             assert task_run.state.is_scheduled()
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
-            ) == {"x": i + 1, "unmappable": 42}
+            ) == {"parameters": {"x": i + 1, "unmappable": 42}, "context": mock.ANY}
 
     async def test_map_with_explicit_unmapped_kwargs(self):
         @task
@@ -394,7 +394,10 @@ class TestMap:
             assert task_run.state.is_scheduled()
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
-            ) == {"x": i + 1, "mappable": ["some", "iterable"]}
+            ) == {
+                "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},
+                "context": mock.ANY,
+            }
 
     async def test_async_map_with_explicit_unmapped_kwargs(self):
         @task
@@ -411,7 +414,10 @@ class TestMap:
             assert task_run.state.is_scheduled()
             assert await result_factory.read_parameters(
                 task_run.state.state_details.task_parameters_id
-            ) == {"x": i + 1, "mappable": ["some", "iterable"]}
+            ) == {
+                "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},
+                "context": mock.ANY,
+            }
 
 
 class TestTaskKey:
