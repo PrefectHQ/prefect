@@ -4,19 +4,13 @@ import warnings
 from enum import Enum
 from typing import Any, Dict, Optional, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.blocks.core import Block
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import AnyUrl, BaseModel, Field, SecretStr
-else:
-    from pydantic import AnyUrl, BaseModel, Field, SecretStr
-
+from pydantic import AnyUrl, BaseModel, Field, SecretStr
 from sqlalchemy.engine import Connection, create_engine
 from sqlalchemy.engine.url import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 from sqlalchemy.pool import NullPool
+
+from prefect.blocks.core import Block
 
 
 class AsyncDriver(Enum):
@@ -119,7 +113,7 @@ class ConnectionComponents(BaseModel):
     host: Optional[str] = Field(
         default=None, description="The host address of the database."
     )
-    port: Optional[str] = Field(
+    port: Optional[int] = Field(
         default=None, description="The port to connect to the database."
     )
     query: Optional[Dict[str, str]] = Field(
