@@ -3,11 +3,11 @@ title: Work Pools &  Workers
 description: Prefect work pools route deployment flow runs to workers. Prefect workers poll work pools for new runs to execute.
 ---
 
-Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker running in the execution environment can poll its respective work pool for new runs to execute, or the work pool can submit flow runs to serverless infrastructure directly, depending on your configuration.
+Work pools and workers bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/3.0rc/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker running in the execution environment can poll its respective work pool for new runs to execute, or the work pool can submit flow runs to serverless infrastructure directly, depending on your configuration.
 
 ## Work pool overview
 
-Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [workers](#worker-overview) (or less ideally, [agents](/concepts/agents)) to poll the work pool for flow runs to execute. [Push work pools](/guides/deployment/push-work-pools) can submit runs directly to your serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. [Managed work pools](/guides/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
+Work pools organize work for execution. Work pools have types corresponding to the infrastructure that will execute the flow code, as well as the delivery method of work to that environment. Pull work pools require [workers](#worker-overview) (or less ideally, [agents](/3.0rc/concepts/agents)) to poll the work pool for flow runs to execute. [Push work pools](/3.0rc/guides/deployment/push-work-pools) can submit runs directly to your serverless infrastructure providers such as Google Cloud Run, Azure Container Instances, and AWS ECS without the need for an agent or worker. [Managed work pools](/3.0rc/guides/managed-execution) are administered by Prefect and handle the submission and execution of code on your behalf.
 
 !!! tip "Work pools are like pub/sub topics"
     It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) workers through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the worker that will execute their runs, making it easy to promote runs through environments or even debug locally.
@@ -20,7 +20,7 @@ You can configure work pools by using any of the following:
 
 - Prefect UI
 - Prefect CLI commands
-- [Prefect REST API](/api-ref/rest-api/)
+- [Prefect REST API](/3.0rc/api-ref/rest-api/)
 - [Terraform provider for Prefect Cloud](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/work_pool)
 
 To manage work pools in the UI, click the **Work Pools** icon. This displays a list of currently configured work pools.
@@ -276,7 +276,7 @@ deployments:
         stream_output: false
 ```
 
-See more about overriding job variables in the [Overriding Job Variables Guide](/guides/deployment/overriding-job-variables/).
+See more about overriding job variables in the [Overriding Job Variables Guide](/3.0rc/guides/deployment/overriding-job-variables/).
 
 !!! tip "Advanced Customization of the Base Job Template"
     For advanced use cases, you can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
@@ -285,7 +285,7 @@ See more about overriding job variables in the [Overriding Job Variables Guide](
 
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
 
-    For more information on overriding a work pool's job variables see this [guide](/guides/deployment/overriding-job-variables/).
+    For more information on overriding a work pool's job variables see this [guide](/3.0rc/guides/deployment/overriding-job-variables/).
 
 ### Viewing work pools
 
@@ -447,7 +447,7 @@ Below is a list of available worker types. Note that most worker types will requ
 
 | Worker Type | Description | Required Package |
 | --- | --- | --- |
-| [`process`](/api-ref/prefect/workers/process/) | Executes flow runs in subprocesses | |
+| [`process`](/3.0rc/api-ref/prefect/workers/process/) | Executes flow runs in subprocesses | |
 | [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
 | [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
 | [`ecs`](https://prefecthq.github.io/prefect-aws/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |
@@ -455,7 +455,7 @@ Below is a list of available worker types. Note that most worker types will requ
 | [`vertex-ai`](https://prefecthq.github.io/prefect-gcp/vertex_worker/) | Executes flow runs as Google Cloud Vertex AI jobs | `prefect-gcp` |
 | [`azure-container-instance`](https://prefecthq.github.io/prefect-azure/container_instance_worker/) | Execute flow runs in ACI containers | `prefect-azure` |
 
-If you don’t see a worker type that meets your needs, consider [developing a new worker type](/guides/deployment/developing-a-new-worker-type/)!
+If you don’t see a worker type that meets your needs, consider [developing a new worker type](/3.0rc/guides/deployment/developing-a-new-worker-type/)!
 
 ### Worker options
 
@@ -547,7 +547,7 @@ If this value is _more_ than the amount of time it takes for the infrastructure 
 
 ### Polling for work
 
-Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/concepts/settings/) with the
+Workers poll for work every 15 seconds by default. This interval is configurable in your [profile settings](/3.0rc/concepts/settings/) with the
 `PREFECT_WORKER_QUERY_SECONDS` setting.
 
 ### Install policy
@@ -563,6 +563,6 @@ The Prefect CLI can install the required package for Prefect-maintained worker t
 
 ### Additional resources
 
-See how to daemonize a Prefect worker in [this guide](/guides/deployment/daemonize/).
+See how to daemonize a Prefect worker in [this guide](/3.0rc/guides/deployment/daemonize/).
 
-For more information on overriding a work pool's job variables see this [guide](/guides/deployment/overriding-job-variables/).
+For more information on overriding a work pool's job variables see this [guide](/3.0rc/guides/deployment/overriding-job-variables/).

@@ -6,7 +6,7 @@ description: Observe and react to events from other systems
 Use webhooks in your Prefect Cloud workspace to receive, observe, and react to events
 from other systems in your ecosystem.  Each webhook exposes a unique URL endpoint to
 receive events from other systems and transforms them into Prefect
-[events](/cloud/events/) for use in [automations](/cloud/automations/).
+[events](/3.0rc/cloud/events/) for use in [automations](/3.0rc/cloud/automations/).
 
 Webhooks are defined by two essential components: a unique URL, and a template that translates incoming web requests to a Prefect event.
 
@@ -18,7 +18,7 @@ Webhooks are managed through the [Webhooks API
 endpoints](https://app.prefect.cloud/api/docs#tag/Webhooks).  This is a Prefect
 Cloud-only feature. You authenticate API calls using the standard
 [authentication methods you use with Prefect
-Cloud](/cloud/connecting#manually-configure-prefect-api-settings).
+Cloud](/3.0rc/cloud/connecting#manually-configure-prefect-api-settings).
 
 ### Through Prefect Cloud
 
@@ -128,7 +128,7 @@ Prefect Cloud workspace.  The template you define for each webhook determines ho
 individual components of the incoming HTTP request become the event name and resource
 labels of the resulting Prefect event.
 
-As with the [templates available in Prefect Cloud Automation](/cloud/automations) for
+As with the [templates available in Prefect Cloud Automation](/3.0rc/cloud/automations) for
 defining notifications and other parameters, you will write templates in
 [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/templates/).  All of the built-in
 Jinja2 blocks and filters are available, as well as the filters from the
@@ -336,7 +336,7 @@ way tailored to your use case, use a dynamic template to interpret the incoming 
 
 The initial configuration of your webhook may require some trial and error as you get
 the sender and your receiving webhook speaking a compatible language.  While you are in
-this phase, you may find the [Event Feed](/cloud/events/#event-feed) in the UI to be
+this phase, you may find the [Event Feed](/3.0rc/cloud/events/#event-feed) in the UI to be
 indispensable for seeing the events as they are happening.
 
 When Prefect Cloud encounters an error during receipt of a webhook, it produces a

@@ -7,23 +7,23 @@ description: Learn the basics of defining and running flows.
     **Prerequisites**
 
     This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-hosted server instance.
-    See the prerequisites section of the [tutorial](/tutorial/) for more details.
+    See the prerequisites section of the [tutorial](/3.0rc/tutorial/) for more details.
 </Note>
 
 
 ## About flows
 
-[Flows](/concepts/flows/) are like functions.
+[Flows](/3.0rc/concepts/flows/) are like functions.
 They can take inputs, perform work, and return an output.
 You can turn any function into a Prefect flow by adding the `@flow` decorator.
 When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-- All runs of the flow have persistent [state](/concepts/states/). Transitions between states are recorded, allowing for flow execution to be observed and acted upon.
+- All runs of the flow have persistent [state](/3.0rc/concepts/states/). Transitions between states are recorded, allowing for flow execution to be observed and acted upon.
 - Input arguments can be type validated as workflow parameters.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- A flow can be elevated to a [deployment](/concepts/deployments/), which exposes a remote API for interacting with it.
+- A flow can be elevated to a [deployment](/3.0rc/concepts/deployments/), which exposes a remote API for interacting with it.
 
 ## Run your first flow
 
@@ -68,7 +68,7 @@ Forks 🍴 : 1245
 ## Parameters
 
 As with any Python function, you can pass arguments to a flow.
-The positional and keyword arguments defined on your flow function are called [parameters](/concepts/flows/#parameters).
+The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/concepts/flows/#parameters).
 Prefect automatically performs type conversion using any provided type hints.
 Let's make the repository a string parameter with a default value:
 
@@ -113,7 +113,7 @@ Now navigate to your Prefect dashboard and compare the displays for these two ru
 
 Prefect enables you to log a variety of useful information about your flow and task runs. You can capture information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 If you navigate to your dashboard and explore the runs created above, you will notice that the repository statistics are not captured in the flow run logs.  
-Let's fix that by adding some [logging](/concepts/logs) to your flow:
+Let's fix that by adding some [logging](/3.0rc/guides/logs) to your flow:
 
 ```python hl_lines="2 11-14" title="repo_info.py"
 import httpx
@@ -159,7 +159,7 @@ Now the output looks more consistent _and_, more importantly, your statistics ar
     **Logging vs. Artifacts**
 
     The example above is for educational purposes.
-    In general, it is better to use [Prefect artifacts](/concepts/artifacts/) for storing metrics and output.
+    In general, it is better to use [Prefect artifacts](/3.0rc/concepts/artifacts/) for storing metrics and output.
     Logs are best for tracking progress and debugging errors.
 </Warning>
 
@@ -168,7 +168,7 @@ Now the output looks more consistent _and_, more importantly, your statistics ar
 
 So far the script works, but in the future unexpected errors may occur.
 For example the GitHub API may be temporarily unavailable or rate limited.
-[Retries](/concepts/flows/#flow-settings) help make flows more resilient.
+[Retries](/3.0rc/concepts/flows/#flow-settings) help make flows more resilient.
 Let's add retry functionality to the example above:
 
 ```python hl_lines="5" title="repo_info.py"
@@ -193,4 +193,4 @@ if __name__ == "__main__":
 ## Next: Tasks
 
 As you have seen, adding a flow decorator converts a Python function to a resilient and observable workflow.
-In the next section, you'll supercharge this flow by using [tasks](/tutorial/tasks/) to break down the workflow's complexity and make it more performant and observable.
+In the next section, you'll supercharge this flow by using [tasks](/3.0rc/tutorial/tasks/) to break down the workflow's complexity and make it more performant and observable.

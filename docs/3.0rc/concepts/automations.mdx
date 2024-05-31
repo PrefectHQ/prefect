@@ -5,12 +5,12 @@ description: Configure automations based on flow state from the Prefect UI and P
 
 Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions.
 
-Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can even define your own custom trigger to fire based on an [event](/cloud/events/) created from a webhook or a custom event defined in Python code.
+Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can even define your own custom trigger to fire based on an [event](/3.0rc/cloud/events/) created from a webhook or a custom event defined in Python code.
 
 Potential actions include kicking off flow runs, pausing schedules, and sending custom notifications.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
+    [Notifications](/3.0rc/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
 
 Automations provide a flexible and powerful framework for automatically taking action in response to events.
 
@@ -582,7 +582,7 @@ Sequence triggers are defined as:
 
 To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
-Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, specified trigger definitions will create linked automations that are triggered by events matching your chosen [grammar](/concepts/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) to render the triggering `event` as the `parameters` of your  deployment's flow run.
+Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, specified trigger definitions will create linked automations that are triggered by events matching your chosen [grammar](/3.0rc/concepts/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) to render the triggering `event` as the `parameters` of your  deployment's flow run.
 
 ### Defining triggers in `prefect.yaml`
 
@@ -772,11 +772,11 @@ Jinja templated variable syntax wraps the variable name in double curly brackets
 
 You can access properties of the underlying flow run objects including:
 
-- [flow_run](/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
-- [flow](/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
-- [deployment](/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
-- [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
-- [work_pool](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool)
+- [flow_run](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
+- [work_pool](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool)
 
 In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
 
