@@ -168,7 +168,7 @@ See the following pull requests for implementation details:
 - Update `host.md` — https://github.com/PrefectHQ/prefect/pull/13351
 - Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 - Removing references to deprecated block types and add disclaimer — https://github.com/PrefectHQ/prefect/pull/13651
-- Edit review of Execution section — https://github.com/PrefectHQ/prefect/pull/13253
+- Update guides — https://github.com/PrefectHQ/prefect/pull/13253
 - Remove `storage` concept page and refs - https://github.com/PrefectHQ/prefect/pull/13630
 
 ### Integrations
