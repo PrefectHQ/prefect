@@ -1,4 +1,5 @@
 """Module containing tasks and flows for interacting with dbt Cloud job runs"""
+
 import asyncio
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -274,12 +275,12 @@ async def wait_for_dbt_cloud_job_run(
     seconds_waited_for_run_completion = 0
     wait_for = []
     while seconds_waited_for_run_completion <= max_wait_seconds:
-        run_data_future = await get_dbt_cloud_run_info.submit(
+        run_data_future = await get_dbt_cloud_run_info(
             dbt_cloud_credentials=dbt_cloud_credentials,
             run_id=run_id,
             wait_for=wait_for,
         )
-        run_data = await run_data_future.result()
+        run_data = run_data_future
         run_status_code = run_data.get("status")
 
         if DbtCloudJobRunStatus.is_terminal_status_code(run_status_code):
