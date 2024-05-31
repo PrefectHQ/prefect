@@ -138,7 +138,7 @@ See the following pull requests for implementation details:
 - Ignore and warn on unrecognized settings - https://github.com/PrefectHQ/prefect/pull/13624
 
 ### Fixes
-- Remove unnecessary flow run infra override access checks — https://github.com/PrefectHQ/prefect/pull/13401
+- Remove unnecessary flow run infrastructure override access checks — https://github.com/PrefectHQ/prefect/pull/13401
 - Enforce False case for flow run id is null — https://github.com/PrefectHQ/prefect/pull/13464
 - Fix workspace variable hydration to allow for JSON data — https://github.com/PrefectHQ/prefect/pull/13548
 - Remove unused settings/experimental work pool flags: `PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS` and `PREFECT_EXPERIMENTAL_WARN_WORK_POOLS` — https://github.com/PrefectHQ/prefect/pull/13144
