@@ -40,7 +40,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
@@ -1049,7 +1049,7 @@ class Task(Generic[P, R]):
         self,
         args: Optional[Tuple[Any, ...]] = None,
         kwargs: Optional[Dict[str, Any]] = None,
-    ) -> TaskRun:
+    ) -> PrefectDistributedFuture:
         """
         Create a pending task run for a task server to execute.
 
@@ -1058,7 +1058,7 @@ class Task(Generic[P, R]):
             kwargs: Keyword arguments to run the task with
 
         Returns:
-            A TaskRun object representing the pending task run
+            A PrefectDistributedFuture object representing the pending task run
 
         Examples:
 
@@ -1076,16 +1076,16 @@ class Task(Generic[P, R]):
             >>> def my_flow():
             >>>     my_task.apply_async(("marvin",))
 
-            TODO: Wait for a task to finish
+            Wait for a task to finish
 
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.apply_async(("marvin",)).wait()  # <- This is not implemented
+            >>>     my_task.apply_async(("marvin",)).wait()
 
 
             >>> @flow
             >>> def my_flow():
-            >>>     print(my_task.apply_async(("marvin",)).result())  # <- This is not implemented
+            >>>     print(my_task.apply_async(("marvin",)).result())
             >>>
             >>> my_flow()
             hello marvin
@@ -1123,7 +1123,50 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return run_coro_as_sync(self.create_run(parameters=parameters, deferred=True))
+        task_run = run_coro_as_sync(
+            self.create_run(parameters=parameters, deferred=True)
+        )
+        return PrefectDistributedFuture(task_run_id=task_run.id)
+
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture:
+        """
+        An alias for `apply_async` with simpler calling semantics.
+
+        Avoids having to use explicit "args" and "kwargs" arguments. Arguments
+        will pass through as-is to the task.
+
+        Examples:
+
+                Define a task
+
+                >>> from prefect import task
+                >>> @task
+                >>> def my_task(name: str = "world"):
+                >>>     return f"hello {name}"
+
+                Create a pending task run for the task
+
+                >>> from prefect import flow
+                >>> @flow
+                >>> def my_flow():
+                >>>     my_task.delay("marvin")
+
+                Wait for a task to finish
+
+                >>> @flow
+                >>> def my_flow():
+                >>>     my_task.delay("marvin").wait()
+
+                Use the result from a task in a flow
+
+                >>> @flow
+                >>> def my_flow():
+                >>>     print(my_task.delay("marvin").result())
+                >>>
+                >>> my_flow()
+                hello marvin
+        """
+        return self.apply_async(args=args, kwargs=kwargs)
 
     def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to
