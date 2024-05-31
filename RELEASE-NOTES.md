@@ -2,9 +2,9 @@
 
 ## Release 3.0rc1
 
-We're excited to announce the release candidate of Prefect 3.0. It's the most flexible, powerful, fastest version of Prefect yet. Prefect 3.0 open sources several exciting new features. Install it by running pip install prefect==3.0rc1 and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
+We're excited to announce the release candidate of Prefect 3.0. It's the most flexible, powerful, fastest version of Prefect yet. Prefect 3.0 includes several exciting new features. Install it by running pip install prefect==3.0rc1 and check out the docs [here](https://docs-3.prefect.io/3.0rc/getting-started/index).
 
-### Autonomous tasks 
+### Run tasks independently of flows
 You can now run, serve, and submit tasks outside of flows and inside of other tasks.
 
 ```python
@@ -90,7 +90,7 @@ See the following pull requests for implementation details:
 
 ### More flexible variables and new artifact types
 
-Variables can now be any JSON compatible type including dicts, lists, and integers. Progress and Image artifacts make it easy to add visual annotations to your flow run execution graph.
+Variables can now be any JSON compatible type including dicts, lists, and integers. Progress and Image artifacts make it easy to add visual annotations to your flow run graph.
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13500
@@ -99,7 +99,7 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13641
 - https://github.com/PrefectHQ/prefect/pull/13605
 
-### Faster and better CLI
+### Faster and richer CLI
 
 Improved CLI speed and several added commands and conveniences.
 
@@ -111,7 +111,7 @@ See the following pull requests for implementation details:
 
 ### Updated navigation, styling, and interaction design
 
-A new runs page displays flow and task run executions, and an improved sidebar and switcher makes navigating the app simpler than ever.
+The new Runs page displays both flow and task run information, and an improved sidebar and switcher makes navigating Prefect simpler than ever.
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13395
@@ -161,7 +161,7 @@ See the following pull requests for implementation details:
 - Remove `infrastructure` concept page and refs for 3.0 — https://github.com/PrefectHQ/prefect/pull/13629
 - Update docs image paths and remove outdated images — https://github.com/PrefectHQ/prefect/pull/13666
 - Remove references to prefect.software from docs — https://github.com/PrefectHQ/prefect/pull/13382
-- Update host.md — https://github.com/PrefectHQ/prefect/pull/13351
+- Update `host.md` — https://github.com/PrefectHQ/prefect/pull/13351
 - Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 - Removing references to deprecated block types and add disclaimer — https://github.com/PrefectHQ/prefect/pull/13651
 - Edit review of Execution section — https://github.com/PrefectHQ/prefect/pull/13253
