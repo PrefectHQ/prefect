@@ -5,11 +5,6 @@ ddtrace
 exceptiongroup
 ipython
 jinja2
-mkdocs
-mkdocs-gen-files
-mkdocs-material
-mkdocstrings-python
-mike
 moto >= 5
 mypy >= 1.9.0
 numpy

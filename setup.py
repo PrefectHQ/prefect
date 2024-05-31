@@ -33,9 +33,6 @@ setup(
     # CLI
     entry_points={
         "console_scripts": ["prefect=prefect.cli:app"],
-        "mkdocs.plugins": [
-            "render_swagger = prefect.utilities.render_swagger:SwaggerPlugin",
-        ],
     },
     # Requirements
     python_requires=">=3.9",
