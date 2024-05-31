@@ -36,7 +36,7 @@ See the following pull requests for implementation details:
 
 ### Transactional semantics
 
-Use rollback and commit hooks to facilitate idempotent python code
+Use rollback and commit hooks to facilitate idempotent python code.
 
 ```python
 from prefect import flow, task
