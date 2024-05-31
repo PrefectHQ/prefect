@@ -37,7 +37,7 @@ env/
 venv/
 
 # Documentation artifacts
-schema.json
+# gschema.json
 site/
 .cache/
 
