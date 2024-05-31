@@ -159,7 +159,6 @@
           "group": "Block and Agent-Based Deployments",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/concepts/storage",
             "3.0rc/concepts/agents"
           ]
         }
