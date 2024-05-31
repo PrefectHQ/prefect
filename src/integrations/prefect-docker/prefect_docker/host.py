@@ -1,4 +1,5 @@
 """Module containing Docker host settings."""
+
 from typing import Any, Dict, Optional
 
 import docker
@@ -7,10 +8,7 @@ from pydantic import VERSION as PYDANTIC_VERSION
 from prefect import get_run_logger
 from prefect.blocks.core import Block
 
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
+from pydantic import Field
 
 
 class _ContextManageableDockerClient(docker.DockerClient):
@@ -68,7 +66,7 @@ class DockerHost(Block):
         default=None,
         description="URL to the Docker host.",
         title="Base URL",
-        example="unix:///var/run/docker.sock",
+        examples=["unix:///var/run/docker.sock"],
     )
     version: str = Field(default="auto", description="The version of the API to use")
     timeout: Optional[int] = Field(

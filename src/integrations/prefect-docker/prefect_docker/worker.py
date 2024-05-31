@@ -29,6 +29,9 @@ import packaging.version
 from docker import DockerClient
 from docker.models.containers import Container
 from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import AfterValidator, Field
+from slugify import slugify
+from typing_extensions import Literal
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
@@ -44,16 +47,9 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
     parse_image_tag,
 )
+from typing_extensions import Annotated
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
-from slugify import slugify
-from typing_extensions import Literal
 
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
@@ -66,6 +62,9 @@ class ImagePullPolicy(enum.Enum):
     IF_NOT_PRESENT = "IfNotPresent"
     ALWAYS = "Always"
     NEVER = "Never"
+
+
+VolumeStr = Annotated[str, AfterValidator(lambda v: ":" in v)]
 
 
 class DockerWorkerJobConfiguration(BaseJobConfiguration):
@@ -133,10 +132,10 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         default=False,
         description="If set, containers will be deleted on completion.",
     )
-    volumes: List[str] = Field(
+    volumes: List[VolumeStr] = Field(
         default_factory=list,
         description="A list of volume to mount into created containers.",
-        example=["/my/local/path:/path/in/container"],
+        examples=["/my/local/path:/path/in/container"],
     )
     stream_output: bool = Field(
         default=True,
@@ -170,18 +169,6 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         default=False,
         description="Give extended privileges to created container.",
     )
-
-    @validator("volumes")
-    def _validate_volume_format(cls, volumes):
-        """Validates that provided volume strings are in the correct format."""
-        for volume in volumes:
-            if ":" not in volume:
-                raise ValueError(
-                    "Invalid volume specification. "
-                    f"Expected format 'path:container_path', but got {volume!r}"
-                )
-
-        return volumes
 
     def _convert_labels_to_docker_format(self, labels: Dict[str, str]):
         """Converts labels to the format expected by Docker."""
@@ -767,7 +754,7 @@ class DockerWorker(BaseWorker):
 
         worker_resource = self._event_resource()
         worker_resource["prefect.resource.role"] = "worker"
-        worker_related_resource = RelatedResource(__root__=worker_resource)
+        worker_related_resource = RelatedResource(worker_resource)
 
         return emit_event(
             event=f"prefect.docker.container.{container.status.lower()}",
