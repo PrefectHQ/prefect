@@ -3,21 +3,16 @@ title: Artifacts
 description: Prefect artifacts are persisted outputs designed for human consumption and available in the UI.
 ---
 
-Artifacts are persisted outputs such as tables, Markdown, or links.
-They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI.
-Artifacts make it easy to track and monitor the objects that your flows produce and update over time.
+Artifacts are visually rich annotations on Prefect objects. They are visual metadata intended to be produced in flows or tasks but consumed by humans. They come in standardized formats such as tables, progress idicators, images, Markdown, or links. They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI.
+Artifacts make it easy to visualize outputs or side effects that your flows produce and capture updates over time.
 
 ![Markdown artifact sales report screenshot](/3.0rc/img/ui/md-artifact-info.png)
 
-Published artifacts may be associated with a particular task run or flow run.
-Artifacts can also be created outside of any flow run context.
-
-Whether you're publishing links, Markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your workflows.
-
-With artifacts, you can easily manage and share information with your team, providing valuable insights and context.
+Artifacts are associated with a particular Prefect object, usually a task run or flow run.
 
 Common use cases for artifacts include:
 
+- Progress indicators: Artifacts can be used to publish progress indicators for long-running tasks. This can help you monitor the progress of your tasks and flows and ensure that they are running as expected.
 - Debugging: By publishing data that you care about in the UI, you can easily see when and where your results were written. If an artifact doesn't look the way you expect, you can find out which flow run last updated it, and you can click through a link in the artifact to a storage location (such as an S3 bucket).
 - Data quality checks: Artifacts can be used to publish data quality checks from in-progress tasks. This can help ensure that data quality is maintained throughout the pipeline. During long-running tasks such as ML model training, you might use artifacts to publish performance graphs. This can help you visualize how well your models are performing and make adjustments as needed. You can also track the versions of these artifacts over time, making it easier to identify changes in your data.
 - Documentation: Artifacts can be used to publish documentation and sample data to help you keep track of your work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important.
@@ -25,7 +20,7 @@ Common use cases for artifacts include:
 ## Creating artifacts
 
 Creating artifacts allows you to publish data from task and flow runs or outside of a flow run context.
-Currently, you can render three artifact types: links, Markdown, and tables.
+Currently, you can render five artifact types: links, Markdown, progress, images, and tables.
 
 !!! note "Artifacts render individually"
     Please note that every artifact created within a task will be displayed as an individual artifact in the Prefect UI.
