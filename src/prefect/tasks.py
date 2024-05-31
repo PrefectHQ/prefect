@@ -1110,7 +1110,7 @@ class Task(Generic[P, R]):
             >>>     x = task_1.apply_async()
             >>>
             >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2.apply_async(wait_for=[x])  # <- Not implemented, unsure if will
+            >>>     y = task_2.apply_async(wait_for=[x])
 
         """
         from prefect.utilities.visualization import (
