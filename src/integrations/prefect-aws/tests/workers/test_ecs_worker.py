@@ -311,7 +311,7 @@ async def construct_configuration(**options):
 
     configuration = await ECSJobConfiguration.from_template_and_values(
         base_job_template=ECSWorker.get_default_base_job_template(),
-        values={**variables.model_dump(exclude_none=True)},
+        values={**variables.model_dump(exclude_unset=True)},
     )
     print(f"Constructed test configuration: {configuration.model_dump_json(indent=2)}")
 
