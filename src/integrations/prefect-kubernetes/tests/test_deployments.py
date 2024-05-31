@@ -1,5 +1,5 @@
 import pytest
-from kubernetes.client.models import V1DeleteOptions, V1Deployment
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Deployment
 from prefect_kubernetes.deployments import (
     create_namespaced_deployment,
     delete_namespaced_deployment,

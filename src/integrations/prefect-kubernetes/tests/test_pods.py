@@ -1,6 +1,6 @@
 import pytest
-from kubernetes.client.exceptions import ApiException, ApiValueError
-from kubernetes.client.models import V1DeleteOptions, V1Pod
+from kubernetes_asyncio.client.exceptions import ApiException, ApiValueError
+from kubernetes_asyncio.client.models import V1DeleteOptions, V1Pod
 from prefect_kubernetes.pods import (
     create_namespaced_pod,
     delete_namespaced_pod,

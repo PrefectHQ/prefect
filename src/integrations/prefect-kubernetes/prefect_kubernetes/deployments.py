@@ -1,7 +1,12 @@
 """Module for interacting with Kubernetes deployments from Prefect flows."""
+
 from typing import Any, Dict, Optional
 
-from kubernetes.client.models import V1DeleteOptions, V1Deployment, V1DeploymentList
+from kubernetes_asyncio.client.models import (
+    V1DeleteOptions,
+    V1Deployment,
+    V1DeploymentList,
+)
 
 from prefect import task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -33,7 +38,7 @@ async def create_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import create_namespaced_deployment
-        from kubernetes.client.models import V1Deployment
+        from kubernetes_asyncio.client.models import V1Deployment
 
         @flow
         def kubernetes_orchestrator():
@@ -79,7 +84,7 @@ async def delete_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import delete_namespaced_deployment
-        from kubernetes.client.models import V1DeleteOptions
+        from kubernetes_asyncio.client.models import V1DeleteOptions
 
         @flow
         def kubernetes_orchestrator():
@@ -166,7 +171,7 @@ async def patch_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import patch_namespaced_deployment
-        from kubernetes.client.models import V1Deployment
+        from kubernetes_asyncio.client.models import V1Deployment
 
         @flow
         def kubernetes_orchestrator():
@@ -256,7 +261,7 @@ async def replace_namespaced_deployment(
         from prefect import flow
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.deployments import replace_namespaced_deployment
-        from kubernetes.client.models import V1Deployment
+        from kubernetes_asyncio.client.models import V1Deployment
 
         @flow
         def kubernetes_orchestrator():

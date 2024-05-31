@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, Optional, Type, Union
+from typing import AsyncGenerator, Dict, Optional, Type, Union
 
 import yaml
 from kubernetes_asyncio import config
@@ -157,7 +157,7 @@ class KubernetesCredentials(Block):
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
         configuration: Optional[Configuration] = None,
-    ) -> KubernetesClient:
+    ) -> AsyncGenerator[KubernetesClient, None]:
         """Convenience method for retrieving a Kubernetes API client for deployment resources.
 
         Args:
@@ -178,11 +178,12 @@ class KubernetesCredentials(Block):
         """
         client_config = configuration or Configuration()
 
-        async with ApiClient(configuration=client_config):
-            yield await self.get_resource_specific_client(client_type)
+        async with ApiClient(configuration=client_config) as client:
+            yield await self.get_resource_specific_client(client_type, client)
 
     async def get_resource_specific_client(
         self,
+        client: ApiClient,
         client_type: str,
     ) -> Union[AppsV1Api, BatchV1Api, CoreV1Api]:
         """
@@ -220,7 +221,7 @@ class KubernetesCredentials(Block):
                 await config.load_kube_config()
 
         try:
-            return K8S_CLIENT_TYPES[client_type]()
+            return K8S_CLIENT_TYPES[client_type](client)
         except KeyError:
             raise ValueError(
                 f"Invalid client type provided '{client_type}'."
