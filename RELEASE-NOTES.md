@@ -164,7 +164,7 @@ See the following pull requests for implementation details:
 - Remove `deployments-block-based` concept page and refs for 3.0 — https://github.com/PrefectHQ/prefect/pull/13626
 - Remove `infrastructure` concept page and refs for 3.0 — https://github.com/PrefectHQ/prefect/pull/13629
 - Update docs image paths and remove outdated images — https://github.com/PrefectHQ/prefect/pull/13666
-- Remove references to prefect.software from docs — https://github.com/PrefectHQ/prefect/pull/13382
+- Remove references to `prefect.software` from docs — https://github.com/PrefectHQ/prefect/pull/13382
 - Update `host.md` — https://github.com/PrefectHQ/prefect/pull/13351
 - Simplify rate limits page — https://github.com/PrefectHQ/prefect/pull/13689
 - Removing references to deprecated block types and add disclaimer — https://github.com/PrefectHQ/prefect/pull/13651
