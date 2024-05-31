@@ -1,5 +1,5 @@
 """
-The TaskSchedulingTimeouts service reschedules autonomous tasks that are stuck PENDING.
+The TaskSchedulingTimeouts service reschedules background tasks that are stuck PENDING.
 """
 
 import asyncio
@@ -68,7 +68,7 @@ class TaskSchedulingTimeouts(LoopService):
 
     async def reschedule_pending_runs(self, session: AsyncSession):
         """
-        Transitions any autonomous task runs that have been PENDING too long into
+        Transitions any background task runs that have been PENDING too long into
         SCHEDULED, and reenqueues them.
         """
         task_runs = await models.task_runs.read_task_runs(

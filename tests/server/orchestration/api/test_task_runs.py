@@ -5,10 +5,13 @@ import pendulum
 import pytest
 from starlette import status
 
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import State
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.states import Pending
 
 
 class TestCreateTaskRun:
@@ -543,7 +546,7 @@ class TestSetTaskRunState:
         "incoming_state_type", ["PENDING", "RUNNING", "CANCELLED", "CANCELLING"]
     )
     async def test_autonomous_task_run_aborts_if_enters_pending_from_disallowed_state(
-        self, client, session, incoming_state_type
+        self, client, session, incoming_state_type, prefect_client: PrefectClient
     ):
         autonomous_task_run = await models.task_runs.create_task_run(
             session=session,
@@ -557,23 +560,21 @@ class TestSetTaskRunState:
 
         await session.commit()
 
-        response_1 = await client.post(
-            f"/task_runs/{autonomous_task_run.id}/set_state",
-            json=dict(state=dict(type=incoming_state_type)),
+        state = State(type=incoming_state_type)
+        state.state_details.deferred = True
+        response_1 = await prefect_client.set_task_run_state(
+            task_run_id=autonomous_task_run.id, state=state
         )
 
-        api_response_1 = OrchestrationResult.model_validate(response_1.json())
+        assert response_1.status == responses.SetStateStatus.ACCEPT
 
-        assert api_response_1.status == responses.SetStateStatus.ACCEPT
-
-        response_2 = await client.post(
-            f"/task_runs/{autonomous_task_run.id}/set_state",
-            json=dict(state=dict(type="PENDING")),
+        new_state = Pending()
+        new_state.state_details.deferred = True
+        response_2 = await prefect_client.set_task_run_state(
+            task_run_id=autonomous_task_run.id, state=new_state
         )
 
-        api_response_2 = OrchestrationResult.model_validate(response_2.json())
-
-        assert api_response_2.status == responses.SetStateStatus.ABORT
+        assert response_2.status == responses.SetStateStatus.ABORT
 
 
 class TestTaskRunHistory:

@@ -171,12 +171,17 @@ class TaskServer:
         # state_details. If there is no parameters_id, then the task was created
         # without parameters.
         parameters = {}
+        wait_for = []
+        run_context = None
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
             factory = await ResultFactory.from_autonomous_task(task)
             try:
-                parameters = await factory.read_parameters(parameters_id)
+                run_data = await factory.read_parameters(parameters_id)
+                parameters = run_data.get("parameters", {})
+                wait_for = run_data.get("wait_for", [])
+                run_context = run_data.get("context", None)
             except Exception as exc:
                 logger.exception(
                     f"Failed to read parameters for task run {task_run.id!r}",
@@ -194,9 +199,11 @@ class TaskServer:
         )
 
         try:
+            new_state = Pending()
+            new_state.state_details.deferred = True
             state = await propose_state(
                 client=get_client(),  # TODO prove that we cannot use self._client here
-                state=Pending(),
+                state=new_state,
                 task_run_id=task_run.id,
             )
         except Abort as exc:
@@ -231,7 +238,9 @@ class TaskServer:
                 task_run_id=task_run.id,
                 task_run=task_run,
                 parameters=parameters,
+                wait_for=wait_for,
                 return_type="state",
+                context=run_context,
             )
         else:
             context = copy_context()
@@ -242,7 +251,9 @@ class TaskServer:
                 task_run_id=task_run.id,
                 task_run=task_run,
                 parameters=parameters,
+                wait_for=wait_for,
                 return_type="state",
+                context=run_context,
             )
             await asyncio.wrap_future(future)
         if self._limiter:
