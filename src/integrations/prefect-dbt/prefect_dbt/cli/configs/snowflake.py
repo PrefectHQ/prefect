@@ -7,7 +7,6 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-from pydantic import VERSION as PYDANTIC_VERSION
 
 from pydantic import Field
 

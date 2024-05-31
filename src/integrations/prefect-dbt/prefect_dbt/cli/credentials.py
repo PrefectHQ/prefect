@@ -2,12 +2,9 @@
 
 from typing import Any, Dict, Optional, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.blocks.core import Block
-
 from pydantic import Field
 
+from prefect.blocks.core import Block
 from prefect_dbt.cli.configs import GlobalConfigs, TargetConfigs
 
 try:

@@ -4,11 +4,9 @@ import abc
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel, Field
 
 from prefect.blocks.core import Block
-
-from pydantic import BaseModel, Field
 
 
 class DbtConfigs(Block, abc.ABC):

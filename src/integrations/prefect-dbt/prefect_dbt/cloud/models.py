@@ -2,11 +2,9 @@
 
 from typing import List, Optional
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel, Field
 
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
-
-from pydantic import BaseModel, Field
 
 
 def default_cause_factory():

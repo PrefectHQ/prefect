@@ -2,14 +2,10 @@
 
 from typing import Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
-
-from prefect.blocks.abstract import CredentialsBlock
-
 from pydantic import Field, SecretStr
-
 from typing_extensions import Literal
 
+from prefect.blocks.abstract import CredentialsBlock
 from prefect_dbt.cloud.clients import (
     DbtCloudAdministrativeClient,
     DbtCloudMetadataClient,

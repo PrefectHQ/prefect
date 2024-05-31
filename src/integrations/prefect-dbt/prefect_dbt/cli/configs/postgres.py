@@ -1,12 +1,8 @@
 """Module containing models for Postgres configs"""
 
-import warnings
-from typing import Any, Dict, Union
-
-from pydantic import VERSION as PYDANTIC_VERSION
+from typing import Any, Dict
 
 from pydantic import Field
-
 from typing_extensions import Literal
 
 from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError

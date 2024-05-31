@@ -8,15 +8,14 @@ import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.results import NodeStatus, RunExecutionResult
 from prefect_shell.commands import ShellOperation
-from pydantic import VERSION as PYDANTIC_VERSION
-from pydantic import Field, validator
+from pydantic import Field
 
 from prefect import get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
 from prefect.states import Failed
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect_dbt.cli.credentials import DbtCliProfile
-from prefect.utilities.asyncutils import sync_compatible
 
 
 @task
