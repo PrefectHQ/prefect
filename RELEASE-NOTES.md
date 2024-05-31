@@ -81,7 +81,7 @@ See the following pull requests for implementation details:
 
 ### Open source Events and Automations
 
-Trigger actions such as notifications, orchestration actions, or API calls in response to Prefect or external events.
+Trigger actions, such as sending notifications, pausing schedules, starting flow runs and more in response to Prefect events.
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/13293
