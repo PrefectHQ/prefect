@@ -949,6 +949,8 @@ class KubernetesWorker(BaseWorker):
                     watch_kwargs["resource_version"] = resource_version
                 else:
                     raise
+            finally:
+                await watch.close()
 
     async def _watch_job(
         self,
@@ -989,11 +991,15 @@ class KubernetesWorker(BaseWorker):
                 _preload_content=False,
                 container="prefect-job",
             )
+            print("Logs:",  logs.content)
             try:
-               
-                async for log in logs.stream():
-                    print(log.decode().rstrip())
-
+                async for line in logs.content:
+                    print(line)
+                    print(line.decode().rstrip())
+                    # line = await log.readline()
+                    # print(line)
+                    if not line:
+                        break
                     # Check if we have passed the deadline and should stop streaming
                     # logs
                     remaining_time = deadline - time.monotonic() if deadline else None
@@ -1138,27 +1144,25 @@ class KubernetesWorker(BaseWorker):
         last_phase = None
         last_pod_name: Optional[str] = None
         core_client = CoreV1Api(client)
-        print(watch)
-        async for event in watch.stream(
-            func=core_client.list_namespaced_pod,
-            namespace=configuration.namespace,
-            label_selector=f"job-name={job_name}",
-            timeout_seconds=configuration.pod_watch_timeout_seconds,
-        ):
-            pod: V1Pod = event["object"]
-            last_pod_name = pod.metadata.name
+        async with watch:
+            async for event in watch.stream(
+                    func=core_client.list_namespaced_pod,
+                    namespace=configuration.namespace,
+                    label_selector=f"job-name={job_name}",
+                    timeout_seconds=configuration.pod_watch_timeout_seconds,
+                ):
+                    pod: V1Pod = event["object"]
+                    last_pod_name = pod.metadata.name
 
-            phase = pod.status.phase
-            if phase != last_phase:
-                logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
-            print(watch)
-            if phase != "Pending":
-                watch.stop()
-                return pod
+                    phase = pod.status.phase
+                    if phase != last_phase:
+                        logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
+                    
+                    if phase != "Pending":
+                        watch.stop()
+                        return pod
 
-            last_phase = phase
-
-        await watch.close()
+                    last_phase = phase
         # If we've gotten here, we never found the Pod that was created for the flow run
         # Job, so let's inspect the situation and log what we can find.  It's possible
         # that the Job ran into scheduling constraints it couldn't satisfy, like
