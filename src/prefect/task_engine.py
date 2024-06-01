@@ -5,6 +5,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
@@ -67,6 +68,7 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     emit_task_run_state_change_event,
+    link_state_to_result,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -670,6 +672,167 @@ async def run_task_async(
             return run.result()
 
 
+def run_generator_task_sync(
+    task: Task[P, R],
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> Generator[R, None, None]:
+    if return_type != "result":
+        raise ValueError("Generator tasks must have return_type='result'")
+    engine = TaskRunEngine[P, R](
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
+    )
+    # This is a context manager that keeps track of the run of the task run.
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
+        with run.enter_run_context():
+            run.begin_run()
+            while run.is_running():
+                # enter run context on each loop iteration to ensure the context
+                # contains the latest task run metadata
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            run.logger.debug(
+                                f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
+                            )
+                            result_factory = getattr(
+                                TaskRunContext.get(), "result_factory", None
+                            )
+                            with transaction(
+                                key=run.compute_transaction_key(),
+                                store=ResultFactoryStore(result_factory=result_factory),
+                            ) as txn:
+                                # TODO: generators should default to commit_mode=OFF
+                                # because they are dynamic by definition
+                                if txn.is_committed() and False:
+                                    txn.read()
+                                else:
+                                    try:
+                                        gen = task.fn(*call_args, **call_kwargs)
+                                        while True:
+                                            # can't use anext in Python < 3.10
+                                            gen_result = next(gen)
+                                            # link the current state to the result for dependency tracking
+                                            #
+                                            # TODO: this could grow the task_run_result
+                                            # dictionary in an unbounded way, so finding a
+                                            # way to periodically clean it up (using
+                                            # weakrefs or similar) would be good
+                                            link_state_to_result(run.state, gen_result)
+                                            yield gen_result
+
+                                    except (StopIteration, GeneratorExit) as exc:
+                                        if isinstance(exc, StopIteration):
+                                            result = exc.value
+                                        else:
+                                            result = None
+                                        run.handle_success(result, transaction=txn)
+
+                    except TimeoutError as exc:
+                        run.handle_timeout(exc)
+                    except Exception as exc:
+                        run.handle_exception(exc)
+
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state):
+                    hook()
+
+            # call to raise any exceptions after retries are exhausted
+            return run.result()
+
+
+async def run_generator_task_async(
+    task: Task[P, Coroutine[Any, Any, R]],
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> AsyncGenerator[R, None]:
+    if return_type != "result":
+        raise ValueError("Generator tasks must have return_type='result'")
+
+    engine = TaskRunEngine[P, R](
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
+    )
+    # This is a context manager that keeps track of the run of the task run.
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
+        with run.enter_run_context():
+            run.begin_run()
+
+            while run.is_running():
+                # enter run context on each loop iteration to ensure the context
+                # contains the latest task run metadata
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout_async(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            run.logger.debug(
+                                f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
+                            )
+                            result_factory = getattr(
+                                TaskRunContext.get(), "result_factory", None
+                            )
+                            with transaction(
+                                key=run.compute_transaction_key(),
+                                store=ResultFactoryStore(result_factory=result_factory),
+                            ) as txn:
+                                # TODO: generators should default to commit_mode=OFF
+                                # because they are dynamic by definition
+                                if txn.is_committed() and False:
+                                    txn.read()
+                                else:
+                                    try:
+                                        gen = task.fn(*call_args, **call_kwargs)
+                                        while True:
+                                            # can't use anext in Python < 3.10
+                                            gen_result = await gen.__anext__()
+                                            # link the current state to the result for dependency tracking
+                                            #
+                                            # TODO: this could grow the task_run_result
+                                            # dictionary in an unbounded way, so finding a
+                                            # way to periodically clean it up (using
+                                            # weakrefs or similar) would be good
+                                            link_state_to_result(run.state, gen_result)
+                                            yield gen_result
+                                    except (StopAsyncIteration, GeneratorExit):
+                                        run.handle_success(None, transaction=txn)
+
+                    except TimeoutError as exc:
+                        run.handle_timeout(exc)
+                    except Exception as exc:
+                        run.handle_exception(exc)
+
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state, as_async=True):
+                    await hook()
+
+            # call to raise any exceptions after retries are exhausted
+            run.result()
+
+
 def run_task(
     task: Task[P, Union[R, Coroutine[Any, Any, R]]],
     task_run_id: Optional[UUID] = None,
@@ -709,7 +872,11 @@ def run_task(
         dependencies=dependencies,
         context=context,
     )
-    if task.isasync:
+    if inspect.isasyncgenfunction(task.fn):
+        return run_generator_task_async(**kwargs)
+    elif inspect.isgeneratorfunction(task.fn):
+        return run_generator_task_sync(**kwargs)
+    elif inspect.iscoroutinefunction(task.fn):
         return run_task_async(**kwargs)
     else:
         return run_task_sync(**kwargs)
