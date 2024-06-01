@@ -13,7 +13,7 @@ Incidents are formal declarations of disruptions to a workspace. With [automatio
 
 Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud enables users to effectively and automatically track and manage these incidents, ensuring minimal impact on operational continuity.
 
-![Incidents in the Prefect Cloud UI](/img/ui/incidents-dashboard.png)
+![Incidents in the Prefect Cloud UI](/3.0rc/img/ui/incidents-dashboard.png)
 
 ## Why use incident management?
 
@@ -27,7 +27,7 @@ Incidents vary in nature and severity, ranging from minor glitches to critical s
 
 5. **Enhanced operational transparency**: The system provides a transparent view of both ongoing and resolved incidents, promoting accountability and continuous improvement.
 
-![An active incident in the Prefect Cloud UI](/img/ui/incidents-active.png)
+![An active incident in the Prefect Cloud UI](/3.0rc/img/ui/incidents-active.png)
 
 ## How to use incident management in Prefect Cloud
 
@@ -42,7 +42,7 @@ There are several ways to create an incident:
 2. **From a flow run, work pool, or block:**
     - Initiate an incident directly from a failed flow run, automatically linking it as a resource, by clicking on the menu button and selecting "Declare an incident".
 
-3. **Via an [automation](/concepts/automations/):**
+3. **Via an [automation](/3.0rc/concepts/automations/):**
     - Set up incident creation as an automated response to selected triggers.
 
 ### Incident automations
@@ -75,7 +75,7 @@ To automatically take action when an incident is declared, set up a custom trigg
           - `prefect-cloud.incident.resolved`
           - `prefect-cloud.incident.updated.severity`
 
-    See [Event Triggers](/concepts/automations/#custom-triggers) for more information on custom triggers, and check out your Event Feed to see the event types emitted by your incidents and other resources (i.e. events that you can react to).
+    See [Event Triggers](/3.0rc/concepts/automations/#custom-triggers) for more information on custom triggers, and check out your Event Feed to see the event types emitted by your incidents and other resources (i.e. events that you can react to).
 
 When an incident is declared, any actions you configure such as pausing work pools or sending notifications, will execute immediately.
 

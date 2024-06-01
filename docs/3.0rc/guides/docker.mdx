@@ -3,7 +3,7 @@ title: Run Flows with Docker
 description: Learn how to store your flow code in a Docker image and serve your flow on any docker-compatible infrastructure.
 ---
 
-The [Deployments](/tutorial/deployments/) tutorial served a flow that enabled scheduling or creating flow runs through the Prefect API.
+The [Deployments](/3.0rc/tutorial/deployments/) tutorial served a flow that enabled scheduling or creating flow runs through the Prefect API.
 
 With a Python script, you can build a Docker image for that script, allowing you to serve your flow in various remote environments. This guide uses Kubernetes, but you can use any Docker-compatible infrastructure.
 
@@ -16,7 +16,7 @@ This guide covers how to:
 
 In this guide you will create a Dockerfile from scratch. Alternatively, Prefect makes it convenient to build a Docker image as part of deployment creation. You can even include environment variables and specify additional Python packages to install at runtime.
 
-If creating a deployment with a `prefect.yaml` file, the build step makes it easy to customize your Docker image and push it to the registry of your choice. See an [example](/guides/deployment/kubernetes/#define-a-deployment).
+If creating a deployment with a `prefect.yaml` file, the build step makes it easy to customize your Docker image and push it to the registry of your choice. See an [example](/3.0rc/guides/deployment/kubernetes/#define-a-deployment).
 
 Deployment creation with a Python script that includes `flow.deploy` similarly allows you to customize your Docker image with keyword arguments as shown below.
 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 ## Prerequisites
 
 - A Python script that defines and serves a flow.
-  - This guide uses the flow script and deployment from the [Deployments](/tutorial/deployments/) tutorial.
+  - This guide uses the flow script and deployment from the [Deployments](/3.0rc/tutorial/deployments/) tutorial.
 - Access to a running Prefect API server.
   - You can sign up for a forever free [Prefect Cloud account](https://docs.prefect.io/cloud/) or run a Prefect API server locally with `prefect server start`.
 - [Docker Desktop](https://docs.docker.com/desktop/) installed on your machine.
@@ -49,7 +49,7 @@ mkdir prefect-docker-guide
 cd prefect-docker-guide
 ```
 
-In this directory, create a sub-directory named `flows` and put your flow script from the [Deployments](/tutorial/deployments/) tutorial in it.
+In this directory, create a sub-directory named `flows` and put your flow script from the [Deployments](/3.0rc/tutorial/deployments/) tutorial in it.
 
 ```bash
 mkdir flows
@@ -146,7 +146,7 @@ Check that your build worked by running a container from your new image.
 
     Your container needs an API URL and network access to communicate with the Prefect API. 
     
-    For this guide, assume the Prefect API is running on the same machine that you will run your container on and the Prefect API was started with `prefect server start`. If you're running a different setup, check out the [Hosting a Prefect server guide](/guides/host/) for information on how to connect to your Prefect API instance.
+    For this guide, assume the Prefect API is running on the same machine that you will run your container on and the Prefect API was started with `prefect server start`. If you're running a different setup, check out the [Hosting a Prefect server guide](/3.0rc/guides/host/) for information on how to connect to your Prefect API instance.
     
     To ensure that your flow container can communicate with the Prefect API, set your `PREFECT_API_URL` to `http://host.docker.internal:4200/api`. If you're running Linux, set your `PREFECT_API_URL` to `http://localhost:4200/api` and use the `--network="host"` option instead.
 
@@ -337,9 +337,9 @@ Prefect is installed into a conda environment named `prefect`.
 
 If your flow relies on dependencies not found in the default `prefecthq/prefect` images, you may want to build your own image. You can either
 base it off of one of the provided `prefecthq/prefect` images, or build your own image.
-See the [Work pool deployment guide](/guides/prefect-deploy/) to build custom images with dependencies specified in a `requirements.txt` file.
+See the [Work pool deployment guide](/3.0rc/guides/prefect-deploy/) to build custom images with dependencies specified in a `requirements.txt` file.
 
-By default, Prefect [work pools](/concepts/work-pools) that use containers refer to the `3-latest` image.
+By default, Prefect [work pools](/3.0rc/concepts/work-pools) that use containers refer to the `3-latest` image.
 You can specify another image at work pool creation.
 You can override the work pool image choice in individual deployments.
 
@@ -368,8 +368,8 @@ The options described above have different complexity and performance characteri
 
 ## Next steps
 
-We only served a single flow in this guide, but you can extend this setup to serve multiple flows in a single Docker image by updating your Python script to use `flow.to_deployment` and `serve` to [serve multiple flows or the same flow with different configuration](/concepts/flows#serving-multiple-flows-at-once).
+We only served a single flow in this guide, but you can extend this setup to serve multiple flows in a single Docker image by updating your Python script to use `flow.to_deployment` and `serve` to [serve multiple flows or the same flow with different configuration](/3.0rc/concepts/flows#serving-multiple-flows-at-once).
 
-To learn more about deploying flows, check out the [Deployments](/concepts/deployments/) concept doc.
+To learn more about deploying flows, check out the [Deployments](/3.0rc/concepts/deployments/) concept doc.
 
-For advanced infrastructure requirements, such as executing each flow run within its own dedicated Docker container, learn more in the [Work pool deployment guide](/guides/prefect-deploy/).
+For advanced infrastructure requirements, such as executing each flow run within its own dedicated Docker container, learn more in the [Work pool deployment guide](/3.0rc/guides/prefect-deploy/).

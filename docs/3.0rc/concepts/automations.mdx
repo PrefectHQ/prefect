@@ -5,12 +5,12 @@ description: Configure automations based on flow state from the Prefect UI and P
 
 Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions.
 
-Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can even define your own custom trigger to fire based on an [event](/cloud/events/) created from a webhook or a custom event defined in Python code.
+Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can even define your own custom trigger to fire based on an [event](/3.0rc/cloud/events/) created from a webhook or a custom event defined in Python code.
 
 Potential actions include kicking off flow runs, pausing schedules, and sending custom notifications.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
+    [Notifications](/3.0rc/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
 
 Automations provide a flexible and powerful framework for automatically taking action in response to events.
 
@@ -18,7 +18,7 @@ Automations provide a flexible and powerful framework for automatically taking a
 
 The **Automations** page provides an overview of all configured automations for your workspace.
 
-![Viewing automations for a workspace in Prefect Cloud.](/img/ui/automations.png)
+![Viewing automations for a workspace in Prefect Cloud.](/3.0rc/img/ui/automations.png)
 
 Selecting the toggle next to an automation pauses execution of the automation.
 
@@ -52,7 +52,7 @@ Triggers specify the conditions under which your action should be performed. The
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to fire in the absence of an expected event.
 
-![Configuring a trigger for an automation in Prefect Cloud.](/img/ui/automations-trigger.png)
+![Configuring a trigger for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-trigger.png)
 
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be taken on the flow itself, such as canceling or restarting it. Or the action could take the form of a notification so someone can take manual remediation steps. Or you could set both actions to to take place when the trigger occurs.
 
@@ -73,7 +73,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Declare an incident (available on Pro and Custom plans)
 - Change the state of a flow run
 
-![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
+![Configuring an action for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-action.png)
 
 ### Creating automations In Python code
 
@@ -138,7 +138,7 @@ Each automation has a single trigger that, when fired, will cause all of its ass
 
 Event triggers are the most common types of trigger, and they are intended to react to the presence or absence of an event happening in your workspace.  Event triggers are indicated with `{"type": "event"}`.
 
-![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/img/ui/automations-custom.png)
+![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/3.0rc/img/ui/automations-custom.png)
 
 The schema that defines an event trigger is as follows:
 
@@ -582,7 +582,7 @@ Sequence triggers are defined as:
 
 To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers - a shorthand for creating automations that are linked to specific deployments to run them based on the presence or absence of events.
 
-Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, specified trigger definitions will create linked automations that are triggered by events matching your chosen [grammar](/concepts/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) to render the triggering `event` as the `parameters` of your  deployment's flow run.
+Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time, specified trigger definitions will create linked automations that are triggered by events matching your chosen [grammar](/3.0rc/concepts/events/#event-grammar). Each trigger definition may include a [jinja template](https://en.wikipedia.org/wiki/Jinja_(template_engine)) to render the triggering `event` as the `parameters` of your  deployment's flow run.
 
 ### Defining triggers in `prefect.yaml`
 
@@ -762,7 +762,7 @@ Automation notifications support sending notifications via any predefined block 
 - Microsoft Teams message to a channel
 - Email to a configured email address
 
-![Configuring notifications for an automation in Prefect Cloud.](/img/ui/automations-notifications.png)
+![Configuring notifications for an automation in Prefect Cloud.](/3.0rc/img/ui/automations-notifications.png)
 
 ## Templating with Jinja
 
@@ -772,11 +772,11 @@ Jinja templated variable syntax wraps the variable name in double curly brackets
 
 You can access properties of the underlying flow run objects including:
 
-- [flow_run](/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
-- [flow](/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
-- [deployment](/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
-- [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
-- [work_pool](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool)
+- [flow_run](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
+- [work_pool](/3.0rc/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkPool)
 
 In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
 
@@ -795,7 +795,7 @@ Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 
 The resulting Slack webhook notification would look something like this:
 
-![Configuring notifications for an automation in Prefect Cloud.](/img/ui/templated-notification.png)
+![Configuring notifications for an automation in Prefect Cloud.](/3.0rc/img/ui/templated-notification.png)
 
 You could include `flow` and `deployment` properties.
 

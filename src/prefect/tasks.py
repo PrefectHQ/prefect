@@ -39,12 +39,12 @@ from prefect.context import (
     PrefectObjectRegistry,
     TagsContext,
     TaskRunContext,
+    serialize_context,
 )
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -550,6 +550,7 @@ class Task(Generic[P, R]):
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
@@ -566,22 +567,24 @@ class Task(Generic[P, R]):
             client = get_client()
 
         async with client:
-            is_autonomous_task = not flow_run_context
-
-            if is_autonomous_task:
+            if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
-                state = Scheduled()
             else:
                 dynamic_key = _dynamic_key_for_task_run(
                     context=flow_run_context, task=self
                 )
                 task_run_name = f"{self.name}-{dynamic_key}"
+
+            if deferred:
+                state = Scheduled()
+                state.state_details.deferred = True
+            else:
                 state = Pending()
 
-            # store parameters for autonomous tasks so that task servers
+            # store parameters for background tasks so that task servers
             # can retrieve them at runtime
-            if is_autonomous_task and parameters:
+            if deferred and (parameters or wait_for):
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -589,7 +592,13 @@ class Task(Generic[P, R]):
                 self.persist_result = True
 
                 factory = await ResultFactory.from_autonomous_task(self, client=client)
-                await factory.store_parameters(parameters_id, parameters)
+                context = serialize_context()
+                data: Dict[str, Any] = {"context": context}
+                if parameters:
+                    data["parameters"] = parameters
+                if wait_for:
+                    data["wait_for"] = wait_for
+                await factory.store_parameters(parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -1017,14 +1026,14 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        if PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value() and not flow_run_context:
+        if not flow_run_context:
             # TODO: Should we split out background task mapping into a separate method
             # like we do for the `submit`/`apply_async` split?
             parameters_list = expand_mapping_parameters(self.fn, parameters)
             # TODO: Make this non-blocking once we can return a list of futures
             # instead of a list of task runs
             return [
-                run_coro_as_sync(self.create_run(parameters=parameters))
+                run_coro_as_sync(self.create_run(parameters=parameters, deferred=True))
                 for parameters in parameters_list
             ]
 
@@ -1046,7 +1055,9 @@ class Task(Generic[P, R]):
         self,
         args: Optional[Tuple[Any, ...]] = None,
         kwargs: Optional[Dict[str, Any]] = None,
-    ) -> TaskRun:
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> PrefectDistributedFuture:
         """
         Create a pending task run for a task server to execute.
 
@@ -1055,7 +1066,7 @@ class Task(Generic[P, R]):
             kwargs: Keyword arguments to run the task with
 
         Returns:
-            A TaskRun object representing the pending task run
+            A PrefectDistributedFuture object representing the pending task run
 
         Examples:
 
@@ -1073,16 +1084,16 @@ class Task(Generic[P, R]):
             >>> def my_flow():
             >>>     my_task.apply_async(("marvin",))
 
-            TODO: Wait for a task to finish
+            Wait for a task to finish
 
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.apply_async(("marvin",)).wait()  # <- This is not implemented
+            >>>     my_task.apply_async(("marvin",)).wait()
 
 
             >>> @flow
             >>> def my_flow():
-            >>>     print(my_task.apply_async(("marvin",)).result())  # <- This is not implemented
+            >>>     print(my_task.apply_async(("marvin",)).result())
             >>>
             >>> my_flow()
             hello marvin
@@ -1101,7 +1112,7 @@ class Task(Generic[P, R]):
             >>>     x = task_1.apply_async()
             >>>
             >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2.apply_async(wait_for=[x])  # <- Not implemented, unsure if will
+            >>>     y = task_2.apply_async(wait_for=[x])
 
         """
         from prefect.utilities.visualization import (
@@ -1120,7 +1131,55 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return run_coro_as_sync(self.create_run(parameters=parameters))
+        task_run = run_coro_as_sync(
+            self.create_run(
+                parameters=parameters,
+                deferred=True,
+                wait_for=wait_for,
+                extra_task_inputs=dependencies,
+            )
+        )
+        return PrefectDistributedFuture(task_run_id=task_run.id)
+
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture:
+        """
+        An alias for `apply_async` with simpler calling semantics.
+
+        Avoids having to use explicit "args" and "kwargs" arguments. Arguments
+        will pass through as-is to the task.
+
+        Examples:
+
+                Define a task
+
+                >>> from prefect import task
+                >>> @task
+                >>> def my_task(name: str = "world"):
+                >>>     return f"hello {name}"
+
+                Create a pending task run for the task
+
+                >>> from prefect import flow
+                >>> @flow
+                >>> def my_flow():
+                >>>     my_task.delay("marvin")
+
+                Wait for a task to finish
+
+                >>> @flow
+                >>> def my_flow():
+                >>>     my_task.delay("marvin").wait()
+
+                Use the result from a task in a flow
+
+                >>> @flow
+                >>> def my_flow():
+                >>>     print(my_task.delay("marvin").result())
+                >>>
+                >>> my_flow()
+                hello marvin
+        """
+        return self.apply_async(args=args, kwargs=kwargs)
 
     def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
         """Serve the task using the provided task runner. This method is used to
@@ -1139,13 +1198,6 @@ class Task(Generic[P, R]):
 
             >>> my_task.serve()
         """
-
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING:
-            raise ValueError(
-                "Task's `serve` method is an experimental feature and must be enabled with "
-                "`prefect config set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING=True`"
-            )
-
         from prefect.task_server import serve
 
         serve(self, task_runner=task_runner)

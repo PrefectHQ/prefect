@@ -4,7 +4,7 @@ description: Prefect walkthrough on how to use automations and common best pract
 ---
 
 
-The [Automations concept page](/concepts/automations/) shows you how to configure one within the UI. 
+The [Automations concept page](/3.0rc/concepts/automations/) shows you how to configure one within the UI. 
 
 This guide describes the following use cases:
 
@@ -18,9 +18,9 @@ This guide describes the following use cases:
 ## Prerequisites
 
 - Python installed
-- Prefect [installed](/getting-started/installation/)
-- Authenticated to a [Prefect Cloud workspace](/getting-started/quickstart/#step-2-connect-to-prefects-api/)
-- A [work pool](/concepts/work-pools/) set up to handle the deployments
+- Prefect [installed](/3.0rc/getting-started/installation/)
+- Authenticated to a [Prefect Cloud workspace](/3.0rc/getting-started/quickstart/#step-2-connect-to-prefects-api/)
+- A [work pool](/3.0rc/concepts/work-pools/) set up to handle the deployments
 
 ## Create the example script
 
@@ -76,22 +76,22 @@ The data cleaning workflow has visibility into each step, and sends a list of na
 Next, send a notification based off a completed state outcome. Configure a notification that shows when to look into our workflow logic. 
 
 1. Prior to creating the automation, confirm the notification location. Create a notification block to help define where the notification is sent. 
-![List of available blocks](/img/guides/block-list.png)
+![List of available blocks](/3.0rc/img/guides/block-list.png)
 
 2. Navigate to the blocks page on the UI, and click into creating an email notification block. 
-![Creating a notification block in the Cloud UI](/img/guides/notification-block.png)
+![Creating a notification block in the Cloud UI](/3.0rc/img/guides/notification-block.png)
 
 3. Go to the automations page to create your first automation.
-![Automations page](/img/guides/automation-list.png)
+![Automations page](/3.0rc/img/guides/automation-list.png)
 
 4. Next, find the trigger type. In this case, use a flow completion. 
-![Trigger type](/img/guides/automation-triggers.png)
+![Trigger type](/3.0rc/img/guides/automation-triggers.png)
 
 5. Finally, create the actions for when the trigger is hit. In this case, create a notification to showcase the completion. 
-![Notification block in automation](/img/guides/notify-auto-block.png)
+![Notification block in automation](/3.0rc/img/guides/notify-auto-block.png)
 
 6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
-![Final notification](/img/guides/final-automation.png)
+![Final notification](/3.0rc/img/guides/final-automation.png)
 
 !!! Tip "No deployment created"
     Keep in mind, you do not need to create a deployment to trigger your automation, where a state outcome of a local flow run helped trigger this notification block. You are not required to create a deployment to trigger a notification.
@@ -299,7 +299,7 @@ Create this webhook in the UI to create these dynamic events.
 ```
 From this input, you can create an exposed webhook endpoint. 
 
-![webhook-simple](/img/guides/webhook-simple.png)
+![webhook-simple](/3.0rc/img/guides/webhook-simple.png)
 
 Each webhook corresponds to a custom event created, where you can react to it downstream with a separate deployment or automation. 
 
@@ -308,13 +308,13 @@ For example, you can create a curl request that sends the endpoint information s
 curl -X POST https://api.prefect.cloud/hooks/34iV2SFke3mVa6y5Y-YUoA -d "model_id=adhoc" -d "run_count=10" -d "friendly_name=test-user-input"
 ```
 From here, you can make a webhook that is connected to pulling in parameters on the curl command, and then it kicks off a deployment that uses these pulled parameters.
-![Webhook created](/img/guides/webhook-created.png)
+![Webhook created](/3.0rc/img/guides/webhook-created.png)
 
 Go into the event feed to automate straight from this event. 
-![Webhook automate](/img/guides/webhook-automate.png)
+![Webhook automate](/3.0rc/img/guides/webhook-automate.png)
 
 This allows you to create automations that respond to these webhook events. From a few clicks in the UI, you can associate an external process with the Prefect events API that can trigger downstream deployments. 
-![Automation custom](/img/guides/automation-custom.png)
+![Automation custom](/3.0rc/img/guides/automation-custom.png)
 
 In the next section, you will explore event triggers that automate the kickoff of a deployment run.
 
@@ -409,4 +409,4 @@ deployments:
 
 You've seen how to create automations with the UI, REST API, and a trigger defined in a `prefect.yaml` deployment definition.
 
-To learn more about Prefect events, which can trigger automations, see the [events docs](/concepts/events/). Prefect Cloud can receive external events webhooks. See the [webhooks guide](/guides/webhooks/) to learn how to create them.
+To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0rc/concepts/events/). Prefect Cloud can receive external events webhooks. See the [webhooks guide](/3.0rc/guides/webhooks/) to learn how to create them.

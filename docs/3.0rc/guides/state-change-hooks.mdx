@@ -3,7 +3,7 @@ title: State Change Hooks
 description: Execute code in response to a flow or task entering a given state, without involvement of the Prefect API.
 ---
 
-[State change hooks](/concepts/states/#state-change-hooks) execute code in response to changes in flow or task run states, enabling you to define actions for specific state transitions in a workflow.
+[State change hooks](/3.0rc/concepts/states/#state-change-hooks) execute code in response to changes in flow or task run states, enabling you to define actions for specific state transitions in a workflow.
 This guide provides examples of real-world use cases.
 
 ## Example use cases
@@ -55,7 +55,7 @@ Here's how to create a hook that deletes a Cloud Run job if the flow run crashes
 ```python
 import os
 from prefect import flow, task
-from prefect.blocks.system import String
+from prefect.variables import Variable
 from prefect.client import get_client
 import prefect.runtime
 
@@ -64,8 +64,8 @@ async def delete_cloud_run_job(flow, flow_run, state):
     the flow run crashes."""
 
     # retrieve Cloud Run job name
-    cloud_run_job_name = await String.load(
-        name="crashing-flow-cloud-run-job"
+    cloud_run_job_name = await Variable.get(
+        name="crashing-flow_cloud_run_job"
     )
 
     # delete Cloud Run job
@@ -73,12 +73,6 @@ async def delete_cloud_run_job(flow, flow_run, state):
     {cloud_run_job_name.value} --region us-central1"
     os.system(delete_job_command)
 
-    # clean up the Cloud Run job string block as well
-    async with get_client() as client:
-        block_document = await client.read_block_document_by_name(
-            "crashing-flow-cloud-run-job", block_type_slug="string"
-        )
-        await client.delete_block_document(block_document.id)
 
 @task
 def my_task_that_crashes():
@@ -87,12 +81,9 @@ def my_task_that_crashes():
 @flow(on_crashed=[delete_cloud_run_job])
 def crashing_flow():
     """Save the flow run name (i.e. Cloud Run job name) as a 
-    String block. It then executes a task that ends up crashing."""
+    Variable. It then executes a task that ends up crashing."""
     flow_run_name = prefect.runtime.flow_run.name
-    cloud_run_job_name = String(value=flow_run_name)
-    cloud_run_job_name.save(
-        name="crashing-flow-cloud-run-job", overwrite=True
-    )
+    cloud_run_job_name = Variable.set(name="crashing_flow_cloud_run_job", value=flow_run_name, overwrite=True)
 
     my_task_that_crashes()
 

@@ -5,18 +5,18 @@ description: Learn the basics of writing tasks.
 
 ## About tasks
 
-A [task](/concepts/tasks/) is any Python function decorated with a `@task` decorator.
+A [task](/3.0rc/concepts/tasks/) is any Python function decorated with a `@task` decorator.
 A flow is like a recipe for connecting a known sequence of tasks together.
 Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand, and control at a more granular level.  
 When a function becomes a task, it can execute concurrently and you can cache its return value.
 
 Flows and tasks share some common features:
 
-* Both are defined using their respective decorator, which accepts settings for that flow / task (see all [task settings](/concepts/tasks/#task-arguments) / [flow settings](/concepts/flows/#flow-settings)).
+* Both are defined using their respective decorator, which accepts settings for that flow / task (see all [task settings](/3.0rc/concepts/tasks/#task-arguments) / [flow settings](/3.0rc/concepts/flows/#flow-settings)).
 * You can provide them with a `name`, `description` and `tags` for organization and bookkeeping.
 * They provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
 
-Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/concepts/tasks/#retries), [caching](/concepts/tasks/#caching), and [concurrency](/concepts/task-runners/#using-a-task-runner).
+Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/3.0rc/concepts/tasks/#retries), [caching](/3.0rc/concepts/tasks/#caching), and [concurrency](/3.0rc/concepts/task-runners/#using-a-task-runner).
 
 <Tip>
     **You can call tasks from other tasks**
@@ -76,11 +76,11 @@ You can now see this task run tracked in the UI as well.
 ## Caching
 
 Tasks support the ability to cache their return value.
-Caching allows you to efficiently reuse [results](/concepts/results/) of tasks that may be expensive to reproduce with every flow run. You can also reuse cached results if the inputs to a task have not changed.
+Caching allows you to efficiently reuse [results](/3.0rc/concepts/results/) of tasks that may be expensive to reproduce with every flow run. You can also reuse cached results if the inputs to a task have not changed.
 
 To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires.
 
-Define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/api-ref/prefect/tasks/#prefect.tasks.task_input_hash).
+Define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task_input_hash).
 
 Let's add caching to the `get_url` task:
 
@@ -159,8 +159,8 @@ if __name__ == "__main__":
 ```
 
 Now you're fetching the data you need, but the requests are happening sequentially.
-Tasks expose a [`submit`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method that changes the execution from sequential to concurrent.
-In this example, you also need to use the [`result`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method because you are unpacking a list of return values:
+Tasks expose a [`submit`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method that changes the execution from sequential to concurrent.
+In this example, you also need to use the [`result`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method because you are unpacking a list of return values:
 
 ```python hl_lines="6 11"
 def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
@@ -213,7 +213,7 @@ Average open issues per user 💌 : 2.27
 ## Subflows
 
 In addition to calling tasks within a flow, you can also call other flows.
-Child flows are called [subflows](/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
+Child flows are called [subflows](/3.0rc/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
 
 Subflows are a great way to organize your workflows and offer more visibility within the UI.
 
@@ -240,4 +240,4 @@ In the UI each subflow run is linked to its parent and can be individually inspe
 ## Next: Deployments
 
 You now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution.
-In the next section, you will deploy this flow to run it on a schedule and/or external infrastructure. Learn how to [create your first deployment](/tutorial/deployments/).
+In the next section, you will deploy this flow to run it on a schedule and/or external infrastructure. Learn how to [create your first deployment](/3.0rc/tutorial/deployments/).

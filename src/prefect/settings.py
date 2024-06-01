@@ -76,7 +76,7 @@ from pydantic import (
     fields,
     model_validator,
 )
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -1486,6 +1486,11 @@ PREFECT_WORKER_WEBSERVER_PORT = Setting(
 The port the worker's webserver should bind to.
 """
 
+PREFECT_API_SERVICES_TASK_SCHEDULING_ENABLED = Setting(bool, default=True)
+"""
+Whether or not to start the task scheduling service in the server application.
+"""
+
 PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK = Setting(
     str,
     default="local-file-system/prefect-task-scheduling",
@@ -1550,11 +1555,6 @@ Whether or not to enable the experimental workspace dashboard.
 PREFECT_EXPERIMENTAL_WARN_WORKSPACE_DASHBOARD = Setting(bool, default=False)
 """
 Whether or not to warn when the experimental workspace dashboard is enabled.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING = Setting(bool, default=False)
-"""
-Whether or not to enable experimental task scheduling.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORK_QUEUE_STATUS = Setting(bool, default=True)
@@ -1717,9 +1717,14 @@ for __name, __setting in SETTING_VARIABLES.items():
 
 # Dynamically create a pydantic model that includes all of our settings
 
+
+class PrefectBaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+
 SettingsFieldsMixin: Type[BaseSettings] = create_model(
     "SettingsFieldsMixin",
-    __base__=BaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
+    __base__=PrefectBaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
     **{
         setting.name: (setting.type, setting.field)
         for setting in SETTING_VARIABLES.values()
@@ -2001,6 +2006,7 @@ class Profile(BaseModel):
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path] = None
+    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     @field_validator("settings", mode="before")
     def map_names_to_settings(cls, value):
@@ -2038,8 +2044,6 @@ class Profile(BaseModel):
                 )
                 changed.append((setting, setting.deprecated_renamed_to))
         return changed
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ProfilesCollection:

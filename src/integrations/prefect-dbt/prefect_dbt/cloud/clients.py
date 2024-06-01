@@ -1,4 +1,5 @@
 """Module containing clients for interacting with the dbt Cloud API"""
+
 from typing import Any, Dict, List, Optional
 
 from httpx import AsyncClient, Response
@@ -100,7 +101,7 @@ class DbtCloudAdministrativeClient:
         return await self.call_endpoint(
             path=f"/jobs/{job_id}/run/",
             http_method="POST",
-            json=options.dict(exclude_none=True),
+            json=options.model_dump(exclude_none=True),
         )
 
     async def get_run(
