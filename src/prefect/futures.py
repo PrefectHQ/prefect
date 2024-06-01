@@ -1,6 +1,7 @@
 import abc
 import concurrent.futures
 import inspect
+import time
 import uuid
 from functools import partial
 from typing import Any, Generic, Optional, Set, Union, cast
@@ -18,27 +19,21 @@ from prefect.utilities.collections import StopVisiting, visit_collection
 F = TypeVar("F")
 
 
-class PrefectFuture(abc.ABC, Generic[F]):
+class PrefectFuture(abc.ABC):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
     to complete and to retrieve the result of the task run.
     """
 
-    def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
+    def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._wrapped_future = wrapped_future
         self._final_state = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
         """The ID of the task run associated with this future"""
         return self._task_run_id
-
-    @property
-    def wrapped_future(self) -> F:
-        """The underlying future object wrapped by this Prefect future"""
-        return self._wrapped_future
 
     @property
     def state(self) -> State:
@@ -59,7 +54,7 @@ class PrefectFuture(abc.ABC, Generic[F]):
         ...
         """
         Wait for the task run to complete. 
-        
+
         If the task run has already completed, this method will return immediately.
 
         Args:
@@ -89,7 +84,22 @@ class PrefectFuture(abc.ABC, Generic[F]):
         """
 
 
-class PrefectConcurrentFuture(PrefectFuture[concurrent.futures.Future]):
+class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[F]):
+    """
+    A Prefect future that wraps another future object.
+    """
+
+    def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
+        self._wrapped_future = wrapped_future
+        super().__init__(task_run_id)
+
+    @property
+    def wrapped_future(self) -> F:
+        """The underlying future object wrapped by this Prefect future"""
+        return self._wrapped_future
+
+
+class PrefectConcurrentFuture(PrefectWrappedFuture[concurrent.futures.Future]):
     """
     A Prefect future that wraps a concurrent.futures.Future. This future is used
     when the task run is submitted to a ThreadPoolExecutor.
@@ -129,6 +139,80 @@ class PrefectConcurrentFuture(PrefectFuture[concurrent.futures.Future]):
         if inspect.isawaitable(_result):
             _result = run_coro_as_sync(_result)
         return _result
+
+
+class PrefectDistributedFuture(PrefectFuture):
+    """
+    Represents the result of a computation happening anywhere.
+
+    This class is typically used to interact with the result of a task run
+    scheduled to run in a Prefect task server but can be used to interact with
+    any task run scheduled in Prefect's API.
+    """
+
+    def __init__(self, task_run_id: uuid.UUID):
+        self._task_run = None
+        self._client = None
+        super().__init__(task_run_id=task_run_id)
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = get_client(sync_client=True)
+        return self._client
+
+    @property
+    def task_run(self):
+        if self._task_run is None:
+            self._task_run = self.client.read_task_run(task_run_id=self.task_run_id)
+        return self._task_run
+
+    @task_run.setter
+    def task_run(self, task_run):
+        self._task_run = task_run
+
+    def wait(
+        self, timeout: Optional[float] = None, polling_interval: Optional[float] = 0.2
+    ) -> None:
+        start_time = time.time()
+        # TODO: Websocket implementation?
+        while True:
+            self.task_run = cast(
+                TaskRun, self.client.read_task_run(task_run_id=self.task_run_id)
+            )
+            if self.task_run.state and self.task_run.state.is_final():
+                self._final_state = self.task_run.state
+                return
+            if timeout is not None and (time.time() - start_time) > timeout:
+                return
+            time.sleep(polling_interval)
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+        polling_interval: Optional[float] = 0.2,
+    ) -> Any:
+        if not self._final_state:
+            self.wait(timeout=timeout)
+            if not self._final_state:
+                raise TimeoutError(
+                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                )
+
+        _result = self._final_state.result(
+            raise_on_failure=raise_on_failure, fetch=True
+        )
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
+        if inspect.isawaitable(_result):
+            _result = run_coro_as_sync(_result)
+        return _result
+
+    def __eq__(self, other):
+        if not isinstance(other, PrefectDistributedFuture):
+            return False
+        return self.task_run_id == other.task_run_id
 
 
 def resolve_futures_to_states(

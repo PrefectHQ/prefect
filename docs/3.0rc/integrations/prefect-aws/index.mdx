@@ -1,0 +1,147 @@
+---
+title: prefect-aws
+---
+
+The prefect-aws library makes it easy to leverage the capabilities of AWS in your workflows.
+For example, you can retrieve secrets using AWS Secrets Manager, read and write objects with AWS S3, and deploy your flows on AWS ECS.
+
+## Getting started
+
+### Prerequisites
+
+- [Prefect installed](/3.0rc/getting-started/installation/).
+- An [AWS account](https://aws.amazon.com/account/) and the necessary permissions to access desired services.
+
+### Install prefect-aws
+
+<div class = "terminal">
+```bash
+pip install -U prefect-aws
+```
+</div>
+
+### Register newly installed block types
+
+Register the block types in the prefect-aws module to make them available for use.
+
+<div class = "terminal">
+```bash
+prefect block register -m prefect_aws
+```
+</div>
+
+## Examples
+
+### Run flows on AWS ECS
+
+Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
+
+See the [ECS guide](/3.0rc/ecs_guide/) for a walkthrough of using ECS in a hybrid work pool.
+
+If you're using Prefect Cloud, [ECS push work pools](https://docs.prefect.io/latest/guides/deployment/push-work-pools/#__tabbed_1_1) provide all the benefits of ECS with a quick setup and no worker needed.
+
+In the examples below, you create blocks with Python code.
+Alternatively, each block can be created through the Prefect UI.
+
+### Save credentials to an AWS Credentials block
+
+Use of most AWS services requires an authenticated session.
+Prefect makes it simple to provide credentials via a AWS Credentials block.
+
+Steps:
+
+1. Refer to the [AWS Configuration documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds) to retrieve your access key ID and secret access key.
+1. Copy the access key ID and secret access key.
+1. Create an `AWSCredenitals` block in the Prefect UI or use a Python script like the one below.
+
+```python
+from prefect_aws import AwsCredentials
+
+
+AwsCredentials(
+    aws_access_key_id="PLACEHOLDER",
+    aws_secret_access_key="PLACEHOLDER",
+    aws_session_token=None,  # replace this with token if necessary
+    region_name="us-east-2"
+).save("BLOCK-NAME-PLACEHOLDER")
+```
+
+Prefect is using the Boto3 library under the hood.
+To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
+Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
+
+See an example of using the `AwsCredentials` block with [AWS Secrets Manager](#aws-secrets-manager) with third-party services without storing credentials in the block itself in [this guide](https://docs.prefect.io/latest/guides/secrets/).
+
+Here's how to load the saved credentials:
+
+```python
+from prefect_aws import AwsCredentials
+
+
+AwsCredentials.load("BLOCK-NAME-PLACEHOLDER")
+```
+
+The AWS Credentials block is often nested within other blocks, such as `S3Bucket` or `AwsSecret`, and provides authentication for those services.
+
+### Read and write files to AWS S3
+
+Upload a file to an AWS S3 bucket and download the same file under a different file name.
+The following code assumes that the bucket already exists:
+
+```python
+from pathlib import Path
+from prefect import flow
+from prefect_aws import AwsCredentials, S3Bucket
+
+
+@flow
+def s3_flow():
+    # create a dummy file to upload
+    file_path = Path("test-example.txt")
+    file_path.write_text("Hello, Prefect!")
+
+    aws_credentials = AwsCredentials.load("BLOCK-NAME-PLACEHOLDER")
+    s3_bucket = S3Bucket(
+        bucket_name="BUCKET-NAME-PLACEHOLDER",
+        credentials=aws_credentials
+    )
+
+    s3_bucket_path = s3_bucket.upload_from_path(file_path)
+    downloaded_file_path = s3_bucket.download_object_to_path(
+        s3_bucket_path, "downloaded-test-example.txt"
+    )
+    return downloaded_file_path.read_text()
+
+
+if __name__ == "__main__":
+    s3_flow()
+```
+
+### Access secrets with AWS Secrets Manager
+
+Write a secret to AWS Secrets Manager, read the secret data, delete the secret, and return the secret data.
+
+```python
+from prefect import flow
+from prefect_aws import AwsCredentials, AwsSecret
+
+
+@flow
+def secrets_manager_flow():
+    aws_credentials = AwsCredentials.load("BLOCK-NAME-PLACEHOLDER")
+    aws_secret = AwsSecret(secret_name="test-example", aws_credentials=aws_credentials)
+    aws_secret.write_secret(secret_data=b"Hello, Prefect!")
+    secret_data = aws_secret.read_secret()
+    aws_secret.delete_secret()
+    return secret_data
+
+
+if __name__ == "__main__":
+    secrets_manager_flow()
+```
+
+## Resources
+
+For assistance using AWS, consult the [AWS documentation](https://docs.aws.amazon.com/) and, in particular, the [Boto3 documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html).
+
+Refer to the prefect-aws API documentation linked in the sidebar to explore all the capabilities of the prefect-aws library.

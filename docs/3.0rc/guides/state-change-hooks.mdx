@@ -1,0 +1,92 @@
+---
+title: State Change Hooks
+description: Execute code in response to a flow or task entering a given state, without involvement of the Prefect API.
+---
+
+[State change hooks](/3.0rc/concepts/states/#state-change-hooks) execute code in response to changes in flow or task run states, enabling you to define actions for specific state transitions in a workflow.
+This guide provides examples of real-world use cases.
+
+## Example use cases
+
+### Send a notification when a flow run fails
+
+State change hooks enable you to customize messages sent when tasks transition between states, such as sending notifications containing sensitive information when tasks enter a `Failed` state.
+Here's an example of running a client-side hook upon a flow run entering a `Failed` state:
+
+```python
+from prefect import flow
+from prefect.blocks.core import Block
+from prefect.settings import PREFECT_API_URL
+
+def notify_slack(flow, flow_run, state):
+    slack_webhook_block = Block.load(
+        "slack-webhook/my-slack-webhook"
+    )
+            
+    slack_webhook_block.notify(
+        (
+            f"Your job {flow_run.name} entered {state.name} "
+            f"with message:\n\n"
+            f"See <https://{PREFECT_API_URL.value()}/flow-runs/"
+            f"flow-run/{flow_run.id}|the flow run in the UI>\n\n"
+            f"Tags: {flow_run.tags}\n\n"
+            f"Scheduled start: {flow_run.expected_start_time}"
+        )
+    )
+
+@flow(on_failure=[notify_slack], retries=1)
+def failing_flow():
+    raise ValueError("oops!")
+
+if __name__ == "__main__":
+    failing_flow()
+```
+
+Note that retries are configured in this example. This means the `on_failure` hook will not run until all `retries` have completed when the flow run enters a `Failed` state.
+
+### Delete a Cloud Run job when a flow run crashes
+
+State change hooks help manage infrastructure cleanup in scenarios where tasks spin up individual infrastructure resources independently of Prefect.
+When a flow run crashes, tasks may exit abruptly and result in the potential omission of cleanup logic within the tasks.
+Use state change hooks to ensure infrastructure is properly cleaned up, even when a flow run enters a `Crashed` state.
+
+Here's how to create a hook that deletes a Cloud Run job if the flow run crashes:
+
+```python
+import os
+from prefect import flow, task
+from prefect.variables import Variable
+from prefect.client import get_client
+import prefect.runtime
+
+async def delete_cloud_run_job(flow, flow_run, state):
+    """Flow run state change hook that deletes a Cloud Run Job if
+    the flow run crashes."""
+
+    # retrieve Cloud Run job name
+    cloud_run_job_name = await Variable.get(
+        name="crashing-flow_cloud_run_job"
+    )
+
+    # delete Cloud Run job
+    delete_job_command = f"yes | gcloud beta run jobs delete 
+    {cloud_run_job_name.value} --region us-central1"
+    os.system(delete_job_command)
+
+
+@task
+def my_task_that_crashes():
+    raise SystemExit("Crashing on purpose!")
+
+@flow(on_crashed=[delete_cloud_run_job])
+def crashing_flow():
+    """Save the flow run name (i.e. Cloud Run job name) as a 
+    Variable. It then executes a task that ends up crashing."""
+    flow_run_name = prefect.runtime.flow_run.name
+    cloud_run_job_name = Variable.set(name="crashing_flow_cloud_run_job", value=flow_run_name, overwrite=True)
+
+    my_task_that_crashes()
+
+if __name__ == "__main__":
+    crashing_flow()
+```

@@ -1,0 +1,109 @@
+---
+title: prefect-email
+---
+
+The `prefect-email` library helps you send emails from your Prefect flows.
+
+## Getting Started
+
+### Prerequisites
+
+- [Prefect installed](/3.0rc/getting-started/installation/) in a virtual environment.
+- Many email services, such as Gmail, require an [App Password](https://support.google.com/accounts/answer/185833) to successfully send emails.
+    If you encounter an error similar to `smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted...`, it's likely you are not using an App Password.
+
+### Install prefect-email
+
+<div class = "terminal">
+```bash
+pip install -U prefect-email
+```
+</div>
+
+### Register newly installed blocks types
+
+Register the block types in the prefect-email module to make them available for use.
+
+<div class = "terminal">
+```bash
+prefect block register -m prefect_email
+```
+</div>
+
+## Save credentials to an EmailServerCredentials block
+
+Save your email credentials to a block.
+Replace the placeholders with your email address and password.
+
+```python
+from prefect_email import EmailServerCredentials
+
+credentials = EmailServerCredentials(
+    username="EMAIL-ADDRESS-PLACEHOLDER",
+    password="PASSWORD-PLACEHOLDER",  # must be an app password
+)
+credentials.save("BLOCK-NAME-PLACEHOLDER")
+```
+
+In the examples below you load a credentials block to authenticate with the email server.
+
+## Send emails
+
+The code below shows how to send an email using the pre-built `email_send_message` [task](https://docs.prefect.io/latest/concepts/tasks/).
+
+```python
+from prefect import flow
+from prefect_email import EmailServerCredentials, email_send_message
+
+@flow
+def example_email_send_message_flow(email_addresses):
+    email_server_credentials = EmailServerCredentials.load("BLOCK-NAME-PLACEHOLDER")
+    for email_address in email_addresses:
+        subject = email_send_message.with_options(name=f"email {email_address}").submit(
+            email_server_credentials=email_server_credentials,
+            subject="Example Flow Notification using Gmail",
+            msg="This proves email_send_message works!",
+            email_to=email_address,
+        )
+
+if __name__ == "__main__":
+    example_email_send_message_flow(["EMAIL-ADDRESS-PLACEHOLDER"])
+```
+
+## Capture exceptions and send an email
+
+This example demonstrates how to send an email notification with the details of the exception when a flow run fails.
+
+`prefect-email` can be wrapped in an `except` statement to do just that!
+
+```python
+from prefect import flow
+from prefect.context import get_run_context
+from prefect_email import EmailServerCredentials, email_send_message
+
+def notify_exc_by_email(exc):
+    context = get_run_context()
+    flow_run_name = context.flow_run.name
+    email_server_credentials = EmailServerCredentials.load("email-server-credentials")
+    email_send_message(
+        email_server_credentials=email_server_credentials,
+        subject=f"Flow run {flow_run_name!r} failed",
+        msg=f"Flow run {flow_run_name!r} failed due to {exc}.",
+        email_to=email_server_credentials.username,
+    )
+
+@flow
+def example_flow():
+    try:
+        1 / 0
+    except Exception as exc:
+        notify_exc_by_email(exc)
+        raise
+
+if __name__ == "__main__":
+    example_flow()
+```
+
+## Resources
+
+Refer to the prefect-email API documentation linked in the sidebar to explore all the capabilities of the prefect-email library.

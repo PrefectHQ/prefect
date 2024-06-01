@@ -33,7 +33,6 @@ from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
 )
 from prefect.utilities.math import clamped_poisson_interval
@@ -84,7 +83,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
-class AutonomousTaskPolicy(BaseOrchestrationPolicy):
+class BackgroundTaskPolicy(BaseOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order.
     """
@@ -96,6 +95,7 @@ class AutonomousTaskPolicy(BaseOrchestrationPolicy):
             HandleTaskTerminalStateTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
+            CopyTaskParametersID,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -473,7 +473,7 @@ class RetryFailedTasks(BaseOrchestrationRule):
 
 class EnqueueScheduledTasks(BaseOrchestrationRule):
     """
-    Enqueues autonomous task runs when they are scheduled
+    Enqueues background task runs when they are scheduled
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -485,16 +485,12 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-            # Only if task scheduling is enabled
-            return
-
         if not validated_state:
             # Only if the transition was valid
             return
 
-        if context.run.flow_run_id:
-            # Only for autonomous tasks
+        if not validated_state.state_details.deferred:
+            # Only for tasks that are deferred
             return
 
         task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
@@ -586,6 +582,30 @@ class WaitForScheduledTime(BaseOrchestrationRule):
         if delay_seconds > 0:
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"
+            )
+
+
+class CopyTaskParametersID(BaseOrchestrationRule):
+    """
+    Ensures a task's parameters ID is copied from Scheduled to Pending and from
+    Pending to Running states.
+
+    If a parameters ID has been included on the proposed state, the parameters ID
+    on the initial state will be ignored.
+    """
+
+    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING]
+    TO_STATES = [StateType.PENDING, StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if not proposed_state.state_details.task_parameters_id:
+            proposed_state.state_details.task_parameters_id = (
+                initial_state.state_details.task_parameters_id
             )
 
 

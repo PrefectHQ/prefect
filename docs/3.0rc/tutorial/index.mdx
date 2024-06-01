@@ -1,0 +1,51 @@
+---
+title: Tutorial Overview
+sidebarTitle: Overview
+description: Learn the basics of creating and running Prefect flows and tasks.
+---
+
+Learn the basics of creating and running Prefect flows and tasks.
+
+Prefect orchestrates workflows through the creation, scheduling, and monitoring of complex data pipelines.
+You can transform any Python function into a unit of work that can be observed and orchestrated. You define workflows as Python code and Prefect handles the rest.
+
+Prefect also provides error handling, retry mechanisms, and a user-friendly dashboard for monitoring.
+
+This tutorial provides a guided walk-through of Prefect's core concepts, including how to:
+
+1. [Create a flow](/3.0rc/tutorial/flows/)
+2. [Add tasks to it](/3.0rc/tutorial/tasks/)
+3. [Deploy and run the flow locally](/3.0rc/tutorial/deployments/)
+4. [Create a work pool and run the flow on remote infrastructure](/3.0rc/tutorial/work-pools/)
+5. [Create a worker-based deployment](/3.0rc/tutorial/workers/) (For advanced users who need more governance.)
+
+## Prerequisites
+
+Before you start, make sure you have Python installed in a virtual environment.
+Then install Prefect:
+
+```bash
+pip install -U prefect
+```
+
+See the [install guide](/3.0rc/getting-started/installation/) for more detailed instructions.
+
+To get the most out of Prefect, you need to connect to a forever-free [Prefect Cloud](https://app.prefect.cloud) account.
+
+1. Create a new account or sign in at [https://app.prefect.cloud/](https://app.prefect.cloud/).
+1. Use the `prefect cloud login` CLI command to [authenticate to Prefect Cloud](/3.0rc/cloud/users/api-keys/) from your environment.
+
+```bash
+prefect cloud login
+```
+
+Choose **Log in with a web browser** and click **Authorize**.
+
+If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/cloud/users/api-keys/) to learn how to authenticate with a manually created API key.
+
+As an alternative to using Prefect Cloud, you can self-host a [Prefect server instance](/3.0rc/guides/host/).
+If you choose this option, run `prefect server start` to start a local Prefect server instance.
+
+## First steps: Flows
+
+Learn how to create your first [Prefect flow](/3.0rc/tutorial/flows/).

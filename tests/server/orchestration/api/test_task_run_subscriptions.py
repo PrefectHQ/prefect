@@ -15,24 +15,10 @@ from prefect.server import models
 from prefect.server.api import task_runs
 from prefect.server.schemas import states as server_states
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
-    temporary_settings,
-)
 
 
 @pytest.fixture
-def task_scheduling_enabled() -> Generator[None, None, None]:
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING: True,
-        }
-    ):
-        yield
-
-
-@pytest.fixture
-def reset_task_queues(task_scheduling_enabled) -> Generator[None, None, None]:
+def reset_task_queues() -> Generator[None, None, None]:
     task_runs.TaskQueue.reset()
 
     yield
@@ -256,7 +242,7 @@ async def preexisting_runs(session: AsyncSession, reset_task_queues) -> List[Tas
                 flow_run_id=None,
                 task_key="mytasks.taskA",
                 dynamic_key="mytasks.taskA-1",
-                state=server_states.Scheduled(),
+                state=server_states.Scheduled(state_details={"deferred": True}),
             ),
         )
     )
@@ -268,7 +254,7 @@ async def preexisting_runs(session: AsyncSession, reset_task_queues) -> List[Tas
                 flow_run_id=None,
                 task_key="mytasks.taskA",
                 dynamic_key="mytasks.taskA-2",
-                state=server_states.Scheduled(),
+                state=server_states.Scheduled(state_details={"deferred": True}),
             ),
         )
     )

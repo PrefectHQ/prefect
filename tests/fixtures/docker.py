@@ -1,9 +1,10 @@
 import sys
+import time
 from contextlib import contextmanager
 from typing import Generator
 
-import docker.errors as docker_errors
 import pytest
+import requests
 from typer.testing import CliRunner
 
 import prefect
@@ -69,7 +70,7 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
             for image in docker.images.list(filters=filters):
                 for tag in image.tags:
                     docker.images.remove(tag, force=True)
-        except docker_errors.NotFound:
+        except NotFound:
             logger.warning("Failed to clean up Docker objects")
 
 
@@ -110,26 +111,28 @@ def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     return image_name
 
 
-@pytest.fixture(scope="module")
-def registry(docker: DockerClient) -> Generator[str, None, None]:
-    """Starts a Docker registry locally, returning its URL"""
-
-    with silence_docker_warnings():
-        # Clean up any previously-created registry:
+def _wait_for_registry(url: str, timeout: int = 30) -> bool:
+    start = time.time()
+    while time.time() - start < timeout:
         try:
-            preexisting: Container = docker.containers.get("orion-test-registry")
-            _safe_remove_container(preexisting)  # pragma: no cover
-        except NotFound:
+            response = requests.get(f"{url}/v2/")
+            if response.status_code == 200:
+                return True
+        except requests.ConnectionError:
             pass
+        time.sleep(1)
+    return False
 
-        container: Container = docker.containers.run(
-            "registry:2",
-            detach=True,
-            remove=True,
-            name="orion-test-registry",
-            ports={"5000/tcp": 5555},
+
+@pytest.fixture
+def registry() -> Generator[str, None, None]:
+    """Return the URL for the local Docker registry."""
+    registry_url = "http://localhost:5555"
+    if not _wait_for_registry(registry_url):
+        raise RuntimeError(
+            "Docker registry did not become ready in time. If you're running "
+            "the tests locally, make sure you have the registry running with "
+            "`docker compose up -d`."
         )
-        try:
-            yield "http://localhost:5555"
-        finally:
-            container.remove(force=True)
+
+    yield registry_url

@@ -136,6 +136,7 @@ class StateDetails(PrefectBaseModel):
     scheduled_time: Optional[DateTime] = None
     cache_key: Optional[str] = None
     cache_expiration: Optional[DateTime] = None
+    deferred: Optional[bool] = None
     untrackable_result: bool = False
     pause_timeout: Optional[DateTime] = None
     pause_reschedule: bool = False
@@ -1060,7 +1061,7 @@ class Deployment(ObjectBaseModel):
         ),
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
