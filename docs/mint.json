@@ -58,12 +58,12 @@
   ],
   "navigation": [
     {
-      "group": "Getting Started",
+      "group": "Get Started",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/getting-started/index",
-        "3.0rc/getting-started/installation",
-        "3.0rc/getting-started/quickstart"
+        "3.0rc/get-started/index",
+        "3.0rc/get-started/install",
+        "3.0rc/get-started/quickstart"
       ]
     },
     {
