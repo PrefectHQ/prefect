@@ -13,11 +13,11 @@ This document focuses on how to use deferred task execution. However, Prefect ta
 
 ## Using deferred tasks
 
-Prefect tasks are Python functions that can be run immediately or submitted for background execution.
+Prefect tasks are Python functions that can be run immediately or deferred for background execution.
 
 You define a task by adding the `@task` decorator to a Python function, after which you can use the `delay` method to run the task in the background.
 
-If you submit the task for background execution, you'll run a task server in a separate process or container to execute the task. This process is similar to how you would run a Celery worker or an arq worker to execute background tasks.
+If you schedule the task for background execution, you'll run a task server in a separate process or container to execute the task. This process is similar to how you would run a Celery worker or an arq worker to execute background tasks.
 
 ### Defining a task
 
@@ -77,13 +77,13 @@ def my_background_task(name: str):
 
 if __name__ == "__main__":
     # NOTE: The serve() function accepts multiple tasks. The Task Server 
-    # will listen for submitted task runs for all tasks passed in.
+    # will listen for scheduled task runs for all tasks passed in.
     serve(my_background_task)
 ```
 
 Run this script to start the task server.
 
-The task server should begin listening for submitted tasks. If tasks were submitted before the task server started, it will begin processing them.
+The task server should begin listening for scheduled tasks. If tasks were scheduled before the task server started, it will begin processing them.
 
 You can also use the helper CLI command `prefect task serve` to start a task server.
 
@@ -132,7 +132,7 @@ Step 3: Connect to Prefect Cloud or a local Prefect server instance (if not set 
 
 You can use either Prefect Cloud or a local Prefect server instance for these examples.
 
-You need to have `PREFECT_API_URL` set to submit tasks to task servers.
+You need to have `PREFECT_API_URL` set to send tasks to task servers.
 
 If you're using a local Prefect server instance with a SQLite backing database (the default database), you can save this value to your active Prefect Profile by running the following command in your terminal.
 
@@ -220,7 +220,7 @@ Hit the refresh button for updates, if needed.
 In this example, we'll start a task server and run deferred tasks in the background.  
 
 To run tasks in a separate process or container, you'll need to start a task server, similar to how you would run a Celery worker or an arq worker.
-The task server will continually receive submitted tasks to execute from Prefect's API, execute them, and report the results back to the API.
+The task server will continually receive scheduled tasks to execute from Prefect's API, execute them, and report the results back to the API.
 You can run a task server by passing tasks into the `prefect.task_server.serve()` method.
 
 Step 1: Define the task and task server in the file `task_server.py`
@@ -248,7 +248,7 @@ python task_server.py
 The task server is now waiting for runs of the `my_background_task` task.
 Let's give it some task runs.
 
-Step 3: Create a file named `task_submitter.py` and save the following code in it.
+Step 3: Create a file named `task_scheduler.py` and save the following code in it.
 
 ```python
 from tasks import my_background_task
@@ -260,7 +260,7 @@ if __name__ == "__main__":
 Step 4: Open another terminal and run the script.
 
 ```bash
-python task_submitter.py
+python task_scheduler.py
 ```
 
 Note that we return the a "future" from the `delay` method. You can use this object to wait for the task to complete with `wait()` and to retrieve its result with `result()`.
@@ -284,9 +284,9 @@ Start another instance of the task server. In another terminal run:
 python task_server.py
 ```
 
-Step 7: Submit multiple tasks to the task server.
+Step 7: Send multiple tasks to the task server.
 
-Modify the `task_submitter.py` file to submit multiple tasks to the task server with different inputs:
+Modify the `task_scheduler.py` file to send multiple tasks to the task server with different inputs:
 
 ```python
 from tasks import my_background_task
@@ -301,7 +301,7 @@ Run the file and watch the work get distributed across both task servers!
 
 Step 8: Shut down the task servers with *control* + *c*.
 
-Alright, you're able to submit tasks to multiple Prefect task servers running in the background!
+Alright, you're able to send tasks to multiple Prefect task servers running in the background!
 This is cool because we can observe these tasks executing in parallel and very quickly with web sockets - no polling required.
 
 See additional examples in the [deferred tasks github repository](https://github.com/PrefectHQ/prefect-background-task-examples.git).
