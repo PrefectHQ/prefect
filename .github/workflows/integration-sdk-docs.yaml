@@ -1,0 +1,25 @@
+name: Integrations Packages SDK Docs Generation
+
+# Runs pdoc to create Python SDK docs for an integration when an integration package is released with a .py file change (not just updated)
+
+on:
+    pull_request:
+        types: [closed]
+        branches:
+            - main
+        paths:
+            - "src/**/*.py"
+
+jobs:
+    prepare-matrix:
+        if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  persist-credentials: false
+                  fetch-depth: 0
+            - name: Set up Python
+              uses: actions/setup-python@v2
+              with:
+                  python-version: "3.9"
