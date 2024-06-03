@@ -23,9 +23,8 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.0.0rc1",
-  "docker>=6.1.1",
-  "exceptiongroup",
+  "prefect@git+https://github.com/PrefectHQ/prefect.git@main",
+  "docker>=7.1.1",
   "requests<2.30.0",
 ]
 dynamic = ["version"]
