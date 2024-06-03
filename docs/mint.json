@@ -91,7 +91,16 @@
       "group": "Deploy",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/deploy/write-workflows/index"
+        "3.0rc/deploy/serve-workflows/index",
+        "3.0rc/deploy/serve-workflows/add-schedules",
+        "3.0rc/deploy/dynamic-infra/push-runs-serverless",
+        "3.0rc/deploy/dynamic-infra/push-runs-remote",
+        "3.0rc/deploy/dynamic-infra/retrieve-workflow-code",
+        "3.0rc/deploy/dynamic-infra/customize",
+        "3.0rc/deploy/dynamic-infra/deploy-docker",
+        "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
+        "3.0rc/deploy/dynamic-infra/deploy-ci-cd",
+        "3.0rc/deploy/dynamic-infra/control-runs"
       ]
     },
     {
@@ -135,9 +144,7 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/tutorial/index",
-        "3.0rc/tutorial/deployments",
-        "3.0rc/tutorial/work-pools",
-        "3.0rc/tutorial/workers"
+        "3.0rc/tutorial/work-pools"
       ]
     },
     {
@@ -150,7 +157,6 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/guides/terraform-provider",
-            "3.0rc/guides/ci-cd",
             "3.0rc/guides/secrets",
             "3.0rc/guides/recipes"
           ]
@@ -159,7 +165,6 @@
           "group": "Execution",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/guides/docker",
             "3.0rc/guides/big-data",
             "3.0rc/guides/managed-execution",
             "3.0rc/guides/cli-shell"
@@ -171,13 +176,7 @@
           "pages": [
             "3.0rc/guides/prefect-deploy",
             "3.0rc/guides/upgrade-guide-agents-to-workers",
-            "3.0rc/guides/deployment/storage-guide",
-            "3.0rc/guides/deployment/kubernetes",
-            "3.0rc/guides/deployment/push-work-pools",
-            "3.0rc/guides/deployment/serverless-workers",
-            "3.0rc/guides/deployment/daemonize",
-            "3.0rc/guides/deployment/developing-a-new-worker-type",
-            "3.0rc/guides/deployment/overriding-job-variables"
+            "3.0rc/guides/deployment/developing-a-new-worker-type"
           ]
         }
       ]
@@ -186,10 +185,7 @@
       "group": "Concepts",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/concepts/index",
-        "3.0rc/concepts/deployments",
-        "3.0rc/concepts/work-pools",
-        "3.0rc/concepts/schedules"
+        "3.0rc/concepts/index"
       ]
     },
     {
