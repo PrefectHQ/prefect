@@ -6,7 +6,7 @@ description: Observe and react to events from other systems
 Use webhooks in your Prefect Cloud workspace to receive, observe, and react to events
 from other systems in your ecosystem.  Each webhook exposes a unique URL endpoint to
 receive events from other systems and transforms them into Prefect
-[events](/3.0rc/react/understand-events/) for use in [automations](/3.0rc/cloud/automations/).
+[events](/3.0rc/react/understand-events/) for use in [automations](/3.0rc/react/understand-events/automations-triggers/).
 
 Webhooks are defined by two essential components: a unique URL, and a template that translates incoming web requests to a Prefect event.
 
@@ -128,7 +128,7 @@ Prefect Cloud workspace.  The template you define for each webhook determines ho
 individual components of the incoming HTTP request become the event name and resource
 labels of the resulting Prefect event.
 
-As with the [templates available in Prefect Cloud Automation](/3.0rc/cloud/automations) for
+As with the [templates available in Prefect Cloud Automation](/3.0rc/react/understand-events/automations-triggers) for
 defining notifications and other parameters, you will write templates in
 [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/templates/).  All of the built-in
 Jinja2 blocks and filters are available, as well as the filters from the

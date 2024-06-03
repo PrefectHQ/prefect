@@ -48,7 +48,7 @@ Prefect provides several settings to configure [logging level and loggers](/3.0r
 
 By default, Prefect displays `INFO`-level and above logging records. Change this level to `DEBUG` and see `DEBUG`-level logs created by Prefect as well. You may need to change the log level used by loggers from other libraries to see their log records.
 
-Override any logging configuration by setting an environment variable or [Prefect Profile](/3.0rc/concepts/settings/) setting using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting.
+Override any logging configuration by setting an environment variable or [Prefect Profile](/3.0rc/cloud/configure-client/) setting using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting.
 
 For example, to change the default logging levels for Prefect to `DEBUG`, set the environment variable `PREFECT_LOGGING_LEVEL="DEBUG"`.
 
@@ -384,4 +384,4 @@ and SciPy logging statements with your flow and task run logs:
     PREFECT_LOGGING_EXTRA_LOGGERS=dask,scipy
 
 You can configure this setting as an environment variable or in a profile. See
-[Settings](/3.0rc/concepts/settings/) for more details about how to use settings.
+[Settings](/3.0rc/cloud/configure-client/) for more details about how to use settings.
