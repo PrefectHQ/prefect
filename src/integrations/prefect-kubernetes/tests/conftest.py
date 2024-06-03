@@ -122,26 +122,38 @@ async def _mock_api_batch_client(monkeypatch):
 
     monkeypatch.setattr(
         "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        MagicMock(spec=BatchV1Api, return_value=AsyncMock()),
     )
 
     return batch_client
 
 
+# @pytest.fixture
+# def _mock_api_core_client(monkeypatch):
+#     core_client = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
+
+#     @asynccontextmanager
+#     async def get_client(self, _):
+#         yield core_client()
+
+#     monkeypatch.setattr(
+#         "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
+#         get_client,
+#     )
+
+#     return core_client
+
+
 @pytest.fixture
 def _mock_api_core_client(monkeypatch):
-    core_client = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
-
-    @contextmanager
-    def get_client(self, _):
-        yield core_client
+    core_client = AsyncMock(spec=CoreV1Api)
 
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        core_client,
     )
-
     return core_client
+
 
 
 @pytest.fixture
@@ -221,9 +233,12 @@ def mock_stream_timeout(monkeypatch):
 
 @pytest.fixture
 def mock_pod_log(monkeypatch):
+    async def pod_log(*args, **kwargs):
+        yield "test log"
     monkeypatch.setattr(
         "kubernetes_asyncio.watch.Watch.stream",
-        MagicMock(return_value=["test log"]),
+        
+        MagicMock(side_effect=pod_log),
     )
 
 

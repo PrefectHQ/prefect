@@ -275,13 +275,14 @@ async def read_namespaced_pod_log(
         if print_func is not None:
             # should no longer need to manually refresh on ApiException.status == 410
             # as of https://github.com/kubernetes-client/python-base/pull/133
-            async for log_line in Watch().stream(
-                core_v1_client.read_namespaced_pod_log,
-                name=pod_name,
-                namespace=namespace,
-                container=container,
-            ):
-                print_func(log_line)
+            async with Watch() as watch:
+                async for log_line in watch.stream(
+                    core_v1_client.read_namespaced_pod_log,
+                    name=pod_name,
+                    namespace=namespace,
+                    container=container,
+                ):
+                    print_func(log_line)
 
         return await core_v1_client.read_namespaced_pod_log(
             name=pod_name,
