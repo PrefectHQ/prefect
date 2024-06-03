@@ -8,15 +8,9 @@ from typing import Any, Optional, Union
 import boto3
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_secretsmanager import SecretsManagerClient
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import ConfigDict, Field, SecretStr
 
 from prefect.blocks.abstract import CredentialsBlock
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr
-else:
-    from pydantic import Field, SecretStr
-
 from prefect_aws.client_parameters import AwsClientParameters
 
 _LOCK = Lock()
@@ -72,6 +66,8 @@ class AwsCredentials(CredentialsBlock):
         ```
     """  # noqa E501
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
     _block_type_name = "AWS Credentials"
     _documentation_url = "https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.AwsCredentials"  # noqa
@@ -106,11 +102,6 @@ class AwsCredentials(CredentialsBlock):
         description="Extra parameters to initialize the Client.",
         title="AWS Client Parameters",
     )
-
-    class Config:
-        """Config class for pydantic model."""
-
-        arbitrary_types_allowed = True
 
     def __hash__(self):
         field_hashes = (
@@ -209,6 +200,8 @@ class MinIOCredentials(CredentialsBlock):
         ```
     """  # noqa E501
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/676cb17bcbdff601f97e0a02ff8bcb480e91ff40-250x250.png"  # noqa
     _block_type_name = "MinIO Credentials"
     _description = (
@@ -231,18 +224,13 @@ class MinIOCredentials(CredentialsBlock):
         description="Extra parameters to initialize the Client.",
     )
 
-    class Config:
-        """Config class for pydantic model."""
-
-        arbitrary_types_allowed = True
-
     def __hash__(self):
         return hash(
             (
                 hash(self.minio_root_user),
                 hash(self.minio_root_password),
                 hash(self.region_name),
-                hash(frozenset(self.aws_client_parameters.dict().items())),
+                hash(frozenset(self.aws_client_parameters.model_dump().items())),
             )
         )
 

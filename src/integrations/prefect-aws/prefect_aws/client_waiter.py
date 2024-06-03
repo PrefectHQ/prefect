@@ -5,11 +5,12 @@ from typing import Any, Dict, Optional
 from botocore.waiter import WaiterModel, create_waiter_with_client
 
 from prefect import get_run_logger, task
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect_aws.credentials import AwsCredentials
 
 
 @task
+@sync_compatible
 async def client_waiter(
     client: str,
     waiter_name: str,
