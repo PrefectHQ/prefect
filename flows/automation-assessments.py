@@ -8,7 +8,7 @@ from uuid import uuid4
 import anyio
 import pendulum
 
-from prefect import flow, get_client, get_run_logger
+from prefect import flow, get_client
 from prefect.events import Event
 from prefect.events.clients import get_events_client, get_events_subscriber
 from prefect.events.filters import (
@@ -17,6 +17,7 @@ from prefect.events.filters import (
     EventOccurredFilter,
     EventResourceFilter,
 )
+from prefect.logging import get_run_logger
 
 
 @asynccontextmanager
