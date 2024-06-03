@@ -15,7 +15,7 @@ from pydantic_core import to_json
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.system import JSON, Secret
-from prefect.client import PrefectClient
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate

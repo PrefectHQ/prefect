@@ -1,6 +1,7 @@
 import anyio
 
-from prefect import flow, get_client, task
+from prefect import flow, task
+from prefect.client.orchestration import get_client
 
 
 @task(persist_result=True)

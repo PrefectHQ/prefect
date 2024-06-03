@@ -13,8 +13,9 @@ import anyio
 import anyio.abc
 from websockets.exceptions import InvalidStatusCode
 
-from prefect import Task, get_client
+from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.exceptions import Abort, PrefectHTTPStatusError
