@@ -5,18 +5,18 @@ description: Learn the basics of writing tasks.
 
 ## About tasks
 
-A [task](/3.0rc/concepts/tasks/) is any Python function decorated with a `@task` decorator.
+A [task](/3.0rc/develop/write-tasks/) is any Python function decorated with a `@task` decorator.
 A flow is like a recipe for connecting a known sequence of tasks together.
 Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand, and control at a more granular level.  
 When a function becomes a task, it can execute concurrently and you can cache its return value.
 
 Flows and tasks share some common features:
 
-* Both are defined using their respective decorator, which accepts settings for that flow / task (see all [task settings](/3.0rc/concepts/tasks/#task-arguments) / [flow settings](/3.0rc/concepts/flows/#flow-settings)).
+* Both are defined using their respective decorator, which accepts settings for that flow / task (see all [task settings](/3.0rc/develop/write-tasks/#task-arguments) / [flow settings](/3.0rc/develop/write-workflows/#flow-settings)).
 * You can provide them with a `name`, `description` and `tags` for organization and bookkeeping.
 * They provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
 
-Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/3.0rc/concepts/tasks/#retries), [caching](/3.0rc/concepts/tasks/#caching), and [concurrency](/3.0rc/concepts/task-runners/#using-a-task-runner).
+Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/3.0rc/develop/write-tasks/#retries), [caching](/3.0rc/develop/write-tasks/#caching), and [concurrency](/3.0rc/develop/write-tasks/use-task-runners/#using-a-task-runner).
 
 <Tip>
     **You can call tasks from other tasks**
@@ -76,7 +76,7 @@ You can now see this task run tracked in the UI as well.
 ## Caching
 
 Tasks support the ability to cache their return value.
-Caching allows you to efficiently reuse [results](/3.0rc/concepts/results/) of tasks that may be expensive to reproduce with every flow run. You can also reuse cached results if the inputs to a task have not changed.
+Caching allows you to efficiently reuse [results](/3.0rc/develop/interact-with-data/) of tasks that may be expensive to reproduce with every flow run. You can also reuse cached results if the inputs to a task have not changed.
 
 To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires.
 
@@ -213,7 +213,7 @@ Average open issues per user 💌 : 2.27
 ## Subflows
 
 In addition to calling tasks within a flow, you can also call other flows.
-Child flows are called [subflows](/3.0rc/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
+Child flows are called [subflows](/3.0rc/develop/write-workflows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
 
 Subflows are a great way to organize your workflows and offer more visibility within the UI.
 
@@ -240,7 +240,7 @@ In the UI each subflow run is linked to its parent and can be individually inspe
 ## Next: Deployments
 
 You now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution.
-In the next section, you will deploy this flow to run it on a schedule and/or external infrastructure. Learn how to [create your first deployment](/3.0rc/tutorial/deployments/).
+In the next section, you will deploy this flow to run it on a schedule and/or external infrastructure. Learn how to [create your first deployment](/3.0rc/deploy/serve-workflows/).
 
 
 ---
@@ -255,7 +255,7 @@ Tasks are functions: they can take inputs, perform work, and return an output. A
 
 Tasks are special because they receive metadata about upstream dependencies and the state of those dependencies before they run, even if they don't receive any explicit data inputs from them. This gives you the opportunity to, for example, have a task wait on the completion of another task before executing.
 
-Tasks also take advantage of automatic Prefect [logging](/3.0rc/guides/logs/) to capture details about task runs such as runtime, tags, and final state.
+Tasks also take advantage of automatic Prefect [logging](/3.0rc/develop/observe-workflows/logging/) to capture details about task runs such as runtime, tags, and final state.
 
 You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. Tasks may be called from within a flow, from within a subflow, or (as of `prefect 2.18.x`) from within another task.
 
@@ -563,17 +563,17 @@ def show_timeouts():
 
 ## Task results
 
-Depending on how you call tasks, they can return different types of results and optionally engage the use of a [task runner](/3.0rc/concepts/task-runners/).
+Depending on how you call tasks, they can return different types of results and optionally engage the use of a [task runner](/3.0rc/develop/write-tasks/use-task-runners/).
 
 Any task can return:
 
 - Data , such as `int`, `str`, `dict`, `list`, and so on &mdash;  this is the default behavior any time you call `your_task()`.
-- [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling [`your_task.submit()`](/3.0rc/concepts/task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_
+- [`PrefectFuture`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling [`your_task.submit()`](/3.0rc/develop/write-tasks/use-task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_
 - Prefect [`State`](/3.0rc/api-ref/server/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
 
-To run your task with a [task runner](/3.0rc/concepts/task-runners/), you must call the task with `.submit()`.
+To run your task with a [task runner](/3.0rc/develop/write-tasks/use-task-runners/), you must call the task with `.submit()`.
 
-See [state returned values](/3.0rc/concepts/task-runners/#using-results-from-submitted-tasks) for examples.
+See [state returned values](/3.0rc/develop/write-tasks/use-task-runners/#using-results-from-submitted-tasks) for examples.
 
 !!! tip "Task runners are optional"
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
@@ -686,7 +686,7 @@ async def async_flow():
 asyncio.run(async_flow())
 ```
 
-Note, if you are not using `asyncio.gather`, calling [`.submit()`](/3.0rc/concepts/task-runners/#using-a-task-runner) is required for asynchronous execution on the `ConcurrentTaskRunner`.
+Note, if you are not using `asyncio.gather`, calling [`.submit()`](/3.0rc/develop/write-tasks/use-task-runners/#using-a-task-runner) is required for asynchronous execution on the `ConcurrentTaskRunner`.
 
 ## Task run concurrency limits
 
@@ -705,14 +705,14 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/3.0rc/concepts/states/).
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/3.0rc/develop/observe-workflows/manage-states/).
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds (or the value specified by the `PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS` setting).
 
 ### Configuring concurrency limits
 
 !!! tip "Flow run concurrency limits are set at a work pool and/or work queue level"
-    While task run concurrency limits are configured via tags (as shown below), [flow run concurrency limits](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-concurrency) are configured via work pools and/or work queues.
+    While task run concurrency limits are configured via tags (as shown below), [flow run concurrency limits](https://docs.prefect.io/latest/deploy/dynamic-infra/control-runs/#work-pool-concurrency) are configured via work pools and/or work queues.
 
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
 

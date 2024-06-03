@@ -7,7 +7,7 @@ Learn how to run tasks in a desired order.
 You can provide results from a task to other tasks (or subflows) as upstream dependencies. Prefect uses upstream dependencies in two ways:
 
 1. To populate dependency arrows in the flow run graph
-2. To determine execution order for [concurrently submitted](/3.0rc/concepts/task-runners) units of work that depend on each other
+2. To determine execution order for [concurrently submitted](/3.0rc/develop/write-tasks/use-task-runners) units of work that depend on each other
 
 !!! note "Tasks vs. other functions"
     **Only results from tasks** inform Prefect's ability to determine dependencies. Return values from functions without task decorators, including subflows, do not carry the same information about their origin as task results.
@@ -190,7 +190,7 @@ def final_task():
 
 ## Deployments as dependencies
 
-For more complex workflows, parts of your logic may require additional resources, different infrastructure, or independent parallel execution. A typical approach for addressing these needs is to execute that logic as separate [deployment](/3.0rc/concepts/deployments) runs from within a flow.
+For more complex workflows, parts of your logic may require additional resources, different infrastructure, or independent parallel execution. A typical approach for addressing these needs is to execute that logic as separate [deployment](/3.0rc/deploy/serve-workflows) runs from within a flow.
 
 Compose deployment runs into a flow and treat them as upstream dependencies by calling [`run_deployment`](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) from within a task.
 

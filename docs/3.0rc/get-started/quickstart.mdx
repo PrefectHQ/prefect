@@ -36,7 +36,7 @@ Let's make this script schedulable, observable, resilient, and capable of runnin
 pip install -U prefect
 ```
 
-See the [install guide](/3.0rc/getting-started/installation/) for more detailed installation instructions, if needed.
+See the [install guide](/3.0rc/get-started/install/) for more detailed installation instructions, if needed.
 
 ## Step 2: Connect to Prefect's API
 
@@ -53,7 +53,7 @@ prefect cloud login
 Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
 Your CLI is now authenticated with your Prefect Cloud account through a locally-stored API key that expires in 30 days.
 
-If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/cloud/users/api-keys/) to learn how to authenticate with a manually created API key.
+If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/cloud/manage-users/api-keys/) to learn how to authenticate with a manually created API key.
 
 !!! note "Self-hosted Prefect server instance"
     If you would like to host a Prefect server instance on your own infrastructure, see the [tutorial](/3.0rc/tutorial/) and select the "Self-hosted" tab.
@@ -62,7 +62,7 @@ If you have any issues with browser-based authentication, see the [Prefect Cloud
 ## Step 3: Turn your function into a Prefect flow
 
 The fastest way to get started with Prefect is to add a `@flow` decorator to your Python function.
-[Flows](/3.0rc/concepts/flows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
+[Flows](/3.0rc/develop/write-workflows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
 
 ```python hl_lines="2 5" title="my_gh_workflow.py"
 import httpx   # an HTTP client library and dependency of Prefect
@@ -135,7 +135,7 @@ You should see similar output in your terminal, with your own randomly generated
 ## Step 4: Choose a remote infrastructure location
 
 Let's get this workflow running on infrastructure other than your local machine!
-We can tell Prefect where we want to run our workflow by creating a [work pool](/3.0rc/concepts/work-pools/).
+We can tell Prefect where we want to run our workflow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
 
 We can have Prefect Cloud run our flow code for us with a Prefect Managed work pool.
 
@@ -153,7 +153,7 @@ Feel free to check out your new work pool on the **Work Pools** page in the UI.
 ## Step 5: Make your code schedulable
 
 We have a flow function and we have a work pool where we can run our flow remotely.
-Let's package both of these things, along with the location for where to find our flow code, into a [deployment](/3.0rc/concepts/deployments/) so that we can schedule our workflow to run remotely.
+Let's package both of these things, along with the location for where to find our flow code, into a [deployment](/3.0rc/deploy/serve-workflows/) so that we can schedule our workflow to run remotely.
 
 Deployments elevate flows to remotely configurable entities that have their own API.
 

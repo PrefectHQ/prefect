@@ -31,10 +31,10 @@ A self-hosted Prefect server instance and Prefect Cloud share a common set of fe
 - [Workspaces](/3.0rc/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
 - [Automations](/3.0rc/cloud/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
 - [Email notifications](/3.0rc/cloud/automations/) &mdash; send email alerts from Prefect's servers based on automation triggers.
-- [Service accounts](/3.0rc/cloud/users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
-- [Custom role-based access controls (RBAC)](/3.0rc/cloud/users/roles/) &mdash; assign users granular permissions to perform activities within an account or workspace.
-- [Single Sign-on (SSO)](/3.0rc/cloud/users/sso/) &mdash; authentication using your identity provider.
-- [Audit Log](/3.0rc/cloud/users/audit-log/) &mdash; a record of user activities to monitor security and compliance.
+- [Service accounts](/3.0rc/cloud/manage-users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
+- [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/) &mdash; assign users granular permissions to perform activities within an account or workspace.
+- [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/) &mdash; authentication using your identity provider.
+- [Audit Log](/3.0rc/cloud/manage-users/audit-logs/) &mdash; a record of user activities to monitor security and compliance.
 
 Read more about Prefect Cloud in the [Cloud](/3.0rc/cloud/) section.
 
@@ -209,7 +209,7 @@ See the [contributing docs](/3.0rc/contributing/overview/#adding-database-migrat
 
 [Prefect Cloud](/3.0rc/cloud/) gives you access to a hosted platform with Workspace & User controls, Events, and Automations. Prefect Cloud has an option for automation notifications. The more limited Notifications option is provided for the self-hosted Prefect server.
 
-Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/3.0rc/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
+Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/3.0rc/develop/observe-workflows/manage-states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
 
 Prefect supports sending notifications through:
 

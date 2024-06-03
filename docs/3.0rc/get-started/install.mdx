@@ -13,7 +13,7 @@ Prefect 3.0 requires Python 3.9 or newer.
 
 We recommend installing Prefect using a Python virtual environment manager such as `pipenv`, `conda`, or `virtualenv`/`venv`.
 
-You can use [Prefect Cloud](/3.0rc/cloud/cloud/) as your API server or [host your own Prefect server instance](/3.0rc/guides/host/) backed by [PostgreSQL](/3.0rc/concepts/database/#configuring_a_postgresql_database).
+You can use [Prefect Cloud](/3.0rc/cloud/cloud/) as your API server or [host your own Prefect server instance](/3.0rc/cloud/self-host/) backed by [PostgreSQL](/3.0rc/concepts/database/#configuring_a_postgresql_database).
 For development, you can use [SQLite](/3.0rc/concepts/database/#configuring_a_sqlite_database) 2.24 or newer as your database.
 
 [Prefect Cloud](/3.0rc/cloud/) is a managed solution that provides strong scaling, performance, and security.
@@ -133,7 +133,7 @@ SQLite is not packaged with the Prefect installation.
 Most systems will already have SQLite installed, because it is typically bundled with Python.
 
 <Note>
-    Note that in production we recommend using [Prefect Cloud](/3.0rc/cloud/cloud/) as your API server or [hosting your own Prefect server instance](/3.0rc/guides/host/) backed by [PostgreSQL](/3.0rc/concepts/database/#configuring_a_postgresql_database).
+    Note that in production we recommend using [Prefect Cloud](/3.0rc/cloud/cloud/) as your API server or [hosting your own Prefect server instance](/3.0rc/cloud/self-host/) backed by [PostgreSQL](/3.0rc/concepts/database/#configuring_a_postgresql_database).
 </Note>
 <Info>
     If you install the [`prefect-client`](https://pypi.org/project/prefect-client/) library that provides a limited set of the full Prefect library's functionality, you do not need SQLite installed.

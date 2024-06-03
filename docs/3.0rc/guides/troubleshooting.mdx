@@ -28,7 +28,7 @@ Different components may use different versions of Prefect:
 
 ## Logs
 
-In many cases, there will be an informative stack trace in Prefect's [logs](/3.0rc/guides/logs/). **Read it carefully**, locate the source of the error, and try to identify the cause.
+In many cases, there will be an informative stack trace in Prefect's [logs](/3.0rc/develop/observe-workflows/logging/). **Read it carefully**, locate the source of the error, and try to identify the cause.
 
 There are two types of logs:
 
@@ -58,7 +58,7 @@ curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/a
 ```
 
 !!! note "Users vs Service Accounts"
-    [Service accounts](/3.0rc/cloud/users/service-accounts/) - sometimes referred to as bots - represent non-human actors that interact with Prefect such as workers and CI/CD systems. Each human that interacts with Prefect should be represented as a user. User API keys start with `pnu_` and service account API keys start with `pnb_`.
+    [Service accounts](/3.0rc/cloud/manage-users/service-accounts/) - sometimes referred to as bots - represent non-human actors that interact with Prefect such as workers and CI/CD systems. Each human that interacts with Prefect should be represented as a user. User API keys start with `pnu_` and service account API keys start with `pnb_`.
 
 Supposing the response succeeds, let's check our authorization. Actors can be members of [workspaces](/3.0rc/cloud/workspaces/). An actor attempting an action in a workspace they are not a member of will result in a 404 response. Use the following command to check your actor's workspace memberships:
 
@@ -69,11 +69,11 @@ curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/a
 !!! note "Formatting JSON"
     Python comes with a helpful [tool](https://docs.python.org/3/library/json.html#module-json.tool) for formatting JSON. Append the following to the end of the command above to make the output more readable: `| python -m json.tool`
 
-Make sure your actor is a member of the workspace you are working in. Within a workspace, an actor has a [role](/3.0rc/cloud/users/roles/) which grants them certain permissions. Insufficient permissions will result in an error. For example, starting a worker with the **Viewer** role, will result in errors.
+Make sure your actor is a member of the workspace you are working in. Within a workspace, an actor has a [role](/3.0rc/cloud/manage-users/manage-roles/) which grants them certain permissions. Insufficient permissions will result in an error. For example, starting a worker with the **Viewer** role, will result in errors.
 
 ## Execution
 
-Prefect flows can be executed locally by the user, or remotely by a worker. Local execution generally means that you - the user - run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow via a [deployment](/3.0rc/concepts/deployments/), optionally on different infrastructure.
+Prefect flows can be executed locally by the user, or remotely by a worker. Local execution generally means that you - the user - run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow via a [deployment](/3.0rc/deploy/serve-workflows/), optionally on different infrastructure.
 
 With remote execution, the creation of your flow run happens separately from its execution. Flow runs are assigned to a work pool and a work queue. For flow runs to execute, a worker must be subscribed to the work pool and work queue, otherwise the flow runs will go from `Scheduled` to `Late`. Ensure that your work pool and work queue have a subscribed worker.
 

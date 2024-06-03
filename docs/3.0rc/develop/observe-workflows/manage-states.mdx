@@ -5,7 +5,7 @@ description: Prefect states contain information about the status of a flow or ta
 
 ## Overview
 
-States are rich objects that contain information about the status of a particular [task](/3.0rc/concepts/tasks) run or [flow](/3.0rc/concepts/flows/) run. While you don't need to know the details of the states to use Prefect, you can give your workflows superpowers by taking advantage of it.
+States are rich objects that contain information about the status of a particular [task](/3.0rc/develop/write-tasks) run or [flow](/3.0rc/develop/write-workflows/) run. While you don't need to know the details of the states to use Prefect, you can give your workflows superpowers by taking advantage of it.
 
 At any moment, you can learn anything you need to know about a task or flow by examining its current state or the history of its states. For example, a state could tell you that a task:
 
@@ -167,7 +167,7 @@ The final state of a flow is determined by its return value.  The following rule
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as successfully completed.
 
-See the [Final state determination](/3.0rc/concepts/flows/#final-state-determination) section of the [Flows](/3.0rc/concepts/flows/) documentation for further details and examples.
+See the [Final state determination](/3.0rc/develop/write-workflows/#final-state-determination) section of the [Flows](/3.0rc/develop/write-workflows/) documentation for further details and examples.
 
 ## State Change Hooks
 
@@ -298,5 +298,5 @@ assert data == {"x": "foo", "y": 42, "state": task_run_state}
 
 ### More examples of state change hooks
 
-- [Send a notification when a flow run fails](/3.0rc/guides/state-change-hooks/#send-a-notification-when-a-flow-run-fails)
-- [Delete a Cloud Run job when a flow crashes](/3.0rc/guides/state-change-hooks/#delete-a-cloud-run-job-when-a-flow-crashes)
+- [Send a notification when a flow run fails](/3.0rc/react/state-change-hooks/#send-a-notification-when-a-flow-run-fails)
+- [Delete a Cloud Run job when a flow crashes](/3.0rc/react/state-change-hooks/#delete-a-cloud-run-job-when-a-flow-crashes)

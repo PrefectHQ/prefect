@@ -4,7 +4,7 @@ description: Prefect walkthrough on how to use automations and common best pract
 ---
 
 
-The [Automations concept page](/3.0rc/concepts/automations/) shows you how to configure one within the UI. 
+The [Automations concept page](/3.0rc/react/understand-events/automations-triggers/) shows you how to configure one within the UI. 
 
 This guide describes the following use cases:
 
@@ -18,9 +18,9 @@ This guide describes the following use cases:
 ## Prerequisites
 
 - Python installed
-- Prefect [installed](/3.0rc/getting-started/installation/)
-- Authenticated to a [Prefect Cloud workspace](/3.0rc/getting-started/quickstart/#step-2-connect-to-prefects-api/)
-- A [work pool](/3.0rc/concepts/work-pools/) set up to handle the deployments
+- Prefect [installed](/3.0rc/get-started/install/)
+- Authenticated to a [Prefect Cloud workspace](/3.0rc/get-started/quickstart/#step-2-connect-to-prefects-api/)
+- A [work pool](/3.0rc/deploy/dynamic-infra/control-runs/) set up to handle the deployments
 
 ## Create the example script
 
@@ -409,14 +409,14 @@ deployments:
 
 You've seen how to create automations with the UI, REST API, and a trigger defined in a `prefect.yaml` deployment definition.
 
-To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0rc/concepts/events/). Prefect Cloud can receive external events webhooks. See the [webhooks guide](/3.0rc/guides/webhooks/) to learn how to create them.
+To learn more about Prefect events, which can trigger automations, see the [events docs](/3.0rc/concepts/events/). Prefect Cloud can receive external events webhooks. See the [webhooks guide](/3.0rc/react/understand-events/webhook-triggers/) to learn how to create them.
 
 
 # Concepts automations
 
 Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions.
 
-Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can even define your own custom trigger to fire based on an [event](/3.0rc/cloud/events/) created from a webhook or a custom event defined in Python code.
+Potential triggers include the occurrence of events from changes in a flow run's state - or the absence of such events. You can even define your own custom trigger to fire based on an [event](/3.0rc/react/understand-events/) created from a webhook or a custom event defined in Python code.
 
 Potential actions include kicking off flow runs, pausing schedules, and sending custom notifications.
 

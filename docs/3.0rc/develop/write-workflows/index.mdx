@@ -13,17 +13,17 @@ description: Learn the basics of defining and running flows.
 
 ## About flows
 
-[Flows](/3.0rc/concepts/flows/) are like functions.
+[Flows](/3.0rc/develop/write-workflows/) are like functions.
 They can take inputs, perform work, and return an output.
 You can turn any function into a Prefect flow by adding the `@flow` decorator.
 When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-- All runs of the flow have persistent [state](/3.0rc/concepts/states/). Transitions between states are recorded, allowing for flow execution to be observed and acted upon.
+- All runs of the flow have persistent [state](/3.0rc/develop/observe-workflows/manage-states/). Transitions between states are recorded, allowing for flow execution to be observed and acted upon.
 - Input arguments can be type validated as workflow parameters.
 - Retries can be performed on failure.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
-- A flow can be elevated to a [deployment](/3.0rc/concepts/deployments/), which exposes a remote API for interacting with it.
+- A flow can be elevated to a [deployment](/3.0rc/deploy/serve-workflows/), which exposes a remote API for interacting with it.
 
 ## Run your first flow
 
@@ -68,7 +68,7 @@ Forks 🍴 : 1245
 ## Parameters
 
 As with any Python function, you can pass arguments to a flow.
-The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/concepts/flows/#parameters).
+The positional and keyword arguments defined on your flow function are called [parameters](/3.0rc/develop/write-workflows/#parameters).
 Prefect automatically performs type conversion using any provided type hints.
 Let's make the repository a string parameter with a default value:
 
@@ -113,7 +113,7 @@ Now navigate to your Prefect dashboard and compare the displays for these two ru
 
 Prefect enables you to log a variety of useful information about your flow and task runs. You can capture information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 If you navigate to your dashboard and explore the runs created above, you will notice that the repository statistics are not captured in the flow run logs.  
-Let's fix that by adding some [logging](/3.0rc/guides/logs) to your flow:
+Let's fix that by adding some [logging](/3.0rc/develop/observe-workflows/logging) to your flow:
 
 ```python hl_lines="2 11-14" title="repo_info.py"
 import httpx
@@ -159,7 +159,7 @@ Now the output looks more consistent _and_, more importantly, your statistics ar
     **Logging vs. Artifacts**
 
     The example above is for educational purposes.
-    In general, it is better to use [Prefect artifacts](/3.0rc/concepts/artifacts/) for storing metrics and output.
+    In general, it is better to use [Prefect artifacts](/3.0rc/develop/observe-workflows/create-artifacts/) for storing metrics and output.
     Logs are best for tracking progress and debugging errors.
 </Warning>
 
@@ -168,7 +168,7 @@ Now the output looks more consistent _and_, more importantly, your statistics ar
 
 So far the script works, but in the future unexpected errors may occur.
 For example the GitHub API may be temporarily unavailable or rate limited.
-[Retries](/3.0rc/concepts/flows/#flow-settings) help make flows more resilient.
+[Retries](/3.0rc/develop/write-workflows/#flow-settings) help make flows more resilient.
 Let's add retry functionality to the example above:
 
 ```python hl_lines="5" title="repo_info.py"
@@ -215,10 +215,10 @@ When a function becomes a flow, its behavior changes, giving it the following ad
 
 Flows also take advantage of automatic Prefect logging to capture details about [flow runs](#flow-runs) such as run time and final state.
 
-Flows can include calls to [tasks](/3.0rc/concepts/tasks/) as well as to other flows, which Prefect calls ["subflows"](#composing-flows) in this context.
+Flows can include calls to [tasks](/3.0rc/develop/write-tasks/) as well as to other flows, which Prefect calls ["subflows"](#composing-flows) in this context.
 Flows may be defined within modules and imported for use as subflows in your flow definitions.
 
-[Deployments](/3.0rc/concepts/deployments/) elevate individual workflows from functions that you call manually to API-managed entities.
+[Deployments](/3.0rc/deploy/serve-workflows/) elevate individual workflows from functions that you call manually to API-managed entities.
 
 ## Flow runs
 
@@ -230,7 +230,7 @@ For example, by running a Python script or importing the flow into an interactiv
 You can also create a flow run by:
 
 - Using external schedulers such as `cron` to invoke a flow function
-- Creating a [deployment](/3.0rc/concepts/deployments/) on Prefect Cloud or a locally run Prefect server.
+- Creating a [deployment](/3.0rc/deploy/serve-workflows/) on Prefect Cloud or a locally run Prefect server.
 - Creating a flow run for the deployment via a schedule, the Prefect UI, or the Prefect API.
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
@@ -301,7 +301,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `retries`                                          | An optional number of times to retry on flow run failure.                                                                                                                                                            |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero.                                                                                       |
 | `flow_run_name`                                    | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables; this name can also be provided as a function that returns a string.       |
-| `task_runner`                                      | An optional [task runner](/3.0rc/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used.         |
+| `task_runner`                                      | An optional [task runner](/3.0rc/develop/write-tasks/use-task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used.         |
 | `timeout_seconds`                                  | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called.                   |
 | `validate_parameters`                              | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.                                                                                                                  |
 | `version`                                          | An optional version string for the flow. If not provided, we will attempt to create a version string as a hash of the file containing the wrapped function. If the file cannot be located, the version will be null. |
@@ -520,7 +520,7 @@ The primary flow is the "parent" flow. The flow created within the parent is the
 
 Subflow runs behave like normal flow runs.
 There is a full representation of the flow run in the backend as if it had been called separately.
-When a subflow starts, it will create a new [task runner](/3.0rc/concepts/task-runners/) for tasks within the subflow.
+When a subflow starts, it will create a new [task runner](/3.0rc/develop/write-tasks/use-task-runners/) for tasks within the subflow.
 When the subflow completes, the task runner is shut down.
 
 Subflows will block execution of the parent flow until completion.
@@ -536,7 +536,7 @@ A task that represents a subflow will be annotated as such in its `state_details
 A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
 You can define multiple flows within the same file.
-Whether running locally or via a [deployment](/3.0rc/concepts/deployments/), you must indicate which flow is the entrypoint for a flow run.
+Whether running locally or via a [deployment](/3.0rc/deploy/serve-workflows/), you must indicate which flow is the entrypoint for a flow run.
 
 !!! warning "Cancelling subflow runs"
     Inline subflow runs, specifically those created without `run_deployment`, cannot be cancelled without cancelling their parent flow run.
@@ -654,7 +654,7 @@ def model_validator(model: Model):
     print(model)
 ```
 
-Note that parameter values can be provided to a flow via API using a [deployment](/3.0rc/concepts/deployments/).
+Note that parameter values can be provided to a flow via API using a [deployment](/3.0rc/deploy/serve-workflows/).
 Flow run parameters sent to the API on flow calls are coerced to a serializable form.
 Type hints on your flow functions provide you a way of automatically coercing JSON provided values to their appropriate Python representation.
 
@@ -691,7 +691,7 @@ If a flow run for a deployment receives invalid parameters, it will move from a 
 ## Final state determination
 
 !!! note "Prerequisite"
-    Read the documentation about [states](/3.0rc/concepts/states) before proceeding with this section.
+    Read the documentation about [states](/3.0rc/develop/observe-workflows/manage-states) before proceeding with this section.
 
 The final state of the flow is determined by its return value. The following rules apply:
 
@@ -969,7 +969,7 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 
 ## Serving a flow
 
-The simplest way to create a [deployment](/3.0rc/concepts/deployments/) for your flow is by calling its [`serve` method](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.serve).
+The simplest way to create a [deployment](/3.0rc/deploy/serve-workflows/) for your flow is by calling its [`serve` method](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.serve).
 This method creates a deployment for the flow and starts a long-running process that monitors for work from the Prefect server.
 When work is found, it is executed within its own isolated subprocess.
 
@@ -1204,7 +1204,7 @@ Similar to pausing a flow run, Prefect enables suspending an in-progress flow ru
     When you suspend a flow run, the flow exits completely and the infrastructure running it (e.g., a Kubernetes Job) tears down.
 
     This means that you can suspend flow runs to save costs instead of paying for long-running infrastructure. 
-    However, when the flow run resumes, the flow code will execute again from the beginning of the flow, so you should use [tasks](/3.0rc/concepts/tasks/) and [task caching](/3.0rc/concepts/tasks/#caching) to avoid recomputing expensive operations.
+    However, when the flow run resumes, the flow code will execute again from the beginning of the flow, so you should use [tasks](/3.0rc/develop/write-tasks/) and [task caching](/3.0rc/develop/write-tasks/#caching) to avoid recomputing expensive operations.
 
 Prefect exposes this functionality via the [`suspend_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
@@ -1294,7 +1294,7 @@ Execution will block and wait for resumption.
 When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model.
 Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data.
 
-For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating interactive workflows](/3.0rc/guides/creating-interactive-workflows/) guide.
+For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating interactive workflows](/3.0rc/develop/control-workflows/) guide.
 
 ## Canceling a flow run
 

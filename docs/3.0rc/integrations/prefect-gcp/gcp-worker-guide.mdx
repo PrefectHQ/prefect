@@ -22,7 +22,7 @@ After completing this guide, you will have:
 4. Deployed a Flow
 5. Executed the Flow as a Google Cloud Run Job
 
-If you're looking for a general introduction to workers, work pools, and deployments, check out the [workers and work pools tutorial](https://docs.prefect.io/latest/tutorial/workers/).
+If you're looking for a general introduction to workers, work pools, and deployments, check out the [workers and work pools tutorial](https://docs.prefect.io/latest/deploy/dynamic-infra/push-runs-remote/).
 
 ### Prerequisites
 Before starting this guide, make sure you have:
@@ -31,7 +31,7 @@ Before starting this guide, make sure you have:
 - A project on your GCP account where you have the necessary permissions to create Cloud Run Services and Service Accounts.
 - The `gcloud` CLI installed on your local machine. You can follow Google Cloud's [installation guide](https://cloud.google.com/sdk/docs/install). If you're using Apple (or a Linux system) you can also use [Homebrew](https://formulae.brew.sh/cask/google-cloud-sdk) for installation.
 - [Docker](https://www.docker.com/get-started/) installed on your local machine.
-- A Prefect server instance. You can sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect server](https://docs.prefect.io/latest/guides/host/).
+- A Prefect server instance. You can sign up for a forever free [Prefect Cloud Account](https://app.prefect.cloud/) or, alternatively, self-host a [Prefect server](https://docs.prefect.io/latest/cloud/self-host/).
 
 ### Step 1. Create a Google Cloud service account
 First, open a terminal or command prompt on your local machine where `gcloud` is installed. If you haven't already authenticated with `gcloud`, run the following command and follow the instructions to log in to your GCP account.
@@ -208,7 +208,7 @@ image_name: us-docker.pkg.dev/prefect-project/my-artifact-registry/gcp-weather-i
 tag: latest
 ```
 
-At this point, there will be a new `prefect.yaml` file available at the root of your project. The contents will look similar to the example below, however, I've added in a combination of [yaml templating options](https://docs.prefect.io/latest/concepts/deployments/#templating-options) and [prefect deployment actions](https://docs.prefect.io/latest/concepts/deployments/#deployment-actions) to build out a simple CI/CD process. Feel free to copy the contents and paste them in your prefect.yaml:
+At this point, there will be a new `prefect.yaml` file available at the root of your project. The contents will look similar to the example below, however, I've added in a combination of [yaml templating options](https://docs.prefect.io/latest/deploy/serve-workflows/#templating-options) and [prefect deployment actions](https://docs.prefect.io/latest/deploy/serve-workflows/#deployment-actions) to build out a simple CI/CD process. Feel free to copy the contents and paste them in your prefect.yaml:
 
 ```yaml
 # Welcome to your prefect.yaml file! You can you this file for storing and managing
@@ -315,7 +315,7 @@ Congratulations on completing this guide! Looking back on our journey, you have:
 
 For next steps, you could:
 
-- Take a look at some of the other [work pools](https://docs.prefect.io/latest/concepts/work-pools/) Prefect has to offer
+- Take a look at some of the other [work pools](https://docs.prefect.io/latest/deploy/dynamic-infra/control-runs/) Prefect has to offer
 - Do a deep drive on Prefect [concepts](https://docs.prefect.io/latest/concepts/)
 - Try out [another guide](https://docs.prefect.io/latest/guides/) to explore new deployment patterns and recipes
 

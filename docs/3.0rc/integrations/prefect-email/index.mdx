@@ -8,7 +8,7 @@ The `prefect-email` library helps you send emails from your Prefect flows.
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/getting-started/installation/) in a virtual environment.
+- [Prefect installed](/3.0rc/get-started/install/) in a virtual environment.
 - Many email services, such as Gmail, require an [App Password](https://support.google.com/accounts/answer/185833) to successfully send emails.
     If you encounter an error similar to `smtplib.SMTPAuthenticationError: (535, b'5.7.8 Username and Password not accepted...`, it's likely you are not using an App Password.
 
@@ -49,7 +49,7 @@ In the examples below you load a credentials block to authenticate with the emai
 
 ## Send emails
 
-The code below shows how to send an email using the pre-built `email_send_message` [task](https://docs.prefect.io/latest/concepts/tasks/).
+The code below shows how to send an email using the pre-built `email_send_message` [task](https://docs.prefect.io/latest/develop/write-tasks/).
 
 ```python
 from prefect import flow

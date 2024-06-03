@@ -7,8 +7,8 @@ Learn how to use Prefect to move data to and from AWS, Azure, and GCP blob stora
 
 ## Prerequisites
 
-- Prefect [installed](/3.0rc/getting-started/installation/)
-- Authenticated with [Prefect Cloud](/3.0rc/cloud/cloud-quickstart/) (or self-hosted [Prefect server](/3.0rc/guides/host/) instance)
+- Prefect [installed](/3.0rc/get-started/install/)
+- Authenticated with [Prefect Cloud](/3.0rc/cloud/cloud-quickstart/) (or self-hosted [Prefect server](/3.0rc/cloud/self-host/) instance)
 - A cloud provider account (for example, [AWS](https://aws.amazon.com/))
 
 ## Install relevant Prefect integration library
@@ -89,7 +89,7 @@ If the bucket is private, there are several options to authenticate:
 2. Create a block with configuration details and reference it when creating the storage block.
 
 If you saved credential details in a block, you can use a credentials block specific to the cloud provider or use a more generic secret block.
-You can create [blocks](/3.0rc/concepts/blocks/) through the UI or Python code.
+You can create [blocks](/3.0rc/develop/connect-third-party/) through the UI or Python code.
 Below you use Python code to create a credentials block for your cloud provider.
 
 !!! Warning "Credentials safety"

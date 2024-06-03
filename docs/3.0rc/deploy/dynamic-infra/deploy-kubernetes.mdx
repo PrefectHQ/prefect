@@ -13,7 +13,7 @@ Before we begin, there are a few pre-requisites:
 
 1. A Prefect Cloud account
 2. A cloud provider (AWS, GCP, or Azure) account
-3. [Install](/3.0rc/getting-started/installation/) Python and Prefect
+3. [Install](/3.0rc/get-started/install/) Python and Prefect
 4. Install [Helm](https://helm.sh/docs/intro/install/)
 5. Install the [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
@@ -169,7 +169,7 @@ If you already have a registry, skip ahead to the next section.
 
 ## Create a Kubernetes work pool
 
-[Work pools](/3.0rc/concepts/work-pools/) allow you to manage deployment infrastructure.
+[Work pools](/3.0rc/deploy/dynamic-infra/control-runs/) allow you to manage deployment infrastructure.
 We'll configure the default values for our Kubernetes base job template.
 Note that these values can be overridden by individual deployments.
 
@@ -362,9 +362,9 @@ Prefect has two recommended options for creating a deployment with dynamic infra
 You can define a deployment in a Python script using the `flow.deploy` mechanics or in a `prefect.yaml` definition file.
 The `prefect.yaml` file currently allows for more customization in terms of push and pull steps.
 Kubernetes objects are defined in YAML, so we expect many teams using Kubernetes work pools to create their deployments with YAML as well.
-To learn about the Python deployment creation method with `flow.deploy` refer to the [Workers & Work Pools tutorial page](/3.0rc/tutorial/workers/).
+To learn about the Python deployment creation method with `flow.deploy` refer to the [Workers & Work Pools tutorial page](/3.0rc/deploy/dynamic-infra/push-runs-remote/).
 
-The [`prefect.yaml`](/3.0rc/concepts/deployments/#managing-deployments) file is used by the `prefect deploy` command to deploy our flows.
+The [`prefect.yaml`](/3.0rc/deploy/serve-workflows/#managing-deployments) file is used by the `prefect deploy` command to deploy our flows.
 As a part of that process it will also build and push our image.
 Create a new file named `prefect.yaml` with the following contents:
 

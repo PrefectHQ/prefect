@@ -43,7 +43,7 @@ graph TD
 <Tip>
 Notice above that the worker is in charge of provisioning the _flow run infrastructure_.
 In the context of this tutorial, that flow run infrastructure is an ephemeral Docker container to host each flow run.
-Different [worker types](/3.0rc/concepts/work-pools/#worker-types) create different types of flow run infrastructure.
+Different [worker types](/3.0rc/deploy/dynamic-infra/control-runs/#worker-types) create different types of flow run infrastructure.
 </Tip>
 
 Next, create a work pool and worker to deploy your tutorial flow. You will execute it later with the Prefect API.
@@ -57,7 +57,7 @@ Using the **Docker** work pool type means that all work sent to this work pool r
 <Tip>
     **Other work pool types**
 
-    There are [work pool types](/3.0rc/concepts/work-pools/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
+    There are [work pool types](/3.0rc/deploy/dynamic-infra/control-runs/#worker-types) for serverless computing environments such as AWS ECS, Azure Container Instances, Google Cloud Run, and Vertex AI.
     Kubernetes is also a popular work pool type.
 </Tip>
 
@@ -111,7 +111,7 @@ You should now see a `Ready` status indicator on your work pool.
 
 Keep this terminal session active for the worker to continue to pick up jobs.
 Since you are running this worker locally, the worker will terminate if you close the terminal.
-In a production setting this worker should run as a [daemonized or managed process](/3.0rc/guides/deployment/daemonize/).
+In a production setting this worker should run as a [daemonized or managed process](/3.0rc/deploy/dynamic-infra/push-runs-remote/).
 
 Next, deploy your tutorial flow to `my-docker-pool`.
 
@@ -119,7 +119,7 @@ Next, deploy your tutorial flow to `my-docker-pool`.
 
 From the previous steps, you now have:
 
-1. [A flow](/3.0rc/tutorial/flows/)
+1. [A flow](/3.0rc/develop/write-workflows/)
 2. A work pool
 3. A worker
 
@@ -218,7 +218,7 @@ Prefect builds a custom Docker image containing your workflow code that the work
 
 To update your deployment, modify your script and rerun it. You'll need to make one update to specify a value for `job_variables` to ensure your Docker worker can successfully execute scheduled runs for this flow. See the example below.
 
-The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override default values in the specified work pool's [base job template](/3.0rc/concepts/work-pools/#base-job-template).
+The `job_variables` section allows you to fine-tune the infrastructure settings for a specific deployment. These values override default values in the specified work pool's [base job template](/3.0rc/deploy/dynamic-infra/control-runs/#base-job-template).
 
 When testing images locally without pushing them to a registry (to avoid potential errors like docker.errors.NotFound), we recommend including an `image_pull_policy` job_variable set to `Never`. However, for production workflows, push images to a remote registry for more reliability and accessibility.
 
@@ -284,10 +284,10 @@ prefect deployment run 'get_repo_info/my-deployment'
 - Learn how to configure deployments in YAML with [`prefect.yaml`](/3.0rc/guides/prefect-deploy/).
 - [Concepts](/3.0rc/concepts/) contain deep dives into Prefect components
 - [Guides](/3.0rc/guides/) provide step-by-step recipes for common Prefect operations including:
-  - [Deploying flows on Kubernetes](/3.0rc/guides/deployment/kubernetes/)
-  - [Deploying flows in Docker](/3.0rc/guides/docker/)
-  - [Deploying flows on serverless infrastructure](/3.0rc/guides/deployment/serverless-workers/)
-  - [Daemonizing workers](/3.0rc/guides/deployment/daemonize/)
+  - [Deploying flows on Kubernetes](/3.0rc/deploy/dynamic-infra/deploy-kubernetes/)
+  - [Deploying flows in Docker](/3.0rc/deploy/dynamic-infra/deploy-docker/)
+  - [Deploying flows on serverless infrastructure](/3.0rc/deploy/dynamic-infra/push-runs-remote/)
+  - [Daemonizing workers](/3.0rc/deploy/dynamic-infra/push-runs-remote/)
 
 # Run Deployments on Serverless Infrastructure with Prefect Workers
 
@@ -310,7 +310,7 @@ The following options are available:
 !!! note "Push work pools don't require a worker"
     Options for push work pool versions of AWS ECS, Azure Container Instances, and Google Cloud Run that do not require a worker are available with Prefect Cloud.
     These push work pool options require connection configuration information to be stored on Prefect Cloud.
-    Read more in the [Serverless Push Work Pool Guide](/3.0rc/guides/deployment/push-work-pools/).
+    Read more in the [Serverless Push Work Pool Guide](/3.0rc/deploy/dynamic-infra/push-runs-serverless/).
 
 This is a brief overview of the options to run workflows on serverless infrastructure.
 For in-depth guides, see the Prefect integration libraries:
@@ -334,9 +334,9 @@ For in-depth guides, see the Prefect integration libraries:
 ## Next steps
 
 Options for push versions on AWS ECS, Azure Container Instances, and Google Cloud Run work pools that do not require a worker are available with Prefect Cloud.
-Read more in the [Serverless Push Work Pool Guide](/3.0rc/guides/deployment/push-work-pools/).
+Read more in the [Serverless Push Work Pool Guide](/3.0rc/deploy/dynamic-infra/push-runs-serverless/).
 
-Learn more about workers and work pools in the [Prefect concept documentation](/3.0rc/concepts/work-pools/).
+Learn more about workers and work pools in the [Prefect concept documentation](/3.0rc/deploy/dynamic-infra/control-runs/).
 
 Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploying Flows to Work Pools and Workers guide](/3.0rc/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
 
@@ -346,7 +346,7 @@ When running workflow applications, it can be helpful to create long-running pro
 In this guide you'll learn how to set up a systemd service to create long-running Prefect processes that poll for scheduled flow runs.
 
 A systemd service is ideal for running a long-lived process on a Linux VM or physical Linux server.
-We will leverage systemd and see how to automatically start a [Prefect worker](/3.0rc/concepts/work-pools/#worker-overview) or long-lived [`serve` process](/3.0rc/concepts/flows/#serving-a-flow) when Linux starts.
+We will leverage systemd and see how to automatically start a [Prefect worker](/3.0rc/deploy/dynamic-infra/control-runs/#worker-overview) or long-lived [`serve` process](/3.0rc/develop/write-workflows/#serving-a-flow) when Linux starts.
 This approach provides resilience by automatically restarting the process if it crashes.
 
 In this guide we will:
@@ -360,7 +360,7 @@ In this guide we will:
 * An environment with a linux operating system with [systemd](https://systemd.io/) and Python 3.9 or later.
 * A superuser account (you can run `sudo` commands).
 * A Prefect Cloud account, or a local instance of a Prefect server running on your network.
-* If daemonizing a worker, you'll need a Prefect [deployment](/3.0rc/concepts/deployments/) with a [work pool](/3.0rc/concepts/work-pools/) your worker can connect to.
+* If daemonizing a worker, you'll need a Prefect [deployment](/3.0rc/deploy/serve-workflows/) with a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/) your worker can connect to.
 
 If using an [AWS t2-micro EC2 instance](https://aws.amazon.com/ec2/instance-types/t2/) with an AWS Linux image, you can install Python and pip with `sudo yum install -y python3 python3-pip`.
 
@@ -398,7 +398,7 @@ For example, if using [venv](https://docs.python.org/3/library/venv.html), chang
 
 Next, set up your environment so that the Prefect client will know which server to connect to.
 
-If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-getting-started/#create-an-api-key) to obtain an API key and then run the following:
+If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-get-started/#create-an-api-key) to obtain an API key and then run the following:
 
 ```bash
 prefect cloud login -k YOUR_API_KEY

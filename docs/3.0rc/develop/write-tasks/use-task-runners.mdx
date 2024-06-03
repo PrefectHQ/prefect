@@ -236,13 +236,13 @@ if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
 ```
 
-Now run `ray_flow.py` `RayTaskRunner`, which automatically creates a local Ray instance, then immediately starts executing all of the tasks in parallel. If you have an existing Ray instance, you can provide the address as an argument to run tasks in the instance. See [Running tasks on Ray](/3.0rc/concepts/task-runners/#running_tasks_on_ray) for details.
+Now run `ray_flow.py` `RayTaskRunner`, which automatically creates a local Ray instance, then immediately starts executing all of the tasks in parallel. If you have an existing Ray instance, you can provide the address as an argument to run tasks in the instance. See [Running tasks on Ray](/3.0rc/develop/write-tasks/use-task-runners/#running_tasks_on_ray) for details.
 
 ## Use multiple task runners
 
 Many workflows include a variety of tasks, and not all of them benefit from parallel execution. You'll most likely want to use the Dask or Ray task runners and spin up their respective resources only for those tasks that need them.
 
-Because task runners are specified on flows, you can assign different task runners to tasks by using [subflows](/3.0rc/concepts/flows/#composing-flows) to organize those tasks.
+Because task runners are specified on flows, you can assign different task runners to tasks by using [subflows](/3.0rc/develop/write-workflows/#composing-flows) to organize those tasks.
 
 This example uses the same tasks as the previous examples, but on the parent flow, `greetings()`, you use the default `ConcurrentTaskRunner`. Then you call a `ray_greetings()` subflow that uses the `RayTaskRunner` to execute the same tasks in a Ray instance.
 
@@ -374,7 +374,7 @@ glass_tower()
 
 ## Using multiple task runners
 
-Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [subflows](/3.0rc/concepts/flows/#composing-flows) for tasks that need to use a different task runner.
+Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [subflows](/3.0rc/develop/write-workflows/#composing-flows) for tasks that need to use a different task runner.
 
 For example, you can have a flow (in the example below called `sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a subflow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
 

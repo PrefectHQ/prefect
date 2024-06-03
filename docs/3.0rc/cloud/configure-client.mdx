@@ -35,7 +35,7 @@ PREFECT_API_KEY="[API-KEY]"
 ```
 
 To set the `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
-Read more about [managing API keys](/3.0rc/cloud/users/api-keys/). 
+Read more about [managing API keys](/3.0rc/cloud/manage-users/api-keys/). 
 
 ### PREFECT_API_URL
 
@@ -58,7 +58,7 @@ PREFECT_API_URL="http://127.0.0.1:4200/api"
 
 !!! tip "`PREFECT_API_URL` setting for workers"
 
-    If using a [worker](/3.0rc/concepts/work-pools/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/3.0rc/concepts/settings/) must be set for the environment in which your worker is running.
+    If using a [worker](/3.0rc/deploy/dynamic-infra/control-runs/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/3.0rc/concepts/settings/) must be set for the environment in which your worker is running.
 
     For the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
@@ -115,11 +115,11 @@ PREFECT_CLIENT_CSRF_SUPPORT_ENABLED=True
 
 ### Database settings
 
-If running a self-hosted Prefect server instance, there are several [database configuration settings](/3.0rc/guides/host/) to consider.
+If running a self-hosted Prefect server instance, there are several [database configuration settings](/3.0rc/cloud/self-host/) to consider.
 
 ### Logging settings
 
-Prefect provides several [logging configuration settings](/3.0rc/guides/logs/).
+Prefect provides several [logging configuration settings](/3.0rc/develop/observe-workflows/logging/).
 
 ## Configure settings
 
