@@ -11,7 +11,7 @@ except ImportError:
     # pendulum < 3
     from pendulum.period import Period as Interval  # type: ignore
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.utilities.timeout import timeout_async
 

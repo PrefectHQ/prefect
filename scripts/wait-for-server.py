@@ -18,7 +18,7 @@ import sys
 
 import anyio
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 
 DEFAULT_TIMEOUT_SECONDS = 120
 
