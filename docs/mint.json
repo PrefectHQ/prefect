@@ -109,7 +109,25 @@
       "group": "Cloud and Server",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/cloud-server/write-workflows/index"
+        "3.0rc/cloud/connect-to-cloud/index",
+        {
+          "group": "Manage users",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/cloud/manage-users/index",
+            "3.0rc/cloud/manage-users/manage-roles",
+            "3.0rc/cloud/manage-users/api-keys",
+            "3.0rc/cloud/manage-users/service-accounts",
+            "3.0rc/cloud/manage-users/configure-sso",
+            "3.0rc/cloud/manage-users/audit-logs",
+            "3.0rc/cloud/manage-users/object-access-control-lists/",
+            "3.0rc/cloud/manage-users/manage-teams"
+          ]
+        },
+        "3.0rc/cloud/rate-limits",
+        "3.0rc/cloud/self-host",
+        "3.0rc/cloud/configure-client",
+        "3.0rc/cloud/interact-with-api"
       ]
     },
     {
@@ -131,9 +149,6 @@
           "group": "Development",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/guides/host",
-            "3.0rc/guides/settings",
-            "3.0rc/guides/using-the-client",
             "3.0rc/guides/terraform-provider",
             "3.0rc/guides/ci-cd",
             "3.0rc/guides/secrets",
@@ -146,7 +161,6 @@
           "pages": [
             "3.0rc/guides/docker",
             "3.0rc/guides/big-data",
-            "3.0rc/guides/troubleshooting",
             "3.0rc/guides/managed-execution",
             "3.0rc/guides/cli-shell"
           ]
@@ -175,38 +189,7 @@
         "3.0rc/concepts/index",
         "3.0rc/concepts/deployments",
         "3.0rc/concepts/work-pools",
-        "3.0rc/concepts/schedules",
-        {
-          "group": "Block and Agent-Based Deployments",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/concepts/agents"
-          ]
-        }
-      ]
-    },
-    {
-      "group": "Cloud",
-      "version": "3.0rc",
-      "pages": [
-        "3.0rc/cloud/index",
-        "3.0rc/cloud/workspaces",
-        {
-          "group": "Users",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/cloud/users/index",
-            "3.0rc/cloud/users/roles",
-            "3.0rc/cloud/users/api-keys",
-            "3.0rc/cloud/users/service-accounts",
-            "3.0rc/cloud/users/sso",
-            "3.0rc/cloud/users/audit-log",
-            "3.0rc/cloud/users/object-access-control-lists",
-            "3.0rc/cloud/users/teams"
-          ]
-        },
-        "3.0rc/cloud/rate-limits",
-        "3.0rc/cloud/connecting"
+        "3.0rc/concepts/schedules"
       ]
     },
     {

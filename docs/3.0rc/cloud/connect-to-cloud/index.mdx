@@ -1,0 +1,323 @@
+---
+title: Connecting & Troubleshooting Prefect Cloud
+description: Configure a local execution environment to access Prefect Cloud.
+---
+
+To create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you need to  
+
+- Configure the execution environment with the location of the API.
+- Authenticate with the API, either by logging in or providing a valid API key (Prefect Cloud only).
+
+## Log into Prefect Cloud from a terminal
+
+Configure a local execution environment to use Prefect Cloud as the API server for flow runs. In other words, "log in" to Prefect Cloud from a local environment where you want to run a flow.
+
+1. Open a new terminal session.
+2. [Install Prefect](/3.0rc/getting-started/installation/) in the environment in which you want to execute flow runs.
+
+<div class="terminal">
+```bash
+$ pip install -U prefect
+```
+</div>
+
+3. Use the `prefect cloud login` Prefect CLI command to log into Prefect Cloud from your environment.
+
+<div class="terminal">
+```bash
+$ prefect cloud login
+```
+</div>
+
+The `prefect cloud login` command, used on its own, provides an interactive login experience. Using this command, you can log in with either an API key or through a browser.
+
+<div class="terminal">
+```bash
+$ prefect cloud login
+? How would you like to authenticate? [Use arrows to move; enter to select]
+> Log in with a web browser
+    Paste an API key
+Paste your authentication key:
+? Which workspace would you like to use? [Use arrows to move; enter to select]
+> prefect/terry-prefect-workspace
+    g-gadflow/g-workspace
+Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspace'.
+```
+</div>
+
+You can also log in by providing a [Prefect Cloud API key](../users/api-keys/) that you create.
+
+### Change workspaces
+
+If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the account handle and workspace name.
+
+<div class="terminal">
+```bash
+$ prefect cloud workspace set --workspace "prefect/my-workspace"
+```
+</div>
+
+If no workspace is provided, you will be prompted to select one.
+
+**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment with a given workspace.
+
+You may also use the `prefect cloud login` command with the `--workspace` or `-w` option to set the current workspace.
+
+<div class="terminal">
+```bash
+$ prefect cloud login --workspace "prefect/my-workspace"
+```
+</div>
+
+## Manually configure Prefect API settings
+
+You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud API.
+
+For Prefect Cloud, you can configure the `PREFECT_API_URL` and `PREFECT_API_KEY` settings to authenticate with Prefect Cloud by using an account ID, workspace ID, and API key.
+
+<div class="terminal">
+```bash
+$ prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+$ prefect config set PREFECT_API_KEY="[API-KEY]"
+```
+</div>
+
+When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` value directly from the page URL.
+
+In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect server start`. See [Settings](/3.0rc/concepts/settings/) for details.
+
+!!! note "Environment variables"
+    You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/3.0rc/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
+
+See the [Flow orchestration with Prefect](/3.0rc/tutorial/flows/) tutorial for examples.
+
+## Install requirements in execution environments
+
+In local and remote execution environments &mdash; such as VMs and containers &mdash; you must make sure any flow requirements or dependencies have been installed before creating a flow run.
+
+# Troubleshooting Prefect Cloud
+
+This section provides tips that may be helpful if you run into problems using Prefect Cloud.
+
+## Prefect Cloud and proxies
+
+Proxies intermediate network requests between a server and a client.
+
+To communicate with Prefect Cloud, the Prefect client library makes HTTPS requests. These requests are made using the [`httpx`](https://www.python-httpx.org/) Python library. `httpx` respects accepted proxy environment variables, so the Prefect client is able to communicate through proxies.
+
+To enable communication via proxies, simply set the `HTTPS_PROXY` and `SSL_CERT_FILE` environment variables as appropriate in your execution environment and things should “just work.”
+
+See the [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696) topic in Prefect Discourse for examples of proxy configuration.
+
+URLs that should be whitelisted for outbound-communication in a secure environment include the UI, the API, Authentication, and the current OCSP server:  
+
+- app.prefect.cloud
+- api.prefect.cloud
+- auth.workos.com
+- api.github.com
+- github.com
+- ocsp.pki.goog/s/gts1d4/OxYEb8XcYmo
+
+## Prefect Cloud access via API
+
+If the Prefect Cloud API key, environment variable settings, or account login for your execution environment are not configured correctly, you may experience errors or unexpected flow run results when using Prefect CLI commands, running flows, or observing flow run results in Prefect Cloud.
+
+Use the `prefect config view` CLI command to make sure your execution environment is correctly configured to access Prefect Cloud.
+
+<div class="terminal">
+```bash
+$ prefect config view
+PREFECT_PROFILE='cloud'
+PREFECT_API_KEY='pnu_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' (from profile)
+PREFECT_API_URL='https://api.prefect.cloud/api/accounts/...' (from profile)
+```
+</div>
+
+Make sure `PREFECT_API_URL` is configured to use `https://api.prefect.cloud/api/...`.
+
+Make sure `PREFECT_API_KEY` is configured to use a valid API key.
+
+You can use the `prefect cloud workspace ls` CLI command to view or set the active workspace.
+
+<div class="terminal">
+```bash
+$ prefect cloud workspace ls
+┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃   Available Workspaces: ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│   g-gadflow/g-workspace │
+│    * prefect/workinonit │
+└─────────────────────────┘
+    * active workspace
+```
+</div>
+
+You can also check that the account and workspace IDs specified in the URL for `PREFECT_API_URL` match those shown in the URL bar for your Prefect Cloud workspace.
+
+## Prefect Cloud login errors
+
+If you're having difficulty logging in to Prefect Cloud, the following troubleshooting steps may resolve the issue, or will provide more information when sharing your case to the support channel.
+
+- Are you logging into Prefect Cloud 2? Prefect Cloud 1 and Prefect Cloud 2 use separate accounts. Make sure to use the right Prefect Cloud 2 URL: \<https://app.prefect.cloud/>
+- Do you already have a Prefect Cloud account? If you’re having difficulty accepting an invitation, try creating an account first using the email associated with the invitation, then accept the invitation.
+- Are you using a single sign-on (SSO) provider, social authentication (Google, Microsoft, or GitHub) or just using an emailed link?
+
+Other tips to help with login difficulties:
+
+- Hard refresh your browser with Cmd+Shift+R.
+- Try in a different browser. We actively test against the following browsers:
+  - Chrome
+  - Edge
+  - Firefox
+  - Safari
+- Clear recent browser history/cookies
+
+None of this worked?
+
+Email us at \<help@prefect.io> and provide answers to the questions above in your email to make it faster to troubleshoot and unblock you. Make sure you add the email address with which you were trying to log in, your Prefect Cloud account name, and, if applicable, the organization to which it belongs.
+
+# Troubleshooting
+
+Don't Panic! If you experience an error with Prefect, there are many paths to understanding and resolving it. The first troubleshooting step is confirming that you are running the latest version of Prefect. If you are not, be sure to [upgrade](#upgrade) to the latest version, since the issue may have already been fixed. Beyond that, there are several categories of errors:
+
+* The issue may be in your flow code, in which case you should carefully read the [logs](#logs).
+* The issue could be with how you are authenticated, and whether or not you are connected to [Cloud](#cloud).
+* The issue might have to do with how your code is [executed](#execution).
+
+## Upgrade
+
+Prefect is constantly evolving, adding new features and fixing bugs. Chances are that a patch has already been identified and released. Search existing [issues](https://github.com/PrefectHQ/prefect/issues) for similar reports and check out the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md). Upgrade to the newest version with the following command:
+
+```bash
+pip install --upgrade prefect
+```
+
+Different components may use different versions of Prefect:
+
+* **Cloud** will generally always be the newest version. Cloud is continuously deployed by the Prefect team. When using a self-hosted server, you can control this version.
+* **Workers** typically don't change versions frequently, and are usually whatever the latest version was at the time of creation. Workers provision infrastructure for flow runs, so upgrading them may help with infrastructure problems.
+* **Flows** could use a different version than the worker that created them, especially when running in different environments. Suppose your worker and flow both use the latest official Docker image, but your worker was created a month ago. Your worker will often be on an older version than your flow.
+
+!!! note "Integration Versions"
+    Keep in mind that [integrations](/3.0rc/integrations/) are versioned and released independently of the core Prefect library. They should be upgraded simultaneously with the core library, using the same method.
+
+## Logs
+
+In many cases, there will be an informative stack trace in Prefect's [logs](/3.0rc/guides/logs/). **Read it carefully**, locate the source of the error, and try to identify the cause.
+
+There are two types of logs:
+
+* **Flow and task logs** are always scoped to a flow. They are sent to Prefect and are viewable in the UI.
+* **Worker logs** are not scoped to a flow and may have more information on what happened before the flow started. These logs are generally only available where the worker is running.
+
+If your flow and task logs are empty, there may have been an infrastructure issue that prevented your flow from starting. Check your worker logs for more details.
+
+If there is no clear indication of what went wrong, try updating the logging level from the default `INFO` level to the `DEBUG` level. [Settings](/3.0rc/api-ref/prefect/settings/) such as the logging level are propagated from the worker environment to the flow run environment and can be set via environment variables or the `prefect config set` CLI:
+
+```bash
+# Using the CLI
+prefect config set PREFECT_LOGGING_LEVEL=DEBUG
+
+# Using environment variables
+export PREFECT_LOGGING_LEVEL=DEBUG
+```
+
+The `DEBUG` logging level produces a high volume of logs so consider setting it back to `INFO` once any issues are resolved.
+
+## Cloud
+
+When using Prefect Cloud, there are the additional concerns of authentication and authorization. The Prefect API authenticates users and service accounts - collectively known as actors - with API keys. Missing, incorrect, or expired API keys will result in a 401 response with detail `Invalid authentication credentials`. Use the following command to check your authentication, replacing `$PREFECT_API_KEY` with your API key:
+
+```bash
+curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/api/me/"
+```
+
+!!! note "Users vs Service Accounts"
+    [Service accounts](/3.0rc/cloud/users/service-accounts/) - sometimes referred to as bots - represent non-human actors that interact with Prefect such as workers and CI/CD systems. Each human that interacts with Prefect should be represented as a user. User API keys start with `pnu_` and service account API keys start with `pnb_`.
+
+Supposing the response succeeds, let's check our authorization. Actors can be members of [workspaces](/3.0rc/cloud/workspaces/). An actor attempting an action in a workspace they are not a member of will result in a 404 response. Use the following command to check your actor's workspace memberships:
+
+```bash
+curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/api/me/workspaces"
+```
+
+!!! note "Formatting JSON"
+    Python comes with a helpful [tool](https://docs.python.org/3/library/json.html#module-json.tool) for formatting JSON. Append the following to the end of the command above to make the output more readable: `| python -m json.tool`
+
+Make sure your actor is a member of the workspace you are working in. Within a workspace, an actor has a [role](/3.0rc/cloud/users/roles/) which grants them certain permissions. Insufficient permissions will result in an error. For example, starting a worker with the **Viewer** role, will result in errors.
+
+## Execution
+
+Prefect flows can be executed locally by the user, or remotely by a worker. Local execution generally means that you - the user - run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow via a [deployment](/3.0rc/concepts/deployments/), optionally on different infrastructure.
+
+With remote execution, the creation of your flow run happens separately from its execution. Flow runs are assigned to a work pool and a work queue. For flow runs to execute, a worker must be subscribed to the work pool and work queue, otherwise the flow runs will go from `Scheduled` to `Late`. Ensure that your work pool and work queue have a subscribed worker.
+
+Local and remote execution can also differ in their treatment of relative imports. If switching from local to remote execution results in local import errors, try replicating the behavior by executing the flow locally with the `-m` flag (i.e. `python -m flow` instead of `python flow.py`). Read more about `-m` [here](https://stackoverflow.com/a/62923810).
+
+## API tests return an unexpected 307 Redirected
+
+**Summary:** Requests require a trailing `/` in the request URL.
+
+If you write a test that does not include a trailing `/` when making a request to a specific endpoint:
+
+```python
+async def test_example(client):
+    response = await client.post("/my_route")
+    assert response.status_code == 201
+```
+
+You'll see a failure like:
+
+<div class="terminal">
+```bash
+E       assert 307 == 201
+E        +  where 307 = <Response [307 Temporary Redirect]>.status_code
+```
+</div>
+
+To resolve this, include the trailing `/`:
+
+```python
+async def test_example(client):
+    response = await client.post("/my_route/")
+    assert response.status_code == 201
+```
+
+Note: requests to nested URLs may exhibit the *opposite* behavior and require no trailing slash:
+
+```python
+async def test_nested_example(client):
+    response = await client.post("/my_route/filter/")
+    assert response.status_code == 307
+
+    response = await client.post("/my_route/filter")
+    assert response.status_code == 200
+```
+
+**Reference:** "HTTPX disabled redirect following by default" in [`0.22.0`](https://github.com/encode/httpx/blob/master/CHANGELOG.md#0200-13th-october-2021).
+
+## `pytest.PytestUnraisableExceptionWarning` or `ResourceWarning`
+
+As you're working with one of the `FlowRunner` implementations, you may get an
+error like this one:
+
+<div class="terminal">
+```bash
+E               pytest.PytestUnraisableExceptionWarning: Exception ignored in: <ssl.SSLSocket fd=-1, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0>
+E
+E               Traceback (most recent call last):
+E                 File ".../pytest_asyncio/plugin.py", line 306, in setup
+E                   res = await func(**_add_kwargs(func, kwargs, event_loop, request))
+E               ResourceWarning: unclosed <ssl.SSLSocket fd=10, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 60605), raddr=('127.0.0.1', 6443)>
+
+.../_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning
+
+```
+</div>
+
+This error is saying that your test suite (or the `prefect` library code) opened a
+connection to something (like a Docker daemon or a Kubernetes cluster) and didn't close
+it.
+
+It may help to re-run the specific test with `PYTHONTRACEMALLOC=25 pytest ...` so that
+Python can display more of the stack trace where the connection was opened.
