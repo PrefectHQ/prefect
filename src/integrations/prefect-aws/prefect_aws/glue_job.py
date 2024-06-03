@@ -6,21 +6,15 @@ Integrations with the AWS Glue Job.
 import time
 from typing import Any, Optional
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel, Field
 
 from prefect.blocks.abstract import JobBlock, JobRun
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import BaseModel, Field
-else:
-    from pydantic import BaseModel, Field
-
 from prefect_aws import AwsCredentials
 
 _GlueJobClient = Any
 
 
-class GlueJobRun(JobRun, BaseModel):
+class GlueJobRun(BaseModel, JobRun):
     """Execute a Glue Job"""
 
     job_name: str = Field(

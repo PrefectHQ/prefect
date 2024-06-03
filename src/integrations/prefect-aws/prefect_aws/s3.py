@@ -1,4 +1,5 @@
 """Tasks for interacting with AWS S3"""
+
 import asyncio
 import io
 import os
@@ -9,19 +10,13 @@ from typing import Any, BinaryIO, Dict, List, Optional, Union
 import boto3
 from botocore.paginate import PageIterator
 from botocore.response import StreamingBody
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect import get_run_logger, task
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_aws import AwsCredentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
 
@@ -394,7 +389,6 @@ async def s3_list_objects(
 
 
 class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock):
-
     """
     Block used to store data using AWS S3 or S3-compatible object storage like MinIO.
 
