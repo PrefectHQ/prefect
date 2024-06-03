@@ -3,17 +3,11 @@
 from typing import Any, Dict, List, Optional, Union
 
 from botocore.exceptions import ClientError
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
 from prefect import get_run_logger, task
 from prefect.blocks.abstract import SecretBlock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_aws import AwsCredentials
 
 
