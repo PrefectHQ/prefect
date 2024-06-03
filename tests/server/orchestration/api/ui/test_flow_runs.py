@@ -7,6 +7,7 @@ from prefect.server import models
 from prefect.server.api.ui.flow_runs import SimpleFlowRun
 from prefect.server.schemas import actions, states
 from prefect.utilities.pydantic import parse_obj_as
+from prefect.server.database import orm_models
 
 
 @pytest.fixture
