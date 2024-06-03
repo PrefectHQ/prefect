@@ -11,6 +11,7 @@ on:
       - main
     paths:
       - "src/integrations/*/**.py"
+      - "src/integrations/*/pyproject.toml"
 
 jobs:
   prepare-matrix:
