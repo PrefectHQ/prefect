@@ -22,11 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = [
-  "prefect>=3.0.0rc1",
-  "docker>=6.1.1",
-  "requests<2.30.0",
-]
+dependencies = ["prefect>=3.0.0rc1", "docker>=6.1.1"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
