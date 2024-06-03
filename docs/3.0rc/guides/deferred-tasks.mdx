@@ -5,7 +5,7 @@ description: Examples of using Prefect tasks and the task server.
 
 ## Why use deferred tasks?
 
-Prefect tasks are a great way to quickly execute small, discrete units of work. _Deferred_ Prefect tasks run in a background process using a Prefect task server. Deferred tasks to move work out of the foreground of your application and distribute concurrent execution across across multiple processes or machines.
+Prefect tasks are a great way to quickly execute small, discrete units of work. _Deferred_ Prefect tasks run in a background process using a Prefect task server. Use deferred tasks to move work out of the foreground of your application and distribute concurrent execution across across multiple processes or machines.
 
 For example, if you have a web app, you can use tasks to offload processes such as sending emails, processing images, or inserting data into a database.
 
