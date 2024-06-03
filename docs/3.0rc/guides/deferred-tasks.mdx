@@ -5,15 +5,15 @@ description: Examples of using Prefect tasks and the task server.
 
 ## Why use deferred tasks?
 
-Prefect tasks are a great way to quickly execute discrete units of work. _Deferred_ Prefect tasks run in a background process using a Prefect task server. This lets you use deferred tasks to move work out of the foreground of your application and distribute concurrent execution across across multiple processes or machines.
+Prefect tasks are a great way to quickly execute small, discrete units of work. _Deferred_ Prefect tasks run in a background process using a Prefect task server. Deferred tasks to move work out of the foreground of your application and distribute concurrent execution across across multiple processes or machines.
 
 For example, if you have a web app, you can use tasks to offload processes such as sending emails, processing images, or inserting data into a database.
 
-Prefect provides a Pythonic interface for defining and running tasks, and this document will focus on how to use defer task execution. However, Prefect tasks support other advanced use cases, such as running tasks in parallel on Ray or Dask clusters, caching return values, configuring automatic retries, and building complex workflows with task dependencies.
+This document focuses on how to use deferred task execution. However, Prefect tasks support other advanced use cases, such as running tasks in parallel on Ray or Dask clusters, caching return values, configuring automatic retries, and building workflows with task dependencies.
 
 ## Using deferred tasks
 
-Prefect tasks are Python functions that can be run immediately or submitted for background execution, similar to arq tasks. 
+Prefect tasks are Python functions that can be run immediately or submitted for background execution.
 
 You define a task by adding the `@task` decorator to a Python function, after which you can use the `delay` method to run the task in the background.
 
@@ -21,8 +21,7 @@ If you submit the task for background execution, you'll run a task server in a s
 
 ### Defining a task
 
-Add the `@task` decorator to a Python function to define a Prefect task.
-Here's an example:
+Add the `@task` decorator to a Python function to define a Prefect task:
 
 ```python
 from prefect import task
@@ -57,15 +56,15 @@ For documentation on the features available for tasks, refer to the [Prefect Tas
 
 ### Executing deferred tasks with a task server
 
-To run tasks in a separate process or container if you schedule them with `delay`, start a task server, similar to how you would run a Celery worker or an arq worker.
+To run tasks in a separate process or container, start a task server.
 
 The task server will continually receive deferred tasks to execute from Prefect's API, execute them, and report the results back to the API.
 
 **NOTE:** Task servers only run deferred tasks, not tasks you call directly.
 
-You can run a task server by passing tasks into the `prefect.task_server.serve()` method, like in the following example *tasks.py* file:
+You can run a task server by passing tasks into the `prefect.task_server.serve()` method:
 
-```python
+```python tasks.py
 from prefect import task
 from prefect.task_server import serve
 
@@ -108,7 +107,6 @@ One example uses a FastAPI server with multiple microservices and simulates a ne
 The other example uses a Flask server with [Marvin](https://www.askmarvin.ai/) to ask questions of an LLM from the CLI and get back answers.
 
 The examples build on the ones that come before.
-After setting up your environment, feel free to skip ahead if you're already familiar with the basics.
 
 ### Setup
 
@@ -306,4 +304,4 @@ Step 8: Shut down the task servers with *control* + *c*.
 Alright, you're able to submit tasks to multiple Prefect task servers running in the background!
 This is cool because we can observe these tasks executing in parallel and very quickly with web sockets - no polling required.
 
-Check out additional examples in the [deferred tasks github repository](https://github.com/PrefectHQ/prefect-background-task-examples.git).
+See additional examples in the [deferred tasks github repository](https://github.com/PrefectHQ/prefect-background-task-examples.git).
