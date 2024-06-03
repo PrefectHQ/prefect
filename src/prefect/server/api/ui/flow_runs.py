@@ -13,6 +13,8 @@ from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter
+import sqlalchemy as sa
+from prefect.server.database import orm_models
 
 logger = get_logger("server.api.ui.flow_runs")
 
@@ -99,16 +101,16 @@ async def count_task_runs_by_flow_run(
     async with db.session_context() as session:
         query = (
             sa.select(
-                orm.TaskRun.flow_run_id,
-                sa.func.count(orm.TaskRun.id).label("task_run_count"),
+                orm_models.TaskRun.flow_run_id,
+                sa.func.count(orm_models.TaskRun.id).label("task_run_count"),
             )
             .where(
                 sa.and_(
-                    orm.TaskRun.flow_run_id.in_(flow_run_ids),
-                    sa.not_(orm.TaskRun.subflow_run.has()),
+                    orm_models.TaskRun.flow_run_id.in_(flow_run_ids),
+                    sa.not_(orm_models.TaskRun.subflow_run.has()),
                 )
             )
-            .group_by(orm.TaskRun.flow_run_id)
+            .group_by(orm_models.TaskRun.flow_run_id)
         )
 
         results = await session.execute(query)
