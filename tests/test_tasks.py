@@ -18,7 +18,7 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
-from prefect.context import TaskRunContext, get_run_context
+from prefect.context import FlowRunContext, TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -3158,7 +3158,7 @@ class TestTaskMap:
         with pytest.raises(RuntimeError):
             test_task.map([1, 2, 3])
 
-    async def test_deferred_map(self):
+    async def test_deferred_map_outside_flow(self):
         @task
         def test_task(x):
             print(x)
@@ -3177,6 +3177,39 @@ class TestTaskMap:
                 "wait_for": [mock_future],
                 "context": ANY,
             }
+
+    async def test_deferred_map_inside_flow(self):
+        @task
+        def test_task(x):
+            print(x)
+
+        @flow
+        async def test_flow():
+            mock_task_run_id = uuid4()
+            mock_future = PrefectDistributedFuture(task_run_id=mock_task_run_id)
+            mapped_args = [1, 2, 3]
+
+            flow_run_context = FlowRunContext.get()
+            flow_run_id = flow_run_context.flow_run.id
+            futures = test_task.map(
+                x=mapped_args, wait_for=[mock_future], deferred=True
+            )
+            for future, parameter_value in zip(futures, mapped_args):
+                saved_data = await get_background_task_run_parameters(
+                    test_task, future.state.state_details.task_parameters_id
+                )
+                assert saved_data == {
+                    "parameters": {"x": parameter_value},
+                    "wait_for": [mock_future],
+                    "context": ANY,
+                }
+                # Context should contain the current flow run ID
+                assert (
+                    saved_data["context"]["flow_run_context"]["flow_run"]["id"]
+                    == flow_run_id
+                )
+
+        await test_flow()
 
 
 class TestTaskConstructorValidation:
