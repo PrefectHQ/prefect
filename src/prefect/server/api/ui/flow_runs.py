@@ -2,6 +2,7 @@ import datetime
 from typing import List
 from uuid import UUID
 
+import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import DateTime
@@ -10,11 +11,10 @@ import prefect.server.schemas as schemas
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server import models
+from prefect.server.database import orm_models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter
-import sqlalchemy as sa
-from prefect.server.database import orm_models
 
 logger = get_logger("server.api.ui.flow_runs")
 
@@ -120,5 +120,6 @@ async def count_task_runs_by_flow_run(
         }
 
         return {
-            flow_run_id: task_run_counts_by_flow_run.get(flow_run_id, 0) for flow_run_id in flow_run_ids
+            flow_run_id: task_run_counts_by_flow_run.get(flow_run_id, 0)
+            for flow_run_id in flow_run_ids
         }
