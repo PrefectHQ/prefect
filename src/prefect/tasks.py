@@ -849,7 +849,11 @@ class Task(Generic[P, R]):
         flow_run_context = FlowRunContext.get()
 
         if not flow_run_context:
-            raise ValueError("Task.submit() must be called within a flow")
+            raise RuntimeError(
+                "Unable to determine task runner to use for submission. If you are"
+                " submitting a task outside of a flow, please use `.delay`"
+                " to submit the task run for deferred execution."
+            )
 
         task_viz_tracker = get_task_viz_tracker()
         if task_viz_tracker:
@@ -897,6 +901,7 @@ class Task(Generic[P, R]):
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
+        deferred: bool = False,
         **kwargs: Any,
     ):
         """
@@ -1010,6 +1015,7 @@ class Task(Generic[P, R]):
             [[11, 21], [12, 22], [13, 23]]
         """
 
+        from prefect.task_runners import TaskRunner
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -1026,22 +1032,21 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
-        if not flow_run_context:
-            # TODO: Should we split out background task mapping into a separate method
-            # like we do for the `submit`/`apply_async` split?
+        if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)
-            # TODO: Make this non-blocking once we can return a list of futures
-            # instead of a list of task runs
-            return [
-                run_coro_as_sync(self.create_run(parameters=parameters, deferred=True))
+            futures = [
+                self.apply_async(kwargs=parameters, wait_for=wait_for)
                 for parameters in parameters_list
             ]
-
-        from prefect.task_runners import TaskRunner
-
-        task_runner = flow_run_context.task_runner
-        assert isinstance(task_runner, TaskRunner)
-        futures = task_runner.map(self, parameters, wait_for)
+        elif task_runner := getattr(flow_run_context, "task_runner", None):
+            assert isinstance(task_runner, TaskRunner)
+            futures = task_runner.map(self, parameters, wait_for)
+        else:
+            raise RuntimeError(
+                "Unable to determine task runner to use for mapping. If you are"
+                " mapping a task outside of a flow, please provide `deferred=True`"
+                " to submit the mapped task runs for deferred execution."
+            )
         if return_state:
             states = []
             for future in futures:
