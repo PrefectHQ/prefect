@@ -131,7 +131,7 @@ def worker_resource():
 @pytest.fixture
 def related_resources():
     return [
-        RelatedResource.model_validate(
+        RelatedResource(
             {
                 "prefect.resource.id": "prefect.flow-run.1234",
                 "prefect.resource.role": "flow-run",
@@ -194,13 +194,13 @@ def test_replicate_successful_pod_events(replicator, successful_pod_stream):
                     "kubernetes.namespace": "test-namespace",
                 },
                 related=[
-                    RelatedResource.model_validate(
+                    RelatedResource(
                         {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
-                    RelatedResource.model_validate(
+                    RelatedResource(
                         {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
@@ -217,13 +217,13 @@ def test_replicate_successful_pod_events(replicator, successful_pod_stream):
                     "kubernetes.namespace": "test-namespace",
                 },
                 related=[
-                    RelatedResource.model_validate(
+                    RelatedResource(
                         {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
-                    RelatedResource.model_validate(
+                    RelatedResource(
                         {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
@@ -240,13 +240,13 @@ def test_replicate_successful_pod_events(replicator, successful_pod_stream):
                     "kubernetes.namespace": "test-namespace",
                 },
                 related=[
-                    RelatedResource.model_validate(
+                    RelatedResource(
                         {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
-                    RelatedResource.model_validate(
+                    RelatedResource(
                         {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
