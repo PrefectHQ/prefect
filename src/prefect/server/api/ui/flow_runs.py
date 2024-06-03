@@ -91,13 +91,13 @@ async def read_flow_run_history(
 @router.post("/count-task-runs")
 async def count_task_runs_by_flow_run(
     flow_run_ids: list[UUID] = Body(default=..., embed=True, max_items=200),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> dict[UUID, int]:
     """
     Get task run counts by flow run id.
     """
-    async with orion_read_only_session_context() as session:
-        # Subquery for counting task runs by flow run
-        subquery = (
+    async with db.session_context() as session:
+        query = (
             sa.select(
                 orm.TaskRun.flow_run_id,
                 sa.func.count(orm.TaskRun.id).label("task_run_count"),
@@ -109,10 +109,14 @@ async def count_task_runs_by_flow_run(
                 )
             )
             .group_by(orm.TaskRun.flow_run_id)
-        ).subquery()
+        )
 
         results = await session.execute(query)
 
-        return {
+        task_run_counts_by_flow_run = {
             flow_run_id: task_run_count for flow_run_id, task_run_count in results.all()
+        }
+
+        return {
+            flow_run_id: task_run_counts_by_flow_run.get(flow_run_id, 0) for flow_run_id in flow_run_ids
         }
