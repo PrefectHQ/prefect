@@ -3,8 +3,9 @@ from typing import List
 import pytest
 from starlette import status
 
-from prefect.server import models
+from prefect.server import models, schemas
 from prefect.server.api.ui.flow_runs import SimpleFlowRun
+from prefect.server.database import orm_models
 from prefect.server.schemas import actions, states
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -71,3 +72,41 @@ class TestReadFlowRunHistory:
             assert data[i].timestamp == flow_runs[i].expected_start_time
             # less than or equal because this is dynamically computed for running states
             assert data[i].duration <= flow_runs[i].estimated_run_time
+
+
+class TestFlowRunsCountTaskRuns:
+    async def test_count_task_runs(
+        self,
+        flow_run: orm_models.FlowRun,
+        client,
+        session,
+    ):
+        task_runs_count = 3
+
+        for i in range(task_runs_count):
+            await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.core.TaskRun(
+                    flow_run_id=flow_run.id,
+                    name=f"dummy-{i}",
+                    task_key=f"dummy-{i}",
+                    dynamic_key=f"dummy-{i}",
+                ),
+            )
+
+        await session.commit()
+
+        response = await client.post(
+            "ui/flow_runs/count-task-runs",
+            json={
+                "flow_run_ids": [
+                    str(flow_run.id),
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+
+        assert response.json() == {
+            str(flow_run.id): task_runs_count,
+        }
