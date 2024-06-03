@@ -5,9 +5,9 @@ from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.api.ui.flow_runs import SimpleFlowRun
+from prefect.server.database import orm_models
 from prefect.server.schemas import actions, states
 from prefect.utilities.pydantic import parse_obj_as
-from prefect.server.database import orm_models
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ class TestFlowRunsCountTaskRuns:
         await session.commit()
 
         response = await client.post(
-            f"ui/flow_runs/count-task-runs",
+            "ui/flow_runs/count-task-runs",
             json={
                 "flow_run_ids": [
                     str(flow_run.id),
