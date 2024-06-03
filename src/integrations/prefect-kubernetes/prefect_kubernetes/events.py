@@ -49,7 +49,7 @@ class KubernetesEventsReplicator:
         # the primary resource, so here it's turned into a related resource
         # instead.
         worker_resource["prefect.resource.role"] = "worker"
-        worker_related_resource = RelatedResource(__root__=worker_resource)
+        worker_related_resource = RelatedResource(worker_resource)
         self._related_resources = related_resources + [worker_related_resource]
 
         self._watch = kubernetes.watch.Watch()

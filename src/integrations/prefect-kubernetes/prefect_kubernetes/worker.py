@@ -116,8 +116,11 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, Optional, Tuple, Union
 import anyio.abc
 from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1ObjectMeta, V1Secret
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, model_validator
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from typing_extensions import Literal, Self
 
+import prefect
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.exceptions import (
     InfrastructureError,
@@ -137,15 +140,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
-
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
-from typing_extensions import Literal
-
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
     _slugify_label_key,
@@ -263,7 +257,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     """
 
     namespace: str = Field(default="default")
-    job_manifest: Dict[str, Any] = Field(template=_get_default_job_manifest_template())
+    job_manifest: Dict[str, Any] = Field(
+        json_schema_extra=dict(template=_get_default_job_manifest_template())
+    )
     cluster_config: Optional[KubernetesClusterConfig] = Field(default=None)
     job_watch_timeout_seconds: Optional[int] = Field(default=None)
     pod_watch_timeout_seconds: int = Field(default=60)
@@ -272,44 +268,35 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     # internal-use only
     _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
 
-    @validator("job_manifest")
-    def _ensure_metadata_is_present(cls, value: Dict[str, Any]):
-        """Ensures that the metadata is present in the job manifest."""
-        if "metadata" not in value:
-            value["metadata"] = {}
-        return value
-
-    @validator("job_manifest")
-    def _ensure_labels_is_present(cls, value: Dict[str, Any]):
-        """Ensures that the metadata is present in the job manifest."""
-        if "labels" not in value["metadata"]:
-            value["metadata"]["labels"] = {}
-        return value
-
-    @validator("job_manifest")
-    def _ensure_namespace_is_present(cls, value: Dict[str, Any], values):
-        """Ensures that the namespace is present in the job manifest."""
-        if "namespace" not in value["metadata"]:
-            value["metadata"]["namespace"] = values["namespace"]
-        return value
-
-    @validator("job_manifest")
-    def _ensure_job_includes_all_required_components(cls, value: Dict[str, Any]):
+    @model_validator(mode="after")
+    def _validate_job_manifest(self) -> Self:
         """
-        Ensures that the job manifest includes all required components.
+        Validates the job manifest by ensuring the presence of required fields
+        and checking for compatible values.
         """
-        patch = JsonPatch.from_diff(value, _get_base_job_manifest())
+        job_manifest = self.job_manifest
+        # Ensure metadata is present
+        if "metadata" not in job_manifest:
+            job_manifest["metadata"] = {}
+
+        # Ensure labels is present in metadata
+        if "labels" not in job_manifest["metadata"]:
+            job_manifest["metadata"]["labels"] = {}
+
+        # Ensure namespace is present in metadata
+        if "namespace" not in job_manifest["metadata"]:
+            job_manifest["metadata"]["namespace"] = self.namespace
+
+        # Check if job includes all required components
+        patch = JsonPatch.from_diff(job_manifest, _get_base_job_manifest())
         missing_paths = sorted([op["path"] for op in patch if op["op"] == "add"])
         if missing_paths:
             raise ValueError(
                 "Job is missing required attributes at the following paths: "
                 f"{', '.join(missing_paths)}"
             )
-        return value
 
-    @validator("job_manifest")
-    def _ensure_job_has_compatible_values(cls, value: Dict[str, Any]):
-        patch = JsonPatch.from_diff(value, _get_base_job_manifest())
+        # Check if job has compatible values
         incompatible = sorted(
             [
                 f"{op['path']} must have value {op['value']!r}"
@@ -322,7 +309,21 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                 "Job has incompatible values for the following attributes: "
                 f"{', '.join(incompatible)}"
             )
-        return value
+
+        return self
+
+    @staticmethod
+    def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
+        """
+        Generate a dictionary of labels for a flow run job.
+        """
+        return {
+            "prefect.io/flow-run-id": str(flow_run.id),
+            "prefect.io/flow-run-name": flow_run.name,
+            "prefect.io/version": _slugify_label_value(
+                prefect.__version__.split("+")[0]
+            ),
+        }
 
     def prepare_for_flow_run(
         self,
@@ -457,6 +458,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         has_placeholder = len(find_placeholders(manifest_generate_name)) > 0
         # if name wasn't present during template rendering, generateName will be
         # just a hyphen
+
         manifest_generate_name_templated_with_empty_string = (
             manifest_generate_name == "-"
         )
@@ -464,6 +466,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             not manifest_generate_name
             or has_placeholder
             or manifest_generate_name_templated_with_empty_string
+            or manifest_generate_name == "None-"
         ):
             generate_name = None
             if self.name:
@@ -489,7 +492,7 @@ class KubernetesWorkerVariables(BaseVariables):
         default=None,
         description="The image reference of a container image to use for created jobs. "
         "If not set, the latest Prefect image will be used.",
-        example="docker.io/prefecthq/prefect:3-latest",
+        examples=["docker.io/prefecthq/prefect:3-latest"],
     )
     service_account_name: Optional[str] = Field(
         default=None,
@@ -536,7 +539,7 @@ class KubernetesWorkerResult(BaseWorkerResult):
 class KubernetesWorker(BaseWorker):
     """Prefect worker that executes flow runs within Kubernetes Jobs."""
 
-    type = "kubernetes"
+    type: str = "kubernetes"
     job_configuration = KubernetesWorkerJobConfiguration
     job_configuration_variables = KubernetesWorkerVariables
     _description = (

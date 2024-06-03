@@ -26,6 +26,7 @@ dependencies = [
   "prefect>=3.0.0rc1",
   "kubernetes>=24.2.0",
   "tenacity>=8.2.3",
+  "exceptiongroup",
 ]
 dynamic = ["version"]
 
