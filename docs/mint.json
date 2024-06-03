@@ -88,6 +88,31 @@
       ]
     },
     {
+      "group": "Deploy",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/deploy/write-workflows/index"
+      ]
+    },
+    {
+      "group": "React",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/react/understand-events/index",
+        "3.0rc/react/understand-events/automations-triggers",
+        "3.0rc/react/understand-events/webhook-triggers",
+        "3.0rc/react/manage-events",
+        "3.0rc/react/state-change-hooks"
+      ]
+    },
+    {
+      "group": "Cloud and Server",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/cloud-server/write-workflows/index"
+      ]
+    },
+    {
       "group": "Tutorial",
       "version": "3.0rc",
       "pages": [
@@ -109,8 +134,6 @@
             "3.0rc/guides/host",
             "3.0rc/guides/settings",
             "3.0rc/guides/using-the-client",
-            "3.0rc/guides/automations",
-            "3.0rc/guides/webhooks",
             "3.0rc/guides/terraform-provider",
             "3.0rc/guides/ci-cd",
             "3.0rc/guides/secrets",
@@ -122,7 +145,6 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/guides/docker",
-            "3.0rc/guides/state-change-hooks",
             "3.0rc/guides/big-data",
             "3.0rc/guides/troubleshooting",
             "3.0rc/guides/managed-execution",
@@ -154,7 +176,6 @@
         "3.0rc/concepts/deployments",
         "3.0rc/concepts/work-pools",
         "3.0rc/concepts/schedules",
-        "3.0rc/concepts/automations",
         {
           "group": "Block and Agent-Based Deployments",
           "version": "3.0rc",
@@ -185,9 +206,7 @@
           ]
         },
         "3.0rc/cloud/rate-limits",
-        "3.0rc/cloud/connecting",
-        "3.0rc/cloud/events",
-        "3.0rc/cloud/incidents"
+        "3.0rc/cloud/connecting"
       ]
     },
     {
