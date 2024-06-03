@@ -38,14 +38,15 @@ from prefect.results import BaseResult
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
-import prefect.variables
-import prefect.runtime
+
+# import prefect.variables
+# import prefect.runtime
 
 # Import modules that register types
-import prefect.serializers
-import prefect.blocks.kubernetes
-import prefect.blocks.notifications
-import prefect.blocks.system
+# import prefect.serializers
+# import prefect.blocks.kubernetes
+# import prefect.blocks.notifications
+# import prefect.blocks.system
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
@@ -77,11 +78,11 @@ prefect.client.get_client = get_client
 prefect.client.PrefectClient = PrefectClient
 
 
-from prefect._internal.compatibility.deprecated import (
-    inject_renamed_module_alias_finder,
-)
+# from prefect._internal.compatibility.deprecated import (
+#     inject_renamed_module_alias_finder,
+# )
 
-inject_renamed_module_alias_finder()
+# inject_renamed_module_alias_finder()
 
 
 # Declare API for type-checkers
