@@ -67,12 +67,31 @@
       ]
     },
     {
+      "group": "Develop",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/develop/write-workflows/index",
+        "3.0rc/develop/write-workflows/variables",
+        "3.0rc/develop/write-tasks/index",
+        "3.0rc/develop/write-tasks/use-task-runners",
+        "3.0rc/develop/write-tasks/upstream-dependencies",
+        "3.0rc/develop/recover-from-failure",
+        "3.0rc/develop/interact-with-data",
+        "3.0rc/develop/observe-workflows/index",
+        "3.0rc/develop/observe-workflows/logging",
+        "3.0rc/develop/observe-workflows/create-artifacts",
+        "3.0rc/develop/observe-workflows/manage-states",
+        "3.0rc/develop/control-workflows/index",
+        "3.0rc/develop/control-workflows/global-concurrency-limits",
+        "3.0rc/develop/connect-third-party",
+        "3.0rc/develop/test-workflows"
+      ]
+    },
+    {
       "group": "Tutorial",
       "version": "3.0rc",
       "pages": [
         "3.0rc/tutorial/index",
-        "3.0rc/tutorial/flows",
-        "3.0rc/tutorial/tasks",
         "3.0rc/tutorial/deployments",
         "3.0rc/tutorial/work-pools",
         "3.0rc/tutorial/workers"
@@ -89,17 +108,11 @@
           "pages": [
             "3.0rc/guides/host",
             "3.0rc/guides/settings",
-            "3.0rc/guides/testing",
-            "3.0rc/guides/global-concurrency-limits",
-            "3.0rc/guides/runtime-context",
-            "3.0rc/guides/variables",
             "3.0rc/guides/using-the-client",
-            "3.0rc/guides/creating-interactive-workflows",
             "3.0rc/guides/automations",
             "3.0rc/guides/webhooks",
             "3.0rc/guides/terraform-provider",
             "3.0rc/guides/ci-cd",
-            "3.0rc/guides/specifying-upstream-dependencies",
             "3.0rc/guides/secrets",
             "3.0rc/guides/recipes"
           ]
@@ -110,10 +123,7 @@
           "pages": [
             "3.0rc/guides/docker",
             "3.0rc/guides/state-change-hooks",
-            "3.0rc/guides/dask-ray-task-runners",
-            "3.0rc/guides/moving-data",
             "3.0rc/guides/big-data",
-            "3.0rc/guides/logs",
             "3.0rc/guides/troubleshooting",
             "3.0rc/guides/managed-execution",
             "3.0rc/guides/cli-shell"
@@ -141,16 +151,9 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/concepts/index",
-        "3.0rc/concepts/flows",
-        "3.0rc/concepts/tasks",
         "3.0rc/concepts/deployments",
         "3.0rc/concepts/work-pools",
         "3.0rc/concepts/schedules",
-        "3.0rc/concepts/results",
-        "3.0rc/concepts/artifacts",
-        "3.0rc/concepts/states",
-        "3.0rc/concepts/blocks",
-        "3.0rc/concepts/task-runners",
         "3.0rc/concepts/automations",
         {
           "group": "Block and Agent-Based Deployments",

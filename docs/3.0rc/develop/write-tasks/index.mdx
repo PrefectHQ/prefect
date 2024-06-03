@@ -1,7 +1,251 @@
 ---
 title: Tasks
-description: Prefect tasks represents a discrete unit of work in a Prefect workflow.
+description: Learn the basics of writing tasks.
 ---
+
+## About tasks
+
+A [task](/3.0rc/concepts/tasks/) is any Python function decorated with a `@task` decorator.
+A flow is like a recipe for connecting a known sequence of tasks together.
+Tasks, and the dependencies between them, are displayed in the flow run graph, enabling you to break down a complex flow into something you can observe, understand, and control at a more granular level.  
+When a function becomes a task, it can execute concurrently and you can cache its return value.
+
+Flows and tasks share some common features:
+
+* Both are defined using their respective decorator, which accepts settings for that flow / task (see all [task settings](/3.0rc/concepts/tasks/#task-arguments) / [flow settings](/3.0rc/concepts/flows/#flow-settings)).
+* You can provide them with a `name`, `description` and `tags` for organization and bookkeeping.
+* They provide functionality for retries, timeouts, and other hooks to handle failure and completion events.
+
+Network calls (such as our `GET` requests to the GitHub API) are particularly useful as tasks because they take advantage of task features such as [retries](/3.0rc/concepts/tasks/#retries), [caching](/3.0rc/concepts/tasks/#caching), and [concurrency](/3.0rc/concepts/task-runners/#using-a-task-runner).
+
+<Tip>
+    **You can call tasks from other tasks**
+    
+    As of `prefect 2.18.x`, you can call tasks from within other tasks. This removes the need to use subflows for simple task composition.  
+</Tip>
+
+<Note>
+    **When to use tasks**
+    
+    Not all functions in a flow need be tasks. Use them only when their features are useful.
+
+</Note>
+
+Let's use the previous flow and move the request into a task:
+
+```python hl_lines="2 5-9 15" title="repo_info.py"
+import httpx
+from prefect import flow, task
+from typing import Optional
+
+
+@task
+def get_url(url: str, params: Optional[dict[str, any]] = None):
+    response = httpx.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
+
+
+@flow(retries=3, retry_delay_seconds=5, log_prints=True)
+def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
+    url = f"https://api.github.com/repos/{repo_name}"
+    repo_stats = get_url(url)
+    print(f"{repo_name} repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
+    print(f"Forks 🍴 : {repo_stats['forks_count']}")
+
+if __name__ == "__main__":
+    get_repo_info()
+```
+
+Running the flow in your terminal will result in something like this:
+
+```bash
+09:55:55.412 | INFO    | prefect.engine - Created flow run 'great-ammonite' for flow 'get-repo-info'
+09:55:55.499 | INFO    | Flow run 'great-ammonite' - Created task run 'get_url-0' for task 'get_url'
+09:55:55.500 | INFO    | Flow run 'great-ammonite' - Executing 'get_url-0' immediately...
+09:55:55.825 | INFO    | Task run 'get_url-0' - Finished in state Completed()
+09:55:55.827 | INFO    | Flow run 'great-ammonite' - PrefectHQ/prefect repository statistics 🤓:
+09:55:55.827 | INFO    | Flow run 'great-ammonite' - Stars 🌠 : 12157
+09:55:55.827 | INFO    | Flow run 'great-ammonite' - Forks 🍴 : 1251
+09:55:55.849 | INFO    | Flow run 'great-ammonite' - Finished in state Completed('All states completed.')
+```
+
+You can now see this task run tracked in the UI as well.
+
+## Caching
+
+Tasks support the ability to cache their return value.
+Caching allows you to efficiently reuse [results](/3.0rc/concepts/results/) of tasks that may be expensive to reproduce with every flow run. You can also reuse cached results if the inputs to a task have not changed.
+
+To enable caching, specify a `cache_key_fn` — a function that returns a cache key — on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires.
+
+Define a task that is cached based on its inputs by using the Prefect [`task_input_hash`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task_input_hash).
+
+Let's add caching to the `get_url` task:
+
+```python hl_lines="2 4 7"
+import httpx
+from datetime import timedelta
+from prefect import flow, task, get_run_logger
+from prefect.tasks import task_input_hash
+from typing import Optional
+
+
+@task(cache_key_fn=task_input_hash, 
+      cache_expiration=timedelta(hours=1),
+      )
+def get_url(url: str, params: Optional[dict[str, any]] = None):
+    response = httpx.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
+```
+
+You can test this caching behavior by using a personal repository as your workflow parameter - give it a star, or remove a star and see how the output of this task changes (or doesn't) by running your flow multiple times.
+
+!!! warning "Task results and caching"
+    Task results are cached in memory during a flow run and persisted to your home directory by default.
+    Prefect Cloud only stores the cache key, not the data itself.
+
+## Concurrency
+
+Tasks enable concurrency, allowing you to execute multiple tasks asynchronously.
+This concurrency can greatly enhance the efficiency and performance of your workflows.
+Let's expand the script to calculate the average open issues per user.
+This requires making more requests:
+
+```python hl_lines="14-24 30-31 35" title="repo_info.py"
+import httpx
+from datetime import timedelta
+from prefect import flow, task
+from prefect.tasks import task_input_hash
+from typing import Optional
+
+
+@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+def get_url(url: str, params: Optional[dict[str, any]] = None):
+    response = httpx.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url(
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [i for p in issues for i in p]
+
+
+@flow(retries=3, retry_delay_seconds=5, log_prints=True)
+def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
+    repo_stats = get_url(f"https://api.github.com/repos/{repo_name}")
+    issues = get_open_issues(repo_name, repo_stats["open_issues_count"])
+    issues_per_user = len(issues) / len(set([i["user"]["id"] for i in issues]))
+    print(f"{repo_name} repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
+    print(f"Forks 🍴 : {repo_stats['forks_count']}")
+    print(f"Average open issues per user 💌 : {issues_per_user:.2f}")
+
+
+if __name__ == "__main__":
+    get_repo_info()
+
+```
+
+Now you're fetching the data you need, but the requests are happening sequentially.
+Tasks expose a [`submit`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method that changes the execution from sequential to concurrent.
+In this example, you also need to use the [`result`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method because you are unpacking a list of return values:
+
+```python hl_lines="6 11"
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url.submit(
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [i for p in issues for i in p.result()]
+```
+
+The logs show that each task is running concurrently:
+
+
+```bash
+12:45:28.241 | INFO    | prefect.engine - Created flow run 'intrepid-coua' for flow 'get-repo-info'
+12:45:28.311 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-0' for task 'get_url'
+12:45:28.312 | INFO    | Flow run 'intrepid-coua' - Executing 'get_url-0' immediately...
+12:45:28.543 | INFO    | Task run 'get_url-0' - Finished in state Completed()
+12:45:28.583 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-1' for task 'get_url'
+12:45:28.584 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-1' for execution.
+12:45:28.594 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-2' for task 'get_url'
+12:45:28.594 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-2' for execution.
+12:45:28.609 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-4' for task 'get_url'
+12:45:28.610 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-4' for execution.
+12:45:28.624 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-5' for task 'get_url'
+12:45:28.625 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-5' for execution.
+12:45:28.640 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-6' for task 'get_url'
+12:45:28.641 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-6' for execution.
+12:45:28.708 | INFO    | Flow run 'intrepid-coua' - Created task run 'get_url-3' for task 'get_url'
+12:45:28.708 | INFO    | Flow run 'intrepid-coua' - Submitted task run 'get_url-3' for execution.
+12:45:29.096 | INFO    | Task run 'get_url-6' - Finished in state Completed()
+12:45:29.565 | INFO    | Task run 'get_url-2' - Finished in state Completed()
+12:45:29.721 | INFO    | Task run 'get_url-5' - Finished in state Completed()
+12:45:29.749 | INFO    | Task run 'get_url-4' - Finished in state Completed()
+12:45:29.801 | INFO    | Task run 'get_url-3' - Finished in state Completed()
+12:45:29.817 | INFO    | Task run 'get_url-1' - Finished in state Completed()
+12:45:29.820 | INFO    | Flow run 'intrepid-coua' - PrefectHQ/prefect repository statistics 🤓:
+12:45:29.820 | INFO    | Flow run 'intrepid-coua' - Stars 🌠 : 12159
+12:45:29.821 | INFO    | Flow run 'intrepid-coua' - Forks 🍴 : 1251
+Average open issues per user 💌 : 2.27
+12:45:29.838 | INFO    | Flow run 'intrepid-coua' - Finished in state Completed('All states completed.')
+```
+
+
+## Subflows
+
+In addition to calling tasks within a flow, you can also call other flows.
+Child flows are called [subflows](/3.0rc/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
+
+Subflows are a great way to organize your workflows and offer more visibility within the UI.
+
+Let's add a `flow` decorator to the `get_open_issues` function:
+
+```python hl_lines="1"
+@flow
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url.submit(
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [i for p in issues for i in p.result()]
+```
+
+Whenever you run the parent flow, the subflow is called and runs. 
+In the UI each subflow run is linked to its parent and can be individually inspected. 
+
+## Next: Deployments
+
+You now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution.
+In the next section, you will deploy this flow to run it on a schedule and/or external infrastructure. Learn how to [create your first deployment](/3.0rc/tutorial/deployments/).
+
+
+---
+
+# Concept tasks
 
 A task is a function that represents a discrete unit of work in a Prefect workflow. Tasks are not required &mdash; you may define Prefect workflows that consist only of flows, using regular Python statements and functions. Tasks enable you to encapsulate elements of your workflow logic in observable units that can be reused across flows and subflows.
 
@@ -179,146 +423,6 @@ def my_task():
 def my_flow():
     with tags("test"):
         my_task()
-```
-
-## Retries
-
-Prefect can automatically retry tasks on failure. In Prefect, a task _fails_ if
-its Python function raises an exception.
-
-To enable retries, pass `retries` and `retry_delay_seconds` parameters to your
-task. If the task fails, Prefect will retry it up to `retries` times, waiting
-`retry_delay_seconds` seconds between each attempt. If the task fails on the
-final retry, Prefect marks the task as _crashed_ if the task raised an exception
-or _failed_ if it returned a string.
-
-!!! note "Retries don't create new task runs"
-    A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
-
-### A real-world example: making an API request
-
-Consider the real-world problem of making an API request. In this example,
-we'll use the [`httpx`](https://www.python-httpx.org/) library to make an HTTP
-request.
-
-```python hl_lines="4"
-import httpx
-
-from prefect import flow, task
-
-
-@task(retries=2, retry_delay_seconds=5)
-def get_data_task(
-    url: str = "https://api.brittle-service.com/endpoint"
-) -> dict:
-    response = httpx.get(url)
-    
-    # If the response status code is anything but a 2xx, httpx will raise
-    # an exception. This task doesn't handle the exception, so Prefect will
-    # catch the exception and will consider the task run failed.
-    response.raise_for_status()
-    
-    return response.json()
-    
-
-@flow
-def get_data_flow():
-    get_data_task()
-```
-
-In this task, if the HTTP request to the brittle API receives any status code
-other than a 2xx (200, 201, etc.), Prefect will retry the task a maximum of two
-times, waiting five seconds in between retries.
-
-### Custom retry behavior
-
-The `retry_delay_seconds` option accepts a list of delays for more custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
-
-```python
-from prefect import task
-
-@task(retries=3, retry_delay_seconds=[1, 10, 100])
-def some_task_with_manual_backoff_retries():
-   ...
-```
-
-The `retry_condition_fn` option accepts a callable that returns a boolean. If the callable returns `True`, the task will be retried. If the callable returns `False`, the task will not be retried. The callable accepts three arguments &mdash; the task, the task run, and the state of the task run. The following task will retry on HTTP status codes other than 401 or 404:
-
-```python
-import httpx
-from prefect import flow, task
-
-def retry_handler(task, task_run, state) -> bool:
-    """This is a custom retry handler to handle when we want to retry a task"""
-    try:
-        # Attempt to get the result of the task
-        state.result()
-    except httpx.HTTPStatusError as exc:
-        # Retry on any HTTP status code that is not 401 or 404
-        do_not_retry_on_these_codes = [401, 404]
-        return exc.response.status_code not in do_not_retry_on_these_codes
-    except httpx.ConnectError:
-        # Do not retry
-        return False
-    except:
-        # For any other exception, retry
-        return True
-
-@task(retries=1, retry_condition_fn=retry_handler)
-def my_api_call_task(url):
-    response = httpx.get(url)
-    response.raise_for_status()
-    return response.json()
-
-@flow
-def get_data_flow(url):
-    my_api_call_task(url=url)
-
-if __name__ == "__main__":
-    get_data_flow(url="https://httpbin.org/status/503")
-```
-
-Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an [`exponential_backoff`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
-
-```python
-from prefect import task
-from prefect.tasks import exponential_backoff
-
-@task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=10))
-def some_task_with_exponential_backoff_retries():
-   ...
-```
-
-#### Advanced topic: adding "jitter"
-
-While using exponential backoff, you may also want to add _jitter_ to the delay times. Jitter is
-a random amount of time added to retry periods that helps prevent "thundering herd" scenarios, which
-is when many tasks all retry at the exact same time, potentially overwhelming systems.
-
-The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of 10 seconds with a `retry_jitter_factor` of 0.5 will be allowed to delay up to 15 seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds," while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
-
-```python
-from prefect import task
-from prefect.tasks import exponential_backoff
-
-@task(
-    retries=3,
-    retry_delay_seconds=exponential_backoff(backoff_factor=10),
-    retry_jitter_factor=1,
-)
-def some_task_with_exponential_backoff_retries():
-   ...
-```
-
-### Configuring retry behavior globally with settings
-
-You can also set retries and retry delays by using the following global settings. These settings will not override the `retries` or `retry_delay_seconds` that are set in the flow or task decorator.
-
-```
-prefect config set PREFECT_FLOW_DEFAULT_RETRIES=2
-prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
-prefect config set PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
-prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 ```
 
 ## Caching
