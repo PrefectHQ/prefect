@@ -201,7 +201,6 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
         Path("Dockerfile").unlink()
 
 
-@pytest.mark.flaky(max_runs=3)
 def test_real_auto_dockerfile_build(docker_client_with_cleanup):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
     try:
