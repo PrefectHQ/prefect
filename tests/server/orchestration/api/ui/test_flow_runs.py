@@ -3,7 +3,7 @@ from typing import List
 import pytest
 from starlette import status
 
-from prefect.server import models
+from prefect.server import models, schemas
 from prefect.server.api.ui.flow_runs import SimpleFlowRun
 from prefect.server.schemas import actions, states
 from prefect.utilities.pydantic import parse_obj_as
@@ -86,9 +86,8 @@ class TestFlowRunsCountTaskRuns:
         for i in range(task_runs_count):
             await models.task_runs.create_task_run(
                 session=session,
-                workspace_id=account1_workspace1.id,
                 task_run=schemas.core.TaskRun(
-                    flow_run_id=account1_workspace1_flow_run.id,
+                    flow_run_id=flow_run.id,
                     name=f"dummy-{i}",
                     task_key=f"dummy-{i}",
                     dynamic_key=f"dummy-{i}",
@@ -109,5 +108,5 @@ class TestFlowRunsCountTaskRuns:
         assert response.status_code == 200
 
         assert response.json() == {
-            str(account1_workspace1_flow_run.id): task_runs_count,
+            str(flow_run.id): task_runs_count,
         }
