@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+
 import json
 import textwrap
 
@@ -9,7 +10,7 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import (
