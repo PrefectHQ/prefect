@@ -232,17 +232,9 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/guides/prefect-deploy",
-            "3.0rc/guides/upgrade-guide-agents-to-workers",
             "3.0rc/guides/deployment/developing-a-new-worker-type"
           ]
         }
-      ]
-    },
-    {
-      "group": "Concepts",
-      "version": "3.0rc",
-      "pages": [
-        "3.0rc/concepts/index"
       ]
     },
     {
