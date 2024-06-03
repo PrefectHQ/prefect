@@ -407,7 +407,7 @@ def test_flow_resultlike_result_is_retained(
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_state_result_is_respected(
+async def test_flow_state_result_is_respected(
     persist_result: bool, return_state, tmp_path: Path
 ):
     storage = LocalFileSystem(basepath=str(tmp_path))
