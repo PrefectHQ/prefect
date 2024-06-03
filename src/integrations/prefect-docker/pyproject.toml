@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
   "prefect@git+https://github.com/PrefectHQ/prefect.git@main",
-  "docker>=7.1.1",
+  "docker>=7.1.0",
 ]
 dynamic = ["version"]
 
