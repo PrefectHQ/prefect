@@ -173,7 +173,7 @@ def _drop_empty_keys_from_dict(taskdef: dict):
             taskdef.pop(key)
         if isinstance(value, dict):
             _drop_empty_keys_from_dict(value)
-        if isinstance(value, list):
+        if isinstance(value, list) and key != "capacity_provider_strategy":
             for v in value:
                 if isinstance(v, dict):
                     _drop_empty_keys_from_dict(v)
@@ -472,9 +472,7 @@ class ECSVariables(BaseVariables):
             "field will be slugified to match AWS character requirements."
         ),
     )
-    launch_type: Optional[
-        Literal["FARGATE", "EC2", "EXTERNAL", "FARGATE_SPOT"]
-    ] = Field(
+    launch_type: Literal["FARGATE", "EC2", "EXTERNAL", "FARGATE_SPOT"] = Field(
         default=ECS_DEFAULT_LAUNCH_TYPE,
         description=(
             "The type of ECS task run infrastructure that should be used. Note that"
@@ -482,7 +480,7 @@ class ECSVariables(BaseVariables):
             " the proper capacity provider strategy if set here."
         ),
     )
-    capacity_provider_strategy: Optional[List[CapacityProvider]] = Field(
+    capacity_provider_strategy: List[CapacityProvider] = Field(
         default_factory=list,
         description=(
             "The capacity provider strategy to use when running the task. "

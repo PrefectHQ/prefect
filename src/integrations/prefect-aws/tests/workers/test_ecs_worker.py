@@ -66,14 +66,6 @@ def reset_task_definition_cache():
     yield
 
 
-@pytest.fixture(autouse=True)
-def patch_task_watch_poll_interval(monkeypatch):
-    # Patch the poll interval to be way shorter for speed during testing!
-    monkeypatch.setattr(
-        ECSVariables.model_fields["task_watch_poll_interval"], "default", 0.05
-    )
-
-
 def inject_moto_patches(moto_mock, patches: Dict[str, List[Callable]]):
     def injected_call(method, patch_list, *args, **kwargs):
         for patch in patch_list:
@@ -307,7 +299,7 @@ def ecs_mocks(
 
 
 async def construct_configuration(**options):
-    variables = ECSVariables(**options)
+    variables = ECSVariables(**options | {"task_watch_poll_interval": 0.03})
     print(f"Using variables: {variables.model_dump_json(indent=2, exclude_none=True)}")
 
     configuration = await ECSJobConfiguration.from_template_and_values(
@@ -322,7 +314,9 @@ async def construct_configuration(**options):
 async def construct_configuration_with_job_template(
     template_overrides: dict, **variables: dict
 ):
-    variables: ECSVariables = ECSVariables(**variables)
+    variables: ECSVariables = ECSVariables(
+        **variables | {"task_watch_poll_interval": 0.03}
+    )
     print(f"Using variables: {variables.model_dump_json(indent=2)}")
 
     base_template = ECSWorker.get_default_base_job_template()
@@ -2227,6 +2221,7 @@ async def test_user_defined_environment_variables_in_task_run_request_template(
         {"name": "BAR", "value": "FOO"},
         {"name": "FOO", "value": "BAR"},
         {"name": "OVERRIDE", "value": "NEW"},
+        {"name": "UNSET", "value": "GONE"},
     ]
 
 
