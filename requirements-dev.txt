@@ -2,7 +2,6 @@ ruff
 cairosvg
 codespell>=2.2.6
 ddtrace
-exceptiongroup
 ipython
 jinja2
 mkdocs

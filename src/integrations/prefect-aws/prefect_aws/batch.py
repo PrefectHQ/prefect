@@ -3,11 +3,12 @@
 from typing import Any, Dict, Optional
 
 from prefect import get_run_logger, task
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect_aws.credentials import AwsCredentials
 
 
 @task
+@sync_compatible
 async def batch_submit(
     job_name: str,
     job_queue: str,

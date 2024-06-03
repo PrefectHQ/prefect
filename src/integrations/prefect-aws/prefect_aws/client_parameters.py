@@ -5,14 +5,9 @@ from typing import Any, Dict, Optional, Union
 
 from botocore import UNSIGNED
 from botocore.client import Config
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import BaseModel, Field, FilePath, field_validator, model_validator
 
 from prefect_aws.utilities import hash_collection
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import BaseModel, Field, FilePath, root_validator, validator
-else:
-    from pydantic import BaseModel, Field, FilePath, root_validator, validator
 
 
 class AwsClientParameters(BaseModel):
@@ -84,7 +79,8 @@ class AwsClientParameters(BaseModel):
             )
         )
 
-    @validator("config", pre=True)
+    @field_validator("config", mode="before")
+    @classmethod
     def instantiate_config(cls, value: Union[Config, Dict[str, Any]]) -> Dict[str, Any]:
         """
         Casts lists to Config instances.
@@ -93,7 +89,8 @@ class AwsClientParameters(BaseModel):
             return value.__dict__["_user_provided_options"]
         return value
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def deprecated_verify_cert_path(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         If verify is not a bool, raise a warning.
@@ -112,7 +109,8 @@ class AwsClientParameters(BaseModel):
             )
         return values
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def verify_cert_path_and_verify(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         If verify_cert_path is set but verify is False, raise a warning.
@@ -139,7 +137,7 @@ class AwsClientParameters(BaseModel):
         Return the dictionary of the parameters to override.
         The parameters to override are the one which are not None.
         """
-        params = self.dict()
+        params = self.model_dump()
         if params.get("verify_cert_path"):
             # to ensure that verify doesn't re-overwrite verify_cert_path
             params.pop("verify")
