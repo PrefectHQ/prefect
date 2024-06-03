@@ -86,3 +86,33 @@ async def read_flow_run_history(
         )
         for r in result
     ]
+
+
+@router.post("/count-task-runs")
+async def count_task_runs_by_flow_run(
+    flow_run_ids: list[UUID] = Body(default=..., embed=True, max_items=200),
+) -> dict[UUID, int]:
+    """
+    Get task run counts by flow run id.
+    """
+    async with orion_read_only_session_context() as session:
+        # Subquery for counting task runs by flow run
+        subquery = (
+            sa.select(
+                orm.TaskRun.flow_run_id,
+                sa.func.count(orm.TaskRun.id).label("task_run_count"),
+            )
+            .where(
+                sa.and_(
+                    orm.TaskRun.flow_run_id.in_(flow_run_ids),
+                    sa.not_(orm.TaskRun.subflow_run.has()),
+                )
+            )
+            .group_by(orm.TaskRun.flow_run_id)
+        ).subquery()
+
+        results = await session.execute(query)
+
+        return {
+            flow_run_id: task_run_count for flow_run_id, task_run_count in results.all()
+        }
