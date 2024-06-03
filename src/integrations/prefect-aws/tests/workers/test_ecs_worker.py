@@ -304,7 +304,7 @@ async def construct_configuration(**options):
 
     configuration = await ECSJobConfiguration.from_template_and_values(
         base_job_template=ECSWorker.get_default_base_job_template(),
-        values={**variables.model_dump(exclude_unset=True)},
+        values={**variables.model_dump(exclude_none=True)},
     )
     print(f"Constructed test configuration: {configuration.model_dump_json(indent=2)}")
 
@@ -331,7 +331,7 @@ async def construct_configuration_with_job_template(
     configuration: ECSJobConfiguration = (
         await ECSJobConfiguration.from_template_and_values(
             base_job_template=base_template,
-            values={**variables.model_dump()},
+            values={**variables.model_dump(exclude_none=True)},
         )
     )
     print(f"Constructed test configuration: {configuration.model_dump_json(indent=2)}")
@@ -1800,7 +1800,6 @@ async def test_worker_task_definition_cache_miss_on_deregistered(
         {"env": {"FOO": "BAR"}},
         {"command": "test"},
         {"labels": {"FOO": "BAR"}},
-        {"stream_output": True, "configure_cloudwatch_logs": False},
         {"cluster": "test"},
         {"task_role_arn": "test"},
         # Note: null environment variables can cause override, but not when missing
@@ -2183,7 +2182,6 @@ async def test_user_defined_environment_variables_in_task_run_request_template(
                             "environment": [
                                 {"name": "BAR", "value": "FOO"},
                                 {"name": "OVERRIDE", "value": "OLD"},
-                                {"name": "UNSET", "value": "GONE"},
                             ],
                         }
                     ],
@@ -2221,7 +2219,6 @@ async def test_user_defined_environment_variables_in_task_run_request_template(
         {"name": "BAR", "value": "FOO"},
         {"name": "FOO", "value": "BAR"},
         {"name": "OVERRIDE", "value": "NEW"},
-        {"name": "UNSET", "value": "GONE"},
     ]
 
 

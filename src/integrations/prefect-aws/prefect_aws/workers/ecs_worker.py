@@ -326,19 +326,18 @@ class ECSJobConfiguration(BaseJobConfiguration):
 
         return self
 
-    @model_validator(mode="before")
-    @classmethod
-    def set_default_configure_cloudwatch_logs(cls, values: dict) -> dict:
+    @model_validator(mode="after")
+    def set_default_configure_cloudwatch_logs(self) -> Self:
         """
         Streaming output generally requires CloudWatch logs to be configured.
 
         To avoid entangled arguments in the simple case, `configure_cloudwatch_logs`
         defaults to matching the value of `stream_output`.
         """
-        configure_cloudwatch_logs = values.get("configure_cloudwatch_logs")
+        configure_cloudwatch_logs = self.configure_cloudwatch_logs
         if configure_cloudwatch_logs is None:
-            values["configure_cloudwatch_logs"] = values.get("stream_output")
-        return values
+            self.configure_cloudwatch_logs = self.stream_output
+        return self
 
     @model_validator(mode="after")
     def configure_cloudwatch_logs_requires_execution_role_arn(
