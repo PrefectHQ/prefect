@@ -8,7 +8,7 @@ import datetime
 import inspect
 import os
 from copy import copy
-from functools import partial, update_wrapper
+from functools import partial, update_wrapper, wraps
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1204,7 +1204,7 @@ class Task(Generic[P, R]):
 
 
 @overload
-def task(__fn: Callable[P, R]) -> Task[P, R]:
+def task(__fn: Callable[P, R]) -> Callable[P, R]:
     ...
 
 
@@ -1238,7 +1238,7 @@ def task(
     on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]:
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
     ...
 
 
@@ -1334,7 +1334,9 @@ def task(
         viz_return_value: An optional value to return when the task dependency tree is visualized.
 
     Returns:
-        A callable `Task` object which, when called, will submit the task for execution.
+        Callable: A function that, when invoked, runs the original function as a
+        Prefect task. The wrapped function has an attribute `.task` which
+        references the corresponding `Task` object.
 
     Examples:
         Define a simple task
@@ -1383,7 +1385,7 @@ def task(
     """
 
     if __fn:
-        return cast(
+        task_obj = cast(
             Task[P, R],
             Task(
                 fn=__fn,
@@ -1411,6 +1413,13 @@ def task(
                 viz_return_value=viz_return_value,
             ),
         )
+
+        @wraps(__fn)
+        def task_wrapper(*args, **kwargs):
+            return task_obj(*args, **kwargs)
+
+        task_wrapper.task = task_obj
+        return task_wrapper
     else:
         return cast(
             Callable[[Callable[P, R]], Task[P, R]],

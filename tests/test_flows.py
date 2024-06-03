@@ -815,6 +815,44 @@ class TestFlowCall:
         assert flow_state.is_cancelled()
         assert flow_state.message == "1/1 states cancelled."
 
+    def test_flow_supports_instance_methods(self):
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @flow
+            def instance_method(self):
+                return self.x
+
+        assert Foo(5).instance_method() == 5
+        assert isinstance(Foo(10).instance_method.flow, Flow)
+
+    def test_flow_supports_class_methods(self):
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @flow
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method.flow, Flow)
+
+    def test_flow_supports_static_methods(self):
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @flow
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method.flow, Flow)
+
 
 class TestSubflowCalls:
     async def test_subflow_call_with_no_tasks(self):

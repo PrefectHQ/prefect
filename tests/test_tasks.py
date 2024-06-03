@@ -330,6 +330,44 @@ class TestTaskCall:
 
         assert bar() == "ahellob"
 
+    def test_task_supports_instance_methods(self):
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @task
+            def instance_method(self):
+                return self.x
+
+        assert Foo(5).instance_method() == 5
+        assert isinstance(Foo(10).instance_method.task, Task)
+
+    def test_task_supports_class_methods(self):
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @classmethod
+            @task
+            def class_method(cls):
+                return cls.__name__
+
+        assert Foo.class_method() == "Foo"
+        assert isinstance(Foo.class_method.task, Task)
+
+    def test_task_supports_static_methods(self):
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @staticmethod
+            @task
+            def static_method():
+                return "static"
+
+        assert Foo.static_method() == "static"
+        assert isinstance(Foo.static_method.task, Task)
+
 
 class TestTaskRun:
     async def test_sync_task_run_inside_sync_flow(self):

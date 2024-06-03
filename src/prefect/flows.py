@@ -15,7 +15,7 @@ import re
 import sys
 import tempfile
 import warnings
-from functools import partial, update_wrapper
+from functools import partial, update_wrapper, wraps
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import (
@@ -1316,7 +1316,7 @@ class Flow(Generic[P, R]):
 
 
 @overload
-def flow(__fn: Callable[P, R]) -> Flow[P, R]:
+def flow(__fn: Callable[P, R]) -> Callable[P, R]:
     ...
 
 
@@ -1348,7 +1348,7 @@ def flow(
     ] = None,
     on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-) -> Callable[[Callable[P, R]], Flow[P, R]]:
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
     ...
 
 
@@ -1447,8 +1447,9 @@ def flow(
             function should accept three arguments: the flow, the flow run, and the current state
 
     Returns:
-        A callable `Flow` object which, when called, will run the flow and return its
-        final state.
+        Callable: A function that, when invoked, runs the original function as a
+        Prefect flow. The wrapped function has an attribute `.flow` which
+        references the corresponding `Flow` object.
 
     Examples:
         Define a simple flow
@@ -1484,8 +1485,9 @@ def flow(
         >>> def my_flow():
         >>>     pass
     """
+
     if __fn:
-        return cast(
+        flow_obj = cast(
             Flow[P, R],
             Flow(
                 fn=__fn,
@@ -1510,6 +1512,14 @@ def flow(
                 on_running=on_running,
             ),
         )
+
+        @wraps(__fn)
+        def flow_wrapper(*args, **kwargs):
+            return flow_obj(*args, **kwargs)
+
+        flow_wrapper.flow = flow_obj
+        return flow_wrapper
+
     else:
         return cast(
             Callable[[Callable[P, R]], Flow[P, R]],
