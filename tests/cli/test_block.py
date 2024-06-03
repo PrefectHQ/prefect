@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from prefect.blocks import system
-from prefect.client import PrefectClient
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
