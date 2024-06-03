@@ -182,6 +182,21 @@
       ]
     },
     {
+      "group": "Migrate",
+      "version": "3.0rc",
+      "pages": [
+        {
+          "group": "Migrate",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/migrate/upgrade-agents-to-workers"
+          ]
+        },
+        "3.0rc/react/manage-events",
+        "3.0rc/react/state-change-hooks"
+      ]
+    },
+    {
       "group": "Tutorial",
       "version": "3.0rc",
       "pages": [
