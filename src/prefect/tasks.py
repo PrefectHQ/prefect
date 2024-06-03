@@ -1043,9 +1043,10 @@ class Task(Generic[P, R]):
             futures = task_runner.map(self, parameters, wait_for)
         else:
             raise RuntimeError(
-                "Unable to determine task runner to use for mapping. If you are"
-                " mapping a task outside of a flow, please provide `deferred=True`"
-                " to submit the mapped task runs for deferred execution."
+                "Unable to determine task runner to use for mapped task runs. If"
+                " you are mapping a task outside of a flow, please provide"
+                " `deferred=True` to submit the mapped task runs for deferred"
+                " execution."
             )
         if return_state:
             states = []
