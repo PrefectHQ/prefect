@@ -3,21 +3,19 @@ title: Artifacts
 description: Prefect artifacts are persisted outputs designed for human consumption and available in the UI.
 ---
 
-Artifacts are persisted outputs such as tables, Markdown, or links.
+Artifacts are rich annotations on Prefect runs. 
+They are visual metadata intended to be produced in flow or task runs but consumed by humans. 
+They come in standardized formats such as tables, progress indicators, images, Markdown, or links. 
 They are stored on Prefect Cloud or a Prefect server instance and rendered in the Prefect UI.
-Artifacts make it easy to track and monitor the objects that your flows produce and update over time.
+Artifacts make it easy to visualize outputs or side effects that your runs produce and capture updates over time.
 
 ![Markdown artifact sales report screenshot](/3.0rc/img/ui/md-artifact-info.png)
 
-Published artifacts may be associated with a particular task run or flow run.
-Artifacts can also be created outside of any flow run context.
-
-Whether you're publishing links, Markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your workflows.
-
-With artifacts, you can easily manage and share information with your team, providing valuable insights and context.
+Artifacts are associated with a task run or a flow run.
 
 Common use cases for artifacts include:
 
+- Progress indicators: Artifacts can be used to publish progress indicators for long-running tasks. This can help you monitor the progress of your tasks and flows and ensure that they are running as expected.
 - Debugging: By publishing data that you care about in the UI, you can easily see when and where your results were written. If an artifact doesn't look the way you expect, you can find out which flow run last updated it, and you can click through a link in the artifact to a storage location (such as an S3 bucket).
 - Data quality checks: Artifacts can be used to publish data quality checks from in-progress tasks. This can help ensure that data quality is maintained throughout the pipeline. During long-running tasks such as ML model training, you might use artifacts to publish performance graphs. This can help you visualize how well your models are performing and make adjustments as needed. You can also track the versions of these artifacts over time, making it easier to identify changes in your data.
 - Documentation: Artifacts can be used to publish documentation and sample data to help you keep track of your work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important.
@@ -25,10 +23,10 @@ Common use cases for artifacts include:
 ## Creating artifacts
 
 Creating artifacts allows you to publish data from task and flow runs or outside of a flow run context.
-Currently, you can render three artifact types: links, Markdown, and tables.
+There are five artifact types: links, Markdown, progress, images, and tables.
 
-!!! note "Artifacts render individually"
-    Please note that every artifact created within a task will be displayed as an individual artifact in the Prefect UI.
+<Note> 
+ Each artifact created within a task will be displayed individually in the Prefect UI. </Note>
     This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact.
 
     Unlike the `print()` command, where you can concatenate multiple calls to include additional items in a report, within a task, these commands must be used multiple times if necessary. 
@@ -101,6 +99,53 @@ if __name__ == "__main__":
 In the above example, the `create_link_artifact` method is used within a flow to create a link artifact with a key of `my-important-link`.
 The `link` parameter is used to specify the external resource to be linked to, and `link_text` is used to specify the text to be displayed for the link.
 An optional `description` could also be added for context.
+
+### Creating progress artifacts
+
+Progress artifacts render dynamically on the flow run graph in the Prefect UI, indicating the progress of long-running tasks. 
+
+To create a progress artifact, use the `create_progress_artifact()` function. To update a progress artifact, use the `update_progress_artifact()` function.
+
+![Progress artifact example](/3.0rc/img/ui/progress-artifact-example.png)
+
+```python
+from time import sleep
+
+from prefect import flow, task
+from prefect.artifacts import (
+    create_progress_artifact,
+    update_progress_artifact,
+)
+
+
+def fetch_batch(i: int):
+    # Simulate fetching a batch of data
+    sleep(2)
+
+
+@task
+def fetch_in_batches():
+    progress_artifact_id = create_progress_artifact(
+        progress=0.0,
+        description="Indicates the progress of fetching data in batches.",
+    )
+    for i in range(1, 11):
+        fetch_batch(i)
+        update_progress_artifact(artifact_id=progress_artifact_id, progress=i * 10)
+
+
+@flow
+def etl():
+    fetch_in_batches()
+
+
+if __name__ == "__main__":
+    etl()
+
+```
+
+Progress artifacts are updated using a separate `update_progress_artifact()` function. Prefect updates a progress artifact in place, rather than versioning it.
+
 
 ### Creating Markdown artifacts
 
@@ -199,6 +244,40 @@ if __name__ == "__main__":
 ![Table artifact with customer info](/3.0rc/img/ui/table-artifact-info.png)
 As you can see, you don't need to create an artifact in a flow run context.
 You can create one anywhere in a Python script and see it in the Prefect UI.
+
+### Create image artifacts
+
+Image artifacts render publicly available images in the Prefect UI. To create an image artifact, use the `create_image_artifact()` function.
+
+![Image artifact example](/3.0rc/img/ui/image-artifact-example.png)
+
+```python
+from prefect import flow, task
+from prefect.artifacts import (
+    create_image_artifact,
+)
+
+
+@task
+def create_image():
+    # Do something to create an image and upload to a url
+    image_url = "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZmQydzBjOHQ2M3BhdWJ4M3V1MGtoZGxuNmloeGh6b2dvaHhpaHg0eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3KC2jD2QcBOSc/giphy.gif"
+    create_image_artifact(image_url=image_url, description="A gif.", key="gif")
+    return image_url
+
+
+@flow
+def my_flow():
+    return create_image()
+
+
+if __name__ == "__main__":
+    image_url = my_flow()
+    print(f"Image URL: {image_url}")
+
+```
+
+To create an artifact that links to a private image, use the `create_link_artifact()` function instead.
 
 ## Managing artifacts
 
