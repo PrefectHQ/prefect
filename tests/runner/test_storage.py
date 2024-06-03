@@ -19,6 +19,7 @@ from prefect.runner.storage import (
     create_storage_from_url,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.utilities.filesystem import tmpchdir
 
 
 @pytest.fixture(autouse=True)
@@ -248,20 +249,23 @@ class TestGitRepository:
             cwd=Path.cwd() / "repo",
         )
 
-    async def test_git_clone_errors_obscure_access_token(self, monkeypatch, capsys):
+    async def test_git_clone_errors_obscure_access_token(
+        self, monkeypatch, capsys, tmp_path: Path
+    ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
-        with pytest.raises(RuntimeError) as exc:
-            # we uppercase the token because this test definition does show up in the exception traceback
-            await GitRepository(
-                url="https://github.com/prefecthq/prefect.git",
-                branch="definitely-does-not-exist-123",
-                credentials={"access_token": "super-secret-42".upper()},
-            ).pull_code()
-        assert "super-secret-42".upper() not in str(exc.getrepr())
-        console_output = capsys.readouterr()
-        assert "super-secret-42".upper() not in console_output.out
-        assert "super-secret-42".upper() not in console_output.err
+        with tmpchdir(str(tmp_path)):
+            with pytest.raises(RuntimeError) as exc:
+                # we uppercase the token because this test definition does show up in the exception traceback
+                await GitRepository(
+                    url="https://github.com/prefecthq/prefect.git",
+                    branch="definitely-does-not-exist-123",
+                    credentials={"access_token": "super-secret-42".upper()},
+                ).pull_code()
+            assert "super-secret-42".upper() not in str(exc.getrepr())
+            console_output = capsys.readouterr()
+            assert "super-secret-42".upper() not in console_output.out
+            assert "super-secret-42".upper() not in console_output.err
 
     class TestCredentialFormatting:
         async def test_credential_formatting_maintains_secrets(
