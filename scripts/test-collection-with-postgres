@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+docker compose down -v
+docker compose up -d test-db
+
+DB_URL=postgresql+asyncpg://prefect:prefect@localhost:15432/prefect
+PREFECT_API_DATABASE_CONNECTION_URL=$DB_URL pytest $@
