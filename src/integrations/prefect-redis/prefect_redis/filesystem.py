@@ -9,7 +9,7 @@ from typing_extensions import Self
 from prefect.filesystems import WritableFileSystem
 
 
-class RedisFilesystem(WritableFileSystem):
+class RedisStorageContainer(WritableFileSystem):
     """
     Block used to interact with Redis as a filesystem
 
@@ -24,17 +24,17 @@ class RedisFilesystem(WritableFileSystem):
     Example:
         Create a new block from hostname, username and password:
         ```python
-        from prefect_redis import RedisFilesystem
+        from prefect_redis import RedisStorageContainer
 
-        block = RedisFilesystem.from_host(
+        block = RedisStorageContainer.from_host(
             host="myredishost.com", username="redis", password="SuperSecret")
         block.save("BLOCK_NAME")
         ```
 
         Create a new block from a connection string
         ```python
-        from prefect_redis import RedisFilesystem
-        block = RedisFilesystem.from_url(""redis://redis:SuperSecret@myredishost.com:6379")
+        from prefect_redis import RedisStorageContainer
+        block = RedisStorageContainer.from_url(""redis://redis:SuperSecret@myredishost.com:6379")
         block.save("BLOCK_NAME")
         ```
     """
@@ -120,7 +120,7 @@ class RedisFilesystem(WritableFileSystem):
             port: Redis port
 
         Returns:
-            `RedisFilesystem` instance
+            `RedisStorageContainer` instance
         """
 
         username = SecretStr(username) if isinstance(username, str) else username
@@ -145,7 +145,7 @@ class RedisFilesystem(WritableFileSystem):
             connection_string: Redis connection string
 
         Returns:
-            `RedisFilesystem` instance
+            `RedisStorageContainer` instance
         """
 
         connection_string = (
