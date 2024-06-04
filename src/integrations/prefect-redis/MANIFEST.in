@@ -1,0 +1,14 @@
+# Things to always exclude
+global-exclude .git*
+global-exclude .ipynb_checkpoints
+global-exclude *.py[co]
+global-exclude __pycache__/**
+
+# Top-level Config
+include versioneer.py
+include prefect_redis/_version.py
+include LICENSE
+include MANIFEST.in
+include setup.cfg
+include requirements.txt
+include requirements-dev.txt
