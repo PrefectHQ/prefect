@@ -1132,3 +1132,6 @@ async def run_dbt_cloud_job(
             )
             run = await task(run.retry_failed_steps.aio)(run)
             targeted_retries -= 1
+    raise DbtCloudJobRunFailed(
+        f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
+    )
