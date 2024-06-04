@@ -9,7 +9,6 @@ import anyio
 import pendulum
 
 from prefect.logging import get_logger
-from prefect.server.api.server import is_client_retryable_exception
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.utilities.processutils import _register_signal
@@ -84,6 +83,9 @@ class LoopService:
 
             # if an error is raised, log and continue
             except Exception as exc:
+                # avoid circular import
+                from prefect.server.api.server import is_client_retryable_exception
+
                 if not is_client_retryable_exception(exc):
                     self.logger.error(
                         f"Unexpected error in: {repr(exc)}", exc_info=True
