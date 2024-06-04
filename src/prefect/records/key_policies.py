@@ -23,7 +23,7 @@ class KeyPolicy:
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def __rsub__(self, other: str) -> "CompoundKeyPolicy":
+    def __sub__(self, other: str) -> "CompoundKeyPolicy":
         if not isinstance(other, str):
             raise TypeError("Can only subtract strings from key policies.")
         if isinstance(self, Inputs):
@@ -31,6 +31,14 @@ class KeyPolicy:
                 self.exclude = [other]
             else:
                 self.exclude.append(other)
+            return self
+        elif isinstance(self, CompoundKeyPolicy):
+            new = Inputs(exclude=[other])
+            self.merge(new)
+            return self
+        else:
+            new = Inputs(exclude=[other])
+            return CompoundKeyPolicy(policies=[self, new])
 
     def __add__(self, other: "KeyPolicy") -> "CompoundKeyPolicy":
         if isinstance(self, CompoundKeyPolicy):
@@ -44,7 +52,7 @@ class KeyPolicy:
 
 
 @dataclass
-class CompoundKeyPolicy:
+class CompoundKeyPolicy(KeyPolicy):
     policies: list = None
 
     def merge(self, other):

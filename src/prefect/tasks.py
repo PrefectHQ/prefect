@@ -307,7 +307,13 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
-        self.txn_key_policy = txn_key_policy
+        # result_storage_key should take precedent
+        # TODO: same for cache_key_fn
+        # can use method on key policy class
+        if result_storage_key and txn_key_policy != DEFAULT:
+            self.txn_key_policy = txn_key_policy
+        elif not result_storage_key:
+            self.txn_key_policy = txn_key_policy
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
