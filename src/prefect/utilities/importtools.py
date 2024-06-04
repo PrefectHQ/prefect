@@ -379,7 +379,7 @@ def safe_load_namespace(source_code: str):
     """
     parsed_code = ast.parse(source_code)
 
-    namespace = {}
+    namespace = {"__name__": "prefect_safe_namespace_loader"}
 
     # Walk through the AST and find all import statements
     for node in ast.walk(parsed_code):
@@ -413,11 +413,11 @@ def safe_load_namespace(source_code: str):
             except ImportError as e:
                 logger.debug("Failed to import from %s: %s", node.module, e)
 
-    # Handle local class definitions
+    # Handle local definitions
     for node in ast.walk(parsed_code):
-        if isinstance(node, (ast.ClassDef, ast.FunctionDef)):
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.Assign)):
             try:
-                # Compile and execute each class and function definition locally
+                # Compile and execute each class and function definition and assignment
                 code = compile(
                     ast.Module(body=[node], type_ignores=[]),
                     filename="<ast>",
@@ -425,5 +425,5 @@ def safe_load_namespace(source_code: str):
                 )
                 exec(code, namespace)
             except Exception as e:
-                logger.debug("Failed to compile class definition: %s", e)
+                logger.debug("Failed to compile: %s", e)
     return namespace
