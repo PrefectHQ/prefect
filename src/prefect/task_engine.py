@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Sequence,
     Set,
     TypeVar,
     Union,
@@ -75,6 +76,8 @@ from prefect.utilities.timeout import timeout, timeout_async
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+OptionalResultOrState = Union[R, State, None]
 
 
 @dataclass
@@ -369,12 +372,29 @@ class TaskRunEngine(Generic[P, R]):
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
-        """
-        If the task has retries left, and the retry condition is met, set the task to retrying.
+        """Handle a task run retry.
+
+        - If the task has retries left, and the retry condition is met, set the task to retrying.
+            - If the task has a `retry_delay_seconds` set, wait for that amount of time before retrying.
+            - If we have more retries than `retry_delay_seconds` values, use the last value in the sequence.
         - If the task has no retries left, or the retry condition is not met, return False.
-        - If the task has retries left, and the retry condition is met, return True.
+
         """
         if self.retries < self.task.retries and self.can_retry:
+            if self.task.retry_delay_seconds:
+                if isinstance(self.task.retry_delay_seconds, Sequence):
+                    index = min(self.retries, len(self.task.retry_delay_seconds) - 1)
+                    delay = self.task.retry_delay_seconds[index]
+                else:
+                    delay = self.task.retry_delay_seconds
+
+                if isinstance(delay, (int, float)):
+                    self.logger.info(f"Waiting {delay} seconds before retrying...")
+                    time.sleep(delay)
+                else:
+                    raise ValueError(
+                        "Invalid type for `retry_delay_seconds`. Must be an int, float, or Sequence[Union[int, float]]"
+                    )
             self.set_state(Retrying(), force=True)
             self.retries = self.retries + 1
             return True
@@ -542,7 +562,7 @@ def run_task_sync(
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
-) -> Union[R, State, None]:
+) -> OptionalResultOrState:
     engine = TaskRunEngine[P, R](
         task=task,
         parameters=parameters,
@@ -607,7 +627,7 @@ async def run_task_async(
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
-) -> Union[R, State, None]:
+) -> OptionalResultOrState:
     """
     Runs a task against the API.
 
@@ -679,7 +699,7 @@ def run_task(
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
-) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]:
+) -> Union[OptionalResultOrState, Coroutine[Any, Any, OptionalResultOrState]]:
     """
     Runs the provided task.
 
@@ -699,17 +719,26 @@ def run_task(
     Returns:
         The result of the task run
     """
-    kwargs = dict(
-        task=task,
-        task_run_id=task_run_id,
-        task_run=task_run,
-        parameters=parameters,
-        wait_for=wait_for,
-        return_type=return_type,
-        dependencies=dependencies,
-        context=context,
-    )
+
     if task.isasync:
-        return run_task_async(**kwargs)
+        return run_task_async(
+            task=task,
+            task_run_id=task_run_id,
+            task_run=task_run,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type=return_type,
+            dependencies=dependencies,
+            context=context,
+        )
     else:
-        return run_task_sync(**kwargs)
+        return run_task_sync(
+            task=task,
+            task_run_id=task_run_id,
+            task_run=task_run,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type=return_type,
+            dependencies=dependencies,
+            context=context,
+        )

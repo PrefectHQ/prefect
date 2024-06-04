@@ -68,6 +68,8 @@ from prefect.utilities.timeout import timeout, timeout_async
 P = ParamSpec("P")
 R = TypeVar("R")
 
+OptionalResultOrState = Union[R, State, None]
+
 
 def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
     ## TODO: add error handling to update state and log tracebacks
@@ -576,7 +578,7 @@ async def run_flow_async(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, None]:
+) -> OptionalResultOrState:
     """
     Runs a flow against the API.
 
@@ -629,7 +631,7 @@ def run_flow_sync(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, State, None]:
+) -> OptionalResultOrState:
     parameters = flow_run.parameters if flow_run else parameters
 
     engine = FlowRunEngine[P, R](
@@ -676,15 +678,20 @@ def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture]] = None,
     return_type: Literal["state", "result"] = "result",
-) -> Union[R, State, None]:
-    kwargs = dict(
-        flow=flow,
-        flow_run=flow_run,
-        parameters=parameters,
-        wait_for=wait_for,
-        return_type=return_type,
-    )
+) -> Union[OptionalResultOrState, Coroutine[Any, Any, OptionalResultOrState]]:
     if flow.isasync:
-        return run_flow_async(**kwargs)
+        return run_flow_async(
+            flow=flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type=return_type,
+        )
     else:
-        return run_flow_sync(**kwargs)
+        return run_flow_sync(
+            flow=flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type=return_type,
+        )

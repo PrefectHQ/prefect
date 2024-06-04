@@ -3,7 +3,7 @@ import logging
 import time
 from pathlib import Path
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
@@ -856,6 +856,51 @@ class TestTaskRetries:
 
             await test_flow()
             assert mock.call_count == 2
+
+    @pytest.mark.parametrize(
+        "retry_delay_seconds,expected_delay_sequence",
+        [
+            (1, [1, 1, 1]),
+            ([1, 2, 3], [1, 2, 3]),
+            (
+                [1, 2],
+                [1, 2, 2],
+            ),  # repeat last value if len(retry_delay_seconds) < retries
+        ],
+    )
+    async def test_task_respects_retry_delay_seconds(
+        self, retry_delay_seconds, expected_delay_sequence, prefect_client, monkeypatch
+    ):
+        mock_sleep = MagicMock()
+        monkeypatch.setattr(time, "sleep", mock_sleep)
+
+        @task(retries=3, retry_delay_seconds=retry_delay_seconds)
+        async def flaky_function():
+            raise ValueError()
+
+        @flow
+        async def test_flow():
+            return await flaky_function(return_state=True), ...
+
+        task_run_state, _ = await test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_failed()
+        assert mock_sleep.call_count == 3
+        assert mock_sleep.call_args_list == [
+            call(delay) for delay in expected_delay_sequence
+        ]
+
+        states = await prefect_client.read_task_run_states(task_run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+            "Failed",
+        ]
 
 
 class TestTaskCrashDetection:
