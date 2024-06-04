@@ -17,7 +17,7 @@ Prefect tasks are Python functions that can be run immediately or deferred for b
 
 You define a task by adding the `@task` decorator to a Python function, after which you can use the `delay` method to run the task in the background.
 
-If you schedule the task for background execution, you'll run a task server in a separate process or container to execute the task. This process is similar to how you would run a Celery worker or an arq worker to execute background tasks.
+If you schedule the task for background execution, you'll run a task server in a separate process or container to execute the task. This process is similar to a Celery worker or an arq worker.
 
 ### Defining a task
 
