@@ -370,7 +370,7 @@ Let's start simple with a flow that just logs a message. In a directory named `f
 
 ```
 from prefect import flow, tags
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 
 @flow
 def hello(name: str = "Marvin"):

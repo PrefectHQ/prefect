@@ -34,7 +34,7 @@ The simplest way to pause or suspend and wait for input is to pass a built-in ty
 ```python
 from prefect import flow
 from prefect.flow_runs import pause_flow_run
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 
 @flow
 def greet_user():
@@ -56,7 +56,7 @@ Instead of a built-in type, you can pass in a `pydantic.BaseModel` class. This i
 ```python
 from prefect import flow
 from prefect.flow_runs import pause_flow_run
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 from pydantic import BaseModel
 
 
@@ -141,7 +141,7 @@ You can provide a dynamic, markdown description that appears in the Prefect UI w
 from datetime import datetime
 from prefect import flow
 from prefect.flow_runs import pause_flow_run
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 
@@ -243,7 +243,7 @@ from typing import Literal
 import pydantic
 from prefect import flow
 from prefect.flow_runs import pause_flow_run
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 

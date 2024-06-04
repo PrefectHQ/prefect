@@ -157,7 +157,7 @@ You can provide a dynamic, markdown description that will appear in the Prefect 
 from datetime import datetime
 from prefect import flow
 from prefect.flow_runs import pause_flow_run
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 
@@ -267,7 +267,7 @@ from typing import Literal
 import pydantic
 from prefect import flow
 from prefect.flow_runs import pause_flow_run
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 

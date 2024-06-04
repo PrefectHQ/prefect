@@ -14,7 +14,7 @@ import pytest
 import regex as re
 
 from prefect import flow, tags
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId

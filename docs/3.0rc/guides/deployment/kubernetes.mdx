@@ -341,7 +341,7 @@ In a directory named `flows`, create a file named `hello.py` with the following 
 
 ```python
 from prefect import flow, tags
-from prefect.logger import get_run_logger
+from prefect.logging import get_run_logger
 
 @flow
 def hello(name: str = "Marvin"):
