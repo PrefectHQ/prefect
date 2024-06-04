@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator, Optional, Union
 
 import redis.asyncio as redis
@@ -7,6 +8,7 @@ from pydantic.types import SecretStr
 from typing_extensions import Self
 
 from prefect.filesystems import WritableFileSystem
+from prefect.utilities.asyncutils import sync_compatible
 
 
 class RedisStorageContainer(WritableFileSystem):
@@ -60,8 +62,9 @@ class RedisStorageContainer(WritableFileSystem):
                 "Initialization error: 'username' is provided, but 'password' is missing. Both are required."
             )
 
-    async def read_path(self, path: str):
-        """Read a redis key
+    @sync_compatible
+    async def read_path(self, path: Union[Path, str]):
+        """Read the redis content at `path`
 
         Args:
             path: Redis key to read from
@@ -70,10 +73,11 @@ class RedisStorageContainer(WritableFileSystem):
             Contents at key as bytes
         """
         async with self._client() as client:
-            return await client.get(path)
+            return await client.get(str(path))
 
-    async def write_path(self, path: str, content: bytes):
-        """Write to a redis key
+    @sync_compatible
+    async def write_path(self, path: Union[Path, str], content: bytes):
+        """Write `content` to the redis at `path`
 
         Args:
             path: Redis key to write to
@@ -81,7 +85,7 @@ class RedisStorageContainer(WritableFileSystem):
         """
 
         async with self._client() as client:
-            return await client.set(path, content)
+            return await client.set(str(path), content)
 
     @asynccontextmanager
     async def _client(self) -> AsyncGenerator[redis.Redis, None]:

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Union
 
 import pytest
@@ -64,3 +65,9 @@ async def test_read_write_path_from_connection_string(
 ):
     await redis_from_connection_string.write_path("test_key", b"test_value")
     assert await redis_from_connection_string.read_path("test_key") == b"test_value"
+
+
+async def test_read_write_path_pathlib(redis_from_host: RedisStorageContainer):
+    path = Path("hello/world.txt")
+    await redis_from_host.write_path(path, b"Hi there!")
+    assert await redis_from_host.read_path(path) == b"Hi there!"
