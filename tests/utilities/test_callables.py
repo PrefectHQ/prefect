@@ -600,6 +600,22 @@ class TestMethodToSchema:
             }
             assert schema.model_dump_for_openapi() == expected_schema
 
+    def test_method_with_kwargs_only(self):
+        def f(
+            *,
+            x: int,
+        ):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "properties": {"x": {"title": "x", "position": 0, "type": "integer"}},
+            "title": "Parameters",
+            "type": "object",
+            "definitions": {},
+            "required": ["x"],
+        }
+
 
 class TestParseFlowDescriptionToSchema:
     def test_flow_with_args_docstring(self):
@@ -1507,4 +1523,46 @@ class TestEntrypointToSchema:
                     "type": "object",
                 }
             },
+
+    def test_function_with_kwargs_only(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(
+            *,
+            x: int = 42,
+        ):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "type": "integer", "default": 42}
+            },
+            "title": "Parameters",
+            "type": "object",
+            "definitions": {},
+        }
+
+    def test_function_with_positional_only_args(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(x=1, /, y=2, z=3):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "default": 1},
+                "y": {"title": "y", "position": 1, "default": 2},
+                "z": {"title": "z", "position": 2, "default": 3},
+            },
+            "title": "Parameters",
+            "type": "object",
+            "definitions": {},
         }
