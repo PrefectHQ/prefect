@@ -102,6 +102,7 @@ def _mock_api_app_client(monkeypatch):
         "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
         app_client,
     )
+    return app_client
 
 @pytest.fixture
 async def _mock_api_batch_client(monkeypatch):

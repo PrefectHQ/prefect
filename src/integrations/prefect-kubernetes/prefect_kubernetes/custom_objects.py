@@ -55,9 +55,8 @@ async def create_namespaced_custom_object(
             )
         ```
     """
-    with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
-        return await run_sync_in_worker_thread(
-            custom_objects_client.create_namespaced_custom_object,
+    async with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
+        return await custom_objects_client.create_namespaced_custom_object(
             group=group,
             version=version,
             plural=plural,
@@ -113,9 +112,8 @@ async def delete_namespaced_custom_object(
         ```
     """
 
-    with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
-        return await run_sync_in_worker_thread(
-            custom_objects_client.delete_namespaced_custom_object,
+    async with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
+        return await custom_objects_client.delete_namespaced_custom_object(
             group=group,
             version=version,
             plural=plural,
@@ -172,9 +170,8 @@ async def get_namespaced_custom_object(
             )
         ```
     """
-    with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
-        return await run_sync_in_worker_thread(
-            custom_objects_client.get_namespaced_custom_object,
+    async with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
+        return await custom_objects_client.get_namespaced_custom_object(
             group=group,
             version=version,
             plural=plural,
@@ -230,9 +227,8 @@ async def get_namespaced_custom_object_status(
             )
         ```
     """
-    with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
-        return await run_sync_in_worker_thread(
-            custom_objects_client.get_namespaced_custom_object_status,
+    async with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
+        return await custom_objects_client.get_namespaced_custom_object_status(
             group=group,
             version=version,
             plural=plural,
@@ -284,9 +280,8 @@ async def list_namespaced_custom_object(
             )
         ```
     """
-    with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
-        return await run_sync_in_worker_thread(
-            custom_objects_client.list_namespaced_custom_object,
+    async with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
+        return await custom_objects_client.list_namespaced_custom_object(
             group=group,
             version=version,
             plural=plural,
@@ -354,9 +349,8 @@ async def patch_namespaced_custom_object(
             )
         ```
     """
-    with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
-        return await run_sync_in_worker_thread(
-            custom_objects_client.patch_namespaced_custom_object,
+    async with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
+        return await custom_objects_client.patch_namespaced_custom_object(
             group=group,
             version=version,
             plural=plural,
@@ -423,9 +417,8 @@ async def replace_namespaced_custom_object(
             )
         ```
     """
-    with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
-        return await run_sync_in_worker_thread(
-            custom_objects_client.replace_namespaced_custom_object,
+    async with kubernetes_credentials.get_client("custom_objects") as custom_objects_client:
+        return await custom_objects_client.replace_namespaced_custom_object(
             group=group,
             version=version,
             plural=plural,

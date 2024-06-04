@@ -2086,7 +2086,6 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
 
-            print(mock_cluster_config.mock_calls)
             mock_cluster_config.load_incluster_config.assert_called_once()
             assert not mock_cluster_config.load_kube_config.called
 
@@ -2105,7 +2104,6 @@ class TestKubernetesWorker:
         mock_cluster_config.load_incluster_config.side_effect = ConfigException()
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             await k8s_worker.run(flow_run, default_configuration)
-            print(mock_cluster_config.mock_calls)
             mock_cluster_config.new_client_from_config.assert_called_once()
 
     @pytest.mark.parametrize("job_timeout", [24, 100])

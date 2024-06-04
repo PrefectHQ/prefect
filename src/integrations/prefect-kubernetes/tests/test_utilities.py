@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-
+from pathlib import Path
 import pytest
 from kubernetes_asyncio.client import models as k8s_models
 from kubernetes_asyncio.config import ConfigException
@@ -12,7 +12,8 @@ from prefect.infrastructure.kubernetes import KubernetesJob
 
 FAKE_CLUSTER = "fake-cluster"
 
-base_path = "tests/sample_k8s_resources"
+
+base_path= Path.cwd() / "src" / "integrations" / "prefect-kubernetes" / "tests" / "sample_k8s_resources" 
 
 sample_deployment_manifest = KubernetesJob.job_from_file(
     f"{base_path}/sample_deployment.yaml"
