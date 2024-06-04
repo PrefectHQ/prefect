@@ -21,7 +21,7 @@ from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 work_app = PrefectTyper(
-    name="work-queue", help="Commands for working with work queues."
+    name="work-queue", help="Manage work queues."
 )
 app.add_typer(work_app, aliases=["work-queues"])
 

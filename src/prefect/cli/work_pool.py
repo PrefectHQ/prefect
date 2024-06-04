@@ -32,7 +32,7 @@ from prefect.workers.utilities import (
 )
 
 work_pool_app = PrefectTyper(
-    name="work-pool", help="Commands for working with work pools."
+    name="work-pool", help="Manage work pools."
 )
 app.add_typer(work_pool_app, aliases=["work-pool"])
 

@@ -34,7 +34,7 @@ from prefect.workers.base import BaseWorker
 from prefect.workers.server import start_healthcheck_server
 
 worker_app = PrefectTyper(
-    name="worker", help="Commands for starting and interacting with workers."
+    name="worker", help="Start and interact with workers."
 )
 app.add_typer(worker_app)
 

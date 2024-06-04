@@ -34,10 +34,10 @@ from prefect.utilities.processutils import (
 
 server_app = PrefectTyper(
     name="server",
-    help="Commands for interacting with a self-hosted Prefect server instance.",
+    help="Interact with a self-hosted Prefect server instance.",
 )
 database_app = PrefectTyper(
-    name="database", help="Commands for interacting with the database."
+    name="database", help="Interact with the database."
 )
 server_app.add_typer(database_app)
 app.add_typer(server_app)

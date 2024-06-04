@@ -47,10 +47,10 @@ from pydantic import BaseModel
 
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
 cloud_app = PrefectTyper(
-    name="cloud", help="Commands for interacting with Prefect Cloud"
+    name="cloud", help="Interact with Prefect Cloud"
 )
 workspace_app = PrefectTyper(
-    name="workspace", help="Commands for interacting with Prefect Cloud Workspaces"
+    name="workspace", help="Interact with Prefect Cloud Workspaces"
 )
 cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)

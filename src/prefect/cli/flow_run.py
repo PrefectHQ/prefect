@@ -28,7 +28,7 @@ from prefect.runner import Runner
 from prefect.states import State
 
 flow_run_app = PrefectTyper(
-    name="flow-run", help="Commands for interacting with flow runs."
+    name="flow-run", help="Interact with flow runs."
 )
 app.add_typer(flow_run_app, aliases=["flow-runs"])
 

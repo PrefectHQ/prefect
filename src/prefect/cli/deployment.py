@@ -58,10 +58,10 @@ yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 
 deployment_app = PrefectTyper(
-    name="deployment", help="Commands for working with deployments."
+    name="deployment", help="Work with deployments."
 )
 schedule_app = PrefectTyper(
-    name="schedule", help="Commands for interacting with your deployment's schedules."
+    name="schedule", help="Interact with your deployment's schedules."
 )
 
 deployment_app.add_typer(schedule_app, aliases=["schedule"])

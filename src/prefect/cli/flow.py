@@ -19,7 +19,7 @@ from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
 
-flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
+flow_app = PrefectTyper(name="flow", help="Interact with flows.")
 app.add_typer(flow_app, aliases=["flows"])
 
 

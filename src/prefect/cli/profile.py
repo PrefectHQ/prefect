@@ -23,7 +23,7 @@ from prefect.exceptions import ObjectNotFound
 from prefect.utilities.collections import AutoEnum
 
 profile_app = PrefectTyper(
-    name="profile", help="Commands for interacting with your Prefect profiles."
+    name="profile", help="Interact with your Prefect profiles."
 )
 app.add_typer(profile_app, aliases=["profiles"])
 

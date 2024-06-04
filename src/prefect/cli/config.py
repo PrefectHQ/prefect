@@ -15,7 +15,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 
 help_message = """
-    Commands for interacting with Prefect settings.
+    Interact with Prefect settings.
 """
 
 config_app = PrefectTyper(name="config", help=help_message)
