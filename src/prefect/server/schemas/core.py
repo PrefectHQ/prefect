@@ -1076,7 +1076,7 @@ class WorkPool(ORMBaseModel):
 
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
-    default_queue_id: UUID = Field(
+    default_queue_id: Optional[UUID] = Field(
         None, description="The id of the pool's default queue."
     )
 

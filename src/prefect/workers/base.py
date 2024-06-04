@@ -106,6 +106,11 @@ class BaseJobConfiguration(BaseModel):
     def _coerce_command(cls, v):
         return return_v_or_none(v)
 
+    @field_validator("env", mode="before")
+    @classmethod
+    def _coerce_env(cls, v):
+        return {k: str(v) if v is not None else None for k, v in v.items()}
+
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
         """Get default values from base config for all variables that have them."""
