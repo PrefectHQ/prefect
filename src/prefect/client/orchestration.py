@@ -8,11 +8,13 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
     TypeVar,
     Union,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -121,7 +123,6 @@ from prefect.events import filters
 from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
 from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
@@ -156,9 +157,23 @@ class ServerType(AutoEnum):
     CLOUD = AutoEnum.auto()
 
 
+@overload
+def get_client(
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
+) -> "PrefectClient":
+    ...
+
+
+@overload
+def get_client(
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
+) -> "SyncPrefectClient":
+    ...
+
+
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: bool = False
-) -> Union["PrefectClient", "SyncPrefectClient"]:
+):
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
@@ -3289,13 +3304,13 @@ class PrefectClient:
                 app_lifespan_context(self._ephemeral_app)
             )
 
-        if self._ephemeral_app:
-            self.logger.debug(
-                "Using ephemeral application with database at "
-                f"{PREFECT_API_DATABASE_CONNECTION_URL.value()}"
-            )
-        else:
-            self.logger.debug(f"Connecting to API at {self.api_url}")
+        # if self._ephemeral_app:
+        #     self.logger.debug(
+        #         "Using ephemeral application with database at "
+        #         f"{PREFECT_API_DATABASE_CONNECTION_URL.value()}"
+        #     )
+        # else:
+        #     self.logger.debug(f"Connecting to API at {self.api_url}")
 
         # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)
