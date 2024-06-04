@@ -3,7 +3,7 @@
 ## Release 2.19.4
 
 ### Fixes
-- Fix 'flow not found' errors when using `prefect deploy` to deploy async flows - https://github.com/PrefectHQ/prefect/pull/13769
+- Fix `Could not find flow '[...]' in '[...].py'` errors when using `prefect deploy` to deploy async flows - https://github.com/PrefectHQ/prefect/pull/13769
 - Fix parameter schema generation for flows with positional only and keyword only arguments when using `prefect deploy` - https://github.com/PrefectHQ/prefect/pull/13778
 - Fix use of dynamic models in flow typing when using `prefect deploy` - https://github.com/PrefectHQ/prefect/pull/13781
 - Allow clients to provide task run ID during creation to enable compatibility between 2.x servers and 3.0.0rc clients - https://github.com/PrefectHQ/prefect/pull/13683
