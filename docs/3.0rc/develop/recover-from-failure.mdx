@@ -12,7 +12,7 @@ task. If the task fails, Prefect will retry it up to `retries` times, waiting
 final retry, Prefect marks the task as _crashed_ if the task raised an exception
 or _failed_ if it returned a string.
 
-!!! note "Retries don't create new task runs"
+<Note> "Retries don't create new task runs" 
     A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
 
 ### A real-world example: making an API request
