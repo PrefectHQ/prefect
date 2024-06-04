@@ -44,6 +44,7 @@ from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
@@ -238,6 +239,9 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
     Send 503 for errors clients can retry on.
     """
     if is_client_retryable_exception(exc):
+        if PREFECT_API_LOG_RETRYABLE_ERRORS.value():
+            logger.error("Encountered retryable exception in request:", exc_info=True)
+
         return JSONResponse(
             content={"exception_message": "Service Unavailable"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
