@@ -199,7 +199,8 @@ Create and run the following script to deploy your flow. Be sure to replace `<re
 `my_flow.py`
 
 ```python
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect.deployments import DeploymentImage
 
 @flow

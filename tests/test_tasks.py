@@ -13,7 +13,7 @@ import anyio
 import pytest
 import regex as re
 
-from prefect import flow, get_run_logger, tags
+from prefect import flow, tags
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
@@ -28,6 +28,7 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.futures import PrefectFuture as NewPrefectFuture
+from prefect.logging import get_run_logger
 from prefect.results import ResultFactory
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
