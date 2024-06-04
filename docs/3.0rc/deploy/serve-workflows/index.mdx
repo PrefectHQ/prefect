@@ -119,7 +119,8 @@ This method is useful for creating deployments for single flows. For two or more
 
 ```python hl_lines="2 18-20" title="multi_flow_deployment.py"
 import time
-from prefect import flow, serve
+from prefect import flow
+from prefect.flows import serve
 
 
 @flow
@@ -314,7 +315,7 @@ can use this object to retrieve information about the run after calling
 `run_deployment`:
 
 ```python
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.deployments import run_deployment
 
 def main():

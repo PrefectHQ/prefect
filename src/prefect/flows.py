@@ -644,7 +644,8 @@ class Flow(Generic[P, R]):
             Prepare two deployments and serve them:
 
             ```python
-            from prefect import flow, serve
+            from prefect import flow
+            from prefect.flows import serve
 
             @flow
             def my_flow(name):

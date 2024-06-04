@@ -25,19 +25,26 @@ del _version, pathlib
 
 
 # Import user-facing API
-from prefect.deployments import deploy
-from prefect.states import State
-from prefect.logging import get_run_logger
-from prefect.flows import flow, Flow, serve
-from prefect.transactions import Transaction
+from prefect.flows import flow, Flow
 from prefect.tasks import task, Task
+
+
+from prefect.deployments import deploy  # no internal references
+from prefect.states import State  # no internal references
+from prefect.logging import get_run_logger  # no internal references
+from prefect.flows import serve  # no internal references #noqa
+from prefect.client.cloud import get_cloud_client, CloudClient  # no internal references
+from prefect.client.orchestration import get_client, PrefectClient
+
+from prefect.transactions import Transaction
+
 from prefect.context import tags
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
-from prefect.client.orchestration import get_client, PrefectClient
-from prefect.client.cloud import get_cloud_client, CloudClient
+
+
 import prefect.variables
 import prefect.runtime
 

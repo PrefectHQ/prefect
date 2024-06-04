@@ -24,7 +24,7 @@ To speed up your flow runs, disable this behavior for a task by wrapping the arg
 To demonstrate, here's a basic example that extracts and transforms some New York taxi data:
 
 ```python hl_lines="2 26" title="et_quote.py"
-from prefect import task, flow
+from prefect import flow, task
 from prefect.utilities.annotations import quote
 import pandas as pd
 

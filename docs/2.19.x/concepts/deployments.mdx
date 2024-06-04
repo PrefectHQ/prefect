@@ -129,7 +129,7 @@ def my_flow():
 The return value of `run_deployment` is a [FlowRun](https://docs.prefect.io/api-ref/prefect/client/schemas/#prefect.client.schemas.objects.FlowRun) object containing metadata about the scheduled run. You can use this object to retrieve information about the run after calling `run_deployment`:
 
 ```python
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.deployments import run_deployment
 
 def main():

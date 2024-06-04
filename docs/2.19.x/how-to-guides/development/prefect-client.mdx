@@ -14,7 +14,7 @@ In the [API reference for the `PrefectClient`](https://docs.prefect.io/api-ref/p
 The `PrefectClient` is an async context manager, so you can use it like this:
 
 ```python
-from prefect import get_client
+from prefect.client.orchestration import get_client
 
 async with get_client() as client:
     response = await client.hello()
@@ -39,7 +39,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     DeploymentFilter, FlowRunFilter
 )
@@ -122,7 +122,7 @@ This example gets the last three completed flow runs from our workspace:
 import asyncio
 from typing import Optional
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.objects import FlowRun
 from prefect.client.schemas.sorting import FlowRunSort
@@ -168,7 +168,7 @@ It can be cumbersome to cancel many flow runs through the UI. You can use `get_c
 ```
 import anyio
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterState, FlowRunFilterStateName
 from prefect.client.schemas.objects import StateType
 

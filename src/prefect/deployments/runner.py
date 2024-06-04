@@ -4,7 +4,8 @@ Objects for creating and configuring deployments for flows using `serve` functio
 Example:
     ```python
     import time
-    from prefect import flow, serve
+    from prefect import flow
+    from prefect.flows import serve
 
 
     @flow
@@ -860,55 +861,56 @@ async def deploy(
     ignore_warnings: bool = False,
 ) -> List[UUID]:
     """
-    Deploy the provided list of deployments to dynamic infrastructure via a
-    work pool.
+        Deploy the provided list of deployments to dynamic infrastructure via a
+        work pool.
 
-    By default, calling this function will build a Docker image for the deployments, push it to a
-    registry, and create each deployment via the Prefect API that will run the corresponding
-    flow on the given schedule.
+        By default, calling this function will build a Docker image for the deployments, push it to a
+        registry, and create each deployment via the Prefect API that will run the corresponding
+        flow on the given schedule.
 
-    If you want to use an existing image, you can pass `build=False` to skip building and pushing
-    an image.
+        If you want to use an existing image, you can pass `build=False` to skip building and pushing
+        an image.
 
-    Args:
-        *deployments: A list of deployments to deploy.
-        work_pool_name: The name of the work pool to use for these deployments. Defaults to
-            the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
-        image: The name of the Docker image to build, including the registry and
-            repository. Pass a DeploymentImage instance to customize the Dockerfile used
-            and build arguments.
-        build: Whether or not to build a new image for the flow. If False, the provided
-            image will be used as-is and pulled at runtime.
-        push: Whether or not to skip pushing the built image to a registry.
-        print_next_steps_message: Whether or not to print a message with next steps
-            after deploying the deployments.
+        Args:
+            *deployments: A list of deployments to deploy.
+            work_pool_name: The name of the work pool to use for these deployments. Defaults to
+                the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+            image: The name of the Docker image to build, including the registry and
+                repository. Pass a DeploymentImage instance to customize the Dockerfile used
+                and build arguments.
+            build: Whether or not to build a new image for the flow. If False, the provided
+                image will be used as-is and pulled at runtime.
+            push: Whether or not to skip pushing the built image to a registry.
+            print_next_steps_message: Whether or not to print a message with next steps
+                after deploying the deployments.
 
-    Returns:
-        A list of deployment IDs for the created/updated deployments.
+        Returns:
+            A list of deployment IDs for the created/updated deployments.
 
-    Examples:
-        Deploy a group of flows to a work pool:
+        Examples:
+            Deploy a group of flows to a work pool:
 
-        ```python
-        from prefect import deploy, flow
+            ```python
+            from prefect import flow
+    from prefect.deployments import deploy
 
-        @flow(log_prints=True)
-        def local_flow():
-            print("I'm a locally defined flow!")
+            @flow(log_prints=True)
+            def local_flow():
+                print("I'm a locally defined flow!")
 
-        if __name__ == "__main__":
-            deploy(
-                local_flow.to_deployment(name="example-deploy-local-flow"),
-                flow.from_source(
-                    source="https://github.com/org/repo.git",
-                    entrypoint="flows.py:my_flow",
-                ).to_deployment(
-                    name="example-deploy-remote-flow",
-                ),
-                work_pool_name="my-work-pool",
-                image="my-registry/my-image:dev",
-            )
-        ```
+            if __name__ == "__main__":
+                deploy(
+                    local_flow.to_deployment(name="example-deploy-local-flow"),
+                    flow.from_source(
+                        source="https://github.com/org/repo.git",
+                        entrypoint="flows.py:my_flow",
+                    ).to_deployment(
+                        name="example-deploy-remote-flow",
+                    ),
+                    work_pool_name="my-work-pool",
+                    image="my-registry/my-image:dev",
+                )
+            ```
     """
     work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
 

@@ -1001,7 +1001,7 @@ class Task(Generic[P, R]):
             Check it out: 3
 
             Use `unmapped` to treat an iterable argument as a constant
-            >>> from prefect import unmapped
+            >>> from prefect.utilities.annotations import unmapped
             >>>
             >>> @task
             >>> def add_n_to_items(items, n):

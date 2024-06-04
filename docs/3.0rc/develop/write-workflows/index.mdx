@@ -832,7 +832,7 @@ I'm fail safe!
 If a flow returns a mix of futures and states, the final state is determined by resolving all futures to states, then determining if any of the states are not `COMPLETED`.
 
 ```python hl_lines="20"
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 def always_fails_task():
@@ -885,7 +885,7 @@ Failed(message='1/3 states failed.', type=FAILED, result=(Failed(message='Task r
 If a flow returns a manually created state, the final state is determined based on the return value.
 
 ```python hl_lines="16-19"
-from prefect import task, flow
+from prefect import flow, task
 from prefect.states import Completed, Failed
 
 @task
@@ -936,7 +936,7 @@ I'm fail safe!
 If the flow run returns _any other object_, then it is marked as completed.
 
 ```python hl_lines="10"
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 def always_fails_task():
@@ -1020,7 +1020,8 @@ You can take this further and serve multiple flows with the same process using t
 
 ```python
 import time
-from prefect import flow, serve
+from prefect import flow
+from prefect.flows import serve
 
 
 @flow
@@ -1130,7 +1131,8 @@ Prefect exposes this functionality via the [`pause_flow_run`](/3.0rc/api-ref/pre
 Most simply, `pause_flow_run` can be called inside a flow:
 
 ```python
-from prefect import task, flow, pause_flow_run, resume_flow_run
+from prefect import flow, task
+from prefect.flow_runs import pause_flow_run, resume_flow_run
 
 @task
 async def marvin_setup():
@@ -1152,7 +1154,8 @@ async def inspiring_joke():
 You can also implement conditional pauses:
 
 ```python
-from prefect import task, flow, pause_flow_run
+from prefect import flow, task
+from prefect.flow_runs import pause_flow_run
 
 @task
 def task_one():
@@ -1221,7 +1224,8 @@ This flow will exit after one task, and will be rescheduled upon resuming.
 The stored result of the first task is retrieved instead of being rerun.
 
 ```python
-from prefect import flow, pause_flow_run, task
+from prefect import flow, task
+from prefect.flow_runs import pause_flow_run
 
 @task(persist_result=True)
 def foo():
@@ -1271,7 +1275,8 @@ When resuming the flow run, users are required to provide data for this model. U
 Here is an example of a flow that pauses and waits for input from a user:
 
 ```python
-from prefect import flow, pause_flow_run
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
 from prefect.input import RunInput
 
 

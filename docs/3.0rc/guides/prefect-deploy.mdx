@@ -439,7 +439,8 @@ These deployments can be managed independently of one another, allowing you to d
 To create multiple work pool-based deployments at once you can use the `deploy` function, which is analogous to the `serve` function.
 
 ```python
-from prefect import deploy, flow
+from prefect import flow
+from prefect.deployments import deploy
 
 @flow(log_prints=True)
 def buy():
@@ -459,7 +460,8 @@ Note that in the example above we created two deployments from the same flow, bu
 Alternatively, we could have created two deployments from different flows.
 
 ```python
-from prefect import deploy, flow
+from prefect import flow
+from prefect.deployments import deploy
 
 @flow(log_prints=True)
 def buy():
@@ -486,7 +488,8 @@ We can specify that one or more flows should be pulled from a remote location at
 Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
 ```python hl_lines="9-19"
-from prefect import deploy, flow
+from prefect import flow
+from prefect.deployments import deploy
 
 
 @flow(log_prints=True)

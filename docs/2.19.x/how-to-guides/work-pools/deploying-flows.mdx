@@ -442,7 +442,8 @@ You can create multiple deployments from one or more Python files that use `.dep
 To create multiple work pool-based deployments at once you can use the `deploy` function, which is analogous to the `serve` function.
 
 ```
-from prefect import deploy, flow
+from prefect import flow
+from prefect.deployments import deploy
 
 @flow(log_prints=True)
 def buy():
@@ -463,7 +464,8 @@ if __name__ == "__main__":
 Note that in the example above we created two deployments from the same flow, but with different work pools. Alternatively, we could have created two deployments from different flows.
 
 ```
-from prefect import deploy, flow
+from prefect import flow
+from prefect.deployments import deploy
 
 @flow(log_prints=True)
 def buy():
@@ -491,7 +493,8 @@ In the example above the code for both flows gets baked into the same image.
 We can specify that one or more flows should be pulled from a remote location at runtime by using the `from_source` method. Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
 ```
-from prefect import deploy, flow
+from prefect import flow
+from prefect.deployments import deploy
 
 
 @flow(log_prints=True)

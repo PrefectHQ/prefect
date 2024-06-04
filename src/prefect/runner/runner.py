@@ -5,7 +5,8 @@ either `flow.serve` or the `serve` utility.
 Example:
     ```python
     import time
-    from prefect import flow, serve
+    from prefect import flow
+from prefect.flows import serve
 
 
     @flow

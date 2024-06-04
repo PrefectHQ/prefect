@@ -210,7 +210,8 @@ In the example, we use Pydantic's `validator` decorator to define a custom valid
 
 ```python
 import pydantic
-from prefect import flow, pause_flow_run
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
 from prefect.input import RunInput
 
 
@@ -365,7 +366,8 @@ async def greeter_flow():
 By default, each time you call `receive_input`, you get an iterator that iterates over all known inputs to a specific flow run, starting with the first received. The iterator will keep track of your current position as you iterate over it, or you can call `next()` to explicitly get the next input. If you're using the iterator in a loop, you should assign it to a variable:
 
 ```python
-from prefect import flow, get_client
+from prefect import flow
+from prefect.client.orchestration import get_client
 from prefect.deployments.deployments import run_deployment
 from prefect.input.run_input import receive_input, send_input
 
@@ -582,7 +584,8 @@ For a complete example of using `send_input` and `receive_input`, here is what t
 ```python
 import asyncio
 import sys
-from prefect import flow, get_client
+from prefect import flow
+from prefect.client.orchestration import get_client
 from prefect.blocks.system import JSON
 from prefect.context import get_run_context
 from prefect.deployments.deployments import run_deployment

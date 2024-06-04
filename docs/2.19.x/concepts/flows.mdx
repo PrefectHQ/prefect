@@ -668,7 +668,7 @@ I'm fail safe!
 If a flow returns a mix of futures and states, the final state is determined by resolving all futures to states, then determining if any of the states are not `COMPLETED`.
 
 ```python
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 def always_fails_task():
@@ -721,7 +721,7 @@ When returning multiple states, they must be contained in a `set`, `list`, or `t
 If a flow returns a manually created state, the final state is determined based on the return value.
 
 ```python
-from prefect import task, flow
+from prefect import flow, task
 from prefect.states import Completed, Failed
 
 @task
@@ -774,7 +774,7 @@ I'm fail safe!
 If the flow run returns _any other object_, then it is marked as completed.
 
 ```python
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 def always_fails_task():
@@ -866,7 +866,8 @@ You can take this further and serve multiple flows with the same process using t
 
 ```python
 import time
-from prefect import flow, serve
+from prefect import flow
+from prefect.flows import serve
 
 
 @flow
@@ -988,7 +989,8 @@ Paused flow runs time out after one hour by default. After the timeout, the flow
 Most simply, `pause_flow_run` can be called inside a flow:
 
 ```python
-from prefect import task, flow, pause_flow_run, resume_flow_run
+from prefect import flow, task
+from prefect.flow_runs import pause_flow_run, resume_flow_run
 
 @task
 async def marvin_setup():
@@ -1012,7 +1014,8 @@ async def inspiring_joke():
 You can also implement conditional pauses:
 
 ```python
-from prefect import task, flow, pause_flow_run
+from prefect import flow, task
+from prefect.flow_runs import pause_flow_run
 
 @task
 def task_one():
@@ -1078,7 +1081,8 @@ Suspended flow runs time out after one hour by default. After the timeout, the f
 Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
 
 ```python
-from prefect import flow, pause_flow_run, task
+from prefect import flow, task
+from prefect.flow_runs import pause_flow_run
 
 @task(persist_result=True)
 def foo():
@@ -1128,7 +1132,8 @@ When pausing or suspending a flow run you may want to wait for input from a user
 Here is an example of a flow that pauses and waits for input from a user:
 
 ```python
-from prefect import flow, pause_flow_run
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
 from prefect.input import RunInput
 
 

@@ -10,7 +10,7 @@ import pytest
 from exceptiongroup import ExceptionGroup, catch
 
 import prefect.results
-from prefect import Task, task, unmapped
+from prefect import Task, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -27,6 +27,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.task_server import TaskServer
+from prefect.utilities.annotations import unmapped
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:

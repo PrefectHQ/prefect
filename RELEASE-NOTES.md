@@ -1514,7 +1514,8 @@ import time
 
 from pydantic import BaseModel
 
-from prefect import flow, serve, task
+from prefect import flow, task
+from prefect.flows import serve
 from prefect.runner import submit_to_runner, wait_for_submitted_runs
 
 
@@ -6859,7 +6860,9 @@ See <https://github.com/PrefectHQ/prefect/pull/6908> for implementation details.
 You can now specify that a downstream task should wait for an upstream task and run even if the upstream task has failed.
 
 ```python
-from prefect import task, flow, allow_failure
+from prefect import task, flow
+from prefect.utilities.annotations import allow_failure
+
 
 @flow
 def foo():

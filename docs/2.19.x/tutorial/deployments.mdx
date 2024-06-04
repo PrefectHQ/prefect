@@ -122,7 +122,8 @@ This method is useful for creating deployments for single flows, but what if we 
 ```python multi_flow_deployment.py
 
 import time
-from prefect import flow, serve
+from prefect import flow
+from prefect.flows import serve
 
 
 @flow

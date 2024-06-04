@@ -466,7 +466,7 @@ Note that the `cache_key_fn` is _not_ defined as a `@task`.
     By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` setting.
 
 ```python hl_lines="3-5 7"
-from prefect import task, flow
+from prefect import flow, task
 
 def static_cache_key(context, parameters):
     # return a constant
@@ -646,7 +646,8 @@ sum_it([1, 2, 3], 5)
 If your static argument is an iterable, you'll need to wrap it with `unmapped` to tell Prefect that it should be treated as a static value.
 
 ```python
-from prefect import flow, task, unmapped
+from prefect import flow, task
+from prefect.utilities.annotations import unmapped
 
 @task
 def sum_plus(x, static_iterable):
@@ -667,7 +668,7 @@ Prefect also supports asynchronous task and flow definitions by default. All of 
 ```python
 import asyncio
 
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 async def print_values(values):
@@ -765,7 +766,7 @@ To update your tag concurrency limits programmatically, use [`PrefectClient.orch
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
 ```python
-from prefect import get_client
+from prefect.client.orchestration import get_client
 
 async with get_client() as client:
     # set a concurrency limit of 10 on the 'small_instance' tag

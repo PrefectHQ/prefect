@@ -2,8 +2,9 @@ import threading
 import time
 from concurrent.futures import Future
 
-from prefect import flow, pause_flow_run, resume_flow_run, task
+from prefect import flow, task
 from prefect.context import get_run_context
+from prefect.flow_runs import pause_flow_run, resume_flow_run
 
 flow_run_id_future = Future()
 

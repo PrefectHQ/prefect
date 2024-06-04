@@ -20,7 +20,7 @@ import pytest
 from starlette import status
 
 import prefect.runner
-from prefect import flow, serve, task
+from prefect import flow, task
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import StateType
@@ -32,7 +32,7 @@ from prefect.deployments.runner import (
     RunnerDeployment,
     deploy,
 )
-from prefect.flows import load_flow_from_entrypoint
+from prefect.flows import load_flow_from_entrypoint, serve
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check

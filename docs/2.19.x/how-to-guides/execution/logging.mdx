@@ -138,7 +138,7 @@ Prefect provides the `log_prints` option to enable the logging of `print` statem
 By default, tasks and subflows will inherit the `log_prints` setting from their parent flow, unless opted out with their own explicit `log_prints` setting.
 
 ```python
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 def my_task():
@@ -165,7 +165,7 @@ Will output:
 
 
 ```python
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 def my_task(log_prints=False):
