@@ -1,6 +1,6 @@
-from .filesystem import RedisFilesystem
+from .filesystem import RedisStorageContainer
 
 
 __all__ = [
-    "RedisFilesystem",
+    "RedisStorageContainer",
 ]
