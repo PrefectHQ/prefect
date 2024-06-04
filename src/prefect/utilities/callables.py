@@ -448,7 +448,14 @@ def _generate_signature_from_source(
         (
             node
             for node in ast.walk(parsed_code)
-            if isinstance(node, ast.FunctionDef) and node.name == func_name
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
         ),
         None,
     )
@@ -536,7 +543,14 @@ def _get_docstring_from_source(source_code: str, func_name: str) -> Optional[str
         (
             node
             for node in ast.walk(parsed_code)
-            if isinstance(node, ast.FunctionDef) and node.name == func_name
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
         ),
         None,
     )
