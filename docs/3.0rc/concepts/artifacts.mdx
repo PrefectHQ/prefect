@@ -25,14 +25,14 @@ Common use cases for artifacts include:
 Creating artifacts allows you to publish data from task and flow runs or outside of a flow run context.
 There are five artifact types: links, Markdown, progress, images, and tables.
 
+<Note> 
+ Each artifact created within a task will be displayed individually in the Prefect UI.
+    This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact.
 
-Each artifact created within a task will be displayed individually in the Prefect UI. 
-
-This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact.
-
-Unlike the `print()` command, where you can concatenate multiple calls to include additional items in a report, within a task, these commands must be used multiple times if necessary. 
-
-To create artifacts that include strings from multiple tasks, compile your message string separately and then pass it to `create_markdown_artifact()` to create the complete artifact.
+    Unlike the `print()` command, where you can concatenate multiple calls to include additional items in a report, within a task, these commands must be used multiple times if necessary. 
+    
+    To create artifacts like reports or summaries using `create_markdown_artifact()`, compile your message string separately and then pass it to `create_markdown_artifact()` to create the complete artifact.
+ </Note>
 
 ### Creating link artifacts
 
