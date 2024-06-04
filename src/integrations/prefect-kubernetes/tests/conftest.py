@@ -95,54 +95,24 @@ def kubernetes_credentials(kube_config_dict):
         )
     )
 
-
 @pytest.fixture
 def _mock_api_app_client(monkeypatch):
-    app_client = MagicMock(spec=AppsV1Api, return_value=AsyncMock())
-
-    @contextmanager
-    def get_client(self, _):
-        yield app_client
-
+    app_client = AsyncMock(spec=AppsV1Api)
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        app_client,
     )
-
-    return app_client
-
 
 @pytest.fixture
 async def _mock_api_batch_client(monkeypatch):
-    batch_client = AsyncMock(spec=BatchV1Api, return_value=AsyncMock())
-
-    @asynccontextmanager
-    async def get_client(self, _):
-        yield batch_client
+    batch_client = AsyncMock(spec=BatchV1Api)
 
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        MagicMock(spec=BatchV1Api, return_value=AsyncMock()),
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        batch_client,
     )
 
     return batch_client
-
-
-# @pytest.fixture
-# def _mock_api_core_client(monkeypatch):
-#     core_client = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
-
-#     @asynccontextmanager
-#     async def get_client(self, _):
-#         yield core_client()
-
-#     monkeypatch.setattr(
-#         "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-#         get_client,
-#     )
-
-#     return core_client
-
 
 @pytest.fixture
 def _mock_api_core_client(monkeypatch):
@@ -158,15 +128,11 @@ def _mock_api_core_client(monkeypatch):
 
 @pytest.fixture
 def _mock_api_custom_objects_client(monkeypatch):
-    custom_objects_client = MagicMock(spec=CustomObjectsApi, return_value=AsyncMock())
-
-    @contextmanager
-    def get_client(self, _):
-        yield custom_objects_client
+    custom_objects_client = AsyncMock(spec=CustomObjectsApi)
 
     monkeypatch.setattr(
-        "prefect_kubernetes.credentials.KubernetesCredentials.get_client",
-        get_client,
+        "prefect_kubernetes.credentials.KubernetesCredentials.get_resource_specific_client",
+        custom_objects_client,
     )
 
     return custom_objects_client
@@ -272,7 +238,8 @@ def read_pod_logs(monkeypatch):
 
 @pytest.fixture
 def valid_kubernetes_job_block(kubernetes_credentials):
-    with open("tests/sample_k8s_resources/sample_job.yaml") as f:
+    
+    with open(BASEDIR / "sample_k8s_resources" / "sample_job.yaml") as f:
         job_dict = yaml.safe_load(f)
 
     return KubernetesJob(
