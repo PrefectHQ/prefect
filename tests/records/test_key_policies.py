@@ -67,6 +67,8 @@ class TestInputsPolicy:
         )
 
         assert x_key != y_key
+        assert x_key != none_key
+        assert y_key != none_key
 
         z_key = policy.compute_key(
             task=None, run=None, inputs={"z": "foo"}, flow_parameters=None

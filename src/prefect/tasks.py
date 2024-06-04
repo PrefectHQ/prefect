@@ -307,15 +307,7 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
-        # result_storage_key should take precedent
-        # TODO: same for cache_key_fn
-        # can use method on key policy class
-        if result_storage_key and txn_key_policy != DEFAULT:
-            self.txn_key_policy = txn_key_policy
-        elif not result_storage_key:
-            self.txn_key_policy = txn_key_policy
-        else:
-            self.txn_key_policy = None
+        self.txn_key_policy = txn_key_policy
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
@@ -1228,7 +1220,7 @@ def task(
     description: str = None,
     tags: Iterable[str] = None,
     version: str = None,
-    txn_key_policy = None,
+    txn_key_policy=DEFAULT,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
@@ -1263,7 +1255,7 @@ def task(
     description: str = None,
     tags: Iterable[str] = None,
     version: str = None,
-    txn_key_policy = None,
+    txn_key_policy=DEFAULT,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
@@ -1436,6 +1428,7 @@ def task(
                 description=description,
                 tags=tags,
                 version=version,
+                txn_key_policy=txn_key_policy,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 task_run_name=task_run_name,
