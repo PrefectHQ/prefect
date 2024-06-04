@@ -101,7 +101,8 @@
             "3.0rc/guides/ci-cd",
             "3.0rc/guides/specifying-upstream-dependencies",
             "3.0rc/guides/secrets",
-            "3.0rc/guides/recipes"
+            "3.0rc/guides/recipes",
+            "3.0rc/guides/deferred-tasks"
           ]
         },
         {
