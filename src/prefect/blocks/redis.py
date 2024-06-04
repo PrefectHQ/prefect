@@ -2,7 +2,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator, Optional, Union
 
-import redis.asyncio as redis
+try:
+    import redis.asyncio as redis
+except ImportError:
+    raise ImportError(
+        "`redis-py` must be installed to use the `RedisStorageContainer` block. "
+        "You can install it with `pip install redis>=5.0.1"
+    )
+
 from pydantic import Field
 from pydantic.types import SecretStr
 from typing_extensions import Self
@@ -26,7 +33,7 @@ class RedisStorageContainer(WritableFileSystem):
     Example:
         Create a new block from hostname, username and password:
         ```python
-        from prefect_redis import RedisStorageContainer
+        from prefect.blocks.redis import RedisStorageContainer
 
         block = RedisStorageContainer.from_host(
             host="myredishost.com", username="redis", password="SuperSecret")
@@ -35,7 +42,7 @@ class RedisStorageContainer(WritableFileSystem):
 
         Create a new block from a connection string
         ```python
-        from prefect_redis import RedisStorageContainer
+        from prefect.blocks.redis import RedisStorageContainer
         block = RedisStorageContainer.from_url(""redis://redis:SuperSecret@myredishost.com:6379")
         block.save("BLOCK_NAME")
         ```
