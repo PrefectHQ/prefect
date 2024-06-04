@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 import docker
 from pydantic import Field
 
-from prefect import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.blocks.core import Block
 
 

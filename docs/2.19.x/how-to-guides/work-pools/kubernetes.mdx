@@ -369,7 +369,8 @@ Define a flow
 Let's start simple with a flow that just logs a message. In a directory named `flows`, create a file named `hello.py` with the following contents:
 
 ```
-from prefect import flow, get_run_logger, tags
+from prefect import flow, tags
+from prefect.logger import get_run_logger
 
 @flow
 def hello(name: str = "Marvin"):

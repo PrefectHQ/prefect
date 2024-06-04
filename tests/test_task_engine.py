@@ -9,7 +9,8 @@ from uuid import UUID, uuid4
 import anyio
 import pytest
 
-from prefect import Task, flow, get_run_logger, task
+from prefect import Task, flow, task
+from prefect.logging import get_run_logger
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import (

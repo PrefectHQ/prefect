@@ -1391,7 +1391,9 @@ You can now include dynamic, markdown-formatted descriptions when pausing or sus
 
 ```python
 from datetime import datetime
-from prefect import flow, pause_flow_run, get_run_logger
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
+from prefect.logger import get_run_logger
 from prefect.input import RunInput
 
 class UserInput(RunInput):

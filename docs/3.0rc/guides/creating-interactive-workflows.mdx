@@ -32,7 +32,9 @@ To receive input while paused or suspended use the `wait_for_input` parameter in
 The simplest way to pause or suspend and wait for input is to pass a built-in type:
 
 ```python
-from prefect import flow, pause_flow_run, get_run_logger
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
+from prefect.logger import get_run_logger
 
 @flow
 def greet_user():
@@ -52,7 +54,9 @@ In this example, the flow run will pause until a user clicks the Resume button i
 Instead of a built-in type, you can pass in a `pydantic.BaseModel` class. This is useful if you already have a `BaseModel` you want to use:
 
 ```python
-from prefect import flow, pause_flow_run, get_run_logger
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
+from prefect.logger import get_run_logger
 from pydantic import BaseModel
 
 
@@ -79,7 +83,7 @@ async def greet_user():
 For advanced use cases such as overriding how Prefect stores flow run inputs, create a `RunInput` class:
 
 ```python
-from prefect import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 class UserInput(RunInput):
@@ -106,7 +110,7 @@ Set default values for fields in your model with the `with_initial_data` method.
 Expanding on the example above, you can make the `name` field default to "anonymous":
 
 ```python
-from prefect import get_run_logger
+from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
 class UserInput(RunInput):
@@ -135,7 +139,9 @@ You can provide a dynamic, markdown description that appears in the Prefect UI w
 
 ```python
 from datetime import datetime
-from prefect import flow, pause_flow_run, get_run_logger
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
+from prefect.logger import get_run_logger
 from prefect.input import RunInput
 
 
@@ -235,7 +241,9 @@ To avoid a flow run failure, use a `while` loop and pause again if the `Validati
 from typing import Literal
 
 import pydantic
-from prefect import flow, get_run_logger, pause_flow_run
+from prefect import flow
+from prefect.flow_runs import pause_flow_run
+from prefect.logger import get_run_logger
 from prefect.input import RunInput
 
 
@@ -412,7 +420,9 @@ An iterator helps keep track of the inputs your flow has already received. If yo
 The following flow receives input for 30 seconds then suspends itself, which exits the flow and tears down infrastructure:
 
 ```python
-from prefect import flow, get_run_logger, suspend_flow_run
+from prefect import flow
+from prefect.logging import get_run_logger 
+from prefect.flow_runs import suspend_flow_run
 from prefect.blocks.system import JSON
 from prefect.context import get_run_context
 from prefect.input.run_input import receive_input

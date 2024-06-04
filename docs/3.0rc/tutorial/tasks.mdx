@@ -87,7 +87,8 @@ Let's add caching to the `get_url` task:
 ```python hl_lines="2 4 7"
 import httpx
 from datetime import timedelta
-from prefect import flow, task, get_run_logger
+from prefect import flow, task
+from prefect.logging import get_run_logger
 from prefect.tasks import task_input_hash
 from typing import Optional
 

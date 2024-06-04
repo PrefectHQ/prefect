@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
-from prefect import get_run_logger, task
+from prefect.logging import get_run_logger, task
 from prefect_slack.credentials import SlackCredentials, SlackWebhook
 
 if TYPE_CHECKING:  # pragma: no cover

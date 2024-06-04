@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from docker.models.containers import Container
 
-from prefect import get_run_logger, task
+from prefect.logging import get_run_logger, task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_docker.host import DockerHost
 

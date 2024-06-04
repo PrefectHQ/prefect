@@ -13,7 +13,8 @@ import anyio
 import pytest
 import regex as re
 
-from prefect import flow, get_run_logger, tags
+from prefect import flow, tags
+from prefect.logger import get_run_logger
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
@@ -3767,8 +3768,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task():
-                ...
+            def my_task(): ...
 
 
 class TestNestedTasks:

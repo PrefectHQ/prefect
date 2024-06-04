@@ -9,7 +9,8 @@ from uuid import UUID
 import anyio
 import pytest
 
-from prefect import Flow, flow, get_run_logger, task
+from prefect import Flow, flow, task
+from prefect.logging import get_run_logger
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter

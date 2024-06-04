@@ -10,7 +10,8 @@ from httpx import HTTPStatusError
 from pydantic import Field
 from typing_extensions import Literal
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
+from prefect.logging import get_run_logger
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import FlowRunContext
 from prefect.utilities.asyncutils import sync_compatible
@@ -834,7 +835,9 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             # dbt --fail-fast run, -s, bad_mod --vars '{"env": "prod"}' to:
             # dbt --fail-fast run -s other_mod bad_mod --vars '{"env": "prod"}'
             command_start, select_arg, command_end = command.partition(select_arg)
-            modified_command = f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
+            modified_command = (
+                f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
+            )
         else:
             # dbt --fail-fast, build, --vars '{"env": "prod"}' to:
             # dbt --fail-fast build --select bad_model --vars '{"env": "prod"}'
