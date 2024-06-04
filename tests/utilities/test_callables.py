@@ -744,11 +744,10 @@ class TestMethodToSchema:
             pass
 
         schema = callables.parameter_schema(f)
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "properties": {"x": {"title": "x", "position": 0, "type": "integer"}},
             "title": "Parameters",
             "type": "object",
-            "definitions": {},
             "required": ["x"],
         }
 
@@ -1701,13 +1700,12 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "properties": {
                 "x": {"title": "x", "position": 0, "type": "integer", "default": 42}
             },
             "title": "Parameters",
             "type": "object",
-            "definitions": {},
         }
 
     def test_function_with_positional_only_args(self, tmp_path: Path):
@@ -1720,7 +1718,7 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
-        assert schema.model_dump_for_openapi() == {
+        assert schema.dict() == {
             "properties": {
                 "x": {"title": "x", "position": 0, "default": 1},
                 "y": {"title": "y", "position": 1, "default": 2},
@@ -1728,5 +1726,4 @@ class TestEntrypointToSchema:
             },
             "title": "Parameters",
             "type": "object",
-            "definitions": {},
         }
