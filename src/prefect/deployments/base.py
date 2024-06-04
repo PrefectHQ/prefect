@@ -398,7 +398,13 @@ async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
             return decorated_functions
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef):
+        if isinstance(
+            node,
+            (
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+            ),
+        ):
             for decorator in node.decorator_list:
                 # handles @flow
                 is_name_match = (
