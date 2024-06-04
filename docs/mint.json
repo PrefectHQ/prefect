@@ -58,12 +58,142 @@
   ],
   "navigation": [
     {
-      "group": "Getting Started",
+      "group": "Get Started",
       "version": "3.0rc",
       "pages": [
-        "3.0rc/getting-started/index",
-        "3.0rc/getting-started/installation",
-        "3.0rc/getting-started/quickstart"
+        "3.0rc/get-started/index",
+        "3.0rc/get-started/install",
+        "3.0rc/get-started/quickstart"
+      ]
+    },
+    {
+      "group": "Develop",
+      "version": "3.0rc",
+      "pages": [
+        {
+          "group": "Write workflows",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/develop/write-workflows/index",
+            "3.0rc/develop/write-workflows/variables"
+          ]
+        },
+        {
+          "group": "Write tasks",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/develop/write-tasks/index",
+            "3.0rc/develop/write-tasks/use-task-runners",
+            "3.0rc/develop/write-tasks/upstream-dependencies"
+          ]
+        },
+        "3.0rc/develop/recover-from-failure",
+        "3.0rc/develop/interact-with-data",
+        {
+          "group": "Observe workflows",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/develop/observe-workflows/index",
+            "3.0rc/develop/observe-workflows/logging",
+            "3.0rc/develop/observe-workflows/create-artifacts",
+            "3.0rc/develop/observe-workflows/manage-states"
+          ]
+        },
+        {
+          "group": "Control workflows",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/develop/control-workflows/index",
+            "3.0rc/develop/control-workflows/global-concurrency-limits"
+          ]
+        },
+        "3.0rc/develop/connect-third-party",
+        "3.0rc/develop/test-workflows"
+      ]
+    },
+    {
+      "group": "Deploy",
+      "version": "3.0rc",
+      "pages": [
+        {
+          "group": "Serve workflows",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/deploy/serve-workflows/index",
+            "3.0rc/deploy/serve-workflows/add-schedules"
+          ]
+        },
+        {
+          "group": "Dynamic infrastructure",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/deploy/dynamic-infra/push-runs-serverless",
+            "3.0rc/deploy/dynamic-infra/push-runs-remote",
+            "3.0rc/deploy/dynamic-infra/retrieve-workflow-code",
+            "3.0rc/deploy/dynamic-infra/customize",
+            "3.0rc/deploy/dynamic-infra/deploy-docker",
+            "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
+            "3.0rc/deploy/dynamic-infra/deploy-ci-cd",
+            "3.0rc/deploy/dynamic-infra/control-runs"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "React",
+      "version": "3.0rc",
+      "pages": [
+        {
+          "group": "Understand events",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/react/understand-events/index",
+            "3.0rc/react/understand-events/automations-triggers",
+            "3.0rc/react/understand-events/webhook-triggers"
+          ]
+        },
+        "3.0rc/react/manage-events",
+        "3.0rc/react/state-change-hooks"
+      ]
+    },
+    {
+      "group": "Cloud and Server",
+      "version": "3.0rc",
+      "pages": [
+        "3.0rc/cloud/connect-to-cloud/index",
+        {
+          "group": "Manage users",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/cloud/manage-users/index",
+            "3.0rc/cloud/manage-users/manage-roles",
+            "3.0rc/cloud/manage-users/api-keys",
+            "3.0rc/cloud/manage-users/service-accounts",
+            "3.0rc/cloud/manage-users/configure-sso",
+            "3.0rc/cloud/manage-users/audit-logs",
+            "3.0rc/cloud/manage-users/object-access-control-lists",
+            "3.0rc/cloud/manage-users/manage-teams"
+          ]
+        },
+        "3.0rc/cloud/rate-limits",
+        "3.0rc/cloud/self-host",
+        "3.0rc/cloud/configure-client",
+        "3.0rc/cloud/interact-with-api"
+      ]
+    },
+    {
+      "group": "Migrate",
+      "version": "3.0rc",
+      "pages": [
+        {
+          "group": "Migrate",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/migrate/upgrade-agents-to-workers"
+          ]
+        },
+        "3.0rc/react/manage-events",
+        "3.0rc/react/state-change-hooks"
       ]
     },
     {
@@ -71,11 +201,7 @@
       "version": "3.0rc",
       "pages": [
         "3.0rc/tutorial/index",
-        "3.0rc/tutorial/flows",
-        "3.0rc/tutorial/tasks",
-        "3.0rc/tutorial/deployments",
-        "3.0rc/tutorial/work-pools",
-        "3.0rc/tutorial/workers"
+        "3.0rc/tutorial/work-pools"
       ]
     },
     {
@@ -87,19 +213,7 @@
           "group": "Development",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/guides/host",
-            "3.0rc/guides/settings",
-            "3.0rc/guides/testing",
-            "3.0rc/guides/global-concurrency-limits",
-            "3.0rc/guides/runtime-context",
-            "3.0rc/guides/variables",
-            "3.0rc/guides/using-the-client",
-            "3.0rc/guides/creating-interactive-workflows",
-            "3.0rc/guides/automations",
-            "3.0rc/guides/webhooks",
             "3.0rc/guides/terraform-provider",
-            "3.0rc/guides/ci-cd",
-            "3.0rc/guides/specifying-upstream-dependencies",
             "3.0rc/guides/secrets",
             "3.0rc/guides/recipes",
             "3.0rc/guides/deferred-tasks"
@@ -109,13 +223,7 @@
           "group": "Execution",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/guides/docker",
-            "3.0rc/guides/state-change-hooks",
-            "3.0rc/guides/dask-ray-task-runners",
-            "3.0rc/guides/moving-data",
             "3.0rc/guides/big-data",
-            "3.0rc/guides/logs",
-            "3.0rc/guides/troubleshooting",
             "3.0rc/guides/managed-execution",
             "3.0rc/guides/cli-shell"
           ]
@@ -125,67 +233,9 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/guides/prefect-deploy",
-            "3.0rc/guides/upgrade-guide-agents-to-workers",
-            "3.0rc/guides/deployment/storage-guide",
-            "3.0rc/guides/deployment/kubernetes",
-            "3.0rc/guides/deployment/push-work-pools",
-            "3.0rc/guides/deployment/serverless-workers",
-            "3.0rc/guides/deployment/daemonize",
-            "3.0rc/guides/deployment/developing-a-new-worker-type",
-            "3.0rc/guides/deployment/overriding-job-variables"
+            "3.0rc/guides/deployment/developing-a-new-worker-type"
           ]
         }
-      ]
-    },
-    {
-      "group": "Concepts",
-      "version": "3.0rc",
-      "pages": [
-        "3.0rc/concepts/index",
-        "3.0rc/concepts/flows",
-        "3.0rc/concepts/tasks",
-        "3.0rc/concepts/deployments",
-        "3.0rc/concepts/work-pools",
-        "3.0rc/concepts/schedules",
-        "3.0rc/concepts/results",
-        "3.0rc/concepts/artifacts",
-        "3.0rc/concepts/states",
-        "3.0rc/concepts/blocks",
-        "3.0rc/concepts/task-runners",
-        "3.0rc/concepts/automations",
-        {
-          "group": "Block and Agent-Based Deployments",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/concepts/agents"
-          ]
-        }
-      ]
-    },
-    {
-      "group": "Cloud",
-      "version": "3.0rc",
-      "pages": [
-        "3.0rc/cloud/index",
-        "3.0rc/cloud/workspaces",
-        {
-          "group": "Users",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/cloud/users/index",
-            "3.0rc/cloud/users/roles",
-            "3.0rc/cloud/users/api-keys",
-            "3.0rc/cloud/users/service-accounts",
-            "3.0rc/cloud/users/sso",
-            "3.0rc/cloud/users/audit-log",
-            "3.0rc/cloud/users/object-access-control-lists",
-            "3.0rc/cloud/users/teams"
-          ]
-        },
-        "3.0rc/cloud/rate-limits",
-        "3.0rc/cloud/connecting",
-        "3.0rc/cloud/events",
-        "3.0rc/cloud/incidents"
       ]
     },
     {

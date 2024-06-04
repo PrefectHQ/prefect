@@ -13,7 +13,7 @@ ECS (Elastic Container Service) tasks are a good option for executing Prefect fl
 
 ## ECS flow run execution
 
-Prefect enables remote flow execution via [workers](https://docs.prefect.io/concepts/work-pools/#worker-overview) and [work pools](https://docs.prefect.io/concepts/work-pools/#work-pool-overview). To learn more about these concepts please see our [deployment tutorial](https://docs.prefect.io/tutorial/deployments/).
+Prefect enables remote flow execution via [workers](https://docs.prefect.io/deploy/dynamic-infra/control-runs/#worker-overview) and [work pools](https://docs.prefect.io/deploy/dynamic-infra/control-runs/#work-pool-overview). To learn more about these concepts please see our [deployment tutorial](https://docs.prefect.io/deploy/serve-workflows/).
 
 For details on how workers and work pools are implemented for ECS, see the diagram below.
 
@@ -67,7 +67,7 @@ graph TB
 ## ECS and Prefect
 
 !!! tip "ECS tasks != Prefect tasks"
-    An ECS task is **not** the same thing as a [Prefect task](https://docs.prefect.io/latest/concepts/tasks/#tasks-overview).
+    An ECS task is **not** the same thing as a [Prefect task](https://docs.prefect.io/latest/develop/write-tasks/#tasks-overview).
 
     ECS tasks are groupings of containers that run within an ECS Cluster. An ECS task's behavior is determined by its task definition.
 
@@ -75,9 +75,9 @@ graph TB
 
 ECS tasks are instances of a task definition. A Task Execution launches container(s) as defined in the task definition **until they are stopped or exit on their own**. This setup is ideal for ephemeral processes such as a Prefect flow run.
 
-The ECS task running the Prefect [worker](https://docs.prefect.io/latest/concepts/work-pools/#worker-overview) should be an [**ECS Service**](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html), given its long-running nature and need for **auto-recovery in case of failure**. An ECS service automatically replaces any task that fails, which is ideal for managing a long-running process such as a Prefect worker.
+The ECS task running the Prefect [worker](https://docs.prefect.io/latest/deploy/dynamic-infra/control-runs/#worker-overview) should be an [**ECS Service**](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html), given its long-running nature and need for **auto-recovery in case of failure**. An ECS service automatically replaces any task that fails, which is ideal for managing a long-running process such as a Prefect worker.
 
-When a Prefect [flow](https://docs.prefect.io/latest/concepts/flows/) is scheduled to run it goes into the work pool specified in the flow's [deployment](https://docs.prefect.io/latest/concepts/deployments). [Work pools](https://docs.prefect.io/latest/concepts/work-pools/?h=work#work-pool-overview) are typed according to the infrastructure the flow will run on. Flow runs scheduled in an `ecs` typed work pool are executed as ECS tasks. Only Prefect ECS [workers](https://docs.prefect.io/latest/concepts/work-pools/#worker-types) can poll an `ecs` typed work pool.
+When a Prefect [flow](https://docs.prefect.io/latest/develop/write-workflows/) is scheduled to run it goes into the work pool specified in the flow's [deployment](https://docs.prefect.io/latest/deploy/serve-workflows). [Work pools](https://docs.prefect.io/latest/deploy/dynamic-infra/control-runs/?h=work#work-pool-overview) are typed according to the infrastructure the flow will run on. Flow runs scheduled in an `ecs` typed work pool are executed as ECS tasks. Only Prefect ECS [workers](https://docs.prefect.io/latest/deploy/dynamic-infra/control-runs/#worker-types) can poll an `ecs` typed work pool.
 
 When the ECS worker receives a scheduled flow run from the ECS work pool it is polling, it spins up the specified infrastructure on AWS ECS. The worker knows to build an ECS task definition for each flow run based on the configuration specified in the work pool.
 
@@ -101,7 +101,7 @@ You can use either EC2 or Fargate as the capacity provider. Fargate simplifies i
 
 ## Step 1: Set up an ECS work pool
 
-Before setting up the worker, create a [work pool](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-configuration) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to [authenticate with Prefect Cloud](https://docs.prefect.io/latest/cloud/cloud-quickstart/#log-into-prefect-cloud-from-a-terminal).
+Before setting up the worker, create a [work pool](https://docs.prefect.io/latest/deploy/dynamic-infra/control-runs/#work-pool-configuration) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to [authenticate with Prefect Cloud](https://docs.prefect.io/latest/cloud/cloud-quickstart/#log-into-prefect-cloud-from-a-terminal).
 
 Create a work pool from the CLI:
 
@@ -215,7 +215,7 @@ Next, create an ECS task definition that specifies the Docker image for the Pref
 
 - Use `prefect config view` to view the `PREFECT_API_URL` for your current Prefect profile. Use this to replace `<prefect-api-url>`.
 
-- For the `PREFECT_API_KEY`, if you are on a paid plan you can create a [service account](https://docs.prefect.io/latest/cloud/users/service-accounts/) for the worker. If your are on a free plan, you can pass a user’s API key.
+- For the `PREFECT_API_KEY`, if you are on a paid plan you can create a [service account](https://docs.prefect.io/latest/cloud/manage-users/service-accounts/) for the worker. If your are on a free plan, you can pass a user’s API key.
 
 - Replace both instances of `<ecs-task-role-arn>` with the ARN of the IAM role you created in Step 2. You can grab this by running:
 ```
@@ -338,7 +338,7 @@ pull:
 
 ```
 
-### 4. [Deploy](https://docs.prefect.io/tutorial/deployments/#create-a-deployment) the flow to the Prefect Cloud or your self-managed server instance, specifying the ECS work pool when prompted
+### 4. [Deploy](https://docs.prefect.io/deploy/serve-workflows/#create-a-deployment) the flow to the Prefect Cloud or your self-managed server instance, specifying the ECS work pool when prompted
 
 ```bash
 prefect deploy my_flow.py:my_ecs_deployment
@@ -353,4 +353,4 @@ prefect deploy my_flow.py:my_ecs_deployment
     - Do your flow runs require higher `CPU`?
     - Would an EC2 `Launch Type` speed up your flow run execution?
 
-    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/3.0rc/concepts/deployments/#workers-and-work-pools) if desired.
+    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/3.0rc/deploy/serve-workflows/#workers-and-work-pools) if desired.

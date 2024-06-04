@@ -8,7 +8,7 @@ The prefect-gitlab library makes it easy to interact with GitLab repositories an
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/getting-started/installation/).
+- [Prefect installed](/3.0rc/get-started/install/).
 - A [GitLab account](https://gitlab.com/).
 
 ### Install prefect-gitlab
@@ -41,7 +41,7 @@ To create a deployment where the flow code is stored in a private GitLab reposit
 A deployment can use flow code stored in a GitLab repository without using this library in either of the following cases:
 
 - The repository is public
-- The deployment uses a [Secret block](https://docs.prefect.io/latest/concepts/blocks/) to store the token
+- The deployment uses a [Secret block](https://docs.prefect.io/latest/develop/connect-third-party/) to store the token
 
 Code to create a GitLab Credentials block:
 
