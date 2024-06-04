@@ -333,7 +333,7 @@ class TestCall:
 
 class TestMap:
     async def test_map(self, async_foo_task):
-        task_runs = async_foo_task.map([1, 2, 3])
+        task_runs = async_foo_task.map([1, 2, 3], deferred=True)
 
         assert len(task_runs) == 3
 
@@ -350,7 +350,7 @@ class TestMap:
         def bar(x: int, unmappable: int) -> Tuple[int, int]:
             return (x, unmappable)
 
-        task_runs = bar.map([1, 2, 3], unmappable=42)
+        task_runs = bar.map([1, 2, 3], unmappable=42, deferred=True)
 
         assert len(task_runs) == 3
 
@@ -367,7 +367,7 @@ class TestMap:
         async def bar(x: int, unmappable: int) -> Tuple[int, int]:
             return (x, unmappable)
 
-        task_runs = bar.map([1, 2, 3], unmappable=42)
+        task_runs = bar.map([1, 2, 3], unmappable=42, deferred=True)
 
         assert len(task_runs) == 3
 
@@ -384,7 +384,9 @@ class TestMap:
         def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
             return (x, mappable)
 
-        task_runs = bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+        task_runs = bar.map(
+            [1, 2, 3], mappable=unmapped(["some", "iterable"]), deferred=True
+        )
 
         assert len(task_runs) == 3
 
@@ -404,7 +406,9 @@ class TestMap:
         async def bar(x: int, mappable: Iterable) -> Tuple[int, Iterable]:
             return (x, mappable)
 
-        task_runs = bar.map([1, 2, 3], mappable=unmapped(["some", "iterable"]))
+        task_runs = bar.map(
+            [1, 2, 3], mappable=unmapped(["some", "iterable"]), deferred=True
+        )
 
         assert len(task_runs) == 3
 

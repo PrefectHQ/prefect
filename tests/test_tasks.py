@@ -18,7 +18,7 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
-from prefect.context import TaskRunContext, get_run_context
+from prefect.context import FlowRunContext, TaskRunContext, get_run_context
 from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -74,6 +74,11 @@ def timeout_test_flow():
         return ax, bx, cx
 
     return test_flow
+
+
+async def get_background_task_run_parameters(task, parameters_id):
+    factory = await ResultFactory.from_autonomous_task(task)
+    return await factory.read_parameters(parameters_id)
 
 
 class TestTaskName:
@@ -202,19 +207,6 @@ class TestTaskCall:
             return foo(1)
 
         assert await bar() == 1
-
-    # Will not be supported in new engine
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    def test_async_task_called_inside_sync_flow(self):
-        @task
-        async def foo(x):
-            return x
-
-        @flow
-        def bar():
-            return foo(1)
-
-        assert bar() == 1
 
     def test_task_call_with_debug_mode(self):
         @task
@@ -371,21 +363,6 @@ class TestTaskRun:
         assert isinstance(task_state, State)
         assert await task_state.result() == 1
 
-    # Will not be supported in new engine
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
-    def test_async_task_run_inside_sync_flow(self):
-        @task
-        async def foo(x):
-            return x
-
-        @flow
-        def bar():
-            return foo(1, return_state=True)
-
-        task_state = bar()
-        assert isinstance(task_state, State)
-        assert task_state.result() == 1
-
     def test_task_failure_does_not_affect_flow(self):
         @task
         def foo():
@@ -425,6 +402,14 @@ class TestTaskRun:
 
 
 class TestTaskSubmit:
+    def test_raises_outside_of_flow(self):
+        @task
+        def foo(x):
+            return x
+
+        with pytest.raises(RuntimeError):
+            foo.submit(1)
+
     async def test_sync_task_submitted_inside_sync_flow(self):
         @task
         def foo(x):
@@ -3165,6 +3150,67 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
+    def test_map_raises_outside_of_flow_when_not_deferred(self):
+        @task
+        def test_task(x):
+            print(x)
+
+        with pytest.raises(RuntimeError):
+            test_task.map([1, 2, 3])
+
+    async def test_deferred_map_outside_flow(self):
+        @task
+        def test_task(x):
+            print(x)
+
+        mock_task_run_id = uuid4()
+        mock_future = PrefectDistributedFuture(task_run_id=mock_task_run_id)
+        mapped_args = [1, 2, 3]
+
+        futures = test_task.map(x=mapped_args, wait_for=[mock_future], deferred=True)
+        assert all(isinstance(future, PrefectDistributedFuture) for future in futures)
+        for future, parameter_value in zip(futures, mapped_args):
+            assert await get_background_task_run_parameters(
+                test_task, future.state.state_details.task_parameters_id
+            ) == {
+                "parameters": {"x": parameter_value},
+                "wait_for": [mock_future],
+                "context": ANY,
+            }
+
+    async def test_deferred_map_inside_flow(self):
+        @task
+        def test_task(x):
+            print(x)
+
+        @flow
+        async def test_flow():
+            mock_task_run_id = uuid4()
+            mock_future = PrefectDistributedFuture(task_run_id=mock_task_run_id)
+            mapped_args = [1, 2, 3]
+
+            flow_run_context = FlowRunContext.get()
+            flow_run_id = flow_run_context.flow_run.id
+            futures = test_task.map(
+                x=mapped_args, wait_for=[mock_future], deferred=True
+            )
+            for future, parameter_value in zip(futures, mapped_args):
+                saved_data = await get_background_task_run_parameters(
+                    test_task, future.state.state_details.task_parameters_id
+                )
+                assert saved_data == {
+                    "parameters": {"x": parameter_value},
+                    "wait_for": [mock_future],
+                    "context": ANY,
+                }
+                # Context should contain the current flow run ID
+                assert (
+                    saved_data["context"]["flow_run_context"]["flow_run"]["id"]
+                    == flow_run_id
+                )
+
+        await test_flow()
+
 
 class TestTaskConstructorValidation:
     async def test_task_cannot_configure_too_many_custom_retry_delays(self):
@@ -4119,10 +4165,6 @@ class TestTransactions:
 
 
 class TestApplyAsync:
-    async def get_background_task_run_parameters(self, task, parameters_id):
-        factory = await ResultFactory.from_autonomous_task(task)
-        return await factory.read_parameters(parameters_id)
-
     @pytest.mark.parametrize(
         "args, kwargs",
         [
@@ -4139,7 +4181,7 @@ class TestApplyAsync:
 
         future = multiply.apply_async(args, kwargs)
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             multiply, future.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
@@ -4170,7 +4212,7 @@ class TestApplyAsync:
 
         future = add.apply_async((42,))
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
@@ -4181,7 +4223,7 @@ class TestApplyAsync:
 
         future = add.apply_async((42,), {"y": 100})
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42, "y": 100}, "context": ANY}
 
@@ -4192,7 +4234,7 @@ class TestApplyAsync:
 
         future = add_em_up.apply_async((42, 42))
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42, 42)}, "context": ANY}
 
@@ -4203,7 +4245,7 @@ class TestApplyAsync:
 
         future = add_em_up.apply_async(kwargs={"x": 42, "y": 42})
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}, "context": ANY}
 
@@ -4214,7 +4256,7 @@ class TestApplyAsync:
 
         future = add_em_up.apply_async((42,), {"y": 42})
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
 
@@ -4228,7 +4270,7 @@ class TestApplyAsync:
 
         future = multiply.apply_async((42, 42), wait_for=[wait_for_future])
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             multiply, future.state.state_details.task_parameters_id
         ) == {
             "parameters": {"x": 42, "y": 42},
@@ -4246,7 +4288,7 @@ class TestApplyAsync:
 
         future = the_answer.apply_async(wait_for=[wait_for_future])
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             the_answer, future.state.state_details.task_parameters_id
         ) == {"wait_for": [wait_for_future], "context": ANY}
 
@@ -4268,10 +4310,6 @@ class TestApplyAsync:
 
 
 class TestDelay:
-    async def get_background_task_run_parameters(self, task, parameters_id):
-        factory = await ResultFactory.from_autonomous_task(task)
-        return await factory.read_parameters(parameters_id)
-
     @pytest.mark.parametrize(
         "args, kwargs",
         [
@@ -4288,7 +4326,7 @@ class TestDelay:
 
         future = multiply.delay(*args, **kwargs)
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             multiply, future.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
@@ -4319,7 +4357,7 @@ class TestDelay:
 
         future = add.delay(42)
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42, "y": 42}, "context": ANY}
 
@@ -4330,7 +4368,7 @@ class TestDelay:
 
         future = add.delay(42, y=100)
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add, future.state.state_details.task_parameters_id
         ) == {"parameters": {"x": 42, "y": 100}, "context": ANY}
 
@@ -4341,7 +4379,7 @@ class TestDelay:
 
         future = add_em_up.delay(42, 42)
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42, 42)}, "context": ANY}
 
@@ -4352,7 +4390,7 @@ class TestDelay:
 
         future = add_em_up.delay(x=42, y=42)
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"kwargs": {"x": 42, "y": 42}}, "context": ANY}
 
@@ -4363,6 +4401,6 @@ class TestDelay:
 
         future = add_em_up.delay(42, y=42)
 
-        assert await self.get_background_task_run_parameters(
+        assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
