@@ -6,8 +6,8 @@ from botocore.exceptions import ClientError
 from pydantic import Field
 
 from prefect import task
-from prefect.logging import get_run_logger
 from prefect.blocks.abstract import SecretBlock
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect_aws import AwsCredentials
 
@@ -334,9 +334,9 @@ async def delete_secret(
 
     delete_secret_kwargs: Dict[str, Union[str, int, bool]] = dict(SecretId=secret_name)
     if force_delete_without_recovery:
-        delete_secret_kwargs["ForceDeleteWithoutRecovery"] = (
-            force_delete_without_recovery
-        )
+        delete_secret_kwargs[
+            "ForceDeleteWithoutRecovery"
+        ] = force_delete_without_recovery
     else:
         delete_secret_kwargs["RecoveryWindowInDays"] = recovery_window_in_days
 

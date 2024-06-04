@@ -13,9 +13,9 @@ from botocore.response import StreamingBody
 from pydantic import Field
 
 from prefect import task
-from prefect.logging import get_run_logger
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
 from prefect_aws import AwsCredentials, MinIOCredentials

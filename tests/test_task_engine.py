@@ -10,7 +10,6 @@ import anyio
 import pytest
 
 from prefect import Task, flow, task
-from prefect.logging import get_run_logger
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.context import (
@@ -21,6 +20,7 @@ from prefect.context import (
 )
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
+from prefect.logging import get_run_logger
 from prefect.results import PersistedResult, ResultFactory
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,

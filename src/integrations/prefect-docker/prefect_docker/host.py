@@ -5,8 +5,8 @@ from typing import Any, Dict, Optional
 import docker
 from pydantic import Field
 
-from prefect.logging import get_run_logger
 from prefect.blocks.core import Block
+from prefect.logging import get_run_logger
 
 
 class _ContextManageableDockerClient(docker.DockerClient):

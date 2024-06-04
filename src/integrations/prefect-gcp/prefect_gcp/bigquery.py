@@ -9,8 +9,8 @@ from anyio import to_thread
 from pydantic import Field
 
 from prefect import task
-from prefect.logging import get_run_logger
 from prefect.blocks.abstract import DatabaseBlock
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import hash_objects
 from prefect_gcp.credentials import GcpCredentials

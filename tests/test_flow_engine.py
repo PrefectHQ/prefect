@@ -10,7 +10,6 @@ import anyio
 import pytest
 
 from prefect import Flow, flow, task
-from prefect.logging import get_run_logger
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
@@ -28,6 +27,7 @@ from prefect.flow_engine import (
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
+from prefect.logging import get_run_logger
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.utilities.callables import get_call_parameters
 

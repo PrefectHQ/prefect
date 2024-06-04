@@ -11,8 +11,8 @@ from prefect_shell.commands import ShellOperation
 from pydantic import Field
 
 from prefect import task
-from prefect.logging import get_run_logger
 from prefect.artifacts import create_markdown_artifact
+from prefect.logging import get_run_logger
 from prefect.states import Failed
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import relative_path_to_current_platform
