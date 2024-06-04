@@ -186,6 +186,7 @@ class TaskRunEngine(Generic[P, R]):
             yield _hook_fn
 
     def compute_transaction_key(self) -> str:
+        key = None
         if self.task.txn_key_policy:
             key = self.task.txn_key_policy.compute_key(
                 task=self.task,
