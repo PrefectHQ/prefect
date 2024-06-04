@@ -92,6 +92,35 @@ def enable_enhanced_cancellation():
         yield
 
 
+@pytest.fixture
+async def test_work_pool(session, prefect_client):
+    await models.workers.create_work_pool(
+        session=session,
+        work_pool=WorkPool(
+            type="test-type",
+            name="test-pool",
+            base_job_template={
+                "job_configuration": {
+                    "var1": "hello",
+                    "env": {"MY_ENV_VAR": 42, "OTHER_ENV_VAR": None},
+                },
+                "variables": {
+                    "properties": {
+                        "var1": {
+                            "type": "string",
+                        },
+                        "env": {
+                            "type": "object",
+                        },
+                    },
+                },
+            },
+        ),
+    )
+
+    return await prefect_client.read_work_pool("test-pool")
+
+
 async def test_worker_creates_work_pool_by_default_during_sync(
     prefect_client: PrefectClient,
 ):
@@ -961,39 +990,11 @@ async def test_job_configuration_from_template_overrides_with_block():
     }
 
 
-async def test_job_configuration_from_template_coerces_work_pool_values(
-    session, prefect_client
-):
+async def test_job_configuration_from_template_coerces_work_pool_values(test_work_pool):
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         var1: str
 
-    await models.workers.create_work_pool(
-        session=session,
-        work_pool=WorkPool(
-            type="test-type",
-            name="test-pool",
-            base_job_template={
-                "job_configuration": {
-                    "var1": "hello",
-                    "env": {"MY_ENV_VAR": 42, "OTHER_ENV_VAR": None},
-                },
-                "variables": {
-                    "properties": {
-                        "var1": {
-                            "type": "string",
-                        },
-                        "env": {
-                            "type": "object",
-                        },
-                    },
-                },
-            },
-        ),
-    )
-
-    work_pool = await prefect_client.read_work_pool("test-pool")
-
-    work_pool_base_job_config = work_pool.base_job_template
+    work_pool_base_job_config = test_work_pool.base_job_template
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=work_pool_base_job_config, values={}
