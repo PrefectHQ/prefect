@@ -64,14 +64,15 @@ See the Python [Logging configuration](https://docs.python.org/3/library/logging
 
 ## Prefect loggers
 
-To access the Prefect logger, import `from prefect import get_run_logger`. You can send messages to the logger in both flows and tasks.
+To access the Prefect logger, import `from prefect.logging import get_run_logger`. You can send messages to the logger in both flows and tasks.
 
 ### Logging in flows
 
 To log from a flow, retrieve a logger instance with `get_run_logger()`, then call the standard Python [logging methods](https://docs.python.org/3/library/logging.html).
 
 ```python
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 
 @flow(name="log-example-flow")
 def logger_flow():
@@ -97,7 +98,8 @@ The default flow run log formatter uses the flow run name for log messages.
 Logging in tasks works much like logging in flows: retrieve a logger instance with `get_run_logger()`, then call the standard Python [logging methods](https://docs.python.org/3/library/logging.html).
 
 ```python
-from prefect import flow, task, get_run_logger
+from prefect import flow, task
+from prefect.logging import get_run_logger
 
 @task(name="log-example-task")
 def logger_task():
@@ -317,7 +319,8 @@ class CustomConsoleHandler(PrefectConsoleHandler):
 3. On your next flow run, text that looks like an email will be highlighted. For example, `my@email.com` is colored in magenta below:
 
 ```python
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 
 @flow
 def log_email_flow():
@@ -340,7 +343,8 @@ PREFECT_LOGGING_MARKUP=True
 The following will highlight "fancy" in red:
 
 ```python
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 
 @flow
 def my_flow():

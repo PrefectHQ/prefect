@@ -272,7 +272,8 @@ This guide uses ECR to store a Docker image containing your flow code. To do thi
 `my_flow.py`
 
 ```python
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 
 @flow
 def my_flow():

@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from httpx import HTTPStatusError
 from typing_extensions import Literal
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
+from prefect.logging import get_run_logger
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
     DbtCloudGetRunArtifactFailed,

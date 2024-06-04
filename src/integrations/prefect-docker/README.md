@@ -44,7 +44,8 @@ Note, to use the `load` method on Blocks, you must already have a block document
 ### Pull image, and create, start, log, stop, and remove Docker container
 
 ```python
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect_docker.images import pull_docker_image
 from prefect_docker.containers import (
     create_docker_container,
