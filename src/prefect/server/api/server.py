@@ -238,11 +238,6 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
     Send 503 for errors clients can retry on.
     """
     if is_client_retryable_exception(exc):
-        logger.info(
-            "Encountered retryable exception in request. Returning retryable status code:",
-            exc_info=True,
-        )
-
         return JSONResponse(
             content={"exception_message": "Service Unavailable"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
