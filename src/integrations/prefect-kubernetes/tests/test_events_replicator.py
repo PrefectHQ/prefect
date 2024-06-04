@@ -132,7 +132,7 @@ def worker_resource():
 def related_resources():
     return [
         RelatedResource(
-            __root__={
+            {
                 "prefect.resource.id": "prefect.flow-run.1234",
                 "prefect.resource.role": "flow-run",
             }
@@ -195,13 +195,13 @@ def test_replicate_successful_pod_events(replicator, successful_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -218,13 +218,13 @@ def test_replicate_successful_pod_events(replicator, successful_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -241,13 +241,13 @@ def test_replicate_successful_pod_events(replicator, successful_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -287,13 +287,13 @@ def test_replicate_failed_pod_events(replicator, failed_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -310,13 +310,13 @@ def test_replicate_failed_pod_events(replicator, failed_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -333,13 +333,13 @@ def test_replicate_failed_pod_events(replicator, failed_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -379,13 +379,13 @@ def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -402,13 +402,13 @@ def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }
@@ -426,13 +426,13 @@ def test_replicate_evicted_pod_events(replicator, evicted_pod_stream):
                 },
                 related=[
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.flow-run.1234",
                             "prefect.resource.role": "flow-run",
                         }
                     ),
                     RelatedResource(
-                        __root__={
+                        {
                             "prefect.resource.id": "prefect.worker.my-k8s-worker",
                             "prefect.resource.role": "worker",
                         }

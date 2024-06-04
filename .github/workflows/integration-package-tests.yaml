@@ -82,9 +82,16 @@ jobs:
         # install uv, the package, and bleeding edge prefect
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system ../../../
           uv pip install --upgrade --system -e .[dev]
+          uv pip install --upgrade --system ../../../
 
+      - name: Start redis
+        if: matrix.package == 'prefect-redis'
+        run: >
+          docker run
+          --detach
+          --publish 6379:6379
+          redis:latest
 
       - name: Run tests
         if: matrix.package != 'prefect-ray'

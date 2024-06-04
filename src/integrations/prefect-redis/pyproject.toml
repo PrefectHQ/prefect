@@ -3,8 +3,8 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prefect-kubernetes"
-description = "Prefect integrations for interacting with Kubernetes."
+name = "prefect-redis"
+description = "Prefect integrations for interacting with Redis as a filesystem"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache License 2.0" }
@@ -24,15 +24,12 @@ classifiers = [
 ]
 dependencies = [
   "prefect>=3.0.0rc1",
-  "kubernetes>=24.2.0",
-  "tenacity>=8.2.3",
-  "exceptiongroup",
+  "redis>=5.0.1",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-  "aiohttp",
   "coverage",
   "interrogate",
   "mkdocs-gen-files",
@@ -40,7 +37,6 @@ dev = [
   "mkdocs",
   "mkdocstrings[python]",
   "mypy",
-  "pillow",
   "pre-commit",
   "pytest-asyncio",
   "pytest",
@@ -48,30 +44,30 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-kubernetes"
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-redis"
 
 [project.entry-points."prefect.collections"]
-prefect_kubernetes = "prefect_kubernetes"
+prefect_redis = "prefect_redis"
 
 [tool.setuptools_scm]
-version_file = "prefect_kubernetes/_version.py"
+version_file = "prefect_redis/_version.py"
 root = "../../.."
-tag_regex = "^prefect-kubernetes-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
+tag_regex = "^prefect-redis-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
-git_describe_command = 'git describe --dirty --tags --long --match "prefect-kubernetes-*[0-9]*"'
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-redis-*[0-9]*"'
 
 [tool.interrogate]
 ignore-init-module = true
 ignore_init_method = true
-exclude = ["prefect_kubernetes/_version.py", "tests"]
+exclude = ["prefect_redis/_version.py", "tests"]
 fail-under = 95
 omit-covered-files = true
 
 [tool.coverage.run]
-omit = ["tests/*", "prefect_kubernetes/_version.py"]
+omit = ["tests/*", "prefect_redis/_version.py"]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 95
 show_missing = true
 
 [tool.pytest.ini_options]

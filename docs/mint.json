@@ -215,7 +215,8 @@
           "pages": [
             "3.0rc/guides/terraform-provider",
             "3.0rc/guides/secrets",
-            "3.0rc/guides/recipes"
+            "3.0rc/guides/recipes",
+            "3.0rc/guides/deferred-tasks"
           ]
         },
         {
