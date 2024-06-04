@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator, Optional, Union
 
 import redis.asyncio as redis
@@ -7,9 +8,10 @@ from pydantic.types import SecretStr
 from typing_extensions import Self
 
 from prefect.filesystems import WritableFileSystem
+from prefect.utilities.asyncutils import sync_compatible
 
 
-class RedisFilesystem(WritableFileSystem):
+class RedisStorageContainer(WritableFileSystem):
     """
     Block used to interact with Redis as a filesystem
 
@@ -24,17 +26,17 @@ class RedisFilesystem(WritableFileSystem):
     Example:
         Create a new block from hostname, username and password:
         ```python
-        from prefect_redis import RedisFilesystem
+        from prefect_redis import RedisStorageContainer
 
-        block = RedisFilesystem.from_host(
+        block = RedisStorageContainer.from_host(
             host="myredishost.com", username="redis", password="SuperSecret")
         block.save("BLOCK_NAME")
         ```
 
         Create a new block from a connection string
         ```python
-        from prefect_redis import RedisFilesystem
-        block = RedisFilesystem.from_url(""redis://redis:SuperSecret@myredishost.com:6379")
+        from prefect_redis import RedisStorageContainer
+        block = RedisStorageContainer.from_url(""redis://redis:SuperSecret@myredishost.com:6379")
         block.save("BLOCK_NAME")
         ```
     """
@@ -60,8 +62,9 @@ class RedisFilesystem(WritableFileSystem):
                 "Initialization error: 'username' is provided, but 'password' is missing. Both are required."
             )
 
-    async def read_path(self, path: str):
-        """Read a redis key
+    @sync_compatible
+    async def read_path(self, path: Union[Path, str]):
+        """Read the redis content at `path`
 
         Args:
             path: Redis key to read from
@@ -70,10 +73,11 @@ class RedisFilesystem(WritableFileSystem):
             Contents at key as bytes
         """
         async with self._client() as client:
-            return await client.get(path)
+            return await client.get(str(path))
 
-    async def write_path(self, path: str, content: bytes):
-        """Write to a redis key
+    @sync_compatible
+    async def write_path(self, path: Union[Path, str], content: bytes):
+        """Write `content` to the redis at `path`
 
         Args:
             path: Redis key to write to
@@ -81,7 +85,7 @@ class RedisFilesystem(WritableFileSystem):
         """
 
         async with self._client() as client:
-            return await client.set(path, content)
+            return await client.set(str(path), content)
 
     @asynccontextmanager
     async def _client(self) -> AsyncGenerator[redis.Redis, None]:
@@ -120,7 +124,7 @@ class RedisFilesystem(WritableFileSystem):
             port: Redis port
 
         Returns:
-            `RedisFilesystem` instance
+            `RedisStorageContainer` instance
         """
 
         username = SecretStr(username) if isinstance(username, str) else username
@@ -145,7 +149,7 @@ class RedisFilesystem(WritableFileSystem):
             connection_string: Redis connection string
 
         Returns:
-            `RedisFilesystem` instance
+            `RedisStorageContainer` instance
         """
 
         connection_string = (
