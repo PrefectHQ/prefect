@@ -21,7 +21,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import flow
 from prefect.server import models
-from prefect.server.schemas.core import Flow
+from prefect.server.schemas.core import Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
@@ -64,7 +64,7 @@ async def ensure_default_agent_pool_exists(session):
     if default_work_pool is None:
         await models.workers.create_work_pool(
             session=session,
-            work_pool=schemas.actions.WorkPoolCreate(
+            work_pool=WorkPool(
                 name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
             ),
         )
@@ -959,6 +959,42 @@ async def test_job_configuration_from_template_overrides_with_block():
         # block_type_slug is added by Block.model_dump()
         "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
     }
+
+
+async def test_job_configuration_from_template_coerces_work_pool_values():
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str
+
+    test_work_pool_base_job_config = {
+        "job_configuration": {
+            "var1": "hello",
+            "env": {"MY_ENV_VAR": 42, "OTHER_ENV_VAR": None},
+        },
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                },
+                "env": {
+                    "type": "object",
+                },
+            },
+        },
+    }
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=test_work_pool_base_job_config, values={}
+    )
+
+    assert config.model_dump() == {
+        "command": None,
+        "env": {"MY_ENV_VAR": "42", "OTHER_ENV_VAR": None},
+        "labels": {},
+        "name": None,
+        "var1": "hello",
+    }
+
+    assert isinstance(config, ArbitraryJobConfiguration)
 
 
 @pytest.mark.usefixtures("variables")
