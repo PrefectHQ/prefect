@@ -834,7 +834,9 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             # dbt --fail-fast run, -s, bad_mod --vars '{"env": "prod"}' to:
             # dbt --fail-fast run -s other_mod bad_mod --vars '{"env": "prod"}'
             command_start, select_arg, command_end = command.partition(select_arg)
-            modified_command = f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
+            modified_command = (
+                f"{command_start} {select_arg} {run_nodes} {command_end}"  # noqa
+            )
         else:
             # dbt --fail-fast, build, --vars '{"env": "prod"}' to:
             # dbt --fail-fast build --select bad_model --vars '{"env": "prod"}'
@@ -1131,3 +1133,6 @@ async def run_dbt_cloud_job(
             )
             run = await task(run.retry_failed_steps.aio)(run)
             targeted_retries -= 1
+    raise DbtCloudJobRunFailed(
+        f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
+    )
