@@ -314,6 +314,8 @@ class Task(Generic[P, R]):
             self.txn_key_policy = txn_key_policy
         elif not result_storage_key:
             self.txn_key_policy = txn_key_policy
+        else:
+            self.txn_key_policy = None
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache

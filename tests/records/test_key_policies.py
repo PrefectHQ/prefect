@@ -1,10 +1,12 @@
 import itertools
+
 import pytest
+
 from prefect.records.key_policies import (
-    KeyPolicy,
+    CompoundKeyPolicy,
     Default,
     Inputs,
-    CompoundKeyPolicy,
+    KeyPolicy,
     _None,
 )
 
