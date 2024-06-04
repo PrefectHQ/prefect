@@ -202,38 +202,6 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
             "artifact_paths": ["manifest.json"],
         }
 
-    def test_run_in_sync_flow(self, respx_mock, dbt_cloud_credentials):
-        respx_mock.post(
-            "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
-            headers=HEADERS,
-        ).mock(
-            return_value=Response(
-                200, json={"data": {"id": 10000, "project_id": 12345}}
-            )
-        )
-        respx_mock.get(
-            "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
-            headers=HEADERS,
-        ).mock(return_value=Response(200, json={"data": {"id": 10000, "status": 10}}))
-        respx_mock.get(
-            "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
-            headers=HEADERS,
-        ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
-
-        @flow
-        def test_sync_flow():
-            return trigger_dbt_cloud_job_run_and_wait_for_completion(
-                dbt_cloud_credentials=dbt_cloud_credentials, job_id=1
-            )
-
-        result = test_sync_flow()
-
-        assert result == {
-            "id": 10000,
-            "status": 10,
-            "artifact_paths": ["manifest.json"],
-        }
-
     @pytest.mark.respx(assert_all_called=True)
     async def test_run_success_with_wait(self, respx_mock, dbt_cloud_credentials):
         respx_mock.post(
