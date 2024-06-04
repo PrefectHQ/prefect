@@ -550,7 +550,8 @@ class FlowRun(ObjectBaseModel):
         examples=["State(type=StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
-        default=None, description="Job variables for the flow run."
+        default=None,
+        description="Job variables for the flow run.",
     )
 
     # These are server-side optimizations and should not be present on client models
