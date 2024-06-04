@@ -80,12 +80,26 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
         """
     )
 
+    from prefect.server.utilities.database import get_dialect
+    from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+
+    using_sqlite = (
+        get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name == "sqlite"
+    )
+
     if not os.path.exists(prefect.__ui_static_path__):
         blurb += dashboard_not_built
     elif not ui_enabled:
         blurb += dashboard_disabled
     else:
         blurb += visit_dashboard
+
+    if using_sqlite:
+        blurb += textwrap.dedent(
+            """
+            WARNING: Using a SQLite database. This is not recommended for production use!
+            """
+        )
 
     return blurb
 

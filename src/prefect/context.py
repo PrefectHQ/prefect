@@ -41,11 +41,17 @@ from typing_extensions import Self
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
+from prefect.client.orchestration import (
+    PrefectClient,
+    ServerType,
+    SyncPrefectClient,
+    get_client,
+)
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
+from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
@@ -63,6 +69,34 @@ if TYPE_CHECKING:
 # This will be populated downstream but must be null here to facilitate loading the
 # default settings.
 GLOBAL_SETTINGS_CONTEXT = None  # type: ignore
+
+logger = get_logger("context")
+
+
+def log_non_production_warning(ctx: "ClientContext"):
+    """
+    Log a warning if the current environment is not recommended for production use.
+    """
+    from prefect.server.utilities.database import get_dialect
+    from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+
+    using_ephemeral_api = ctx.async_client.server_type == ServerType.EPHEMERAL
+    using_sqlite = (
+        get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name == "sqlite"
+    )
+
+    if using_sqlite and not using_ephemeral_api:
+        logger.warning(
+            "Using a SQLite database. This is not recommended for production use!"
+        )
+    elif not using_sqlite and using_ephemeral_api:
+        logger.warning(
+            "Using an ephemeral prefect server. This is not recommended for production use!"
+        )
+    elif using_sqlite and using_ephemeral_api:
+        logger.warning(
+            "Using an ephemeral prefect server connected to a SQLite database. These are not recommended for production use!"
+        )
 
 
 def serialize_context() -> Dict[str, Any]:
@@ -309,6 +343,7 @@ class ClientContext(ContextModel):
     def __enter__(self):
         self._context_stack += 1
         if self._context_stack == 1:
+            log_non_production_warning(self)
             self.sync_client.__enter__()
             run_coro_as_sync(self.async_client.__aenter__())
             return super().__enter__()
