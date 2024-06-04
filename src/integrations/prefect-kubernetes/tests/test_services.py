@@ -21,7 +21,9 @@ async def test_create_namespaced_service(kubernetes_credentials, _mock_api_core_
         "body"
     ].metadata == {"name": "test-service"}
     assert (
-        _mock_api_core_client.return_value.create_namespaced_service.call_args[1]["namespace"]
+        _mock_api_core_client.return_value.create_namespaced_service.call_args[1][
+            "namespace"
+        ]
         == "default"
     )
 
@@ -36,7 +38,9 @@ async def test_delete_namespaced_service(kubernetes_credentials, _mock_api_core_
 
     assert _mock_api_core_client.return_value.delete_namespaced_service.call_count == 1
     assert (
-        _mock_api_core_client.return_value.delete_namespaced_service.call_args[1]["name"]
+        _mock_api_core_client.return_value.delete_namespaced_service.call_args[1][
+            "name"
+        ]
         == "test-service"
     )
     assert (
@@ -46,7 +50,9 @@ async def test_delete_namespaced_service(kubernetes_credentials, _mock_api_core_
         == 42
     )
     assert (
-        _mock_api_core_client.return_value.delete_namespaced_service.call_args[1]["namespace"]
+        _mock_api_core_client.return_value.delete_namespaced_service.call_args[1][
+            "namespace"
+        ]
         == "default"
     )
 
@@ -59,7 +65,9 @@ async def test_list_namespaced_service(kubernetes_credentials, _mock_api_core_cl
 
     assert _mock_api_core_client.return_value.list_namespaced_service.call_count == 1
     assert (
-        _mock_api_core_client.return_value.list_namespaced_service.call_args[1]["namespace"]
+        _mock_api_core_client.return_value.list_namespaced_service.call_args[1][
+            "namespace"
+        ]
         == "default"
     )
 
@@ -81,7 +89,9 @@ async def test_patch_namespaced_service(kubernetes_credentials, _mock_api_core_c
         "body"
     ].metadata == {"name": "test-service"}
     assert (
-        _mock_api_core_client.return_value.patch_namespaced_service.call_args[1]["namespace"]
+        _mock_api_core_client.return_value.patch_namespaced_service.call_args[1][
+            "namespace"
+        ]
         == "default"
     )
 
@@ -99,7 +109,9 @@ async def test_read_namespaced_service(kubernetes_credentials, _mock_api_core_cl
         == "test-service"
     )
     assert (
-        _mock_api_core_client.return_value.read_namespaced_service.call_args[1]["namespace"]
+        _mock_api_core_client.return_value.read_namespaced_service.call_args[1][
+            "namespace"
+        ]
         == "default"
     )
 
@@ -116,13 +128,17 @@ async def test_replace_namespaced_service(
 
     assert _mock_api_core_client.return_value.replace_namespaced_service.call_count == 1
     assert (
-        _mock_api_core_client.return_value.replace_namespaced_service.call_args[1]["name"]
+        _mock_api_core_client.return_value.replace_namespaced_service.call_args[1][
+            "name"
+        ]
         == "test-service"
     )
     assert _mock_api_core_client.return_value.replace_namespaced_service.call_args[1][
         "body"
     ].metadata == {"labels": {"foo": "bar"}}
     assert (
-        _mock_api_core_client.return_value.replace_namespaced_service.call_args[1]["namespace"]
+        _mock_api_core_client.return_value.replace_namespaced_service.call_args[1][
+            "namespace"
+        ]
         == "default"
     )

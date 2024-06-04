@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -19,7 +18,11 @@ from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
-BASEDIR = Path.cwd() / "src" / "integrations" / "prefect-kubernetes" / "tests"
+BASEDIR = (
+    Path.cwd() / "src" / "integrations" / "prefect-kubernetes" / "tests"
+    if Path.cwd().name == "prefect"
+    else Path.cwd() / "tests"
+)
 GOOD_CONFIG_FILE_PATH = BASEDIR / "kube_config.yaml"
 
 
@@ -54,11 +57,7 @@ def reset_object_registry():
 
 @pytest.fixture
 def kube_config_dict():
-    try:
-        return yaml.safe_load(GOOD_CONFIG_FILE_PATH.read_text())
-    # exception for if working from integration directory
-    except FileNotFoundError:
-        return yaml.safe_load(Path("tests/kube_config.yaml").read_text())
+    return yaml.safe_load(GOOD_CONFIG_FILE_PATH.read_text())
 
 
 @pytest.fixture
@@ -95,6 +94,7 @@ def kubernetes_credentials(kube_config_dict):
         )
     )
 
+
 @pytest.fixture
 def _mock_api_app_client(monkeypatch):
     app_client = AsyncMock(spec=AppsV1Api)
@@ -103,6 +103,7 @@ def _mock_api_app_client(monkeypatch):
         app_client,
     )
     return app_client
+
 
 @pytest.fixture
 async def _mock_api_batch_client(monkeypatch):
@@ -115,6 +116,7 @@ async def _mock_api_batch_client(monkeypatch):
 
     return batch_client
 
+
 @pytest.fixture
 def _mock_api_core_client(monkeypatch):
     core_client = AsyncMock(spec=CoreV1Api)
@@ -124,7 +126,6 @@ def _mock_api_core_client(monkeypatch):
         core_client,
     )
     return core_client
-
 
 
 @pytest.fixture
@@ -202,9 +203,9 @@ def mock_stream_timeout(monkeypatch):
 def mock_pod_log(monkeypatch):
     async def pod_log(*args, **kwargs):
         yield "test log"
+
     monkeypatch.setattr(
         "kubernetes_asyncio.watch.Watch.stream",
-        
         MagicMock(side_effect=pod_log),
     )
 
@@ -239,7 +240,6 @@ def read_pod_logs(monkeypatch):
 
 @pytest.fixture
 def valid_kubernetes_job_block(kubernetes_credentials):
-    
     with open(BASEDIR / "sample_k8s_resources" / "sample_job.yaml") as f:
         job_dict = yaml.safe_load(f)
 

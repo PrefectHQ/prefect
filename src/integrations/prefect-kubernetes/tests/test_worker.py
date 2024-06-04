@@ -24,7 +24,7 @@ from kubernetes_asyncio.client.models import (
 )
 from kubernetes_asyncio.config import ConfigException
 from pydantic import VERSION as PYDANTIC_VERSION
-import aiohttp
+
 import prefect
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
@@ -2244,7 +2244,7 @@ class TestKubernetesWorker:
         async def mock_log_stream(*args, **kwargs):
             yield RuntimeError("something went wrong")
 
-        mock_core_client.return_value.read_namespaced_pod_log.return_value.content= (
+        mock_core_client.return_value.read_namespaced_pod_log.return_value.content = (
             mock_log_stream
         )
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
@@ -2378,9 +2378,10 @@ class TestKubernetesWorker:
                 sleep(0.25)
                 yield f"test {i}".encode()
 
-    
-        mock_core_client.return_value.read_namespaced_pod_log.return_value.content = mock_log_stream()
-        
+        mock_core_client.return_value.read_namespaced_pod_log.return_value.content = (
+            mock_log_stream()
+        )
+
         mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
 
         default_configuration.job_watch_timeout_seconds = 1
@@ -2436,7 +2437,9 @@ class TestKubernetesWorker:
                 sleep(0.25)
                 yield f"test {i}".encode()
 
-        mock_core_client.return_value.read_namespaced_pod_log.return_value.content = mock_log_stream()
+        mock_core_client.return_value.read_namespaced_pod_log.return_value.content = (
+            mock_log_stream()
+        )
         mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
 
         default_configuration.job_watch_timeout_seconds = 1
@@ -2952,6 +2955,7 @@ class TestKubernetesWorker:
     ):
         """Regression test for #87, where workers were giving only very vague
         information about the reason a pod was never scheduled."""
+
         async def mock_stream(*args, **kwargs):
             if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
                 job = MagicMock(spec=kubernetes_asyncio.client.V1Job)

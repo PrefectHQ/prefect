@@ -9,7 +9,6 @@ from kubernetes_asyncio.client.models import (
 )
 
 from prefect import task
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_kubernetes.credentials import KubernetesCredentials
 
 
@@ -49,11 +48,11 @@ async def create_namespaced_deployment(
         ```
     """
     async with kubernetes_credentials.get_client("apps") as apps_v1_client:
-        return await apps_v1_client.create_namespaced_deployment(namespace=namespace,
+        return await apps_v1_client.create_namespaced_deployment(
+            namespace=namespace,
             body=new_deployment,
-            **kube_kwargs,)
-            
-        
+            **kube_kwargs,
+        )
 
 
 @task
@@ -223,7 +222,7 @@ async def read_namespaced_deployment(
     """
     async with kubernetes_credentials.get_client("apps") as apps_v1_client:
         return await apps_v1_client.read_namespaced_deployment(
-          name=deployment_name,
+            name=deployment_name,
             namespace=namespace,
             **kube_kwargs,
         )

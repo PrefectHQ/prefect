@@ -32,7 +32,10 @@ async def test_create_namespaced_pod(kubernetes_credentials, _mock_api_core_clie
     assert _mock_api_core_client.return_value.create_namespaced_pod.call_args[1][
         "body"
     ].metadata == {"name": "test-pod"}
-    assert _mock_api_core_client.return_value.create_namespaced_pod.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_core_client.return_value.create_namespaced_pod.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_delete_namespaced_pod(kubernetes_credentials, _mock_api_core_client):
@@ -43,10 +46,15 @@ async def test_delete_namespaced_pod(kubernetes_credentials, _mock_api_core_clie
         a="test",
     )
     assert (
-        _mock_api_core_client.return_value.delete_namespaced_pod.call_args[1]["namespace"]
+        _mock_api_core_client.return_value.delete_namespaced_pod.call_args[1][
+            "namespace"
+        ]
         == "default"
     )
-    assert _mock_api_core_client.return_value.delete_namespaced_pod.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_core_client.return_value.delete_namespaced_pod.call_args[1]["a"]
+        == "test"
+    )
     assert (
         _mock_api_core_client.return_value.delete_namespaced_pod.call_args[1][
             "body"
@@ -70,8 +78,14 @@ async def test_list_namespaced_pod(kubernetes_credentials, _mock_api_core_client
         a="test",
         kubernetes_credentials=kubernetes_credentials,
     )
-    assert _mock_api_core_client.return_value.list_namespaced_pod.call_args[1]["namespace"] == "ns"
-    assert _mock_api_core_client.return_value.list_namespaced_pod.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_core_client.return_value.list_namespaced_pod.call_args[1]["namespace"]
+        == "ns"
+    )
+    assert (
+        _mock_api_core_client.return_value.list_namespaced_pod.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_patch_namespaced_pod(kubernetes_credentials, _mock_api_core_client):
@@ -81,11 +95,17 @@ async def test_patch_namespaced_pod(kubernetes_credentials, _mock_api_core_clien
         pod_name="test_pod",
         a="test",
     )
-    assert _mock_api_core_client.return_value.patch_namespaced_pod.call_args[1]["body"].metadata == {
-        "name": "test-pod"
-    }
-    assert _mock_api_core_client.return_value.patch_namespaced_pod.call_args[1]["name"] == "test_pod"
-    assert _mock_api_core_client.return_value.patch_namespaced_pod.call_args[1]["a"] == "test"
+    assert _mock_api_core_client.return_value.patch_namespaced_pod.call_args[1][
+        "body"
+    ].metadata == {"name": "test-pod"}
+    assert (
+        _mock_api_core_client.return_value.patch_namespaced_pod.call_args[1]["name"]
+        == "test_pod"
+    )
+    assert (
+        _mock_api_core_client.return_value.patch_namespaced_pod.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_read_namespaced_pod(kubernetes_credentials, _mock_api_core_client):
@@ -95,9 +115,18 @@ async def test_read_namespaced_pod(kubernetes_credentials, _mock_api_core_client
         a="test",
         kubernetes_credentials=kubernetes_credentials,
     )
-    assert _mock_api_core_client.return_value.read_namespaced_pod.call_args[1]["name"] == "test_pod"
-    assert _mock_api_core_client.return_value.read_namespaced_pod.call_args[1]["namespace"] == "ns"
-    assert _mock_api_core_client.return_value.read_namespaced_pod.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_core_client.return_value.read_namespaced_pod.call_args[1]["name"]
+        == "test_pod"
+    )
+    assert (
+        _mock_api_core_client.return_value.read_namespaced_pod.call_args[1]["namespace"]
+        == "ns"
+    )
+    assert (
+        _mock_api_core_client.return_value.read_namespaced_pod.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_read_namespaced_pod_logs(kubernetes_credentials, _mock_api_core_client):
@@ -109,16 +138,25 @@ async def test_read_namespaced_pod_logs(kubernetes_credentials, _mock_api_core_c
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["name"] == "test_pod"
+        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["name"]
+        == "test_pod"
     )
     assert (
-        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["namespace"] == "ns"
+        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1][
+            "namespace"
+        ]
+        == "ns"
     )
     assert (
-        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["container"]
+        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1][
+            "container"
+        ]
         == "test_container"
     )
-    assert _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_replace_namespaced_pod(kubernetes_credentials, _mock_api_core_client):
@@ -130,15 +168,22 @@ async def test_replace_namespaced_pod(kubernetes_credentials, _mock_api_core_cli
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_core_client.return_value.replace_namespaced_pod.call_args[1]["name"] == "test_pod"
+        _mock_api_core_client.return_value.replace_namespaced_pod.call_args[1]["name"]
+        == "test_pod"
     )
     assert (
-        _mock_api_core_client.return_value.replace_namespaced_pod.call_args[1]["namespace"] == "ns"
+        _mock_api_core_client.return_value.replace_namespaced_pod.call_args[1][
+            "namespace"
+        ]
+        == "ns"
     )
     assert _mock_api_core_client.return_value.replace_namespaced_pod.call_args[1][
         "body"
     ].metadata == {"name": "test-pod"}
-    assert _mock_api_core_client.return_value.replace_namespaced_pod.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_core_client.return_value.replace_namespaced_pod.call_args[1]["a"]
+        == "test"
+    )
 
 
 @pytest.mark.parametrize(
@@ -171,13 +216,19 @@ async def test_read_pod_log_custom_print_func(
     assert capsys.readouterr().out == "test log\n"
 
     assert (
-        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["name"] == "test_pod"
+        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["name"]
+        == "test_pod"
     )
     assert (
-        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["namespace"] == "ns"
+        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1][
+            "namespace"
+        ]
+        == "ns"
     )
     assert (
-        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1]["container"]
+        _mock_api_core_client.return_value.read_namespaced_pod_log.call_args[1][
+            "container"
+        ]
         == "test_container"
     )
 

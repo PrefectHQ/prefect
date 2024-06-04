@@ -22,7 +22,10 @@ async def test_create_namespaced_deployment(
     assert _mock_api_app_client.return_value.create_namespaced_deployment.call_args[1][
         "body"
     ].metadata == {"name": "test-deployment"}
-    assert _mock_api_app_client.return_value.create_namespaced_deployment.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_app_client.return_value.create_namespaced_deployment.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_delete_namespaced_deployment(
@@ -35,10 +38,15 @@ async def test_delete_namespaced_deployment(
         a="test",
     )
     assert (
-        _mock_api_app_client.return_value.delete_namespaced_deployment.call_args[1]["namespace"]
+        _mock_api_app_client.return_value.delete_namespaced_deployment.call_args[1][
+            "namespace"
+        ]
         == "default"
     )
-    assert _mock_api_app_client.return_value.delete_namespaced_deployment.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_app_client.return_value.delete_namespaced_deployment.call_args[1]["a"]
+        == "test"
+    )
     assert (
         _mock_api_app_client.return_value.delete_namespaced_deployment.call_args[1][
             "body"
@@ -63,10 +71,15 @@ async def test_list_namespaced_deployment(kubernetes_credentials, _mock_api_app_
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_app_client.return_value.list_namespaced_deployment.call_args[1]["namespace"]
+        _mock_api_app_client.return_value.list_namespaced_deployment.call_args[1][
+            "namespace"
+        ]
         == "ns"
     )
-    assert _mock_api_app_client.return_value.list_namespaced_deployment.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_app_client.return_value.list_namespaced_deployment.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_patch_namespaced_deployment(
@@ -82,10 +95,15 @@ async def test_patch_namespaced_deployment(
         "body"
     ].metadata == {"name": "test-deployment"}
     assert (
-        _mock_api_app_client.return_value.patch_namespaced_deployment.call_args[1]["name"]
+        _mock_api_app_client.return_value.patch_namespaced_deployment.call_args[1][
+            "name"
+        ]
         == "test_deployment"
     )
-    assert _mock_api_app_client.return_value.patch_namespaced_deployment.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_app_client.return_value.patch_namespaced_deployment.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_read_namespaced_deployment(kubernetes_credentials, _mock_api_app_client):
@@ -96,14 +114,21 @@ async def test_read_namespaced_deployment(kubernetes_credentials, _mock_api_app_
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_app_client.return_value.read_namespaced_deployment.call_args[1]["name"]
+        _mock_api_app_client.return_value.read_namespaced_deployment.call_args[1][
+            "name"
+        ]
         == "test_deployment"
     )
     assert (
-        _mock_api_app_client.return_value.read_namespaced_deployment.call_args[1]["namespace"]
+        _mock_api_app_client.return_value.read_namespaced_deployment.call_args[1][
+            "namespace"
+        ]
         == "ns"
     )
-    assert _mock_api_app_client.return_value.read_namespaced_deployment.call_args[1]["a"] == "test"
+    assert (
+        _mock_api_app_client.return_value.read_namespaced_deployment.call_args[1]["a"]
+        == "test"
+    )
 
 
 async def test_replace_namespaced_deployment(
@@ -117,18 +142,25 @@ async def test_replace_namespaced_deployment(
         kubernetes_credentials=kubernetes_credentials,
     )
     assert (
-        _mock_api_app_client.return_value.replace_namespaced_deployment.call_args[1]["name"]
+        _mock_api_app_client.return_value.replace_namespaced_deployment.call_args[1][
+            "name"
+        ]
         == "test_deployment"
     )
     assert (
-        _mock_api_app_client.return_value.replace_namespaced_deployment.call_args[1]["namespace"]
+        _mock_api_app_client.return_value.replace_namespaced_deployment.call_args[1][
+            "namespace"
+        ]
         == "ns"
     )
     assert _mock_api_app_client.return_value.replace_namespaced_deployment.call_args[1][
         "body"
     ].metadata == {"name": "test-deployment"}
     assert (
-        _mock_api_app_client.return_value.replace_namespaced_deployment.call_args[1]["a"] == "test"
+        _mock_api_app_client.return_value.replace_namespaced_deployment.call_args[1][
+            "a"
+        ]
+        == "test"
     )
 
 
