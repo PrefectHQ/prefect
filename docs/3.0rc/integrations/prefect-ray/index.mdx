@@ -9,7 +9,7 @@ The `prefect-ray` integration makes it easy speed up your flow runs by integrati
 
 ### Prerequisites
 
-- [Prefect installed](https://docs.prefect.io/latest/getting-started/installation/) in a virtual environment.
+- [Prefect installed](https://docs.prefect.io/latest/get-started/install/) in a virtual environment.
 
 ### Install prefect-ray
 
@@ -30,7 +30,7 @@ pip install prefect-ray
 
 ## Running tasks on Ray
 
-The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/concepts/task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution.
+The `RayTaskRunner` is a [Prefect task runner](https://docs.prefect.io/develop/write-tasks/use-task-runners/) that submits tasks to [Ray](https://www.ray.io/) for parallel execution.
 
 By default, a temporary Ray instance is created for the duration of the flow run.
 
@@ -118,7 +118,7 @@ When using the `RayTaskRunner` with a remote Ray cluster, you may run into issue
 
 1. By default, Prefect will not persist any data to the filesystem of the remote ray worker. However, if you want to take advantage of Prefect's caching ability, you will need to configure a remote result storage to persist results across task runs.
 
-We recommend using the [Prefect UI to configure a storage block](https://docs.prefect.io/concepts/blocks/) to use for remote results storage.
+We recommend using the [Prefect UI to configure a storage block](https://docs.prefect.io/develop/connect-third-party/) to use for remote results storage.
 
 Here's an example of a flow that uses caching and remote result storage:
 
