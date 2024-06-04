@@ -1742,7 +1742,7 @@ class TestEntrypointToSchema:
                 }
             },
         }
-        
+
     def test_function_with_kwargs_only(self, tmp_path: Path):
         source_code = dedent(
             """
