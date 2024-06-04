@@ -76,7 +76,7 @@ async def wait_for_flow_run(
             ```python
             import asyncio
 
-            from prefect import get_client
+            from prefect.client.orchestration import get_client
             from prefect.flow_runs import wait_for_flow_run
 
             async def main():
@@ -94,7 +94,7 @@ async def wait_for_flow_run(
             ```python
             import asyncio
 
-            from prefect import get_client
+            from prefect.client.orchestration import get_client
             from prefect.flow_runs import wait_for_flow_run
 
             async def main(num_runs: int):

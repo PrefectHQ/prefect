@@ -1,4 +1,5 @@
 """Module containing tasks and flows for interacting with dbt Cloud jobs"""
+
 import asyncio
 import shlex
 import time
@@ -6,20 +7,13 @@ from json import JSONDecodeError
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
 from httpx import HTTPStatusError
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
+from typing_extensions import Literal
 
 from prefect import flow, get_run_logger, task
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import FlowRunContext
 from prefect.utilities.asyncutils import sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
-from typing_extensions import Literal
-
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
     DbtCloudGetJobFailed,
@@ -234,7 +228,7 @@ def get_run_id(obj: Dict):
                 job_id=job_id,
                 options=trigger_job_run_options,
             )
-            run_id = get_run_id.submit(triggered_run_data)
+            run_id = get_run_id(triggered_run_data)
             return run_id
 
         trigger_run_and_get_id()
@@ -353,12 +347,12 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
     """  # noqa
     logger = get_run_logger()
 
-    triggered_run_data_future = await trigger_dbt_cloud_job_run.submit(
+    triggered_run_data_future = await trigger_dbt_cloud_job_run(
         dbt_cloud_credentials=dbt_cloud_credentials,
         job_id=job_id,
         options=trigger_job_run_options,
     )
-    run_id = (await triggered_run_data_future.result()).get("id")
+    run_id = (triggered_run_data_future).get("id")
     if run_id is None:
         raise RuntimeError("Unable to determine run ID for triggered job.")
 
@@ -371,11 +365,11 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
 
     if final_run_status == DbtCloudJobRunStatus.SUCCESS:
         try:
-            list_run_artifacts_future = await list_dbt_cloud_run_artifacts.submit(
+            list_run_artifacts_future = await list_dbt_cloud_run_artifacts(
                 dbt_cloud_credentials=dbt_cloud_credentials,
                 run_id=run_id,
             )
-            run_data["artifact_paths"] = await list_run_artifacts_future.result()
+            run_data["artifact_paths"] = list_run_artifacts_future
         except DbtCloudListRunArtifactsFailed as ex:
             logger.warning(
                 "Unable to retrieve artifacts for job run with ID %s. Reason: %s",
@@ -478,13 +472,13 @@ async def _build_trigger_job_run_options(
             try:
                 run_artifact_future = await get_dbt_cloud_run_artifact.with_options(
                     retries=0, retry_delay_seconds=0
-                ).submit(
+                )(
                     dbt_cloud_credentials=dbt_cloud_credentials,
                     run_id=run_id,
                     path="run_results.json",
                     step=run_step["index"],
                 )
-                run_artifact = await run_artifact_future.result()
+                run_artifact = run_artifact_future
             except JSONDecodeError:
                 # get the run results scoped to the step which had an error
                 # an error here indicates that either:
@@ -600,19 +594,19 @@ async def retry_dbt_cloud_job_run_subset_and_wait_for_completion(
             "because this flow will automatically set it"
         )
 
-    run_info_future = await get_dbt_cloud_run_info.submit(
+    run_info_future = await get_dbt_cloud_run_info(
         dbt_cloud_credentials=dbt_cloud_credentials,
         run_id=run_id,
         include_related=["run_steps"],
     )
-    run_info = await run_info_future.result()
+    run_info = run_info_future
 
     job_id = run_info["job_id"]
-    job_info_future = await get_dbt_cloud_job_info.submit(
+    job_info_future = await get_dbt_cloud_job_info(
         dbt_cloud_credentials=dbt_cloud_credentials,
         job_id=job_id,
     )
-    job_info = await job_info_future.result()
+    job_info = job_info_future
 
     trigger_job_run_options_override = await _build_trigger_job_run_options(
         dbt_cloud_credentials=dbt_cloud_credentials,
@@ -1137,3 +1131,6 @@ async def run_dbt_cloud_job(
             )
             run = await task(run.retry_failed_steps.aio)(run)
             targeted_retries -= 1
+    raise DbtCloudJobRunFailed(
+        f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
+    )
