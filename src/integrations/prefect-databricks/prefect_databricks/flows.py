@@ -6,7 +6,8 @@ import asyncio
 from logging import Logger
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect_databricks import DatabricksCredentials
 from prefect_databricks.jobs import (
     jobs_runs_get,

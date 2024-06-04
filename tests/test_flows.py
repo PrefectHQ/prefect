@@ -23,7 +23,7 @@ import regex as re
 
 import prefect
 import prefect.exceptions
-from prefect import flow, get_run_logger, runtime, tags, task
+from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.schedules import (
@@ -47,6 +47,7 @@ from prefect.flows import (
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
 )
+from prefect.logging import get_run_logger
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -2334,7 +2335,8 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     prefect_client,
 ):
     flow_code_with_call = """
-    from prefect import flow, get_run_logger
+    from prefect import flow
+from prefect.logging import get_run_logger
 
     @flow
     def dog():

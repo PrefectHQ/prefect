@@ -10,9 +10,10 @@ from httpx import HTTPStatusError
 from pydantic import Field
 from typing_extensions import Literal
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import FlowRunContext
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (

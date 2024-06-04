@@ -85,7 +85,8 @@ To enable caching, specify a `cache_key_fn` — a function that returns a cache 
 ```python
 import httpx
 from datetime import timedelta
-from prefect import flow, task, get_run_logger
+from prefect import flow, task
+from prefect.logging import get_run_logger
 from prefect.tasks import task_input_hash
 from typing import Optional
 
