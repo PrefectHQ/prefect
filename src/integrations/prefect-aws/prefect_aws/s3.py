@@ -12,7 +12,8 @@ from botocore.paginate import PageIterator
 from botocore.response import StreamingBody
 from pydantic import Field
 
-from prefect.logging import get_run_logger, task
+from prefect import task
+from prefect.logging import get_run_logger
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible

@@ -5,7 +5,8 @@ from anyio import to_thread
 from google.api_core.exceptions import NotFound
 from pydantic import Field
 
-from prefect.logging import get_run_logger, task
+from prefect import task
+from prefect.logging import get_run_logger
 from prefect.blocks.abstract import SecretBlock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect_gcp.credentials import GcpCredentials

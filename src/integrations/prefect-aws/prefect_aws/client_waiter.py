@@ -4,7 +4,8 @@ from typing import Any, Dict, Optional
 
 from botocore.waiter import WaiterModel, create_waiter_with_client
 
-from prefect.logging import get_run_logger, task
+from prefect import task
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect_aws.credentials import AwsCredentials
 

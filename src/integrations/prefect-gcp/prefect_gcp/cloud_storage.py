@@ -9,7 +9,8 @@ from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 from pydantic import Field, field_validator
 
-from prefect.logging import get_run_logger, task
+from prefect import task
+from prefect.logging import get_run_logger
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
 from prefect.logging import disable_run_logger

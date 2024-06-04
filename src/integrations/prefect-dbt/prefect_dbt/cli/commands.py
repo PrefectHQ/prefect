@@ -10,7 +10,8 @@ from dbt.contracts.results import NodeStatus, RunExecutionResult
 from prefect_shell.commands import ShellOperation
 from pydantic import Field
 
-from prefect.logging import get_run_logger, task
+from prefect import task
+from prefect.logging import get_run_logger
 from prefect.artifacts import create_markdown_artifact
 from prefect.states import Failed
 from prefect.utilities.asyncutils import sync_compatible
