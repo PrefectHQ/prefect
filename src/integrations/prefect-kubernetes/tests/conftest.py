@@ -144,7 +144,7 @@ def mock_create_namespaced_job(monkeypatch):
         return_value=models.V1Job(metadata=models.V1ObjectMeta(name="test"))
     )
     monkeypatch.setattr(
-        "kubernetes_asyncio.client.BatchV1Api.create_namespaced_job", mock_v1_job
+        "kubernetes_asyncio.client.api.BatchV1Api.create_namespaced_job", mock_v1_job
     )
     return mock_v1_job
 
@@ -218,20 +218,20 @@ def mock_list_namespaced_pod(monkeypatch):
             )
         ]
     )
-    mock_pod_list = MagicMock(return_value=result)
+    mock_pod_list = AsyncMock(return_value=result)
 
     monkeypatch.setattr(
-        "kubernetes_asyncio.client.CoreV1Api.list_namespaced_pod", mock_pod_list
+        "kubernetes_asyncio.client.api.CoreV1Api.list_namespaced_pod", mock_pod_list
     )
     return mock_pod_list
 
 
 @pytest.fixture
 def read_pod_logs(monkeypatch):
-    pod_log = MagicMock(return_value="test log")
+    pod_log = AsyncMock(return_value="test log")
 
     monkeypatch.setattr(
-        "kubernetes_asyncio.client.CoreV1Api.read_namespaced_pod_log", pod_log
+        "kubernetes_asyncio.client.api.CoreV1Api.read_namespaced_pod_log", pod_log
     )
     return pod_log
 
