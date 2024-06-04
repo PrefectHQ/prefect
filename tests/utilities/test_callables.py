@@ -1469,6 +1469,62 @@ class TestEntrypointToSchema:
             "definitions": {},
         }
 
+    def test_handles_dynamically_created_models(self, tmp_path: Path):
+        source_code = dedent(
+            """
+            from pydantic import BaseModel, create_model, Field
+
+
+            def get_model() -> BaseModel:
+                return create_model(
+                    "MyModel",
+                    param=(
+                        int,
+                        Field(
+                            title="param",
+                            default=1,
+                        ),
+                    ),
+                )
+
+
+            MyModel = get_model()
+
+
+            def f(
+                param: MyModel,
+            ) -> None:
+                pass        
+            """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.model_dump_for_openapi() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "param": {
+                    "allOf": [{"$ref": "#/definitions/MyModel"}],
+                    "position": 0,
+                    "title": "param",
+                }
+            },
+            "required": ["param"],
+            "definitions": {
+                "MyModel": {
+                    "properties": {
+                        "param": {
+                            "default": 1,
+                            "title": "param",
+                            "type": "integer",
+                        }
+                    },
+                    "title": "MyModel",
+                    "type": "object",
+                }
+            },
+        }
+
     def test_function_with_kwargs_only(self, tmp_path: Path):
         source_code = dedent(
             """
