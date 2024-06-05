@@ -1,9 +1,10 @@
+import ast
 import importlib
 import importlib.util
-import inspect
 import os
 import runpy
 import sys
+import warnings
 from importlib.abc import Loader, MetaPathFinder
 from importlib.machinery import ModuleSpec
 from pathlib import Path
@@ -14,7 +15,10 @@ from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Union
 import fsspec
 
 from prefect.exceptions import ScriptError
+from prefect.logging.loggers import get_logger
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
+
+logger = get_logger(__name__)
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -224,24 +228,18 @@ class DelayedImportErrorModule(ModuleType):
     [1]: https://github.com/scientific-python/lazy_loader
     """
 
-    def __init__(self, frame_data, help_message, *args, **kwargs):
-        self.__frame_data = frame_data
+    def __init__(self, error_message, help_message, *args, **kwargs):
+        self.__error_message = error_message
         self.__help_message = (
             help_message or "Import errors for this module are only reported when used."
         )
         super().__init__(*args, **kwargs)
 
     def __getattr__(self, attr):
-        if attr in ("__class__", "__file__", "__frame_data", "__help_message"):
+        if attr in ("__class__", "__file__", "__help_message"):
             super().__getattr__(attr)
         else:
-            fd = self.__frame_data
-            raise ModuleNotFoundError(
-                f"No module named '{fd['spec']}'\n\nThis module was originally imported"
-                f" at:\n  File \"{fd['filename']}\", line {fd['lineno']}, in"
-                f" {fd['function']}\n\n    {''.join(fd['code_context']).strip()}\n"
-                + self.__help_message
-            )
+            raise ModuleNotFoundError(self.__error_message)
 
 
 def lazy_import(
@@ -251,6 +249,13 @@ def lazy_import(
     Create a lazily-imported module to use in place of the module of the given name.
     Use this to retain module-level imports for libraries that we don't want to
     actually import until they are needed.
+
+    NOTE: Lazy-loading a subpackage can cause the subpackage to be imported
+    twice if another non-lazy import also imports the subpackage. For example,
+    using both `lazy_import("docker.errors")` and `import docker.errors` in the
+    same codebase will import `docker.errors` twice and can lead to unexpected
+    behavior, e.g. type check failures and import-time side effects running
+    twice.
 
     Adapted from the [Python documentation][1] and [lazy_loader][2]
 
@@ -263,25 +268,23 @@ def lazy_import(
     except KeyError:
         pass
 
+    if "." in name:
+        warnings.warn(
+            "Lazy importing subpackages can lead to unexpected behavior.",
+            RuntimeWarning,
+        )
+
     spec = importlib.util.find_spec(name)
+
     if spec is None:
+        import_error_message = f"No module named '{name}'.\n{help_message}"
+
         if error_on_import:
-            raise ModuleNotFoundError(f"No module named '{name}'.\n{help_message}")
-        else:
-            try:
-                parent = inspect.stack()[1]
-                frame_data = {
-                    "spec": name,
-                    "filename": parent.filename,
-                    "lineno": parent.lineno,
-                    "function": parent.function,
-                    "code_context": parent.code_context,
-                }
-                return DelayedImportErrorModule(
-                    frame_data, help_message, "DelayedImportErrorModule"
-                )
-            finally:
-                del parent
+            raise ModuleNotFoundError(import_error_message)
+
+        return DelayedImportErrorModule(
+            import_error_message, help_message, "DelayedImportErrorModule"
+        )
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
@@ -356,3 +359,70 @@ class AliasedModuleLoader(Loader):
         if self.callback is not None:
             self.callback(self.alias)
         sys.modules[self.alias] = root_module
+
+
+def safe_load_namespace(source_code: str):
+    """
+    Safely load a namespace from source code.
+
+    This function will attempt to import all modules and classes defined in the source
+    code. If an import fails, the error is caught and the import is skipped. This function
+    will also attempt to compile and evaluate class and function definitions locally.
+
+    Args:
+        source_code: The source code to load
+
+    Returns:
+        The namespace loaded from the source code. Can be used when evaluating source
+        code.
+    """
+    parsed_code = ast.parse(source_code)
+
+    namespace = {"__name__": "prefect_safe_namespace_loader"}
+
+    # Walk through the AST and find all import statements
+    for node in ast.walk(parsed_code):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                module_name = alias.name
+                as_name = alias.asname if alias.asname else module_name
+                try:
+                    # Attempt to import the module
+                    namespace[as_name] = importlib.import_module(module_name)
+                    logger.debug("Successfully imported %s", module_name)
+                except ImportError as e:
+                    logger.debug(f"Failed to import {module_name}: {e}")
+        elif isinstance(node, ast.ImportFrom):
+            module_name = node.module
+            if module_name is None:
+                continue
+            try:
+                module = importlib.import_module(module_name)
+                for alias in node.names:
+                    name = alias.name
+                    asname = alias.asname if alias.asname else name
+                    try:
+                        # Get the specific attribute from the module
+                        attribute = getattr(module, name)
+                        namespace[asname] = attribute
+                    except AttributeError as e:
+                        logger.debug(
+                            "Failed to retrieve %s from %s: %s", name, module_name, e
+                        )
+            except ImportError as e:
+                logger.debug("Failed to import from %s: %s", node.module, e)
+
+    # Handle local definitions
+    for node in ast.walk(parsed_code):
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.Assign)):
+            try:
+                # Compile and execute each class and function definition and assignment
+                code = compile(
+                    ast.Module(body=[node], type_ignores=[]),
+                    filename="<ast>",
+                    mode="exec",
+                )
+                exec(code, namespace)
+            except Exception as e:
+                logger.debug("Failed to compile: %s", e)
+    return namespace

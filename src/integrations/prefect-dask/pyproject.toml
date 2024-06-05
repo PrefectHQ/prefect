@@ -5,8 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prefect-dask"
 dependencies = [
-  "anyio >= 3.7.1, < 4.0.0",
-  "prefect>=2.13.5",
+  "prefect>=3.0.0rc1",
   # don't allow versions from 2023.3.2 to 2023.5 (inclusive) due to issue with
   # get_client starting in 2023.3.2 (fixed in 2023.6.0)
   # https://github.com/dask/distributed/issues/7763
@@ -57,7 +56,7 @@ prefect_dask = "prefect_dask"
 [tool.setuptools_scm]
 version_file = "prefect_dask/_version.py"
 root = "../../.."
-tag_regex = "^prefect-dask-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-dask-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-dask-*[0-9]*"'
 

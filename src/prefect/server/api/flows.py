@@ -6,8 +6,8 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Depends, HTTPException, Path, Response, status
-from prefect._vendor.fastapi.param_functions import Body
+from fastapi import Depends, HTTPException, Path, Response, status
+from fastapi.param_functions import Body
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -29,7 +29,7 @@ async def create_flow(
     same name already exists, the existing flow is returned.
     """
     # hydrate the input model into a full flow model
-    flow = schemas.core.Flow(**flow.dict())
+    flow = schemas.core.Flow(**flow.model_dump())
 
     now = pendulum.now("UTC")
 

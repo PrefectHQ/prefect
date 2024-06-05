@@ -2,21 +2,20 @@ import importlib.util
 import runpy
 import sys
 from pathlib import Path
+from textwrap import dedent
 from types import ModuleType
-from unittest.mock import MagicMock
-from uuid import uuid4
 
 import pytest
 
 import prefect
 from prefect import __development_base_path__
 from prefect.exceptions import ScriptError
-from prefect.utilities.dockerutils import docker_client
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import (
     from_qualified_name,
     import_object,
     lazy_import,
+    safe_load_namespace,
     to_qualified_name,
 )
 
@@ -72,34 +71,6 @@ def test_lazy_import():
     assert callable(docker.from_env)
 
 
-@pytest.mark.service("docker")
-def test_cant_find_docker_error(monkeypatch):
-    docker = lazy_import("docker")
-    docker.errors = lazy_import("docker.errors")
-    monkeypatch.setattr(
-        "docker.DockerClient.from_env",
-        MagicMock(side_effect=docker.errors.DockerException),
-    )
-    with pytest.raises(RuntimeError, match="Docker is not running"):
-        with docker_client() as _:
-            return None
-
-
-@pytest.mark.service("docker")
-def test_lazy_import_does_not_break_type_comparisons():
-    docker = lazy_import("docker")
-    docker.errors = lazy_import("docker.errors")
-
-    with docker_client() as client:
-        try:
-            client.containers.get(uuid4().hex)  # Better not exist
-        except docker.errors.NotFound:
-            pass
-
-    # The exception should not raise but can raise if `lazy_import` creates a duplicate
-    # copy of the `docker` module
-
-
 def test_lazy_import_fails_for_missing_modules():
     with pytest.raises(ModuleNotFoundError, match="flibbidy"):
         lazy_import("flibbidy", error_on_import=True)
@@ -111,8 +82,8 @@ def test_lazy_import_allows_deferred_failure_for_missing_module():
     with pytest.raises(ModuleNotFoundError, match="No module named 'flibbidy'") as exc:
         module.foo
     assert (
-        "module = lazy_import" in exc.exconly()
-    ), "Exception should contain original line in message"
+        "No module named 'flibbidy'" in exc.exconly()
+    ), "Exception should contain error message"
 
 
 def test_lazy_import_includes_help_message_for_missing_modules():
@@ -238,3 +209,79 @@ def test_import_object_from_module_with_relative_imports_expected_failures(
         # Python would raise the same error
         with pytest.raises((ValueError, ImportError)):
             runpy.run_module(import_path)
+
+
+def test_safe_load_namespace():
+    source_code = dedent(
+        """
+        import math
+        from datetime import datetime
+        from pydantic import BaseModel
+                         
+        class MyModel(BaseModel):
+            x: int
+                         
+        def my_fn():
+            return 42
+
+        x = 10
+        y = math.sqrt(x)
+        now = datetime.now()
+    """
+    )
+
+    namespace = safe_load_namespace(source_code)
+
+    # module-level imports should be present
+    assert "math" in namespace
+    assert "datetime" in namespace
+    assert "BaseModel" in namespace
+    # module-level variables should be present
+    assert "x" in namespace
+    assert "y" in namespace
+    assert "now" in namespace
+    # module-level classes should be present
+    assert "MyModel" in namespace
+    # module-level functions should be present
+    assert "my_fn" in namespace
+
+    assert namespace["MyModel"].__name__ == "MyModel"
+
+
+def test_safe_load_namespace_ignores_import_errors():
+    source_code = dedent(
+        """
+        import flibbidy
+                         
+        from pydantic import BaseModel
+                         
+        class MyModel(BaseModel):
+            x: int
+    """
+    )
+
+    # should not raise an ImportError
+    namespace = safe_load_namespace(source_code)
+
+    assert "flibbidy" not in namespace
+    # other imports and classes should be present
+    assert "BaseModel" in namespace
+    assert "MyModel" in namespace
+    assert namespace["MyModel"].__name__ == "MyModel"
+
+
+def test_safe_load_namespace_ignore_class_declaration_errors():
+    source_code = dedent(
+        """
+        from fake_pandas import DataFrame
+                         
+        class CoolDataFrame(DataFrame):
+            pass
+    """
+    )
+
+    # should not raise any errors
+    namespace = safe_load_namespace(source_code)
+
+    assert "DataFrame" not in namespace
+    assert "CoolDataFrame" not in namespace

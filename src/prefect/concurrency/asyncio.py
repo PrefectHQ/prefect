@@ -11,7 +11,7 @@ except ImportError:
     # pendulum < 3
     from pendulum.period import Period as Interval  # type: ignore
 
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.utilities.timeout import timeout_async
 
@@ -117,4 +117,6 @@ async def _release_concurrency_slots(
 def _response_to_minimal_concurrency_limit_response(
     response: httpx.Response,
 ) -> List[MinimalConcurrencyLimitResponse]:
-    return [MinimalConcurrencyLimitResponse.parse_obj(obj_) for obj_ in response.json()]
+    return [
+        MinimalConcurrencyLimitResponse.model_validate(obj_) for obj_ in response.json()
+    ]

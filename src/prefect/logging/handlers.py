@@ -119,21 +119,13 @@ class APILogHandler(logging.Handler):
             return APILogWorker.drain_all(timeout=5)
 
     @classmethod
-    def aflush(cls):
+    async def aflush(cls):
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
-
-        If called in a synchronous context, will only block up to 5s before returning.
         """
 
-        if not get_running_loop():
-            raise RuntimeError(
-                "`aflush` cannot be used from a synchronous context; use `flush`"
-                " instead."
-            )
-
-        return APILogWorker.drain_all()
+        return await APILogWorker.drain_all()
 
     def emit(self, record: logging.LogRecord):
         """
@@ -229,7 +221,7 @@ class APILogHandler(logging.Handler):
                 getattr(record, "created", None) or time.time()
             ),
             message=self.format(record),
-        ).dict(json_compatible=True)
+        ).model_dump(mode="json")
 
         log_size = log["__payload_size__"] = self._get_payload_size(log)
         if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():

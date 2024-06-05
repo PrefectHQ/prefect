@@ -7,19 +7,14 @@ from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, field_validator
 
-from prefect import get_run_logger, task
+from prefect import task
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
-from prefect.logging import disable_run_logger
+from prefect.logging import disable_run_logger, get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, validator
-else:
-    from pydantic import Field, validator
 
 # cannot be type_checking only or else `fields = cls.schema()` raises
 # TypeError: issubclass() arg 1 must be a class
@@ -38,6 +33,7 @@ except ModuleNotFoundError:
 
 
 @task
+@sync_compatible
 async def cloud_storage_create_bucket(
     bucket: str,
     gcp_credentials: GcpCredentials,
@@ -85,7 +81,7 @@ async def cloud_storage_create_bucket(
     return bucket
 
 
-async def _get_bucket(
+async def _get_bucket_async(
     bucket: str,
     gcp_credentials: GcpCredentials,
     project: Optional[str] = None,
@@ -98,7 +94,21 @@ async def _get_bucket(
     return bucket_obj
 
 
+def _get_bucket(
+    bucket: str,
+    gcp_credentials: GcpCredentials,
+    project: Optional[str] = None,
+) -> "Bucket":
+    """
+    Helper function to retrieve a bucket.
+    """
+    client = gcp_credentials.get_cloud_storage_client(project=project)
+    bucket_obj = client.get_bucket(bucket)
+    return bucket_obj
+
+
 @task
+@sync_compatible
 async def cloud_storage_download_blob_as_bytes(
     bucket: str,
     blob: str,
@@ -152,7 +162,7 @@ async def cloud_storage_download_blob_as_bytes(
     logger = get_run_logger()
     logger.info("Downloading blob named %s from the %s bucket", blob, bucket)
 
-    bucket_obj = await _get_bucket(bucket, gcp_credentials, project=project)
+    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -164,6 +174,7 @@ async def cloud_storage_download_blob_as_bytes(
 
 
 @task
+@sync_compatible
 async def cloud_storage_download_blob_to_file(
     bucket: str,
     blob: str,
@@ -222,7 +233,7 @@ async def cloud_storage_download_blob_to_file(
         "Downloading blob named %s from the %s bucket to %s", blob, bucket, path
     )
 
-    bucket_obj = await _get_bucket(bucket, gcp_credentials, project=project)
+    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -240,6 +251,7 @@ async def cloud_storage_download_blob_to_file(
 
 
 @task
+@sync_compatible
 async def cloud_storage_upload_blob_from_string(
     data: Union[str, bytes],
     bucket: str,
@@ -297,7 +309,7 @@ async def cloud_storage_upload_blob_from_string(
     logger = get_run_logger()
     logger.info("Uploading blob named %s to the %s bucket", blob, bucket)
 
-    bucket_obj = await _get_bucket(bucket, gcp_credentials, project=project)
+    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -313,6 +325,7 @@ async def cloud_storage_upload_blob_from_string(
 
 
 @task
+@sync_compatible
 async def cloud_storage_upload_blob_from_file(
     file: Union[str, Path, BytesIO],
     bucket: str,
@@ -372,7 +385,7 @@ async def cloud_storage_upload_blob_from_file(
     logger = get_run_logger()
     logger.info("Uploading blob named %s to the %s bucket", blob, bucket)
 
-    bucket_obj = await _get_bucket(bucket, gcp_credentials, project=project)
+    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -397,7 +410,7 @@ async def cloud_storage_upload_blob_from_file(
 
 
 @task
-async def cloud_storage_copy_blob(
+def cloud_storage_copy_blob(
     source_bucket: str,
     dest_bucket: str,
     source_blob: str,
@@ -458,24 +471,20 @@ async def cloud_storage_copy_blob(
         dest_bucket,
     )
 
-    source_bucket_obj = await _get_bucket(
-        source_bucket, gcp_credentials, project=project
-    )
+    source_bucket_obj = _get_bucket(source_bucket, gcp_credentials, project=project)
 
-    dest_bucket_obj = await _get_bucket(dest_bucket, gcp_credentials, project=project)
+    dest_bucket_obj = _get_bucket(dest_bucket, gcp_credentials, project=project)
     if dest_blob is None:
         dest_blob = source_blob
 
     source_blob_obj = source_bucket_obj.blob(source_blob)
-    await run_sync_in_worker_thread(
-        source_bucket_obj.copy_blob,
+    source_bucket_obj.copy_blob(
         blob=source_blob_obj,
         destination_bucket=dest_bucket_obj,
         new_name=dest_blob,
         timeout=timeout,
         **copy_kwargs,
     )
-
     return dest_blob
 
 
@@ -596,7 +605,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         """
         return self.bucket_folder
 
-    @validator("bucket_folder", pre=True, always=True)
+    @field_validator("bucket_folder")
+    @classmethod
     def _bucket_folder_suffix(cls, value):
         """
         Ensures that the bucket folder is suffixed with a forward slash.

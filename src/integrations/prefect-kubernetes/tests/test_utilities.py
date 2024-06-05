@@ -4,12 +4,10 @@ from unittest.mock import MagicMock
 import pytest
 from kubernetes_asyncio.client import models as k8s_models
 from kubernetes_asyncio.config import ConfigException
+from prefect_kubernetes.jobs import KubernetesJob
 from prefect_kubernetes.utilities import (
-    convert_manifest_to_model,
     enable_socket_keep_alive,
 )
-
-from prefect.infrastructure.kubernetes import KubernetesJob
 
 FAKE_CLUSTER = "fake-cluster"
 
@@ -191,53 +189,6 @@ def mock_cluster_config(monkeypatch):
 @pytest.fixture
 def mock_api_client(mock_cluster_config):
     return MagicMock()
-
-
-@pytest.mark.parametrize(
-    "manifest,model_name,expected_model",
-    [
-        (
-            f"{base_path}/sample_deployment.yaml",
-            "V1Deployment",
-            expected_deployment_model,
-        ),
-        (sample_deployment_manifest, "V1Deployment", expected_deployment_model),
-        (f"{base_path}/sample_pod.yaml", "V1Pod", expected_pod_model),
-        (sample_pod_manifest, "V1Pod", expected_pod_model),
-        (f"{base_path}/sample_job.yaml", "V1Job", expected_job_model),
-        (sample_job_manifest, "V1Job", expected_job_model),
-        (f"{base_path}/sample_service.yaml", "V1Service", expected_service_model),
-        (sample_service_manifest, "V1Service", expected_service_model),
-    ],
-)
-def test_convert_manifest_to_model(manifest, model_name, expected_model):
-    v1_model = convert_manifest_to_model(manifest, model_name)
-
-    assert isinstance(v1_model, getattr(k8s_models, model_name))
-
-    assert v1_model == expected_model
-
-
-def test_bad_manifest_filename_raises():
-    with pytest.raises(
-        ValueError, match="Manifest must be a valid dict or path to a .yaml file."
-    ):
-        convert_manifest_to_model("isaid86753OHnahhhEEEIIIEEEYEN", "V1Deployment")
-
-
-@pytest.mark.parametrize(
-    "v1_model_name",
-    [
-        "V1Schledloyment",
-        ["V1Deployment"],
-    ],
-)
-def test_bad_model_type_raises(v1_model_name):
-    with pytest.raises(
-        ValueError,
-        match="`v1_model` must be the name of a valid Kubernetes client model.",
-    ):
-        convert_manifest_to_model(sample_deployment_manifest, v1_model_name)
 
 
 def test_keep_alive_updates_socket_options(mock_api_client):

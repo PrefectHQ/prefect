@@ -1,5 +1,5 @@
 import pytest
-from prefect._vendor.fastapi.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from prefect.server.api.server import create_app
 from prefect.settings import (
@@ -37,7 +37,6 @@ def test_app_exposes_ui_settings():
     assert flags == {
         "artifacts",
         "workers",
-        "work_pools",
         "workspace_dashboard",
         "deployment_status",
         "enhanced_cancellation",
@@ -62,7 +61,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     flags = set(json.pop("flags"))
     assert flags == {
         "test",
-        "work_pools",
         "workers",
         "artifacts",
         "workspace_dashboard",

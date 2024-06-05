@@ -792,7 +792,9 @@ class TestPipInstallRequirements:
 
 class TestPullWithBlock:
     @pytest.fixture
-    async def test_block(self):
+    async def test_block(self, monkeypatch, tmp_path):
+        monkeypatch.chdir(str(tmp_path))  # ensures never writes to active directory
+
         class FakeStorageBlock(Block):
             _block_type_slug = "fake-storage-block"
 
@@ -868,7 +870,7 @@ class TestPullWithBlock:
         """
 
         class Wrong(Block):
-            square_peg = "round_hole"
+            square_peg: str = "round_hole"
 
         block = Wrong()
         await block.save("test-block")

@@ -18,7 +18,6 @@ from prefect_aws.s3 import (
 )
 
 from prefect import flow
-from prefect.deployments import Deployment
 
 aws_clients = [
     "aws_client_parameters_custom_endpoint",
@@ -750,21 +749,6 @@ def test_write_path_in_sync_context(s3_bucket):
     assert content == b"hello"
 
 
-def test_deployment_default_basepath(s3_bucket):
-    deployment = Deployment(name="testing", storage=s3_bucket)
-    assert deployment.location == "/"
-
-
-def test_deployment_set_basepath(aws_creds_block):
-    s3_bucket_block = S3Bucket(
-        bucket_name=BUCKET_NAME,
-        credentials=aws_creds_block,
-        bucket_folder="home",
-    )
-    deployment = Deployment(name="testing", storage=s3_bucket_block)
-    assert deployment.location == "home/"
-
-
 def test_resolve_path(s3_bucket):
     assert s3_bucket._resolve_path("") == ""
 
@@ -821,7 +805,7 @@ class TestS3Bucket:
 
     def test_credentials_are_correct_type(self, credentials):
         s3_bucket = S3Bucket(bucket_name="bucket", credentials=credentials)
-        s3_bucket_parsed = S3Bucket.parse_obj(
+        s3_bucket_parsed = S3Bucket.model_validate(
             {"bucket_name": "bucket", "credentials": dict(credentials)}
         )
         assert isinstance(s3_bucket.credentials, type(credentials))

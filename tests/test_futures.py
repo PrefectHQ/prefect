@@ -1,215 +1,273 @@
+import uuid
 from collections import OrderedDict
+from concurrent.futures import Future
 from dataclasses import dataclass
-from unittest.mock import MagicMock
+from typing import Any, Optional
+from unittest import mock
 
 import pytest
 
-from prefect.client import PrefectClient
-from prefect.exceptions import FailedRun
-from prefect.flows import flow
-from prefect.futures import PrefectFuture, resolve_futures_to_data
+from prefect import task
+from prefect.exceptions import FailedRun, MissingResult
+from prefect.filesystems import LocalFileSystem
+from prefect.futures import (
+    PrefectConcurrentFuture,
+    PrefectDistributedFuture,
+    PrefectWrappedFuture,
+    resolve_futures_to_states,
+)
 from prefect.states import Completed, Failed
-from prefect.tasks import task
-from prefect.testing.utilities import assert_does_not_warn
-
-mock_client = MagicMock(spec=PrefectClient)()
-mock_client.read_flow_run_states.return_value = [Completed()]
+from prefect.task_engine import run_task_sync
 
 
-async def test_resolve_futures_transforms_future(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(future) == "foo"
+class MockFuture(PrefectWrappedFuture):
+    def __init__(self, data: Any = 42):
+        super().__init__(uuid.uuid4(), Future())
+        self._final_state = Completed(data=data)
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        pass
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> Any:
+        return self._final_state.result()
 
 
-@pytest.mark.parametrize("typ", [list, tuple, set])
-async def test_resolve_futures_transforms_future_in_listlike_type(typ, task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(typ(["a", future, "b"])) == typ(
-        ["a", "foo", "b"]
-    )
+class TestPrefectConcurrentFuture:
+    def test_wait_with_timeout(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        future.wait(timeout=0.01)  # should not raise a TimeoutError
+
+        assert (
+            future.state.is_pending()
+        )  # should return a Pending state when task run is not found
+
+    def test_wait_without_timeout(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(Completed())
+        future.wait(timeout=0)
+
+        assert future.state.is_completed()
+
+    def test_result_with_final_state(self):
+        final_state = Completed(data=42)
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(final_state)
+        result = future.result()
+
+        assert result == 42
+
+    def test_result_without_final_state(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(42)
+        result = future.result()
+
+        assert result == 42
+
+    def test_result_with_final_state_and_raise_on_failure(self):
+        final_state = Failed(data=ValueError("oops"))
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        wrapped_future.set_result(final_state)
+
+        with pytest.raises(ValueError, match="oops"):
+            future.result(raise_on_failure=True)
 
 
-@pytest.mark.xfail(reason="2-step traversal of collections exhausts generators")
-async def test_resolve_futures_transforms_future_in_generator_type(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
+class TestResolveFuturesToStates:
+    async def test_resolve_futures_transforms_future(self):
+        future = future = MockFuture()
+        assert resolve_futures_to_states(future).is_completed()
 
-    def gen():
-        yield "a"
-        yield future
-        yield "b"
+    def test_resolve_futures_to_states_with_no_futures(self):
+        expr = [1, 2, 3]
+        result = resolve_futures_to_states(expr)
+        assert result == [1, 2, 3]
 
-    assert await resolve_futures_to_data(gen()) == ["a", "foo", "b"]
+    @pytest.mark.parametrize("_type", [list, tuple, set])
+    def test_resolve_futures_transforms_future_in_listlike_type(self, _type):
+        future = MockFuture(data="foo")
+        result = resolve_futures_to_states(_type(["a", future, "b"]))
+        assert result == _type(["a", future.state, "b"])
 
+    @pytest.mark.parametrize("_type", [dict, OrderedDict])
+    def test_resolve_futures_transforms_future_in_dictlike_type(self, _type):
+        key_future = MockFuture(data="foo")
+        value_future = MockFuture(data="bar")
+        result = resolve_futures_to_states(
+            _type([("a", 1), (key_future, value_future), ("b", 2)])
+        )
+        assert result == _type(
+            [("a", 1), (key_future.state, value_future.state), ("b", 2)]
+        )
 
-@pytest.mark.xfail(reason="2-step traversal of collections exhausts generators")
-async def test_resolve_futures_transforms_future_in_nested_generator_types(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
+    def test_resolve_futures_transforms_future_in_dataclass(self):
+        @dataclass
+        class Foo:
+            a: int
+            foo: str
+            b: int = 2
 
-    def gen_a():
-        yield future
+        future = MockFuture(data="bar")
+        assert resolve_futures_to_states(Foo(a=1, foo=future)) == Foo(
+            a=1, foo=future.state, b=2
+        )
 
-    def gen_b():
-        yield range(2)
-        yield gen_a()
-        yield "b"
+    def test_resolves_futures_in_nested_collections(self):
+        @dataclass
+        class Foo:
+            foo: str
+            nested_list: list
+            nested_dict: dict
 
-    assert await resolve_futures_to_data(gen_b()) == [range(2), ["foo"], "b"]
-
-
-@pytest.mark.parametrize("typ", [dict, OrderedDict])
-async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run):
-    key_future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="foo"),
-    )
-    key_future.task_run = task_run
-    key_future._submitted.set()
-    value_future = PrefectFuture(
-        key=str(task_run.id),
-        name="bar",
-        task_runner=None,
-        _final_state=Completed(data="bar"),
-    )
-    value_future.task_run = task_run
-    value_future._submitted.set()
-    assert await resolve_futures_to_data(
-        typ([("a", 1), (key_future, value_future), ("b", 2)])
-    ) == typ([("a", 1), ("foo", "bar"), ("b", 2)])
+        future = MockFuture(data="bar")
+        assert resolve_futures_to_states(
+            Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
+        ) == Foo(
+            foo=future.state,
+            nested_list=[[future.state]],
+            nested_dict={"key": [future.state]},
+        )
 
 
-async def test_resolve_futures_transforms_future_in_dataclass(task_run):
-    @dataclass
-    class Foo:
-        a: int
-        foo: str
-        b: int = 2
+class TestPrefectDistributedFuture:
+    def test_with_client(self, task_run):
+        mock_client = mock.MagicMock()
+        mock_client.read_task_run = mock.MagicMock()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+        future._client = mock_client
+        future.wait(timeout=0.25)
+        mock_client.read_task_run.assert_called_with(task_run_id=task_run.id)
 
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="bar"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(Foo(a=1, foo=future)) == Foo(
-        a=1, foo="bar", b=2
-    )
+    def test_without_client(self, sync_prefect_client, task_run):
+        with mock.patch(
+            "prefect.futures.get_client", return_value=sync_prefect_client
+        ) as mock_get_client:
+            future = PrefectDistributedFuture(task_run_id=task_run.id)
+            future.wait(timeout=0.25)
+            mock_get_client.assert_called_with(sync_client=True)
 
+    def test_wait_with_timeout(self, sync_prefect_client, task_run):
+        with mock.patch(
+            "prefect.futures.get_client", return_value=sync_prefect_client
+        ) as mock_get_client:
+            future = PrefectDistributedFuture(task_run_id=task_run.id)
+            future.wait(timeout=0.25)
+            assert future.state.is_pending()
+            mock_get_client.assert_called_with(sync_client=True)
 
-async def test_resolves_futures_in_nested_collections(task_run):
-    @dataclass
-    class Foo:
-        foo: str
-        nested_list: list
-        nested_dict: dict
+    async def test_wait_without_timeout(self):
+        @task
+        def my_task():
+            return 42
 
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Completed(data="bar"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
-    assert await resolve_futures_to_data(
-        Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
-    ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
 
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
 
-def test_raise_warning_futures_in_condition():
-    @task
-    def a_task():
-        return False
+        future.wait(timeout=0)
+        assert future.state.is_completed()
 
-    @flow
-    def if_flow():
-        if a_task.submit():
-            pass
+    async def test_result_with_final_state(self, tmp_path):
+        # TODO: The default result storage block gets deleted during the
+        # execution of this test when it's run in as a suite, so we have to load
+        # a specific block and pass it in manually as the task's result storage.
+        # But why does the result storage block get deleted in the first place?
+        storage = LocalFileSystem(basepath=tmp_path)
 
-    @flow
-    def elif_flow():
-        if False:
-            pass
-        elif a_task.submit():
-            pass
+        @task(persist_result=True, result_storage=storage)
+        def my_task():
+            return 42
 
-    @flow
-    def if_result_flow():
-        if a_task().result():
-            pass
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
 
-    match = "A 'PrefectFuture' from a task call was cast to a boolean"
-    with pytest.warns(UserWarning, match=match):
-        if_flow(return_state=True)
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+        assert await state.result() == 42
 
-    with pytest.warns(UserWarning, match=match):
-        elif_flow(return_state=True)
+        # When this test is run as a suite and the task uses default result
+        # storage, this line fails because the result storage block no longer
+        # exists.
+        assert future.result() == 42
 
-    with assert_does_not_warn():
-        if_result_flow(return_state=True)
+    async def test_final_state_without_result(self):
+        @task(persist_result=False)
+        def my_task():
+            return 42
 
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
 
-async def test_resolve_futures_to_data_raises_exception_default(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Failed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
 
-    def failed_fun():
-        yield future
+        with pytest.raises(MissingResult):
+            future.result()
 
-    with pytest.raises(FailedRun) as excinfo:
-        await resolve_futures_to_data(failed_fun())
+    async def test_result_with_final_state_and_raise_on_failure(self):
+        @task(persist_result=False)
+        def my_task():
+            raise ValueError("oops")
 
-    assert "foo" in str(excinfo.value)
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
 
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_failed()
 
-async def test_resolve_futures_to_data_dont_raises_exception(task_run):
-    future = PrefectFuture(
-        key=str(task_run.id),
-        name="foo",
-        task_runner=None,
-        _final_state=Failed(data="foo"),
-    )
-    future.task_run = task_run
-    future._submitted.set()
+        with pytest.raises(FailedRun, match="oops"):
+            future.result(raise_on_failure=True)
 
-    def failed_fun():
-        yield future
+    async def test_final_state_missing_result(self):
+        @task(persist_result=False)
+        def my_task():
+            return 42
 
-    assert await resolve_futures_to_data(failed_fun(), raise_on_failure=False) == []
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        state = run_task_sync(
+            task=my_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        with pytest.raises(MissingResult, match="State data is missing"):
+            future.result()

@@ -3,16 +3,11 @@ from typing import List, Union
 
 import pytest
 import sqlalchemy as sa
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import BaseModel
-else:
-    from pydantic import BaseModel
+from pydantic import BaseModel
 
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.models.block_schemas import read_block_schema_by_checksum
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.utilities.collections import AutoEnum
@@ -106,7 +101,7 @@ class TestCreateBlockSchema:
             "type": "object",
             "secret_fields": [],
         }
-        assert nested_block_schema.fields == Y.schema()
+        assert nested_block_schema.fields == Y.model_json_schema()
 
     async def test_create_multiply_nested_block_schema(self, session, block_type_x):
         class A(Block):
@@ -162,7 +157,7 @@ class TestCreateBlockSchema:
             "type": "object",
             "secret_fields": [],
         }
-        assert nested_block_schema.fields == A.schema()
+        assert nested_block_schema.fields == A.model_json_schema()
 
     async def test_create_nested_block_schema_with_multiply_used_blocks(self, session):
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -222,7 +217,7 @@ class TestCreateBlockSchema:
             "type": "object",
             "secret_fields": [],
         }
-        assert nested_block_schema_a.fields == A.schema()
+        assert nested_block_schema_a.fields == A.model_json_schema()
 
         nested_block_schema_z = (
             await models.block_schemas.read_block_schema_by_checksum(
@@ -230,9 +225,11 @@ class TestCreateBlockSchema:
             )
         )
         assert nested_block_schema_z is not None
-        assert nested_block_schema_z.fields == Z.schema()
+        assert nested_block_schema_z.fields == Z.model_json_schema()
         assert (
-            Z.schema()["block_schema_references"]["a"]["block_schema_checksum"]
+            Z.model_json_schema()["block_schema_references"]["a"][
+                "block_schema_checksum"
+            ]
             == A._calculate_schema_checksum()
         )
 
@@ -242,9 +239,11 @@ class TestCreateBlockSchema:
             )
         )
         assert nested_block_schema_y is not None
-        assert nested_block_schema_y.fields == Y.schema()
+        assert nested_block_schema_y.fields == Y.model_json_schema()
         assert (
-            Y.schema()["block_schema_references"]["a"]["block_schema_checksum"]
+            Y.model_json_schema()["block_schema_references"]["a"][
+                "block_schema_checksum"
+            ]
             == A._calculate_schema_checksum()
         )
 
@@ -275,7 +274,7 @@ class TestCreateBlockSchema:
         )
 
         assert block_schema.checksum == X._calculate_schema_checksum()
-        assert block_schema.fields == X.schema()
+        assert block_schema.fields == X.model_json_schema()
 
     async def test_create_block_schema_is_idempotent(self, session, block_type_x):
         first_create_response = await models.block_schemas.create_block_schema(
@@ -495,7 +494,9 @@ class TestReadBlockSchemas:
         )
         before_read = (
             await session.execute(
-                sa.select(db.BlockSchema).where(db.BlockSchema.id == block_schema.id)
+                sa.select(orm_models.BlockSchema).where(
+                    orm_models.BlockSchema.id == block_schema.id
+                )
             )
         ).scalar()
         assert before_read.fields.get("block_schema_references") is None
@@ -505,7 +506,9 @@ class TestReadBlockSchemas:
         await session.commit()
         after_read = (
             await session.execute(
-                sa.select(db.BlockSchema).where(db.BlockSchema.id == block_schema.id)
+                sa.select(orm_models.BlockSchema).where(
+                    orm_models.BlockSchema.id == block_schema.id
+                )
             )
         ).scalar()
         assert after_read.fields.get("block_schema_references") is None
@@ -569,10 +572,10 @@ class TestReadBlockSchemas:
         assert db_block_schemas[1].checksum == Z._calculate_schema_checksum()
         assert db_block_schemas[2].checksum == Y._calculate_schema_checksum()
         assert db_block_schemas[3].checksum == X._calculate_schema_checksum()
-        assert db_block_schemas[0].fields == A.schema()
-        assert db_block_schemas[1].fields == Z.schema()
-        assert db_block_schemas[2].fields == Y.schema()
-        assert db_block_schemas[3].fields == X.schema()
+        assert db_block_schemas[0].fields == A.model_json_schema()
+        assert db_block_schemas[1].fields == Z.model_json_schema()
+        assert db_block_schemas[2].fields == Y.model_json_schema()
+        assert db_block_schemas[3].fields == X.model_json_schema()
 
     async def test_read_all_block_schemas_with_limit(self, session, nested_schemas):
         A, X, Y, Z, block_type_x, block_type_y = nested_schemas
@@ -584,8 +587,8 @@ class TestReadBlockSchemas:
         assert len(db_block_schemas) == 2
         assert db_block_schemas[0].checksum == A._calculate_schema_checksum()
         assert db_block_schemas[1].checksum == Z._calculate_schema_checksum()
-        assert db_block_schemas[0].fields == A.schema()
-        assert db_block_schemas[1].fields == Z.schema()
+        assert db_block_schemas[0].fields == A.model_json_schema()
+        assert db_block_schemas[1].fields == Z.model_json_schema()
 
     async def test_read_all_block_schemas_with_limit_and_offset(
         self, session, nested_schemas
@@ -599,8 +602,8 @@ class TestReadBlockSchemas:
         assert len(db_block_schemas) == 2
         assert db_block_schemas[0].checksum == Y._calculate_schema_checksum()
         assert db_block_schemas[1].checksum == X._calculate_schema_checksum()
-        assert db_block_schemas[0].fields == Y.schema()
-        assert db_block_schemas[1].fields == X.schema()
+        assert db_block_schemas[0].fields == Y.model_json_schema()
+        assert db_block_schemas[1].fields == X.model_json_schema()
 
     async def test_read_all_block_schemas_with_filters(self, session, nested_schemas):
         A, X, Y, Z, block_type_x, block_type_y = nested_schemas
@@ -719,7 +722,7 @@ class TestReadBlockSchemas:
         )
 
         block_schema = block_schema.fields
-        x_schema = X.schema()
+        x_schema = X.model_json_schema()
 
         assert block_schema["title"] == x_schema["title"]
         assert block_schema["type"] == x_schema["type"]
@@ -788,14 +791,14 @@ class TestReadBlockSchemas:
             block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
         )
 
-        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.fields == IsABlock.model_json_schema()
         assert block_schema.checksum == IsABlock._calculate_schema_checksum()
 
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
 
-        assert read_block_schema.fields == IsABlock.schema()
+        assert read_block_schema.fields == IsABlock.model_json_schema()
 
     async def test_read_block_with_enum_attribute(self, session):
         class Fruit(AutoEnum):
@@ -816,14 +819,14 @@ class TestReadBlockSchemas:
             block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
         )
 
-        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.fields == IsABlock.model_json_schema()
         assert block_schema.checksum == IsABlock._calculate_schema_checksum()
 
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
 
-        assert read_block_schema.fields == IsABlock.schema()
+        assert read_block_schema.fields == IsABlock.model_json_schema()
 
     async def test_read_block_with_non_block_union_attribute(self, session):
         class NotABlock(BaseModel):
@@ -845,13 +848,13 @@ class TestReadBlockSchemas:
             block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
         )
 
-        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.fields == IsABlock.model_json_schema()
         assert block_schema.checksum == IsABlock._calculate_schema_checksum()
 
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
-        assert read_block_schema.fields == IsABlock.schema()
+        assert read_block_schema.fields == IsABlock.model_json_schema()
 
     async def test_read_block_with_non_block_list_attribute(self, session):
         class NotABlock(BaseModel):
@@ -870,13 +873,13 @@ class TestReadBlockSchemas:
             block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
         )
 
-        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.fields == IsABlock.model_json_schema()
         assert block_schema.checksum == IsABlock._calculate_schema_checksum()
 
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
-        assert read_block_schema.fields == IsABlock.schema()
+        assert read_block_schema.fields == IsABlock.model_json_schema()
 
     async def test_read_block_with_both_block_and_non_block_attributes(self, session):
         class NotABlock(BaseModel):
@@ -903,20 +906,20 @@ class TestReadBlockSchemas:
             block_schema=IsAlsoABlock._to_block_schema(block_type_id=block_type.id),
         )
 
-        assert block_schema.fields == IsAlsoABlock.schema()
+        assert block_schema.fields == IsAlsoABlock.model_json_schema()
         assert block_schema.checksum == IsAlsoABlock._calculate_schema_checksum()
 
         read_parent_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
-        assert read_parent_block_schema.fields == IsAlsoABlock.schema()
+        assert read_parent_block_schema.fields == IsAlsoABlock.model_json_schema()
 
         read_child_block_schema = (
             await models.block_schemas.read_block_schema_by_checksum(
                 session=session, checksum=IsABlock._calculate_schema_checksum()
             )
         )
-        assert read_child_block_schema.fields == IsABlock.schema()
+        assert read_child_block_schema.fields == IsABlock.model_json_schema()
 
     async def test_read_block_schema_with_list_block_attribute(self, session):
         class Child(Block):
@@ -939,7 +942,7 @@ class TestReadBlockSchemas:
             block_schema=Parent._to_block_schema(block_type_id=block_type.id),
         )
 
-        assert block_schema.fields == Parent.schema()
+        assert block_schema.fields == Parent.model_json_schema()
         assert block_schema.checksum == Parent._calculate_schema_checksum()
         assert block_schema.fields["block_schema_references"] == {
             "children": {
@@ -951,7 +954,7 @@ class TestReadBlockSchemas:
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
-        assert read_block_schema.fields == Parent.schema()
+        assert read_block_schema.fields == Parent.model_json_schema()
 
 
 class TestDeleteBlockSchema:

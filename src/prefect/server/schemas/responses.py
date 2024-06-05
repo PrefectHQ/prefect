@@ -3,14 +3,15 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-from pydantic.v1 import Field
-from typing_extensions import TYPE_CHECKING, Literal
+import pendulum
+from pydantic import ConfigDict, Field, model_validator
+from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import Literal, Self
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.deprecated import DeprecatedInfraOverridesField
 from prefect.server.schemas.core import (
     CreatedBy,
     FlowRunPolicy,
@@ -18,12 +19,8 @@ from prefect.server.schemas.core import (
     WorkQueueStatusDetail,
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
-
-if TYPE_CHECKING:
-    from prefect.server.database.orm_models import ORMDeployment, ORMFlowRun, ORMWorker
 
 
 class SetStateStatus(AutoEnum):
@@ -126,15 +123,30 @@ class HistoryResponseState(PrefectBaseModel):
 class HistoryResponse(PrefectBaseModel):
     """Represents a history of aggregation states over an interval"""
 
-    interval_start: DateTimeTZ = Field(
+    interval_start: DateTime = Field(
         default=..., description="The start date of the interval."
     )
-    interval_end: DateTimeTZ = Field(
+    interval_end: DateTime = Field(
         default=..., description="The end date of the interval."
     )
     states: List[HistoryResponseState] = Field(
         default=..., description="A list of state histories during the interval."
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_timestamps(
+        cls, values: dict
+    ) -> dict:  # TODO: remove this, handle with ORM
+        d = {"interval_start": None, "interval_end": None}
+        for field in d.keys():
+            val = values.get(field)
+            if isinstance(val, datetime.datetime):
+                d[field] = pendulum.instance(values[field])
+            else:
+                d[field] = val
+
+        return {**values, **d}
 
 
 StateResponseDetails = Union[
@@ -153,8 +165,7 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID
@@ -234,18 +245,18 @@ class FlowRunResponse(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-    expected_start_time: Optional[DateTimeTZ] = Field(
+    expected_start_time: Optional[DateTime] = Field(
         default=None,
         description="The flow run's expected start time.",
     )
-    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+    next_scheduled_start_time: Optional[DateTime] = Field(
         default=None,
         description="The next time the flow run is scheduled to start.",
     )
-    start_time: Optional[DateTimeTZ] = Field(
+    start_time: Optional[DateTime] = Field(
         default=None, description="The actual start time."
     )
-    end_time: Optional[DateTimeTZ] = Field(
+    end_time: Optional[DateTime] = Field(
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
@@ -297,14 +308,23 @@ class FlowRunResponse(ORMBaseModel):
     )
 
     @classmethod
-    def from_orm(cls, orm_flow_run: "ORMFlowRun"):
-        response = super().from_orm(orm_flow_run)
-        if orm_flow_run.work_queue:
-            response.work_queue_id = orm_flow_run.work_queue.id
-            response.work_queue_name = orm_flow_run.work_queue.name
-            if orm_flow_run.work_queue.work_pool:
-                response.work_pool_id = orm_flow_run.work_queue.work_pool.id
-                response.work_pool_name = orm_flow_run.work_queue.work_pool.name
+    def model_validate(
+        cls: Type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[dict[str, Any]] = None,
+    ) -> Self:
+        response = super().model_validate(obj)
+
+        if from_attributes:
+            if obj.work_queue:
+                response.work_queue_id = obj.work_queue.id
+                response.work_queue_name = obj.work_queue.name
+                if obj.work_queue.work_pool:
+                    response.work_pool_id = obj.work_queue.work_pool.id
+                    response.work_pool_name = obj.work_queue.work_pool.name
 
         return response
 
@@ -317,13 +337,13 @@ class FlowRunResponse(ORMBaseModel):
         """
         if isinstance(other, FlowRunResponse):
             exclude_fields = {"estimated_run_time", "estimated_start_time_delta"}
-            return self.dict(exclude=exclude_fields) == other.dict(
+            return self.model_dump(exclude=exclude_fields) == other.model_dump(
                 exclude=exclude_fields
             )
         return super().__eq__(other)
 
 
-class DeploymentResponse(DeprecatedInfraOverridesField, ORMBaseModel):
+class DeploymentResponse(ORMBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
@@ -366,7 +386,7 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ORMBaseModel):
             " be scheduled."
         ),
     )
-    last_polled: Optional[DateTimeTZ] = Field(
+    last_polled: Optional[DateTime] = Field(
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
@@ -420,32 +440,42 @@ class DeploymentResponse(DeprecatedInfraOverridesField, ORMBaseModel):
         description="Whether the deployment is ready to run flows.",
     )
     enforce_parameter_schema: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
 
     @classmethod
-    def from_orm(cls, orm_deployment: "ORMDeployment"):
-        response = super().from_orm(orm_deployment)
+    def model_validate(
+        cls: Type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[dict[str, Any]] = None,
+    ) -> Self:
+        response = super().model_validate(
+            obj, strict=strict, from_attributes=from_attributes, context=context
+        )
 
-        if orm_deployment.work_queue:
-            response.work_queue_name = orm_deployment.work_queue.name
-            if orm_deployment.work_queue.work_pool:
-                response.work_pool_name = orm_deployment.work_queue.work_pool.name
+        if from_attributes:
+            if obj.work_queue:
+                response.work_queue_name = obj.work_queue.name
+                if obj.work_queue.work_pool:
+                    response.work_pool_name = obj.work_queue.work_pool.name
 
-        # Populate `schedule` and `is_schedule_active` for backwards
-        # compatibility with clients that do not support multiple
-        # schedules. The order of the schedules is determined by the
-        # relationship on Deployment.schedules, so we just take the first
-        # schedule as the primary schedule.
-        if orm_deployment.schedules:
-            response.schedule = orm_deployment.schedules[0].schedule
-        else:
-            response.schedule = None
+            # Populate `schedule` and `is_schedule_active` for backwards
+            # compatibility with clients that do not support multiple
+            # schedules. The order of the schedules is determined by the
+            # relationship on Deployment.schedules, so we just take the first
+            # schedule as the primary schedule.
+            if obj.schedules:
+                response.schedule = obj.schedules[0].schedule
+            else:
+                response.schedule = None
 
-        response.is_schedule_active = not bool(orm_deployment.paused)
+            response.is_schedule_active = not bool(obj.paused)
 
         return response
 
@@ -460,10 +490,22 @@ class WorkQueueResponse(schemas.core.WorkQueue):
     )
 
     @classmethod
-    def from_orm(cls, orm_work_queue):
-        response = super().from_orm(orm_work_queue)
-        if orm_work_queue.work_pool:
-            response.work_pool_name = orm_work_queue.work_pool.name
+    def model_validate(
+        cls: Type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[dict[str, Any]] = None,
+    ) -> Self:
+        response = super().model_validate(
+            obj, strict=strict, from_attributes=from_attributes, context=context
+        )
+
+        if from_attributes:
+            if obj.work_pool:
+                response.work_pool_name = obj.work_pool.name
+
         return response
 
 
@@ -482,20 +524,32 @@ class WorkerResponse(schemas.core.Worker):
     )
 
     @classmethod
-    def from_orm(cls, orm_worker: "ORMWorker") -> "WorkerResponse":
-        worker = super().from_orm(orm_worker)
-        offline_horizon = datetime.datetime.now(
-            tz=datetime.timezone.utc
-        ) - datetime.timedelta(
-            seconds=(
-                worker.heartbeat_interval_seconds or DEFAULT_HEARTBEAT_INTERVAL_SECONDS
-            )
-            * INACTIVITY_HEARTBEAT_MULTIPLE
+    def model_validate(
+        cls: Type[Self],
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[dict[str, Any]] = None,
+    ) -> Self:
+        worker = super().model_validate(
+            obj, strict=strict, from_attributes=from_attributes, context=context
         )
-        if worker.last_heartbeat_time > offline_horizon:
-            worker.status = schemas.statuses.WorkerStatus.ONLINE
-        else:
-            worker.status = schemas.statuses.WorkerStatus.OFFLINE
+
+        if from_attributes:
+            offline_horizon = datetime.datetime.now(
+                tz=datetime.timezone.utc
+            ) - datetime.timedelta(
+                seconds=(
+                    worker.heartbeat_interval_seconds
+                    or DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+                )
+                * INACTIVITY_HEARTBEAT_MULTIPLE
+            )
+            if worker.last_heartbeat_time > offline_horizon:
+                worker.status = schemas.statuses.WorkerStatus.ONLINE
+            else:
+                worker.status = schemas.statuses.WorkerStatus.OFFLINE
 
         return worker
 

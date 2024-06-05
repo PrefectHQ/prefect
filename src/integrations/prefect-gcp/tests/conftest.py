@@ -238,8 +238,6 @@ class SecretManagerClient:
 def mock_credentials(monkeypatch):
     mock_credentials = MagicMock(name="MockGoogleCredentials")
     mock_authenticated_credentials = MagicMock(token="my-token")
-    mock_credentials.from_service_account_info = mock_authenticated_credentials
-    mock_credentials.from_service_account_file = mock_authenticated_credentials
     monkeypatch.setattr(
         "prefect_gcp.credentials.Credentials",  # noqa
         mock_credentials,
@@ -294,42 +292,6 @@ def job_service_async_client():
     return job_service_client_async_mock
 
 
-@pytest.fixture
-def gcp_credentials(
-    monkeypatch,
-    google_auth,
-    mock_credentials,
-    job_service_client,
-    job_service_async_client,
-):
-    gcp_credentials_mock = GcpCredentials(project="gcp_credentials_project")
-    gcp_credentials_mock._service_account_email = "my_service_account_email"
-
-    gcp_credentials_mock.cloud_storage_client = CloudStorageClient()
-    gcp_credentials_mock.secret_manager_client = SecretManagerClient()
-    gcp_credentials_mock.job_service_client = job_service_client
-    gcp_credentials_mock.job_service_client.__enter__.return_value = job_service_client
-    gcp_credentials_mock.job_service_async_client = job_service_async_client
-    gcp_credentials_mock.job_service_client.__enter__.return_value = (
-        job_service_async_client
-    )
-
-    gcp_credentials_mock.get_cloud_storage_client = (
-        lambda *args, **kwargs: gcp_credentials_mock.cloud_storage_client
-    )
-    gcp_credentials_mock.get_bigquery_client = lambda *args, **kwargs: BigQueryClient()
-    gcp_credentials_mock.get_secret_manager_client = (
-        lambda *args, **kwargs: gcp_credentials_mock.secret_manager_client
-    )
-    gcp_credentials_mock.get_job_service_client = (
-        lambda *args, **kwargs: gcp_credentials_mock.job_service_client
-    )
-    gcp_credentials_mock.get_job_service_async_client = (
-        lambda *args, **kwargs: gcp_credentials_mock.job_service_async_client
-    )
-    return gcp_credentials_mock
-
-
 @pytest.fixture()
 def service_account_info(monkeypatch):
     monkeypatch.setattr(
@@ -360,3 +322,39 @@ def service_account_info_json(monkeypatch):
         }
     )
     return _service_account_info
+
+
+@pytest.fixture
+def gcp_credentials(
+    monkeypatch,
+    google_auth,
+    mock_credentials,
+    job_service_client,
+    job_service_async_client,
+):
+    gcp_credentials_mock = MagicMock(spec=GcpCredentials)
+    gcp_credentials_mock.service_account_info = None
+    gcp_credentials_mock.service_account_info_file = None
+    gcp_credentials_mock.project = "gcp_credentials_project"
+
+    gcp_credentials_mock.get_cloud_storage_client.return_value = CloudStorageClient()
+    gcp_credentials_mock.get_credentials_from_service_account.return_value = (
+        mock_credentials
+    )
+    gcp_credentials_mock._service_account_email = "my_service_account_email"
+
+    gcp_credentials_mock.job_service_client = job_service_client
+    gcp_credentials_mock.job_service_client.__enter__.return_value = job_service_client
+    gcp_credentials_mock.job_service_async_client = job_service_async_client
+    gcp_credentials_mock.job_service_client.__enter__.return_value = (
+        job_service_async_client
+    )
+    gcp_credentials_mock.get_bigquery_client.return_value = BigQueryClient()
+    gcp_credentials_mock.get_secret_manager_client.return_value = SecretManagerClient()
+    gcp_credentials_mock.get_job_service_client.return_value = (
+        gcp_credentials_mock.job_service_client
+    )
+    gcp_credentials_mock.get_job_service_async_client.return_value = (
+        gcp_credentials_mock.job_service_async_client
+    )
+    return gcp_credentials_mock

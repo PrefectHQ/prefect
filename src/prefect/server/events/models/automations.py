@@ -1,6 +1,5 @@
-import asyncio
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional, Sequence, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
 import pendulum
@@ -17,6 +16,10 @@ from prefect.server.events.schemas.automations import (
     AutomationUpdate,
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
+from prefect.utilities.asyncutils import run_coro_as_sync
+
+if TYPE_CHECKING:
+    from prefect.server.database import orm_models
 
 
 @asynccontextmanager
@@ -42,7 +45,7 @@ async def read_automations_for_workspace(
     query = query.order_by(db.Automation.sort_expression(sort))
 
     if automation_filter:
-        query = query.where(automation_filter.as_sql_filter(db))
+        query = query.where(automation_filter.as_sql_filter())
     if limit is not None:
         query = query.limit(limit)
     if offset is not None:
@@ -50,7 +53,10 @@ async def read_automations_for_workspace(
 
     result = await session.execute(query)
 
-    return [Automation.from_orm(a) for a in result.scalars().all()]
+    return [
+        Automation.model_validate(a, from_attributes=True)
+        for a in result.scalars().all()
+    ]
 
 
 @db_injector
@@ -74,10 +80,10 @@ async def read_automation(
     result = await session.execute(
         sa.select(db.Automation).where(db.Automation.id == automation_id)
     )
-    automation: db.Automation | None = result.scalars().first()
+    automation: Optional[orm_models.Automation] = result.scalars().first()
     if not automation:
         return None
-    return Automation.from_orm(automation)
+    return Automation.model_validate(automation, from_attributes=True)
 
 
 @db_injector
@@ -89,10 +95,10 @@ async def read_automation_by_id(
             db.Automation.id == automation_id,
         )
     )
-    automation: db.Automation | None = result.scalars().first()
+    automation: Optional[orm_models.Automation] = result.scalars().first()
     if not automation:
         return None
-    return Automation.from_orm(automation)
+    return Automation.model_validate(automation, from_attributes=True)
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
@@ -101,14 +107,14 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 
     from prefect.server.events.triggers import automation_changed
 
-    loop = asyncio.get_event_loop()
     sync_session = session.sync_session
 
     def change_notification(session, **kwargs):
-        asyncio.run_coroutine_threadsafe(
-            automation_changed(automation.id, f"automation__{event}"),
-            loop=loop,
-        )
+        try:
+            run_coro_as_sync(automation_changed(automation.id, f"automation__{event}"))
+        except Exception:
+            # On exception, do not re-raise, just move on
+            pass
 
     sa.event.listen(sync_session, "after_commit", change_notification, once=True)
 
@@ -117,10 +123,10 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 async def create_automation(
     db: PrefectDBInterface, session: AsyncSession, automation: Automation
 ) -> Automation:
-    new_automation = db.Automation(**automation.dict())
+    new_automation = db.Automation(**automation.model_dump())
     session.add(new_automation)
     await session.flush()
-    automation = Automation.from_orm(new_automation)
+    automation = Automation.model_validate(new_automation, from_attributes=True)
 
     await _sync_automation_related_resources(session, new_automation.id, automation)
 
@@ -150,17 +156,17 @@ async def update_automation(
         # validation, which could change due to one of these updates.  Here we attempt
         # to apply and parse the final effect of the partial update to the existing
         # automation to see if anything fails validation.
-        Automation.parse_obj(
+        Automation.model_validate(
             {
-                **automation.dict(json_compatible=True),
-                **automation_update.dict(json_compatible=True),
+                **automation.model_dump(mode="json"),
+                **automation_update.model_dump(mode="json"),
             }
         )
 
     result = await session.execute(
         sa.update(db.Automation)
         .where(db.Automation.id == automation_id)
-        .values(**automation_update.dict(shallow=True, exclude_unset=True))
+        .values(**automation_update.model_dump_for_orm(exclude_unset=True))
     )
 
     if isinstance(automation_update, AutomationUpdate):
@@ -325,10 +331,13 @@ async def read_automations_related_to_resource(
         )
 
     if automation_filter:
-        query = query.where(automation_filter.as_sql_filter(db))
+        query = query.where(automation_filter.as_sql_filter())
 
     result = await session.execute(query)
-    return [Automation.from_orm(a) for a in result.scalars().all()]
+    return [
+        Automation.model_validate(a, from_attributes=True)
+        for a in result.scalars().all()
+    ]
 
 
 @db_injector

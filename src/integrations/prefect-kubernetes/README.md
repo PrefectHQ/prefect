@@ -117,22 +117,16 @@ from kubernetes_asyncio.client.models import V1Deployment
 from prefect import flow
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.deployments import patch_namespaced_deployment
-from prefect_kubernetes.utilities import convert_manifest_to_model
 
 @flow
 def kubernetes_orchestrator():
-
-    v1_deployment_updates = convert_manifest_to_model(
-        manifest="path/to/manifest.yaml",
-        v1_model_name="V1Deployment",
-    )
-
     v1_deployment = patch_namespaced_deployment(
         kubernetes_credentials=KubernetesCredentials.load("k8s-creds"),
         deployment_name="my-deployment",
-        deployment_updates=v1_deployment_updates,
+        deployment_updates=yaml.safe_load(...),
         namespace="my-namespace"
     )
+    print(v1_deployment)
 ```
 
 ## Feedback

@@ -7,30 +7,18 @@ from uuid import uuid4
 
 import anyio
 import pendulum
-from packaging.version import Version
 
-import prefect
-
-TEST_SERVER_VERSION = os.environ.get("TEST_SERVER_VERSION", prefect.__version__)
-
-if Version(TEST_SERVER_VERSION) < Version("2.17.2"):
-    raise NotImplementedError()
-
-if TEST_SERVER_VERSION == "9.9.9+for.the.tests":
-    raise NotImplementedError("Automations have a separate integration test for Cloud")
-
-try:
-    from prefect import flow, get_client, get_run_logger
-    from prefect.events import Event
-    from prefect.events.clients import get_events_client, get_events_subscriber
-    from prefect.events.filters import (
-        EventFilter,
-        EventNameFilter,
-        EventOccurredFilter,
-        EventResourceFilter,
-    )
-except ImportError:
-    raise NotImplementedError()
+from prefect import flow
+from prefect.client.orchestration import get_client
+from prefect.events import Event
+from prefect.events.clients import get_events_client, get_events_subscriber
+from prefect.events.filters import (
+    EventFilter,
+    EventNameFilter,
+    EventOccurredFilter,
+    EventResourceFilter,
+)
+from prefect.logging import get_run_logger
 
 
 @asynccontextmanager
@@ -295,6 +283,11 @@ async def assess_sequence_automation():
 
 
 if __name__ == "__main__":
+    if os.getenv("SERVER_VERSION") == "9.9.9+for.the.tests":
+        raise NotImplementedError(
+            "Prefect Cloud has its own automation assessment integration test."
+        )
+
     asyncio.run(assess_reactive_automation())
     asyncio.run(assess_proactive_automation())
     asyncio.run(assess_compound_automation())

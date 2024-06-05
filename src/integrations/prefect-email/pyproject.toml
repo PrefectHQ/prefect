@@ -7,11 +7,9 @@ name = "prefect-email"
 description = "Prefect integrations for interacting with email."
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
@@ -24,9 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = [
-  "prefect>=2.14.10",
-]
+dependencies = ["prefect>=3.0.0rc1"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -55,7 +51,7 @@ prefect_email = "prefect_email"
 [tool.setuptools_scm]
 version_file = "prefect_email/_version.py"
 root = "../../.."
-tag_regex = "^prefect-email-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-email-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-email-*[0-9]*"'
 

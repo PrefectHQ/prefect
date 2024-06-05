@@ -2,5 +2,5 @@ collectionName: prefect-soda-core
 author: Soda and Alessandro Lollo
 authorUrl: https://github.com/sodadata
 documentation: https://sodadata.github.io/prefect-soda-core/
-iconUrl: /img/collections/soda.png
+iconUrl: /3.0rc/img/collections/soda.png
 tag: Soda Core

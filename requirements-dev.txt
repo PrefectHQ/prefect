@@ -25,7 +25,7 @@ pytest-timeout
 pytest-xdist < 3.4.0 # 3.5.0 introduces some flakiness. Need to investigate and resolve.
 pytkdocs >= 0.14.2
 pyyaml
-requests
+redis>=5.0.1
 setuptools
 vermin
 virtualenv

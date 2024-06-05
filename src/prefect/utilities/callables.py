@@ -2,12 +2,16 @@
 Utilities for working with Python callables.
 """
 
+import ast
+import importlib.util
 import inspect
+import warnings
 from functools import partial
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
-import pydantic.v1 as pydantic
+import pydantic
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
@@ -19,11 +23,18 @@ from prefect._internal.pydantic.v2_schema import (
     process_v2_params,
 )
 from prefect.exceptions import (
+    MappingLengthMismatch,
+    MappingMissingIterable,
     ParameterBindError,
     ReservedArgumentError,
     SignatureMismatchError,
 )
-from prefect.logging.loggers import disable_logger
+from prefect.logging.loggers import disable_logger, get_logger
+from prefect.utilities.annotations import allow_failure, quote, unmapped
+from prefect.utilities.collections import isiterable
+from prefect.utilities.importtools import safe_load_namespace
+
+logger = get_logger(__name__)
 
 
 def get_call_parameters(
@@ -216,15 +227,14 @@ class ParameterSchema(pydantic.BaseModel):
     title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"
     properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
-    required: List[str] = None
-    definitions: Optional[Dict[str, Any]] = None
+    required: List[str] = pydantic.Field(default_factory=list)
+    definitions: Dict[str, Any] = pydantic.Field(default_factory=dict)
 
-    def dict(self, *args, **kwargs):
-        """Exclude `None` fields by default to comply with
-        the OpenAPI spec.
-        """
-        kwargs.setdefault("exclude_none", True)
-        return super().dict(*args, **kwargs)
+    def model_dump_for_openapi(self) -> Dict[str, Any]:
+        result = self.model_dump(mode="python", exclude_none=True)
+        if "required" in result and not result["required"]:
+            del result["required"]
+        return result
 
 
 def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
@@ -272,21 +282,31 @@ def process_v1_params(
         name = param.name
 
     type_ = Any if param.annotation is inspect._empty else param.annotation
-    field = pydantic.Field(
-        default=... if param.default is param.empty else param.default,
-        title=param.name,
-        description=docstrings.get(param.name, None),
-        alias=aliases.get(name),
-        position=position,
-    )
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+        )
+        field = pydantic.Field(
+            default=... if param.default is param.empty else param.default,
+            title=param.name,
+            description=docstrings.get(param.name, None),
+            alias=aliases.get(name),
+            position=position,
+        )
     return name, type_, field
 
 
 def create_v1_schema(name_: str, model_cfg, **model_fields):
-    model: "pydantic.BaseModel" = pydantic.create_model(
-        name_, __config__=model_cfg, **model_fields
-    )
-    return model.schema(by_alias=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+        )
+
+        model: "pydantic.BaseModel" = pydantic.create_model(
+            name_, __config__=model_cfg, **model_fields
+        )
+        return model.schema(by_alias=True)
 
 
 def parameter_schema(fn: Callable) -> ParameterSchema:
@@ -310,19 +330,76 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         # `eval_str` is not available in Python < 3.10
         signature = inspect.signature(fn)
 
-    model_fields = {}
-    aliases = {}
     docstrings = parameter_docstrings(inspect.getdoc(fn))
 
-    class ModelConfig:
-        arbitrary_types_allowed = True
+    return generate_parameter_schema(signature, docstrings)
+
+
+def parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema:
+    """
+    Generate a parameter schema from an entrypoint string.
+
+    Will load the source code of the function and extract the signature and docstring
+    to generate the schema.
+
+    Useful for generating a schema for a function when instantiating the function may
+    not be possible due to missing imports or other issues.
+
+    Args:
+        entrypoint: A string representing the entrypoint to a function. The string
+            should be in the format of `module.path.to.function:do_stuff`.
+
+    Returns:
+        ParameterSchema: The parameter schema for the function.
+    """
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        source_code = Path(path).read_text()
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+        spec = importlib.util.find_spec(path)
+        if not spec or not spec.origin:
+            raise ValueError(f"Could not find module {path!r}")
+        source_code = Path(spec.origin).read_text()
+    signature = _generate_signature_from_source(source_code, func_name)
+    docstring = _get_docstring_from_source(source_code, func_name)
+    return generate_parameter_schema(signature, parameter_docstrings(docstring))
+
+
+def generate_parameter_schema(
+    signature: inspect.Signature, docstrings: Dict[str, str]
+) -> ParameterSchema:
+    """
+    Generate a parameter schema from a function signature and docstrings.
+
+    To get a signature from a function, use `inspect.signature(fn)` or
+    `_generate_signature_from_source(source_code, func_name)`.
+
+    Args:
+        signature: The function signature.
+        docstrings: A dictionary mapping parameter names to docstrings.
+
+    Returns:
+        ParameterSchema: The parameter schema.
+    """
+
+    model_fields = {}
+    aliases = {}
 
     if not has_v1_type_as_param(signature):
         create_schema = create_v2_schema
         process_params = process_v2_params
+
+        config = pydantic.ConfigDict(arbitrary_types_allowed=True)
     else:
         create_schema = create_v1_schema
         process_params = process_v1_params
+
+        class ModelConfig:
+            arbitrary_types_allowed = True
+
+        config = ModelConfig
 
     for position, param in enumerate(signature.parameters.values()):
         name, type_, field = process_params(
@@ -331,16 +408,14 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
         try:
-            create_schema(
-                "CheckParameter", model_cfg=ModelConfig, **{name: (type_, field)}
-            )
+            create_schema("CheckParameter", model_cfg=config, **{name: (type_, field)})
         except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)
 
     # Generate the final model and schema
-    schema = create_schema("Parameters", model_cfg=ModelConfig, **model_fields)
+    schema = create_schema("Parameters", model_cfg=config, **model_fields)
     return ParameterSchema(**schema)
 
 
@@ -354,3 +429,275 @@ def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]
             raise ReservedArgumentError(
                 f"{argument!r} is a reserved argument name and cannot be used."
             )
+
+
+def _generate_signature_from_source(
+    source_code: str, func_name: str
+) -> inspect.Signature:
+    """
+    Extract the signature of a function from its source code.
+
+    Will ignore missing imports and exceptions while loading local class definitions.
+
+    Args:
+        source_code: The source code where the function named `func_name` is declared.
+        func_name: The name of the function.
+
+    Returns:
+        The signature of the function.
+    """
+    # Load the namespace from the source code. Missing imports and exceptions while
+    # loading local class definitions are ignored.
+    namespace = safe_load_namespace(source_code)
+    # Parse the source code into an AST
+    parsed_code = ast.parse(source_code)
+
+    func_def = next(
+        (
+            node
+            for node in ast.walk(parsed_code)
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
+        ),
+        None,
+    )
+    if func_def is None:
+        raise ValueError(f"Function {func_name} not found in source code")
+    parameters = []
+
+    # Handle annotations for positional only args e.g. def func(a, /, b, c)
+    for arg in func_def.args.posonlyargs:
+        name = arg.arg
+        annotation = arg.annotation
+        if annotation is not None:
+            try:
+                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
+                annotation = eval(ann_code, namespace)
+            except Exception as e:
+                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
+                annotation = inspect.Parameter.empty
+        else:
+            annotation = inspect.Parameter.empty
+
+        param = inspect.Parameter(
+            name, inspect.Parameter.POSITIONAL_ONLY, annotation=annotation
+        )
+        parameters.append(param)
+
+    # Determine the annotations for args e.g. def func(a: int, b: str, c: float)
+    for arg in func_def.args.args:
+        name = arg.arg
+        annotation = arg.annotation
+        if annotation is not None:
+            try:
+                # Compile and evaluate the annotation
+                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
+                annotation = eval(ann_code, namespace)
+            except Exception as e:
+                # Don't raise an error if the annotation evaluation fails. Set the
+                # annotation to `inspect.Parameter.empty` instead which is equivalent to
+                # not having an annotation.
+                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
+                annotation = inspect.Parameter.empty
+        else:
+            annotation = inspect.Parameter.empty
+
+        param = inspect.Parameter(
+            name, inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=annotation
+        )
+        parameters.append(param)
+
+    # Handle default values for args e.g. def func(a=1, b="hello", c=3.14)
+    defaults = [None] * (
+        len(func_def.args.args) - len(func_def.args.defaults)
+    ) + func_def.args.defaults
+    for param, default in zip(parameters, defaults):
+        if default is not None:
+            try:
+                def_code = compile(ast.Expression(default), "<string>", "eval")
+                default = eval(def_code, namespace)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate default value for %s: %s", param.name, e
+                )
+                default = None  # Set to None if evaluation fails
+            parameters[parameters.index(param)] = param.replace(default=default)
+
+    # Handle annotations for keyword only args e.g. def func(*, a: int, b: str)
+    for kwarg in func_def.args.kwonlyargs:
+        name = kwarg.arg
+        annotation = kwarg.annotation
+        if annotation is not None:
+            try:
+                ann_code = compile(ast.Expression(annotation), "<string>", "eval")
+                annotation = eval(ann_code, namespace)
+            except Exception as e:
+                logger.debug("Failed to evaluate annotation for %s: %s", name, e)
+                annotation = inspect.Parameter.empty
+        else:
+            annotation = inspect.Parameter.empty
+
+        param = inspect.Parameter(
+            name, inspect.Parameter.KEYWORD_ONLY, annotation=annotation
+        )
+        parameters.append(param)
+
+    # Handle default values for keyword only args e.g. def func(*, a=1, b="hello")
+    defaults = [None] * (
+        len(func_def.args.kwonlyargs) - len(func_def.args.kw_defaults)
+    ) + func_def.args.kw_defaults
+    for param, default in zip(parameters[-len(func_def.args.kwonlyargs) :], defaults):
+        if default is not None:
+            try:
+                def_code = compile(ast.Expression(default), "<string>", "eval")
+                default = eval(def_code, namespace)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate default value for %s: %s", param.name, e
+                )
+                default = None
+            parameters[parameters.index(param)] = param.replace(default=default)
+
+    # Handle annotations for varargs and kwargs e.g. def func(*args: int, **kwargs: str)
+    if func_def.args.vararg:
+        parameters.append(
+            inspect.Parameter(
+                func_def.args.vararg.arg, inspect.Parameter.VAR_POSITIONAL
+            )
+        )
+    if func_def.args.kwarg:
+        parameters.append(
+            inspect.Parameter(func_def.args.kwarg.arg, inspect.Parameter.VAR_KEYWORD)
+        )
+
+    # Handle return annotation e.g. def func() -> int
+    return_annotation = func_def.returns
+    if return_annotation is not None:
+        try:
+            ret_ann_code = compile(
+                ast.Expression(return_annotation), "<string>", "eval"
+            )
+            return_annotation = eval(ret_ann_code, namespace)
+        except Exception as e:
+            logger.debug("Failed to evaluate return annotation: %s", e)
+            return_annotation = inspect.Signature.empty
+
+    return inspect.Signature(parameters, return_annotation=return_annotation)
+
+
+def _get_docstring_from_source(source_code: str, func_name: str) -> Optional[str]:
+    """
+    Extract the docstring of a function from its source code.
+
+    Args:
+        source_code (str): The source code of the function.
+        func_name (str): The name of the function.
+
+    Returns:
+        The docstring of the function. If the function has no docstring, returns None.
+    """
+    parsed_code = ast.parse(source_code)
+
+    func_def = next(
+        (
+            node
+            for node in ast.walk(parsed_code)
+            if isinstance(
+                node,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            )
+            and node.name == func_name
+        ),
+        None,
+    )
+    if func_def is None:
+        raise ValueError(f"Function {func_name} not found in source code")
+
+    if (
+        func_def.body
+        and isinstance(func_def.body[0], ast.Expr)
+        and isinstance(func_def.body[0].value, ast.Constant)
+    ):
+        return func_def.body[0].value.value
+    return None
+
+
+def expand_mapping_parameters(
+    func: Callable, parameters: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    Generates a list of call parameters to be used for individual calls in a mapping
+    operation.
+
+    Args:
+        func: The function to be called
+        parameters: A dictionary of parameters with iterables to be mapped over
+
+    Returns:
+        List: A list of dictionaries to be used as parameters for each
+            call in the mapping operation
+    """
+    # Ensure that any parameters in kwargs are expanded before this check
+    parameters = explode_variadic_parameter(func, parameters)
+
+    iterable_parameters = {}
+    static_parameters = {}
+    annotated_parameters = {}
+    for key, val in parameters.items():
+        if isinstance(val, (allow_failure, quote)):
+            # Unwrap annotated parameters to determine if they are iterable
+            annotated_parameters[key] = val
+            val = val.unwrap()
+
+        if isinstance(val, unmapped):
+            static_parameters[key] = val.value
+        elif isiterable(val):
+            iterable_parameters[key] = list(val)
+        else:
+            static_parameters[key] = val
+
+    if not len(iterable_parameters):
+        raise MappingMissingIterable(
+            "No iterable parameters were received. Parameters for map must "
+            f"include at least one iterable. Parameters: {parameters}"
+        )
+
+    iterable_parameter_lengths = {
+        key: len(val) for key, val in iterable_parameters.items()
+    }
+    lengths = set(iterable_parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received iterable parameters with different lengths. Parameters for map"
+            f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0]
+
+    call_parameters_list = []
+    for i in range(map_length):
+        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
+        call_parameters.update({key: value for key, value in static_parameters.items()})
+
+        # Add default values for parameters; these are skipped earlier since they should
+        # not be mapped over
+        for key, value in get_parameter_defaults(func).items():
+            call_parameters.setdefault(key, value)
+
+        # Re-apply annotations to each key again
+        for key, annotation in annotated_parameters.items():
+            call_parameters[key] = annotation.rewrap(call_parameters[key])
+
+        # Collapse any previously exploded kwargs
+        call_parameters_list.append(collapse_variadic_parameters(func, call_parameters))
+
+    return call_parameters_list

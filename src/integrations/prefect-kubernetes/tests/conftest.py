@@ -14,7 +14,6 @@ from kubernetes_asyncio.client.exceptions import ApiException
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.jobs import KubernetesJob
 
-from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
@@ -89,9 +88,7 @@ def unsuccessful_job_status():
 @pytest.fixture
 def kubernetes_credentials(kube_config_dict):
     return KubernetesCredentials(
-        cluster_config=KubernetesClusterConfig(
-            context_name="test", config=kube_config_dict
-        )
+        cluster_config=dict(context_name="test", config=kube_config_dict)
     )
 
 

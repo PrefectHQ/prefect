@@ -19,9 +19,9 @@ import prefect.cli.events
 import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.global_concurrency_limit
-import prefect.cli.kubernetes
 import prefect.cli.profile
 import prefect.cli.server
+import prefect.cli.task
 import prefect.cli.variable
 import prefect.cli.work_pool
 import prefect.cli.work_queue
