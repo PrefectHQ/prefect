@@ -372,7 +372,7 @@ class TaskRunEngine(Generic[P, R]):
                 delay = (
                     self.task.retry_delay_seconds[
                         min(self.retries, len(self.task.retry_delay_seconds) - 1)
-                    ]  #
+                    ]  # repeat final delay value if attempts exceed specified delays
                     if isinstance(self.task.retry_delay_seconds, Sequence)
                     else self.task.retry_delay_seconds
                 )
