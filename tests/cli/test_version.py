@@ -4,6 +4,7 @@ import sys
 from unittest.mock import MagicMock, Mock
 
 import pendulum
+import pydantic
 import pytest
 
 import prefect
@@ -64,6 +65,7 @@ Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         ephemeral
+Pydantic version:    {pydantic.__version__}
 Server:
   Database:          sqlite
   SQLite version:    {sqlite3.sqlite_version}
@@ -90,6 +92,7 @@ Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         ephemeral
+Pydantic version:    {pydantic.__version__}
 Server:
   Database:          postgres
 """,
@@ -112,5 +115,6 @@ Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         server
+Pydantic version:    {pydantic.__version__}
 """,
     )
