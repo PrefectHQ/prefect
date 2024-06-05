@@ -1269,6 +1269,26 @@ class TestGenerators:
             pass
         assert values == [1, 2, 1, 2, 1, 2]
 
+    async def test_generator_timeout(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @task(timeout_seconds=0.1)
+        def g():
+            yield 1
+            time.sleep(2)
+            yield 2
+
+        values = []
+        t1 = time.time()
+        with pytest.raises(TimeoutError):
+            for v in g():
+                values.append(v)
+        t2 = time.time()
+        assert values == [1]
+        assert t2 - t1 < 0.2
+
     async def test_generator_doesnt_retry_on_generator_exception(self):
         """
         Test that a generator doesn't retry for normal generator exceptions like StopIteration
@@ -1396,6 +1416,26 @@ class TestAsyncGenerators:
         except ValueError:
             pass
         assert values == [1, 2, 1, 2, 1, 2]
+
+    async def test_generator_timeout(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @task(timeout_seconds=0.1)
+        async def g():
+            yield 1
+            time.sleep(2)
+            yield 2
+
+        values = []
+        t1 = time.time()
+        with pytest.raises(TimeoutError):
+            async for v in g():
+                values.append(v)
+        t2 = time.time()
+        assert values == [1]
+        assert t2 - t1 < 0.2
 
     async def test_generator_doesnt_retry_on_generator_exception(self):
         """

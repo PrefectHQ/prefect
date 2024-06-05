@@ -783,11 +783,14 @@ async def run_generator_task_async(
                             # weakrefs or similar) would be good
                             link_state_to_result(engine.state, gen_result)
                             yield gen_result
-                    except StopIteration as exc:
-                        engine.handle_success(exc.value, transaction=txn)
-                    except GeneratorExit as exc:
+                    except (StopAsyncIteration, GeneratorExit) as exc:
                         engine.handle_success(None, transaction=txn)
-                        gen.throw(exc)
+                        if isinstance(exc, GeneratorExit):
+                            gen.throw(exc)
+
+    # async generators can't return, but we can raise failures here
+    if engine.state.is_failed():
+        engine.result()
 
 
 def run_task(
