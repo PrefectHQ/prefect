@@ -266,6 +266,33 @@ def hello_world(name="world"):
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. 
     This allows Prefect to better contain task failures.
 
+## Subflows
+
+In addition to calling tasks within a flow, you can also call other flows.
+Child flows are called [subflows](/3.0rc/develop/write-workflows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
+
+Subflows are a great way to organize your workflows and offer more visibility within the UI.
+
+Let's add a `flow` decorator to the `get_open_issues` function:
+
+```python hl_lines="1"
+@flow
+def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
+    issues = []
+    pages = range(1, -(open_issues_count // -per_page) + 1)
+    for page in pages:
+        issues.append(
+            get_url.submit(
+                f"https://api.github.com/repos/{repo_name}/issues",
+                params={"page": page, "per_page": per_page, "state": "open"},
+            )
+        )
+    return [i for p in issues for i in p.result()]
+```
+
+Whenever you run the parent flow, the subflow is called and runs. 
+In the UI each subflow run is linked to its parent and can be individually inspected.
+
 ## Flow settings
 
 Flows allow a great deal of configuration by passing arguments to the decorator. Flows accept the following optional settings.
@@ -587,7 +614,7 @@ Subflow says: Hello Marvin!
 ```
 </div>
 
-!!! tip "Subflows or tasks?"
+<Tip> "Subflows or tasks?"
     In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow.
     So a common question is:
 
@@ -604,7 +631,7 @@ Subflow says: Hello Marvin!
     - Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a subflow and conditionally run the subflow rather than each task individually.
     - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
     - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
-
+</Tip>
 ## Parameters
 
 Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value.
@@ -1023,7 +1050,7 @@ The behavior and interfaces are identical to the single flow case.
 
 Flows can be retrieved from remote storage using the [`flow.from_source`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.from_source) method.
 
-`flow.from_source` accepts a git repository URL  and an entrypoint pointing to the flow to load from the repository:
+`flow.from_source` accepts a git repository URL and an entrypoint pointing to the flow to load from the repository:
 
 ```python title="load_from_url.py"
 from prefect import flow

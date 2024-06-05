@@ -209,40 +209,6 @@ Average open issues per user 💌 : 2.27
 12:45:29.838 | INFO    | Flow run 'intrepid-coua' - Finished in state Completed('All states completed.')
 ```
 
-
-## Subflows
-
-In addition to calling tasks within a flow, you can also call other flows.
-Child flows are called [subflows](/3.0rc/develop/write-workflows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic.
-
-Subflows are a great way to organize your workflows and offer more visibility within the UI.
-
-Let's add a `flow` decorator to the `get_open_issues` function:
-
-```python hl_lines="1"
-@flow
-def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
-    issues = []
-    pages = range(1, -(open_issues_count // -per_page) + 1)
-    for page in pages:
-        issues.append(
-            get_url.submit(
-                f"https://api.github.com/repos/{repo_name}/issues",
-                params={"page": page, "per_page": per_page, "state": "open"},
-            )
-        )
-    return [i for p in issues for i in p.result()]
-```
-
-Whenever you run the parent flow, the subflow is called and runs. 
-In the UI each subflow run is linked to its parent and can be individually inspected. 
-
-## Next: Deployments
-
-You now have a flow with tasks, subflows, retries, logging, caching, and concurrent execution.
-In the next section, you will deploy this flow to run it on a schedule and/or external infrastructure. Learn how to [create your first deployment](/3.0rc/deploy/serve-workflows/).
-
-
 ---
 
 # Concept tasks
