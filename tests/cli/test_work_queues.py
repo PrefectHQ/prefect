@@ -33,17 +33,6 @@ class TestCreateWorkQueue:
             expected_code=0,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-    def test_create_work_queue_with_tags(self):
-        invoke_and_assert(
-            command="work-queue create q-name -t blue -t red",
-            expected_output_contains=[
-                "Supplying `tags` for work queues is deprecated",
-                "tags - blue, red",
-            ],
-            expected_code=0,
-        )
-
     async def test_create_work_queue_with_pool(
         self,
         prefect_client,
@@ -63,19 +52,6 @@ class TestCreateWorkQueue:
         )
         assert queue.work_pool_id == work_pool.id
         assert queue.name == queue_name
-
-    def test_work_queue_with_pool_and_tag_errors(
-        self,
-        work_pool,
-    ):
-        res = invoke_and_assert(
-            command=f"work-queue create q-name -p {work_pool.name} -t dog",
-            expected_code=1,
-        )
-        assert (
-            "Work queues created with tags cannot specify work pools or set priorities."
-            in res.output
-        )
 
     async def test_create_work_queue_with_priority(
         self,
@@ -524,6 +500,7 @@ class TestDelete:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"work-queue delete {work_queue.name}",
+            user_input="y",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
@@ -533,6 +510,7 @@ class TestDelete:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"work-queue delete {work_queue.id}",
+            user_input="y",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
@@ -548,6 +526,7 @@ class TestDelete:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=cmd,
+            user_input="y",
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):

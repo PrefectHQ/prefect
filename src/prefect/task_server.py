@@ -4,33 +4,31 @@ import os
 import signal
 import socket
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack
-from functools import partial
-from typing import List, Optional, Type
+from contextvars import copy_context
+from typing import List, Optional
 
 import anyio
+import anyio.abc
 from websockets.exceptions import InvalidStatusCode
 
-from prefect import Task, get_client
+from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
-from prefect.engine import emit_task_run_state_change_event, propose_state
 from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
 from prefect.results import ResultFactory
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
-from prefect.task_engine import submit_autonomous_task_run_to_engine
-from prefect.task_runners import (
-    BaseTaskRunner,
-    ConcurrentTaskRunner,
-)
+from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 
 logger = get_logger("task_server")
@@ -64,18 +62,17 @@ class TaskServer:
     Args:
         - tasks: A list of tasks to serve. These tasks will be submitted to the engine
             when a scheduled task run is found.
-        - task_runner: The task runner to use for executing the tasks. Defaults to
-            `ConcurrentTaskRunner`.
+        - limit: The maximum number of tasks that can be run concurrently. Defaults to 10.
+            Pass `None` to remove the limit.
     """
 
     def __init__(
         self,
         *tasks: Task,
-        task_runner: Optional[Type[BaseTaskRunner]] = None,
+        limit: Optional[int] = 10,
     ):
         self.tasks: List[Task] = tasks
 
-        self.task_runner: BaseTaskRunner = task_runner or ConcurrentTaskRunner()
         self.started: bool = False
         self.stopping: bool = False
 
@@ -88,6 +85,8 @@ class TaskServer:
             )
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._executor = ThreadPoolExecutor()
+        self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
     @property
     def _client_id(self) -> str:
@@ -148,8 +147,10 @@ class TaskServer:
             keys=[task.task_key for task in self.tasks],
             client_id=self._client_id,
         ):
+            if self._limiter:
+                await self._limiter.acquire_on_behalf_of(task_run.id)
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
-            await self._submit_scheduled_task_run(task_run)
+            self._runs_task_group.start_soon(self._submit_scheduled_task_run, task_run)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
@@ -171,12 +172,17 @@ class TaskServer:
         # state_details. If there is no parameters_id, then the task was created
         # without parameters.
         parameters = {}
+        wait_for = []
+        run_context = None
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
             factory = await ResultFactory.from_autonomous_task(task)
             try:
-                parameters = await factory.read_parameters(parameters_id)
+                run_data = await factory.read_parameters(parameters_id)
+                parameters = run_data.get("parameters", {})
+                wait_for = run_data.get("wait_for", [])
+                run_context = run_data.get("context", None)
             except Exception as exc:
                 logger.exception(
                     f"Failed to read parameters for task run {task_run.id!r}",
@@ -194,9 +200,11 @@ class TaskServer:
         )
 
         try:
+            new_state = Pending()
+            new_state.state_details.deferred = True
             state = await propose_state(
                 client=get_client(),  # TODO prove that we cannot use self._client here
-                state=Pending(),
+                state=new_state,
                 task_run_id=task_run.id,
             )
         except Abort as exc:
@@ -225,20 +233,38 @@ class TaskServer:
             validated_state=state,
         )
 
-        self._runs_task_group.start_soon(
-            partial(
-                submit_autonomous_task_run_to_engine,
+        if task.isasync:
+            await run_task_async(
                 task=task,
+                task_run_id=task_run.id,
                 task_run=task_run,
                 parameters=parameters,
-                task_runner=self.task_runner,
-                client=self._client,
+                wait_for=wait_for,
+                return_type="state",
+                context=run_context,
             )
-        )
+        else:
+            context = copy_context()
+            future = self._executor.submit(
+                context.run,
+                run_task_sync,
+                task=task,
+                task_run_id=task_run.id,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type="state",
+                context=run_context,
+            )
+            await asyncio.wrap_future(future)
+        if self._limiter:
+            self._limiter.release_on_behalf_of(task_run.id)
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task server."""
         async with self if not self.started else asyncnullcontext():
+            if self._limiter:
+                await self._limiter.acquire_on_behalf_of(task_run.id)
             await self._submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
@@ -248,8 +274,8 @@ class TaskServer:
             self._client = get_client()
 
         await self._exit_stack.enter_async_context(self._client)
-        await self._exit_stack.enter_async_context(self.task_runner.start())
-        await self._runs_task_group.__aenter__()
+        await self._exit_stack.enter_async_context(self._runs_task_group)
+        self._exit_stack.enter_context(self._executor)
 
         self.started = True
         return self
@@ -257,12 +283,11 @@ class TaskServer:
     async def __aexit__(self, *exc_info):
         logger.debug("Stopping task server...")
         self.started = False
-        await self._runs_task_group.__aexit__(*exc_info)
         await self._exit_stack.__aexit__(*exc_info)
 
 
 @sync_compatible
-async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None):
+async def serve(*tasks: Task, limit: Optional[int] = 10):
     """Serve the provided tasks so that their runs may be submitted to and executed.
     in the engine. Tasks do not need to be within a flow run context to be submitted.
     You must `.submit` the same task object that you pass to `serve`.
@@ -270,8 +295,8 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
     Args:
         - tasks: A list of tasks to serve. When a scheduled task run is found for a
             given task, the task run will be submitted to the engine for execution.
-        - task_runner: The task runner to use for executing the tasks. Defaults to
-            `ConcurrentTaskRunner`.
+        - limit: The maximum number of tasks that can be run concurrently. Defaults to 10.
+            Pass `None` to remove the limit.
 
     Example:
         ```python
@@ -291,13 +316,8 @@ async def serve(*tasks: Task, task_runner: Optional[Type[BaseTaskRunner]] = None
             serve(say, yell)
         ```
     """
-    if not PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING.value():
-        raise RuntimeError(
-            "To enable task scheduling, set PREFECT_EXPERIMENTAL_ENABLE_TASK_SCHEDULING"
-            " to True."
-        )
+    task_server = TaskServer(*tasks, limit=limit)
 
-    task_server = TaskServer(*tasks, task_runner=task_runner)
     try:
         await task_server.start()
 

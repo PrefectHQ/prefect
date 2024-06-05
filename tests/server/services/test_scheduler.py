@@ -4,7 +4,6 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect import states
 from prefect.server import models, schemas
 from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.settings import (
@@ -341,7 +340,7 @@ async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
 
     # cancel one run
     await models.flow_runs.set_flow_run_state(
-        session, runs[0].id, state=states.Cancelled()
+        session, runs[0].id, state=schemas.states.Cancelled()
     )
     await session.commit()
 

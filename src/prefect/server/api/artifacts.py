@@ -1,11 +1,12 @@
 """
 Routes for interacting with artifact objects.
 """
+
 from typing import List
 from uuid import UUID
 
 import pendulum
-from prefect._vendor.fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
 from prefect.server import models
@@ -23,10 +24,10 @@ router = PrefectRouter(
 @router.post("/")
 async def create_artifact(
     artifact: actions.ArtifactCreate,
-    response: Response = None,
+    response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
-    artifact = core.Artifact(**artifact.dict())
+    artifact = core.Artifact(**artifact.model_dump())
 
     now = pendulum.now("UTC")
 

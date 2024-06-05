@@ -7,12 +7,12 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from pydantic.v1 import Field
+from pydantic import ConfigDict, Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.server.utilities.schemas.fields import DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
 
@@ -36,8 +36,7 @@ class Operator(AutoEnum):
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     def as_sql_filter(self) -> "BooleanClauseList":
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
@@ -388,11 +387,11 @@ class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
 class FlowRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs starting at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs starting at or after this time",
     )
@@ -418,11 +417,11 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
 class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs scheduled to start at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include flow runs scheduled to start at or after this time",
     )
@@ -439,14 +438,14 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
 class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.next_scheduled_start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include flow runs with a next_scheduled_start_time or before this"
             " time"
         ),
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include flow runs with a next_scheduled_start_time at or after this"
@@ -753,8 +752,12 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
 class TaskRunFilterState(PrefectOperatorFilterBaseModel):
     """Filter by `TaskRun.type` and `TaskRun.name`."""
 
-    type: Optional[TaskRunFilterStateType]
-    name: Optional[TaskRunFilterStateName]
+    type: Optional[TaskRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `TaskRun.state_type`"
+    )
+    name: Optional[TaskRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `TaskRun.state_name`"
+    )
 
     def _get_filter_list(self) -> List:
         filters = []
@@ -788,11 +791,11 @@ class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
 class TaskRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `TaskRun.start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include task runs starting at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include task runs starting at or after this time",
     )
@@ -818,11 +821,11 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
 class TaskRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `TaskRun.expected_start_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include task runs expected to start at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include task runs expected to start at or after this time",
     )
@@ -929,6 +932,29 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         return filters
 
 
+class DeploymentOrFlowNameFilter(PrefectFilterBaseModel):
+    """Filter by `Deployment.name` or `Flow.name` with a single input string for ilike filtering."""
+
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A case-insensitive partial match on deployment or flow names. For example, "
+            "passing 'example' might match deployments or flows with 'example' in their names."
+        ),
+    )
+
+    def _get_filter_list(self) -> List:
+        filters = []
+        if self.like_ is not None:
+            deployment_name_filter = orm_models.Deployment.name.ilike(f"%{self.like_}%")
+
+            flow_name_filter = orm_models.Deployment.flow.has(
+                orm_models.Flow.name.ilike(f"%{self.like_}%")
+            )
+            filters.append(sa.or_(deployment_name_filter, flow_name_filter))
+        return filters
+
+
 class DeploymentFilterPaused(PrefectFilterBaseModel):
     """Filter by `Deployment.paused`."""
 
@@ -1015,6 +1041,9 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     name: Optional[DeploymentFilterName] = Field(
         default=None, description="Filter criteria for `Deployment.name`"
     )
+    flow_or_deployment_name: Optional[DeploymentOrFlowNameFilter] = Field(
+        default=None, description="Filter criteria for `Deployment.name` or `Flow.name`"
+    )
     paused: Optional[DeploymentFilterPaused] = Field(
         default=None, description="Filter criteria for `Deployment.paused`"
     )
@@ -1035,6 +1064,8 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.id.as_sql_filter())
         if self.name is not None:
             filters.append(self.name.as_sql_filter())
+        if self.flow_or_deployment_name is not None:
+            filters.append(self.flow_or_deployment_name.as_sql_filter())
         if self.paused is not None:
             filters.append(self.paused.as_sql_filter())
         if self.is_schedule_active is not None:
@@ -1121,11 +1152,11 @@ class LogFilterLevel(PrefectFilterBaseModel):
 class LogFilterTimestamp(PrefectFilterBaseModel):
     """Filter by `Log.timestamp`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description="Only include logs with a timestamp at or before this time",
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description="Only include logs with a timestamp at or after this time",
     )
@@ -1686,13 +1717,13 @@ class WorkerFilterStatus(PrefectFilterBaseModel):
 class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
     """Filter by `Worker.last_heartbeat_time`."""
 
-    before_: Optional[DateTimeTZ] = Field(
+    before_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include processes whose last heartbeat was at or before this time"
         ),
     )
-    after_: Optional[DateTimeTZ] = Field(
+    after_: Optional[DateTime] = Field(
         default=None,
         description=(
             "Only include processes whose last heartbeat was at or after this time"

@@ -3,17 +3,12 @@ from typing import Optional, Union
 
 from anyio import to_thread
 from google.api_core.exceptions import NotFound
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field
 
-from prefect import get_run_logger, task
+from prefect import task
 from prefect.blocks.abstract import SecretBlock
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
-else:
-    from pydantic import Field
-
 from prefect_gcp.credentials import GcpCredentials
 
 try:
@@ -33,6 +28,7 @@ except ModuleNotFoundError:
 
 
 @task
+@sync_compatible
 async def create_secret(
     secret_name: str,
     gcp_credentials: "GcpCredentials",
@@ -89,6 +85,7 @@ async def create_secret(
 
 
 @task
+@sync_compatible
 async def update_secret(
     secret_name: str,
     secret_value: Union[str, bytes],
@@ -146,6 +143,7 @@ async def update_secret(
 
 
 @task
+@sync_compatible
 async def read_secret(
     secret_name: str,
     gcp_credentials: "GcpCredentials",
@@ -196,6 +194,7 @@ async def read_secret(
 
 
 @task
+@sync_compatible
 async def delete_secret(
     secret_name: str,
     gcp_credentials: "GcpCredentials",
@@ -244,6 +243,7 @@ async def delete_secret(
 
 
 @task
+@sync_compatible
 async def delete_secret_version(
     secret_name: str,
     version_id: int,

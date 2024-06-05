@@ -12,8 +12,6 @@
         <p-content>
           <FlowRunsFilterGroup v-model:nameSearch="flowRunNameLike" :filter="dashboardFilter" @update:filter="setDashboardFilter" />
 
-          <p-divider />
-
           <p-tabs-root v-model="tab" :default-value="tabs[0]">
             <p-tabs-list>
               <p-tabs-trigger value="flow-runs">
@@ -142,6 +140,7 @@
   import { Getter, media } from '@prefecthq/prefect-design'
   import {
     PageHeadingRuns,
+    FlowRunsPageEmptyState,
     FlowRunsSort,
     FlowRunList,
     TaskRunList,
@@ -178,8 +177,8 @@
   const tab = useRouteQueryParam('tab', 'flow-runs')
   const tabs = ['flow-runs', 'task-runs']
 
-  const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
-  const taskRunsCountAllSubscription = useSubscription(api.taskRuns.getTaskRunsCount, [{}])
+  const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount)
+  const taskRunsCountAllSubscription = useSubscription(api.taskRuns.getTaskRunsCount)
 
   const loaded = computed(() => flowRunsCountAllSubscription.executed && taskRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0 && taskRunsCountAllSubscription.response === 0)

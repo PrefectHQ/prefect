@@ -41,6 +41,7 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
     PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
@@ -327,6 +328,7 @@ def pytest_sessionstart(session):
             PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
             PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
             PREFECT_API_SERVICES_FOREMAN_ENABLED: False,
+            PREFECT_API_LOG_RETRYABLE_ERRORS: True,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict

@@ -4,7 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect-github"
-dependencies = ["sgqlc>=15.0", "prefect>=2.13.5"]
+dependencies = [
+  "sgqlc>=15.0",
+  "prefect>=3.0.0rc1",
+]
 dynamic = ["version"]
 description = "Prefect integrations interacting with GitHub"
 readme = "README.md"
@@ -50,7 +53,7 @@ prefect_github = "prefect_github"
 [tool.setuptools_scm]
 version_file = "prefect_github/_version.py"
 root = "../../.."
-tag_regex = "^prefect-github-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-github-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-github-*[0-9]*"'
 

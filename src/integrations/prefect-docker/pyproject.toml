@@ -22,7 +22,12 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=2.13.5", "docker>=6.1.1"]
+dependencies = [
+  "prefect>=3.0.0rc1",
+  "docker>=6.1.1",
+  "exceptiongroup",
+  "requests<2.30.0",
+]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -50,7 +55,7 @@ prefect_docker = "prefect_docker"
 [tool.setuptools_scm]
 version_file = "prefect_docker/_version.py"
 root = "../../.."
-tag_regex = "^prefect-docker-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-docker-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-docker-*[0-9]*"'
 

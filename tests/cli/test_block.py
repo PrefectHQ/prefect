@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from prefect.blocks import system
-from prefect.client import PrefectClient
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
@@ -175,7 +175,7 @@ def test_register_fails_on_multiple_options():
 def test_listing_blocks_when_none_are_registered():
     invoke_and_assert(
         ["block", "ls"],
-        expected_output_contains="""                           
+        expected_output_contains="""
            ┏━━━━┳━━━━━━┳━━━━━━┳━━━━━━┓
            ┃ ID ┃ Type ┃ Name ┃ Slug ┃
            ┡━━━━╇━━━━━━╇━━━━━━╇━━━━━━┩
@@ -190,12 +190,12 @@ async def test_listing_blocks_after_saving_a_block():
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["block", "ls"],
-        expected_output_contains=f"""                           
+        expected_output_contains=f"""
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
             ┃ ID                                   ┃ Type ┃ Name      ┃ Slug           ┃
             ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
             │ {block_id} │ JSON │ wildblock │ json/wildblock │
-            └──────────────────────────────────────┴──────┴───────────┴────────────────┘  
+            └──────────────────────────────────────┴──────┴───────────┴────────────────┘
             """,
     )
 
@@ -248,6 +248,7 @@ async def test_deleting_a_block():
     await run_sync_in_worker_thread(
         invoke_and_assert,
         ["block", "delete", "json/pleasedonterase"],
+        user_input="y",
         expected_code=0,
     )
 
@@ -284,6 +285,9 @@ def test_inspecting_a_block_type(tmp_path):
         "Description",
         "TestForFileRegister",
         "testforfileregister",
+        "Schema Properties",
+        "message",
+        "Message",
     ]
 
     invoke_and_assert(
@@ -313,6 +317,7 @@ def test_deleting_a_block_type(tmp_path, prefect_client):
     invoke_and_assert(
         ["block", "type", "delete", "testforfileregister"],
         expected_code=0,
+        user_input="y",
         expected_output_contains=expected_output,
     )
 
@@ -328,5 +333,6 @@ def test_deleting_a_protected_block_type(
     invoke_and_assert(
         ["block", "type", "delete", "json"],
         expected_code=1,
+        user_input="y",
         expected_output_contains=expected_output,
     )

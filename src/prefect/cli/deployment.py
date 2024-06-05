@@ -20,10 +20,10 @@ from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import FlowFilter
-from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -279,17 +279,17 @@ async def inspect(name: str):
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
 
-        deployment_json = deployment.dict(json_compatible=True)
+        deployment_json = deployment.model_dump(mode="json")
 
         if deployment.infrastructure_document_id:
             deployment_json["infrastructure"] = Block._from_block_document(
                 await client.read_block_document(deployment.infrastructure_document_id)
-            ).dict(
+            ).model_dump(
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
         deployment_json["automations"] = [
-            a.dict()
+            a.model_dump()
             for a in await client.read_resource_related_automations(
                 f"prefect.deployment.{deployment.id}"
             )
@@ -550,11 +550,11 @@ async def list_schedules(deployment_name: str):
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-    def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
+    def sort_by_created_key(schedule: DeploymentScheduleCreate):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
         return pendulum.now("utc") - schedule.created
 
-    def schedule_details(schedule: DeploymentSchedule) -> str:
+    def schedule_details(schedule: DeploymentScheduleCreate) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
             return f"interval: {schedule.schedule.interval}s"
         elif isinstance(schedule.schedule, CronSchedule):
@@ -616,172 +616,6 @@ async def clear_schedules(
                 pass
 
         exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
-
-
-@deployment_app.command(
-    "set-schedule",
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_help="Use 'prefect deployment schedule create' instead.",
-    deprecated_name="deployment set-schedule",
-)
-async def _set_schedule(
-    name: str,
-    interval: Optional[float] = typer.Option(
-        None,
-        "--interval",
-        help="An interval to schedule on, specified in seconds",
-        min=0.0001,
-    ),
-    interval_anchor: Optional[str] = typer.Option(
-        None,
-        "--anchor-date",
-        help="The anchor date for an interval schedule",
-    ),
-    rrule_string: Optional[str] = typer.Option(
-        None, "--rrule", help="Deployment schedule rrule string"
-    ),
-    cron_string: Optional[str] = typer.Option(
-        None, "--cron", help="Deployment schedule cron string"
-    ),
-    cron_day_or: Optional[str] = typer.Option(
-        None,
-        "--day_or",
-        help="Control how croniter handles `day` and `day_of_week` entries",
-    ),
-    timezone: Optional[str] = typer.Option(
-        None,
-        "--timezone",
-        help="Deployment schedule timezone string e.g. 'America/New_York'",
-    ),
-    no_schedule: bool = typer.Option(
-        False,
-        "--no-schedule",
-        help="An optional flag to disable scheduling for this deployment.",
-    ),
-    deprecated=True,
-):
-    """
-    Set schedule for a given deployment.
-
-    This command is deprecated. Use 'prefect deployment schedule create' instead.
-    """
-    assert_deployment_name_format(name)
-
-    exclusive_options = sum(
-        option is not None
-        for option in [interval, rrule_string, cron_string] + [no_schedule or None]
-    )
-
-    if exclusive_options != 1:
-        exit_with_error(
-            "Exactly one of `--interval`, `--rrule`, `--cron` or `--no-schedule` must"
-            " be provided."
-        )
-
-    if no_schedule:
-        return await clear_schedules(name)
-    else:
-        async with get_client() as client:
-            try:
-                deployment = await client.read_deployment_by_name(name)
-            except ObjectNotFound:
-                return exit_with_error(f"Deployment {name!r} not found!")
-
-            if len(deployment.schedules) > 1:
-                return exit_with_error(
-                    f"Deployment {name!r} has multiple schedules. "
-                    "Use `prefect deployment schedules create` instead."
-                )
-
-            if deployment.schedules:
-                try:
-                    await client.delete_deployment_schedule(
-                        deployment.id, deployment.schedules[0].id
-                    )
-                except ObjectNotFound:
-                    pass
-
-            await create_schedule(
-                name=name,
-                interval=interval,
-                interval_anchor=interval_anchor,
-                rrule_string=rrule_string,
-                cron_string=cron_string,
-                cron_day_or=cron_day_or,
-                timezone=timezone,
-                active=True,
-            )
-
-
-@deployment_app.command(
-    "pause-schedule",
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_help="Use 'prefect deployment schedule pause' instead.",
-    deprecated_name="deployment pause-schedule",
-)
-async def _pause_schedule(
-    name: str,
-):
-    """
-    Pause schedule of a given deployment.
-
-    This command is deprecated. Use `prefect deployment schedule pause` instead.
-    """
-    assert_deployment_name_format(name)
-
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {name!r} not found!")
-
-        if not deployment.schedules:
-            return exit_with_error(f"Deployment {name!r} has no schedules.")
-
-        if len(deployment.schedules) > 1:
-            return exit_with_error(
-                f"Deployment {name!r} has multiple schedules. Use `prefect deployment"
-                " schedule pause <deployment_name> <schedule_id>`"
-            )
-
-        return await pause_schedule(name, deployment.schedules[0].id)
-
-
-@deployment_app.command(
-    "resume-schedule",
-    deprecated=True,
-    deprecated_start_date="Mar 2024",
-    deprecated_help="Use 'prefect deployment schedule resume' instead.",
-    deprecated_name="deployment resume-schedule",
-)
-async def _resume_schedule(
-    name: str,
-):
-    """
-    Resume schedule of a given deployment.
-
-    This command is deprecated. Use `prefect deployment schedule resume` instead.
-    """
-    # TODO only work if there is one schedule, otherwise error
-    assert_deployment_name_format(name)
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {name!r} not found!")
-
-        if not deployment.schedules:
-            return exit_with_error(f"Deployment {name!r} has no schedules.")
-
-        if len(deployment.schedules) > 1:
-            return exit_with_error(
-                f"Deployment {name!r} has multiple schedules. "
-                "Use `prefect deployment schedule pause <deployment_name> <schedule_id>"
-            )
-
-        return await resume_schedule(name, deployment.schedules[0].id)
 
 
 @deployment_app.command()
@@ -1086,6 +920,13 @@ async def delete(
     async with get_client() as client:
         if name is None and deployment_id is not None:
             try:
+                if is_interactive() and not typer.confirm(
+                    (
+                        f"Are you sure you want to delete deployment with id {deployment_id!r}?"
+                    ),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment_id)
                 exit_with_success(f"Deleted deployment '{deployment_id}'.")
             except ObjectNotFound:
@@ -1093,6 +934,11 @@ async def delete(
         elif name is not None:
             try:
                 deployment = await client.read_deployment_by_name(name)
+                if is_interactive() and not typer.confirm(
+                    (f"Are you sure you want to delete deployment with name {name!r}?"),
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
                 await client.delete_deployment(deployment.id)
                 exit_with_success(f"Deleted deployment '{name}'.")
             except ObjectNotFound:

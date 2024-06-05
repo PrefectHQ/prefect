@@ -4,28 +4,22 @@ import subprocess
 import sys
 import time
 import warnings
-from functools import partial
-from uuid import uuid4
 
 import pytest
 import ray
 import ray.cluster_utils
 from prefect_ray import RayTaskRunner
 from prefect_ray.context import remote_options
-from ray.exceptions import TaskCancelledError
 
 import prefect
-import prefect.engine
+import prefect.task_engine
 import tests
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
 from prefect.states import State, StateType
-from prefect.tasks import TaskRun
 from prefect.testing.fixtures import (  # noqa: F401
     hosted_api_server,
     use_hosted_api_server,
 )
-from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
-from prefect.testing.utilities import exceptions_equal
 
 
 @pytest.fixture(scope="session")
@@ -55,24 +49,26 @@ def event_loop(request):
         loop.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def machine_ray_instance():
     """
     Starts a ray instance for the current machine
     """
-    subprocess.check_call(
-        [
-            "ray",
-            "start",
-            "--head",
-            "--include-dashboard",
-            "False",
-            "--disable-usage-stats",
-        ],
-        cwd=str(prefect.__development_base_path__),
-    )
     try:
+        subprocess.check_output(
+            [
+                "ray",
+                "start",
+                "--head",
+                "--include-dashboard",
+                "False",
+                "--disable-usage-stats",
+            ],
+            cwd=str(prefect.__development_base_path__),
+        )
         yield "ray://127.0.0.1:10001"
+    except subprocess.CalledProcessError as exc:
+        pytest.fail(f"Failed to start ray: {exc.stderr}")
     finally:
         subprocess.run(["ray", "stop"])
 
@@ -112,7 +108,7 @@ def ray_task_runner_with_existing_cluster(
     )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def inprocess_ray_cluster():
     """
     Starts a ray cluster in-process
@@ -181,12 +177,199 @@ if sys.version_info >= (3, 10):
     task_runner_setups.append(ray_task_runner_with_existing_cluster)
 
 
-class TestRayTaskRunner(TaskRunnerStandardTestSuite):
+class TestRayTaskRunner:
     @pytest.fixture(params=task_runner_setups)
     def task_runner(self, request):
         yield request.getfixturevalue(
             request.param._pytestfixturefunction.name or request.param.__name__
         )
+
+    @pytest.fixture
+    def tmp_file(self, tmp_path):
+        file_path = tmp_path / "canary.txt"
+        file_path.touch()
+        return file_path
+
+    async def test_duplicate(self, task_runner):
+        new = task_runner.duplicate()
+        assert new == task_runner
+        assert new is not task_runner
+
+    async def test_successful_flow_run(self, task_runner):
+        @task
+        def task_a():
+            return "a"
+
+        @task
+        def task_b():
+            return "b"
+
+        @task
+        def task_c(b):
+            return b + "c"
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit(b)
+            return a, b, c
+
+        a, b, c = test_flow()
+        assert await a.result() == "a"
+        assert await b.result() == "b"
+        assert await c.result() == "bc"
+
+    async def test_failing_flow_run(self, task_runner):
+        @task
+        def task_a():
+            raise RuntimeError("This task fails!")
+
+        @task
+        def task_b():
+            raise ValueError("This task fails and passes data downstream!")
+
+        @task
+        def task_c(b):
+            # This task attempts to use the upstream data and should fail too
+            return b + "c"
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit(b)
+            d = task_c.submit(c)
+
+            return a, b, c, d
+
+        state = test_flow(return_state=True)
+
+        assert state.is_failed()
+        result = await state.result(raise_on_failure=False)
+        a, b, c, d = result
+        with pytest.raises(RuntimeError, match="This task fails!"):
+            await a.result()
+        with pytest.raises(
+            ValueError, match="This task fails and passes data downstream"
+        ):
+            await b.result()
+
+        assert c.is_pending()
+        assert c.name == "NotReady"
+        assert (
+            f"Upstream task run '{b.state_details.task_run_id}' did not reach a"
+            " 'COMPLETED' state" in c.message
+        )
+
+        assert d.is_pending()
+        assert d.name == "NotReady"
+        assert (
+            f"Upstream task run '{c.state_details.task_run_id}' did not reach a"
+            " 'COMPLETED' state" in d.message
+        )
+
+    async def test_async_tasks(self, task_runner):
+        @task
+        async def task_a():
+            return "a"
+
+        @task
+        async def task_b():
+            return "b"
+
+        @task
+        async def task_c(b):
+            return b + "c"
+
+        @flow(version="test", task_runner=task_runner)
+        async def test_flow():
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit(b)
+            return a, b, c
+
+        a, b, c = await test_flow()
+        assert await a.result() == "a"
+        assert await b.result() == "b"
+        assert await c.result() == "bc"
+
+    async def test_submit_and_wait(self, task_runner):
+        @task
+        async def task_a():
+            return "a"
+
+        async def fake_orchestrate_task_run(example_kwarg):
+            return State(
+                type=StateType.COMPLETED,
+                data=example_kwarg,
+            )
+
+        with task_runner:
+            future = task_runner.submit(task_a, parameters={}, wait_for=[])
+            future.wait()
+            state = future.state
+            assert await state.result() == "a"
+
+    async def test_async_task_timeout(self, task_runner):
+        @task(timeout_seconds=0.1)
+        async def my_timeout_task():
+            await asyncio.sleep(2)
+            return 42
+
+        @task
+        async def my_dependent_task(task_res):
+            return 1764
+
+        @task
+        async def my_independent_task():
+            return 74088
+
+        @flow(version="test", task_runner=task_runner)
+        async def test_flow():
+            a = my_timeout_task.submit()
+            b = my_dependent_task.submit(a)
+            c = my_independent_task.submit()
+
+            return a, b, c
+
+        state = await test_flow(return_state=True)
+
+        assert state.is_failed()
+        ax, bx, cx = await state.result(raise_on_failure=False)
+        assert ax.type == StateType.FAILED
+        assert bx.type == StateType.PENDING
+        assert cx.type == StateType.COMPLETED
+
+    async def test_sync_task_timeout(self, task_runner):
+        @task(timeout_seconds=1)
+        def my_timeout_task():
+            time.sleep(2)
+            return 42
+
+        @task
+        def my_dependent_task(task_res):
+            return 1764
+
+        @task
+        def my_independent_task():
+            return 74088
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
+            a = my_timeout_task.submit()
+            b = my_dependent_task.submit(a)
+            c = my_independent_task.submit()
+
+            return a, b, c
+
+        state = test_flow(return_state=True)
+
+        assert state.is_failed()
+        ax, bx, cx = await state.result(raise_on_failure=False)
+        assert ax.type == StateType.FAILED
+        assert bx.type == StateType.PENDING
+        assert cx.type == StateType.COMPLETED
 
     def get_sleep_time(self) -> float:
         """
@@ -195,10 +378,7 @@ class TestRayTaskRunner(TaskRunnerStandardTestSuite):
         """
         return 5.0
 
-    @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
-    async def test_wait_captures_exceptions_as_crashed_state(
-        self, task_runner, exception
-    ):
+    async def test_wait_captures_exceptions_as_crashed_state(self, task_runner):
         """
         Ray wraps the exception, interrupts will result in "Cancelled" tasks
         or "Killed" workers while normal errors will result in a "RayTaskError".
@@ -206,67 +386,22 @@ class TestRayTaskRunner(TaskRunnerStandardTestSuite):
         lack of re-raise here than the equality of the exception.
         """
 
-        async def fake_orchestrate_task_run(task_run):
-            raise exception
+        @task
+        async def task_a():
+            raise KeyboardInterrupt()
 
-        task_run = TaskRun(
-            flow_run_id=uuid4(), task_key=str(uuid4()), dynamic_key="bar"
-        )
-
-        async with task_runner.start():
-            await task_runner.submit(
-                call=partial(fake_orchestrate_task_run, task_run=task_run),
-                key=task_run.id,
+        with task_runner:
+            future = task_runner.submit(
+                task=task_a,
+                parameters={},
+                wait_for=[],
             )
 
-            state = await task_runner.wait(task_run.id, 5)
+            future.wait()
+            state = future.state
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
             assert state.name == "Crashed"
-
-    @pytest.mark.parametrize(
-        "exceptions",
-        [
-            (KeyboardInterrupt(), TaskCancelledError),
-            (ValueError("test"), ValueError),
-        ],
-    )
-    async def test_exception_to_crashed_state_in_flow_run(
-        self, exceptions, task_runner, monkeypatch
-    ):
-        (raised_exception, state_exception_type) = exceptions
-
-        async def throws_exception_before_task_begins(
-            task, task_run, parameters, wait_for, result_factory, settings, **kwds
-        ):
-            """
-            Simulates an exception occurring while a remote task runner is attempting
-            to unpickle and run a Prefect task.
-            """
-            raise raised_exception
-
-        monkeypatch.setattr(
-            prefect.engine, "begin_task_run", throws_exception_before_task_begins
-        )
-
-        @task()
-        def test_task():
-            logger = get_run_logger()
-            logger.info("Ray should raise an exception before this task runs.")
-
-        @flow(task_runner=task_runner)
-        def test_flow():
-            future = test_task.submit()
-            future.wait(10)
-
-        # ensure that the type of exception raised by the flow matches the type of
-        # exception we expected the task runner to receive.
-        with pytest.raises(state_exception_type) as exc:
-            test_flow()
-            # If Ray passes the same exception type back, it should pass
-            # the equality check
-            if type(raised_exception) == state_exception_type:
-                assert exceptions_equal(raised_exception, exc)
 
     def test_flow_and_subflow_both_with_task_runner(self, task_runner, tmp_file):
         @task
@@ -275,15 +410,17 @@ class TestRayTaskRunner(TaskRunnerStandardTestSuite):
 
         @flow(task_runner=RayTaskRunner())
         def subflow():
-            some_task.submit("a")
-            some_task.submit("b")
-            some_task.submit("c")
+            a = some_task.submit("a")
+            b = some_task.submit("b")
+            c = some_task.submit("c")
+            return a, b, c
 
         @flow(task_runner=task_runner)
         def base_flow():
             subflow()
             time.sleep(self.get_sleep_time())
-            some_task.submit("d")
+            d = some_task.submit("d")
+            return d
 
         base_flow()
         assert tmp_file.read_text() == "d"
@@ -319,39 +456,3 @@ class TestRayTaskRunner(TaskRunnerStandardTestSuite):
                 e.submit(wait_for=[b_future])
 
         flow_with_dependent_tasks()
-
-    def test_sync_task_timeout(self, task_runner):
-        """
-        This test is inherited from the prefect testing module and it may not
-        appropriately skip on Windows. Here we skip it explicitly.
-        """
-        if sys.platform.startswith("win"):
-            pytest.skip("cancellation due to timeouts is not supported on Windows")
-        super().test_async_task_timeout(task_runner)
-
-    async def test_submit_and_wait(self, task_runner):
-        """
-        This test is inherited from the prefect testing module. The key difference
-        here is that task_runner is waiting longer than 5 seconds.
-        """
-        MAX_WAIT_TIME = 60
-
-        task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
-
-        async def fake_orchestrate_task_run(example_kwarg, task_run):
-            return State(
-                type=StateType.COMPLETED,
-                data=example_kwarg,
-            )
-
-        async with task_runner.start():
-            await task_runner.submit(
-                key=task_run.id,
-                call=partial(
-                    fake_orchestrate_task_run, task_run=task_run, example_kwarg=1
-                ),
-            )
-            state = await task_runner.wait(task_run.id, MAX_WAIT_TIME)
-            assert state is not None, "wait timed out"
-            assert isinstance(state, State), "wait should return a state"
-            assert await state.result() == 1

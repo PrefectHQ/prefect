@@ -2,6 +2,7 @@ from typing import List, Optional, Union
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
@@ -83,12 +84,12 @@ MINIMUM_OCCUPANCY_SECONDS_PER_SLOT = 0.1
 
 
 async def create_concurrency_limit(
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit: Union[
         schemas.actions.ConcurrencyLimitV2Create, schemas.core.ConcurrencyLimitV2
     ],
 ):
-    model = orm_models.ConcurrencyLimitV2(**concurrency_limit.dict())
+    model = orm_models.ConcurrencyLimitV2(**concurrency_limit.model_dump())
 
     session.add(model)
     await session.flush()
@@ -97,7 +98,7 @@ async def create_concurrency_limit(
 
 
 async def read_concurrency_limit(
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
 ):
@@ -115,7 +116,7 @@ async def read_concurrency_limit(
 
 
 async def read_all_concurrency_limits(
-    session: sa.orm.Session,
+    session: AsyncSession,
     limit: int,
     offset: int,
 ):
@@ -133,7 +134,7 @@ async def read_all_concurrency_limits(
 
 
 async def update_concurrency_limit(
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit: schemas.actions.ConcurrencyLimitV2Update,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
@@ -156,14 +157,14 @@ async def update_concurrency_limit(
     result = await session.execute(
         sa.update(orm_models.ConcurrencyLimitV2)
         .where(where)
-        .values(**concurrency_limit.dict(exclude_unset=True))
+        .values(**concurrency_limit.model_dump(exclude_unset=True))
     )
 
     return result.rowcount > 0
 
 
 async def delete_concurrency_limit(
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit_id: Optional[UUID] = None,
     name: Optional[str] = None,
 ) -> bool:
@@ -182,7 +183,7 @@ async def delete_concurrency_limit(
 
 
 async def bulk_read_or_create_concurrency_limits(
-    session: sa.orm.Session,
+    session: AsyncSession,
     names: List[str],
 ):
     # Get all existing concurrency limits in `names`.
@@ -199,7 +200,7 @@ async def bulk_read_or_create_concurrency_limits(
             orm_models.ConcurrencyLimitV2(
                 **schemas.core.ConcurrencyLimitV2(
                     name=name, limit=1, active=False
-                ).dict()
+                ).model_dump()
             )
             for name in missing_names
         ]
@@ -214,7 +215,7 @@ async def bulk_read_or_create_concurrency_limits(
 @db_injector
 async def bulk_increment_active_slots(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit_ids: List[UUID],
     slots: int,
 ) -> bool:
@@ -243,7 +244,7 @@ async def bulk_increment_active_slots(
 @db_injector
 async def bulk_decrement_active_slots(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit_ids: List[UUID],
     slots: int,
     occupancy_seconds: Optional[float] = None,
@@ -294,7 +295,7 @@ async def bulk_decrement_active_slots(
 @db_injector
 async def bulk_update_denied_slots(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     concurrency_limit_ids: List[UUID],
     slots: int,
 ):

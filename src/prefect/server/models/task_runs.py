@@ -20,7 +20,7 @@ from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import (
-    AutonomousTaskPolicy,
+    BackgroundTaskPolicy,
     MinimalTaskPolicy,
 )
 from prefect.server.orchestration.global_policy import GlobalTaskPolicy
@@ -34,7 +34,7 @@ logger = get_logger("server")
 @db_injector
 async def create_task_run(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     task_run: schemas.core.TaskRun,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
 ):
@@ -61,8 +61,8 @@ async def create_task_run(
             db.insert(orm_models.TaskRun)
             .values(
                 created=now,
-                **task_run.dict(
-                    shallow=True, exclude={"state", "created"}, exclude_unset=True
+                **task_run.model_dump_for_orm(
+                    exclude={"state", "created"}, exclude_unset=True
                 ),
             )
             .on_conflict_do_nothing(
@@ -106,8 +106,8 @@ async def create_task_run(
         if model is None:
             model = orm_models.TaskRun(
                 created=now,
-                **task_run.dict(
-                    shallow=True, exclude={"state", "created"}, exclude_unset=True
+                **task_run.model_dump_for_orm(
+                    exclude={"state", "created"}, exclude_unset=True
                 ),
                 state=None,
             )
@@ -146,13 +146,13 @@ async def update_task_run(
         .where(orm_models.TaskRun.id == task_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
-        .values(**task_run.dict(shallow=True, exclude_unset=True))
+        .values(**task_run.model_dump_for_orm(exclude_unset=True))
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0
 
 
-async def read_task_run(session: sa.orm.Session, task_run_id: UUID):
+async def read_task_run(session: AsyncSession, task_run_id: UUID):
     """
     Read a task run by id.
 
@@ -170,12 +170,12 @@ async def read_task_run(session: sa.orm.Session, task_run_id: UUID):
 
 async def _apply_task_run_filters(
     query,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
 ):
     """
     Applies filters to a task run query as a combination of EXISTS subqueries.
@@ -242,7 +242,7 @@ async def _apply_task_run_filters(
 
 
 async def read_task_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -290,7 +290,7 @@ async def read_task_runs(
 
 
 async def count_task_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -370,7 +370,7 @@ async def count_task_runs_by_state(
     return counts
 
 
-async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
+async def delete_task_run(session: AsyncSession, task_run_id: UUID) -> bool:
     """
     Delete a task run by id.
 
@@ -389,7 +389,7 @@ async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
 
 
 async def set_task_run_state(
-    session: sa.orm.Session,
+    session: AsyncSession,
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
@@ -428,8 +428,8 @@ async def set_task_run_state(
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
 
-    if run.flow_run_id is None:
-        task_policy = AutonomousTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
+    if state.state_details.deferred:
+        task_policy = BackgroundTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
     elif force or task_policy is None:
         task_policy = MinimalTaskPolicy
 

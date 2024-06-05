@@ -7,11 +7,9 @@ name = "prefect-gitlab"
 description = "A Prefect collection for working with GitLab repositories."
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
-authors = [
-  {name = "Prefect Technologies, Inc.", email = "help@prefect.io"}
-]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
   "Natural Language :: English",
   "Intended Audience :: Developers",
@@ -25,9 +23,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "prefect>=2.13.5",
-    "python-gitlab>=3.12.0",
-    "tenacity>=8.2.3",
+  "prefect>=3.0.0rc1",
+  "python-gitlab>=3.12.0",
+  "tenacity>=8.2.3",
 ]
 dynamic = ["version"]
 
@@ -57,7 +55,7 @@ prefect_gitlab = "prefect_gitlab"
 [tool.setuptools_scm]
 version_file = "prefect_gitlab/_version.py"
 root = "../../.."
-tag_regex = "^prefect-gitlab-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-gitlab-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-gitlab-*[0-9]*"'
 

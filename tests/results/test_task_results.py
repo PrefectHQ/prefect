@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from prefect.exceptions import MissingResult
@@ -200,13 +202,19 @@ async def test_task_with_uncached_but_literal_result(prefect_client):
     ],
 )
 @pytest.mark.parametrize("source", ["child", "parent"])
-async def test_task_result_serializer(prefect_client, source, serializer):
-    @flow(result_serializer=serializer if source == "parent" else None)
+async def test_task_result_serializer(
+    prefect_client, source, serializer, tmp_path: Path
+):
+    @flow(
+        result_serializer=serializer if source == "parent" else None,
+        result_storage=LocalFileSystem(basepath=str(tmp_path)),
+    )
     def foo():
         return bar(return_state=True)
 
     @task(
         result_serializer=serializer if source == "child" else None,
+        result_storage=LocalFileSystem(basepath=str(tmp_path)),
         persist_result=True,
     )
     def bar():
@@ -248,8 +256,8 @@ async def test_task_result_storage(prefect_client, source):
     await assert_uses_result_storage(api_state, storage)
 
 
-async def test_task_result_static_storage_key(prefect_client):
-    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+async def test_task_result_static_storage_key(prefect_client, tmp_path):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
 
     @flow
     def foo():
@@ -271,8 +279,8 @@ async def test_task_result_static_storage_key(prefect_client):
     assert task_state.data.storage_key == "test"
 
 
-async def test_task_result_parameter_formatted_storage_key(prefect_client):
-    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+async def test_task_result_parameter_formatted_storage_key(prefect_client, tmp_path):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
 
     @flow
     def foo():
@@ -298,8 +306,8 @@ async def test_task_result_parameter_formatted_storage_key(prefect_client):
     assert task_state.data.storage_key == "1-foo-bar"
 
 
-async def test_task_result_flow_run_formatted_storage_key(prefect_client):
-    storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
+async def test_task_result_flow_run_formatted_storage_key(prefect_client, tmp_path):
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
 
     @flow
     def foo():

@@ -1,15 +1,9 @@
 import pydantic
 import pytest
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-from prefect.flows import flow
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import ValidationError
-else:
-    from pydantic import ValidationError
+from pydantic import ValidationError
 
 from prefect.context import FlowRunContext
+from prefect.flows import flow
 from prefect.input import (
     create_flow_run_input,
     create_flow_run_input_from_model,
@@ -26,7 +20,9 @@ class DemoModel(pydantic.BaseModel):
 
 @pytest.fixture
 def flow_run_context(flow_run, prefect_client):
-    with FlowRunContext.construct(flow_run=flow_run, client=prefect_client) as context:
+    with FlowRunContext.model_construct(
+        flow_run=flow_run, client=prefect_client
+    ) as context:
         yield context
 
 
@@ -103,7 +99,7 @@ class TestCreateFlowRunInput:
             await create_flow_run_input(key="key", value="value")
 
     async def test_validates_key(self, flow_run):
-        with pytest.raises(ValidationError, match="value must only contain"):
+        with pytest.raises(ValidationError):
             await create_flow_run_input(
                 key="invalid key *@&*$&", value="value", flow_run_id=flow_run.id
             )
