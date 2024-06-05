@@ -137,4 +137,4 @@ class Inputs(CachePolicy):
 DEFAULT = Default()
 INPUTS = Inputs()
 NONE = _None()
-TASK_DEF = TaskDef()
+TASKDEF = TaskDef()
