@@ -1,25 +1,34 @@
 import datetime
-import json
 import os
-from functools import partial
-from typing import Any, Dict, Generator, Optional, Set, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+)
 from uuid import UUID, uuid4
 
-import orjson
 import pendulum
-import pydantic.v1 as pydantic
-from packaging.version import Version
-from pydantic.v1 import BaseModel, Field, SecretField
-from pydantic.v1.json import custom_pydantic_encoder
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+)
+from pydantic_extra_types.pendulum_dt import DateTime
+from typing_extensions import Self
 
-from prefect.server.utilities.schemas.fields import DateTimeTZ
-from prefect.server.utilities.schemas.serializers import orjson_dumps_extra_compatible
+if TYPE_CHECKING:
+    from pydantic.main import IncEx
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)
 
 
-def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
+def get_class_fields_only(model: Type[BaseModel]) -> set:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
@@ -28,7 +37,7 @@ def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
     parent_class_fields = set()
 
     for base in model.__class__.__bases__:
-        if issubclass(base, pydantic.BaseModel):
+        if issubclass(base, BaseModel):
             parent_class_fields.update(base.__annotations__.keys())
 
     return (subclass_class_fields - parent_class_fields) | (
@@ -48,39 +57,15 @@ class PrefectBaseModel(BaseModel):
     subtle unintentional testing errors.
     """
 
-    class Config:
-        # extra attributes are forbidden in order to raise meaningful errors for
-        # bad API payloads
-        # We cannot load this setting through the normal pattern due to circular
-        # imports; instead just check if its a truthy setting directly
-        if os.getenv("PREFECT_TEST_MODE", "0").lower() in ["1", "true"]:
-            extra = "forbid"
-        else:
-            extra = "ignore"
-
-        json_encoders = {
-            # Uses secret fields and strange logic to avoid a circular import error
-            # for Secret dict in prefect.blocks.fields
-            SecretField: lambda v: v.dict() if getattr(v, "dict", None) else str(v)
-        }
-
-        pydantic_version = getattr(pydantic, "__version__", None)
-        if pydantic_version is not None and Version(pydantic_version) >= Version(
-            "1.9.2"
-        ):
-            copy_on_model_validation = "none"
-        else:
-            copy_on_model_validation = False
-
-        # Use orjson for serialization
-        json_loads = orjson.loads
-        json_dumps = orjson_dumps_extra_compatible
-
-    def _reset_fields(self) -> Set[str]:
-        """A set of field names that are reset when the PrefectBaseModel is copied.
-        These fields are also disregarded for equality comparisons.
-        """
-        return set()
+    _reset_fields: ClassVar[Set[str]] = set()
+    model_config = ConfigDict(
+        ser_json_timedelta="float",
+        extra=(
+            "ignore"
+            if os.getenv("PREFECT_TEST_MODE", "0").lower() not in ["true", "1"]
+            else "forbid"
+        ),
+    )
 
     def __eq__(self, other: Any) -> bool:
         """Equaltiy operator that ignores the resettable fields of the PrefectBaseModel.
@@ -88,127 +73,100 @@ class PrefectBaseModel(BaseModel):
         NOTE: this equality operator will only be applied if the PrefectBaseModel is
         the left-hand operand. This is a limitation of Python.
         """
-        copy_dict = self.dict(exclude=self._reset_fields())
+        copy_dict = self.model_dump(exclude=self._reset_fields)
         if isinstance(other, PrefectBaseModel):
-            return copy_dict == other.dict(exclude=other._reset_fields())
+            return copy_dict == other.model_dump(exclude=other._reset_fields)
         if isinstance(other, BaseModel):
-            return copy_dict == other.dict()
+            return copy_dict == other.model_dump()
         else:
             return copy_dict == other
 
-    def json(self, *args, include_secrets: bool = False, **kwargs) -> str:
-        """
-        Returns a representation of the model as JSON.
-
-        If `include_secrets=True`, then `SecretStr` and `SecretBytes` objects are
-        fully revealed. Otherwise they are obfuscated.
-
-        """
-        if include_secrets:
-            if "encoder" in kwargs:
-                raise ValueError(
-                    "Alternative encoder provided; can not set encoder for"
-                    " SecretFields."
-                )
-            kwargs["encoder"] = partial(
-                custom_pydantic_encoder,
-                {SecretField: lambda v: v.get_secret_value() if v else None},
-            )
-        return super().json(*args, **kwargs)
-
-    def dict(
-        self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
-    ) -> dict:
-        """Returns a representation of the model as a Python dictionary.
-
-        For more information on this distinction please see
-        https://pydantic-docs.helpmanual.io/usage/exporting_models/#dictmodel-and-iteration
-
-
-        Args:
-            shallow (bool, optional): If True (default), nested Pydantic fields
-                are also coerced to dicts. If false, they are left as Pydantic
-                models.
-            json_compatible (bool, optional): if True, objects are converted
-                into json-compatible representations, similar to calling
-                `json.loads(self.json())`. Not compatible with shallow=True.
-
-        Returns:
-            dict
-        """
-
-        if json_compatible and shallow:
-            raise ValueError(
-                "`json_compatible` can only be applied to the entire object."
-            )
-
-        # return a json-compatible representation of the object
-        elif json_compatible:
-            return json.loads(self.json(*args, **kwargs))
-
-        # if shallow wasn't requested, return the standard pydantic behavior
-        elif not shallow:
-            return super().dict(*args, **kwargs)
-
-        # if no options were requested, return simple dict transformation
-        # to apply shallow conversion
-        elif not args and not kwargs:
-            return dict(self)
-
-        # if options like include/exclude were provided, perform
-        # a full dict conversion then overwrite with any shallow
-        # differences
-        else:
-            deep_dict = super().dict(*args, **kwargs)
-            shallow_dict = dict(self)
-            for k, v in list(deep_dict.items()):
-                if isinstance(v, dict) and isinstance(shallow_dict[k], BaseModel):
-                    deep_dict[k] = shallow_dict[k]
-            return deep_dict
-
-    def copy(
-        self: T,
-        *,
-        update: Optional[Dict] = None,
-        reset_fields: bool = False,
-        **kwargs: Any,
-    ) -> T:
-        """
-        Duplicate a model.
-
-        Args:
-            update: values to change/add to the model copy
-            reset_fields: if True, reset the fields specified in `self._reset_fields`
-                to their default value on the new model
-            kwargs: kwargs to pass to `pydantic.BaseModel.copy`
-
-        Returns:
-            A new copy of the model
-        """
-        if reset_fields:
-            update = update or dict()
-            for field in self._reset_fields():
-                update.setdefault(field, self.__fields__[field].get_default())
-        return super().copy(update=update, **kwargs)
-
     def __rich_repr__(self):
         # Display all of the fields in the model if they differ from the default value
-        for name, field in self.__fields__.items():
+        for name, field in self.model_fields.items():
             value = getattr(self, name)
 
             # Simplify the display of some common fields
-            if field.type_ == UUID and value:
+            if field.annotation == UUID and value:
                 value = str(value)
             elif (
-                isinstance(field.type_, datetime.datetime)
+                isinstance(field.annotation, datetime.datetime)
                 and name == "timestamp"
                 and value
             ):
                 value = pendulum.instance(value).isoformat()
-            elif isinstance(field.type_, datetime.datetime) and value:
+            elif isinstance(field.annotation, datetime.datetime) and value:
                 value = pendulum.instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
+
+    def reset_fields(self: Self) -> Self:
+        """
+        Reset the fields of the model that are in the `_reset_fields` set.
+
+        Returns:
+            PrefectBaseModel: A new instance of the model with the reset fields.
+        """
+        return self.model_copy(
+            update={
+                field: self.model_fields[field].get_default(call_default_factory=True)
+                for field in self._reset_fields
+            }
+        )
+
+    def model_dump_for_orm(
+        self,
+        *,
+        include: "IncEx" = None,
+        exclude: "IncEx" = None,
+        by_alias: bool = False,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Prefect extension to `BaseModel.model_dump`.  Generate a Python dictionary
+        representation of the model suitable for passing to SQLAlchemy model
+        constructors, `INSERT` statements, etc.  The critical difference here is that
+        this method will return any nested BaseModel objects as `BaseModel` instances,
+        rather than serialized Python dictionaries.
+
+        Accepts the standard Pydantic `model_dump` arguments, except for `mode` (which
+        is always "python"), `round_trip`, and `warnings`.
+
+        Usage docs: https://docs.pydantic.dev/2.6/concepts/serialization/#modelmodel_dump
+
+        Args:
+            include: A list of fields to include in the output.
+            exclude: A list of fields to exclude from the output.
+            by_alias: Whether to use the field's alias in the dictionary key if defined.
+            exclude_unset: Whether to exclude fields that have not been explicitly set.
+            exclude_defaults: Whether to exclude fields that are set to their default
+                value.
+            exclude_none: Whether to exclude fields that have a value of `None`.
+
+        Returns:
+            A dictionary representation of the model, suitable for passing
+            to SQLAlchemy model constructors, INSERT statements, etc.
+        """
+        # TODO: this could be optimized by excluding any fields that we know we are
+        # going to replace because they are `BaseModel` instances.  This would involve
+        # understanding which fields would be included or excluded by model_dump so we
+        # could instruct Pydantic to exclude them up front.
+        deep = self.model_dump(
+            mode="python",
+            include=include,
+            exclude=exclude,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            context={"for_orm": True},
+        )
+        for k, v in self:
+            if k in deep and isinstance(v, BaseModel):
+                deep[k] = v
+        return deep
 
 
 class IDBaseModel(PrefectBaseModel):
@@ -218,10 +176,8 @@ class IDBaseModel(PrefectBaseModel):
     The ID is reset on copy() and not included in equality comparisons.
     """
 
+    _reset_fields: ClassVar[Set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
-
-    def _reset_fields(self) -> Set[str]:
-        return super()._reset_fields().union({"id"})
 
 
 class ORMBaseModel(IDBaseModel):
@@ -233,32 +189,13 @@ class ORMBaseModel(IDBaseModel):
     equality comparisons.
     """
 
-    class Config:
-        orm_mode = True
+    _reset_fields: ClassVar[Set[str]] = {"id", "created", "updated"}
 
-    created: Optional[DateTimeTZ] = Field(default=None, repr=False)
-    updated: Optional[DateTimeTZ] = Field(default=None, repr=False)
+    model_config = ConfigDict(from_attributes=True)
 
-    def _reset_fields(self) -> Set[str]:
-        return super()._reset_fields().union({"created", "updated"})
+    created: Optional[DateTime] = Field(default=None, repr=False)
+    updated: Optional[DateTime] = Field(default=None, repr=False)
 
 
 class ActionBaseModel(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
-
-    def __iter__(self):
-        # By default, `pydantic.BaseModel.__iter__` yields from `self.__dict__` directly
-        # instead  of going through `_iter`. We want tor retain our custom logic in
-        # `_iter` during `dict(model)` calls which is what Pydantic uses for
-        # `parse_obj(model)`
-        yield from self._iter(to_dict=True)
-
-    def _iter(self, *args, **kwargs) -> Generator[tuple, None, None]:
-        # Drop fields that are marked as `ignored` from json and dictionary outputs
-        exclude = kwargs.pop("exclude", None) or set()
-        for name, field in self.__fields__.items():
-            if field.field_info.extra.get("ignored"):
-                exclude.add(name)
-
-        return super()._iter(*args, **kwargs, exclude=exclude)
+    model_config: ConfigDict = ConfigDict(extra="forbid")

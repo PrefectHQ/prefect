@@ -1,14 +1,20 @@
 from typing import Any
 
-from pydantic.v1 import Field, SecretStr
+from pydantic import Field, SecretStr
+from pydantic_extra_types.pendulum_dt import DateTime
 
-from prefect._internal.schemas.fields import DateTimeTZ
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.core import Block
 
 
+@deprecated_class(
+    start_date="Jun 2024",
+    end_date="Jun 2025",
+    help="Use Variables to store json data instead.",
+)
 class JSON(Block):
     """
-    A block that represents JSON
+    A block that represents JSON. Deprecated, please use Variables to store JSON data instead.
 
     Attributes:
         value: A JSON-compatible value.
@@ -28,9 +34,14 @@ class JSON(Block):
     value: Any = Field(default=..., description="A JSON-compatible value.")
 
 
+@deprecated_class(
+    start_date="Jun 2024",
+    end_date="Jun 2025",
+    help="Use Variables to store string data instead.",
+)
 class String(Block):
     """
-    A block that represents a string
+    A block that represents a string. Deprecated, please use Variables to store string data instead.
 
     Attributes:
         value: A string value.
@@ -50,9 +61,14 @@ class String(Block):
     value: str = Field(default=..., description="A string value.")
 
 
+@deprecated_class(
+    start_date="Jun 2024",
+    end_date="Jun 2025",
+    help="Use Variables to store datetime data instead.",
+)
 class DateTime(Block):
     """
-    A block that represents a datetime
+    A block that represents a datetime. Deprecated, please use Variables to store datetime data instead.
 
     Attributes:
         value: An ISO 8601-compatible datetime value.
@@ -70,7 +86,7 @@ class DateTime(Block):
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/8b3da9a6621e92108b8e6a75b82e15374e170ff7-48x48.png"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime"
 
-    value: DateTimeTZ = Field(
+    value: DateTime = Field(
         default=...,
         description="An ISO 8601-compatible datetime value.",
     )

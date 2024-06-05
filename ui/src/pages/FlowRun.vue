@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="flow-run">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
+      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToRuns" />
     </template>
 
     <FlowRunGraphs v-if="flowRun && !isPending" :flow-run="flowRun" />
@@ -56,8 +56,6 @@
     FlowRunResults,
     FlowRunFilteredList,
     useFavicon,
-    useDeployment,
-    getSchemaValuesWithDefaultsJson,
     CopyableWrapper,
     isPendingStateType,
     useTabs,
@@ -70,18 +68,15 @@
   import { computed, watchEffect } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunGraphs from '@/components/FlowRunGraphs.vue'
-  import { useCan } from '@/compositions/useCan'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
 
-  const can = useCan()
 
   const router = useRouter()
   const flowRunId = useRouteParam('flowRunId')
 
   const { flowRun, subscription: flowRunSubscription } = useFlowRun(flowRunId, { interval: 5000 })
-  const deploymentId = computed(() => flowRun.value?.deploymentId)
-  const { deployment } = useDeployment(deploymentId)
+  const parameters = computed(() => stringify(flowRun.value?.parameters ?? {}))
 
   const isPending = computed(() => {
     return flowRun.value?.stateType ? isPendingStateType(flowRun.value.stateType) : true
@@ -102,11 +97,6 @@
   const tab = useRouteQueryParam('tab', 'Logs')
   const { tabs } = useTabs(computedTabs, tab)
 
-  const flowRunParameters = computed(() => flowRun.value?.parameters ?? {})
-  const deploymentSchema = computed(() => deployment.value?.parameterOpenApiSchema ?? {})
-  const parameters = computed(() => getSchemaValuesWithDefaultsJson(flowRunParameters.value, deploymentSchema.value))
-
-
   const parentFlowRunIds = computed(() => [flowRunId.value])
   const { filter: subflowsFilter } = useFlowRunsFilter({
     flowRuns: {
@@ -114,8 +104,8 @@
     },
   })
 
-  function goToFlowRuns(): void {
-    router.push(routes.flowRuns())
+  function goToRuns(): void {
+    router.push(routes.runs())
   }
 
   const stateType = computed(() => flowRun.value?.stateType)

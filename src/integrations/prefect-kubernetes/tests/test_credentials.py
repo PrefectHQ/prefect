@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict
 
+import pydantic
 import pytest
 import yaml
 from kubernetes_asyncio.client import (
@@ -16,12 +17,6 @@ from kubernetes_asyncio.client import (
 from kubernetes_asyncio.config.kube_config import list_kube_config_contexts
 from OpenSSL import crypto
 from prefect_kubernetes.credentials import KubernetesClusterConfig
-from pydantic.version import VERSION as PYDANTIC_VERSION
-
-if PYDANTIC_VERSION.startswith("2."):
-    import pydantic.v1 as pydantic
-else:
-    import pydantic
 
 
 def create_temp_self_signed_cert():
@@ -164,10 +159,7 @@ async def test_instantiation_from_str():
 async def test_instantiation_from_invalid_str():
     with pytest.raises(
         pydantic.ValidationError,
-        match=re.escape(
-            "1 validation error for KubernetesClusterConfig\nconfig\n  value is not a"
-            " valid dict (type=type_error.dict)"
-        ),
+        match="Input should be a valid dictionary",
     ):
         KubernetesClusterConfig(config="foo", context_name="docker-desktop")
 

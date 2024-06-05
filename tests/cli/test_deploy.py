@@ -25,6 +25,7 @@ from prefect.cli.deploy import (
     _initialize_deployment_triggers,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -43,12 +44,10 @@ from prefect.events import (
     Posture,
 )
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.infrastructure.container import DockerRegistry
 from prefect.server.schemas.actions import (
     BlockDocumentCreate,
     BlockSchemaCreate,
     BlockTypeCreate,
-    WorkPoolCreate,
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -60,7 +59,6 @@ from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
-from prefect.utilities.slugify import slugify
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -296,7 +294,7 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
 
     async def test_project_deploy_with_default_work_pool(
         self, project_dir, prefect_client
@@ -326,10 +324,10 @@ class TestProjectDeploy:
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
-        assert deployment.enforce_parameter_schema is False
+        assert deployment.enforce_parameter_schema
 
     async def test_project_deploy_with_no_deployment_file(
-        self, project_dir, prefect_client
+        self, project_dir, prefect_client: PrefectClient
     ):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -2925,7 +2923,7 @@ class TestMultiDeploy:
         assert deployment1.enforce_parameter_schema is True
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
-        assert deployment2.enforce_parameter_schema is False
+        assert deployment2.enforce_parameter_schema
 
         # Check if the third deployment was not created
         with pytest.raises(ObjectNotFound):
@@ -6489,335 +6487,6 @@ class TestDeployDockerPushSteps:
                 }
             }
         ]
-
-    async def test_prompt_push_docker_image_accepted_private_registry_use_existing_core_creds(
-        self, docker_work_pool, monkeypatch, mock_build_docker_image
-    ):
-        docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
-
-        # create a DockerRegistry block so we can use existing credentials
-        await DockerRegistry(
-            username="abc",
-            password="123",
-            registry_url="https://private.docker.com",
-        ).save(name=docker_registry_creds_name, overwrite=True)
-
-        assert await DockerRegistry.load(docker_registry_creds_name)
-
-        result = await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
-                f" -p {docker_work_pool.name}"
-            ),
-            user_input=(
-                # Accept build custom docker image
-                "y"
-                + readchar.key.ENTER
-                # Enter repo name
-                + "prefecthq/prefect"
-                + readchar.key.ENTER
-                # Default image_name
-                + readchar.key.ENTER
-                # Default tag
-                + readchar.key.ENTER
-                # Accept push to registry
-                + "y"
-                + readchar.key.ENTER
-                # Registry URL
-                + "https://private.docker.com"
-                + readchar.key.ENTER
-                # Accept private registry
-                + "y"
-                + readchar.key.ENTER
-                # Reject use prefect-docker
-                + "n"
-                + readchar.key.ENTER
-                # Accept use existing creds
-                + "y"
-                + readchar.key.ENTER
-                # Accept save configuration
-                + "y"
-                + readchar.key.ENTER
-            ),
-            expected_output_contains=[
-                "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
-                "Would you like to push this image to a remote registry?",
-                "Is this a private registry?",
-                (
-                    "Would you like use prefect-docker to manage Docker registry"
-                    " credentials?"
-                ),
-                "Would you like to use the existing Docker registry credentials",
-                "Would you like to save configuration for this deployment",
-            ],
-            expected_output_does_not_contain=["Installing prefect-docker..."],
-        )
-
-        assert result.exit_code == 0
-
-        with open("prefect.yaml", "r") as f:
-            config = yaml.safe_load(f)
-
-        assert len(config["deployments"]) == 2
-        assert config["deployments"][1]["name"] == "test-name"
-        assert config["deployments"][1]["build"] == [
-            {
-                "prefect_docker.deployments.steps.build_docker_image": {
-                    "id": "build-image",
-                    "requires": "prefect-docker>=0.3.1",
-                    "dockerfile": "auto",
-                    "image_name": (
-                        "https://private.docker.com/prefecthq/prefect/test-name"
-                    ),
-                    "tag": "latest",
-                }
-            }
-        ]
-
-        assert config["deployments"][1]["push"] == [
-            {
-                "prefect_docker.deployments.steps.push_docker_image": {
-                    "requires": "prefect-docker>=0.3.1",
-                    "image_name": "{{ build-image.image_name }}",
-                    "tag": "{{ build-image.tag }}",
-                    "credentials": (
-                        "{{ prefect.docker-registry.docker_registry_creds_name }}"
-                    ),
-                }
-            }
-        ]
-
-        with pytest.raises(ImportError):
-            import prefect_docker  # noqa
-
-    async def test_prompt_push_docker_image_accepted_private_registry_use_new_core_creds(
-        self, docker_work_pool, monkeypatch, mock_prompt, mock_build_docker_image
-    ):
-        # ensure the DockerRegistry block does not exist
-        docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
-        with pytest.raises(ValueError):
-            await DockerRegistry.load(docker_registry_creds_name)
-
-        result = await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
-                f" -p {docker_work_pool.name}"
-            ),
-            user_input=(
-                # Accept build custom docker image
-                "y"
-                + readchar.key.ENTER
-                # Enter repo name
-                + "prefecthq/prefect"
-                + readchar.key.ENTER
-                # Default image_name
-                + readchar.key.ENTER
-                # Default tag
-                + readchar.key.ENTER
-                # Accept push to registry
-                + "y"
-                + readchar.key.ENTER
-                # Registry URL
-                + "https://private.docker.com"
-                + readchar.key.ENTER
-                # Accept private registry
-                + "y"
-                + readchar.key.ENTER
-                # Reject use prefect-docker
-                + "n"
-                + readchar.key.ENTER
-                # Enter username
-                + "abc"
-                + readchar.key.ENTER
-                # Enter password
-                + "456"
-                + readchar.key.ENTER
-                # Accept save configuration
-                + "y"
-                + readchar.key.ENTER
-            ),
-            expected_output_contains=[
-                "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
-                "Would you like to push this image to a remote registry?",
-                "Is this a private registry?",
-                (
-                    "Would you like use prefect-docker to manage Docker registry"
-                    " credentials?"
-                ),
-                "Docker registry username",
-                "Would you like to save configuration for this deployment",
-            ],
-            expected_output_does_not_contain=[
-                "Would you like to use the existing Docker registry credentials",
-                "Installing prefect-docker...",
-            ],
-        )
-
-        assert result.exit_code == 0
-
-        with open("prefect.yaml", "r") as f:
-            config = yaml.safe_load(f)
-
-        assert len(config["deployments"]) == 2
-        assert config["deployments"][1]["name"] == "test-name"
-        assert config["deployments"][1]["build"] == [
-            {
-                "prefect_docker.deployments.steps.build_docker_image": {
-                    "id": "build-image",
-                    "requires": "prefect-docker>=0.3.1",
-                    "dockerfile": "auto",
-                    "image_name": (
-                        "https://private.docker.com/prefecthq/prefect/test-name"
-                    ),
-                    "tag": "latest",
-                }
-            }
-        ]
-
-        assert config["deployments"][1]["push"] == [
-            {
-                "prefect_docker.deployments.steps.push_docker_image": {
-                    "requires": "prefect-docker>=0.3.1",
-                    "image_name": "{{ build-image.image_name }}",
-                    "tag": "{{ build-image.tag }}",
-                    "credentials": (
-                        "{{ prefect.docker-registry.docker_registry_creds_name }}"
-                    ),
-                }
-            }
-        ]
-
-        new_block = await DockerRegistry.load(docker_registry_creds_name)
-
-        assert new_block.username == "abc"
-        assert new_block.password.get_secret_value() == "456"
-        assert new_block.registry_url == "https://private.docker.com"
-
-        with pytest.raises(ImportError):
-            import prefect_docker  # noqa
-
-    async def test_prompt_push_docker_image_accepted_private_registry_reject_use_existing_core_creds(
-        self, docker_work_pool, monkeypatch, mock_prompt, mock_build_docker_image
-    ):
-        docker_registry_creds_name = f"deployment-{slugify('test-name')}-{slugify(docker_work_pool.name)}-registry-creds"
-
-        # create a DockerRegistry block so we can reject existing credentials
-        docker_registry_block = DockerRegistry(
-            username="abc",
-            password="123",
-            registry_url="https://private.docker.com",
-        )
-        await docker_registry_block.save(
-            name=docker_registry_creds_name, overwrite=True
-        )
-
-        assert await DockerRegistry.load(docker_registry_creds_name)
-
-        result = await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
-                f" -p {docker_work_pool.name}"
-            ),
-            user_input=(
-                # Accept build custom docker image
-                "y"
-                + readchar.key.ENTER
-                # Enter repo name
-                + "prefecthq/prefect"
-                + readchar.key.ENTER
-                # Default image_name
-                + readchar.key.ENTER
-                # Default tag
-                + readchar.key.ENTER
-                # Accept push to registry
-                + "y"
-                + readchar.key.ENTER
-                # Registry URL
-                + "https://private2.docker.com"
-                + readchar.key.ENTER
-                # Accept private registry
-                + "y"
-                + readchar.key.ENTER
-                # Reject use prefect-docker
-                + "n"
-                + readchar.key.ENTER
-                # Reject use existing creds
-                + "n"
-                + readchar.key.ENTER
-                # Enter username
-                + "def"
-                + readchar.key.ENTER
-                # Enter password
-                + "456"
-                + readchar.key.ENTER
-                # Accept save configuration
-                + "y"
-                + readchar.key.ENTER
-            ),
-            expected_output_contains=[
-                "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
-                "Would you like to push this image to a remote registry?",
-                "Is this a private registry?",
-                (
-                    "Would you like use prefect-docker to manage Docker registry"
-                    " credentials?"
-                ),
-                "Would you like to use the existing Docker registry credentials",
-                "Docker registry username",
-                "Would you like to save configuration for this deployment",
-            ],
-            expected_output_does_not_contain=["Installing prefect-docker..."],
-        )
-
-        assert result.exit_code == 0
-
-        with open("prefect.yaml", "r") as f:
-            config = yaml.safe_load(f)
-
-        assert len(config["deployments"]) == 2
-        assert config["deployments"][1]["name"] == "test-name"
-        assert config["deployments"][1]["build"] == [
-            {
-                "prefect_docker.deployments.steps.build_docker_image": {
-                    "id": "build-image",
-                    "requires": "prefect-docker>=0.3.1",
-                    "dockerfile": "auto",
-                    "image_name": (
-                        "https://private2.docker.com/prefecthq/prefect/test-name"
-                    ),
-                    "tag": "latest",
-                }
-            }
-        ]
-
-        assert config["deployments"][1]["push"] == [
-            {
-                "prefect_docker.deployments.steps.push_docker_image": {
-                    "requires": "prefect-docker>=0.3.1",
-                    "image_name": "{{ build-image.image_name }}",
-                    "tag": "{{ build-image.tag }}",
-                    "credentials": (
-                        "{{ prefect.docker-registry.docker_registry_creds_name }}"
-                    ),
-                }
-            }
-        ]
-
-        new_block = await DockerRegistry.load(docker_registry_creds_name)
-
-        assert new_block.username == "def"
-        assert new_block.password != "123"
-        assert new_block.password.get_secret_value() == "456"
-        assert new_block.registry_url == "https://private2.docker.com"
-
-        with pytest.raises(ImportError):
-            import prefect_docker  # noqa
 
 
 class TestDeployingUsingCustomPrefectFile:

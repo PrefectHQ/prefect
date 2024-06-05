@@ -1,22 +1,14 @@
 import copy
 from datetime import timedelta
-from typing import Dict, Generator, List, Literal
+from typing import Any, Dict, Generator, List, Literal
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
+from pydantic import Field, ValidationInfo, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from prefect._internal.pydantic import HAS_PYDANTIC_V2
-
-if HAS_PYDANTIC_V2:
-    from pydantic.v1 import Field, validator
-    from pydantic.v1.fields import ModelField
-else:
-    from pydantic import Field, validator
-    from pydantic.fields import ModelField
 
 from prefect.server.api.clients import OrchestrationClient
 from prefect.server.database.orm_models import (
@@ -68,9 +60,9 @@ class DemoAction(actions.JinjaTemplateAction):
     type: Literal["test-action"] = "test-action"
     template: str = Field()
 
-    @validator("template")
-    def is_valid_template(cls, value: str, field: ModelField) -> str:
-        return actions.JinjaTemplateAction.validate_template(value, field.name)
+    @field_validator("template")
+    def is_valid_template(cls, value: str, info: ValidationInfo) -> str:
+        return actions.JinjaTemplateAction.validate_template(value, info.field_name)
 
     async def act(self, triggered_action: TriggeredAction) -> None:
         return None
@@ -430,7 +422,7 @@ async def test_flow_run_state_event_missing_state_data_uses_api_state(
 
     # Change the resource to one that does not have any of the state
     # information.
-    event.resource = Resource.parse_obj(
+    event.resource = Resource.model_validate(
         {"prefect.resource.id": f"prefect.flow-run.{take_a_picture.id}"}
     )
 
@@ -475,7 +467,7 @@ async def test_flow_run_state_event_malformed_uses_api_state(
     assert take_a_picture.state
 
     # Change the resource to one that has malformed state information.
-    event.resource = Resource.parse_obj(
+    event.resource = Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{take_a_picture.id}",
             "prefect.state-message": "",
@@ -524,7 +516,7 @@ async def test_flow_run_state_comes_from_event_resource_empty_message(
     assert event
     assert take_a_picture.state
 
-    event.resource = Resource.parse_obj(
+    event.resource = Resource.model_validate(
         {
             "prefect.resource.id": f"prefect.flow-run.{take_a_picture.id}",
             "prefect.state-message": "",
@@ -739,7 +731,9 @@ async def test_get_object_from_orion_null_resource(
 async def test_get_object_from_orion_resource_with_invalid_uuid(
     orchestration_client: OrchestrationClient, woodchonk_triggered: TriggeredAction
 ):
-    resource = Resource.parse_obj({"prefect.resource.id": "prefect.flow-run.thing"})
+    resource = Resource.model_validate(
+        {"prefect.resource.id": "prefect.flow-run.thing"}
+    )
     action = DemoAction(template="")
     assert (
         await action._get_object_from_prefect_api(
@@ -752,7 +746,7 @@ async def test_get_object_from_orion_resource_with_invalid_uuid(
 async def test_get_object_from_orion_resource_with_unknown_kind(
     orchestration_client: OrchestrationClient, woodchonk_triggered: TriggeredAction
 ):
-    resource = Resource.parse_obj({"prefect.resource.id": "prefect.unknown.thing"})
+    resource = Resource.model_validate({"prefect.resource.id": "prefect.unknown.thing"})
     action = DemoAction(template="")
     assert (
         await action._get_object_from_prefect_api(
@@ -765,7 +759,7 @@ async def test_get_object_from_orion_resource_with_unknown_kind(
 async def test_get_object_from_orion_resource_missing_from_api(
     orchestration_client: OrchestrationClient, woodchonk_triggered: TriggeredAction
 ):
-    resource = Resource.parse_obj(
+    resource = Resource.model_validate(
         {"prefect.resource.id": f"prefect.flow-run.{uuid4()}"}
     )
     action = DemoAction(template="")
@@ -782,7 +776,7 @@ async def test_get_object_returns_object(
     take_a_picture: FlowRun,
     woodchonk_triggered: TriggeredAction,
 ):
-    resource = Resource.parse_obj(
+    resource = Resource.model_validate(
         {"prefect.resource.id": f"prefect.flow-run.{take_a_picture.id}"}
     )
     action = DemoAction(template="")
@@ -932,6 +926,34 @@ async def test_workspace_variables_may_be_accessed_as_a_dict(
     action = DemoAction(template="{{ variables['hello'] }}")
     (rendered,) = await action.render(woodchonk_triggered)
     assert rendered == "world!"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "string-value",
+        '"string-value"',
+        123,
+        12.3,
+        True,
+        False,
+        None,
+        {"key": "value"},
+        ["value1", "value2"],
+        {"key": ["value1", "value2"]},
+    ],
+)
+async def test_json_workspace_variables(
+    session: AsyncSession,
+    woodchonk_triggered: TriggeredAction,
+    value: Any,
+):
+    await variables.create_variable(session, VariableCreate(name="my_var", value=value))
+    await session.commit()
+
+    action = DemoAction(template="{{ variables['my_var'] }} {{ variables.my_var }}")
+    (rendered,) = await action.render(woodchonk_triggered)
+    assert rendered == f"{value} {value}"
 
 
 async def test_environment_is_immutable(woodchonk_triggered: TriggeredAction):
@@ -1370,8 +1392,8 @@ async def test_composite_firings_are_available_in_templates(
     Child 2: {{ firings[2].trigger.id }}
     """
 
-    first_child = tell_me_about_the_culprit.trigger.copy(update={"id": uuid4()})
-    second_child = tell_me_about_the_culprit.trigger.copy(update={"id": uuid4()})
+    first_child = tell_me_about_the_culprit.trigger.model_copy(update={"id": uuid4()})
+    second_child = tell_me_about_the_culprit.trigger.model_copy(update={"id": uuid4()})
 
     triggered_action = TriggeredAction(
         automation=tell_me_about_the_culprit,
@@ -1427,8 +1449,8 @@ async def test_composite_triggering_events_are_available_in_templates(
     Event 2: {{ events[1].id }}
     """
 
-    first_event = picture_taken.copy(update={"id": uuid4()})
-    second_event = picture_taken.copy(update={"id": uuid4()})
+    first_event = picture_taken.model_copy(update={"id": uuid4()})
+    second_event = picture_taken.model_copy(update={"id": uuid4()})
 
     triggered_action = TriggeredAction(
         automation=tell_me_about_the_culprit,

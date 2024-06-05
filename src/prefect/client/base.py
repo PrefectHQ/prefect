@@ -25,8 +25,8 @@ import anyio
 import httpx
 from asgi_lifespan import LifespanManager
 from httpx import HTTPStatusError, Request, Response
-from prefect._vendor.starlette import status
-from prefect._vendor.starlette.testclient import TestClient
+from starlette import status
+from starlette.testclient import TestClient
 from typing_extensions import Self
 
 import prefect
@@ -390,7 +390,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
 
                 raise
 
-            token: CsrfToken = CsrfToken.parse_obj(token_response.json())
+            token: CsrfToken = CsrfToken.model_validate(token_response.json())
             self.csrf_token = token.token
             self.csrf_token_expiration = token.expiration
 
@@ -604,7 +604,7 @@ class PrefectHttpxSyncClient(httpx.Client):
 
                 raise
 
-            token: CsrfToken = CsrfToken.parse_obj(token_response.json())
+            token: CsrfToken = CsrfToken.model_validate(token_response.json())
             self.csrf_token = token.token
             self.csrf_token_expiration = token.expiration
 

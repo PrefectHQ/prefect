@@ -33,9 +33,14 @@ import orjson
 import pendulum
 from cachetools import TTLCache
 from httpx import Response
-from pydantic.v1 import Field, PrivateAttr, root_validator, validator
-from pydantic.v1.fields import ModelField
-from typing_extensions import TypeAlias
+from pydantic import (
+    Field,
+    PrivateAttr,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
+from typing_extensions import Self, TypeAlias
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
@@ -74,6 +79,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
+from prefect.types import StrictVariableValue
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -184,7 +190,7 @@ class Action(PrefectBaseModel, abc.ABC):
         """Common logging context for all actions"""
         return {
             "automation": str(triggered_action.automation.id),
-            "action": self.dict(json_compatible=True),
+            "action": self.model_dump(mode="json"),
             "triggering_event": (
                 {
                     "id": triggered_action.triggering_event.id,
@@ -296,7 +302,7 @@ def _id_of_first_resource_of_kind(event: "Event", expected_kind: str) -> Optiona
     return None
 
 
-WorkspaceVariables: TypeAlias = Dict[str, str]
+WorkspaceVariables: TypeAlias = Dict[str, StrictVariableValue]
 TemplateContextObject: TypeAlias = Union[PrefectBaseModel, WorkspaceVariables, None]
 
 
@@ -358,7 +364,7 @@ class JinjaTemplateAction(ExternalDataAction):
         triggered_action: "TriggeredAction",
         resource: Optional["Resource"] = None,
     ) -> PrefectBaseModel:
-        object = model.parse_obj(data)
+        object = model.model_validate(data)
 
         if isinstance(object, FlowRunResponse) or isinstance(object, TaskRun):
             # The flow/task run was fetched from the API, but between when its
@@ -560,16 +566,16 @@ class DeploymentAction(Action):
         None, description="The identifier of the deployment"
     )
 
-    @root_validator
-    def selected_deployment_requires_id(cls, values):
-        wants_selected_deployment = values.get("source") == "selected"
-        has_deployment_id = bool(values.get("deployment_id"))
+    @model_validator(mode="after")
+    def selected_deployment_requires_id(self) -> Self:
+        wants_selected_deployment = self.source == "selected"
+        has_deployment_id = bool(self.deployment_id)
         if wants_selected_deployment != has_deployment_id:
             raise ValueError(
                 "deployment_id is "
                 + ("not allowed" if has_deployment_id else "required")
             )
-        return values
+        return self
 
     async def deployment_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":
@@ -596,7 +602,7 @@ class DeploymentCommandAction(DeploymentAction, ExternalDataAction):
         deployment_id = await self.deployment_id_to_use(triggered_action)
 
         self._resulting_related_resources.append(
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.deployment.{deployment_id}",
                     "prefect.resource.role": "target",
@@ -679,10 +685,10 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         response = await orchestration.create_flow_run(deployment_id, flow_run_create)
 
         if response.status_code < 300:
-            flow_run = FlowRunResponse.parse_obj(response.json())
+            flow_run = FlowRunResponse.model_validate(response.json())
 
             self._resulting_related_resources.append(
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
                         "prefect.resource.role": "flow-run",
@@ -704,9 +710,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
         return response
 
-    @validator("parameters")
+    @field_validator("parameters")
     def validate_parameters(
-        cls, value: Optional[Dict[str, Any]], field: ModelField
+        cls, value: Optional[Dict[str, Any]], field
     ) -> Optional[Dict[str, Any]]:
         if not value:
             return value
@@ -791,7 +797,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         variable_names = [
             p.variable_name for p in placeholders if isinstance(p, WorkspaceVariable)
         ]
-        workspace_variables: Dict[str, str] = {}
+        workspace_variables: Dict[str, StrictVariableValue] = {}
         if variable_names:
             async with await self.orchestration_client(triggered_action) as client:
                 workspace_variables = await client.read_workspace_variables(
@@ -918,7 +924,7 @@ class FlowRunStateChangeAction(ExternalDataAction):
         flow_run_id = await self.flow_run_to_change(triggered_action)
 
         self._resulting_related_resources.append(
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
                     "prefect.resource.role": "target",
@@ -943,7 +949,7 @@ class FlowRunStateChangeAction(ExternalDataAction):
             if response.status_code >= 300:
                 raise ActionFailed(self.reason_from_response(response))
 
-            result = OrchestrationResult.parse_obj(response.json())
+            result = OrchestrationResult.model_validate(response.json())
             if not isinstance(result.details, StateAcceptDetails):
                 raise ActionFailed(f"Failed to set state: {result.details.reason}")
 
@@ -1022,7 +1028,8 @@ class CallWebhook(JinjaTemplateAction):
         description="An optional templatable payload to send when calling the webhook.",
     )
 
-    @validator("payload", pre=True)
+    @field_validator("payload", mode="before")
+    @classmethod
     def ensure_payload_is_a_string(
         cls, value: Union[str, Dict[str, Any], None]
     ) -> Optional[str]:
@@ -1038,7 +1045,8 @@ class CallWebhook(JinjaTemplateAction):
 
         return orjson.dumps(value, option=orjson.OPT_INDENT_2).decode()
 
-    @validator("payload")
+    @field_validator("payload")
+    @classmethod
     def validate_payload_templates(cls, value: Optional[str]) -> Optional[str]:
         """
         Validate user-provided payload template.
@@ -1059,7 +1067,7 @@ class CallWebhook(JinjaTemplateAction):
                 raise ActionFailed(self.reason_from_response(response))
 
             try:
-                block_document = BlockDocument.parse_obj(response.json())
+                block_document = BlockDocument.model_validate(response.json())
                 block = Block._from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The webhook block was invalid: {e!r}")
@@ -1068,14 +1076,14 @@ class CallWebhook(JinjaTemplateAction):
                 raise ActionFailed("The referenced block was not a webhook block")
 
             self._resulting_related_resources += [
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
                         "prefect.resource.role": "block",
                         "prefect.resource.name": block_document.name,
                     }
                 ),
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
                         "prefect.resource.role": "block-type",
@@ -1119,9 +1127,9 @@ class SendNotification(JinjaTemplateAction):
     subject: str = Field("Prefect automated notification")
     body: str = Field(description="The text of the notification to send")
 
-    @validator("subject", "body")
-    def is_valid_template(cls, value: str, field: ModelField) -> str:
-        return cls.validate_template(value, field.name)
+    @field_validator("subject", "body")
+    def is_valid_template(cls, value: str, info: ValidationInfo) -> str:
+        return cls.validate_template(value, info.field_name)
 
     async def _get_notification_block(
         self, triggered_action: "TriggeredAction"
@@ -1132,7 +1140,7 @@ class SendNotification(JinjaTemplateAction):
                 raise ActionFailed(self.reason_from_response(response))
 
             try:
-                block_document = BlockDocument.parse_obj(response.json())
+                block_document = BlockDocument.model_validate(response.json())
                 block = Block._from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The notification block was invalid: {e!r}")
@@ -1141,14 +1149,14 @@ class SendNotification(JinjaTemplateAction):
                 raise ActionFailed("The referenced block was not a notification block")
 
             self._resulting_related_resources += [
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-document.{self.block_document_id}",
                         "prefect.resource.role": "block",
                         "prefect.resource.name": block_document.name,
                     }
                 ),
-                RelatedResource.parse_obj(
+                RelatedResource.model_validate(
                     {
                         "prefect.resource.id": f"prefect.block-type.{block.get_block_type_slug()}",
                         "prefect.resource.role": "block-type",
@@ -1193,15 +1201,15 @@ class WorkPoolAction(Action):
         description="The identifier of the work pool to pause",
     )
 
-    @root_validator
-    def selected_work_pool_requires_id(cls, values):
-        wants_selected_work_pool = values.get("source") == "selected"
-        has_work_pool_id = bool(values.get("work_pool_id"))
+    @model_validator(mode="after")
+    def selected_work_pool_requires_id(self) -> Self:
+        wants_selected_work_pool = self.source == "selected"
+        has_work_pool_id = bool(self.work_pool_id)
         if wants_selected_work_pool != has_work_pool_id:
             raise ValueError(
                 "work_pool_id is " + ("not allowed" if has_work_pool_id else "required")
             )
-        return values
+        return self
 
     async def work_pool_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":
@@ -1242,7 +1250,7 @@ class WorkPoolCommandAction(WorkPoolAction, ExternalDataAction):
         work_pool = await self.target_work_pool(triggered_action)
 
         self._resulting_related_resources += [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                     "prefect.resource.name": work_pool.name,
@@ -1326,16 +1334,16 @@ class WorkQueueAction(Action):
         None, description="The identifier of the work queue to pause"
     )
 
-    @root_validator
-    def selected_work_queue_requires_id(cls, values):
-        wants_selected_work_queue = values.get("source") == "selected"
-        has_work_queue_id = bool(values.get("work_queue_id"))
+    @model_validator(mode="after")
+    def selected_work_queue_requires_id(self) -> Self:
+        wants_selected_work_queue = self.source == "selected"
+        has_work_queue_id = bool(self.work_queue_id)
         if wants_selected_work_queue != has_work_queue_id:
             raise ValueError(
                 "work_queue_id is "
                 + ("not allowed" if has_work_queue_id else "required")
             )
-        return values
+        return self
 
     async def work_queue_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":
@@ -1360,7 +1368,7 @@ class WorkQueueCommandAction(WorkQueueAction, ExternalDataAction):
         work_queue_id = await self.work_queue_id_to_use(triggered_action)
 
         self._resulting_related_resources += [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.work-queue.{work_queue_id}",
                     "prefect.resource.role": "target",
@@ -1445,16 +1453,16 @@ class AutomationAction(Action):
         None, description="The identifier of the automation to act on"
     )
 
-    @root_validator
-    def selected_automation_requires_id(cls, values):
-        wants_selected_automation = values.get("source") == "selected"
-        has_automation_id = bool(values.get("automation_id"))
+    @model_validator(mode="after")
+    def selected_automation_requires_id(self) -> Self:
+        wants_selected_automation = self.source == "selected"
+        has_automation_id = bool(self.automation_id)
         if wants_selected_automation != has_automation_id:
             raise ValueError(
                 "automation_id is "
                 + ("not allowed" if has_automation_id else "required")
             )
-        return values
+        return self
 
     async def automation_id_to_use(self, triggered_action: "TriggeredAction") -> UUID:
         if self.source == "selected":
@@ -1479,7 +1487,7 @@ class AutomationCommandAction(AutomationAction, ExternalDataAction):
         automation_id = await self.automation_id_to_use(triggered_action)
 
         self._resulting_related_resources += [
-            RelatedResource.parse_obj(
+            RelatedResource.model_validate(
                 {
                     "prefect.resource.id": f"prefect.automation.{automation_id}",
                     "prefect.resource.role": "target",
@@ -1587,7 +1595,7 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
         if not message.data:
             return
 
-        triggered_action = TriggeredAction.parse_raw(message.data)
+        triggered_action = TriggeredAction.model_validate_json(message.data)
         action = triggered_action.action
 
         if await action_has_already_happened(triggered_action.id):

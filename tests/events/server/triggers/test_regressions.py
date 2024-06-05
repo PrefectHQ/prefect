@@ -1,8 +1,7 @@
 import asyncio
 import random
-import unittest.mock
 from datetime import timedelta
-from typing import List
+from typing import Callable, List, Union
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -131,6 +130,7 @@ async def test_alerts_work_queue_unhealthy(
     work_queue,
     work_queue_health_unhealthy: List[ReceivedEvent],
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: pendulum.DateTime,
 ):
     assert isinstance(unhealthy_work_queue_automation.trigger, EventTrigger)
@@ -150,9 +150,8 @@ async def test_alerts_work_queue_unhealthy(
         frozen_time + timedelta(hours=2),
     )
 
-    act.assert_awaited_once_with(
-        Firing.construct(
-            id=unittest.mock.ANY,
+    assert_acted_with(
+        Firing(
             trigger=unhealthy_work_queue_automation.trigger,
             trigger_states={TriggerState.Triggered},
             triggered=frozen_time,  # type: ignore
@@ -160,7 +159,7 @@ async def test_alerts_work_queue_unhealthy(
                 "prefect.resource.id": f"prefect.work-queue.{work_queue.id}"
             },
             triggering_event=work_queue_health_unhealthy[-1],
-        )
+        ),
     )
 
 
@@ -596,6 +595,7 @@ async def rapid_fire_automation(
 
 async def test_rapid_fire_events(
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     start_of_test: pendulum.DateTime,
     rapid_fire_automation: Automation,
     automations_session: AsyncSession,
@@ -624,21 +624,17 @@ async def test_rapid_fire_events(
     await asyncio.gather(*[triggers.reactive_evaluation(event) for event in events])
 
     assert act.await_count == len(events)
-    act.assert_has_awaits(
+    assert_acted_with(
         [
-            mock.call(
-                Firing.construct(
-                    id=unittest.mock.ANY,
-                    trigger=rapid_fire_automation.trigger,
-                    trigger_states={TriggerState.Triggered},
-                    triggered=frozen_time,  # type: ignore
-                    triggering_labels={},
-                    triggering_event=event,
-                )
+            Firing(
+                trigger=rapid_fire_automation.trigger,
+                trigger_states={TriggerState.Triggered},
+                triggered=frozen_time,  # type: ignore
+                triggering_labels={},
+                triggering_event=event,
             )
             for event in events
         ],
-        any_order=True,
     )
 
 

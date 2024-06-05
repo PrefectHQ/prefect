@@ -6,7 +6,8 @@ import asyncio
 from logging import Logger
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 from prefect_databricks import DatabricksCredentials
 from prefect_databricks.jobs import (
     jobs_runs_get,
@@ -253,7 +254,7 @@ async def jobs_runs_submit_and_wait_for_completion(
     logger = get_run_logger()
 
     # submit the jobs runs
-    multi_task_jobs_runs_future = await jobs_runs_submit.submit(
+    multi_task_jobs_runs_future = jobs_runs_submit.submit(
         databricks_credentials=databricks_credentials,
         tasks=tasks,
         run_name=run_name,
@@ -263,7 +264,7 @@ async def jobs_runs_submit_and_wait_for_completion(
         access_control_list=access_control_list,
         **jobs_runs_submit_kwargs,
     )
-    multi_task_jobs_runs = await multi_task_jobs_runs_future.result()
+    multi_task_jobs_runs = multi_task_jobs_runs_future.result()
     multi_task_jobs_runs_id = multi_task_jobs_runs["run_id"]
 
     # wait for all the jobs runs to complete in a separate flow
@@ -288,11 +289,11 @@ async def jobs_runs_submit_and_wait_for_completion(
             for task in jobs_runs_metadata["tasks"]:
                 task_key = task["task_key"]
                 task_run_id = task["run_id"]
-                task_run_output_future = await jobs_runs_get_output.submit(
+                task_run_output_future = jobs_runs_get_output.submit(
                     run_id=task_run_id,
                     databricks_credentials=databricks_credentials,
                 )
-                task_run_output = await task_run_output_future.result()
+                task_run_output = task_run_output_future.result()
                 task_run_notebook_output = task_run_output.get("notebook_output", {})
                 task_notebook_outputs[task_key] = task_run_notebook_output
             logger.info(
@@ -449,14 +450,14 @@ async def jobs_runs_wait_for_completion(
     jobs_status = {}
     tasks_status = {}
     while seconds_waited_for_run_completion <= max_wait_seconds:
-        jobs_runs_metadata_future = await jobs_runs_get.submit(
+        jobs_runs_metadata_future = jobs_runs_get.submit(
             run_id=multi_task_jobs_runs_id,
             databricks_credentials=databricks_credentials,
             wait_for=wait_for,
         )
         wait_for = [jobs_runs_metadata_future]
 
-        jobs_runs_metadata = await jobs_runs_metadata_future.result()
+        jobs_runs_metadata = jobs_runs_metadata_future.result()
         jobs_status = _update_and_log_state_changes(
             jobs_status, jobs_runs_metadata, logger, "Job"
         )

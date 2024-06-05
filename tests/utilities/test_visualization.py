@@ -153,16 +153,16 @@ async def test_flow_visualize_doesnt_support_task_map():
         await add_flow.visualize()
 
 
-async def test_flow_visualize_doesnt_support_task_submit():
+async def test_flow_visualize_doesnt_support_task_apply_async():
     @task
     def add_one(n):
         return n + 1
 
     @flow
     def add_flow():
-        add_one.submit(1)
+        add_one.apply_async(1)
 
-    with pytest.raises(VisualizationUnsupportedError, match="task.submit()"):
+    with pytest.raises(VisualizationUnsupportedError, match="task.apply_async()"):
         await add_flow.visualize()
 
 
@@ -259,7 +259,8 @@ class TestFlowVisualise:
     )
     def test_visualize_does_not_raise(self, test_flow, monkeypatch):
         monkeypatch.setattr(
-            "prefect.flows.visualize_task_dependencies", MagicMock(return_value=None)
+            "prefect.utilities.visualization.visualize_task_dependencies",
+            MagicMock(return_value=None),
         )
 
         test_flow.visualize()
@@ -332,11 +333,16 @@ class TestFlowVisualise:
             ),
         ],
     )
-    def test_visualize_graph_contents(self, test_flow, expected_nodes, monkeypatch):
+    async def test_visualize_graph_contents(
+        self, test_flow, expected_nodes, monkeypatch
+    ):
         mock_visualize = MagicMock(return_value=None)
-        monkeypatch.setattr("prefect.flows.visualize_task_dependencies", mock_visualize)
+        monkeypatch.setattr(
+            "prefect.utilities.visualization.visualize_task_dependencies",
+            mock_visualize,
+        )
 
-        test_flow.visualize()
+        await test_flow.visualize()
         graph = mock_visualize.call_args[0][0]
 
         actual_nodes = set(graph.body)

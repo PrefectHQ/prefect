@@ -18,8 +18,11 @@ from rich.text import Text
 
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
-from prefect.client.schemas.actions import BlockDocumentCreate, WorkPoolCreate
-from prefect.client.schemas.objects import MinimalDeploymentSchedule
+from prefect.client.schemas.actions import (
+    BlockDocumentCreate,
+    DeploymentScheduleCreate,
+    WorkPoolCreate,
+)
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -32,7 +35,6 @@ from prefect.deployments.base import (
 )
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.infrastructure.container import DockerRegistry
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
     PREFECT_UI_URL,
@@ -203,7 +205,6 @@ def prompt_interval_schedule(console):
     Prompt the user for an interval in seconds.
     """
     default_seconds = 3600
-    # The interval value must be a timedelta object in order to pass validation as a `PositiveDuration` type in `IntervalSchedule`.
     default_duration = timedelta(seconds=default_seconds)
 
     # We show the default in the prompt message rather than enabling `show_default=True` here because `rich` displays timedeltas in hours
@@ -365,7 +366,7 @@ def prompt_schedule_type(console):
     return selection["type"]
 
 
-def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
+def prompt_schedules(console) -> List[DeploymentScheduleCreate]:
     """
     Prompt the user to configure schedules for a deployment.
     """
@@ -402,7 +403,7 @@ def prompt_schedules(console) -> List[MinimalDeploymentSchedule]:
                     {"max_active_runs": max_active_runs, "catchup": catchup}
                 )
 
-            schedules.append(MinimalDeploymentSchedule(**minimal_schedule_kwargs))
+            schedules.append(DeploymentScheduleCreate(**minimal_schedule_kwargs))
 
             add_schedule = confirm(
                 "Would you like to add another schedule?", default=False
@@ -419,7 +420,7 @@ async def prompt_select_work_pool(
 ) -> str:
     work_pools = await client.read_work_pools()
     work_pool_options = [
-        work_pool.dict()
+        work_pool.model_dump()
         for work_pool in work_pools
         if work_pool.type != "prefect-agent"
     ]
@@ -551,49 +552,46 @@ async def prompt_push_custom_docker_image(
             push_step[
                 "credentials"
             ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
-        else:
-            credentials_block = DockerRegistry
-            push_step[
-                "credentials"
-            ] = "{{ prefect.docker-registry.docker_registry_creds_name }}"
-        docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
-        create_new_block = False
-        try:
-            await credentials_block.load(docker_registry_creds_name)
-            if not confirm(
-                (
-                    "Would you like to use the existing Docker registry credentials"
-                    f" block {docker_registry_creds_name}?"
-                ),
-                console=console,
-                default=True,
-            ):
-                create_new_block = True
-        except ValueError:
-            create_new_block = True
-
-        if create_new_block:
-            docker_credentials["username"] = prompt(
-                "Docker registry username", console=console
-            )
+            docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
+            create_new_block = False
             try:
-                docker_credentials["password"] = prompt(
-                    "Docker registry password",
+                await credentials_block.load(docker_registry_creds_name)
+                if not confirm(
+                    (
+                        "Would you like to use the existing Docker registry credentials"
+                        f" block {docker_registry_creds_name}?"
+                    ),
                     console=console,
-                    password=True,
-                )
-            except GetPassWarning:
-                docker_credentials["password"] = prompt(
-                    "Docker registry password",
-                    console=console,
-                )
+                    default=True,
+                ):
+                    create_new_block = True
+            except ValueError:
+                create_new_block = True
 
-            new_creds_block = credentials_block(
-                username=docker_credentials["username"],
-                password=docker_credentials["password"],
-                registry_url=docker_credentials["registry_url"],
-            )
-            await new_creds_block.save(name=docker_registry_creds_name, overwrite=True)
+            if create_new_block:
+                docker_credentials["username"] = prompt(
+                    "Docker registry username", console=console
+                )
+                try:
+                    docker_credentials["password"] = prompt(
+                        "Docker registry password",
+                        console=console,
+                        password=True,
+                    )
+                except GetPassWarning:
+                    docker_credentials["password"] = prompt(
+                        "Docker registry password",
+                        console=console,
+                    )
+
+                new_creds_block = credentials_block(
+                    username=docker_credentials["username"],
+                    password=docker_credentials["password"],
+                    registry_url=docker_credentials["registry_url"],
+                )
+                await new_creds_block.save(
+                    name=docker_registry_creds_name, overwrite=True
+                )
 
     return {
         "prefect_docker.deployments.steps.push_docker_image": push_step

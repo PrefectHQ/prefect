@@ -23,24 +23,24 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=2.16.6",
+  "prefect>=3.0.0rc1",
   "dbt-core>=1.7.0",
-  "prefect_shell>=0.1.4",
+  "prefect_shell>=0.3.0rc1",
   "sgqlc>=16.0.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-snowflake = ["prefect-snowflake>=0.2.4", "dbt-snowflake"]
-bigquery = ["prefect-gcp[bigquery]>=0.1.8", "dbt-bigquery"]
-postgres = ["prefect-sqlalchemy>=0.2.1", "dbt-postgres"]
+snowflake = ["prefect-snowflake>=0.28.0rc1", "dbt-snowflake"]
+bigquery = ["prefect-gcp[bigquery]>=0.6.0rc1", "dbt-bigquery"]
+postgres = ["prefect-sqlalchemy>=0.5.0rc1", "dbt-postgres"]
 all_extras = [
   "dbt-bigquery",
   "dbt-postgres",
   "dbt-snowflake",
-  "prefect-gcp[bigquery]>=0.1.8",
-  "prefect-snowflake>=0.2.4",
-  "prefect-sqlalchemy>=0.2.1",
+  "prefect-gcp[bigquery]>=0.6.0rc1",
+  "prefect-snowflake>=0.28.0rc1",
+  "prefect-sqlalchemy>=0.5.0rc1",
 ]
 dev = [
   "coverage",
@@ -55,9 +55,9 @@ dev = [
   "mypy",
   "pillow",
   "pre-commit",
-  "prefect-gcp[bigquery]>=0.1.8",
-  "prefect-snowflake>=0.2.4",
-  "prefect-sqlalchemy>=0.2.1",
+  "prefect-gcp[bigquery]>=0.6.0rc1",
+  "prefect-snowflake>=0.28.0rc1",
+  "prefect-sqlalchemy>=0.5.0rc1",
   "pytest-asyncio",
   "pytest-xdist",
   "pytest",
@@ -73,7 +73,7 @@ prefect_dbt = "prefect_dbt"
 [tool.setuptools_scm]
 version_file = "prefect_dbt/_version.py"
 root = "../../.."
-tag_regex = "^prefect-dbt-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-dbt-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-dbt-*[0-9]*"'
 

@@ -22,7 +22,12 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=2.13.5", "kubernetes-asyncio>=29.0.0", "tenacity>=8.2.3"]
+dependencies = [
+  "prefect>=3.0.0rc1",
+  "kubernetes-asyncio>=29.0.0",
+  "tenacity>=8.2.3",
+  "exceptiongroup",
+]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -51,7 +56,7 @@ prefect_kubernetes = "prefect_kubernetes"
 [tool.setuptools_scm]
 version_file = "prefect_kubernetes/_version.py"
 root = "../../.."
-tag_regex = "^prefect-kubernetes-(?P<version>\\d+\\.\\d+\\.\\d+)$"
+tag_regex = "^prefect-kubernetes-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-kubernetes-*[0-9]*"'
 

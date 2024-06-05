@@ -2,8 +2,9 @@
 Command line interface for working with work queues.
 """
 
+import warnings
 from textwrap import dedent
-from typing import List, Optional, Union
+from typing import Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -11,14 +12,10 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
-from prefect._internal.compatibility.experimental import (
-    experiment_enabled,
-    experimental_parameter,
-)
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
 from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -65,20 +62,10 @@ async def _get_work_queue_id_from_name_or_id(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def create(
     name: str = typer.Argument(..., help="The unique name to assign this work queue"),
     limit: int = typer.Option(
         None, "-l", "--limit", help="The concurrency limit to set on the queue."
-    ),
-    tags: List[str] = typer.Option(
-        None,
-        "-t",
-        "--tag",
-        help=(
-            "DEPRECATED: One or more optional tags. This option will be removed on"
-            " 2023-02-23."
-        ),
     ),
     pool: Optional[str] = typer.Option(
         None,
@@ -96,25 +83,11 @@ async def create(
     """
     Create a work queue.
     """
-    if tags:
-        app.console.print(
-            (
-                "Supplying `tags` for work queues is deprecated. This work "
-                "queue will use legacy tag-matching behavior. "
-                "This option will be removed on 2023-02-23."
-            ),
-            style="red",
-        )
-
-    if pool and tags:
-        exit_with_error(
-            "Work queues created with tags cannot specify work pools or set priorities."
-        )
 
     async with get_client() as client:
         try:
             result = await client.create_work_queue(
-                name=name, tags=tags or None, work_pool_name=pool, priority=priority
+                name=name, work_pool_name=pool, priority=priority
             )
             if limit is not None:
                 await client.update_work_queue(
@@ -126,46 +99,28 @@ async def create(
         except ObjectNotFound:
             exit_with_error(f"Work pool with name: {pool!r} not found.")
 
-    if tags:
-        tags_message = f"tags - {', '.join(sorted(tags))}\n" or ""
-        output_msg = dedent(
-            f"""
-            Created work queue with properties:
-                name - {name!r}
-                id - {result.id}
-                concurrency limit - {limit}
-                {tags_message}
-            Start an agent to pick up flow runs from the work queue:
-                prefect agent start -q '{result.name}'
+    if not pool:
+        # specify the default work pool name after work queue creation to allow the server
+        # to handle a bunch of logic associated with agents without work pools
+        pool = DEFAULT_AGENT_WORK_POOL_NAME
+    output_msg = dedent(
+        f"""
+        Created work queue with properties:
+            name - {name!r}
+            work pool - {pool!r}
+            id - {result.id}
+            concurrency limit - {limit}
+        Start a worker to pick up flow runs from the work queue:
+            prefect worker start -q '{result.name} -p {pool}'
 
-            Inspect the work queue:
-                prefect work-queue inspect '{result.name}'
-            """
-        )
-    else:
-        if not pool:
-            # specify the default work pool name after work queue creation to allow the server
-            # to handle a bunch of logic associated with agents without work pools
-            pool = DEFAULT_AGENT_WORK_POOL_NAME
-        output_msg = dedent(
-            f"""
-            Created work queue with properties:
-                name - {name!r}
-                work pool - {pool!r}
-                id - {result.id}
-                concurrency limit - {limit}
-            Start an agent to pick up flow runs from the work queue:
-                prefect agent start -q '{result.name} -p {pool}'
-
-            Inspect the work queue:
-                prefect work-queue inspect '{result.name}'
-            """
-        )
+        Inspect the work queue:
+            prefect work-queue inspect '{result.name}'
+        """
+    )
     exit_with_success(output_msg)
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue"),
     limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
@@ -210,7 +165,6 @@ async def set_concurrency_limit(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue to clear"),
     pool: Optional[str] = typer.Option(
@@ -250,7 +204,6 @@ async def clear_concurrency_limit(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def pause(
     name: str = typer.Argument(..., help="The name or ID of the work queue to pause"),
     pool: Optional[str] = typer.Option(
@@ -295,7 +248,6 @@ async def pause(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def resume(
     name: str = typer.Argument(..., help="The name or ID of the work queue to resume"),
     pool: Optional[str] = typer.Option(
@@ -334,7 +286,6 @@ async def resume(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def inspect(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to inspect"
@@ -356,7 +307,10 @@ async def inspect(
     async with get_client() as client:
         try:
             result = await client.read_work_queue(id=queue_id)
-            app.console.print(Pretty(result))
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=DeprecationWarning)
+
+                app.console.print(Pretty(result))
         except ObjectNotFound:
             if pool:
                 error_message = f"No work queue found: {name!r} in work pool {pool!r}"
@@ -372,7 +326,6 @@ async def inspect(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def ls(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Display more information."
@@ -396,41 +349,7 @@ async def ls(
     """
     View all work queues.
     """
-    if not pool and not experiment_enabled("work_pools"):
-        table = Table(
-            title="Work Queues",
-            caption="(**) denotes a paused queue",
-            caption_style="red",
-        )
-        table.add_column("Name", style="green", no_wrap=True)
-        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-        table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-        if verbose:
-            table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
-
-        async with get_client() as client:
-            if work_queue_prefix is not None:
-                queues = await client.match_work_queues([work_queue_prefix])
-            else:
-                queues = await client.read_work_queues()
-
-            def sort_by_created_key(q):
-                return pendulum.now("utc") - q.created
-
-            for queue in sorted(queues, key=sort_by_created_key):
-                row = [
-                    f"{queue.name} [red](**)" if queue.is_paused else queue.name,
-                    str(queue.id),
-                    (
-                        f"[red]{queue.concurrency_limit}"
-                        if queue.concurrency_limit is not None
-                        else "[blue]None"
-                    ),
-                ]
-                if verbose and queue.filter is not None:
-                    row.append(queue.filter.json())
-                table.add_row(*row)
-    elif not pool:
+    if not pool:
         table = Table(
             title="Work Queues",
             caption="(**) denotes a paused queue",
@@ -469,7 +388,7 @@ async def ls(
                     ),
                 ]
                 if verbose and queue.filter is not None:
-                    row.append(queue.filter.json())
+                    row.append(queue.filter.model_dump_json())
                 table.add_row(*row)
 
     else:
@@ -511,7 +430,6 @@ async def ls(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def preview(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to preview"
@@ -599,7 +517,6 @@ async def preview(
 
 
 @work_app.command()
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def delete(
     name: str = typer.Argument(..., help="The name or ID of the work queue to delete"),
     pool: Optional[str] = typer.Option(
@@ -619,6 +536,11 @@ async def delete(
     )
     async with get_client() as client:
         try:
+            if is_interactive() and not typer.confirm(
+                (f"Are you sure you want to delete work queue with name {name!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
             await client.delete_work_queue_by_id(id=queue_id)
         except ObjectNotFound:
             if pool:
@@ -636,7 +558,6 @@ async def delete(
 
 
 @work_app.command("read-runs")
-@experimental_parameter("pool", group="work_pools", when=lambda y: y is not None)
 async def read_wq_runs(
     name: str = typer.Argument(..., help="The name or ID of the work queue to poll"),
     pool: Optional[str] = typer.Option(

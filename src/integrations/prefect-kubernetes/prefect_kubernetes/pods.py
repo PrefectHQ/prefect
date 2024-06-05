@@ -255,7 +255,8 @@ async def read_namespaced_pod_log(
     Example:
         Read logs from a pod in the default namespace:
         ```python
-        from prefect import flow, get_run_logger
+        from prefect import flow
+        from prefect.logging import get_run_logger
         from prefect_kubernetes.credentials import KubernetesCredentials
         from prefect_kubernetes.pods import read_namespaced_pod_logs
 
