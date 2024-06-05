@@ -58,5 +58,11 @@ def handle_moved_modules(module_name, moved_modules):
         raise AttributeError(f"Module '{name}' not found in '{module_name}'.")
 
     # Override the module's __class__ to use the custom __getattr__ function
-    sys.modules[module_name].__class__ = type(sys.modules[module_name])
-    sys.modules[module_name].__getattr__ = __getattr__
+    module = sys.modules[module_name]
+    original_class = module.__class__
+
+    class CustomModule(original_class):
+        def __getattr__(self, name):
+            return __getattr__(name)
+
+    module.__class__ = CustomModule
