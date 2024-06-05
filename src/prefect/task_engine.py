@@ -20,6 +20,7 @@ from typing import (
 )
 from uuid import UUID
 
+import anyio
 import pendulum
 from typing_extensions import ParamSpec
 
@@ -400,6 +401,35 @@ class TaskRunEngine(Generic[P, R]):
             return True
         return False
 
+    async def handle_retry_async(self, exc: Exception) -> bool:
+        """Handle a task run retry.
+
+        - If the task has retries left, and the retry condition is met, set the task to retrying.
+            - If the task has a `retry_delay_seconds` set, wait for that amount of time before retrying.
+            - If we have more retries than `retry_delay_seconds` values, use the last value in the sequence.
+        - If the task has no retries left, or the retry condition is not met, return False.
+
+        """
+        if self.retries < self.task.retries and self.can_retry:
+            if self.task.retry_delay_seconds:
+                if isinstance(self.task.retry_delay_seconds, Sequence):
+                    index = min(self.retries, len(self.task.retry_delay_seconds) - 1)
+                    delay = self.task.retry_delay_seconds[index]
+                else:
+                    delay = self.task.retry_delay_seconds
+
+                if isinstance(delay, (int, float)):
+                    self.logger.info(f"Waiting {delay} seconds before retrying...")
+                    await anyio.sleep(delay)
+                else:
+                    raise ValueError(
+                        "Invalid type for `retry_delay_seconds`. Must be an int, float, or Sequence[Union[int, float]]"
+                    )
+            self.set_state(Retrying(), force=True)
+            self.retries = self.retries + 1
+            return True
+        return False
+
     def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
         if not self.handle_retry(exc):
@@ -414,8 +444,31 @@ class TaskRunEngine(Generic[P, R]):
             )
             self.set_state(state)
 
+    async def handle_exception_async(self, exc: Exception) -> None:
+        if not await self.handle_retry_async(exc):
+            context = TaskRunContext.get()
+            state = await exception_to_failed_state(
+                exc,
+                message="Task run encountered an exception",
+                result_factory=getattr(context, "result_factory", None),
+            )
+            self.set_state(state)
+
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
+            message = (
+                f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
+            )
+            self.logger.error(message)
+            state = Failed(
+                data=exc,
+                message=message,
+                name="TimedOut",
+            )
+            self.set_state(state)
+
+    async def handle_timeout_async(self, exc: TimeoutError) -> None:
+        if not await self.handle_retry_async(exc):
             message = (
                 f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
             )
@@ -677,9 +730,9 @@ async def run_task_async(
                                 run.handle_success(result, transaction=txn)
 
                     except TimeoutError as exc:
-                        run.handle_timeout(exc)
+                        await run.handle_timeout_async(exc)
                     except Exception as exc:
-                        run.handle_exception(exc)
+                        await run.handle_exception_async(exc)
 
             if run.state.is_final():
                 for hook in run.get_hooks(run.state, as_async=True):

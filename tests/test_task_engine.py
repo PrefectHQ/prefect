@@ -3,7 +3,7 @@ import logging
 import time
 from pathlib import Path
 from typing import List
-from unittest.mock import MagicMock, call
+from unittest.mock import AsyncMock, MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
@@ -872,8 +872,8 @@ class TestTaskRetries:
     async def test_task_respects_retry_delay_seconds(
         self, retry_delay_seconds, expected_delay_sequence, prefect_client, monkeypatch
     ):
-        mock_sleep = MagicMock()
-        monkeypatch.setattr(time, "sleep", mock_sleep)
+        mock_sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", mock_sleep)
 
         @task(retries=3, retry_delay_seconds=retry_delay_seconds)
         async def flaky_function():
