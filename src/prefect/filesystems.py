@@ -12,9 +12,12 @@ from prefect._internal.schemas.validators import (
     validate_basepath,
 )
 from prefect.blocks.core import Block
+from prefect.migration_helper import MOVED_MODULES, handle_moved_modules
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
+
+handle_moved_modules(__name__, MOVED_MODULES)
 
 
 class ReadableFileSystem(Block, abc.ABC):
