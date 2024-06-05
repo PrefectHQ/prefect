@@ -28,17 +28,19 @@ class Variable(VariableRequest):
         value: StrictVariableValue,
         tags: Optional[List[str]] = None,
         overwrite: bool = False,
+        as_object: bool = False,
     ):
         """
-        Sets a new variable. If one exists with the same name, user must pass `overwrite=True`
+        Sets a new variable. If one exists with the same name, must pass `overwrite=True`
 
-        Returns `True` if the variable was created or updated
+        Returns the newly set value. If `as_object=True`, return the full Variable object
 
         Args:
             - name: The name of the variable to set.
             - value: The value of the variable to set.
             - tags: An optional list of strings to associate with the variable.
             - overwrite: Whether to overwrite the variable if it already exists.
+            - as_object: Whether to return the full Variable object.
 
         Example:
             Set a new variable and overwrite it if it already exists.
@@ -51,17 +53,22 @@ class Variable(VariableRequest):
             ```
         """
         client, _ = get_or_create_client()
-        variable = await client.read_variable_by_name(name)
+        variable_exists = await client.read_variable_by_name(name)
         var_dict = {"name": name, "value": value, "tags": tags or []}
-        if variable:
+
+        if variable_exists:
             if not overwrite:
                 raise ValueError(
-                    "You are attempting to set a variable with a name that is already in use. "
-                    "If you would like to overwrite it, pass `overwrite=True`."
+                    f"Variable {name!r} already exists. Use `overwrite=True` to update it."
                 )
             await client.update_variable(variable=VariableUpdateRequest(**var_dict))
+            variable = await client.read_variable_by_name(name)
         else:
-            await client.create_variable(variable=VariableRequest(**var_dict))
+            variable = await client.create_variable(
+                variable=VariableRequest(**var_dict)
+            )
+
+        return variable if as_object else variable.value
 
     @classmethod
     @sync_compatible
@@ -96,10 +103,8 @@ class Variable(VariableRequest):
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
-        if as_object:
-            return variable
 
-        return variable.value if variable else default
+        return variable if as_object else (variable.value if variable else default)
 
     @classmethod
     @sync_compatible
