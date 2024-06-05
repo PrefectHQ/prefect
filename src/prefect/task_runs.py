@@ -77,11 +77,14 @@ class TaskRunWaiter:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._observed_completed_task_runs_lock = threading.Lock()
         self._completion_events_lock = threading.Lock()
+        self._started = False
 
     def start(self):
         """
         Start the TaskRunWaiter service.
         """
+        if self._started:
+            return
         self.logger.info("Starting TaskRunWaiter")
         loop_thread = get_global_loop()
 
@@ -93,9 +96,9 @@ class TaskRunWaiter:
 
         loop_thread.add_shutdown_call(create_call(self.stop))
         atexit.register(self.stop)
+        self._started = True
 
     async def _consume_events(self):
-        # TODO: This won't work with an ephemeral server
         async with get_events_subscriber(
             filter=EventFilter(
                 event=EventNameFilter(
@@ -126,7 +129,6 @@ class TaskRunWaiter:
                         if task_run_id in self._completion_events:
                             self._completion_events[task_run_id].set()
                 except Exception as exc:
-                    breakpoint()
                     self.logger.error(f"Error processing event: {exc}")
 
     def stop(self):
@@ -137,7 +139,8 @@ class TaskRunWaiter:
         if self._consumer_task:
             self._consumer_task.cancel()
             self._consumer_task = None
-        self._instance = None
+        self.__class__._instance = None
+        self._started = False
 
     @classmethod
     async def wait_for_task_run(
@@ -145,6 +148,9 @@ class TaskRunWaiter:
     ):
         """
         Wait for a task run to finish.
+
+        Note this relies on a websocket connection to receive events from the server
+        and will not work with an ephemeral server.
 
         Args:
             task_run_id: The ID of the task run to wait for.
