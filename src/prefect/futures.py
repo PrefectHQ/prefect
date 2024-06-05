@@ -7,7 +7,7 @@ from typing import Any, Generic, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
-from prefect.client.orchestration import SyncPrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
@@ -153,59 +153,36 @@ class PrefectDistributedFuture(PrefectFuture):
     any task run scheduled in Prefect's API.
     """
 
-    def __init__(self, task_run_id: uuid.UUID):
-        self._task_run: Optional[TaskRun] = None
-        self._client: Optional[SyncPrefectClient] = None
-        super().__init__(task_run_id=task_run_id)
-
-    @property
-    def client(self):
-        if self._client is None:
-            self._client = get_client(sync_client=True)
-        return self._client
-
-    @property
-    def task_run(self):
-        if self._task_run is None:
-            self._task_run = self.client.read_task_run(task_run_id=self.task_run_id)
-        return self._task_run
-
-    @task_run.setter
-    def task_run(self, task_run):
-        self._task_run = task_run
-
     def wait(self, timeout: Optional[float] = None) -> None:
         return run_coro_as_sync(self.wait_async(timeout=timeout))
 
     async def wait_async(self, timeout: Optional[float] = None):
         if self._final_state:
             logger.debug(
-                "Final state already set for %s. Returning...", self.task_run.task_key
+                "Final state already set for %s. Returning...", self.task_run_id
             )
             return
 
         # Read task run to see if it is still running
         async with get_client() as client:
-            self.task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            if self.task_run.state.is_final():
+            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
                 logger.debug(
-                    "Task run %s for task %s already finished. Returning...",
-                    self.task_run.id,
-                    self.task_run.task_key,
+                    "Task run %s already finished. Returning...",
+                    self.task_run_id,
                 )
-                self._final_state = self.task_run.state
+                self._final_state = task_run.state
                 return
 
             # If still running, wait for a completed event from the server
             logger.debug(
-                "Waiting for completed event for task run %s of task %s...",
-                self.task_run.id,
-                self.task_run.task_key,
+                "Waiting for completed event for task run %s...",
+                self.task_run_id,
             )
             await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
-            self.task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            if self.task_run.state.is_final():
-                self._final_state = self.task_run.state
+            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
+                self._final_state = task_run.state
             return
 
     def result(

@@ -95,6 +95,7 @@ class TaskRunWaiter:
         atexit.register(self.stop)
 
     async def _consume_events(self):
+        # TODO: This won't work with an ephemeral server
         async with get_events_subscriber(
             filter=EventFilter(
                 event=EventNameFilter(
