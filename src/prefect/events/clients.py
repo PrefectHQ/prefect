@@ -30,6 +30,7 @@ from websockets.exceptions import (
 
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.events import Event
+from prefect.events.schemas.events import ReceivedEvent
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
 
@@ -497,7 +498,7 @@ class PrefectEventSubscriber:
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
-                    event: Event = Event.model_validate(message["event"])
+                    event: Event = ReceivedEvent.model_validate(message["event"])
 
                     if event.id in self._seen_events:
                         continue

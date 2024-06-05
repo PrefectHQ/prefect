@@ -125,6 +125,7 @@ class TaskRunWaiter:
                         if task_run_id in self._completion_events:
                             self._completion_events[task_run_id].set()
                 except Exception as exc:
+                    breakpoint()
                     self.logger.error(f"Error processing event: {exc}")
 
     def stop(self):

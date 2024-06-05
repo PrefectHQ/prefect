@@ -204,7 +204,8 @@ class PrefectDistributedFuture(PrefectFuture):
             )
             await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
             self.task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            self._final_state = self.task_run.state
+            if self.task_run.state.is_final():
+                self._final_state = self.task_run.state
             return
 
     def result(
