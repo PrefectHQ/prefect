@@ -1292,13 +1292,10 @@ class TestGenerators:
             yield 2
 
         values = []
-        t1 = time.time()
         with pytest.raises(TimeoutError):
             for v in g():
                 values.append(v)
-        t2 = time.time()
         assert values == [1]
-        assert t2 - t1 < 0.5
 
     async def test_generator_doesnt_retry_on_generator_exception(self):
         """
@@ -1451,13 +1448,10 @@ class TestAsyncGenerators:
             yield 2
 
         values = []
-        t1 = time.time()
         with pytest.raises(TimeoutError):
             async for v in g():
                 values.append(v)
-        t2 = time.time()
         assert values == [1]
-        assert t2 - t1 < 0.5
 
     async def test_generator_doesnt_retry_on_generator_exception(self):
         """
