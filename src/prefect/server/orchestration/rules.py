@@ -962,7 +962,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
         Exit the async runtime context governed by this transform.
 
-        If the transition has been nullified or errorred upon exiting this transforms's context,
+        If the transition has been nullified or errored upon exiting this transforms's context,
         nothing happens. Otherwise, `self.after_transition` will fire on every non-null
         proposed state.
         """

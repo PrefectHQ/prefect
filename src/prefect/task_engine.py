@@ -50,6 +50,7 @@ from prefect.settings import (
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
+    AwaitingRetry,
     Failed,
     Paused,
     Pending,
@@ -375,24 +376,39 @@ class TaskRunEngine(Generic[P, R]):
         - If the task has retries left, and the retry condition is met, return True.
         """
         if self.retries < self.task.retries and self.can_retry:
-            self.set_state(Retrying(), force=True)
+            if self.task.retry_delay_seconds:
+                self.set_state(
+                    AwaitingRetry(
+                        scheduled_time=pendulum.now("utc").add(
+                            seconds=self.task.retry_delay_seconds
+                        ),
+                    ),
+                    force=True,
+                )
+            else:
+                self.set_state(Retrying(), force=True)
             self.retries = self.retries + 1
             return True
         return False
 
     def handle_exception(self, exc: Exception) -> None:
-        # If the task fails, and we have retries left, set the task to retrying.
-        if not self.handle_retry(exc):
-            # If the task has no retries left, or the retry condition is not met, set the task to failed.
-            context = TaskRunContext.get()
-            state = run_coro_as_sync(
-                exception_to_failed_state(
-                    exc,
-                    message="Task run encountered an exception",
-                    result_factory=getattr(context, "result_factory", None),
-                )
+        context = TaskRunContext.get()
+        current_state = run_coro_as_sync(
+            exception_to_failed_state(
+                exc,
+                message="Task run encountered an exception",
+                result_factory=getattr(context, "result_factory", None),
             )
-            self.set_state(state)
+        )
+
+        if self.handle_retry(exc) and self.state.is_scheduled():
+            self.logger.info(
+                (
+                    f"Received non-final state {self.state.name!r} when proposing final"
+                    f" state {current_state.name!r} and will attempt to run again..."
+                ),
+            )
+            self.set_state(Running())
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
