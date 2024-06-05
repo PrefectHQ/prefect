@@ -9,7 +9,7 @@ import pytest
 from prefect.utilities.migration_helper import (
     ModuleMovedError,
     ModuleRemovedError,
-    handle_moved_modules,
+    handle_moved_objects,
 )
 
 
@@ -39,7 +39,7 @@ def setup_module():
 
 def test_special_attributes(setup_module):
     module_name, moved_modules = setup_module
-    handle_moved_modules(module_name, moved_modules)
+    handle_moved_objects(module_name, moved_modules)
 
     module = sys.modules[module_name]
 
@@ -52,7 +52,7 @@ def test_special_attributes(setup_module):
 
 def test_moved_module(setup_module):
     module_name, moved_modules = setup_module
-    handle_moved_modules(module_name, moved_modules)
+    handle_moved_objects(module_name, moved_modules)
 
     module = sys.modules[module_name]
 
@@ -71,7 +71,7 @@ def test_moved_module(setup_module):
 
 def test_removed_module(setup_module):
     module_name, moved_modules = setup_module
-    handle_moved_modules(module_name, moved_modules)
+    handle_moved_objects(module_name, moved_modules)
 
     module = sys.modules[module_name]
 
@@ -84,7 +84,7 @@ def test_removed_module(setup_module):
 
 def test_nonexistent_module(setup_module):
     module_name, moved_modules = setup_module
-    handle_moved_modules(module_name, moved_modules)
+    handle_moved_objects(module_name, moved_modules)
 
     module = sys.modules[module_name]
 
