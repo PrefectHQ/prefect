@@ -13,9 +13,7 @@ from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
 
-artifact_app = PrefectTyper(
-    name="artifact", help="Inspect and delete artifacts."
-)
+artifact_app = PrefectTyper(name="artifact", help="Inspect and delete artifacts.")
 app.add_typer(artifact_app)
 
 

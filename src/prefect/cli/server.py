@@ -36,9 +36,7 @@ server_app = PrefectTyper(
     name="server",
     help="Start a Prefect server instance and interact with the database",
 )
-database_app = PrefectTyper(
-    name="database", help="Interact with the database."
-)
+database_app = PrefectTyper(name="database", help="Interact with the database.")
 server_app.add_typer(database_app)
 app.add_typer(server_app)
 
