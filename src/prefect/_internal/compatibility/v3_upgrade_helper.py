@@ -28,13 +28,17 @@ class ModuleRemovedError(ImportError):
 MOVED_OBJECTS = {
     "prefect.filesystems.GCS": ("class", "prefect_gcp"),
     "prefect.filesystems.Azure": ("class", "Removed: Use 'prefect_azure' instead."),
-    "prefect.deployment": (
+    "prefect.deployments": (
         "module",
         "Removed: Use 'flow.serve()' or `prefect deploy` instead.",
     ),
-    "preect.deployment.Deployment": (
+    "prefect.deployments.Deployment": (
         "class",
         "Removed: Use 'flow.serve()' or `prefect deploy` instead.",
+    ),
+    "prefect.deployments.load_flow_from_flow_run": (
+        "function",
+        "prefect.flows.load_flow_from_flow_run",
     ),
 }
 
