@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from prefect._internal.compatibility.migration_helper import (
+from prefect._internal.compatibility.v3_upgrade_helper import (
     ModuleMovedError,
     ModuleRemovedError,
     handle_moved_objects,
