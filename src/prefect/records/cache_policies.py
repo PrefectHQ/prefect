@@ -1,3 +1,4 @@
+import inspect
 from dataclasses import dataclass
 from typing import Optional
 
@@ -100,7 +101,9 @@ class _None(CachePolicy):
 
 
 class TaskDef(CachePolicy):
-    pass
+    def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> None:
+        lines = inspect.getsource(task)
+        return hash_objects(lines)
 
 
 class FlowParameters(CachePolicy):
@@ -132,3 +135,4 @@ class Inputs(CachePolicy):
 DEFAULT = Default()
 INPUTS = Inputs()
 NONE = _None()
+TASK_DEF = TaskDef()

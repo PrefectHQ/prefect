@@ -7,6 +7,7 @@ from prefect.records.cache_policies import (
     CompoundCachePolicy,
     Default,
     Inputs,
+    TaskDef,
     _None,
 )
 
@@ -105,6 +106,7 @@ class TestInputsPolicy:
 
     def test_excluded_can_be_manipulated_via_subtraction(self):
         policy = Inputs() - "y"
+        assert policy.exclude == ["y"]
 
         key = policy.compute_key(
             task=None, run=None, inputs={"x": 42}, flow_parameters=None
@@ -131,3 +133,28 @@ class TestCompoundPolicy:
         one = Default()
         policy = one - "foo"
         assert isinstance(policy, CompoundCachePolicy)
+
+
+class TestTaskDefPolicy:
+    def test_initializes(self):
+        policy = TaskDef()
+        assert isinstance(policy, CachePolicy)
+
+    def test_changes_in_def_change_key(self):
+        policy = TaskDef()
+
+        def my_func():
+            pass
+
+        key = policy.compute_key(
+            task=my_func, run=None, inputs=None, flow_parameters=None
+        )
+
+        def my_func(x):
+            pass
+
+        new_key = policy.compute_key(
+            task=my_func, run=None, inputs=None, flow_parameters=None
+        )
+
+        assert key != new_key
