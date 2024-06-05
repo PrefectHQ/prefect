@@ -61,6 +61,7 @@ setup(
         "dbt": "prefect-dbt",
         "snowflake": "prefect-snowflake",
         "sqlalchemy": "prefect-sqlalchemy",
+        "redis": "redis>=5.0.1",
         # Monitoring extras
         "email": "prefect-email",
         "slack": "prefect-slack",
