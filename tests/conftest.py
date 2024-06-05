@@ -604,6 +604,15 @@ def leaves_no_extraneous_files():
     yield
     after = set(Path(".").iterdir())
     new_files = after - before
+
+    ignored_file_prefixes = {".coverage"}
+
+    new_files = {
+        f
+        for f in new_files
+        if not any(f.name.startswith(prefix) for prefix in ignored_file_prefixes)
+    }
+
     if new_files:
         raise AssertionError(
             "One of the tests in this module left new files in the "
