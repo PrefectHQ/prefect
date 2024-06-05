@@ -8,6 +8,7 @@ from prefect.utilities.hashing import hash_objects
 
 @dataclass
 class CachePolicy:
+    @classmethod
     def from_cache_key_fn(
         cls, cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
     ) -> "CacheKeyFnPolicy":

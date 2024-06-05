@@ -1006,7 +1006,7 @@ class TestTaskCaching:
         assert await second_state.result() == await first_state.result()
 
     async def test_cache_hits_within_flows_are_cached(self):
-        @task(cache_key_fn=lambda *_: "cache hit")
+        @task(cache_key_fn=lambda *_: "cache_hit")
         def foo(x):
             return x
 

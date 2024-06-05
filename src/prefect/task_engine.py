@@ -19,7 +19,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
@@ -47,7 +46,6 @@ from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
     Failed,
@@ -55,7 +53,6 @@ from prefect.states import (
     Pending,
     Retrying,
     Running,
-    StateDetails,
     exception_to_crashed_state,
     exception_to_failed_state,
     return_value_to_state,
@@ -181,42 +178,6 @@ class TaskRunEngine(Generic[P, R]):
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
 
-    def _compute_state_details(
-        self, include_cache_expiration: bool = False
-    ) -> StateDetails:
-        task_run_context = TaskRunContext.get()
-        ## setup cache metadata
-        cache_key = (
-            self.task.cache_key_fn(
-                task_run_context,
-                self.parameters or {},
-            )
-            if self.task.cache_key_fn
-            else None
-        )
-        # Ignore the cached results for a cache key, default = false
-        # Setting on task level overrules the Prefect setting (env var)
-        refresh_cache = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-
-        if include_cache_expiration:
-            cache_expiration = (
-                (pendulum.now("utc") + self.task.cache_expiration)
-                if self.task.cache_expiration
-                else None
-            )
-        else:
-            cache_expiration = None
-
-        return StateDetails(
-            cache_key=cache_key,
-            refresh_cache=refresh_cache,
-            cache_expiration=cache_expiration,
-        )
-
     def _resolve_parameters(self):
         if not self.parameters:
             return {}
@@ -272,8 +233,7 @@ class TaskRunEngine(Generic[P, R]):
             )
             return
 
-        state_details = self._compute_state_details()
-        new_state = Running(state_details=state_details)
+        new_state = Running()
         state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
@@ -333,17 +293,11 @@ class TaskRunEngine(Generic[P, R]):
         if result_factory is None:
             raise ValueError("Result factory is not set")
 
-        # dont put this inside function, else the transaction could get serialized
-        key = transaction.key
-
-        def key_fn():
-            return key
-
-        result_factory.storage_key_fn = key_fn
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 result,
                 result_factory=result_factory,
+                key=transaction.key
             )
         )
         transaction.stage(
@@ -351,9 +305,8 @@ class TaskRunEngine(Generic[P, R]):
             on_rollback_hooks=self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
-        terminal_state.state_details = self._compute_state_details(
-            include_cache_expiration=True
-        )
+        if transaction.is_committed():
+            terminal_state.name = "Cached"
         self.set_state(terminal_state)
         return result
 
