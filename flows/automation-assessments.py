@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any, AsyncGenerator, Dict
@@ -7,7 +8,8 @@ from uuid import uuid4
 import anyio
 import pendulum
 
-from prefect import flow, get_client, get_run_logger
+from prefect import flow
+from prefect.client.orchestration import get_client
 from prefect.events import Event
 from prefect.events.clients import get_events_client, get_events_subscriber
 from prefect.events.filters import (
@@ -16,6 +18,7 @@ from prefect.events.filters import (
     EventOccurredFilter,
     EventResourceFilter,
 )
+from prefect.logging import get_run_logger
 
 
 @asynccontextmanager
@@ -280,6 +283,11 @@ async def assess_sequence_automation():
 
 
 if __name__ == "__main__":
+    if os.getenv("SERVER_VERSION") == "9.9.9+for.the.tests":
+        raise NotImplementedError(
+            "Prefect Cloud has its own automation assessment integration test."
+        )
+
     asyncio.run(assess_reactive_automation())
     asyncio.run(assess_proactive_automation())
     asyncio.run(assess_compound_automation())

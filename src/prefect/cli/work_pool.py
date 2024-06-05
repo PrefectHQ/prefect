@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+
 import json
 import textwrap
 
@@ -9,7 +10,6 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._prompts import prompt_select_from_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import (
@@ -18,6 +18,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
@@ -494,6 +495,11 @@ async def delete(
     """
     async with get_client() as client:
         try:
+            if is_interactive() and not typer.confirm(
+                (f"Are you sure you want to delete work pool with name {name!r}?"),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
             await client.delete_work_pool(work_pool_name=name)
         except ObjectNotFound as exc:
             exit_with_error(exc)

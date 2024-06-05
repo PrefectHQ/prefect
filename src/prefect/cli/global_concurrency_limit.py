@@ -9,10 +9,10 @@ from pydantic import ValidationError
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import (
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
@@ -150,8 +150,8 @@ async def delete_global_concurrency_limit(
     Arguments:
         name (str): The name of the global concurrency limit to delete.
     """
-    if not typer.confirm(
-        f"Are you sure you want to delete global concurrency limit {name!r}?",
+    if is_interactive() and not typer.confirm(
+        f"Are you sure you want to delete global concurrency limit with name {name!r}?",
         default=False,
     ):
         exit_with_error("Deletion aborted.")

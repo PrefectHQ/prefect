@@ -4,6 +4,7 @@ Command line interface for working with concurrency limits.
 import textwrap
 
 import pendulum
+import typer
 
 try:
     from rich.console import Group
@@ -17,7 +18,7 @@ from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound
 
@@ -152,6 +153,13 @@ async def delete(tag: str):
 
     async with get_client() as client:
         try:
+            if is_interactive() and not typer.confirm(
+                (
+                    f"Are you sure you want to delete concurrency limit with tag {tag!r}?"
+                ),
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
             await client.delete_concurrency_limit_by_tag(tag=tag)
         except ObjectNotFound:
             exit_with_error(f"No concurrency limit found for the tag: {tag}")

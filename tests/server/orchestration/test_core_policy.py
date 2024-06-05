@@ -23,6 +23,7 @@ from prefect.server.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
+    CopyTaskParametersID,
     EnforceCancellingToCancelledTransition,
     EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
@@ -218,6 +219,84 @@ class TestCopyScheduledTime:
         )
 
         scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
+        async with scheduling_rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert await scheduling_rule.invalid()
+
+
+class TestCopyTaskParametersID:
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [
+            states.StateType.SCHEDULED,
+            states.StateType.PENDING,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.PENDING,
+            states.StateType.RUNNING,
+        ],
+    )
+    async def test_task_parameters_id_copied_from_scheduled_to_pending(
+        self,
+        session,
+        initialize_orchestration,
+        initial_state_type,
+        proposed_state_type,
+    ):
+        intended_transition = (initial_state_type, proposed_state_type)
+        task_parameters_id = uuid4()
+
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"task_parameters_id": task_parameters_id},
+        )
+
+        async with CopyTaskParametersID(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type == proposed_state_type
+        assert (
+            ctx.validated_state.state_details.task_parameters_id == task_parameters_id
+        )
+
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [
+            states.StateType.SCHEDULED,
+            states.StateType.PENDING,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.COMPLETED,
+            states.StateType.FAILED,
+            states.StateType.CANCELLED,
+            states.StateType.CRASHED,
+        ],
+    )
+    async def test_task_parameters_id_not_copied_for_other_transitions(
+        self,
+        session,
+        initialize_orchestration,
+        initial_state_type,
+        proposed_state_type,
+    ):
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"task_parameters_id": uuid4()},
+        )
+
+        scheduling_rule = CopyTaskParametersID(ctx, *intended_transition)
         async with scheduling_rule as ctx:
             await ctx.validate_proposed_state()
 

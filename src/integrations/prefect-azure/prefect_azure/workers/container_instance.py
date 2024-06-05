@@ -68,6 +68,7 @@ to poll for flow runs.
     features the worker provides out of the box. Instead, you can modify the ARM
     template to use any features available in Azure Container Instances.
 """  # noqa
+
 import datetime
 import sys
 import time
@@ -87,10 +88,10 @@ from azure.mgmt.resource.resources.models import (
     DeploymentMode,
     DeploymentProperties,
 )
-from pydantic import VERSION as PYDANTIC_VERSION
+from pydantic import Field, SecretStr
+from slugify import slugify
 
-import prefect
-from prefect import get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server.schemas.core import Flow
@@ -103,14 +104,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field, SecretStr
-else:
-    from pydantic import Field, SecretStr
-
-from slugify import slugify
-
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.credentials import AzureContainerInstanceCredentials
 
@@ -130,6 +123,7 @@ ENV_SECRETS = ["PREFECT_API_KEY"]
 # has gone wrong and we should raise an exception to inform the user they should
 # check their Azure account for orphaned container groups.
 CONTAINER_GROUP_DELETION_TIMEOUT_SECONDS = 30
+DockerRegistry = Union[ACRManagedIdentity, Any, None]
 
 
 def _get_default_arm_template():
@@ -216,12 +210,7 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
     subscription_id: SecretStr = Field(default=...)
     identities: Optional[List[str]] = Field(default=None)
     entrypoint: Optional[str] = Field(default=DEFAULT_CONTAINER_ENTRYPOINT)
-    image_registry: Optional[
-        Union[
-            prefect.infrastructure.container.DockerRegistry,
-            ACRManagedIdentity,
-        ]
-    ] = Field(default=None)
+    image_registry: DockerRegistry = Field(default=None)
     cpu: float = Field(default=ACI_DEFAULT_CPU)
     gpu_count: Optional[int] = Field(default=None)
     gpu_sku: Optional[str] = Field(default=None)
@@ -237,7 +226,9 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
     # Execution settings
     task_start_timeout_seconds: int = Field(default=240)
     task_watch_poll_interval: float = Field(default=5.0)
-    arm_template: Dict[str, Any] = Field(template=_get_default_arm_template())
+    arm_template: Dict[str, Any] = Field(
+        json_schema_extra=dict(template=_get_default_arm_template())
+    )
     keep_container_group: bool = Field(default=False)
 
     def prepare_for_flow_run(
@@ -297,14 +288,7 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         except KeyError:
             raise ValueError("Unable to add image due to invalid job ARM template.")
 
-    def _add_image_registry_credentials(
-        self,
-        image_registry: Union[
-            prefect.infrastructure.container.DockerRegistry,
-            ACRManagedIdentity,
-            None,
-        ],
-    ):
+    def _add_image_registry_credentials(self, image_registry: DockerRegistry):
         """
         Create image registry credentials based on the type of image_registry provided.
 
@@ -312,8 +296,22 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
             image_registry: An instance of a DockerRegistry or
             ACRManagedIdentity object.
         """
-        if image_registry and isinstance(
-            image_registry, prefect.infrastructure.container.DockerRegistry
+        if not image_registry:
+            return
+
+        if isinstance(image_registry, ACRManagedIdentity):
+            self.arm_template["resources"][0]["properties"][
+                "imageRegistryCredentials"
+            ] = [
+                {
+                    "server": image_registry.registry_url,
+                    "identity": image_registry.identity,
+                }
+            ]
+        elif (
+            hasattr(image_registry, "username")
+            and hasattr(image_registry, "password")
+            and hasattr(image_registry, "registry_url")
         ):
             self.arm_template["resources"][0]["properties"][
                 "imageRegistryCredentials"
@@ -322,15 +320,6 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
                     "server": image_registry.registry_url,
                     "username": image_registry.username,
                     "password": image_registry.password.get_secret_value(),
-                }
-            ]
-        elif image_registry and isinstance(image_registry, ACRManagedIdentity):
-            self.arm_template["resources"][0]["properties"][
-                "imageRegistryCredentials"
-            ] = [
-                {
-                    "server": image_registry.registry_url,
-                    "identity": image_registry.identity,
                 }
             ]
 
@@ -382,9 +371,11 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         env = {**self._base_environment(), **self.env}
 
         azure_env = [
-            {"name": key, "secureValue": value}
-            if key in ENV_SECRETS
-            else {"name": key, "value": value}
+            (
+                {"name": key, "secureValue": value}
+                if key in ENV_SECRETS
+                else {"name": key, "value": value}
+            )
             for key, value in env.items()
         ]
         return azure_env
@@ -395,8 +386,8 @@ class AzureContainerVariables(BaseVariables):
     Variables for an Azure Container Instance flow run.
     """
 
-    image: Optional[str] = Field(
-        default=None,
+    image: str = Field(
+        default_factory=get_prefect_image_name,
         description=(
             "The image to use for the Prefect container in the task. This value "
             "defaults to a Prefect base image matching your local versions."
@@ -433,12 +424,7 @@ class AzureContainerVariables(BaseVariables):
             "to the entrypoint as parameters."
         ),
     )
-    image_registry: Optional[
-        Union[
-            prefect.infrastructure.container.DockerRegistry,
-            ACRManagedIdentity,
-        ]
-    ] = Field(
+    image_registry: DockerRegistry = Field(
         default=None,
         title="Image Registry (Optional)",
         description=(
@@ -532,7 +518,7 @@ class AzureContainerWorker(BaseWorker):
     A Prefect worker that runs flows in an Azure Container Instance.
     """
 
-    type = "azure-container-instance"
+    type: str = "azure-container-instance"
     job_configuration = AzureContainerJobConfiguration
     job_configuration_variables = AzureContainerVariables
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa

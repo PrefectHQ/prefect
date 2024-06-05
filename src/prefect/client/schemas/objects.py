@@ -136,6 +136,7 @@ class StateDetails(PrefectBaseModel):
     scheduled_time: Optional[DateTime] = None
     cache_key: Optional[str] = None
     cache_expiration: Optional[DateTime] = None
+    deferred: Optional[bool] = None
     untrackable_result: bool = False
     pause_timeout: Optional[DateTime] = None
     pause_reschedule: bool = False
@@ -549,7 +550,8 @@ class FlowRun(ObjectBaseModel):
         examples=["State(type=StateType.COMPLETED)"],
     )
     job_variables: Optional[dict] = Field(
-        default=None, description="Job variables for the flow run."
+        default=None,
+        description="Job variables for the flow run.",
     )
 
     # These are server-side optimizations and should not be present on client models

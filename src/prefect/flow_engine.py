@@ -25,8 +25,9 @@ import anyio._backends._asyncio
 from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
-from prefect import Task, get_client
-from prefect.client.orchestration import SyncPrefectClient
+from prefect import Task
+from prefect._internal.concurrency.api import create_call, from_sync
+from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
@@ -551,7 +552,9 @@ class FlowRunEngine(Generic[P, R]):
 
                 # flush any logs in the background if this is a "top" level run
                 if not (FlowRunContext.get() or TaskRunContext.get()):
-                    run_coro_as_sync(APILogHandler.aflush(), wait_for_result=False)
+                    from_sync.call_soon_in_loop_thread(
+                        create_call(APILogHandler.aflush)
+                    )
 
                 self._is_started = False
                 self._client = None
