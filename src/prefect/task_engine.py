@@ -171,9 +171,9 @@ class TaskRunEngine(Generic[P, R]):
     def compute_transaction_key(self) -> str:
         key = None
         if self.task.cache_policy:
+            task_run_context = TaskRunContext.get()
             key = self.task.cache_policy.compute_key(
-                task=self.task,
-                run=self.task_run,
+                task_ctx=task_run_context,
                 inputs=self.parameters,
                 flow_parameters=None,
             )
