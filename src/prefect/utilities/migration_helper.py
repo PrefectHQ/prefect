@@ -1,3 +1,11 @@
+"""
+This module provides a helper function to handle imports for moved or removed modules.
+
+The `handle_moved_modules` function creates a custom `__getattr__` function to intercept attribute access
+on the given module and raise appropriate errors if the module has been moved or removed.
+
+The `MOVED_MODULES` dictionary should be updated with any old module paths and their new locations.
+"""
 import sys
 
 
