@@ -133,9 +133,7 @@ class TaskRunEngine(Generic[P, R]):
             )
             return False
 
-    def get_hooks(
-        self, state: State = None, as_async: bool = False
-    ) -> Iterable[Callable]:
+    def call_hooks(self, state: State = None) -> Iterable[Callable]:
         if state is None:
             state = self.state
         task = self.task
@@ -144,50 +142,31 @@ class TaskRunEngine(Generic[P, R]):
         if not task_run:
             raise ValueError("Task run is not set")
 
-        hooks = None
         if state.is_failed() and task.on_failure_hooks:
             hooks = task.on_failure_hooks
         elif state.is_completed() and task.on_completion_hooks:
             hooks = task.on_completion_hooks
+        else:
+            hooks = None
 
         for hook in hooks or []:
             hook_name = _get_hook_name(hook)
 
-            @contextmanager
-            def hook_context():
-                try:
-                    self.logger.info(
-                        f"Running hook {hook_name!r} in response to entering state"
-                        f" {state.name!r}"
-                    )
-                    yield
-                except Exception:
-                    self.logger.error(
-                        f"An error was encountered while running hook {hook_name!r}",
-                        exc_info=True,
-                    )
-                else:
-                    self.logger.info(
-                        f"Hook {hook_name!r} finished running successfully"
-                    )
-
-            if as_async:
-
-                async def _hook_fn():
-                    with hook_context():
-                        result = hook(task, task_run, state)
-                        if inspect.isawaitable(result):
-                            await result
-
+            try:
+                self.logger.info(
+                    f"Running hook {hook_name!r} in response to entering state"
+                    f" {state.name!r}"
+                )
+                result = hook(task, task_run, state)
+                if inspect.isawaitable(result):
+                    run_coro_as_sync(result)
+            except Exception:
+                self.logger.error(
+                    f"An error was encountered while running hook {hook_name!r}",
+                    exc_info=True,
+                )
             else:
-
-                def _hook_fn():
-                    with hook_context():
-                        result = hook(task, task_run, state)
-                        if inspect.isawaitable(result):
-                            run_coro_as_sync(result)
-
-            yield _hook_fn
+                self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
     def compute_transaction_key(self) -> str:
         if self.task.result_storage_key is not None:
@@ -558,7 +537,10 @@ class TaskRunEngine(Generic[P, R]):
                     f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
                 )
                 self.begin_run()
-                yield
+                try:
+                    yield
+                finally:
+                    self.call_hooks()
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
@@ -606,22 +588,6 @@ class TaskRunEngine(Generic[P, R]):
                 result = call_with_parameters(self.task.fn, self.parameters)
             self.handle_success(result, transaction=transaction)
 
-    def call_hooks(self) -> Union[Coroutine, Callable[[], None]]:
-        """
-        Convenience method to call hooks for the task run. Returns a coroutine if
-        the task is async.
-        """
-        if self.task.isasync:
-
-            async def _call_hooks():
-                for hook in self.get_hooks(self.state, as_async=True):
-                    await hook()
-
-            return _call_hooks()
-        else:
-            for hook in self.get_hooks(self.state):
-                hook()
-
 
 def run_task_sync(
     task: Task[P, R],
@@ -645,8 +611,6 @@ def run_task_sync(
         while engine.is_running():
             with engine.run_context(), engine.transaction_context() as txn:
                 engine.call_task_fn(txn)
-
-    engine.call_hooks()
 
     return engine.state if return_type == "state" else engine.result()
 
@@ -673,9 +637,6 @@ async def run_task_async(
         while engine.is_running():
             with engine.run_context(), engine.transaction_context() as txn:
                 await engine.call_task_fn(txn)
-
-    # call hooks
-    await engine.call_hooks()
 
     return engine.state if return_type == "state" else engine.result()
 
