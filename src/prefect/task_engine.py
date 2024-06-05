@@ -63,7 +63,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -323,7 +323,6 @@ class TaskRunEngine(Generic[P, R]):
 
         # currently this is a hack to keep a reference to the state object
         # that has an in-memory result attached to it; using the API state
-
         # could result in losing that reference
         self.task_run.state = new_state
         # emit a state change event
@@ -372,36 +371,8 @@ class TaskRunEngine(Generic[P, R]):
         self.set_state(terminal_state)
         return result
 
-    def handle_retry(self, exc: Exception) -> bool:
-        """Handle a task run retry.
-
-        - If the task has retries left, and the retry condition is met, set the task to retrying.
-            - If the task has a `retry_delay_seconds` set, wait for that amount of time before retrying.
-            - If we have more retries than `retry_delay_seconds` values, use the last value in the sequence.
-        - If the task has no retries left, or the retry condition is not met, return False.
-
-        """
-        if self.retries < self.task.retries and self.can_retry:
-            if self.task.retry_delay_seconds:
-                if isinstance(self.task.retry_delay_seconds, Sequence):
-                    index = min(self.retries, len(self.task.retry_delay_seconds) - 1)
-                    delay = self.task.retry_delay_seconds[index]
-                else:
-                    delay = self.task.retry_delay_seconds
-
-                if isinstance(delay, (int, float)):
-                    self.logger.info(f"Waiting {delay} seconds before retrying...")
-                    time.sleep(delay)
-                else:
-                    raise ValueError(
-                        "Invalid type for `retry_delay_seconds`. Must be an int, float, or Sequence[Union[int, float]]"
-                    )
-            self.set_state(Retrying(), force=True)
-            self.retries = self.retries + 1
-            return True
-        return False
-
-    async def handle_retry_async(self, exc: Exception) -> bool:
+    @sync_compatible
+    async def handle_retry(self, exc: Exception) -> bool:
         """Handle a task run retry.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying.
@@ -430,22 +401,9 @@ class TaskRunEngine(Generic[P, R]):
             return True
         return False
 
-    def handle_exception(self, exc: Exception) -> None:
-        # If the task fails, and we have retries left, set the task to retrying.
-        if not self.handle_retry(exc):
-            # If the task has no retries left, or the retry condition is not met, set the task to failed.
-            context = TaskRunContext.get()
-            state = run_coro_as_sync(
-                exception_to_failed_state(
-                    exc,
-                    message="Task run encountered an exception",
-                    result_factory=getattr(context, "result_factory", None),
-                )
-            )
-            self.set_state(state)
-
-    async def handle_exception_async(self, exc: Exception) -> None:
-        if not await self.handle_retry_async(exc):
+    @sync_compatible
+    async def handle_exception(self, exc: Exception) -> None:
+        if not await self.handle_retry(exc):
             context = TaskRunContext.get()
             state = await exception_to_failed_state(
                 exc,
@@ -454,8 +412,9 @@ class TaskRunEngine(Generic[P, R]):
             )
             self.set_state(state)
 
-    def handle_timeout(self, exc: TimeoutError) -> None:
-        if not self.handle_retry(exc):
+    @sync_compatible
+    async def handle_timeout(self, exc: TimeoutError) -> None:
+        if not await self.handle_retry(exc):
             message = (
                 f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
             )
@@ -467,8 +426,9 @@ class TaskRunEngine(Generic[P, R]):
             )
             self.set_state(state)
 
+    @sync_compatible
     async def handle_timeout_async(self, exc: TimeoutError) -> None:
-        if not await self.handle_retry_async(exc):
+        if not await self.handle_retry(exc):
             message = (
                 f"Task run exceeded timeout of {self.task.timeout_seconds} seconds"
             )
@@ -658,9 +618,9 @@ def run_task_sync(
                                 run.handle_success(result, transaction=txn)
 
                     except TimeoutError as exc:
-                        run.handle_timeout(exc)
+                        run.handle_timeout(exc, _sync=True)
                     except Exception as exc:
-                        run.handle_exception(exc)
+                        run.handle_exception(exc, _sync=True)
 
             if run.state.is_final():
                 for hook in run.get_hooks(run.state):
@@ -695,51 +655,52 @@ async def run_task_async(
         context=context,
     )
     # This is a context manager that keeps track of the run of the task run.
-    with engine.start(task_run_id, dependencies) as run, run.enter_run_context():
-        run.begin_run()
+    with engine.start(task_run_id, dependencies) as run:
+        with run.enter_run_context():
+            run.begin_run()
 
-        while run.is_running():
-            # enter run context on each loop iteration to ensure the context
-            # contains the latest task run metadata
-            with run.enter_run_context():
-                try:
-                    # This is where the task is actually run.
-                    with timeout_async(seconds=run.task.timeout_seconds):
-                        call_args, call_kwargs = parameters_to_args_kwargs(
-                            task.fn, run.parameters or {}
-                        )
-                        run.logger.debug(
-                            f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
-                        )
-                        result_factory = getattr(
-                            TaskRunContext.get(), "result_factory", None
-                        )
-                        with transaction(
-                            key=run.compute_transaction_key(),
-                            store=ResultFactoryStore(result_factory=result_factory),
-                        ) as txn:
-                            if txn.is_committed():
-                                result = txn.read()
-                            else:
-                                result = await task.fn(*call_args, **call_kwargs)  # type: ignore
+            while run.is_running():
+                # enter run context on each loop iteration to ensure the context
+                # contains the latest task run metadata
+                with run.enter_run_context():
+                    try:
+                        # This is where the task is actually run.
+                        with timeout_async(seconds=run.task.timeout_seconds):
+                            call_args, call_kwargs = parameters_to_args_kwargs(
+                                task.fn, run.parameters or {}
+                            )
+                            run.logger.debug(
+                                f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
+                            )
+                            result_factory = getattr(
+                                TaskRunContext.get(), "result_factory", None
+                            )
+                            with transaction(
+                                key=run.compute_transaction_key(),
+                                store=ResultFactoryStore(result_factory=result_factory),
+                            ) as txn:
+                                if txn.is_committed():
+                                    result = txn.read()
+                                else:
+                                    result = await task.fn(*call_args, **call_kwargs)  # type: ignore
 
-                            # If the task run is successful, finalize it.
-                            # do this within the transaction lifecycle
-                            # in order to get the proper result serialization
-                            run.handle_success(result, transaction=txn)
+                                # If the task run is successful, finalize it.
+                                # do this within the transaction lifecycle
+                                # in order to get the proper result serialization
+                                run.handle_success(result, transaction=txn)
 
-                except TimeoutError as exc:
-                    await run.handle_timeout_async(exc)
-                except Exception as exc:
-                    await run.handle_exception_async(exc)
+                    except TimeoutError as exc:
+                        await run.handle_timeout(exc)
+                    except Exception as exc:
+                        await run.handle_exception(exc)
 
-        if run.state.is_final():
-            for hook in run.get_hooks(run.state, as_async=True):
-                await hook()
+            if run.state.is_final():
+                for hook in run.get_hooks(run.state, as_async=True):
+                    await hook()
 
-        if return_type == "state":
-            return run.state
-        return run.result()
+            if return_type == "state":
+                return run.state
+            return run.result()
 
 
 def run_task(
