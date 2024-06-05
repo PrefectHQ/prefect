@@ -2019,3 +2019,548 @@ class TestFlowRunInput:
             f"/flow_runs/{flow_run_input.flow_run_id}/input/missing-key",
         )
         assert response.status_code == 404, response.text
+
+
+class TestPaginateFlowRuns:
+    @pytest.fixture
+    async def flow_runs(self, flow, work_queue_1, session):
+        flow_2 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.actions.FlowCreate(name="another-test"),
+        )
+
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, name="fr1", tags=["red"]
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, name="fr2", tags=["blue"]
+            ),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_2.id,
+                name="fr3",
+                tags=["blue", "red"],
+                work_queue_id=work_queue_1.id,
+            ),
+        )
+        await session.commit()
+        return [flow_run_1, flow_run_2, flow_run_3]
+
+    @pytest.fixture
+    async def flow_runs_with_idempotency_key(
+        self, flow, work_queue_1, session
+    ) -> List[core.FlowRun]:
+        """
+        Return a list of two `core.FlowRun`'s with different idempotency keys.
+        """
+        flow_run_1_with_idempotency_key = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id,
+                name="fr1",
+                tags=["red"],
+                idempotency_key="my-idempotency-key",
+            ),
+        )
+        flow_run_2_with_a_different_idempotency_key = (
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.actions.FlowRunCreate(
+                    flow_id=flow.id,
+                    name="fr2",
+                    tags=["blue"],
+                    idempotency_key="a-different-idempotency-key",
+                ),
+            )
+        )
+        await session.commit()
+        return [
+            flow_run_1_with_idempotency_key,
+            flow_run_2_with_a_different_idempotency_key,
+        ]
+
+    async def test_read_flow_runs(self, flow_runs, client):
+        response = await client.post("/flow_runs/paginate")
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        json = response.json()
+
+        assert len(json["results"]) == 3
+        assert json["count"] == 3
+        assert json["page"] == 1
+        assert json["pages"] == 1
+
+        # return type should be correct
+        assert parse_obj_as(List[schemas.responses.FlowRunResponse], json["results"])
+
+    async def test_read_flow_runs_work_pool_fields(
+        self,
+        flow_runs,
+        client,
+        work_pool,
+        work_queue_1,
+    ):
+        response = await client.post("/flow_runs/paginate")
+        results = response.json()["results"]
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(results) == 3
+
+        results_sorted = sorted(
+            parse_obj_as(List[schemas.responses.FlowRunResponse], results),
+            key=lambda fr: fr.name,
+        )
+
+        assert results_sorted[2].work_pool_name == work_pool.name
+        assert results_sorted[2].work_queue_name == work_queue_1.name
+
+    async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
+        flow_run_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[flow.id])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flow_runs/paginate", json=flow_run_filter)
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(response.json()["results"]) == 2
+
+    async def test_read_flow_runs_applies_flow_run_filter(
+        self, flow, flow_runs, client
+    ):
+        flow_run_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[flow_runs[0].id])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flow_runs/paginate", json=flow_run_filter)
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert results[0]["id"] == str(flow_runs[0].id)
+
+    async def test_read_flow_runs_applies_flow_run_idempotency_key_filter(
+        self, flow_runs_with_idempotency_key, client
+    ):
+        """
+        This test tests that when we pass a value for idempotency key to the flow run
+        filter, we get back the flow run with the matching idempotency key.
+        """
+        idempotency_key_of_flow_run_we_want_to_retrieve = (
+            flow_runs_with_idempotency_key[0].idempotency_key
+        )
+        flow_run_idempotency_key_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
+                    any_=[idempotency_key_of_flow_run_we_want_to_retrieve]
+                )
+            ).model_dump(mode="json")
+        )
+        response = await client.post(
+            "/flow_runs/paginate", json=flow_run_idempotency_key_filter
+        )
+        results = response.json()["results"]
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        assert len(results) == 1 and len(flow_runs_with_idempotency_key) == 2
+
+        assert results[0]["idempotency_key"] == str(
+            idempotency_key_of_flow_run_we_want_to_retrieve
+        )
+
+    async def test_read_flow_runs_idempotency_key_filter_excludes_idempotency_key(
+        self, flow_runs_with_idempotency_key, client
+    ):
+        """
+        This test tests to make sure that when you pass idempotency keys to the not_any_ argument
+        of the filter, the filter excludes flow runs having that value for idempotency key
+        """
+        idempotency_key_of_flow_run_to_exclude: str = flow_runs_with_idempotency_key[
+            0
+        ].idempotency_key
+        idempotency_key_of_flow_run_that_should_be_included: str = (
+            flow_runs_with_idempotency_key[1].idempotency_key
+        )
+        flow_run_idempotency_key_exclude_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                idempotency_key=schemas.filters.FlowRunFilterIdempotencyKey(
+                    not_any_=[idempotency_key_of_flow_run_to_exclude]
+                )
+            ).model_dump(mode="json")
+        )
+        response = await client.post(
+            "/flow_runs/paginate", json=flow_run_idempotency_key_exclude_filter
+        )
+
+        results = response.json()["results"]
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        # assert we started with two flow runs from fixture
+        assert len(flow_runs_with_idempotency_key) == 2
+
+        # filtering the fixture should result in a single element
+        assert len(results) == 1
+
+        # make sure the idempotency key we're excluding is not included in the results
+        for result in results:
+            assert result["idempotency_key"] != idempotency_key_of_flow_run_to_exclude
+
+        # make sure the idempotency key we did not exclude is still in the results
+        assert results[0]["idempotency_key"] == str(
+            idempotency_key_of_flow_run_that_should_be_included
+        )
+
+    async def test_read_flow_runs_applies_task_run_filter(
+        self, flow, flow_runs, client, session
+    ):
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_runs[1].id, task_key="my-key", dynamic_key="0"
+            ),
+        )
+        await session.commit()
+
+        flow_run_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flow_runs/paginate", json=flow_run_filter)
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert results[0]["id"] == str(flow_runs[1].id)
+
+    async def test_read_flow_runs_applies_work_pool_name_filter(
+        self, flow_runs, client, work_pool
+    ):
+        work_pool_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flow_runs/paginate", json=work_pool_filter)
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert results[0]["id"] == str(flow_runs[2].id)
+
+    async def test_read_flow_runs_applies_work_queue_id_filter(
+        self,
+        flow_runs,
+        work_queue_1,
+        client,
+    ):
+        work_pool_filter = dict(
+            work_pool_queues=schemas.filters.WorkQueueFilter(
+                id=schemas.filters.WorkQueueFilterId(any_=[work_queue_1.id])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flow_runs/paginate", json=work_pool_filter)
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert results[0]["id"] == str(flow_runs[2].id)
+
+    async def test_read_flow_runs_multi_filter(self, flow, flow_runs, client):
+        flow_run_filter = dict(
+            flow_runs=dict(tags=dict(all_=["blue"])),
+            flows=dict(name=dict(any_=["another-test"])),
+            limit=1,
+            offset=0,
+        )
+        response = await client.post("/flow_runs/paginate", json=flow_run_filter)
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert results[0]["id"] == str(flow_runs[2].id)
+
+    async def test_read_flow_runs_applies_limit(self, flow_runs, client):
+        response = await client.post("/flow_runs/paginate", json=dict(limit=1))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(response.json()["results"]) == 1
+
+    async def test_read_flow_runs_returns_empty_list(self, client):
+        response = await client.post("/flow_runs/paginate")
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"] == []
+
+    async def test_read_flow_runs_applies_sort(self, session, flow, client):
+        now = pendulum.now("UTC")
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                name="Flow Run 1",
+                state=schemas.states.State(
+                    type=StateType.SCHEDULED,
+                    timestamp=now.subtract(minutes=1),
+                ),
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                name="Flow Run 2",
+                state=schemas.states.State(
+                    type=StateType.SCHEDULED,
+                    timestamp=now.add(minutes=1),
+                ),
+                start_time=now.subtract(minutes=2),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_ASC.value),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_DESC.value),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(
+                limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC.value
+            ),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(
+                limit=1,
+                page=2,
+                sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC.value,
+            ),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(
+                limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value
+            ),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(
+                limit=1,
+                page=2,
+                sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value,
+            ),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.FlowRunSort.NAME_ASC.value,
+            ),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.FlowRunSort.NAME_DESC.value,
+            ),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["results"][0]["id"] == str(flow_run_2.id)
+
+    @pytest.mark.parametrize(
+        "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]
+    )
+    async def test_read_flow_runs_sort_succeeds_for_all_sort_values(
+        self, sort, flow_run, client
+    ):
+        response = await client.post("/flow_runs/paginate", json=dict(sort=sort))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert results[0]["id"] == str(flow_run.id)
+
+    @pytest.fixture
+    async def parent_flow_run(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Pending(),
+            ),
+        )
+        await session.commit()
+        return flow_run
+
+    @pytest.fixture
+    async def child_runs(
+        self,
+        flow,
+        parent_flow_run,
+        session,
+    ):
+        children = []
+        for i in range(5):
+            dummy_task = await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.core.TaskRun(
+                    flow_run_id=parent_flow_run.id,
+                    name=f"dummy-{i}",
+                    task_key=f"dummy-{i}",
+                    dynamic_key=f"dummy-{i}",
+                ),
+            )
+            children.append(
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=flow.id,
+                        flow_version="1.0",
+                        state=schemas.states.Pending(),
+                        parent_task_run_id=dummy_task.id,
+                    ),
+                )
+            )
+        return children
+
+    @pytest.fixture
+    async def grandchild_runs(self, flow, child_runs, session):
+        grandchildren = []
+        for child in child_runs:
+            for i in range(3):
+                dummy_task = await models.task_runs.create_task_run(
+                    session=session,
+                    task_run=schemas.core.TaskRun(
+                        flow_run_id=child.id,
+                        name=f"dummy-{i}",
+                        task_key=f"dummy-{i}",
+                        dynamic_key=f"dummy-{i}",
+                    ),
+                )
+                grandchildren.append(
+                    await models.flow_runs.create_flow_run(
+                        session=session,
+                        flow_run=schemas.core.FlowRun(
+                            flow_id=flow.id,
+                            flow_version="1.0",
+                            state=schemas.states.Pending(),
+                            parent_task_run_id=dummy_task.id,
+                        ),
+                    )
+                )
+        return grandchildren
+
+    async def test_read_subflow_runs(
+        self,
+        client,
+        parent_flow_run,
+        child_runs,
+        # included to make sure we're only going 1 level deep
+        grandchild_runs,
+        # included to make sure we're not bringing in extra flow runs
+        flow_runs,
+    ):
+        """We should be able to find all subflow runs of a given flow run."""
+        subflow_filter = {
+            "flow_runs": schemas.filters.FlowRunFilter(
+                parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
+                    any_=[parent_flow_run.id]
+                )
+            ).model_dump(mode="json")
+        }
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=subflow_filter,
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(response.json()["results"]) == len(child_runs)
+
+        returned = {UUID(run["id"]) for run in response.json()["results"]}
+        expected = {run.id for run in child_runs}
+
+        assert returned == expected
+
+    async def test_read_subflow_runs_non_existant(
+        self,
+        client,
+        # including these to make sure we aren't bringing in extra flow runs
+        parent_flow_run,
+        child_runs,
+        grandchild_runs,
+        flow_runs,
+    ):
+        subflow_filter = {
+            "flow_runs": schemas.filters.FlowRunFilter(
+                parent_flow_run_id=schemas.filters.FlowRunFilterParentFlowRunId(
+                    any_=[uuid4()]
+                )
+            ).model_dump(mode="json")
+        }
+
+        response = await client.post(
+            "/flow_runs/paginate",
+            json=subflow_filter,
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(response.json()["results"]) == 0

@@ -19,6 +19,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse, PlainTextResponse
+from pydantic import BaseModel
 from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
@@ -485,7 +486,7 @@ async def resume_flow_run(
 
 
 @router.post("/filter", response_class=ORJSONResponse)
-async def read_flow_runs(
+async def paginate_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
@@ -700,3 +701,75 @@ async def delete_flow_run_input(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Flow run input not found"
             )
+
+
+class FlowRunPaginationResponse(BaseModel):
+    results: list[schemas.responses.FlowRunResponse]
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
+@router.post("/paginate", response_class=ORJSONResponse)
+async def read_flow_runs(
+    sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
+    limit: int = dependencies.LimitBody(),
+    page: int = Body(1, ge=1),
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> List[schemas.responses.FlowRunResponse]:
+    """
+    Pagination query for flow runs.
+    """
+    offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            work_queue_filter=work_pool_queues,
+            offset=offset,
+            limit=limit,
+            sort=sort,
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            work_queue_filter=work_pool_queues,
+        )
+
+        # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
+        # response to JSON, we do so more efficiently ourselves.
+        # In particular, the FastAPI encoder is very slow for large, nested objects.
+        # See: https://github.com/tiangolo/fastapi/issues/1224
+        results = [
+            schemas.responses.FlowRunResponse.model_validate(
+                run, from_attributes=True
+            ).model_dump(mode="json")
+            for run in runs
+        ]
+
+        response = FlowRunPaginationResponse(
+            results=results,
+            count=count,
+            limit=limit,
+            pages=(count + limit - 1) // limit,
+            page=page,
+        ).model_dump(mode="json")
+
+        return ORJSONResponse(content=response)
