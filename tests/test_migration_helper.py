@@ -1,0 +1,87 @@
+"""
+Tests for the migration_helper module.
+"""
+import importlib
+import sys
+
+import pytest
+
+from prefect.utilities.migration_helper import ModuleMovedError, handle_moved_modules
+
+
+class MockModule:
+    pass
+
+
+@pytest.fixture
+def setup_module():
+    module_name = "mock_module"
+    module = MockModule()
+    sys.modules[module_name] = module
+
+    moved_modules = {
+        "mock_module.GCS": "mock_module_new.GCS",
+        "mock_module.Azure": "mock_module_new.Azure",
+        "mock_module.OldClass": "Removed: Use mock_module_new.NewClass instead",
+    }
+
+    yield module_name, moved_modules
+
+    del sys.modules[module_name]
+
+
+def test_special_attributes(setup_module):
+    module_name, moved_modules = setup_module
+    handle_moved_modules(module_name, moved_modules)
+
+    module = sys.modules[module_name]
+
+    with pytest.raises(AttributeError):
+        getattr(module, "__name__")
+
+    with pytest.raises(AttributeError):
+        getattr(module, "__path__")
+
+
+def test_moved_functions_or_classes(setup_module):
+    module_name, moved_modules = setup_module
+    handle_moved_modules(module_name, moved_modules)
+
+    module = sys.modules[module_name]
+
+    with pytest.raises(
+        ModuleMovedError,
+        match="Module 'mock_module.Azure' has been moved to 'mock_module_new.Azure'. Please update your import.",
+    ):
+        getattr(module, "Azure")
+
+    with pytest.raises(
+        ModuleMovedError,
+        match="Module 'mock_module.Azure' has been moved to 'mock_module_new.Azure'. Please update your import.",
+    ):
+        getattr(importlib.import_module("mock_module"), "Azure")
+
+
+def test_removed_module(setup_module):
+    module_name, moved_modules = setup_module
+    handle_moved_modules(module_name, moved_modules)
+
+    module = sys.modules[module_name]
+
+    with pytest.raises(
+        ModuleMovedError,
+        match="Module 'mock_module.OldClass' has been removed. Use mock_module_new.NewClass instead",
+    ):
+        getattr(module, "OldClass")
+
+
+def test_nonexistent_attributes(setup_module):
+    module_name, moved_modules = setup_module
+    handle_moved_modules(module_name, moved_modules)
+
+    module = sys.modules[module_name]
+
+    with pytest.raises(
+        AttributeError, match="Module 'Nonexistent' not found in 'mock_module'."
+    ):
+        getattr(module, "Nonexistent")
