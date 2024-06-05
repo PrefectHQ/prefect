@@ -14,13 +14,23 @@ class ModuleMovedError(ImportError):
         super().__init__(message)
 
 
+class ClassRemovedError(ImportError):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class ModuleRemovedError(ImportError):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 # Dictionary mapping old module paths to new locations or removal messages
 # Format:
-# "old.module.path": "new.module.path" - indicates the module has moved to a new location
-# "old.module.path": "removed: use new.module.path instead" - indicates the module has been removed, with a suggested alternative
+# "old.module.path": ("type", "new.module.path") - indicates the module has been moved
+# "old.module.path": ("type", "Removed: Use 'new.module.path' instead.") - indicates the module has been removed
 MOVED_MODULES = {
-    "prefect.filesystems.GCS": "Removed: Use 'prefect_gcp' instead",
-    "prefect.filesystems.Azure": "Removed: Use 'prefect_azure' instead",
+    "prefect.filesystems.GCS": ("class", "prefect_gcp"),
+    "prefect.filesystems.Azure": ("class", "Removed: Use 'prefect_azure' instead."),
 }
 
 
@@ -54,16 +64,17 @@ def handle_moved_modules(module_name, moved_modules):
 
         # Check if the attribute name corresponds to a moved or removed module
         if qualified_name in moved_modules:
-            new_location = moved_modules[qualified_name]
+            object_type, new_location = moved_modules[qualified_name]
+            formatted_object_type = object_type.capitalize()
             if "removed" in new_location.lower():
-                raise ModuleMovedError(
-                    f"Module '{qualified_name}' has been removed. {new_location.split('Removed: ')[-1]}"
+                raise ModuleRemovedError(
+                    f"{formatted_object_type} '{qualified_name}' has been removed. {new_location.split('Removed: ')[-1]}"
                 )
             else:
                 raise ModuleMovedError(
-                    f"Module '{qualified_name}' has been moved to '{new_location}'. Please update your import."
+                    f"{formatted_object_type} '{qualified_name}' has been moved to '{new_location}'. Please update your import."
                 )
-        raise AttributeError(f"Module '{name}' not found in '{module_name}'.")
+        raise AttributeError(f"'{name}' not found in '{module_name}'.")
 
     # Override the module's __class__ to use the custom __getattr__ function
     module = sys.modules[module_name]
