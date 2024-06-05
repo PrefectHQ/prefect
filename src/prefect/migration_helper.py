@@ -7,8 +7,8 @@ class ModuleMovedError(ImportError):
 
 
 MOVED_MODULES = {
-    "prefect.filesystems.GCS": "prefect_gcp.filesystems.GCS",
-    "prefect.task_runners.SequentialTaskRunner": "Module removed, do xyz instead",
+    "prefect.filesystems.GCS": "prefect_gcp",
+    "prefect.filesystems.Azure": "prefect_azure",
 }
 
 

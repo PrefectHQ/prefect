@@ -15,7 +15,6 @@ from prefect.futures import (
     PrefectFuture,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.migration_helper import MOVED_MODULES, handle_moved_modules
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
     collapse_variadic_parameters,
@@ -30,9 +29,6 @@ if TYPE_CHECKING:
 P = ParamSpec("P")
 T = TypeVar("T")
 F = TypeVar("F", bound=PrefectFuture)
-
-
-handle_moved_modules(__name__, MOVED_MODULES)
 
 
 class TaskRunner(abc.ABC, Generic[F]):
