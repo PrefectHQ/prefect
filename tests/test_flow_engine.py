@@ -57,7 +57,7 @@ class TestFlowRunEngine:
 
     async def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
-        with engine.start():
+        with engine.initialize_run():
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
 
