@@ -408,7 +408,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
 
     bucket_name: str = Field(default=..., description="Name of your bucket.")
 
-    credentials: Union[MinIOCredentials, AwsCredentials] = Field(
+    credentials: Union[AwsCredentials, MinIOCredentials] = Field(
         default_factory=AwsCredentials,
         description="A block containing your credentials to AWS or MinIO.",
     )
