@@ -100,12 +100,14 @@ class _None(CachePolicy):
         return None
 
 
+@dataclass
 class TaskDef(CachePolicy):
     def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> None:
         lines = inspect.getsource(task)
         return hash_objects(lines)
 
 
+@dataclass
 class FlowParameters(CachePolicy):
     pass
 
