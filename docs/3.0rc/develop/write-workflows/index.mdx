@@ -65,9 +65,10 @@ Forks 🍴 : 1245
 12:47:45.008 | INFO | Flow run 'ludicrous-warthog' - Finished in state Completed()
 ```
 
-
-<Tip> "Flows can contain arbitrary Python"
-    As shown above, flow definitions can contain arbitrary Python logic.</Tip>
+<Tip>
+**Flows can contain arbitrary Python**
+As shown above, flow definitions can contain arbitrary Python logic.
+</Tip>
 
 ## Parameters
 
@@ -116,56 +117,7 @@ Now navigate to your Prefect dashboard and compare the displays for these two ru
 ## Logging
 
 Prefect enables you to log a variety of useful information about your flow and task runs. You can capture information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
-If you navigate to your dashboard and explore the runs created above, you will notice that the repository statistics are not captured in the flow run logs.  
-Let's fix that by adding some [logging](/3.0rc/develop/observe-workflows/logging) to your flow:
-
-```python hl_lines="2 11-14" title="repo_info.py"
-import httpx
-from prefect import flow, get_run_logger
-
-
-@flow
-def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-    url = f"https://api.github.com/repos/{repo_name}"
-    response = httpx.get(url)
-    response.raise_for_status()
-    repo = response.json()
-    logger = get_run_logger()
-    logger.info("%s repository statistics 🤓:", repo_name)
-    logger.info(f"Stars 🌠 : %d", repo["stargazers_count"])
-    logger.info(f"Forks 🍴 : %d", repo["forks_count"])
-```
-
-Now the output looks more consistent _and_, more importantly, your statistics are stored in the Prefect backend and displayed in the UI for this flow run:
-```bash
-12:47:42.792 | INFO    | prefect.engine - Created flow run 'ludicrous-warthog' for flow 'get-repo-info'
-12:47:43.016 | INFO    | Flow run 'ludicrous-warthog' - PrefectHQ/prefect repository statistics 🤓:
-12:47:43.016 | INFO    | Flow run 'ludicrous-warthog' - Stars 🌠 : 12146
-12:47:43.042 | INFO    | Flow run 'ludicrous-warthog' - Forks 🍴 : 1245
-12:47:45.008 | INFO    | Flow run 'ludicrous-warthog' - Finished in state Completed()
-```
-
-<Tip>
-    `log_prints=True`
-
-    You could have achieved the same outcome by using Prefect's `log_prints` keyword argument in the `flow` decorator:
-
-    ```python
-
-    @flow(log_prints=True)
-    def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-        ...
-
-    ```
-</Tip>
-
-<Warning>
-    **Logging vs. Artifacts**
-
-    The example above is for educational purposes.
-    In general, it is better to use [Prefect artifacts](/3.0rc/develop/observe-workflows/create-artifacts/) for storing metrics and output.
-    Logs are best for tracking progress and debugging errors.
-</Warning>
+Check out [Logging](/3.0rc/develop/observe-workflows/logging) for more information.
 
 
 ## Retries
@@ -614,7 +566,9 @@ Subflow says: Hello Marvin!
 ```
 </div>
 
-<Tip> "Subflows or tasks?"
+<Tip> 
+    **Subflows or tasks?**
+
     In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow.
     So a common question is:
 
@@ -632,6 +586,7 @@ Subflow says: Hello Marvin!
     - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
     - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
 </Tip>
+
 ## Parameters
 
 Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value.

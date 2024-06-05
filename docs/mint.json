@@ -75,6 +75,7 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-workflows/index",
+            "3.0rc/develop/write-workflows/pause-cancel-flows", 
             "3.0rc/develop/write-workflows/variables"
           ]
         },
