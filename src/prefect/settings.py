@@ -1208,6 +1208,9 @@ PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = Setting(
 """The number of seconds before a work queue is marked as not ready if it has not been
 polled."""
 
+PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
+"""If `True`, log retryable errors in the API and it's services."""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
