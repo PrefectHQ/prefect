@@ -13,12 +13,14 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Sequence,
     Set,
     TypeVar,
     Union,
 )
 from uuid import UUID
 
+import anyio
 import pendulum
 from typing_extensions import ParamSpec
 
@@ -50,6 +52,7 @@ from prefect.settings import (
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
+    AwaitingRetry,
     Failed,
     Paused,
     Pending,
@@ -61,7 +64,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -352,13 +355,27 @@ class TaskRunEngine(Generic[P, R]):
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
-        """
-        If the task has retries left, and the retry condition is met, set the task to retrying.
+        """Handle any task run retries.
+
+        - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
+          - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
-        - If the task has retries left, and the retry condition is met, return True.
         """
         if self.retries < self.task.retries and self.can_retry:
-            self.set_state(Retrying(), force=True)
+            if self.task.retry_delay_seconds:
+                delay = (
+                    self.task.retry_delay_seconds[
+                        min(self.retries, len(self.task.retry_delay_seconds) - 1)
+                    ]  #
+                    if isinstance(self.task.retry_delay_seconds, Sequence)
+                    else self.task.retry_delay_seconds
+                )
+                new_state = AwaitingRetry(
+                    scheduled_time=pendulum.now("utc").add(seconds=delay)
+                )
+            else:
+                new_state = Retrying()
+            self.set_state(new_state, force=True)
             self.retries = self.retries + 1
             return True
         return False
@@ -515,9 +532,23 @@ class TaskRunEngine(Generic[P, R]):
                     self._client = None
 
     def is_running(self) -> bool:
-        if getattr(self, "task_run", None) is None:
+        """Whether or not the engine is currently running a task."""
+        if (task_run := getattr(self, "task_run", None)) is None:
             return False
-        return getattr(self, "task_run").state.is_running()
+        return task_run.state.is_running() or task_run.state.is_scheduled()
+
+    @sync_compatible
+    async def wait_until_ready(self):
+        """Waits for scheduled time if set."""
+        if scheduled_time := self.state.state_details.scheduled_time:
+            self.logger.info(
+                f"Waiting for scheduled time {scheduled_time} for task {self.task.name!r}"
+            )
+            await anyio.sleep((scheduled_time - pendulum.now("utc")).total_seconds())
+            self.set_state(
+                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                force=True,
+            )
 
     # --------------------------
     #
@@ -571,13 +602,14 @@ class TaskRunEngine(Generic[P, R]):
         Convenience method to call the task function. Returns a coroutine if the
         task is async.
         """
+        parameters = self.parameters or {}
         if self.task.isasync:
 
             async def _call_task_fn():
                 if transaction.is_committed():
                     result = transaction.read()
                 else:
-                    result = await call_with_parameters(self.task.fn, self.parameters)
+                    result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
 
             return _call_task_fn()
@@ -585,7 +617,7 @@ class TaskRunEngine(Generic[P, R]):
             if transaction.is_committed():
                 result = transaction.read()
             else:
-                result = call_with_parameters(self.task.fn, self.parameters)
+                result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
 
 
@@ -609,6 +641,7 @@ def run_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
+            engine.wait_until_ready(_sync=True)
             with engine.run_context(), engine.transaction_context() as txn:
                 engine.call_task_fn(txn)
 
@@ -635,6 +668,7 @@ async def run_task_async(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
+            await engine.wait_until_ready()
             with engine.run_context(), engine.transaction_context() as txn:
                 await engine.call_task_fn(txn)
 
