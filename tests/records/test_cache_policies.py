@@ -33,6 +33,12 @@ class TestNonePolicy:
         key = policy.compute_key(task=None, run=None, inputs=None, flow_parameters=None)
         assert key is None
 
+    @pytest.mark.parametrize("typ", CachePolicy.__subclasses__())
+    def test_addition_of_none_is_noop(self, typ):
+        policy = _None()
+        other = typ()
+        assert policy + other == other
+
 
 class TestDefaultPolicy:
     def test_initializes(self):
@@ -104,6 +110,12 @@ class TestInputsPolicy:
             )
             assert new_key == key
 
+    def test_subtraction_results_in_new_policy(self):
+        policy = Inputs()
+        new_policy = policy - "foo"
+        assert policy != new_policy
+        assert policy.exclude != new_policy.exclude
+
     def test_excluded_can_be_manipulated_via_subtraction(self):
         policy = Inputs() - "y"
         assert policy.exclude == ["y"]
@@ -128,6 +140,20 @@ class TestCompoundPolicy:
         one, two = Inputs(), Default()
         policy = one + two
         assert isinstance(policy, CompoundCachePolicy)
+
+    def test_addition_creates_new_policies(self):
+        one, two = Inputs(), CompoundCachePolicy()
+        policy = one + two
+        assert isinstance(policy, CompoundCachePolicy)
+        assert policy != two
+        assert policy.policies != two.policies
+
+    def test_subtraction_creates_new_policies(self):
+        policy = CompoundCachePolicy(policies=[])
+        new_policy = policy - "foo"
+        assert isinstance(new_policy, CompoundCachePolicy)
+        assert policy != new_policy
+        assert policy.policies != new_policy.policies
 
     def test_creation_via_subtraction(self):
         one = Default()

@@ -28,26 +28,29 @@ class CachePolicy:
         if not isinstance(other, str):
             raise TypeError("Can only subtract strings from key policies.")
         if isinstance(self, Inputs):
-            if self.exclude is None:
-                self.exclude = [other]
-            else:
-                self.exclude.append(other)
-            return self
+            exclude = self.exclude or []
+            return Inputs(exclude=exclude + [other])
         elif isinstance(self, CompoundCachePolicy):
             new = Inputs(exclude=[other])
-            self.merge(new)
-            return self
+            policies = self.policies or []
+            return CompoundCachePolicy(policies=policies + [new])
         else:
             new = Inputs(exclude=[other])
             return CompoundCachePolicy(policies=[self, new])
 
     def __add__(self, other: "CachePolicy") -> "CompoundCachePolicy":
-        if isinstance(self, CompoundCachePolicy):
-            self.merge(other)
+        # adding _None is a no-op
+        if isinstance(other, _None):
             return self
-        elif isinstance(other, CompoundCachePolicy):
-            other.merge(self)
+        elif isinstance(self, _None):
             return other
+
+        if isinstance(self, CompoundCachePolicy):
+            policies = self.policies or []
+            return CompoundCachePolicy(policies=policies + [other])
+        elif isinstance(other, CompoundCachePolicy):
+            policies = other.policies or []
+            return CompoundCachePolicy(policies=policies + [self])
         else:
             return CompoundCachePolicy(policies=[self, other])
 
