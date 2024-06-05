@@ -14,11 +14,6 @@ class ModuleMovedError(ImportError):
         super().__init__(message)
 
 
-class ClassRemovedError(ImportError):
-    def __init__(self, message):
-        super().__init__(message)
-
-
 class ModuleRemovedError(ImportError):
     def __init__(self, message):
         super().__init__(message)
