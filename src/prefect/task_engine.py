@@ -46,6 +46,7 @@ from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, _format_user_supplied_storage_key
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
     Failed,
@@ -295,9 +296,7 @@ class TaskRunEngine(Generic[P, R]):
 
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                result,
-                result_factory=result_factory,
-                key=transaction.key
+                result, result_factory=result_factory, key=transaction.key
             )
         )
         transaction.stage(
@@ -504,9 +503,17 @@ class TaskRunEngine(Generic[P, R]):
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+
+        # refresh cache setting is now repurposes as overwrite transaction record
+        overwrite = (
+            self.task.refresh_cache
+            if self.task.refresh_cache is not None
+            else PREFECT_TASKS_REFRESH_CACHE.value()
+        )
         with transaction(
             key=self.compute_transaction_key(),
             store=ResultFactoryStore(result_factory=result_factory),
+            overwrite=overwrite,
         ) as txn:
             yield txn
 

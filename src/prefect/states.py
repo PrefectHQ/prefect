@@ -204,7 +204,9 @@ async def exception_to_failed_state(
     return state
 
 
-async def return_value_to_state(retval: R, result_factory: ResultFactory, key: str = None) -> State[R]:
+async def return_value_to_state(
+    retval: R, result_factory: ResultFactory, key: str = None
+) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
     be placed in.
