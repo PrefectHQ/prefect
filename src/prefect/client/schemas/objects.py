@@ -280,7 +280,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = DateTime.now("utc")
         return self
 
     def is_scheduled(self) -> bool:
