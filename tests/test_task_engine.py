@@ -21,7 +21,7 @@ from prefect.context import (
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResult, ResultFactory
+from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
@@ -1023,3 +1023,30 @@ class TestPersistence:
         assert await state.result() == -92
         assert isinstance(state.data, PersistedResult)
         assert state.data.storage_key == "foo-bar"
+
+
+class TestCachePolicy:
+    async def test_result_stored_with_storage_key_if_no_policy_set(
+        self, prefect_client
+    ):
+        @task(persist_result=True, result_storage_key="foo-bar")
+        async def async_task():
+            return 1800
+
+        state = await async_task(return_state=True)
+
+        assert state.is_completed()
+        assert await state.result() == 1800
+        assert state.data.storage_key == "foo-bar"
+
+    async def test_none_policy_doesnt_persist(self, prefect_client):
+        @task(cache_policy=None, result_storage_key=None)
+        async def async_task():
+            return 1800
+
+        assert async_task.cache_policy is None
+        state = await async_task(return_state=True)
+
+        assert state.is_completed()
+        assert await state.result() == 1800
+        assert isinstance(state.data, UnpersistedResult)
