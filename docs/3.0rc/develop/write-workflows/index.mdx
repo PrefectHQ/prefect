@@ -3,14 +3,6 @@ title: Flows
 description: Learn the basics of defining and running flows.
 ---
 
-<Note>
-    **Prerequisites**
-
-    This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-hosted server instance.
-    See the prerequisites section of the [tutorial](/3.0rc/tutorial/) for more details.
-</Note>
-
-
 ## About flows
 
 [Flows](/3.0rc/develop/write-workflows/) are like functions.
@@ -24,6 +16,13 @@ When a function becomes a flow, its behavior changes, giving it the following ad
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
 - A flow can be elevated to a [deployment](/3.0rc/deploy/serve-workflows/), which exposes a remote API for interacting with it.
+
+<Note>
+    **Prerequisites**
+
+    This tutorial assumes you have already installed Prefect and connected to Prefect Cloud or a self-hosted server instance.
+    See the prerequisites section of the [tutorial](/3.0rc/tutorial/) for more details.
+</Note>
 
 ## Run your first flow
 
