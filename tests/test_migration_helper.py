@@ -43,7 +43,7 @@ def test_special_attributes(setup_module):
         getattr(module, "__path__")
 
 
-def test_moved_functions_or_classes(setup_module):
+def test_moved_module(setup_module):
     module_name, moved_modules = setup_module
     handle_moved_modules(module_name, moved_modules)
 
@@ -75,7 +75,7 @@ def test_removed_module(setup_module):
         getattr(module, "OldClass")
 
 
-def test_nonexistent_attributes(setup_module):
+def test_nonexistent_module(setup_module):
     module_name, moved_modules = setup_module
     handle_moved_modules(module_name, moved_modules)
 
