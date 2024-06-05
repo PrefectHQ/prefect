@@ -41,7 +41,7 @@
     }
   },
   "topbarCtaButton": {
-    "name": "GET STARTED",
+    "name": "TRY PREFECT CLOUD →",
     "url": "https://app.prefect.cloud/auth/login"
   },
   "anchors": [
