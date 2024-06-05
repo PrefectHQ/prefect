@@ -929,21 +929,26 @@ class KubernetesWorker(BaseWorker):
 
         See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
         """
+        resource_version = None
         while True:
             try:
-                return watch.stream(
+                async for event in watch.stream(
                     func=batch_client.list_namespaced_job,
                     namespace=namespace,
                     field_selector=f"metadata.name={job_name}",
+                    resource_version=resource_version,
                     **watch_kwargs,
-                )
+                ):
+                    yield event
+                    resource_version = event["object"].metadata.resource_version
+
             except ApiException as e:
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
                         namespace=namespace, field_selector=f"metadata.name={job_name}"
                     )
+
                     resource_version = job_list.metadata.resource_version
-                    watch_kwargs["resource_version"] = resource_version
                 else:
                     raise
             finally:
@@ -1035,7 +1040,7 @@ class KubernetesWorker(BaseWorker):
             # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
             watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
 
-            async for event in await self._job_events(
+            async for event in self._job_events(
                 watch,
                 batch_client,
                 job_name,
