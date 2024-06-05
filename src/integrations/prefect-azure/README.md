@@ -94,7 +94,8 @@ def container_instance_job_flow():
 If we have `a_flow_module.py`:
 
 ```python
-from prefect import flow, get_run_logger
+from prefect import flow
+from prefect.logging import get_run_logger
 
 @flow
 def log_hello_flow(name="Marvin"):

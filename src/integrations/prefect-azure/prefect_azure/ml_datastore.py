@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Dict, List, Union
 from anyio import to_thread
 from azureml.core.datastore import Datastore
 
-from prefect import get_run_logger, task
+from prefect import task
+from prefect.logging import get_run_logger
 
 if TYPE_CHECKING:
     from azureml.data.azure_storage_datastore import AzureBlobDatastore
