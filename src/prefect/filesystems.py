@@ -7,7 +7,7 @@ import anyio
 import fsspec
 from pydantic import Field, SecretStr, field_validator
 
-from prefect._internal.compatibility.migration_helper import (
+from prefect._internal.compatibility.v3_upgrade_helper import (
     MOVED_OBJECTS,
     handle_moved_objects,
 )
