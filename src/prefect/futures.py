@@ -5,17 +5,14 @@ import uuid
 from functools import partial
 from typing import Any, Generic, Optional, Set, Union, cast
 
-import anyio
-import anyio.to_thread
 from typing_extensions import TypeVar
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import TERMINAL_STATES, TaskRun
-from prefect.events.clients import get_events_subscriber
-from prefect.events.filters import EventFilter, EventNameFilter, EventResourceFilter
+from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.states import Pending, State
+from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
@@ -192,40 +189,23 @@ class PrefectDistributedFuture(PrefectFuture):
             self.task_run = await client.read_task_run(task_run_id=self._task_run_id)
             if self.task_run.state.is_final():
                 logger.debug(
-                    "Task run %s already finished. Returning...", self.task_run.task_key
+                    "Task run %s for task %s already finished. Returning...",
+                    self.task_run.id,
+                    self.task_run.task_key,
                 )
                 self._final_state = self.task_run.state
                 return
 
             # If still running, wait for a completed event from the server
-            with anyio.move_on_after(delay=timeout):
-                async with get_events_subscriber(
-                    filter=EventFilter(
-                        event=EventNameFilter(
-                            name=[
-                                f"prefect.task-run.{state.name.title()}"
-                                for state in TERMINAL_STATES
-                            ],
-                        ),
-                        resource=EventResourceFilter(
-                            id=[f"prefect.task-run.{self.task_run_id}"]
-                        ),
-                    )
-                ) as subscriber:
-                    logger.debug(
-                        "Waiting for completed event for %s...", self.task_run.task_key
-                    )
-                    async for event in subscriber:
-                        self.task_run = await client.read_task_run(
-                            task_run_id=self._task_run_id
-                        )
-                        logger.debug(
-                            "Received completion event %s for task run %s",
-                            event.event,
-                            self.task_run.task_key,
-                        )
-                        self._final_state = self.task_run.state
-                        return
+            logger.debug(
+                "Waiting for completed event for task run %s of task %s...",
+                self.task_run.id,
+                self.task_run.task_key,
+            )
+            await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
+            self.task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            self._final_state = self.task_run.state
+            return
 
     def result(
         self,
