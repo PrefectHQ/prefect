@@ -3,8 +3,9 @@ from pathlib import Path
 from typing import Union
 
 import pytest
-from prefect_redis.filesystem import RedisStorageContainer
 from pydantic.types import SecretStr
+
+from prefect.blocks.redis import RedisStorageContainer
 
 
 @pytest.fixture

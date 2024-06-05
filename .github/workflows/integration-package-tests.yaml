@@ -85,14 +85,6 @@ jobs:
           uv pip install --upgrade --system -e .[dev]
           uv pip install --upgrade --system ../../../
 
-      - name: Start redis
-        if: matrix.package == 'prefect-redis'
-        run: >
-          docker run
-          --detach
-          --publish 6379:6379
-          redis:latest
-
       - name: Run tests
         if: matrix.package != 'prefect-ray'
         env:
