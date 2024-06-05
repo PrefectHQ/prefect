@@ -11,7 +11,7 @@ class ModuleMovedError(ImportError):
 # "old.module.path": "new.module.path" - indicates the module has moved to a new location
 # "old.module.path": "removed: use new.module.path instead" - indicates the module has been removed, with a suggested alternative
 MOVED_MODULES = {
-    "prefect.filesystems.GCS": "prefect_gcp",
+    "prefect.filesystems.GCS": "Removed: Use 'prefect_gcp' instead",
     "prefect.filesystems.Azure": "Removed: Use 'prefect_azure' instead",
 }
 
