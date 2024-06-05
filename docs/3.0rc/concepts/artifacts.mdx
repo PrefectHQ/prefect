@@ -303,10 +303,10 @@ You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/A
 
 In Python code, you can retrieve an existing artifact with the `Artifact.get` class method:
 
-```python
+```python continuation
 from prefect.artifacts import Artifact
 
-my_retrieved_artifact = Artifact.get("my_artifact_key")
+my_retrieved_artifact = Artifact.get("gif")
 
 ```
 
@@ -323,38 +323,3 @@ prefect artifact delete --id <my_id>
 ```
 
 Alternatively, you can delete artifacts using the [Prefect REST API](https://docs.prefect.io/latest/api-ref/rest-api-reference/#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
-
-## Artifacts API
-
-Prefect provides the [Prefect REST API](https://docs.prefect.io/latest/api-ref/rest-api-reference/#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically.
-With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
-
-For example, to read the five most recently created Markdown, table, and link artifacts, you can run the following:
-
-```python
-import requests
-
-PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc/workspaces/xyz"
-PREFECT_API_KEY="pnu_ghijk"
-data = {
-    "sort": "CREATED_DESC",
-    "limit": 5,
-    "artifacts": {
-        "key": {
-            "exists_": True
-        }
-    }
-}
-
-headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
-endpoint = f"{PREFECT_API_URL}/artifacts/filter"
-
-response = requests.post(endpoint, headers=headers, json=data)
-assert response.status_code == 200
-for artifact in response.json():
-    print(artifact)
-```
-
-If you don't specify a key or that a key must exist, you will also return results (which are a type of key-less artifact).
-
-See the rest of the [Prefect REST API documentation](https://app.prefect.cloud/api/docs#tag/Artifacts) on artifacts for more information!

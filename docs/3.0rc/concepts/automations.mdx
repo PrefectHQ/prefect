@@ -85,8 +85,7 @@ from prefect.events.schemas.automations import EventTrigger
 from prefect.server.events.actions import CancelFlowRun
 
 # creating an automation
-automation =
-  Automation(
+automation = Automation(
     name="woodchonk",
     trigger=EventTrigger(
       expect={"animal.walked"},
@@ -105,7 +104,7 @@ print(automation)
 # reading the automation
 
 automation = Automation.read(id ="d641c552-775c-4dc6-a31e-541cb11137a6")
-or
+# or
 automation = Automation.read("woodchonk")
 
 print(automation)
@@ -247,25 +246,23 @@ Take, for example, this flow which emits an event indicating the table it operat
 ```python
 from prefect import flow
 from prefect.events import emit_event
-from db import Table
-
 
 @flow
 def transform(table_name: str):
-  table = Table(table_name)
+  table = table_name
 
-  if not table.exists():
+  if not table:
     emit_event(
         event="table-missing",
         resource={"prefect.resource.id": "etl-events.transform"}
     )
-  elif table.is_empty():
+  elif table():
     emit_event(
         event="table-empty",
         resource={"prefect.resource.id": "etl-events.transform"}
     )
   else:
-    # transform data
+    pass # transform data
 ```
 
 The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a `table-empty` event has occurred before a flow run of this deployment completes.
@@ -676,7 +673,7 @@ def decorated_fn(param_1: str):
 if __name__=="__main__":
     decorated_fn.deploy(
         name="my-deployment",
-        image="my-image-registry/my-image:my-tag"
+        image="my-image-registry/my-image:my-tag",
         triggers=[
             DeploymentCompoundTrigger(
                 enabled=True,

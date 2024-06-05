@@ -34,7 +34,7 @@ You can interact with the Prefect REST API in several ways:
 ### PrefectClient with a Prefect server
 This example uses `PrefectClient` with a locally hosted Prefect server:
 
-```python
+```python notest
 import asyncio
 from prefect.client import get_client
 
@@ -68,7 +68,7 @@ lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
 
 This example uses the Requests library with Prefect Cloud to return the five newest artifacts.
 
-```python
+```python notest
 import requests
 
 PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc-my-cloud-account-id-is-here/workspaces/123-my-workspace-id-is-here"
