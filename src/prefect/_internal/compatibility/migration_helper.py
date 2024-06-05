@@ -6,6 +6,8 @@ on the given class or module and raise appropriate errors if it has been moved o
 
 The `MOVED_OBJECTS` dictionary should be updated with any old object paths and their new locations.
 """
+import importlib.abc
+import importlib.util
 import sys
 
 
@@ -26,10 +28,52 @@ class ModuleRemovedError(ImportError):
 MOVED_OBJECTS = {
     "prefect.filesystems.GCS": ("class", "prefect_gcp"),
     "prefect.filesystems.Azure": ("class", "Removed: Use 'prefect_azure' instead."),
+    "prefect.deployment": (
+        "module",
+        "Removed: Use 'flow.serve()' or `prefect deploy` instead.",
+    ),
+    "preect.deployment.Deployment": (
+        "class",
+        "Removed: Use 'flow.serve()' or `prefect deploy` instead.",
+    ),
 }
 
 
-def handle_moved_objects(module_name, moved_ojbects):
+class MigrationFinder(importlib.abc.MetaPathFinder):
+    """
+    MigrationFinder is a custom import hook to intercept module import requests and raise appropriate errors
+    if a module has been moved or removed.
+
+    Why we need this:
+    - The custom '__getattr__' function can handle attribute acdess within a module but can't intercept the import
+    process for a module itself.
+    - By inserting a custom path finder into sys.meta_path, we can intercept module imports and raise errors
+    - This allows us to manage moved or removed modules without needing to keep a stub module in place.
+    """
+
+    def __init__(self, moved_objects):
+        self.moved_objects = moved_objects
+
+    def find_spec(self, fullname, path, target=None):
+        """
+        Intercept the import process to check if the requested module has been moved or removed.
+        If found in the `MOVED_OBJECTS` dictionary, raise an appropriate error.
+        """
+        if fullname in self.moved_objects:
+            object_type, new_location = self.moved_objects[fullname]
+            formatted_object_type = object_type.capitalize()
+            if "removed" in new_location.lower():
+                raise ModuleRemovedError(
+                    f"{formatted_object_type} '{fullname}' has been removed. {new_location.split('Removed: ')[-1]}"
+                )
+            else:
+                raise ModuleMovedError(
+                    f"{formatted_object_type} '{fullname}' has been moved to '{new_location}'. Please update your import."
+                )
+        return None
+
+
+def handle_moved_objects(module_name, moved_objects):
     """
     Handle imports for moved or removed modules.
 
@@ -58,8 +102,8 @@ def handle_moved_objects(module_name, moved_ojbects):
             raise AttributeError
 
         # Check if the attribute name corresponds to a moved or removed class or module
-        if qualified_name in moved_ojbects:
-            object_type, new_location = moved_ojbects[qualified_name]
+        if qualified_name in moved_objects:
+            object_type, new_location = moved_objects[qualified_name]
             formatted_object_type = object_type.capitalize()
             if "removed" in new_location.lower():
                 raise ModuleRemovedError(
@@ -80,3 +124,5 @@ def handle_moved_objects(module_name, moved_ojbects):
             return __getattr__(name)
 
     module.__class__ = CustomModule
+
+    sys.meta_path.insert(0, MigrationFinder(moved_objects))

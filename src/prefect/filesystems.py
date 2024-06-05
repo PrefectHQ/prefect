@@ -7,6 +7,10 @@ import anyio
 import fsspec
 from pydantic import Field, SecretStr, field_validator
 
+from prefect._internal.compatibility.migration_helper import (
+    MOVED_OBJECTS,
+    handle_moved_objects,
+)
 from prefect._internal.schemas.validators import (
     stringify_path,
     validate_basepath,
@@ -15,7 +19,6 @@ from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
-from prefect.utilities.migration_helper import MOVED_OBJECTS, handle_moved_objects
 
 handle_moved_objects(__name__, MOVED_OBJECTS)
 
