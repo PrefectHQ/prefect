@@ -288,6 +288,10 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         super().__exit__(exc_type, exc_value, traceback)
 
 
+# Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
+ConcurrentTaskRunner = ThreadPoolTaskRunner
+
+
 class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
     def __init__(self):
         super().__init__()
