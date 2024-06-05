@@ -6,9 +6,13 @@ class ModuleMovedError(ImportError):
         super().__init__(message)
 
 
+# Dictionary mapping old module paths to new locations or removal messages
+# Format:
+# "old.module.path": "new.module.path" - indicates the module has moved to a new location
+# "old.module.path": "removed: use new.module.path instead" - indicates the module has been removed, with a suggested alternative
 MOVED_MODULES = {
     "prefect.filesystems.GCS": "prefect_gcp",
-    "prefect.filesystems.Azure": "prefect_azure",
+    "prefect.filesystems.Azure": "Removed: Use 'prefect_azure' instead",
 }
 
 
