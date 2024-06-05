@@ -123,6 +123,55 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
     return retry_backoff_callable
 
 
+def _infer_parent_task_runs(
+    flow_run_context: Optional[FlowRunContext],
+    task_run_context: Optional[TaskRunContext],
+    parameters: Dict[str, Any],
+):
+    """
+    Attempt to infer the parent task runs for this task run based on the
+    provided flow run and task run contexts, as well as any parameters. It is
+    assumed that the task run is running within those contexts.
+    If any parameter comes from a running task run, that task run is considered
+    a parent. This is expected to happen when task inputs are yielded from
+    generator tasks.
+    """
+    parents = []
+
+    # check if this task has a parent task run based on running in another
+    # task run's existing context. A task run is only considered a parent if
+    # it is in the same flow run (because otherwise presumably the child is
+    # in a subflow, so the subflow serves as the parent) or if there is no
+    # flow run
+    if task_run_context:
+        # there is no flow run
+        if not flow_run_context:
+            parents.append(TaskRunResult(id=task_run_context.task_run.id))
+        # there is a flow run and the task run is in the same flow run
+        elif flow_run_context and task_run_context.task_run.flow_run_id == getattr(
+            flow_run_context.flow_run, "id", None
+        ):
+            parents.append(TaskRunResult(id=task_run_context.task_run.id))
+
+    # parent dependency tracking: for every provided parameter value, try to
+    # load the corresponding task run state. If the task run state is still
+    # running, we consider it a parent task run. Note this is only done if
+    # there is an active flow run context because dependencies are only
+    # tracked within the same flow run.
+    if flow_run_context:
+        for v in parameters.values():
+            if isinstance(v, State):
+                upstream_state = v
+            else:
+                upstream_state = flow_run_context.task_run_results.get(id(v))
+            if upstream_state and upstream_state.is_running():
+                parents.append(
+                    TaskRunResult(id=upstream_state.state_details.task_run_id)
+                )
+
+    return parents
+
+
 @PrefectObjectRegistry.register_instances
 class Task(Generic[P, R]):
     """
@@ -618,27 +667,15 @@ class Task(Generic[P, R]):
                 k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
             }
 
-            # check if this task has a parent task run based on running in another
-            # task run's existing context. A task run is only considered a parent if
-            # it is in the same flow run (because otherwise presumably the child is
-            # in a subflow, so the subflow serves as the parent) or if there is no
-            # flow run
-            if parent_task_run_context:
-                # there is no flow run
-                if not flow_run_context:
-                    task_inputs["__parents__"] = [
-                        TaskRunResult(id=parent_task_run_context.task_run.id)
-                    ]
-                # there is a flow run and the task run is in the same flow run
-                elif (
-                    flow_run_context
-                    and parent_task_run_context.task_run.flow_run_id
-                    == getattr(flow_run_context.flow_run, "id", None)
-                ):
-                    task_inputs["__parents__"] = [
-                        TaskRunResult(id=parent_task_run_context.task_run.id)
-                    ]
+            # collect all parent dependencies
+            if task_parents := _infer_parent_task_runs(
+                flow_run_context=flow_run_context,
+                task_run_context=parent_task_run_context,
+                parameters=parameters,
+            ):
+                task_inputs["__parents__"] = task_parents
 
+            # check wait for dependencies
             if wait_for:
                 task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
 
