@@ -64,7 +64,7 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
-from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
@@ -543,7 +543,6 @@ class TaskRunEngine(Generic[P, R]):
             return False
         return task_run.state.is_running() or task_run.state.is_scheduled()
 
-    @sync_compatible
     async def wait_until_ready(self):
         """Waits for scheduled time if set."""
         if scheduled_time := self.state.state_details.scheduled_time:
@@ -647,7 +646,7 @@ def run_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
-            engine.wait_until_ready(_sync=True)
+            run_coro_as_sync(engine.wait_until_ready())
             with engine.run_context(), engine.transaction_context() as txn:
                 engine.call_task_fn(txn)
 
