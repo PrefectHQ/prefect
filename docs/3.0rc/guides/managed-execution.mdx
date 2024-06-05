@@ -8,10 +8,6 @@ Prefect handles the infrastructure and code execution for you.
 
 Managed execution is a great option for users who want to get started quickly, with no infrastructure setup.
 
-!!! warning "Managed Execution is in beta"
-    Managed Execution is currently in beta.
-    Features are likely to change without warning.
-
 ## Usage guide
 
 Run a flow with managed infrastructure in three steps.
@@ -46,7 +42,7 @@ if __name__ == "__main__":
     )
 ```
 
-With your [CLI authenticated to your Prefect Cloud workspace](/3.0rc/cloud/users/api-keys/), run the script to create your deployment:
+With your [CLI authenticated to your Prefect Cloud workspace](/3.0rc/cloud/manage-users/api-keys/), run the script to create your deployment:
 
 <div class="terminal">
 ```bash
@@ -87,9 +83,6 @@ Alternatively, you can create a `requirements.txt` file and reference it in your
 
 Managed execution requires Prefect 2.14.4 or newer.
 
-All limitations listed below may change without warning during the beta period.
-We will update this page as we make changes.
-
 ### Concurrency and work pools
 
 Free tier accounts are limited to:
@@ -125,4 +118,4 @@ Free tier accounts are limited to 10 compute hours per workspace per month. Pro 
 Read more about creating deployments in the [deployment guide](/3.0rc/guides/prefect-deploy/).
 
 If you find that you need more control over your infrastructure, such as the ability to run custom Docker images, serverless push work pools might be a good option.
-Read more [here](/3.0rc/guides/deployment/push-work-pools/).
+Read more [here](/3.0rc/deploy/dynamic-infra/push-runs-serverless/).
