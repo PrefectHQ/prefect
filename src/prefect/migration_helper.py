@@ -47,9 +47,9 @@ def handle_moved_modules(module_name, moved_modules):
         # Check if the attribute name corresponds to a moved or removed module
         if qualified_name in moved_modules:
             new_location = moved_modules[qualified_name]
-            if "removed" in new_location:
+            if "removed" in new_location.lower():
                 raise ModuleMovedError(
-                    f"Module '{qualified_name}' has been removed. {new_location.split('use ')[-1]}"
+                    f"Module '{qualified_name}' has been removed. {new_location.split('Removed: ')[-1]}"
                 )
             else:
                 raise ModuleMovedError(
