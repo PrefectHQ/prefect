@@ -186,10 +186,16 @@ class TaskRunEngine(Generic[P, R]):
             yield _hook_fn
 
     def compute_transaction_key(self) -> str:
-        if self.task.result_storage_key is not None:
+        key = None
+        if self.task.cache_policy:
+            key = self.task.cache_policy.compute_key(
+                task=self.task,
+                run=self.task_run,
+                inputs=self.parameters,
+                flow_parameters=None,
+            )
+        elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
-        else:
-            key = str(self.task_run.id)
         return key
 
     def _compute_state_details(
