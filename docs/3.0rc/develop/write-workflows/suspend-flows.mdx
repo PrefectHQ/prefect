@@ -1,0 +1,269 @@
+---
+title: Puase or cancel a flow run
+description: Learn the different ways to pause, suspend, and cancel.
+---
+
+
+## Pause or suspend a flow run
+
+Prefect provides you with the ability to halt a flow run with two functions that are similar, but slightly different.
+When a flow run is paused, code execution is stopped and the process continues to run.
+When a flow run is suspended, code execution is stopped and so is the process.
+
+### Pause a flow run
+
+Prefect enables pausing an in-progress flow run for manual approval.
+Prefect exposes this functionality via the [`pause_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions.
+
+!!! note "Timeouts"
+    Paused flow runs time out after one hour by default.
+    After the timeout, the flow run will fail with a message saying it paused and never resumed.
+    You can specify a different timeout period in seconds using the `timeout` parameter.
+
+Most simply, `pause_flow_run` can be called inside a flow:
+
+```python
+from prefect import task, flow, pause_flow_run, resume_flow_run
+
+@task
+async def marvin_setup():
+    return "a raft of ducks walk into a bar..."
+
+
+@task
+async def marvin_punchline():
+    return "it's a wonder none of them ducked!"
+
+
+@flow
+async def inspiring_joke():
+    await marvin_setup()
+    await pause_flow_run(timeout=600)  # pauses for 10 minutes
+    await marvin_punchline()
+```
+
+You can also implement conditional pauses:
+
+```python
+from prefect import task, flow, pause_flow_run
+
+@task
+def task_one():
+    for i in range(3):
+        sleep(1)
+        print(i)
+
+@flow(log_prints=True)
+def my_flow():
+    terminal_state = task_one.submit(return_state=True)
+    if terminal_state.type == StateType.COMPLETED:
+        print("Task one succeeded! Pausing flow run..")
+        pause_flow_run(timeout=2) 
+    else:
+        print("Task one failed. Skipping pause flow run..")
+```
+
+Calling this flow will block code execution after the first task and wait for resumption to deliver the punchline.
+
+<div class="terminal">
+```bash
+await inspiring_joke()
+> "a raft of ducks walk into a bar..."
+```
+</div>
+
+Paused flow runs can be resumed by clicking the **Resume** button in the Prefect UI or calling the `resume_flow_run` utility via client code.
+
+```python
+resume_flow_run(FLOW_RUN_ID)
+```
+
+The paused flow run will then finish!
+
+<div class="terminal">
+```
+> "it's a wonder none of them ducked!"
+```
+</div>
+
+### Suspending a flow run
+
+Similar to pausing a flow run, Prefect enables suspending an in-progress flow run.
+
+!!! note "The difference between pausing and suspending a flow run"
+    There is an important difference between pausing and suspending a flow run.
+    When you pause a flow run, the flow code is still running but is _blocked_ until someone resumes the flow.
+    This is not the case with suspending a flow run!
+    When you suspend a flow run, the flow exits completely and the infrastructure running it (e.g., a Kubernetes Job) tears down.
+
+    This means that you can suspend flow runs to save costs instead of paying for long-running infrastructure. 
+    However, when the flow run resumes, the flow code will execute again from the beginning of the flow, so you should use [tasks](/3.0rc/develop/write-tasks/) and [task caching](/3.0rc/develop/write-tasks/#caching) to avoid recomputing expensive operations.
+
+Prefect exposes this functionality via the [`suspend_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.suspend_flow_run) and [`resume_flow_run`](/3.0rc/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
+
+When called inside of a flow `suspend_flow_run` will immediately suspend execution of the flow run.
+The flow run will be marked as `Suspended` and will not be resumed until `resume_flow_run` is called.
+
+!!! note "Timeouts"
+    Suspended flow runs time out after one hour by default.
+    After the timeout, the flow run will fail with a message saying it suspended and never resumed.
+    You can specify a different timeout period in seconds using the `timeout` parameter or pass `timeout=None` for no timeout.
+
+Here is an example of a flow that does not block flow execution while paused.
+This flow will exit after one task, and will be rescheduled upon resuming.
+The stored result of the first task is retrieved instead of being rerun.
+
+```python
+from prefect import flow, pause_flow_run, task
+
+@task(persist_result=True)
+def foo():
+    return 42
+
+@flow(persist_result=True)
+def noblock_pausing():
+    x = foo.submit()
+    pause_flow_run(timeout=30, reschedule=True)
+    y = foo.submit()
+    z = foo(wait_for=[x])
+    alpha = foo(wait_for=[y])
+    omega = foo(wait_for=[x, y])
+```
+
+Flow runs can be suspended out-of-process by calling `suspend_flow_run(flow_run_id=<ID>)` or selecting the **Suspend** button in the Prefect UI or Prefect Cloud.
+
+Suspended flow runs can be resumed by clicking the **Resume** button in the Prefect UI or calling the `resume_flow_run` utility via client code.
+
+```python
+resume_flow_run(FLOW_RUN_ID)
+```
+
+!!! note "Subflows can't be suspended independently of their parent run"
+    You can't suspend a subflow run independently of its parent flow run.
+
+    If you use a flow to schedule a flow run with `run_deployment`, the
+    scheduled flow run will be linked to the calling flow as a subflow run by
+    default. This means you won't be able to suspend the scheduled flow run
+    independently of the calling flow. Call `run_deployment` with
+    `as_subflow=False` to disable this linking if you need to be able to suspend
+    the scheduled flow run independently of the calling flow.
+
+## Waiting for input when pausing or suspending a flow run
+
+!!! warning "Experimental"
+    The `wait_for_input` parameter used in the `pause_flow_run` or `suspend_flow_run` functions is an experimental feature.
+    The interface or behavior of this feature may change without warning in future releases.
+
+    If you encounter any issues, please let us know in Slack or with a Github issue.
+
+When pausing or suspending a flow run you may want to wait for input from a user.
+Prefect provides a way to do this by leveraging the `pause_flow_run` and `suspend_flow_run` functions.
+These functions accept a `wait_for_input` argument, the value of which should be a subclass of `prefect.input.RunInput`, a pydantic model.
+When resuming the flow run, users are required to provide data for this model. Upon successful validation, the flow run resumes, and the return value of the `pause_flow_run` or `suspend_flow_run` is an instance of the model containing the provided data.
+
+Here is an example of a flow that pauses and waits for input from a user:
+
+```python
+from prefect import flow, pause_flow_run
+from prefect.input import RunInput
+
+
+class UserNameInput(RunInput):
+    name: str
+
+
+@flow(log_prints=True)
+async def greet_user():
+    user_input = await pause_flow_run(
+        wait_for_input=UserNameInput
+    )
+
+    print(f"Hello, {user_input.name}!")
+```
+
+Running this flow will create a flow run. The flow run will advance until code execution reaches `pause_flow_run`, at which point it will move into a `Paused` state.
+Execution will block and wait for resumption.
+
+When resuming the flow run, users will be prompted to provide a value for the `name` field of the `UserNameInput` model.
+Upon successful validation, the flow run will resume, and the return value of the `pause_flow_run` will be an instance of the `UserNameInput` model containing the provided data.
+
+For more in-depth information on receiving input from users when pausing and suspending flow runs, see the [Creating interactive workflows](/3.0rc/develop/control-workflows/) guide.
+
+## Canceling a flow run
+
+You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
+
+When cancellation is requested, the flow run is moved to a "Cancelling" state.
+If the deployment is a work pool-based deployemnt with a worker, then the worker monitors the state of flow runs and detects that cancellation has been requested.
+The worker then sends a signal to the flow run infrastructure, requesting termination of the run.
+If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
+
+!!! warning "A deployment is required"
+    Flow run cancellation requires the flow run to be associated with a [deployment](#serving-a-flow).
+    A monitoring process must be running to enforce the cancellation.
+    Inline subflow runs, i.e. those created without `run_deployment`, cannot be cancelled without cancelling the parent flow run.
+    If you may need to cancel a subflow run independent of its parent flow run, we recommend deploying it separately and starting it using the [run_deployment](/3.0rc/api-ref/prefect/deployments/deployments/#prefect.deployments.deployments.run_deployment) function.
+
+Cancellation is robust to restarts of Prefect workers.
+To enable this, we attach metadata about the created infrastructure to the flow run.
+Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier.
+Generally, this is composed of two parts:
+
+1. Scope: identifying where the infrastructure is running.
+2. ID: a unique identifier for the infrastructure within the scope.
+
+The scope is used to ensure that Prefect does not kill the wrong infrastructure.
+For example, workers running on multiple machines may have overlapping process IDs but should not have a matching scope.
+
+The identifiers for infrastructure types:
+
+- Processes: The machine hostname and the PID.
+- Docker Containers: The Docker API URL and container ID.
+- Kubernetes Jobs: The Kubernetes cluster name and the job name.
+
+While the cancellation process is robust, there are a few issues than can occur:
+
+- If the infrastructure block for the flow run has been removed or altered, cancellation may not work.
+- If the infrastructure block for the flow run does not have support for cancellation, cancellation will not work.
+- If the identifier scope does not match when attempting to cancel a flow run the worker will be unable to cancel the flow run. Another worker may attempt cancellation.
+- If the infrastructure associated with the run cannot be found or has already been killed, the worker will mark the flow run as cancelled.
+- If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
+- If the worker runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occurred. The worker will try again to cancel the flow run. Another worker may attempt cancellation.
+
+### Cancel via the CLI
+
+From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run.
+
+<div class="terminal">
+```bash
+prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+```
+</div>
+
+### Cancel via the UI
+
+From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
+
+![Prefect UI](/3.0rc/img/ui/flow-run-cancellation-ui.png)
+
+## Timeouts
+
+Flow timeouts are used to prevent unintentional long-running flows. When the duration of execution for a flow exceeds the duration specified in the timeout, a timeout exception will be raised and the flow will be marked as failed. In the UI, the flow will be visibly designated as `TimedOut`.
+
+Timeout durations are specified using the `timeout_seconds` keyword argument.
+
+```python hl_lines="4"
+from prefect import flow
+import time
+
+@flow(timeout_seconds=1, log_prints=True)
+def show_timeouts():
+    print("I will execute")
+    time.sleep(5)
+    print("I will not execute")
+```
+
+## See also
+
+- Store and reuse non-sensitive bits of data, such as configuration information, by using [variables](/3.0rc/develop/write-workflows/variables)
+- Supercharge this flow by using [tasks](/3.0rc/develop/write-tasks/) to break down the workflow's complexity and make it more performant and observable.
