@@ -43,7 +43,7 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.records.key_policies import DEFAULT, KeyPolicy
+from prefect.records.cache_policies import DEFAULT, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -146,7 +146,7 @@ class Task(Generic[P, R]):
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
         version: An optional string specifying the version of this task definition
-        txn_key_policy: A transaction key computation policy that computes an idempotency key
+        cache_policy: A transaction key computation policy that computes an idempotency key
             per task call; this key will determine the level of caching isolation that occurs
         cache_key_fn: An optional callable that, given the task run context and call
             parameters, generates a string key; if the key matches a previous completed
@@ -207,7 +207,7 @@ class Task(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         version: Optional[str] = None,
-        txn_key_policy: Optional[KeyPolicy] = DEFAULT,
+        cache_policy: Optional[CachePolicy] = DEFAULT,
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
@@ -307,7 +307,7 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
-        self.txn_key_policy = txn_key_policy
+        self.cache_policy = cache_policy
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
@@ -1226,7 +1226,7 @@ def task(
     description: str = None,
     tags: Iterable[str] = None,
     version: str = None,
-    txn_key_policy=DEFAULT,
+    cache_policy=DEFAULT,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
@@ -1261,7 +1261,7 @@ def task(
     description: str = None,
     tags: Iterable[str] = None,
     version: str = None,
-    txn_key_policy=DEFAULT,
+    cache_policy=DEFAULT,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
@@ -1404,7 +1404,7 @@ def task(
                 description=description,
                 tags=tags,
                 version=version,
-                txn_key_policy=txn_key_policy,
+                cache_policy=cache_policy,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 task_run_name=task_run_name,
@@ -1434,7 +1434,7 @@ def task(
                 description=description,
                 tags=tags,
                 version=version,
-                txn_key_policy=txn_key_policy,
+                cache_policy=cache_policy,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 task_run_name=task_run_name,

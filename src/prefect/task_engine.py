@@ -187,8 +187,8 @@ class TaskRunEngine(Generic[P, R]):
 
     def compute_transaction_key(self) -> str:
         key = None
-        if self.task.txn_key_policy:
-            key = self.task.txn_key_policy.compute_key(
+        if self.task.cache_policy:
+            key = self.task.cache_policy.compute_key(
                 task=self.task,
                 run=self.task_run,
                 inputs=self.parameters,

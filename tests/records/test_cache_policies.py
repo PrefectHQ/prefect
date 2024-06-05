@@ -2,22 +2,22 @@ import itertools
 
 import pytest
 
-from prefect.records.key_policies import (
-    CompoundKeyPolicy,
+from prefect.records.cache_policies import (
+    CachePolicy,
+    CompoundCachePolicy,
     Default,
     Inputs,
-    KeyPolicy,
     _None,
 )
 
 
 class TestBaseClass:
-    def test_key_policy_initializes(self):
-        policy = KeyPolicy()
-        assert isinstance(policy, KeyPolicy)
+    def test_cache_policy_initializes(self):
+        policy = CachePolicy()
+        assert isinstance(policy, CachePolicy)
 
     def test_compute_key_not_implemented(self):
-        policy = KeyPolicy()
+        policy = CachePolicy()
         with pytest.raises(NotImplementedError):
             policy.compute_key(task=None, run=None, inputs=None, flow_parameters=None)
 
@@ -25,7 +25,7 @@ class TestBaseClass:
 class TestNonePolicy:
     def test_initializes(self):
         policy = _None()
-        assert isinstance(policy, KeyPolicy)
+        assert isinstance(policy, CachePolicy)
 
     def test_doesnt_compute_a_key(self):
         policy = _None()
@@ -36,7 +36,7 @@ class TestNonePolicy:
 class TestDefaultPolicy:
     def test_initializes(self):
         policy = Default()
-        assert isinstance(policy, KeyPolicy)
+        assert isinstance(policy, CachePolicy)
 
     def test_returns_run_id(self):
         class Run:
@@ -52,7 +52,7 @@ class TestDefaultPolicy:
 class TestInputsPolicy:
     def test_initializes(self):
         policy = Inputs()
-        assert isinstance(policy, KeyPolicy)
+        assert isinstance(policy, CachePolicy)
 
     def test_key_varies_on_inputs(self):
         policy = Inputs()
@@ -119,15 +119,15 @@ class TestInputsPolicy:
 
 class TestCompoundPolicy:
     def test_initializes(self):
-        policy = CompoundKeyPolicy()
-        assert isinstance(policy, KeyPolicy)
+        policy = CompoundCachePolicy()
+        assert isinstance(policy, CachePolicy)
 
     def test_creation_via_addition(self):
         one, two = Inputs(), Default()
         policy = one + two
-        assert isinstance(policy, CompoundKeyPolicy)
+        assert isinstance(policy, CompoundCachePolicy)
 
     def test_creation_via_subtraction(self):
         one = Default()
         policy = one - "foo"
-        assert isinstance(policy, CompoundKeyPolicy)
+        assert isinstance(policy, CompoundCachePolicy)

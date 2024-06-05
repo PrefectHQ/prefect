@@ -5,14 +5,14 @@ from prefect.utilities.hashing import hash_objects
 
 
 @dataclass
-class KeyPolicy:
-    def from_function(cls, fn) -> "KeyPolicy":
+class CachePolicy:
+    def from_function(cls, fn) -> "CachePolicy":
         """
         Given a function generates a key policy.
         """
         pass
 
-    def from_cache_key_fn(cls, fn) -> "KeyPolicy":
+    def from_cache_key_fn(cls, fn) -> "CachePolicy":
         """
         Given a function generates a key policy.
         """
@@ -23,7 +23,7 @@ class KeyPolicy:
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def __sub__(self, other: str) -> "CompoundKeyPolicy":
+    def __sub__(self, other: str) -> "CompoundCachePolicy":
         if not isinstance(other, str):
             raise TypeError("Can only subtract strings from key policies.")
         if isinstance(self, Inputs):
@@ -32,27 +32,27 @@ class KeyPolicy:
             else:
                 self.exclude.append(other)
             return self
-        elif isinstance(self, CompoundKeyPolicy):
+        elif isinstance(self, CompoundCachePolicy):
             new = Inputs(exclude=[other])
             self.merge(new)
             return self
         else:
             new = Inputs(exclude=[other])
-            return CompoundKeyPolicy(policies=[self, new])
+            return CompoundCachePolicy(policies=[self, new])
 
-    def __add__(self, other: "KeyPolicy") -> "CompoundKeyPolicy":
-        if isinstance(self, CompoundKeyPolicy):
+    def __add__(self, other: "CachePolicy") -> "CompoundCachePolicy":
+        if isinstance(self, CompoundCachePolicy):
             self.merge(other)
             return self
-        elif isinstance(other, CompoundKeyPolicy):
+        elif isinstance(other, CompoundCachePolicy):
             other.merge(self)
             return other
         else:
-            return CompoundKeyPolicy(policies=[self, other])
+            return CompoundCachePolicy(policies=[self, other])
 
 
 @dataclass
-class CompoundKeyPolicy(KeyPolicy):
+class CompoundCachePolicy(CachePolicy):
     policies: list = None
 
     def merge(self, other):
@@ -84,7 +84,7 @@ class CompoundKeyPolicy(KeyPolicy):
 
 
 @dataclass
-class Default(KeyPolicy):
+class Default(CachePolicy):
     "Execution run ID only"
 
     def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> str:
@@ -92,23 +92,23 @@ class Default(KeyPolicy):
 
 
 @dataclass
-class _None(KeyPolicy):
+class _None(CachePolicy):
     "ignore key policies altogether, always run - prevents persistence"
 
     def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> None:
         return None
 
 
-class TaskDef(KeyPolicy):
+class TaskDef(CachePolicy):
     pass
 
 
-class FlowParameters(KeyPolicy):
+class FlowParameters(CachePolicy):
     pass
 
 
 @dataclass
-class Inputs(KeyPolicy):
+class Inputs(CachePolicy):
     """
     Exposes flag for whether to include flow parameters as well.
 
