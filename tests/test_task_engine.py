@@ -1157,6 +1157,17 @@ class TestGenerators:
         with pytest.raises(StopIteration):
             next(gen)
 
+    async def test_generator_task_requires_return_type_result(self):
+        @task
+        def g():
+            yield 1
+
+        with pytest.raises(
+            ValueError, match="The return_type for a generator task must be 'result'"
+        ):
+            for i in g(return_state=True):
+                pass
+
     async def test_generator_task_states(self, prefect_client: PrefectClient):
         """
         Test for generator behavior including StopIteration
@@ -1327,6 +1338,17 @@ class TestAsyncGenerators:
                 assert val == 2
             assert counter <= 1
             counter += 1
+
+    async def test_generator_task_requires_return_type_result(self):
+        @task
+        async def g():
+            yield 1
+
+        with pytest.raises(
+            ValueError, match="The return_type for a generator task must be 'result'"
+        ):
+            async for i in g(return_state=True):
+                pass
 
     async def test_generator_task_states(self, prefect_client: PrefectClient):
         """
