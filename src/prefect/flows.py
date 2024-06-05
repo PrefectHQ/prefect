@@ -1241,19 +1241,14 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        from prefect.flow_engine import run_flow, run_flow_sync
+        from prefect.flow_engine import run_flow
 
-        run_kwargs = dict(
+        return run_flow(
             flow=self,
             parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
         )
-        if self.isasync:
-            # this returns an awaitable coroutine
-            return run_flow(**run_kwargs)
-        else:
-            return run_flow_sync(**run_kwargs)
 
     @sync_compatible
     async def visualize(self, *args, **kwargs):
