@@ -154,7 +154,11 @@ class TaskRunWaiter:
             if task_run_id in instance._observed_completed_task_runs:
                 return
 
-        finished_event = asyncio.Event(loop=instance._loop)
+        # Need to create event in loop thread to ensure it can be set
+        # from the loop thread
+        finished_event = await from_async.wait_for_call_in_loop_thread(
+            create_call(asyncio.Event)
+        )
         with instance._completion_events_lock:
             # Cache the event for the task run ID so the consumer can set it
             # when the event is received

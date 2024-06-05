@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
@@ -17,7 +18,7 @@ from prefect.futures import (
     resolve_futures_to_states,
 )
 from prefect.states import Completed, Failed
-from prefect.task_engine import run_task_sync
+from prefect.task_engine import run_task_async, run_task_sync
 
 
 class MockFuture(PrefectWrappedFuture):
@@ -140,28 +141,39 @@ class TestResolveFuturesToStates:
 class TestPrefectDistributedFuture:
     def test_with_client(self, task_run):
         mock_client = mock.MagicMock()
-        mock_client.read_task_run = mock.MagicMock()
         future = PrefectDistributedFuture(task_run_id=task_run.id)
         future._client = mock_client
+        assert future.client == mock_client
+
+    def test_without_client(self, prefect_client, task_run):
+        with mock.patch(
+            "prefect.futures.get_client", return_value=prefect_client
+        ) as mock_get_client:
+            future = PrefectDistributedFuture(task_run_id=task_run.id)
+            assert future.client == prefect_client
+            mock_get_client.assert_called_with(sync_client=True)
+
+    async def test_wait_with_timeout(self, task_run):
+        @task
+        async def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        asyncio.create_task(
+            run_task_async(
+                task=my_task,
+                task_run_id=future.task_run_id,
+                task_run=task_run,
+                parameters={},
+                return_type="state",
+            )
+        )
+
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
         future.wait(timeout=0.25)
-        mock_client.read_task_run.assert_called_with(task_run_id=task_run.id)
-
-    def test_without_client(self, sync_prefect_client, task_run):
-        with mock.patch(
-            "prefect.futures.get_client", return_value=sync_prefect_client
-        ) as mock_get_client:
-            future = PrefectDistributedFuture(task_run_id=task_run.id)
-            future.wait(timeout=0.25)
-            mock_get_client.assert_called_with(sync_client=True)
-
-    def test_wait_with_timeout(self, sync_prefect_client, task_run):
-        with mock.patch(
-            "prefect.futures.get_client", return_value=sync_prefect_client
-        ) as mock_get_client:
-            future = PrefectDistributedFuture(task_run_id=task_run.id)
-            future.wait(timeout=0.25)
-            assert future.state.is_pending()
-            mock_get_client.assert_called_with(sync_client=True)
+        assert future.state.is_pending()
 
     async def test_wait_without_timeout(self):
         @task
@@ -180,7 +192,7 @@ class TestPrefectDistributedFuture:
         )
         assert state.is_completed()
 
-        future.wait(timeout=0)
+        future.wait()
         assert future.state.is_completed()
 
     async def test_result_with_final_state(self, tmp_path):

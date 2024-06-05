@@ -7,7 +7,7 @@ from typing import Any, Generic, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
@@ -154,8 +154,8 @@ class PrefectDistributedFuture(PrefectFuture):
     """
 
     def __init__(self, task_run_id: uuid.UUID):
-        self._task_run = None
-        self._client = None
+        self._task_run: Optional[TaskRun] = None
+        self._client: Optional[SyncPrefectClient] = None
         super().__init__(task_run_id=task_run_id)
 
     @property
