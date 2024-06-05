@@ -62,7 +62,7 @@ from prefect.states import (
 )
 from prefect.transactions import Transaction, transaction
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
@@ -133,7 +133,11 @@ class TaskRunEngine(Generic[P, R]):
             )
             return False
 
-    def get_hooks(self, state: State, as_async: bool = False) -> Iterable[Callable]:
+    def get_hooks(
+        self, state: State = None, as_async: bool = False
+    ) -> Iterable[Callable]:
+        if state is None:
+            state = self.state
         task = self.task
         task_run = self.task_run
 
@@ -461,7 +465,7 @@ class TaskRunEngine(Generic[P, R]):
             yield
 
     @contextmanager
-    def start(
+    def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
@@ -496,11 +500,15 @@ class TaskRunEngine(Generic[P, R]):
                     )
 
                     yield self
+
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
                     raise
                 except (Pause, Abort):
                     # Do not capture internal signals as crashes
+                    raise
+                except GeneratorExit:
+                    # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
                     # BaseExceptions are caught and handled as crashes
@@ -532,6 +540,88 @@ class TaskRunEngine(Generic[P, R]):
             return False
         return getattr(self, "task_run").state.is_running()
 
+    # --------------------------
+    #
+    # The following methods compose the main task run loop
+    #
+    # --------------------------
+
+    @contextmanager
+    def start(
+        self,
+        task_run_id: Optional[UUID] = None,
+        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    ) -> Generator[None, None, None]:
+        with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
+            with self.enter_run_context():
+                self.logger.debug(
+                    f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
+                )
+                self.begin_run()
+                yield
+
+    @contextmanager
+    def transaction_context(self) -> Generator[Transaction, None, None]:
+        result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+        with transaction(
+            key=self.compute_transaction_key(),
+            store=ResultFactoryStore(result_factory=result_factory),
+        ) as txn:
+            yield txn
+
+    @contextmanager
+    def run_context(self):
+        timeout_context = timeout_async if self.task.isasync else timeout
+        # reenter the run context to ensure it is up to date for every run
+        with self.enter_run_context():
+            try:
+                with timeout_context(seconds=self.task.timeout_seconds):
+                    yield self
+            except TimeoutError as exc:
+                self.handle_timeout(exc)
+            except Exception as exc:
+                self.handle_exception(exc)
+
+    def call_task_fn(
+        self, transaction: Transaction
+    ) -> Union[R, Coroutine[Any, Any, R]]:
+        """
+        Convenience method to call the task function. Returns a coroutine if the
+        task is async.
+        """
+        if self.task.isasync:
+
+            async def _call_task_fn():
+                if transaction.is_committed():
+                    result = transaction.read()
+                else:
+                    result = await call_with_parameters(self.task.fn, self.parameters)
+                self.handle_success(result, transaction=transaction)
+
+            return _call_task_fn()
+        else:
+            if transaction.is_committed():
+                result = transaction.read()
+            else:
+                result = call_with_parameters(self.task.fn, self.parameters)
+            self.handle_success(result, transaction=transaction)
+
+    def call_hooks(self) -> Union[Coroutine, Callable[[], None]]:
+        """
+        Convenience method to call hooks for the task run. Returns a coroutine if
+        the task is async.
+        """
+        if self.task.isasync:
+
+            async def _call_hooks():
+                for hook in self.get_hooks(self.state, as_async=True):
+                    await hook()
+
+            return _call_hooks()
+        else:
+            for hook in self.get_hooks(self.state):
+                hook()
+
 
 def run_task_sync(
     task: Task[P, R],
@@ -550,56 +640,19 @@ def run_task_sync(
         wait_for=wait_for,
         context=context,
     )
-    # This is a context manager that keeps track of the run of the task run.
-    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
-        with run.enter_run_context():
-            run.begin_run()
-            while run.is_running():
-                # enter run context on each loop iteration to ensure the context
-                # contains the latest task run metadata
-                with run.enter_run_context():
-                    try:
-                        # This is where the task is actually run.
-                        with timeout(seconds=run.task.timeout_seconds):
-                            call_args, call_kwargs = parameters_to_args_kwargs(
-                                task.fn, run.parameters or {}
-                            )
-                            run.logger.debug(
-                                f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
-                            )
-                            result_factory = getattr(
-                                TaskRunContext.get(), "result_factory", None
-                            )
-                            with transaction(
-                                key=run.compute_transaction_key(),
-                                store=ResultFactoryStore(result_factory=result_factory),
-                            ) as txn:
-                                if txn.is_committed():
-                                    result = txn.read()
-                                else:
-                                    result = task.fn(*call_args, **call_kwargs)  # type: ignore
 
-                                # If the task run is successful, finalize it.
-                                # do this within the transaction lifecycle
-                                # in order to get the proper result serialization
-                                run.handle_success(result, transaction=txn)
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+        while engine.is_running():
+            with engine.run_context(), engine.transaction_context() as txn:
+                engine.call_task_fn(txn)
 
-                    except TimeoutError as exc:
-                        run.handle_timeout(exc)
-                    except Exception as exc:
-                        run.handle_exception(exc)
+    engine.call_hooks()
 
-            if run.state.is_final():
-                for hook in run.get_hooks(run.state):
-                    hook()
-
-            if return_type == "state":
-                return run.state
-            return run.result()
+    return engine.state if return_type == "state" else engine.result()
 
 
 async def run_task_async(
-    task: Task[P, Coroutine[Any, Any, R]],
+    task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
@@ -608,12 +661,6 @@ async def run_task_async(
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
 ) -> Union[R, State, None]:
-    """
-    Runs a task against the API.
-
-    We will most likely want to use this logic as a wrapper and return a coroutine for type inference.
-    """
-
     engine = TaskRunEngine[P, R](
         task=task,
         parameters=parameters,
@@ -621,53 +668,16 @@ async def run_task_async(
         wait_for=wait_for,
         context=context,
     )
-    # This is a context manager that keeps track of the run of the task run.
-    with engine.start(task_run_id=task_run_id, dependencies=dependencies) as run:
-        with run.enter_run_context():
-            run.begin_run()
 
-            while run.is_running():
-                # enter run context on each loop iteration to ensure the context
-                # contains the latest task run metadata
-                with run.enter_run_context():
-                    try:
-                        # This is where the task is actually run.
-                        with timeout_async(seconds=run.task.timeout_seconds):
-                            call_args, call_kwargs = parameters_to_args_kwargs(
-                                task.fn, run.parameters or {}
-                            )
-                            run.logger.debug(
-                                f"Executing task {task.name!r} for task run {run.task_run.name!r}..."
-                            )
-                            result_factory = getattr(
-                                TaskRunContext.get(), "result_factory", None
-                            )
-                            with transaction(
-                                key=run.compute_transaction_key(),
-                                store=ResultFactoryStore(result_factory=result_factory),
-                            ) as txn:
-                                if txn.is_committed():
-                                    result = txn.read()
-                                else:
-                                    result = await task.fn(*call_args, **call_kwargs)  # type: ignore
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+        while engine.is_running():
+            with engine.run_context(), engine.transaction_context() as txn:
+                await engine.call_task_fn(txn)
 
-                                # If the task run is successful, finalize it.
-                                # do this within the transaction lifecycle
-                                # in order to get the proper result serialization
-                                run.handle_success(result, transaction=txn)
+    # call hooks
+    await engine.call_hooks()
 
-                    except TimeoutError as exc:
-                        run.handle_timeout(exc)
-                    except Exception as exc:
-                        run.handle_exception(exc)
-
-            if run.state.is_final():
-                for hook in run.get_hooks(run.state, as_async=True):
-                    await hook()
-
-            if return_type == "state":
-                return run.state
-            return run.result()
+    return engine.state if return_type == "state" else engine.result()
 
 
 def run_task(
