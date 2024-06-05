@@ -23,7 +23,7 @@ from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
 
 task_run_app = PrefectTyper(
-    name="task-run", help="Interact with task runs."
+    name="task-run", help="View and inspect task runs."
 )
 app.add_typer(task_run_app, aliases=["task-runs"])
 

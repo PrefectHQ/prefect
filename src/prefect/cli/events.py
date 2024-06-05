@@ -15,7 +15,7 @@ from prefect.events.clients import (
     get_events_subscriber,
 )
 
-events_app = PrefectTyper(name="events", help="Work with events.")
+events_app = PrefectTyper(name="events", help="Stream events.")
 app.add_typer(events_app, aliases=["event"])
 
 

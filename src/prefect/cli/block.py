@@ -27,9 +27,9 @@ from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
-blocks_app = PrefectTyper(name="block", help="Work with blocks.")
+blocks_app = PrefectTyper(name="block", help="Manage blocks.")
 blocktypes_app = PrefectTyper(
-    name="type", help="Work with blocks types."
+    name="type", help="Inspect and delete block types."
 )
 app.add_typer(blocks_app, aliases=["blocks"])
 blocks_app.add_typer(blocktypes_app, aliases=["types"])

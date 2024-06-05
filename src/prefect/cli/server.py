@@ -34,7 +34,7 @@ from prefect.utilities.processutils import (
 
 server_app = PrefectTyper(
     name="server",
-    help="Interact with a self-hosted Prefect server instance.",
+    help="Start a Prefect server instance and interact with the database",
 )
 database_app = PrefectTyper(
     name="database", help="Interact with the database."

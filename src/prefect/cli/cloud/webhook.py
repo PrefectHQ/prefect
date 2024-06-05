@@ -17,7 +17,7 @@ from prefect.exceptions import ObjectNotFound
 from prefect.settings import PREFECT_API_URL
 
 webhook_app = PrefectTyper(
-    name="webhook", help="Interact with Prefect Cloud Webhooks"
+    name="webhook", help="Manage Prefect Cloud Webhooks"
 )
 cloud_app.add_typer(webhook_app, aliases=["webhooks"])
 
