@@ -83,16 +83,6 @@ def handle_moved_objects(module_name, moved_objects):
     Args:
         module_name (str): The name of the module to handle.
         moved_objects (dict): A dictionary mapping old module paths to new locations or removal messages.
-
-    Usage:
-    Add this snippet to the top of the module that contains moved or removed modules.
-
-    Be sure to update the `MOVED_OJBECTS` dictionary with any old module paths and their new locations.
-    ```python
-    from prefect.migration_helper import handle_moved_objects, handle_moved_objects
-
-    handle_moved_objects(__name__, MOVED_OBJECTS)
-    ```
     """
 
     def __getattr__(name):
