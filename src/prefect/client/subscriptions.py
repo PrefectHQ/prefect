@@ -23,10 +23,15 @@ class Subscription(Generic[S]):
         path: str,
         keys: List[str],
         client_id: Optional[str] = None,
+        base_url: Optional[str] = None,
     ):
         self.model = model
         self.client_id = client_id
-        base_url = PREFECT_API_URL.value().replace("http", "ws", 1)
+
+        if base_url is None:
+            base_url = PREFECT_API_URL.value()
+
+        base_url = base_url.replace("http", "ws", 1)
         self.subscription_url = f"{base_url}{path}"
 
         self.keys = keys

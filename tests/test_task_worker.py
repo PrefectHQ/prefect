@@ -11,9 +11,12 @@ from prefect import flow, task
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
+from prefect.settings import PREFECT_API_URL, temporary_settings
 from prefect.states import Running
 from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
+
+pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
 
 
 @pytest.fixture(autouse=True)
@@ -85,6 +88,12 @@ def mock_subscription(monkeypatch):
         "prefect.task_worker.Subscription", mock_subscription := MagicMock()
     )
     return mock_subscription
+
+
+async def test_task_worker_does_not_run_against_ephemeral_api():
+    with pytest.raises(ValueError):
+        with temporary_settings({PREFECT_API_URL: None}):
+            await TaskWorker(...)._subscribe_to_task_scheduling()
 
 
 async def test_task_worker_basic_context_management():
@@ -653,13 +662,14 @@ class TestTaskWorkerLimit:
         # only one should run at a time, so we'll move on after 1 second
         # to ensure that the second task hasn't started
         with anyio.move_on_after(1):
-            await task_worker.start()
+            with temporary_settings({PREFECT_API_URL: "http://notarealurl:4200"}):
+                await task_worker.start()
 
-        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
-        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+                updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+                updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
-        assert updated_task_run_1.state.is_completed()
-        assert updated_task_run_2.state.is_scheduled()
+                assert updated_task_run_1.state.is_completed()
+                assert updated_task_run_2.state.is_scheduled()
 
     async def test_tasks_execute_when_limit_is_none(
         self, mock_subscription, prefect_client
@@ -688,13 +698,14 @@ class TestTaskWorkerLimit:
         # both should run at the same time, so we'll move on after 1 second
         # to ensure that the second task has started
         with anyio.move_on_after(1):
-            await task_worker.start()
+            with temporary_settings({PREFECT_API_URL: "http://notarealurl:4200"}):
+                await task_worker.start()
 
-        updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
-        updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
+                updated_task_run_1 = await prefect_client.read_task_run(task_run_1.id)
+                updated_task_run_2 = await prefect_client.read_task_run(task_run_2.id)
 
-        assert updated_task_run_1.state.is_completed()
-        assert updated_task_run_2.state.is_completed()
+                assert updated_task_run_1.state.is_completed()
+                assert updated_task_run_2.state.is_completed()
 
     async def test_tasks_execute_when_capacity_frees_up(
         self, mock_subscription, prefect_client
