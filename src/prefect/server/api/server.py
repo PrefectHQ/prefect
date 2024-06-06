@@ -56,6 +56,9 @@ TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
+# migrations should run only once per app start; the ephemeral API can potentially
+# create multiple apps in a single process
+RUN_LIFESPAN = True
 
 logger = get_logger("server")
 
@@ -555,7 +558,6 @@ def create_app(
             return
 
         service_instances = []
-
         if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
             service_instances.append(services.scheduler.Scheduler())
             service_instances.append(services.scheduler.RecentDeploymentsScheduler())
@@ -620,13 +622,18 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app):
-        try:
-            await run_migrations()
-            await add_block_types()
-            await start_services()
+        global RUN_LIFESPAN
+        if RUN_LIFESPAN:
+            try:
+                await run_migrations()
+                await add_block_types()
+                await start_services()
+                RUN_LIFESPAN = False
+                yield
+            finally:
+                await stop_services()
+        else:
             yield
-        finally:
-            await stop_services()
 
     def on_service_exit(service, task):
         """
