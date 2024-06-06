@@ -83,6 +83,8 @@ class RelatedResource(Resource):
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
+    model_config = ConfigDict(extra="ignore")
+
     occurred: DateTime = Field(
         default_factory=lambda: pendulum.now("UTC"),
         description="When the event happened from the sender's perspective",

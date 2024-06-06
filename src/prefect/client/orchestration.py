@@ -8,11 +8,13 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
     TypeVar,
     Union,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -156,9 +158,23 @@ class ServerType(AutoEnum):
     CLOUD = AutoEnum.auto()
 
 
+@overload
+def get_client(
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
+) -> "PrefectClient":
+    ...
+
+
+@overload
+def get_client(
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
+) -> "SyncPrefectClient":
+    ...
+
+
 def get_client(
     httpx_settings: Optional[Dict[str, Any]] = None, sync_client: bool = False
-) -> Union["PrefectClient", "SyncPrefectClient"]:
+):
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
