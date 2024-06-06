@@ -308,6 +308,14 @@ jobs:
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
+      - name: Start docker registry
+        run: >
+          docker run
+          --name "prefect-test-registry"
+          --detach
+          --publish 5555:5000
+          registry:2
+
       - name: Start redis
         run: >
           docker run
