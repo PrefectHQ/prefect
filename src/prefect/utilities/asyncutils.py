@@ -299,29 +299,9 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-@overload
 def sync_compatible(
     async_fn: Callable[P, Awaitable[T]],
-    *,
-    _sync: Literal[True],
-) -> Callable[P, T]:
-    ...
-
-
-@overload
-def sync_compatible(
-    async_fn: Callable[P, Awaitable[T]],
-    *,
-    _sync: Union[Literal[False], None] = None,
-) -> Callable[P, Awaitable[T]]:
-    ...
-
-
-def sync_compatible(
-    async_fn: Callable[P, Awaitable[T]],
-    *,
-    _sync: Union[bool, None] = None,
-) -> Union[Callable[P, T], Callable[P, Awaitable[T]]]:
+) -> Callable[P, Union[T, Awaitable[T]]]:
     """
     Converts an async function into a dual async and sync function.
 
@@ -336,7 +316,16 @@ def sync_compatible(
         then tear down the loop.
     """
 
-    @wraps(async_fn)
+    @overload
+    def coroutine_wrapper(_sync: Literal[True], *args: P.args, **kwargs: P.kwargs) -> T:
+        ...
+
+    @overload
+    def coroutine_wrapper(
+        _sync: Union[None, Literal[False]] = None, *args: P.args, **kwargs: P.kwargs
+    ) -> Awaitable[T]:
+        ...
+
     def coroutine_wrapper(
         _sync: Optional[bool] = None, *args: P.args, **kwargs: P.kwargs
     ) -> Union[T, Awaitable[T]]:
@@ -386,6 +375,8 @@ def sync_compatible(
             return ctx_call()
         else:
             return run_coro_as_sync(ctx_call())
+
+    wraps(async_fn)(coroutine_wrapper)
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.

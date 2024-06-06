@@ -13,6 +13,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 from uuid import UUID
 
@@ -66,11 +67,16 @@ async def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
     """
-    return (
+    result_storage_block = (
         await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
         if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
-        else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+        else LocalFileSystem(basepath=str(PREFECT_LOCAL_STORAGE_PATH.value()))
     )
+    if not isinstance(result_storage_block, WritableFileSystem):
+        raise TypeError(
+            "Expected a writable file system for the default result storage block type."
+        )
+    return result_storage_block
 
 
 _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}
@@ -87,14 +93,14 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
 
     async def get_storage() -> WritableFileSystem:
         try:
-            return await Block.load(default_storage_name)
+            return cast(WritableFileSystem, await Block.load(default_storage_name))
         except ValueError as e:
             if "Unable to find" not in str(e):
                 raise e
 
         block_type_slug, name = default_storage_name.split("/")
         if block_type_slug == "local-file-system":
-            block = LocalFileSystem(basepath=storage_path)
+            block = LocalFileSystem(basepath=str(storage_path))
         else:
             raise Exception(
                 "The default task storage block does not exist, but it is of type "
@@ -111,7 +117,7 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
             # Another client created the block before we reached this line
             block = await Block.load(default_storage_name)
 
-        return block
+        return cast(WritableFileSystem, block)
 
     try:
         return _default_task_scheduling_storages[cache_key]

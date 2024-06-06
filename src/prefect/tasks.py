@@ -1405,7 +1405,6 @@ def task(
     """
 
     kwargs = dict(
-        fn=__fn,
         name=name,
         description=description,
         tags=tags,
@@ -1432,7 +1431,7 @@ def task(
     )
 
     if __fn:
-        return cast(Task[P, R], Task(**kwargs))
+        return cast(Task[P, R], Task(fn=__fn, **kwargs))
     else:
         return cast(
             Callable[[Callable[P, R]], Task[P, R]],
