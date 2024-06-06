@@ -249,7 +249,7 @@
           "slug": "ecs-task",
           "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png",
           "documentation_url": "https://prefecthq.github.io/prefect-aws/ecs/#prefect_aws.ecs.ECSTask",
-          "description": "Run a command as an ECS task. This block is part of the prefect-aws collection. Install prefect-aws with `pip install prefect-aws` to use this block.",
+          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in prefect>=3. Run a command as an ECS task. This block is part of the prefect-aws collection. Install prefect-aws with `pip install prefect-aws` to use this block.",
           "code_example": "```python\nfrom prefect_aws.ecs import ECSTask\n\necs_task_block = ECSTask.load(\"BLOCK_NAME\")\n```",
           "block_schema": {
             "checksum": "sha256:d72b495859da39536d3e1119ddabd42a10866867b97c4834956ae231120858ca",

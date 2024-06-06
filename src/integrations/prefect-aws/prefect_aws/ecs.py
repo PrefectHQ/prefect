@@ -224,6 +224,11 @@ def _pretty_diff(d1: dict, d2: dict) -> str:
 )
 class ECSTask(Infrastructure):
     """
+    DEPRECATION WARNING:
+
+    This block is deprecated along with Agents and all other Infrastructure blocks.
+    It will be removed in prefect>=3.
+
     Run a command as an ECS task.
 
     Attributes:
