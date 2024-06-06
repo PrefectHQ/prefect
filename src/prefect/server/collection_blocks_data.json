@@ -249,7 +249,7 @@
           "slug": "ecs-task",
           "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png",
           "documentation_url": "https://prefecthq.github.io/prefect-aws/ecs/#prefect_aws.ecs.ECSTask",
-          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in prefect v3. Run a command as an ECS task. This block is part of the prefect-aws collection. Install prefect-aws with `pip install prefect-aws` to use this block.",
+          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in `prefect>=3.0.0`. Run a command as an ECS task. This block is part of the prefect-aws collection. Install prefect-aws with `pip install prefect-aws` to use this block.",
           "code_example": "```python\nfrom prefect_aws.ecs import ECSTask\n\necs_task_block = ECSTask.load(\"BLOCK_NAME\")\n```",
           "block_schema": {
             "checksum": "sha256:d72b495859da39536d3e1119ddabd42a10866867b97c4834956ae231120858ca",
@@ -1127,7 +1127,7 @@
           "slug": "azure-container-instance-job",
           "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png",
           "documentation_url": "https://prefecthq.github.io/prefect-azure/container_instance/#prefect_azure.container_instance.AzureContainerInstanceJob",
-          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in prefect v3. Run tasks using Azure Container Instances. Note this block is experimental. The interface may change without notice. This block is part of the prefect-azure collection. Install prefect-azure with `pip install prefect-azure` to use this block.",
+          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in `prefect>=3.0.0`. Run tasks using Azure Container Instances. Note this block is experimental. The interface may change without notice. This block is part of the prefect-azure collection. Install prefect-azure with `pip install prefect-azure` to use this block.",
           "code_example": "```python\nfrom prefect_azure.container_instance import AzureContainerInstanceJob\n\nazure_container_instance_job_block = AzureContainerInstanceJob.load(\"BLOCK_NAME\")\n```",
           "block_schema": {
             "checksum": "sha256:367f8171cce7f4937a49fe19febd1752cb95a2eed83e91ec40dd6120d90eff2f",
@@ -4381,7 +4381,7 @@
           "slug": "cloud-run-job",
           "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
           "documentation_url": "https://prefecthq.github.io/prefect-gcp/cloud_run/#prefect_gcp.cloud_run.CloudRunJob",
-          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in prefect v3. Infrastructure block used to run GCP Cloud Run Jobs. Note this block is experimental. The interface may change without notice. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
+          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in `prefect>=3.0.0`. Infrastructure block used to run GCP Cloud Run Jobs. Note this block is experimental. The interface may change without notice. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
           "code_example": "```python\nfrom prefect_gcp.cloud_run import CloudRunJob\n\ncloud_run_job_block = CloudRunJob.load(\"BLOCK_NAME\")\n```",
           "block_schema": {
             "checksum": "sha256:acb0001d2257a6f271c4e69e392f94913011d44d12bcd3e89a668dce76eba7ef",
@@ -4730,7 +4730,7 @@
           "slug": "vertex-ai-custom-training-job",
           "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
           "documentation_url": "https://prefecthq.github.io/prefect-gcp/aiplatform/#prefect_gcp.aiplatform.VertexAICustomTrainingJob",
-          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in prefect v3. Infrastructure block used to run Vertex AI custom training jobs. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
+          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in `prefect>=3.0.0`. Infrastructure block used to run Vertex AI custom training jobs. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
           "code_example": "```python\nfrom prefect_gcp.aiplatform import VertexAICustomTrainingJob\n\nvertex_ai_custom_training_job_block = VertexAICustomTrainingJob.load(\"BLOCK_NAME\")\n```",
           "block_schema": {
             "checksum": "sha256:3cfb58eddef311b9ed90e4c4a35605882c543b1ae51b32d770880ae4dd9af59f",
