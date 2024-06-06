@@ -3,7 +3,7 @@ Routes for interacting with task run objects.
 """
 
 import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from uuid import UUID
 
 import anyio
@@ -36,8 +36,11 @@ from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("server.api")
 
+TaskKey = str
 
 router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
+
+ACTIVE_WEBSOCKET_CLIENTS: set[tuple[WebSocket, Tuple[TaskKey]]] = set()
 
 
 @router.post("/")
@@ -291,34 +294,49 @@ async def scheduled_task_subscription(websocket: WebSocket):
         )
 
     task_keys = subscription.get("keys", [])
+    client_id = subscription.get("client_id")
     if not task_keys:
         return await websocket.close(
             code=4001, reason="Protocol violation: expected 'keys' in subscribe message"
         )
 
     subscribed_queue = MultiQueue(task_keys)
+    ACTIVE_WEBSOCKET_CLIENTS.add((client_id, tuple(task_keys)))
 
-    while True:
-        try:
-            with anyio.fail_after(5):
-                task_run = await subscribed_queue.get()
-        except TimeoutError:
-            continue
+    try:
+        while True:
+            try:
+                with anyio.fail_after(5):
+                    task_run = await subscribed_queue.get()
+            except TimeoutError:
+                continue
 
-        try:
-            await websocket.send_json(task_run.model_dump(mode="json"))
+            try:
+                await websocket.send_json(task_run.model_dump(mode="json"))
 
-            acknowledgement = await websocket.receive_json()
-            ack_type = acknowledgement.get("type")
-            if ack_type != "ack":
-                if ack_type == "quit":
-                    return await websocket.close()
+                acknowledgement = await websocket.receive_json()
 
-                raise WebSocketDisconnect(
-                    code=4001, reason="Protocol violation: expected 'ack' message"
-                )
+                ack_type = acknowledgement.get("type")
+                if ack_type != "ack":
+                    if ack_type == "quit":
+                        return await websocket.close()
 
-        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-            # If sending fails or pong fails, put the task back into the retry queue
-            await TaskQueue.for_key(task_run.task_key).retry(task_run)
-            return
+                    raise WebSocketDisconnect(
+                        code=4001, reason="Protocol violation: expected 'ack' message"
+                    )
+
+            except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+                # If sending fails or pong fails, put the task back into the retry queue
+                await TaskQueue.for_key(task_run.task_key).retry(task_run)
+                return
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        ACTIVE_WEBSOCKET_CLIENTS.remove((client_id, tuple(task_keys)))
+
+
+@router.get("/subscriptions/active")
+async def active_subscriptions() -> List[Dict[str, Any]]:
+    """Return all websocket clients with their subscribed task keys."""
+    return [{"client": id(ws), "keys": keys} for ws, keys in ACTIVE_WEBSOCKET_CLIENTS]
