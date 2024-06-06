@@ -1,16 +1,59 @@
 ---
 title: Host a Prefect server instance
-description: Hosting Prefect Sever
 ---
 
-
 <Note>
-    If you would like to host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
+If you would like to host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
 </Note>
 
-After installing Prefect, you have a Python SDK client that can communicate with [Prefect Cloud](https://app.prefect.cloud), and an [API server](/3.0rc/api-ref/) instance backed by a database and a UI.
+After installing Prefect, you have a Python SDK client that can communicate with either [Prefect Cloud](/3.0rc/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
 
-### Steps
+Prefect Cloud and a self-hosted Prefect server instance share a common set of capabilities. Prefect Cloud has these additional features:
+
+- [Workspaces](/3.0rc/cloud/workspaces/)&mdash;isolated environments to organize your flows, deployments, and flow runs
+- [Automations](/3.0rc/react/understand-events/automations-triggers/)&mdash;configure triggers, actions, and notifications in response to real-time monitoring events
+- [Email notifications](/3.0rc/react/understand-events/automations-triggers/)&mdash;send email alerts from Prefect's servers based on automation triggers
+- [Service accounts](/3.0rc/cloud/manage-users/service-accounts/)&mdash;configure API access for running workers or executing flow runs on remote infrastructure
+- [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/)&mdash;assign users granular permissions to perform activities within an account or workspace
+- [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/)&mdash;authentication using your identity provider
+- [Audit Log](/3.0rc/cloud/manage-users/audit-logs/)&mdash;a record of user activities to monitor security and compliance
+
+## Prefect server installation notes
+
+Your self-hosted server must meet certain requirements and be properly configured. 
+
+### SQLite
+
+Hosting your own Prefect server instance requires a PostgreSQL database, but you can use SQLite 2.24 or newer for development. 
+
+SQLite is not packaged with the Prefect installation but most systems already have SQLite installed, and it is typically bundled with Python.
+
+If you are hosting your own Prefect server instance with a SQLite database, note that certain Linux versions of SQLite can be problematic.
+Compatible versions include Ubuntu 22.04 LTS and Ubuntu 20.04 LTS.
+
+### Using a self-signed SSL certificate
+
+When using a self-signed SSL certificate you need to configure your environment to trust the certificate.
+You can add the certificate to your system bundle and point your tools to use that bundle by configuring the `SSL_CERT_FILE` environment variable.
+
+If the certificate is not part of your system bundle, set the
+`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` to `True` to disable certificate verification altogether.
+
+<Warning>
+Disabling certificate validation is insecure and only suggested as an option for testing!
+</Warning>
+
+### Proxies
+
+Prefect supports communicating via proxies through environment variables.
+Whether you are using Prefect Cloud or hosting your own Prefect server instance, set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries route Prefect’s requests appropriately.
+
+Alternatively, the Prefect library connects to the API via any proxies you have listed in the `HTTP_PROXY` or `ALL_PROXY` environment variables.
+You may also use the `NO_PROXY` environment variable to specify which hosts should not be sent through the proxy.
+
+For more information about these environment variables, see the [cURL documentation](https://everything.curl.dev/usingcurl/proxies/env).
+
+## Run a local Prefect server
 
 1. Spin up a local Prefect server UI with the `prefect server start` CLI command in the terminal:
 
@@ -24,20 +67,6 @@ prefect server start
 
 3. Shut down the Prefect server with ctrl  +  c in the terminal.
 
-### Comparing a self-hosted Prefect server instance and Prefect Cloud
-
-A self-hosted Prefect server instance and Prefect Cloud share a common set of features. Prefect Cloud includes the following additional features:
-
-- [Workspaces](/3.0rc/cloud/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
-- [Automations](/3.0rc/react/understand-events/automations-triggers/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
-- [Email notifications](/3.0rc/react/understand-events/automations-triggers/) &mdash; send email alerts from Prefect's servers based on automation triggers.
-- [Service accounts](/3.0rc/cloud/manage-users/service-accounts/) &mdash; configure API access for running workers or executing flow runs on remote infrastructure.
-- [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/) &mdash; assign users granular permissions to perform activities within an account or workspace.
-- [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/) &mdash; authentication using your identity provider.
-- [Audit Log](/3.0rc/cloud/manage-users/audit-logs/) &mdash; a record of user activities to monitor security and compliance.
-
-Read more about Prefect Cloud in the [Cloud](/3.0rc/cloud/) section.
-
 ### Configure a Prefect server instance
 
 Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
@@ -46,12 +75,13 @@ Go to your terminal session and run this command to set the API URL to point to 
 prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
 
-!!! tip "`PREFECT_API_URL` required when running Prefect inside a container"
-    You must set the API server address to use Prefect within a container, such as a Docker container.
+<Info>
+You must set the API server address--`PREFECT_API_URL`--to use Prefect within a container, such as a Docker container.
+</Info>
 
-    You can save the API server address in a [Prefect profile](/3.0rc/cloud/configure-client/). Whenever that profile is active, the API endpoint is at that address.
+You can save the API server address in a [Prefect profile](/3.0rc/cloud/configure-client/). Whenever that profile is active, the API endpoint is at that address.
 
-    See [Profiles & Configuration](/3.0rc/cloud/configure-client/) for more information on profiles and configurable Prefect settings.
+See [Profiles & Configuration](/3.0rc/cloud/configure-client/) for more information on profiles and configurable Prefect settings.
 
 ## The Prefect database
 
