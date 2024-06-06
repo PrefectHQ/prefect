@@ -12,7 +12,6 @@ from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_task_scheduling_storages
 from prefect.states import Completed, Running
 from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
-from prefect.task_runs import TaskRunWaiter
 from prefect.task_server import serve
 from prefect.tasks import task
 
@@ -195,10 +194,8 @@ class TestPrefectTaskRunner:
                 context_matters_async,
             )
         )
-        # Start task run waiter
-        TaskRunWaiter.instance()
         # Give the server time to start
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(1)
         yield
         call.cancel()
 
@@ -221,7 +218,7 @@ class TestPrefectTaskRunner:
             assert isinstance(future, PrefectFuture)
             assert isinstance(future.task_run_id, UUID)
 
-            assert future.result() == (1, 2)
+            assert future.result(timeout=10) == (1, 2)
 
     @pytest.mark.usefixtures("task_server")
     def test_submit_async_task(self):
@@ -231,7 +228,7 @@ class TestPrefectTaskRunner:
             assert isinstance(future, PrefectFuture)
             assert isinstance(future.task_run_id, UUID)
 
-            assert future.result() == (1, 2)
+            assert future.result(timeout=10) == (1, 2)
 
     @pytest.mark.usefixtures("task_server")
     def test_submit_sync_task_receives_context(self):
@@ -241,7 +238,7 @@ class TestPrefectTaskRunner:
                 assert isinstance(future, PrefectFuture)
                 assert isinstance(future.task_run_id, UUID)
 
-                assert future.result() == {"tag1", "tag2"}
+                assert future.result(timeout=10) == {"tag1", "tag2"}
 
     @pytest.mark.usefixtures("task_server")
     def test_submit_async_task_receives_context(self):
@@ -251,7 +248,7 @@ class TestPrefectTaskRunner:
                 assert isinstance(future, PrefectFuture)
                 assert isinstance(future.task_run_id, UUID)
 
-                assert future.result() == {"tag1", "tag2"}
+                assert future.result(timeout=10) == {"tag1", "tag2"}
 
     @pytest.mark.usefixtures("task_server")
     def test_map_sync_task(self):
@@ -262,7 +259,7 @@ class TestPrefectTaskRunner:
             assert all(isinstance(future, PrefectFuture) for future in futures)
             assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-            results = [future.result() for future in futures]
+            results = [future.result(timeout=10) for future in futures]
             assert results == [(1, 4), (2, 5), (3, 6)]
 
     @pytest.mark.usefixtures("task_server")
@@ -274,7 +271,7 @@ class TestPrefectTaskRunner:
             assert all(isinstance(future, PrefectFuture) for future in futures)
             assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-            results = [future.result() for future in futures]
+            results = [future.result(timeout=10) for future in futures]
             assert results == [(1, 4), (2, 5), (3, 6)]
 
     @pytest.mark.usefixtures("task_server")
@@ -287,7 +284,7 @@ class TestPrefectTaskRunner:
                 assert all(isinstance(future, PrefectFuture) for future in futures)
                 assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-                results = [future.result() for future in futures]
+                results = [future.result(timeout=10) for future in futures]
                 assert results == [{"tag1", "tag2"}] * 3
 
     @pytest.mark.usefixtures("task_server")
@@ -300,7 +297,7 @@ class TestPrefectTaskRunner:
                 assert all(isinstance(future, PrefectFuture) for future in futures)
                 assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-                results = [future.result() for future in futures]
+                results = [future.result(timeout=10) for future in futures]
                 assert results == [{"tag1", "tag2"}] * 3
 
     @pytest.mark.usefixtures("task_server")
@@ -313,5 +310,5 @@ class TestPrefectTaskRunner:
             assert all(isinstance(future, PrefectFuture) for future in futures)
             assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-            results = [future.result() for future in futures]
+            results = [future.result(timeout=10) for future in futures]
             assert results == [(1, 1), (2, 2), (3, 3)]
