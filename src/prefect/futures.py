@@ -149,7 +149,7 @@ class PrefectDistributedFuture(PrefectFuture):
     Represents the result of a computation happening anywhere.
 
     This class is typically used to interact with the result of a task run
-    scheduled to run in a Prefect task server but can be used to interact with
+    scheduled to run in a Prefect task worker but can be used to interact with
     any task run scheduled in Prefect's API.
     """
 
