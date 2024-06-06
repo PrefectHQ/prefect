@@ -12,6 +12,7 @@ import anyio.abc
 import kubernetes_asyncio
 import pendulum
 import pytest
+from exceptiongroup import ExceptionGroup, catch
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (

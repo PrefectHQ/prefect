@@ -116,14 +116,30 @@ from typing import (
     AsyncGenerator,
     Dict,
     Optional,
+    Self,
     Tuple,
-    Union,
 )
 
 import anyio.abc
+import kubernetes_asyncio
+from kubernetes_asyncio import config
+from kubernetes_asyncio.client import (
+    ApiClient,
+    BatchV1Api,
+    Configuration,
+    CoreV1Api,
+    V1Job,
+    V1Pod,
+)
+from kubernetes_asyncio.client.exceptions import ApiException
+from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
+from pydantic import Field, model_validator
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.kubernetes import KubernetesClusterConfig
+from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
     InfrastructureNotAvailable,
@@ -141,25 +157,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-
-from pydantic import Field, model_validator
-import kubernetes_asyncio
-from kubernetes_asyncio import config
-from kubernetes_asyncio.client import (
-    ApiClient,
-    BatchV1Api,
-    Configuration,
-    CoreV1Api,
-    V1Job,
-    V1Pod,
-)
-from kubernetes_asyncio.client.exceptions import ApiException
-from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
-from typing_extensions import Literal
-
-from prefect.client.schemas import FlowRun
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
     _slugify_label_key,
@@ -915,7 +912,7 @@ class KubernetesWorker(BaseWorker):
         job_name: str,
         namespace: str,
         watch_kwargs: dict,
-    ) -> AsyncGenerator[Union[Any, dict, str], Any]:
+    ):
         """
         Stream job events.
 
@@ -927,23 +924,22 @@ class KubernetesWorker(BaseWorker):
         resource_version = None
         while True:
             try:
-                async for event in watch.stream(
+                return watch.stream(
                     func=batch_client.list_namespaced_job,
                     namespace=namespace,
                     field_selector=f"metadata.name={job_name}",
-                    resource_version=resource_version,
                     **watch_kwargs,
-                ):
-                    yield event
-                    resource_version = event["object"].metadata.resource_version
+                )
 
             except ApiException as e:
+                print(e.status)
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
                         namespace=namespace, field_selector=f"metadata.name={job_name}"
                     )
 
                     resource_version = job_list.metadata.resource_version
+                    watch_kwargs["resource_version"] = resource_version
                 else:
                     raise
             finally:
@@ -978,7 +974,6 @@ class KubernetesWorker(BaseWorker):
             if configuration.job_watch_timeout_seconds is not None
             else None
         )
-
         if configuration.stream_output:
             core_client = CoreV1Api(client)
             logs = await core_client.read_namespaced_pod_log(
@@ -1035,12 +1030,8 @@ class KubernetesWorker(BaseWorker):
             # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
             watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
 
-            async for event in self._job_events(
-                watch,
-                batch_client,
-                job_name,
-                configuration.namespace,
-                watch_kwargs,
+            async for event in await self._job_events(
+                watch, batch_client, job_name, configuration.namespace, watch_kwargs
             ):
                 if event["type"] == "DELETED":
                     logger.error(f"Job {job_name!r}: Job has been deleted.")
