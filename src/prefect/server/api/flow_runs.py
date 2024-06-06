@@ -723,7 +723,7 @@ async def read_flow_runs(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.FlowRunResponse]:
+) -> FlowRunPaginationResponse:
     """
     Pagination query for flow runs.
     """

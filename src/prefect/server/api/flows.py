@@ -8,6 +8,7 @@ from uuid import UUID
 import pendulum
 from fastapi import Depends, HTTPException, Path, Response, status
 from fastapi.param_functions import Body
+from pydantic import BaseModel
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -160,3 +161,59 @@ async def delete_flow(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
         )
+
+
+class FlowPaginationResponse(BaseModel):
+    results: list[schemas.core.Flow]
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
+@router.post("/paginate")
+async def paginate_flows(
+    limit: int = dependencies.LimitBody(),
+    page: int = Body(1, ge=1),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> FlowPaginationResponse:
+    """
+    Pagination query for flows.
+    """
+    offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        results = await models.flows.read_flows(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            sort=sort,
+            offset=offset,
+            limit=limit,
+        )
+
+        count = await models.flows.count_flows(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            work_pool_filter=work_pools,
+        )
+
+    return FlowPaginationResponse(
+        results=results,
+        count=count,
+        limit=limit,
+        pages=(count + limit - 1) // limit,
+        page=page,
+    )
