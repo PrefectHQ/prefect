@@ -21,6 +21,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -38,7 +39,7 @@ from prefect._internal.concurrency.threads import (
 )
 from prefect.logging import get_logger
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 P = ParamSpec("P")
 R = TypeVar("R")
 Async = Literal[True]
@@ -298,9 +299,29 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
+@overload
 def sync_compatible(
-    async_fn: Union[Callable[P, Awaitable[T]], Callable[P, T]],
-) -> Union[Callable[P, Awaitable[T]], Callable[P, T]]:
+    async_fn: Callable[P, Awaitable[T]],
+    *,
+    _sync: Literal[True],
+) -> Callable[P, T]:
+    ...
+
+
+@overload
+def sync_compatible(
+    async_fn: Callable[P, Awaitable[T]],
+    *,
+    _sync: Union[Literal[False], None] = None,
+) -> Callable[P, Awaitable[T]]:
+    ...
+
+
+def sync_compatible(
+    async_fn: Callable[P, Awaitable[T]],
+    *,
+    _sync: Union[bool, None] = None,
+) -> Union[Callable[P, T], Callable[P, Awaitable[T]]]:
     """
     Converts an async function into a dual async and sync function.
 
@@ -316,7 +337,9 @@ def sync_compatible(
     """
 
     @wraps(async_fn)
-    def coroutine_wrapper(*args, _sync: Optional[bool] = None, **kwargs) -> T:
+    def coroutine_wrapper(
+        _sync: Optional[bool] = None, *args: P.args, **kwargs: P.kwargs
+    ) -> Union[T, Awaitable[T]]:
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
@@ -367,7 +390,7 @@ def sync_compatible(
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
     if is_async_fn(async_fn):
-        wrapper = cast(Callable[P, Awaitable[T]], coroutine_wrapper)
+        wrapper = coroutine_wrapper
     elif is_async_gen_fn(async_fn):
         raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
     else:
