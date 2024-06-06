@@ -157,7 +157,7 @@ async def _register_collection_blocks(session: sa.orm.Session):
     for block_type in block_types:
         # each block schema gets its own transaction
         async with session.begin():
-            block_schemas = block_type.pop("block_schemas", [])
+            block_schemas = block_type.pop("block_schema", [])
             block_type_id = await register_block_type(
                 session=session,
                 block_type=schemas.core.BlockType.parse_obj(block_type),
