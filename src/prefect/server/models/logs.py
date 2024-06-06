@@ -50,6 +50,7 @@ async def create_logs(
         if "can't create new thread at interpreter shutdown" in str(exc):
             # Background logs sometimes fail to write when the interpreter is shutting down.
             # This is a known issue in Python 3.12.2 that can be ignored and is fixed in Python 3.12.3.
+            # see e.g. https://github.com/python/cpython/issues/113964
             pass
         else:
             raise
