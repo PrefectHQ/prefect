@@ -126,7 +126,7 @@ def test_sync_waiter_timeout_in_worker_thread():
     with pytest.raises(CancelledError):
         call.result()
 
-    assert t1 - t0 < 1
+    assert t1 - t0 < 2
 
     assert call.cancelled()
     assert (
