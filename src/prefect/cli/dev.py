@@ -29,13 +29,13 @@ from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import run_process
 
 DEV_HELP = """
-Commands for development.
+Internal Prefect development.
 
 Note that many of these commands require extra dependencies (such as npm and MkDocs)
 to function properly.
 """
 dev_app = PrefectTyper(
-    name="dev", short_help="Commands for development.", help=DEV_HELP
+    name="dev", short_help="Internal Prefect development.", help=DEV_HELP
 )
 app.add_typer(dev_app)
 

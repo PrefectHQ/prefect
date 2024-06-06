@@ -342,7 +342,7 @@ async def deploy(
     ),
 ):
     """
-    Deploy a flow from this project by creating a deployment.
+    Create a deployment to deploy a flow from this project.
 
     Should be run from a project root directory.
     """

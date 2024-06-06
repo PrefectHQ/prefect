@@ -31,9 +31,7 @@ from prefect.workers.utilities import (
     get_default_base_job_template_for_infrastructure_type,
 )
 
-work_pool_app = PrefectTyper(
-    name="work-pool", help="Commands for working with work pools."
-)
+work_pool_app = PrefectTyper(name="work-pool", help="Manage work pools.")
 app.add_typer(work_pool_app, aliases=["work-pool"])
 
 

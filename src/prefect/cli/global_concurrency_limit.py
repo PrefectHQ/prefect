@@ -24,7 +24,7 @@ from prefect.exceptions import (
 
 global_concurrency_limit_app = PrefectTyper(
     name="global-concurrency-limit",
-    help="Commands for managing global concurrency limits.",
+    help="Manage global concurrency limits.",
 )
 
 app.add_typer(global_concurrency_limit_app, aliases=["gcl"])

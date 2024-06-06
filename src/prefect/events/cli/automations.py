@@ -23,7 +23,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 
 automations_app = PrefectTyper(
     name="automation",
-    help="Commands for managing automations.",
+    help="Manage automations.",
 )
 app.add_typer(automations_app, aliases=["automations"])
 

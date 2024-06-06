@@ -14,9 +14,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import VariableCreate, VariableUpdate
 from prefect.exceptions import ObjectNotFound
 
-variable_app = PrefectTyper(
-    name="variable", help="Commands for interacting with variables."
-)
+variable_app = PrefectTyper(name="variable", help="Manage variables.")
 app.add_typer(variable_app)
 
 
