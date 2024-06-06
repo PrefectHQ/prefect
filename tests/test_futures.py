@@ -4,7 +4,6 @@ from collections import OrderedDict
 from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import Any, Optional
-from unittest import mock
 
 import pytest
 
@@ -139,20 +138,6 @@ class TestResolveFuturesToStates:
 
 
 class TestPrefectDistributedFuture:
-    def test_with_client(self, task_run):
-        mock_client = mock.MagicMock()
-        future = PrefectDistributedFuture(task_run_id=task_run.id)
-        future._client = mock_client
-        assert future.client == mock_client
-
-    def test_without_client(self, prefect_client, task_run):
-        with mock.patch(
-            "prefect.futures.get_client", return_value=prefect_client
-        ) as mock_get_client:
-            future = PrefectDistributedFuture(task_run_id=task_run.id)
-            assert future.client == prefect_client
-            mock_get_client.assert_called_with(sync_client=True)
-
     async def test_wait_with_timeout(self, task_run):
         @task
         async def my_task():

@@ -4325,8 +4325,10 @@ class TestApplyAsync:
         def add(x, y):
             return x + y
 
-        add.apply_async((42, 42), dependencies={"x": {TaskRunResult(id=task_run_id)}})
-        task_run = await prefect_client.read_task_run(task_run_id)
+        future = add.apply_async(
+            (42, 42), dependencies={"x": {TaskRunResult(id=task_run_id)}}
+        )
+        task_run = await prefect_client.read_task_run(future.task_run_id)
 
         assert task_run.task_inputs == {
             "x": [TaskRunResult(id=task_run_id)],
