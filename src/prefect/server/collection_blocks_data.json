@@ -4730,7 +4730,7 @@
           "slug": "vertex-ai-custom-training-job",
           "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
           "documentation_url": "https://prefecthq.github.io/prefect-gcp/aiplatform/#prefect_gcp.aiplatform.VertexAICustomTrainingJob",
-          "description": "Infrastructure block used to run Vertex AI custom training jobs. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
+          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in prefect>=3. Infrastructure block used to run Vertex AI custom training jobs. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
           "code_example": "```python\nfrom prefect_gcp.aiplatform import VertexAICustomTrainingJob\n\nvertex_ai_custom_training_job_block = VertexAICustomTrainingJob.load(\"BLOCK_NAME\")\n```",
           "block_schema": {
             "checksum": "sha256:3cfb58eddef311b9ed90e4c4a35605882c543b1ae51b32d770880ae4dd9af59f",
