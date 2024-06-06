@@ -1,7 +1,6 @@
 import abc
 import concurrent.futures
 import inspect
-import time
 import uuid
 from functools import partial
 from typing import Any, Generic, Optional, Set, Union, cast
@@ -11,12 +10,16 @@ from typing_extensions import TypeVar
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
+from prefect.logging.loggers import get_logger
 from prefect.states import Pending, State
+from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 
 F = TypeVar("F")
+
+logger = get_logger(__name__)
 
 
 class PrefectFuture(abc.ABC):
@@ -150,64 +153,62 @@ class PrefectDistributedFuture(PrefectFuture):
     any task run scheduled in Prefect's API.
     """
 
-    def __init__(self, task_run_id: uuid.UUID):
-        self._task_run = None
-        self._client = None
-        super().__init__(task_run_id=task_run_id)
+    def wait(self, timeout: Optional[float] = None) -> None:
+        return run_coro_as_sync(self.wait_async(timeout=timeout))
 
-    @property
-    def client(self):
-        if self._client is None:
-            self._client = get_client(sync_client=True)
-        return self._client
-
-    @property
-    def task_run(self):
-        if self._task_run is None:
-            self._task_run = self.client.read_task_run(task_run_id=self.task_run_id)
-        return self._task_run
-
-    @task_run.setter
-    def task_run(self, task_run):
-        self._task_run = task_run
-
-    def wait(
-        self, timeout: Optional[float] = None, polling_interval: Optional[float] = 0.2
-    ) -> None:
-        start_time = time.time()
-        # TODO: Websocket implementation?
-        while True:
-            self.task_run = cast(
-                TaskRun, self.client.read_task_run(task_run_id=self.task_run_id)
+    async def wait_async(self, timeout: Optional[float] = None):
+        if self._final_state:
+            logger.debug(
+                "Final state already set for %s. Returning...", self.task_run_id
             )
-            if self.task_run.state and self.task_run.state.is_final():
-                self._final_state = self.task_run.state
+            return
+
+        # Read task run to see if it is still running
+        async with get_client() as client:
+            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
+                logger.debug(
+                    "Task run %s already finished. Returning...",
+                    self.task_run_id,
+                )
+                self._final_state = task_run.state
                 return
-            if timeout is not None and (time.time() - start_time) > timeout:
-                return
-            time.sleep(polling_interval)
+
+            # If still running, wait for a completed event from the server
+            logger.debug(
+                "Waiting for completed event for task run %s...",
+                self.task_run_id,
+            )
+            await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
+            task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state.is_final():
+                self._final_state = task_run.state
+            return
 
     def result(
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-        polling_interval: Optional[float] = 0.2,
     ) -> Any:
+        return run_coro_as_sync(
+            self.result_async(timeout=timeout, raise_on_failure=raise_on_failure)
+        )
+
+    async def result_async(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ):
         if not self._final_state:
-            self.wait(timeout=timeout)
+            await self.wait_async(timeout=timeout)
             if not self._final_state:
                 raise TimeoutError(
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 )
 
-        _result = self._final_state.result(
+        return await self._final_state.result(
             raise_on_failure=raise_on_failure, fetch=True
         )
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
-            _result = run_coro_as_sync(_result)
-        return _result
 
     def __eq__(self, other):
         if not isinstance(other, PrefectDistributedFuture):
