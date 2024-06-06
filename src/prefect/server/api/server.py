@@ -44,6 +44,7 @@ from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
@@ -55,6 +56,9 @@ TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
+# migrations should run only once per app start; the ephemeral API can potentially
+# create multiple apps in a single process
+RUN_LIFESPAN = True
 
 logger = get_logger("server")
 
@@ -237,13 +241,16 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
 
     Send 503 for errors clients can retry on.
     """
-    logger.error("Encountered exception in request:", exc_info=True)
-
     if is_client_retryable_exception(exc):
+        if PREFECT_API_LOG_RETRYABLE_ERRORS.value():
+            logger.error("Encountered retryable exception in request:", exc_info=True)
+
         return JSONResponse(
             content={"exception_message": "Service Unavailable"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+    logger.error("Encountered exception in request:", exc_info=True)
 
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
@@ -551,7 +558,6 @@ def create_app(
             return
 
         service_instances = []
-
         if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
             service_instances.append(services.scheduler.Scheduler())
             service_instances.append(services.scheduler.RecentDeploymentsScheduler())
@@ -616,13 +622,18 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app):
-        try:
-            await run_migrations()
-            await add_block_types()
-            await start_services()
+        global RUN_LIFESPAN
+        if RUN_LIFESPAN:
+            try:
+                await run_migrations()
+                await add_block_types()
+                await start_services()
+                RUN_LIFESPAN = False
+                yield
+            finally:
+                await stop_services()
+        else:
             yield
-        finally:
-            await stop_services()
 
     def on_service_exit(service, task):
         """

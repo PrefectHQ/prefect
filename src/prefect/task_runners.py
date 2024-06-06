@@ -288,6 +288,10 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         super().__exit__(exc_type, exc_value, traceback)
 
 
+# Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
+ConcurrentTaskRunner = ThreadPoolTaskRunner
+
+
 class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
     def __init__(self):
         super().__init__()
@@ -321,11 +325,11 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx:
             get_run_logger(flow_run_ctx).info(
-                f"Submitting task {task.name} to for execution by a Prefect task server..."
+                f"Submitting task {task.name} to for execution by a Prefect task worker..."
             )
         else:
             self.logger.info(
-                f"Submitting task {task.name} to for execution by a Prefect task server..."
+                f"Submitting task {task.name} to for execution by a Prefect task worker..."
             )
 
         return task.apply_async(
