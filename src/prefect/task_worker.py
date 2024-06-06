@@ -142,7 +142,7 @@ class TaskWorker:
         base_url = PREFECT_API_URL.value()
         if base_url is None:
             raise ValueError(
-                "PREFECT_API_URL must be set to use the task worker. "
+                "`PREFECT_API_URL` must be set to use the task worker. "
                 "Task workers are not compatible with the ephemeral API."
             )
         logger.info(
