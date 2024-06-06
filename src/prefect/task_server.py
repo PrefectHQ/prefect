@@ -11,6 +11,7 @@ from typing import List, Optional
 
 import anyio
 import anyio.abc
+from exceptiongroup import BaseExceptionGroup  # novermin
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
@@ -71,7 +72,7 @@ class TaskServer:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks: List[Task] = tasks
+        self.tasks: List[Task] = list(tasks)
 
         self.started: bool = False
         self.stopping: bool = False
@@ -160,11 +161,11 @@ class TaskServer:
         task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
-            if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
+            if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS:
                 logger.warning(
                     f"Task {task_run.name!r} not found in task server registry."
                 )
-                await self._client._client.delete(f"/task_runs/{task_run.id}")
+                await self._client._client.delete(f"/task_runs/{task_run.id}")  # type: ignore
 
             return
 
@@ -321,8 +322,16 @@ async def serve(*tasks: Task, limit: Optional[int] = 10):
     try:
         await task_server.start()
 
+    except BaseExceptionGroup as exc:  # novermin
+        exceptions = exc.exceptions
+        n_exceptions = len(exceptions)
+        logger.error(
+            f"Task server stopped with {n_exceptions} exception{'s' if n_exceptions != 1 else ''}:"
+            f"\n" + "\n".join(str(e) for e in exceptions)
+        )
+
     except StopTaskServer:
         logger.info("Task server stopped.")
 
-    except asyncio.CancelledError:
+    except (asyncio.CancelledError, KeyboardInterrupt):
         logger.info("Task server interrupted, stopping...")
