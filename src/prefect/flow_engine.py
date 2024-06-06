@@ -449,7 +449,7 @@ class FlowRunEngine(Generic[P, R]):
             stack.enter_context(capture_sigterm())
             if log_prints:
                 stack.enter_context(patch_print())
-            task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+            self._task_runner = self.flow.task_runner.duplicate().__enter__()
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -459,7 +459,7 @@ class FlowRunEngine(Generic[P, R]):
                     client=client,
                     background_tasks=task_group,
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
-                    task_runner=task_runner,
+                    task_runner=self._task_runner,
                 )
             )
             # set the logger to the flow run logger
@@ -652,6 +652,7 @@ def run_flow_sync(
                             f"Executing flow {flow.name!r} for flow run {run.flow_run.name!r}..."
                         )
                         result = cast(R, flow.fn(*call_args, **call_kwargs))  # type: ignore
+                        run._task_runner.__exit__(None, None, None)
                     # If the flow run is successful, finalize it.
                     run.handle_success(result)
 
