@@ -4,7 +4,7 @@ This module provides a helper function to handle imports for moved or removed cl
 The `handle_moved_objects` function creates a custom `__getattr__` function to intercept attribute access
 on the given class or module and raise appropriate errors if it has been moved or removed.
 
-The `MOVED_OBJECTS` dictionary should be updated with any old object paths and their new locations.
+The `MOVED_IN_V3` dictionary should be updated with any old object paths and their new locations.
 """
 import importlib.abc
 import importlib.util
@@ -25,7 +25,7 @@ class ModuleRemovedError(ImportError):
 # Format:
 # "old.module.path": ("type", "new.module.path") - indicates the class or module has been moved
 # "old.module.path": ("type", "Removed: Use 'new.module.path' instead.") - indicates the class or module has been removed
-MOVED_OBJECTS = {
+MOVED_IN_V3 = {
     "prefect.filesystems.GCS": ("class", "prefect_gcp"),
     "prefect.filesystems.Azure": ("class", "Removed: Use 'prefect_azure' instead."),
     "prefect.deployments": (

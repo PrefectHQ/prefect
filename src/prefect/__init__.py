@@ -85,11 +85,11 @@ inject_renamed_module_alias_finder()
 
 
 from prefect._migrationv3 import (
-    MOVED_OBJECTS,
+    MOVED_IN_V3,
     handle_moved_objects,
 )
 
-handle_moved_objects(__name__, MOVED_OBJECTS)
+handle_moved_objects(__name__, MOVED_IN_V3)
 
 
 # Declare API for type-checkers
