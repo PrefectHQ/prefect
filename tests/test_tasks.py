@@ -4318,7 +4318,7 @@ class TestApplyAsync:
             the_answer, future.state.state_details.task_parameters_id
         ) == {"wait_for": [wait_for_future], "context": ANY}
 
-    async def test_with_dependencies(self):
+    async def test_with_dependencies(self, prefect_client):
         task_run_id = uuid4()
 
         @task
@@ -4328,8 +4328,9 @@ class TestApplyAsync:
         future = add.apply_async(
             (42, 42), dependencies={"x": {TaskRunResult(id=task_run_id)}}
         )
+        task_run = await prefect_client.read_task_run(future.task_run_id)
 
-        assert future.task_run.task_inputs == {
+        assert task_run.task_inputs == {
             "x": [TaskRunResult(id=task_run_id)],
             "y": [],
         }
