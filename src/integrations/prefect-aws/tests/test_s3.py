@@ -1102,3 +1102,12 @@ class TestS3Bucket:
             to_bucket=to_bucket,
         )
         assert key == expected_path
+
+    def test_round_trip_default_credentials(self):
+        # Regression test for
+        # https://github.com/PrefectHQ/prefect/issues/13349
+        S3Bucket(bucket_name="round-trip-bucket").save("round-tripper")
+        loaded = S3Bucket.load("round-tripper")
+        assert hasattr(
+            loaded.credentials, "aws_access_key_id"
+        ), "`credentials` were not properly initialized"
