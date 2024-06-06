@@ -116,14 +116,31 @@ from typing import (
     AsyncGenerator,
     Dict,
     Optional,
+    Self,
     Tuple,
     Union,
 )
 
 import anyio.abc
+import kubernetes_asyncio
+from kubernetes_asyncio import config
+from kubernetes_asyncio.client import (
+    ApiClient,
+    BatchV1Api,
+    Configuration,
+    CoreV1Api,
+    V1Job,
+    V1Pod,
+)
+from kubernetes_asyncio.client.exceptions import ApiException
+from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
+from pydantic import Field, model_validator
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.kubernetes import KubernetesClusterConfig
+from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
     InfrastructureNotAvailable,
@@ -141,25 +158,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-
-
-from pydantic import Field, model_validator
-import kubernetes_asyncio
-from kubernetes_asyncio import config
-from kubernetes_asyncio.client import (
-    ApiClient,
-    BatchV1Api,
-    Configuration,
-    CoreV1Api,
-    V1Job,
-    V1Pod,
-)
-from kubernetes_asyncio.client.exceptions import ApiException
-from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
-from typing_extensions import Literal
-
-from prefect.client.schemas import FlowRun
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
     _slugify_label_key,
@@ -926,12 +924,13 @@ class KubernetesWorker(BaseWorker):
         """
         while True:
             try:
-                return watch.stream(
+                async for event in watch.stream(
                     func=batch_client.list_namespaced_job,
                     namespace=namespace,
                     field_selector=f"metadata.name={job_name}",
                     **watch_kwargs,
-                )
+                ):
+                    yield event
             except ApiException as e:
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
@@ -985,12 +984,21 @@ class KubernetesWorker(BaseWorker):
             )
             try:
                 async for line in logs.content:
-                    print(line.decode().rstrip())
                     if not line:
                         break
+                    print(line.decode().rstrip())
                     # Check if we have passed the deadline and should stop streaming
                     # logs
+                    # while True:
+                    #     print("inside while loop")
+                    #     line = await logs.content.readline()
+                    #     if not line:
+                    #         break
+                    #     print(line.decode().rstrip())
+
                     remaining_time = deadline - time.monotonic() if deadline else None
+                    print(remaining_time)
+                    print(deadline)
                     if deadline and remaining_time <= 0:
                         break
 
@@ -1030,7 +1038,7 @@ class KubernetesWorker(BaseWorker):
             # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
             watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
 
-            async for event in await self._job_events(
+            async for event in self._job_events(
                 watch,
                 batch_client,
                 job_name,
