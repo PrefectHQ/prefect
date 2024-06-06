@@ -832,11 +832,11 @@ def run_task(
         dependencies=dependencies,
         context=context,
     )
-    if inspect.isasyncgenfunction(task.fn):
+    if task.isasync and task.isgenerator:
         return run_generator_task_async(**kwargs)
-    elif inspect.isgeneratorfunction(task.fn):
+    elif task.isgenerator:
         return run_generator_task_sync(**kwargs)
-    elif inspect.iscoroutinefunction(task.fn):
+    elif task.isasync:
         return run_task_async(**kwargs)
     else:
         return run_task_sync(**kwargs)

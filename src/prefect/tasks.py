@@ -162,6 +162,8 @@ def _infer_parent_task_runs(
         for v in parameters.values():
             if isinstance(v, State):
                 upstream_state = v
+            elif isinstance(v, PrefectFuture):
+                upstream_state = v.state
             else:
                 upstream_state = flow_run_context.task_run_results.get(id(v))
             if upstream_state and upstream_state.is_running():
@@ -318,7 +320,18 @@ class Task(Generic[P, R]):
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
-        self.isasync = inspect.iscoroutinefunction(self.fn)
+
+        # the task is considered async if its function is async or an async
+        # generator
+        self.isasync = inspect.iscoroutinefunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
+
+        # the task is considered a generator if its function is a generator or
+        # an async generator
+        self.isgenerator = inspect.isgeneratorfunction(
+            self.fn
+        ) or inspect.isasyncgenfunction(self.fn)
 
         if not name:
             if not hasattr(self.fn, "__name__"):
