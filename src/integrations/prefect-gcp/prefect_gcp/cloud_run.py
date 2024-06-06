@@ -225,6 +225,11 @@ class CloudRunJobResult(InfrastructureResult):
 )
 class CloudRunJob(Infrastructure):
     """
+    DEPRECATION WARNING:
+
+    This block is deprecated along with Agents and all other Infrastructure blocks.
+    It will be removed in prefect>=3.
+
     <span class="badge-api experimental"/>
 
     Infrastructure block used to run GCP Cloud Run Jobs.

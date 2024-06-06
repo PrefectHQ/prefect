@@ -4381,7 +4381,7 @@
           "slug": "cloud-run-job",
           "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png",
           "documentation_url": "https://prefecthq.github.io/prefect-gcp/cloud_run/#prefect_gcp.cloud_run.CloudRunJob",
-          "description": "Infrastructure block used to run GCP Cloud Run Jobs. Note this block is experimental. The interface may change without notice. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
+          "description": "DEPRECATION WARNING: This block is deprecated along with Agents and all other Infrastructure blocks. It will be removed in prefect>=3. Infrastructure block used to run GCP Cloud Run Jobs. Note this block is experimental. The interface may change without notice. This block is part of the prefect-gcp collection. Install prefect-gcp with `pip install prefect-gcp` to use this block.",
           "code_example": "```python\nfrom prefect_gcp.cloud_run import CloudRunJob\n\ncloud_run_job_block = CloudRunJob.load(\"BLOCK_NAME\")\n```",
           "block_schema": {
             "checksum": "sha256:acb0001d2257a6f271c4e69e392f94913011d44d12bcd3e89a668dce76eba7ef",
