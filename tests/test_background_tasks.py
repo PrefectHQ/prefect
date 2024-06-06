@@ -26,7 +26,7 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT,
     temporary_settings,
 )
-from prefect.task_server import TaskServer
+from prefect.task_server import TaskWorker
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
@@ -283,8 +283,8 @@ async def test_stuck_pending_tasks_are_reenqueued(
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
     assert task_run.state.is_scheduled()
 
-    # now we simulate a stuck task by having the TaskServer try to run it but fail
-    server = TaskServer(foo_task_with_result_storage)
+    # now we simulate a stuck task by having the TaskWorker try to run it but fail
+    server = TaskWorker(foo_task_with_result_storage)
 
     def assert_exception(exc_group: ExceptionGroup):
         assert len(exc_group.exceptions) == 1
