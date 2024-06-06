@@ -774,8 +774,6 @@ class Task(Generic[P, R]):
         """
         Submit a run of the task to the engine.
 
-        If writing an async task, this call must be awaited.
-
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
         once it is submitted, the flow function will continue executing.
