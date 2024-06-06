@@ -4,7 +4,7 @@ from prefect.client.schemas.objects import State
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
-from prefect.task_server import TaskWorker
+from prefect.task_worker import TaskWorker
 
 
 async def test_task_state_change_happy_path(
