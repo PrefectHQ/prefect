@@ -228,7 +228,7 @@ class CloudRunJob(Infrastructure):
     DEPRECATION WARNING:
 
     This block is deprecated along with Agents and all other Infrastructure blocks.
-    It will be removed in prefect>=3.
+    It will be removed in prefect v3.
 
     <span class="badge-api experimental"/>
 
