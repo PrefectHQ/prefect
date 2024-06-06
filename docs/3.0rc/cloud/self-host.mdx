@@ -31,6 +31,13 @@ SQLite is not packaged with the Prefect installation but most systems already ha
 If you are hosting your own Prefect server instance with a SQLite database, note that certain Linux versions of SQLite can be problematic.
 Compatible versions include Ubuntu 22.04 LTS and Ubuntu 20.04 LTS.
 
+To confirm SQLite is installed, run:
+
+```bash
+sqlite3 --version
+```
+
+
 ### Using a self-signed SSL certificate
 
 When using a self-signed SSL certificate you need to configure your environment to trust the certificate.
