@@ -16,15 +16,13 @@ Prefect Cloud and a self-hosted Prefect server instance share a common set of ca
 - [Service accounts](/3.0rc/cloud/manage-users/service-accounts/)&mdash;configure API access for running workers or executing flow runs on remote infrastructure
 - [Custom role-based access controls (RBAC)](/3.0rc/cloud/manage-users/manage-roles/)&mdash;assign users granular permissions to perform activities within an account or workspace
 - [Single Sign-on (SSO)](/3.0rc/cloud/manage-users/configure-sso/)&mdash;authentication using your identity provider
-- [Audit Log](/3.0rc/cloud/manage-users/audit-logs/)&mdash;a record of user activities to monitor security and compliance
+- [Audit Logs](/3.0rc/cloud/manage-users/audit-logs/)&mdash;a record of user activities to monitor security and compliance
 
 ## Prefect server installation notes
 
 Your self-hosted server must meet certain requirements and be properly configured. 
 
 ### SQLite
-
-Hosting your own Prefect server instance requires a PostgreSQL database, but you can use SQLite 2.24 or newer for development. 
 
 SQLite is not packaged with the Prefect installation but most systems already have SQLite installed, and it is typically bundled with Python.
 
@@ -83,7 +81,7 @@ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
 
 <Info>
-You must set the API server address--`PREFECT_API_URL`--to use Prefect within a container, such as a Docker container.
+You must set the API server address&mdash;`PREFECT_API_URL`&mdash;to use Prefect within a container, such as a Docker container.
 </Info>
 
 You can save the API server address in a [Prefect profile](/3.0rc/cloud/configure-client/). Whenever that profile is active, the API endpoint is at that address.
