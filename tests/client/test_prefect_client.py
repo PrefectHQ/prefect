@@ -546,7 +546,7 @@ async def test_client_runs_migrations_for_two_different_ephemeral_apps(
             if enabled:
                 mock.assert_awaited_once_with()
 
-        # run a second time, but the mock should not be called again
+        # run a second time, and mock should be called again because it's a different app
         async with PrefectClient(app2):
             if enabled:
                 assert mock.await_count == 2
