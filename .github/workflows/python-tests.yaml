@@ -211,7 +211,7 @@ jobs:
 
   run-tests-for-datadog:
     name: DataDog CI Visibility
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.event.head_commit.modified contains '.github/workflows/python-tests.yaml')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event.head_commit.modified contains '.github/workflows/python-tests.yaml'
     runs-on:
       group: oss-larger-runners
     strategy:
