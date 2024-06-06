@@ -9,7 +9,7 @@ from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY
 
 logger = get_logger(__name__)
 
@@ -27,10 +27,6 @@ class Subscription(Generic[S]):
     ):
         self.model = model
         self.client_id = client_id
-
-        if base_url is None:
-            base_url = PREFECT_API_URL.value()
-
         base_url = base_url.replace("http", "ws", 1)
         self.subscription_url = f"{base_url}{path}"
 

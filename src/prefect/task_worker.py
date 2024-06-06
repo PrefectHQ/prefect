@@ -153,6 +153,7 @@ class TaskWorker:
             path="/task_runs/subscriptions/scheduled",
             keys=[task.task_key for task in self.tasks],
             client_id=self._client_id,
+            base_url=base_url,
         ):
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)
