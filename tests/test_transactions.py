@@ -1,5 +1,6 @@
 import pytest
 
+from prefect.records import RecordStore
 from prefect.transactions import (
     CommitMode,
     Transaction,
@@ -210,3 +211,21 @@ class TestTransactionState:
                 raise ValueError("foo")
 
         assert txn.is_rolled_back()
+
+
+def test_overwrite_ignores_existing_record():
+    class Store(RecordStore):
+        def exists(self, **kwargs):
+            return True
+
+        def read(self, **kwargs):
+            return "done"
+
+        def write(self, **kwargs):
+            pass
+
+    with Transaction(store=Store()) as txn:
+        assert txn.is_committed()
+
+    with Transaction(store=Store(), overwrite=True) as txn:
+        assert not txn.is_committed()

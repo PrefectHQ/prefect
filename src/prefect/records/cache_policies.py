@@ -1,26 +1,28 @@
 import inspect
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Callable, Dict, Optional
 
+from prefect.context import TaskRunContext
 from prefect.utilities.hashing import hash_objects
 
 
 @dataclass
 class CachePolicy:
-    def from_function(cls, fn) -> "CachePolicy":
+    @classmethod
+    def from_cache_key_fn(
+        cls, cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+    ) -> "CacheKeyFnPolicy":
         """
         Given a function generates a key policy.
         """
-        pass
-
-    def from_cache_key_fn(cls, fn) -> "CachePolicy":
-        """
-        Given a function generates a key policy.
-        """
-        pass
+        return CacheKeyFnPolicy(cache_key_fn=cache_key_fn)
 
     def compute_key(
-        self, task, run, inputs, flow_parameters, **kwargs
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
     ) -> Optional[str]:
         raise NotImplementedError
 
@@ -56,29 +58,39 @@ class CachePolicy:
 
 
 @dataclass
+class CacheKeyFnPolicy(CachePolicy):
+    # making it optional for tests
+    cache_key_fn: Optional[
+        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+    ] = None
+
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
+        if self.cache_key_fn:
+            return self.cache_key_fn(task_ctx, inputs)
+
+
+@dataclass
 class CompoundCachePolicy(CachePolicy):
     policies: list = None
 
-    def merge(self, other):
-        """
-        Inplace addition of another policy to this compound policy
-        """
-        if not isinstance(other, _None):
-            # ignore _None policies
-            if self.policies is None:
-                self.policies = [other]
-            else:
-                self.policies.append(other)
-
     def compute_key(
-        self, task, run, inputs, flow_parameters, **kwargs
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
     ) -> Optional[str]:
         keys = []
         for policy in self.policies:
             keys.append(
                 policy.compute_key(
-                    task=task,
-                    run=run,
+                    task_ctx=task_ctx,
                     inputs=inputs,
                     flow_parameters=flow_parameters,
                     **kwargs,
@@ -91,22 +103,40 @@ class CompoundCachePolicy(CachePolicy):
 class Default(CachePolicy):
     "Execution run ID only"
 
-    def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> str:
-        return str(run.id)
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
+        return str(task_ctx.task_run.id)
 
 
 @dataclass
 class _None(CachePolicy):
     "ignore key policies altogether, always run - prevents persistence"
 
-    def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> None:
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
         return None
 
 
 @dataclass
 class TaskDef(CachePolicy):
-    def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> None:
-        lines = inspect.getsource(task)
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
+        lines = inspect.getsource(task_ctx.task)
         return hash_objects(lines)
 
 
@@ -125,7 +155,13 @@ class Inputs(CachePolicy):
 
     exclude: list = None
 
-    def compute_key(self, task, run, inputs, flow_parameters, **kwargs) -> None:
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: Dict[str, Any],
+        flow_parameters: Dict[str, Any],
+        **kwargs,
+    ) -> Optional[str]:
         hashed_inputs = {}
         inputs = inputs or {}
         exclude = self.exclude or []

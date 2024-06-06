@@ -52,6 +52,7 @@ class Transaction(ContextModel):
     on_rollback_hooks: List[Callable[["Transaction"], None]] = Field(
         default_factory=list
     )
+    overwrite: bool = False
     _staged_value: Any = None
     __var__ = ContextVar("transaction")
 
@@ -122,7 +123,7 @@ class Transaction(ContextModel):
     def begin(self):
         # currently we only support READ_COMMITTED isolation
         # i.e., no locking behavior
-        if self.store and self.store.exists(key=self.key):
+        if not self.overwrite and self.store and self.store.exists(key=self.key):
             self.state = TransactionState.COMMITTED
 
     def read(self) -> dict:
@@ -215,6 +216,9 @@ def transaction(
     key: Optional[str] = None,
     store: Optional[RecordStore] = None,
     commit_mode: CommitMode = CommitMode.LAZY,
+    overwrite: bool = False,
 ) -> Generator[Transaction, None, None]:
-    with Transaction(key=key, store=store, commit_mode=commit_mode) as txn:
+    with Transaction(
+        key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
+    ) as txn:
         yield txn

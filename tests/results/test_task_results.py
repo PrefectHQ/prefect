@@ -36,7 +36,7 @@ async def test_task_persisted_result_due_to_flow_feature(prefect_client, options
     assert await api_state.result() == 1
 
 
-@pytest.mark.parametrize("options", [{"cache_key_fn": lambda *_: "foo"}])
+@pytest.mark.parametrize("options", [{"cache_key_fn": lambda *_: "xyz"}])
 async def test_task_persisted_result_due_to_task_feature(prefect_client, options):
     @flow()
     def foo():
