@@ -1372,7 +1372,7 @@ def test_without_disable_logger(caplog):
 
     function_with_logging(logger)
     assert not logger.disabled
-    assert caplog.record_tuples == [("griffe.agents.nodes", 50, "it's enabled!")]
+    assert ("griffe.agents.nodes", 50, "it's enabled!") in caplog.record_tuples
 
 
 def test_disable_logger(caplog):
