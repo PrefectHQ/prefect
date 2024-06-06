@@ -211,7 +211,7 @@ jobs:
 
   run-tests-for-datadog:
     name: DataDog CI Visibility
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '.github/workflows/python-tests.yaml'))
     runs-on:
       group: oss-larger-runners
     strategy:
@@ -308,10 +308,18 @@ jobs:
 
           echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
-      - name: Start redis
+      - name: Start docker registry
         run: >
           docker run
           --name "prefect-test-registry"
+          --detach
+          --publish 5555:5000
+          registry:2
+
+      - name: Start redis
+        run: >
+          docker run
+          --name "redis"
           --detach
           --publish 6379:6379
           redis:latest

@@ -118,7 +118,6 @@ from typing import (
     Optional,
     Self,
     Tuple,
-    Union,
 )
 
 import anyio.abc
@@ -913,7 +912,7 @@ class KubernetesWorker(BaseWorker):
         job_name: str,
         namespace: str,
         watch_kwargs: dict,
-    ) -> AsyncGenerator[Union[Any, dict, str], Any]:
+    ):
         """
         Stream job events.
 
@@ -922,6 +921,7 @@ class KubernetesWorker(BaseWorker):
 
         See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
         """
+        resource_version = None
         while True:
             try:
                 async for event in watch.stream(
@@ -932,10 +932,12 @@ class KubernetesWorker(BaseWorker):
                 ):
                     yield event
             except ApiException as e:
+                print(e.status)
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
                         namespace=namespace, field_selector=f"metadata.name={job_name}"
                     )
+
                     resource_version = job_list.metadata.resource_version
                     watch_kwargs["resource_version"] = resource_version
                 else:
@@ -972,7 +974,6 @@ class KubernetesWorker(BaseWorker):
             if configuration.job_watch_timeout_seconds is not None
             else None
         )
-
         if configuration.stream_output:
             core_client = CoreV1Api(client)
             logs = await core_client.read_namespaced_pod_log(

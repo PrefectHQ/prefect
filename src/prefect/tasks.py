@@ -43,6 +43,7 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
 from prefect.logging.loggers import get_logger
+from prefect.records.cache_policies import DEFAULT, CachePolicy
 from prefect.results import ResultFactory, ResultSerializer, ResultStorage
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
@@ -62,7 +63,6 @@ from prefect.utilities.importtools import to_qualified_name
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
-    from prefect.task_runners import BaseTaskRunner
     from prefect.transactions import Transaction
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -145,6 +145,7 @@ class Task(Generic[P, R]):
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
         version: An optional string specifying the version of this task definition
+        cache_policy: A cache policy that determines the level of caching for this task
         cache_key_fn: An optional callable that, given the task run context and call
             parameters, generates a string key; if the key matches a previous completed
             state, that state result will be restored instead of running the task again.
@@ -204,6 +205,7 @@ class Task(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         version: Optional[str] = None,
+        cache_policy: Optional[CachePolicy] = NotSet,
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
@@ -303,9 +305,22 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
+        # TODO: warn of precedence of cache policies and cache key fn if both provided?
+        if cache_key_fn:
+            cache_policy = CachePolicy.from_cache_key_fn(cache_key_fn)
+
+        # TODO: manage expiration and cache refresh
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
+
+        if cache_policy is NotSet and result_storage_key is None:
+            self.cache_policy = DEFAULT
+        elif result_storage_key:
+            # TODO: handle this situation with double storage
+            self.cache_policy = None
+        else:
+            self.cache_policy = cache_policy
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -358,6 +373,7 @@ class Task(Generic[P, R]):
         name: str = None,
         description: str = None,
         tags: Iterable[str] = None,
+        cache_policy: CachePolicy = NotSet,
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
@@ -469,6 +485,9 @@ class Task(Generic[P, R]):
             name=name or self.name,
             description=description or self.description,
             tags=tags or copy(self.tags),
+            cache_policy=cache_policy
+            if cache_policy is not NotSet
+            else self.cache_policy,
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
             task_run_name=task_run_name,
@@ -582,7 +601,7 @@ class Task(Generic[P, R]):
             else:
                 state = Pending()
 
-            # store parameters for background tasks so that task servers
+            # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
                 parameters_id = uuid4()
@@ -754,8 +773,6 @@ class Task(Generic[P, R]):
     ):
         """
         Submit a run of the task to the engine.
-
-        If writing an async task, this call must be awaited.
 
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
@@ -1065,7 +1082,7 @@ class Task(Generic[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> PrefectDistributedFuture:
         """
-        Create a pending task run for a task server to execute.
+        Create a pending task run for a task worker to execute.
 
         Args:
             args: Arguments to run the task with
@@ -1187,7 +1204,7 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
+    def serve(self) -> "Task":
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1204,9 +1221,9 @@ class Task(Generic[P, R]):
 
             >>> my_task.serve()
         """
-        from prefect.task_server import serve
+        from prefect.task_worker import serve
 
-        serve(self, task_runner=task_runner)
+        serve(self)
 
 
 @overload
@@ -1221,6 +1238,7 @@ def task(
     description: str = None,
     tags: Iterable[str] = None,
     version: str = None,
+    cache_policy: CachePolicy = NotSet,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
@@ -1255,6 +1273,7 @@ def task(
     description: str = None,
     tags: Iterable[str] = None,
     version: str = None,
+    cache_policy: CachePolicy = NotSet,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     task_run_name: Optional[Union[Callable[[], str], str]] = None,
@@ -1397,6 +1416,7 @@ def task(
                 description=description,
                 tags=tags,
                 version=version,
+                cache_policy=cache_policy,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 task_run_name=task_run_name,
@@ -1426,6 +1446,7 @@ def task(
                 description=description,
                 tags=tags,
                 version=version,
+                cache_policy=cache_policy,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 task_run_name=task_run_name,
