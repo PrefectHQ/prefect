@@ -544,7 +544,7 @@ class TaskRunEngine(Generic[P, R]):
         return task_run.state.is_running() or task_run.state.is_scheduled()
 
     async def wait_until_ready(self):
-        """Waits for scheduled time if set."""
+        """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
             self.logger.info(
                 f"Waiting for scheduled time {scheduled_time} for task {self.task.name!r}"
