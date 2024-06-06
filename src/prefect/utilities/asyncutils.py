@@ -298,7 +298,9 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
+def sync_compatible(
+    async_fn: Union[Callable[P, Awaitable[T]], Callable[P, T]],
+) -> Union[Callable[P, Awaitable[T]], Callable[P, T]]:
     """
     Converts an async function into a dual async and sync function.
 
@@ -314,7 +316,7 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     """
 
     @wraps(async_fn)
-    def coroutine_wrapper(*args, _sync: bool = None, **kwargs):
+    def coroutine_wrapper(*args, _sync: Optional[bool] = None, **kwargs) -> T:
         from prefect.context import MissingContextError, get_run_context
         from prefect.settings import (
             PREFECT_EXPERIMENTAL_DISABLE_SYNC_COMPAT,
@@ -365,7 +367,7 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
     if is_async_fn(async_fn):
-        wrapper = coroutine_wrapper
+        wrapper = cast(Callable[P, Awaitable[T]], coroutine_wrapper)
     elif is_async_gen_fn(async_fn):
         raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
     else:
@@ -392,7 +394,7 @@ def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwarg
             "`sync` called from an asynchronous context; "
             "you should `await` the async function directly instead."
         )
-        with anyio.start_blocking_portal() as portal:
+        with anyio.from_thread.start_blocking_portal() as portal:
             return portal.call(partial(__async_fn, *args, **kwargs))
     elif in_async_worker_thread():
         # In a sync context but we can access the event loop thread; send the async
@@ -533,17 +535,24 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
 
 
 class LazySemaphore:
-    def __init__(self, initial_value_func):
-        self._semaphore = None
+    """A lazy semaphore that initializes itself on first use."""
+
+    def __init__(self, initial_value_func: Callable[[], int]):
+        self._semaphore: Optional[asyncio.Semaphore] = None
         self._initial_value_func = initial_value_func
 
-    async def __aenter__(self):
-        self._initialize_semaphore()
-        await self._semaphore.__aenter__()
+    @property
+    def semaphore(self) -> asyncio.Semaphore:
+        assert self._semaphore is not None
         return self._semaphore
 
+    async def __aenter__(self) -> asyncio.Semaphore:
+        self._initialize_semaphore()
+        await self.semaphore.__aenter__()
+        return self.semaphore
+
     async def __aexit__(self, exc_type, exc, tb):
-        await self._semaphore.__aexit__(exc_type, exc, tb)
+        await self.semaphore.__aexit__(exc_type, exc, tb)
 
     def _initialize_semaphore(self):
         if self._semaphore is None:

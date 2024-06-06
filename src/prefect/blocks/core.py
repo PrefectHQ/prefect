@@ -792,13 +792,11 @@ class Block(BaseModel, ABC):
 
     @classmethod
     @sync_compatible
-    @inject_client
     async def load(
         cls,
         name: str,
         validate: bool = True,
-        client: Optional["PrefectClient"] = None,
-    ):
+    ) -> Self:
         """
         Retrieves data from the block document with the given name for the block type
         that corresponds with the current class and returns an instantiated version of
