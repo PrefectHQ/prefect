@@ -33,9 +33,7 @@ from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import BaseWorker
 from prefect.workers.server import start_healthcheck_server
 
-worker_app = PrefectTyper(
-    name="worker", help="Commands for starting and interacting with workers."
-)
+worker_app = PrefectTyper(name="worker", help="Start and interact with workers.")
 app.add_typer(worker_app)
 
 
