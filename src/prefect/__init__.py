@@ -84,7 +84,7 @@ from prefect._internal.compatibility.deprecated import (
 inject_renamed_module_alias_finder()
 
 
-from prefect._internal.compatibility.v3_upgrade_helper import (
+from prefect.v3_upgrade_helper import (
     MOVED_OBJECTS,
     handle_moved_objects,
 )
