@@ -12,6 +12,7 @@ from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_task_scheduling_storages
 from prefect.states import Completed, Running
 from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
+from prefect.task_runs import TaskRunWaiter
 from prefect.task_server import serve
 from prefect.tasks import task
 
@@ -194,6 +195,8 @@ class TestPrefectTaskRunner:
                 context_matters_async,
             )
         )
+        # Start task run waiter
+        TaskRunWaiter.instance()
         # Give the server time to start
         await asyncio.sleep(0.1)
         yield
