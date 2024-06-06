@@ -1530,9 +1530,9 @@ PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
     default=timedelta(seconds=30),
 )
 """
-How long before a PENDING task are made available to another task server.  In practice,
-a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
-PENDING for a while is a sign that the task server may have crashed.
+How long before a PENDING task are made available to another task worker.  In practice,
+a task worker should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task worker may have crashed.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)

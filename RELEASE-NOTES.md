@@ -796,7 +796,7 @@ See the PR for implementation details: https://github.com/PrefectHQ/prefect/pull
 - Pin uvicorn to < 0.29 — https://github.com/PrefectHQ/prefect/pull/12463
 
 ### Experimental
-- More robust error handling in `TaskServer` — https://github.com/PrefectHQ/prefect/pull/12382
+- More robust error handling in `TaskWorker` — https://github.com/PrefectHQ/prefect/pull/12382
 - Add `model_validate_json` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12412
 - Add `model_dump_json` to Pydantic compat layer — https://github.com/PrefectHQ/prefect/pull/12406
 - Add hybrid `BaseModel` and public `pydantic` module — https://github.com/PrefectHQ/prefect/pull/12424

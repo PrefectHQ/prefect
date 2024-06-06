@@ -601,7 +601,7 @@ class Task(Generic[P, R]):
             else:
                 state = Pending()
 
-            # store parameters for background tasks so that task servers
+            # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
                 parameters_id = uuid4()
@@ -1084,7 +1084,7 @@ class Task(Generic[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> PrefectDistributedFuture:
         """
-        Create a pending task run for a task server to execute.
+        Create a pending task run for a task worker to execute.
 
         Args:
             args: Arguments to run the task with
@@ -1223,7 +1223,7 @@ class Task(Generic[P, R]):
 
             >>> my_task.serve()
         """
-        from prefect.task_server import serve
+        from prefect.task_worker import serve
 
         serve(self)
 
