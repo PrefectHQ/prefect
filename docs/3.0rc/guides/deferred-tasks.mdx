@@ -62,11 +62,11 @@ The task worker will continually receive instructions to execute deferred tasks 
 
 **NOTE:** Task workers only run deferred tasks, not tasks you call directly as normal Python functions.
 
-You can run a task worker by passing tasks into the `prefect.task_server.serve()` method:
+You can run a task worker by passing tasks into the `prefect.task_worker.serve()` method:
 
 ```python tasks.py
 from prefect import task
-from prefect.task_server import serve
+from prefect.task_worker import serve
 
 
 @task
@@ -221,13 +221,13 @@ In this example, we'll start a task worker and run deferred tasks in the backgro
 
 To run tasks in a separate process or container, you'll need to start a task worker, similar to how you would run a Celery worker or an arq worker.
 The task worker will continually receive scheduled tasks to execute from Prefect's API, execute them, and report the results back to the API.
-You can run a task worker by passing tasks into the `prefect.task_server.serve()` method.
+You can run a task worker by passing tasks into the `prefect.task_worker.serve()` method.
 
-Step 1: Define the task and task worker in the file `task_server.py`
+Step 1: Define the task and task worker in the file `task_worker.py`
 
 ```python
 from prefect import task
-from prefect.task_server import serve
+from prefect.task_worker import serve
 
 
 @task
@@ -242,7 +242,7 @@ if __name__ == "__main__":
 Step 2: Start the task worker by running the script in the terminal.
 
 ```bash
-python task_server.py
+python task_worker.py
 ```
 
 The task worker is now waiting for runs of the `my_background_task` task.
@@ -281,7 +281,7 @@ Step 6: You can use multiple task workers to run tasks in parallel.
 Start another instance of the task worker. In another terminal run:
 
 ```bash
-python task_server.py
+python task_worker.py
 ```
 
 Step 7: Send multiple tasks to the task worker.

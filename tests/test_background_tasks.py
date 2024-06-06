@@ -26,7 +26,7 @@ from prefect.settings import (
     PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT,
     temporary_settings,
 )
-from prefect.task_server import TaskWorker
+from prefect.task_worker import TaskWorker
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
@@ -293,7 +293,7 @@ async def test_stuck_pending_tasks_are_reenqueued(
 
     with catch({ValueError: assert_exception}):
         with mock.patch(
-            "prefect.task_server.run_task_sync",
+            "prefect.task_worker.run_task_sync",
             side_effect=ValueError("woops"),
         ):
             await server.execute_task_run(task_run)
