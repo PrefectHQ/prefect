@@ -1,5 +1,5 @@
 ---
-title: Flows
+title: Create flows
 description: Learn the basics of defining and running flows.
 ---
 
@@ -114,37 +114,19 @@ HTTPStatusError: Client error '404 Not Found' for url '<https://api.github.com/r
 
 Now navigate to your Prefect dashboard and compare the displays for these two runs.
 
-## Logging
+<Tip>
+**Logging**
 
 Prefect enables you to log a variety of useful information about your flow and task runs. You can capture information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 Check out [Logging](/3.0rc/develop/observe-workflows/logging) for more information.
+</Tip>
 
+<Tip>
+**Retries**
 
-## Retries
-
-So far the script works, but in the future unexpected errors may occur.
-For example the GitHub API may be temporarily unavailable or rate limited.
-[Retries](/3.0rc/develop/write-workflows/#flow-settings) help make flows more resilient.
-Let's add retry functionality to the example above:
-
-```python hl_lines="5" title="repo_info.py"
-import httpx
-from prefect import flow
-
-
-@flow(retries=3, retry_delay_seconds=5, log_prints=True)
-def get_repo_info(repo_name: str = "PrefectHQ/prefect"):
-    url = f"https://api.github.com/repos/{repo_name}"
-    response = httpx.get(url)
-    response.raise_for_status()
-    repo = response.json()
-    print(f"{repo_name} repository statistics 🤓:")
-    print(f"Stars 🌠 : {repo['stargazers_count']}")
-    print(f"Forks 🍴 : {repo['forks_count']}")
-
-if __name__ == "__main__":
-    get_repo_info()
-```
+Unexpected errors may occur. For example the GitHub API may be temporarily unavailable or rate limited.
+Check out [Retries](/3.0rc/develop/recover-from-failure) to help make flows more resilient.
+</Tip>
 
 ---
 
@@ -347,126 +329,6 @@ if __name__ == "__main__":
 Note that `validate_parameters` will check that input values conform to the annotated types on the function.
 Where possible, values will be coerced into the correct type. For example, if a parameter is defined as `x: int` and "5" is passed, it will be resolved to `5`.
 If set to `False`, no validation will be performed on flow parameters.
-
-## Separating logic into tasks
-
-The simplest workflow is just a `@flow` function that does all the work of the workflow.
-
-```python
-from prefect import flow
-
-@flow(name="Hello Flow")
-def hello_world(name="world"):
-    print(f"Hello {name}!")
-
-if __name__ == "__main__":
-    hello_world("Marvin")
-```
-
-When you run this flow, you'll see output like the following:
-
-<div class="terminal">
-```bash
-$ python hello.py
-15:11:23.594 | INFO    | prefect.engine - Created flow run 'benevolent-donkey' for flow 'hello-world'
-15:11:23.594 | INFO    | Flow run 'benevolent-donkey' - Using task runner 'ConcurrentTaskRunner'
-Hello Marvin!
-15:11:24.447 | INFO    | Flow run 'benevolent-donkey' - Finished in state Completed()
-```
-</div>
-
-A better practice is to create `@task` functions that do the specific work of your flow, and use your `@flow` function as the conductor that orchestrates the flow of your application:
-
-```python
-from prefect import flow, task
-
-@task(name="Print Hello")
-def print_hello(name):
-    msg = f"Hello {name}!"
-    print(msg)
-    return msg
-
-@flow(name="Hello Flow")
-def hello_world(name="world"):
-    message = print_hello(name)
-
-if __name__ == "__main__":
-    hello_world("Marvin")
-```
-
-When you run this flow, you'll see the following output, which illustrates how the work is encapsulated in a task run.
-
-<div class="terminal">
-```bash
-$ python hello.py
-15:15:58.673 | INFO    | prefect.engine - Created flow run 'loose-wolverine' for flow 'Hello Flow'
-15:15:58.674 | INFO    | Flow run 'loose-wolverine' - Using task runner 'ConcurrentTaskRunner'
-15:15:58.973 | INFO    | Flow run 'loose-wolverine' - Created task run 'Print Hello-84f0fe0e-0' for task 'Print Hello'
-Hello Marvin!
-15:15:59.037 | INFO    | Task run 'Print Hello-84f0fe0e-0' - Finished in state Completed()
-15:15:59.568 | INFO    | Flow run 'loose-wolverine' - Finished in state Completed('All states completed.')
-```
-</div>
-
-## Visualizing flow structure
-
-You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
-
-!!! warning "Functions and code not inside of flows or tasks will still be run when calling `.visualize()`. This may have unintended consequences. Place your code into tasks to avoid unintended execution."
-
-!!! note "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). And note: just installing the `graphviz` python package is not sufficient."
-
-```python
-from prefect import flow, task
-
-@task(name="Print Hello")
-def print_hello(name):
-    msg = f"Hello {name}!"
-    print(msg)
-    return msg
-
-@task(name="Print Hello Again")
-def print_hello_again(name):
-    msg = f"Hello {name}!"
-    print(msg)
-    return msg
-
-@flow(name="Hello Flow")
-def hello_world(name="world"):
-    message = print_hello(name)
-    message2 = print_hello_again(message)
-
-if __name__ == "__main__":
-    hello_world.visualize()
-```
-
-![A simple flow visualized with the .visualize() method](/3.0rc/img/orchestration/hello-flow-viz.png)
-
-Prefect cannot automatically produce a schematic for dynamic workflows, such as those with loops or if/else control flow.
-In this case, you can provide tasks with mock return values for use in the `visualize()` call.
-
-```python
-from prefect import flow, task
-@task(viz_return_value=[4])
-def get_list():
-    return [1, 2, 3]
-
-@task
-def append_one(n):
-    return n.append(6)
-
-@flow
-def viz_return_value_tracked():
-    l = get_list()
-    for num in range(3):
-        l.append(5)
-        append_one(l)
-
-if __name__ == "__main__":
-    viz_return_value_tracked.visualize()
-```
-
-![A flow with return values visualized with the .visualize() method](/3.0rc/img/orchestration/viz-return-value-tracked.png)
 
 ## Composing flows
 
@@ -925,148 +787,11 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 ```
 </div>
 
-## Serving a flow
+## See also
 
-The simplest way to create a [deployment](/3.0rc/deploy/serve-workflows/) for your flow is by calling its [`serve` method](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.serve).
-This method creates a deployment for the flow and starts a long-running process that monitors for work from the Prefect server.
-When work is found, it is executed within its own isolated subprocess.
-
-```python title="hello_world.py"
-from prefect import flow
-
-
-@flow(log_prints=True)
-def hello_world(name: str = "world", goodbye: bool = False):
-    print(f"Hello {name} from Prefect! 🤗")
-
-    if goodbye:
-        print(f"Goodbye {name}!")
-
-
-if __name__ == "__main__":
-    # creates a deployment and stays running to monitor for work instructions generated on the server
-
-    hello_world.serve(name="my-first-deployment",
-                      tags=["onboarding"],
-                      parameters={"goodbye": True},
-                      interval=60)
-```
-
-This interface provides all of the configuration needed for a deployment with no strong infrastructure requirements:
-
-- schedules
-- event triggers
-- metadata such as tags and description
-- default parameter values
-
-!!! tip "Schedules are auto-paused on shutdown"
-    By default, stopping the process running `flow.serve` will pause the schedule for the deployment (if it has one).
-    When running this in environments where restarts are expected use the `pause_on_shutdown=False` flag to prevent this behavior:
-
-    ```python hl_lines="5"
-    if __name__ == "__main__":
-        hello_world.serve(name="my-first-deployment",
-                          tags=["onboarding"],
-                          parameters={"goodbye": True},
-                          pause_on_shutdown=False,
-                          interval=60)
-    ```
-
-### Serving multiple flows at once
-
-You can take this further and serve multiple flows with the same process using the [`serve`](/3.0rc/api-ref/prefect/runner/#prefect.runner.serve) utility along with the `to_deployment` method of flows:
-
-```python
-import time
-from prefect import flow, serve
-
-
-@flow
-def slow_flow(sleep: int = 60):
-    "Sleepy flow - sleeps the provided amount of time (in seconds)."
-    time.sleep(sleep)
-
-
-@flow
-def fast_flow():
-    "Fastest flow this side of the Mississippi."
-    return
-
-
-if __name__ == "__main__":
-    slow_deploy = slow_flow.to_deployment(name="sleeper", interval=45)
-    fast_deploy = fast_flow.to_deployment(name="fast")
-    serve(slow_deploy, fast_deploy)
-```
-
-The behavior and interfaces are identical to the single flow case.
-
-## Retrieve a flow from remote storage
-
-Flows can be retrieved from remote storage using the [`flow.from_source`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.from_source) method.
-
-`flow.from_source` accepts a git repository URL and an entrypoint pointing to the flow to load from the repository:
-
-```python title="load_from_url.py"
-from prefect import flow
-
-my_flow = flow.from_source(
-    source="https://github.com/PrefectHQ/prefect.git",
-    entrypoint="flows/hello_world.py:hello"
-)
-
-if __name__ == "__main__":
-    my_flow()
-```
-
-<div class="terminal">
-
-```bash
-16:40:33.818 | INFO    | prefect.engine - Created flow run 'muscular-perch' for flow 'hello'
-16:40:34.048 | INFO    | Flow run 'muscular-perch' - Hello world!
-16:40:34.706 | INFO    | Flow run 'muscular-perch' - Finished in state Completed()
-```
-
-</div>
-
-A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
-
-If you need additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/3.0rc/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) instead of URL:
-
-```python title="load_from_storage.py"
-from prefect import flow
-from prefect.runner.storage import GitRepository
-from prefect.blocks.system import Secret
-
-my_flow = flow.from_source(
-    source=GitRepository(
-        url="https://github.com/org/private-repo.git",
-        branch="dev",
-        credentials={
-            "access_token": Secret.load("github-access-token").get()
-        }
-    ),
-    entrypoint="flows.py:my_flow"
-)
-
-if __name__ == "__main__":
-    my_flow()
-```
-
-!!! tip "You can serve loaded flows"
-    Flows loaded from remote storage can be served using the same [`serve`](#serving-a-flow) method as local flows:
-
-    ```python title="serve_loaded_flow.py"
-    from prefect import flow
-
-    if __name__ == "__main__":
-        flow.from_source(
-            source="https://github.com/org/repo.git",
-            entrypoint="flows.py:my_flow"
-        ).serve(name="my-deployment")
-    ```
-
-    When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. 
-    This pattern allows you to update your flow code without restarting the serving process.
+- 
+- 
+- Store and reuse non-sensitive bits of data, such as configuration information, by using [variables](/3.0rc/develop/write-workflows/variables)
+- Supercharge this flow by using [tasks](/3.0rc/develop/write-tasks/) to break down the workflow's complexity and make it more performant and observable.
 
 
