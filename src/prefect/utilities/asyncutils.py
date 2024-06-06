@@ -376,8 +376,8 @@ def sync_compatible(async_fn: T, force_sync: bool = False) -> T:
 
 
 @asynccontextmanager
-async def asyncnullcontext():
-    yield
+async def asyncnullcontext(value=None):
+    yield value
 
 
 def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwargs) -> T:

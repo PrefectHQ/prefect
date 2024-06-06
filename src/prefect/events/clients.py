@@ -168,7 +168,7 @@ class PrefectEphemeralEventsClient(EventsClient):
             )
         from prefect.server.api.server import create_app
 
-        app = create_app()
+        app = create_app(ephemeral=True)
 
         self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
