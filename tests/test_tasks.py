@@ -658,7 +658,7 @@ class TestTaskSubmit:
 
         test_flow()
         assert (
-            "Please wait for all submitted tasks to complete before exiting your flow."
+            "Please wait for all submitted tasks to complete before exiting your flow"
             in caplog.text
         )
 
