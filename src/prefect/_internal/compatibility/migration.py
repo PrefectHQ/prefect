@@ -49,7 +49,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
         """
 
         if name == "__path__":
-            raise AttributeError(f"'{module_name}' object has no attribute '{name}'")
+            raise AttributeError(f"{module_name!r} object has no attribute {name!r}")
         import warnings
 
         from pydantic._internal._validators import import_string
