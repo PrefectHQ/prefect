@@ -120,7 +120,7 @@ Notice that each attribute for the class was added in the `job_configuration` se
 
 You can customize the template for each attribute for situations where the configuration values should use more sophisticated templating. For example, if you want to add units for the `memory` attribute, you can do so like this:
 
-```python
+```python notest
 from pydantic import Field
 from prefect.workers.base import BaseJobConfiguration
 
@@ -193,7 +193,7 @@ When executing flow runs within cloud services, workers will often need credenti
 
 For example, if you want to allow the user to configure AWS credentials, you can do so like this:
 
-```python
+```python notest
 from prefect_aws import AwsCredentials
 
 class MyWorkerConfiguration(BaseJobConfiguration):
@@ -311,7 +311,7 @@ In addition to the attributes above, you must also implement a `run` method. The
 
 The `run` method has the following signature:
 
-```python
+```python notest
  async def run(
         self, flow_run: FlowRun, configuration: BaseJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> BaseWorkerResult:
@@ -345,7 +345,7 @@ If a worker cannot tear down infrastructure created for a flow run, the `kill_in
 
 Below is an example of a worker implementation. This example is not intended to be a complete implementation but to illustrate the aforementioned concepts.
 
-```python
+```python notest
 from prefect.workers.base import BaseWorker, BaseWorkerResult, BaseJobConfiguration, BaseVariables
 
 class MyWorkerConfiguration(BaseJobConfiguration):

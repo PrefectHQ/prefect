@@ -72,7 +72,7 @@ Learn more about [blocks](/3.0rc/develop/connect-third-party/).
 Install the relevant library, register the block type with the server, and create your block.
 Then reference the block in your flow:
 
-```python
+```python notest
 ...
 from prefect_aws.s3 import S3Bucket
 
@@ -105,7 +105,7 @@ Caching is discussed in detail in the [tasks concept page](/3.0rc/develop/write-
 If you're using Prefect's task result persistence, you can save disk space by compressing the results.
 Specify the result type with `compressed/` prefixed:
 
-```python
+```python notest
 @task(result_serializer="compressed/json")
 ```
 

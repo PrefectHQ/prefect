@@ -41,7 +41,7 @@ You can call a task to run it immediately, or you can defer the task by scheduli
 However you run a task, Prefect will use your task configuration to manage and control task execution.
 The following example shows both methods mentioned earlier, calling a task and using `delay`:
 
-```python
+```python notest
 # Import the previously-defined task
 from my_tasks import my_background_task
 
@@ -250,7 +250,7 @@ Let's give it some task runs.
 
 Step 3: Create a file named `task_scheduler.py` and save the following code in it.
 
-```python
+```python notest
 from tasks import my_background_task
 
 if __name__ == "__main__":
@@ -288,7 +288,7 @@ Step 7: Send multiple tasks to the task worker.
 
 Modify the `task_scheduler.py` file to send multiple tasks to the task worker with different inputs:
 
-```python
+```python notest
 from tasks import my_background_task
 
 if __name__ == "__main__":

@@ -218,7 +218,7 @@ RUN pip install --extra-index-url ${AUTHED_ARTIFACT_REG_URL} -r /requirements.tx
 
 Create our deployment by leveraging the DeploymentImage class.
 
-```python hl_lines="2 18-22" title="private-package.py"
+```python hl_lines="2 18-22" title="private-package.py" notest
 from prefect import flow
 from prefect.deployments.runner import DeploymentImage
 from prefect.blocks.system import Secret
@@ -402,11 +402,11 @@ The values passed in override default values in the specified work pool's [base 
 
 You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables` argument.
 
-```python hl_lines="5" title="job_var_image_pull.py"
+```python hl_lines="5" title="job_var_image_pull.py" notest
 if __name__ == "__main__":
     get_repo_info.deploy(
-        name="my-deployment-never-pull", 
-        work_pool_name="my-docker-pool", 
+        name="my-deployment-never-pull",
+        work_pool_name="my-docker-pool",
         job_variables={"image_pull_policy": "Never"},
         image="my-image:my-tag"",
         push=False
@@ -415,11 +415,11 @@ if __name__ == "__main__":
 
 Similarly, you can override the environment variables specified in a work pool through the `job_variables` parameter:
 
-```python hl_lines="5" title="job_var_env_vars.py"
+```python hl_lines="5" title="job_var_env_vars.py" notest
 if __name__ == "__main__":
     get_repo_info.deploy(
-        name="my-deployment-never-pull", 
-        work_pool_name="my-docker-pool", 
+        name="my-deployment-never-pull",
+        work_pool_name="my-docker-pool",
         job_variables={"env": {"EXTRA_PIP_PACKAGES": "boto3"} },
         image="my-image:my-tag"",
         push=False
@@ -438,7 +438,7 @@ These deployments can be managed independently of one another, allowing you to d
 
 To create multiple work pool-based deployments at once you can use the `deploy` function, which is analogous to the `serve` function.
 
-```python
+```python notest
 from prefect import deploy, flow
 
 @flow(log_prints=True)
@@ -458,7 +458,7 @@ if __name__ == "__main__":
 Note that in the example above we created two deployments from the same flow, but with different work pools.
 Alternatively, we could have created two deployments from different flows.
 
-```python
+```python notest
 from prefect import deploy, flow
 
 @flow(log_prints=True)
@@ -485,7 +485,7 @@ In the example above the code for both flows gets baked into the same image.
 We can specify that one or more flows should be pulled from a remote location at runtime by using the `from_source` method.
 Here's an example of deploying two flows, one defined locally and one defined in a remote repository:
 
-```python hl_lines="9-19"
+```python hl_lines="9-19" notest
 from prefect import deploy, flow
 
 
