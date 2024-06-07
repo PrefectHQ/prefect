@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, cast
+from typing import cast
 
 import sqlalchemy as sa
 
@@ -166,7 +166,7 @@ async def _register_collection_blocks(session: sa.orm.Session):
 
     # due to schema reference dependencies, we need to register all block types first
     # and then register all block schemas
-    block_schemas: Dict[str, Dict] = {}
+    block_schemas: dict[str, dict] = {}
 
     async with session.begin():
         for block_type in block_types:
@@ -187,7 +187,7 @@ async def _register_collection_blocks(session: sa.orm.Session):
             try:
                 await register_block_schema(
                     session=session,
-                    block_schema=schemas.core.BlockSchema.parse_obj(block_schema),
+                    block_schema=schemas.core.BlockSchema.model_validate(block_schema),
                 )
             except Exception:
                 logger.exception(
