@@ -37,19 +37,25 @@ async def subscribed(
 @asynccontextmanager
 async def events(
     filter: EventFilter,
-) -> AsyncGenerator[AsyncIterable[ReceivedEvent], None]:
+) -> AsyncGenerator[AsyncIterable[Optional[ReceivedEvent]], None]:
     async with subscribed(filter) as queue:
 
-        async def consume() -> AsyncGenerator[ReceivedEvent, None]:
+        async def consume() -> AsyncGenerator[Optional[ReceivedEvent], None]:
             while True:
                 # Use a brief timeout to allow for cancellation, especially when a
                 # client disconnects.  Without a timeout here, a consumer may block
                 # forever waiting for a message to be put on the queue, and never notice
                 # that their client (like a websocket) has actually disconnected.
                 try:
-                    event = await asyncio.wait_for(queue.get(), timeout=5)
+                    event = await asyncio.wait_for(queue.get(), timeout=1)
                 except asyncio.TimeoutError:
+                    # If the queue is empty, we'll yield to the caller with a None in
+                    # order to give it control over what happens next.  This helps with
+                    # the outbound websocket, where we want to check if the client is
+                    # still connected periodically.
+                    yield None
                     continue
+
                 yield event
 
         yield consume()
@@ -119,6 +125,10 @@ class Distributor:
 
     async def start(self):
         await start_distributor()
+        try:
+            await _distributor_task
+        except asyncio.CancelledError:
+            pass
 
     async def stop(self):
         await stop_distributor()

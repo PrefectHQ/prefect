@@ -7,7 +7,6 @@ import datetime
 from typing import Any, Dict, List
 from uuid import UUID
 
-import anyio
 import pendulum
 from fastapi import (
     Body,
@@ -301,9 +300,10 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
     while True:
         try:
-            with anyio.fail_after(5):
-                task_run = await subscribed_queue.get()
-        except TimeoutError:
+            task_run = await asyncio.wait_for(subscribed_queue.get(), timeout=1)
+        except asyncio.TimeoutError:
+            if not await subscriptions.still_connected(websocket):
+                return
             continue
 
         try:
