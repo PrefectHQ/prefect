@@ -58,7 +58,7 @@
   ],
   "navigation": [
     {
-      "group": "Get Started",
+      "group": "Get started",
       "version": "3.0rc",
       "pages": [
         "3.0rc/get-started/index",
