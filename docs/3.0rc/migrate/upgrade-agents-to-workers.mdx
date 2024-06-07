@@ -99,8 +99,8 @@ You can use the [`.publish_as_work_pool`](https://docs.prefect.io/2.19.2/api-ref
 
 For example, if you have a `KubernetesJob` infrastructure block named 'my-k8s-job', you can create a work pool with the same configuration with this script:
 
-```python
-from prefect.infrastructure import KubernetesJob
+```python fixture:my_k8s_job notest
+from prefect_kubernetes import KubernetesJob
 
 KubernetesJob.load("my-k8s-job").publish_as_work_pool()
 ```
@@ -187,9 +187,9 @@ This will start a process that will serve your flow and execute any flow runs th
 
 If you currently use a storage block to load your flow code but no infrastructure block:
 
-```python
+```python fixture:demo_repo
 from prefect import flow
-from prefect.storage import GitHub
+from prefect_github import GitHubRepository
 
 @flow(log_prints=True)
 def my_flow(name: str = "world"):
@@ -199,20 +199,20 @@ if __name__ == "__main__":
     Deployment.build_from_flow(
         my_flow,
         name="my-deployment",
-        storage=GitHub.load("demo-repo"),
+        storage=GitHubRepository.load("demo-repo"),
         parameters=dict(name="Marvin"),
     )
 ```
 
 you can use `flow.from_source` to load your flow from the same location and `flow.serve` to create a deployment:
 
-```python
+```python fixture:demo_repo
 from prefect import flow
-from prefect.storage import GitHub
+from prefect_github import GitHubRepository
 
 if __name__ == "__main__":
     flow.from_source(
-        source=GitHub.load("demo-repo"),
+        source=GitHubRepository.load("demo-repo"),
         entrypoint="example.py:my_flow"
     ).serve(
         name="my-deployment",
@@ -226,11 +226,11 @@ This will allow you to execute scheduled flow runs without starting a worker. Ad
 
 For the code below, we'll need to create a work pool from our infrastructure block and pass it to `flow.deploy` as the `work_pool_name` argument. We'll also need to pass our storage block to `flow.from_source` as the `source` argument.
 
-```python
+```python fixture:demo_repo fixture:my_k8s_job notest
 from prefect import flow
 from prefect.deployments import Deployment
-from prefect.filesystems import GitHub
 from prefect.infrastructure.kubernetes import KubernetesJob
+from prefect_github import GitHubRepository
 
 
 @flow(log_prints=True)
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     Deployment.build_from_flow(
         my_flow,
         name="my-deployment",
-        storage=GitHub.load("demo-repo"),
+        storage=GitHubRepository.load("demo-repo"),
         entrypoint="example.py:my_flow",
         infrastructure=KubernetesJob.load("my-k8s-job"),
         infra_overrides=dict(pull_policy="Never"),
@@ -252,13 +252,13 @@ if __name__ == "__main__":
 
 The equivalent deployment code using `flow.deploy` would look like this:
 
-```python
+```python fixture:demo_repo
 from prefect import flow
-from prefect.storage import GitHub
+from prefect_github import GitHubRepository
 
 if __name__ == "__main__":
     flow.from_source(
-        source=GitHub.load("demo-repo"),
+        source=GitHubRepository.load("demo-repo"),
         entrypoint="example.py:my_flow"
     ).deploy(
         name="my-deployment",
