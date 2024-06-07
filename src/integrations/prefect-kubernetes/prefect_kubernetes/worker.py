@@ -104,6 +104,7 @@ import base64
 import enum
 import json
 import logging
+import math
 import os
 import shlex
 import time
@@ -911,7 +912,8 @@ class KubernetesWorker(BaseWorker):
         batch_client: BatchV1Api,
         job_name: str,
         namespace: str,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        watch_kwargs: dict,
+    ):
         """
         Stream job events.
 
@@ -920,7 +922,7 @@ class KubernetesWorker(BaseWorker):
 
         See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
         """
-        watch_kwargs = {}
+        resource_version = None
         while True:
             try:
                 async for event in watch.stream(
@@ -931,6 +933,7 @@ class KubernetesWorker(BaseWorker):
                 ):
                     yield event
             except ApiException as e:
+                print(e.status)
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
                         namespace=namespace, field_selector=f"metadata.name={job_name}"
@@ -941,7 +944,6 @@ class KubernetesWorker(BaseWorker):
                 else:
                     raise
             finally:
-                # breakpoint()≈
                 await watch.close()
 
     async def _watch_job(
@@ -989,12 +991,16 @@ class KubernetesWorker(BaseWorker):
                     print(line.decode().rstrip())
                     # Check if we have passed the deadline and should stop streaming
                     # logs
+                    # while True:
+                    #     print("inside while loop")
+                    #     line = await logs.content.readline()
+                    #     if not line:
+                    #         break
+                    #     print(line.decode().rstrip())
+
                     remaining_time = deadline - time.monotonic() if deadline else None
-                    print(remaining_time)
-                    print(deadline)
                     if deadline and remaining_time <= 0:
                         break
-
             except Exception:
                 logger.warning(
                     (
@@ -1011,61 +1017,63 @@ class KubernetesWorker(BaseWorker):
             name=job_name, namespace=configuration.namespace
         )
         completed = job.status.completion_time is not None
+        remaining_time = math.ceil(deadline - time.monotonic()) if deadline else None
+        while not completed:
+            try:
+                with timeout_async(seconds=remaining_time):
+                    watch = kubernetes_asyncio.watch.Watch()
 
-        with timeout_async(configuration.job_watch_timeout_seconds):
-            # remaining_time = (
-            #     math.ceil(deadline - time.monotonic()) if deadline else None
-            # )
+                    # The kubernetes library will disable retries if the timeout kwarg is
+                    # present regardless of the value so we do not pass it unless given
+                    # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
+                    watch_kwargs = (
+                        {"timeout_seconds": remaining_time} if deadline else {}
+                    )
 
-            # if deadline and remaining_time <= 0:
-            #     logger.error(
-            #         f"Job {job_name!r}: Job did not complete within "
-            #         f"timeout of {configuration.job_watch_timeout_seconds}s."
-            #     )
-            #     return -1
+                    async for event in self._job_events(
+                        watch,
+                        batch_client,
+                        job_name,
+                        configuration.namespace,
+                        watch_kwargs,
+                    ):
+                        if event["type"] == "DELETED":
+                            logger.error(f"Job {job_name!r}: Job has been deleted.")
+                            completed = True
+                        elif event["object"].status.completion_time:
+                            if not event["object"].status.succeeded:
+                                # Job failed, exit while loop and return pod exit code
+                                logger.error(f"Job {job_name!r}: Job failed.")
+                            completed = True
+                        # Check if the job has reached its backoff limit
+                        # and stop watching if it has
+                        elif (
+                            event["object"].spec.backoff_limit is not None
+                            and event["object"].status.failed is not None
+                            and event["object"].status.failed
+                            > event["object"].spec.backoff_limit
+                        ):
+                            logger.error(
+                                f"Job {job_name!r}: Job reached backoff limit."
+                            )
+                            completed = True
+                        # If the job has no backoff limit, check if it has failed
+                        # and stop watching if it has
+                        elif (
+                            not event["object"].spec.backoff_limit
+                            and event["object"].status.failed
+                        ):
+                            completed = True
 
-            watch = kubernetes_asyncio.watch.Watch()
-
-            # The kubernetes library will disable retries if the timeout kwarg is
-            # present regardless of the value so we do not pass it unless given
-            # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
-            # watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
-
-            async for event in self._job_events(
-                watch,
-                batch_client,
-                job_name,
-                configuration.namespace,
-            ):
-                if event["type"] == "DELETED":
-                    logger.error(f"Job {job_name!r}: Job has been deleted.")
-                    completed = True
-                elif event["object"].status.completion_time:
-                    if not event["object"].status.succeeded:
-                        # Job failed, exit while loop and return pod exit code
-                        logger.error(f"Job {job_name!r}: Job failed.")
-                    completed = True
-                # Check if the job has reached its backoff limit
-                # and stop watching if it has
-                elif (
-                    event["object"].spec.backoff_limit is not None
-                    and event["object"].status.failed is not None
-                    and event["object"].status.failed
-                    > event["object"].spec.backoff_limit
-                ):
-                    logger.error(f"Job {job_name!r}: Job reached backoff limit.")
-                    completed = True
-                # If the job has no backoff limit, check if it has failed
-                # and stop watching if it has
-                elif (
-                    not event["object"].spec.backoff_limit
-                    and event["object"].status.failed
-                ):
-                    completed = True
-
-                if completed:
-                    watch.stop()
-                    break
+                        if completed:
+                            watch.stop()
+                            break
+            except TimeoutError:
+                logger.error(
+                    f"Job {job_name!r}: Job did not complete within "
+                    f"timeout of {configuration.job_watch_timeout_seconds}s."
+                )
+                return -1
 
         core_client = CoreV1Api(client)
         # Get all pods for the job
