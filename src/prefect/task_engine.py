@@ -219,7 +219,7 @@ class TaskRunEngine(Generic[P, R]):
             return_data=False,
             max_depth=-1,
             remove_annotations=True,
-            context={},
+            context={"current_task_run": self.task_run, "current_task": self.task},
         )
 
     def begin_run(self):
