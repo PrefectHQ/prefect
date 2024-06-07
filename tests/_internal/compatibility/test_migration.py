@@ -59,7 +59,7 @@ def import_from(dotted_path: str):
 
 @pytest.mark.parametrize("module", MOVED_IN_V3.keys())
 def test_moved_in_v3(module):
-    with pytest.warns(UserWarning, match=MOVED_IN_V3[module]):
+    with pytest.warns(DeprecationWarning, match=MOVED_IN_V3[module]):
         import_from(module)
 
 
