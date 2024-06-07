@@ -3,14 +3,21 @@ import uuid
 
 import pytest
 
+from prefect.blocks.system import DateTime
 from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
 from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 from prefect.utilities.urls import url_for
+from prefect.variables import Variable
 
 MOCK_PREFECT_UI_URL = "https://ui.prefect.io"
 MOCK_PREFECT_API_URL = "https://api.prefect.io"
+
+
+@pytest.fixture
+async def variable():
+    return Variable(name="my_variable", value="my-value", tags=["123", "456"])
 
 
 @pytest.fixture
@@ -43,6 +50,13 @@ def prefect_concurrent_future(task_run):
 @pytest.fixture
 def prefect_distributed_future(task_run):
     return PrefectDistributedFuture(task_run_id=task_run.id)
+
+
+@pytest.fixture
+def block():
+    block = DateTime(value="2022-01-01T00:00:00Z")
+    block.save("my-date-block")
+    return block
 
 
 def test_url_for_flow_run_schema_ui(flow_run):
@@ -193,3 +207,26 @@ def test_url_for_unsupported_obj_type():
 
     with temporary_settings({PREFECT_API_URL: MOCK_PREFECT_API_URL}):
         assert url_for(obj=unsupported_obj) == ""  # type: ignore
+
+
+def test_url_block(block):
+    expected_url = f"{MOCK_PREFECT_UI_URL}/blocks/block/{block._block_document_id}"
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        assert url_for(obj=block, url_type="ui") == expected_url
+
+
+def test_url_for_work_pool(work_pool):
+    expected_url = f"{MOCK_PREFECT_UI_URL}/work-pools/work-pool/{work_pool.name}"
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        assert url_for(obj=work_pool, url_type="ui") == expected_url
+
+
+def test_api_url_for_variable(variable):
+    expected_url = f"{MOCK_PREFECT_API_URL}/variables/name/{variable.name}"
+    with temporary_settings({PREFECT_API_URL: MOCK_PREFECT_API_URL}):
+        assert url_for(obj=variable, url_type="api") == expected_url
+
+
+def test_no_ui_url_for_variable(variable):
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        assert url_for(obj=variable, url_type="ui") == ""

@@ -4,13 +4,15 @@ from uuid import UUID
 
 from prefect import settings
 from prefect._internal.schemas.bases import ObjectBaseModel
+from prefect.blocks.core import Block
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
+from prefect.variables import Variable
 
 logger = get_logger("utilities.urls")
 
-# Whitelisted set of object names
-WHITELISTED_OBJECT_NAMES = {
+# Whitelisted object names for API URL generation.
+WHITELISTED_API_OBJECT_NAMES = {
     "block",
     "work-pool",
     "work-queue",
@@ -18,12 +20,32 @@ WHITELISTED_OBJECT_NAMES = {
     "deployment",
     "flow-run",
     "flow",
-    "saved-search",
     "task-run",
-    "worker",
-    "artifact",
     "variable",
 }
+# The following are excluded from API URL generation because we lack a
+# directly-addressable URL:
+#   worker
+#   artifact
+#   saved-search
+
+# White-listed object names for UI URL generation.
+WHITELISTED_UI_OBJECT_NAMES = {
+    "block",
+    "work-pool",
+    "work-queue",
+    "concurrency-limit",
+    "deployment",
+    "flow-run",
+    "flow",
+    "task-run",
+}
+# The following are excluded from UI URL generation because we lack a
+# directly-addressable URL:
+#   worker
+#   artifact
+#   variable
+#   saved-search
 
 URLType = Literal["ui", "api"]
 RUN_TYPES = {"flow-run", "task-run"}
@@ -42,6 +64,8 @@ def url_for(
     obj: Union[
         ObjectBaseModel,
         PrefectFuture,
+        Block,
+        Variable,
         str,
     ],
     obj_id: Optional[Union[str, UUID]] = None,
@@ -54,7 +78,7 @@ def url_for(
     Pass in a supported object directly or provide an object name and ID.
 
     Args:
-        obj (Union[ObjectBaseModel, PrefectFuture, str]):
+        obj (Union[ObjectBaseModel, PrefectFuture, Block, Variable, str]):
             A Prefect object to get the URL for, or its URL name and ID.
         obj_id (Union[str, UUID], optional):
             The UUID of the object.
@@ -73,12 +97,20 @@ def url_for(
     """
     if isinstance(obj, PrefectFuture):
         name = "task-run"
+    elif isinstance(obj, Block):
+        name = "block"
     elif isinstance(obj, str):
         name = obj
     else:
         name = convert_class_to_name(obj)
 
-    if name not in WHITELISTED_OBJECT_NAMES:
+    if url_type != "ui" and url_type != "api":
+        raise ValueError(f"Invalid URL type: {url_type}. Use 'ui' or 'api'.")
+
+    if url_type == "ui" and name not in WHITELISTED_UI_OBJECT_NAMES:
+        logger.error("This object is not supported: %s", name)
+        return ""
+    elif url_type == "api" and name not in WHITELISTED_API_OBJECT_NAMES:
         logger.error("This object is not supported: %s", name)
         return ""
 
@@ -102,13 +134,25 @@ def url_for(
         return ""
 
     if not obj_id:
-        obj_id = getattr(obj, "id", None) or getattr(obj, "task_run_id", None)
-
-    if not obj_id:
-        logger.error("No ID attribute found on the object: %s", obj)
-        return ""
+        if isinstance(obj, PrefectFuture):
+            obj_id = getattr(obj, "task_run_id", None)
+        elif hasattr(obj, "_block_document_id"):
+            obj_id = obj._block_document_id
+        elif isinstance(obj, Variable):
+            obj_id = obj.name
+        elif name == "work-pool":
+            obj_id = obj.name
+        else:
+            obj_id = getattr(obj, "id", None)
+        if not obj_id:
+            logger.error(
+                "An ID is required to build a URL, but object did not have one: %s", obj
+            )
+            return ""
 
     if name in RUN_TYPES:
         return f"{url}/runs/{name}/{obj_id}"
+    elif name == "variable":
+        return f"{url}/variables/name/{obj_id}"
     else:
         return f"{url}/{name}s/{name}/{obj_id}"
