@@ -24,7 +24,9 @@ from prefect.logging.loggers import get_run_logger
 from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
 
-shell_app = PrefectTyper(name="shell", help="Commands for working with shell commands.")
+shell_app = PrefectTyper(
+    name="shell", help="Serve and watch shell commands as Prefect flows."
+)
 app.add_typer(shell_app)
 
 
