@@ -93,6 +93,7 @@
         },
         "3.0rc/develop/recover-from-failure",
         "3.0rc/develop/interact-with-data",
+        "3.0rc/develop/results",
         {
           "group": "Observe workflows",
           "version": "3.0rc",
