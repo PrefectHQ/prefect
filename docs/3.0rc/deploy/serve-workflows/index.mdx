@@ -171,28 +171,28 @@ Learn about work pools and how Prefect Cloud can handle infrastructure configura
 
 # Concepts deployments
 
-Deployments are server-side representations of flows. 
+Deployments are server-side representations of flows.
 They store the crucial metadata needed for remote orchestration including _when_, _where_, and _how_ a workflow should run.
 Deployments elevate workflows from functions that you must call manually to API-managed entities that can be triggered remotely.
 
-Here we will focus largely on the metadata that defines a deployment and how it is used. 
+Here we will focus largely on the metadata that defines a deployment and how it is used.
 Different ways of creating a deployment populate these fields differently.
 
 ## Overview
 
-Every Prefect deployment references one and only one "entrypoint" flow (though that flow may itself call any number of subflows). 
+Every Prefect deployment references one and only one "entrypoint" flow (though that flow may itself call any number of subflows).
 Different deployments may reference the same underlying flow, a useful pattern when developing or promoting workflow changes through staged environments.
 
 The complete schema that defines a deployment is as follows:
 
-```python
+```python notest
 class Deployment:
     """
     Structure of the schema defining a deployment
     """
 
     # required defining data
-    name: str 
+    name: str
     flow_id: UUID
     entrypoint: str
     path: str = None
@@ -317,7 +317,7 @@ can use this object to retrieve information about the run after calling
 from prefect import get_client
 from prefect.deployments import run_deployment
 
-def main():
+async def main():
     flow_run = run_deployment(name="my_flow_name/my_deployment_name")
     flow_run_id = flow_run.id
 

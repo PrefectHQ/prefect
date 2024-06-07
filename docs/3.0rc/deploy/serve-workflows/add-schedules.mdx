@@ -189,7 +189,7 @@ schedule: A schedule object defining when to execute runs of this deployment. Us
 
 Here's an example of creating a cron schedule with `serve` for a deployment flow that will run every minute of every day:
 
-```python
+```python notest
 my_flow.serve(name="flowing", cron="* * * * *")
 ```
 
@@ -197,7 +197,7 @@ If using work pool-based deployments, the `deploy` method has the same schedule-
 
 Here's an example of creating an interval schedule with `serve` for a deployment flow that will run every 10 minutes with an anchor date and a timezone:
 
-```python
+```python notest
 from datetime import timedelta, datetime
 from prefect.client.schemas.schedules import IntervalSchedule
 
