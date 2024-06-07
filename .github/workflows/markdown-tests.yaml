@@ -1,4 +1,4 @@
-name: Unit tests
+name: Markdown tests
 
 env:
   # enable colored output
