@@ -34,25 +34,6 @@ vermin
 virtualenv
 watchfiles
 respx
-prefect-snowflake
-prefect-sqlalchemy
-prefect-aws
-prefect-bitbucket
-prefect-databricks
-prefect-docker 
-prefect-gcp     
-prefect-gitlab
-prefect-ray     
-prefect-slack
-prefect-sqlalchemy
-prefect-azure
-prefect-dask 
-prefect-dbt       
-prefect-email
-prefect-github
-prefect-kubernetes
-prefect-shell 
-prefect-snowflake
 
 # type stubs
 types-cachetools
