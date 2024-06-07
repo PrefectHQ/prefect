@@ -251,7 +251,7 @@ Make a helper function that applies this YAML file with the REST API function.
 ```python
 import yaml
 
-from utils import post, put
+from requests import post, put
 
 def create_or_update_automation(path: str = "automation.yaml"):
     """Create or update an automation from a local YAML file"""
@@ -333,9 +333,10 @@ Here's an example with Marvin's AI functions. It will take in a Pandas DataFrame
 Here is an example of pulling in that data and classifying using Marvin AI. The dummy data is based on classifications you have already created.
 
 ```python
-from marvin import ai_classifier
+from marvin import ai_classifier, ai_fn
 from enum import Enum
 import pandas as pd
+from prefect import flow
 
 @ai_fn
 def generate_synthetic_user_data(build_of_names: list[dict]) -> list:

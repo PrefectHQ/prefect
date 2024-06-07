@@ -8,6 +8,8 @@ mkdocs
 mkdocs-gen-files
 mkdocs-material
 mkdocstrings-python
+marvin
+pandas
 mike
 moto >= 5
 mypy >= 1.9.0

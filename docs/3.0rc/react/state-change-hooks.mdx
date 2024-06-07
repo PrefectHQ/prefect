@@ -69,8 +69,7 @@ async def delete_cloud_run_job(flow, flow_run, state):
     )
 
     # delete Cloud Run job
-    delete_job_command = f"yes | gcloud beta run jobs delete 
-    {cloud_run_job_name.value} --region us-central1"
+    delete_job_command = f"yes | gcloud beta run jobs delete {cloud_run_job_name.value} --region us-central1"
     os.system(delete_job_command)
 
 
