@@ -402,3 +402,244 @@ class TestDeleteFlow:
     async def test_delete_flow_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/flows/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestPaginateFlows:
+    @pytest.fixture
+    async def flows(self, client):
+        await client.post("/flows/", json={"name": "my-flow-1"})
+        await client.post("/flows/", json={"name": "my-flow-2"})
+
+    @pytest.mark.usefixtures("flows")
+    async def test_paginate_flows(self, client):
+        response = await client.post("/flows/paginate")
+        assert response.status_code == status.HTTP_200_OK
+
+        json = response.json()
+
+        assert len(json["results"]) == 2
+        assert json["page"] == 1
+        assert json["pages"] == 1
+        assert json["count"] == 2
+
+    @pytest.mark.usefixtures("flows")
+    async def test_paginate_flows_applies_limit(self, client):
+        response = await client.post("/flows/paginate", json=dict(limit=1))
+        assert response.status_code == status.HTTP_200_OK
+
+        json = response.json()
+
+        assert len(json["results"]) == 1
+        assert json["page"] == 1
+        assert json["pages"] == 2
+        assert json["count"] == 2
+
+    async def test_paginate_flows_applies_flow_filter(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        await session.commit()
+
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=["my-flow-1"])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flows/paginate", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert UUID(results[0]["id"]) == flow_1.id
+
+    async def test_paginate_flows_applies_flow_run_filter(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_1.id),
+        )
+        await session.commit()
+
+        flow_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[flow_run_1.id])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/flows/paginate", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert UUID(results[0]["id"]) == flow_1.id
+
+    async def test_paginate_flows_applies_task_run_filter(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_1.id),
+        )
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run_1.id,
+                task_key="my-key",
+                dynamic_key="0",
+            ),
+        )
+        await session.commit()
+
+        flow_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flows/paginate", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert UUID(results[0]["id"]) == flow_1.id
+
+    async def test_paginate_flows_applies_work_pool(self, client, session, work_pool):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        await session.commit()
+
+        response = await client.post("/flows/paginate")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()["results"]) == 2
+
+        # work queue
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-queue"),  # type: ignore
+        )
+        # deployment
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment X",
+                manifest_path="file.json",
+                flow_id=flow_1.id,
+                is_schedule_active=True,
+                work_queue_id=work_queue.id,
+            ),
+        )
+        await session.commit()
+
+        work_pool_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                id=schemas.filters.WorkPoolFilterId(any_=[work_pool.id])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flows/paginate", json=work_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert UUID(results[0]["id"]) == flow_1.id
+
+    async def test_paginate_flows_applies_deployment_is_null(self, client, session):
+        undeployed_flow = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="undeployment_flow"),
+        )
+        deployed_flow = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="deployed_flow")
+        )
+        await session.commit()
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="Mr. Deployment",
+                manifest_path="file.json",
+                flow_id=deployed_flow.id,
+            ),
+        )
+        await session.commit()
+
+        deployment_filter_isnull = dict(
+            flows=schemas.filters.FlowFilter(
+                deployment=schemas.filters.FlowFilterDeployment(is_null_=True)
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/flows/paginate", json=deployment_filter_isnull)
+        assert response.status_code == status.HTTP_200_OK
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert UUID(results[0]["id"]) == undeployed_flow.id
+
+        deployment_filter_not_isnull = dict(
+            flows=schemas.filters.FlowFilter(
+                deployment=schemas.filters.FlowFilterDeployment(is_null_=False)
+            ).model_dump(mode="json")
+        )
+        response = await client.post(
+            "/flows/paginate", json=deployment_filter_not_isnull
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert UUID(results[0]["id"]) == deployed_flow.id
+
+    async def test_paginate_flows_page(self, flows, client):
+        # right now this works because flows are ordered by name
+        # by default, when ordering is actually implemented, this test
+        # should be re-written
+        response = await client.post("/flows/paginate", json=dict(page=2, limit=1))
+        assert response.status_code == status.HTTP_200_OK
+
+        results = response.json()["results"]
+
+        assert len(results) == 1
+        assert results[0]["name"] == "my-flow-2"
+
+    async def test_paginate_flows_sort(self, flows, client):
+        response = await client.post(
+            "/flows/paginate", json=dict(sort=schemas.sorting.FlowSort.NAME_ASC)
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["results"][0]["name"] == "my-flow-1"
+
+        response_desc = await client.post(
+            "/flows/paginate", json=dict(sort=schemas.sorting.FlowSort.NAME_DESC)
+        )
+        assert response_desc.status_code == status.HTTP_200_OK
+        assert response_desc.json()["results"][0]["name"] == "my-flow-2"
+
+    async def test_read_flows_returns_empty_list(self, client):
+        response = await client.post("/flows/paginate")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["results"] == []
