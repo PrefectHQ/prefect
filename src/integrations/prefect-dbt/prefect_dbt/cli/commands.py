@@ -172,9 +172,11 @@ async def trigger_dbt_cli_command(
     # Add the dbt event log callback if enabled
     callbacks = []
     if stream_output:
+
         def _stream_output(event):
             if event.info.level != "debug":
                 logger.info(event.info.msg)
+
         callbacks.append(_stream_output)
 
     # fix up empty shell_run_command_kwargs
@@ -405,6 +407,7 @@ async def run_dbt_build(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-build-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt build' command within a Prefect task,
@@ -423,13 +426,16 @@ async def run_dbt_build(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
             with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
+            Defaults to False.
+        summary_artifact_key: The key under which to store
             the dbt build results artifact in Prefect.
             Defaults to 'dbt-build-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt build command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -460,6 +466,7 @@ async def run_dbt_build(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
     return results
 
@@ -473,10 +480,11 @@ async def run_dbt_model(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-run-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt run' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt model results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -491,13 +499,16 @@ async def run_dbt_model(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
-            the dbt run results artifact in Prefect.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt model run results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
+            the dbt model run results artifact in Prefect.
             Defaults to 'dbt-run-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt run command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -528,6 +539,7 @@ async def run_dbt_model(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -542,10 +554,11 @@ async def run_dbt_test(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-test-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt test' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt test results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -560,13 +573,16 @@ async def run_dbt_test(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt test results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
             the dbt test results artifact in Prefect.
             Defaults to 'dbt-test-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt test command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -597,6 +613,7 @@ async def run_dbt_test(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -611,10 +628,11 @@ async def run_dbt_snapshot(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-snapshot-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt snapshot' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt snapshot results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -629,13 +647,16 @@ async def run_dbt_snapshot(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
-            the dbt build results artifact in Prefect.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt snapshot results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
+            the dbt snapshot results artifact in Prefect.
             Defaults to 'dbt-snapshot-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt snapshot command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -666,6 +687,7 @@ async def run_dbt_snapshot(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
@@ -680,10 +702,11 @@ async def run_dbt_seed(
     create_summary_artifact: bool = False,
     summary_artifact_key: str = "dbt-seed-task-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ):
     """
     Executes the 'dbt seed' command within a Prefect task,
-    and optionally creates a Prefect artifact summarizing the dbt build results.
+    and optionally creates a Prefect artifact summarizing the dbt seed results.
 
     Args:
         profiles_dir: The directory to search for the profiles.yml file. Setting this
@@ -698,13 +721,16 @@ async def run_dbt_seed(
             Note! This is optional and will raise an error
             if profiles.yml already exists under profile_dir
             and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
-            the dbt build results artifact in Prefect.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt seed results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store
+            the dbt seed results artifact in Prefect.
             Defaults to 'dbt-seed-task-summary'.
         extra_command_args: Additional command arguments to pass to the dbt seed command.
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Example:
     ```python
@@ -735,6 +761,7 @@ async def run_dbt_seed(
         create_summary_artifact=create_summary_artifact,
         summary_artifact_key=summary_artifact_key,
         extra_command_args=extra_command_args,
+        stream_output=stream_output,
     )
 
     return results
