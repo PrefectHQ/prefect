@@ -76,6 +76,6 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
         if name in globals:
             return globals[name]
 
-        raise AttributeError(f"module {module_name} has no attribute {name}")
+        raise AttributeError(f"module {module_name!r} has no attribute {name!r}")
 
     return wrapper
