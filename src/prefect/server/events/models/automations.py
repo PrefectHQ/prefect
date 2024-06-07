@@ -25,9 +25,9 @@ if TYPE_CHECKING:
 @asynccontextmanager
 @db_injector
 async def automations_session(
-    db: PrefectDBInterface,
+    db: PrefectDBInterface, begin_transaction: bool = False
 ) -> AsyncGenerator[AsyncSession, None]:
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(begin_transaction=begin_transaction) as session:
         yield session
 
 
