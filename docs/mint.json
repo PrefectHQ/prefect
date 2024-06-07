@@ -58,7 +58,7 @@
   ],
   "navigation": [
     {
-      "group": "Get Started",
+      "group": "Get started",
       "version": "3.0rc",
       "pages": [
         "3.0rc/get-started/index",
@@ -75,6 +75,7 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-workflows/index",
+            "3.0rc/develop/write-workflows/pause-cancel-flows", 
             "3.0rc/develop/write-workflows/variables"
           ]
         },
@@ -83,12 +84,16 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-tasks/index",
+            "3.0rc/develop/write-tasks/separate-logic", 
+            "3.0rc/develop/write-tasks/task-run-limits",
             "3.0rc/develop/write-tasks/use-task-runners",
+            "3.0rc/develop/write-tasks/dask-and-ray", 
             "3.0rc/develop/write-tasks/upstream-dependencies"
           ]
         },
         "3.0rc/develop/recover-from-failure",
         "3.0rc/develop/interact-with-data",
+        "3.0rc/develop/results",
         {
           "group": "Observe workflows",
           "version": "3.0rc",
@@ -119,7 +124,8 @@
           "group": "Serve workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/serve-workflows/index",
+            "3.0rc/deploy/serve-workflows/deploy-a-flow",
+            "3.0rc/deploy/serve-workflows/serve-a-flow",
             "3.0rc/deploy/serve-workflows/add-schedules"
           ]
         },
@@ -182,18 +188,17 @@
       ]
     },
     {
-      "group": "Migrate",
+      "group": "Resources",
       "version": "3.0rc",
       "pages": [
         {
           "group": "Migrate",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/migrate/upgrade-agents-to-workers"
+            "3.0rc/resources/upgrade-agents-to-workers"
           ]
         },
-        "3.0rc/react/manage-events",
-        "3.0rc/react/state-change-hooks"
+        "3.0rc/resources/visualize-flow-structure"
       ]
     },
     {
