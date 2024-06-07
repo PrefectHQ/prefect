@@ -23,7 +23,6 @@ pytest-cov
 pytest-benchmark
 pytest-env
 pytest-flakefinder
-pytest-markdown-docs
 pytest-timeout
 pytest-xdist < 3.4.0 # 3.5.0 introduces some flakiness. Need to investigate and resolve.
 pytkdocs >= 0.14.2
