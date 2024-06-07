@@ -659,7 +659,7 @@ class TestTaskSubmit:
             for fut in greeting_queue:
                 print(fut.result())
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
 
