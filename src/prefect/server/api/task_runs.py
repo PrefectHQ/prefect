@@ -2,6 +2,7 @@
 Routes for interacting with task run objects.
 """
 
+import asyncio
 import datetime
 from typing import Any, Dict, List
 from uuid import UUID
@@ -320,5 +321,5 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
-            await TaskQueue.for_key(task_run.task_key).retry(task_run)
+            await asyncio.shield(TaskQueue.for_key(task_run.task_key).retry(task_run))
             return
