@@ -262,6 +262,7 @@ Use your block to read data from your cloud provider inside a flow.
 
     from prefect import flow
     from prefect_aws import S3Bucket
+    from prefect_aws.s3 import S3Bucket
 
     @flow
     def download_from_s3():
@@ -521,15 +522,15 @@ import asyncio
 from prefect import flow, task
 
 @task
-async def my_task():
+def my_task():
     return 1
 
 @flow
-async def my_flow():
-    task_result = await my_task()
+def my_flow():
+    task_result = my_task()
     return task_result + 1
 
-result = asyncio.run(my_flow())
+result = my_flow()
 assert result == 2
 ```
 
@@ -580,8 +581,8 @@ async def my_task():
 
 @flow
 async def my_flow():
-    future = await my_task.submit()
-    result = await future.result()
+    future = my_task.submit()
+    result = future.result()
     return result + 1
 
 result = asyncio.run(my_flow())
@@ -689,9 +690,10 @@ Task and flows with `persist_result=False` will not persist their results even i
 Generally, this means that tasks will use the result storage configured on the flow unless otherwise specified.
 If there is no context to load the storage from and results must be persisted, results will be stored in the path specified by the `PREFECT_LOCAL_STORAGE_PATH` setting (defaults to `~/.prefect/storage`).
 
-```python
+```python notest
 from prefect import flow, task
-from prefect.filesystems import LocalFileSystem, S3
+from prefect.filesystems import LocalFileSystem, 
+from prefect_aws.s3 import S3Bucket
 
 @flow(persist_result=True)
 def my_flow():
@@ -705,7 +707,7 @@ my_flow()  # The flow has no result storage configured and no parent, the local 
 
 
 # Reconfigure the flow to use a different storage type
-new_flow = my_flow.with_options(result_storage=S3(bucket_path="my-bucket"))
+new_flow = my_flow.with_options(result_storage=S3Bucket(bucket_name="my-bucket"))
 
 new_flow()  # The flow and task within it will use S3 for result storage.
 ```
@@ -719,11 +721,12 @@ You can configure this to use a specific storage using one of the following:
 
 The path of the result file in the result storage can be configured with the `result_storage_key`. The `result_storage_key` option defaults to a null value, which generates a unique identifier for each result.
 
-```python
+```python notest
 from prefect import flow, task
-from prefect.filesystems import LocalFileSystem, S3
+from prefect.filesystems import LocalFileSystem
+from prefect_aws.s3 import S3Bucket
 
-@flow(result_storage=S3(bucket_path="my-bucket"))
+@flow(result_storage=S3Bucket(bucket_name="my-bucket"))
 def my_flow():
     my_task()
 
@@ -844,6 +847,8 @@ When running your workflows, Prefect will keep the results of all tasks and flow
 Flows and tasks both include an option to drop the result from memory with `cache_result_in_memory`:
 
 ```python
+from prefect import flow, task
+
 @flow(cache_result_in_memory=False)
 def foo():
     return "pretend this is large data"
@@ -856,6 +861,8 @@ def bar():
 When `cache_result_in_memory` is disabled, the result of your flow or task will be persisted by default. The result will then be pulled from storage when needed.
 
 ```python
+from prefect import flow, task
+
 @flow
 def foo():
     result = bar()
@@ -877,6 +884,8 @@ def bar():
 If both `cache_result_in_memory` and persistence are disabled, your results will not be available downstream.
 
 ```python
+
+from prefect import flow, task
 
 @task(persist_result=False, cache_result_in_memory=False)
 def bar():
@@ -915,7 +924,7 @@ Pickle is a standard Python protocol for encoding arbitrary Python objects. We s
 ```python
 from prefect.serializers import PickleSerializer
 
-PickleSerializer(picklelib="custompickle")
+PickleSerializer(picklelib="cloudpickle")
 ```
 
 Benefits of the pickle serializer:
