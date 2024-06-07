@@ -17,9 +17,10 @@ The `PrefectClient` is an async context manager, so you can use it like this:
 ```python hl_lines="3"
 from prefect import get_client
 
-async with get_client() as client:
-    response = await client.hello()
-    print(response.json()) # 👋
+async def say_hello():
+    async with get_client() as client:
+        response = await client.hello()
+        print(response.json()) # 👋
 ```
 
 ## Examples
