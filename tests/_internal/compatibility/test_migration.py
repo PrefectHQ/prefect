@@ -26,6 +26,7 @@ def import_from(dotted_path: str):
         ModuleNotFoundError: If the module specified in the dotted path cannot be found.
         AttributeError: If the object specified in the dotted path does not exist
                         in the module.
+        ValueError: If the dotted path is not in the correct format.
 
     Example:
         To import the `MyClass` class from the `my_package.my_module` module,
