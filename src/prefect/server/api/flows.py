@@ -2,19 +2,19 @@
 Routes for interacting with flow objects.
 """
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
 from fastapi import Depends, HTTPException, Path, Response, status
 from fastapi.param_functions import Body
-from pydantic import BaseModel
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.schemas.responses import FlowPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/flows", tags=["Flows"])
@@ -163,23 +163,15 @@ async def delete_flow(
         )
 
 
-class FlowPaginationResponse(BaseModel):
-    results: list[schemas.core.Flow]
-    count: int
-    limit: int
-    pages: int
-    page: int
-
-
 @router.post("/paginate")
 async def paginate_flows(
     limit: int = dependencies.LimitBody(),
     page: int = Body(1, ge=1),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> FlowPaginationResponse:

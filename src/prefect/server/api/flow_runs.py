@@ -19,7 +19,6 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse, PlainTextResponse
-from pydantic import BaseModel
 from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
@@ -39,7 +38,10 @@ from prefect.server.models.flow_runs import (
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.graph import Graph
-from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.schemas.responses import (
+    FlowRunPaginationResponse,
+    OrchestrationResult,
+)
 from prefect.server.utilities.server import PrefectRouter
 from prefect.utilities import schema_tools
 
@@ -701,14 +703,6 @@ async def delete_flow_run_input(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Flow run input not found"
             )
-
-
-class FlowRunPaginationResponse(BaseModel):
-    results: list[schemas.responses.FlowRunResponse]
-    count: int
-    limit: int
-    pages: int
-    page: int
 
 
 @router.post("/paginate", response_class=ORJSONResponse)
