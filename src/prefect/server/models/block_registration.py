@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Dict
 
 import sqlalchemy as sa
 
@@ -154,20 +155,35 @@ async def _register_collection_blocks(session: sa.orm.Session):
         for collection in collections_blocks_data["collections"].values()
         for block_type in collection["block_types"].values()
     ]
-    for block_type in block_types:
-        # each block schema gets its own transaction
-        async with session.begin():
-            block_schemas = block_type.pop("block_schema", [])
+
+    # due to schema reference dependencies, we need to register all block types first
+    # and then register all block schemas
+    block_schemas: Dict[str, Dict] = {}
+
+    async with session.begin():
+        for block_type in block_types:
+            block_schema = block_type.pop("block_schema", None)
+            if not block_schema:
+                raise RuntimeError(
+                    f"Block schema not found for block type {block_type.get('slug')!r}"
+                )
             block_type_id = await register_block_type(
                 session=session,
                 block_type=schemas.core.BlockType.parse_obj(block_type),
             )
-            for block_schema in block_schemas:
+            block_schema["block_type_id"] = block_type_id
+            block_schemas[block_type["slug"]] = block_schema
+
+    async with session.begin():
+        for block_type_slug, block_schema in block_schemas.items():
+            try:
                 await register_block_schema(
                     session=session,
-                    block_schema=schemas.core.BlockSchema.parse_obj(
-                        {**block_schema, "block_type_id": block_type_id}
-                    ),
+                    block_schema=schemas.core.BlockSchema.parse_obj(block_schema),
+                )
+            except Exception:
+                logger.exception(
+                    f"Failed to register block schema for block type {block_type_slug}"
                 )
 
 
