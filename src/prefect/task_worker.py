@@ -11,6 +11,7 @@ from typing import List, Optional
 
 import anyio
 import anyio.abc
+from exceptiongroup import BaseExceptionGroup  # novermin
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
@@ -31,11 +32,11 @@ from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
 from prefect.utilities.processutils import _register_signal
 
-logger = get_logger("task_server")
+logger = get_logger("task_worker")
 
 
-class StopTaskServer(Exception):
-    """Raised when the task server is stopped."""
+class StopTaskWorker(Exception):
+    """Raised when the task worker is stopped."""
 
     pass
 
@@ -50,11 +51,11 @@ def should_try_to_read_parameters(task: Task, task_run: TaskRun) -> bool:
     return new_enough_state_details and task_accepts_parameters
 
 
-class TaskServer:
+class TaskWorker:
     """This class is responsible for serving tasks that may be executed in the background
     by a task runner via the traditional engine machinery.
 
-    When `start()` is called, the task server will open a websocket connection to a
+    When `start()` is called, the task worker will open a websocket connection to a
     server-side queue of scheduled task runs. When a scheduled task run is found, the
     scheduled task run is submitted to the engine for execution with a minimal `EngineContext`
     so that the task run can be governed by orchestration rules.
@@ -71,7 +72,7 @@ class TaskServer:
         *tasks: Task,
         limit: Optional[int] = 10,
     ):
-        self.tasks: List[Task] = tasks
+        self.tasks: List[Task] = list(tasks)
 
         self.started: bool = False
         self.stopping: bool = False
@@ -81,7 +82,7 @@ class TaskServer:
 
         if not asyncio.get_event_loop().is_running():
             raise RuntimeError(
-                "TaskServer must be initialized within an async context."
+                "TaskWorker must be initialized within an async context."
             )
 
         self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
@@ -94,7 +95,7 @@ class TaskServer:
 
     def handle_sigterm(self, signum, frame):
         """
-        Shuts down the task server when a SIGTERM is received.
+        Shuts down the task worker when a SIGTERM is received.
         """
         logger.info("SIGTERM received, initiating graceful shutdown...")
         from_sync.call_in_loop_thread(create_call(self.stop))
@@ -104,12 +105,12 @@ class TaskServer:
     @sync_compatible
     async def start(self) -> None:
         """
-        Starts a task server, which runs the tasks provided in the constructor.
+        Starts a task worker, which runs the tasks provided in the constructor.
         """
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
         async with asyncnullcontext() if self.started else self:
-            logger.info("Starting task server...")
+            logger.info("Starting task worker...")
             try:
                 await self._subscribe_to_task_scheduling()
             except InvalidStatusCode as exc:
@@ -125,19 +126,25 @@ class TaskServer:
 
     @sync_compatible
     async def stop(self):
-        """Stops the task server's polling cycle."""
+        """Stops the task worker's polling cycle."""
         if not self.started:
             raise RuntimeError(
-                "Task server has not yet started. Please start the task server by"
+                "Task worker has not yet started. Please start the task worker by"
                 " calling .start()"
             )
 
         self.started = False
         self.stopping = True
 
-        raise StopTaskServer
+        raise StopTaskWorker
 
     async def _subscribe_to_task_scheduling(self):
+        base_url = PREFECT_API_URL.value()
+        if base_url is None:
+            raise ValueError(
+                "`PREFECT_API_URL` must be set to use the task worker. "
+                "Task workers are not compatible with the ephemeral API."
+            )
         logger.info(
             f"Subscribing to tasks: {' | '.join(t.task_key.split('.')[-1] for t in self.tasks)}"
         )
@@ -146,6 +153,7 @@ class TaskServer:
             path="/task_runs/subscriptions/scheduled",
             keys=[task.task_key for task in self.tasks],
             client_id=self._client_id,
+            base_url=base_url,
         ):
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)
@@ -160,11 +168,11 @@ class TaskServer:
         task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
-            if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
+            if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS:
                 logger.warning(
-                    f"Task {task_run.name!r} not found in task server registry."
+                    f"Task {task_run.name!r} not found in task worker registry."
                 )
-                await self._client._client.delete(f"/task_runs/{task_run.id}")
+                await self._client._client.delete(f"/task_runs/{task_run.id}")  # type: ignore
 
             return
 
@@ -261,14 +269,14 @@ class TaskServer:
             self._limiter.release_on_behalf_of(task_run.id)
 
     async def execute_task_run(self, task_run: TaskRun):
-        """Execute a task run in the task server."""
+        """Execute a task run in the task worker."""
         async with self if not self.started else asyncnullcontext():
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)
             await self._submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
-        logger.debug("Starting task server...")
+        logger.debug("Starting task worker...")
 
         if self._client._closed:
             self._client = get_client()
@@ -281,7 +289,7 @@ class TaskServer:
         return self
 
     async def __aexit__(self, *exc_info):
-        logger.debug("Stopping task server...")
+        logger.debug("Stopping task worker...")
         self.started = False
         await self._exit_stack.__aexit__(*exc_info)
 
@@ -301,7 +309,7 @@ async def serve(*tasks: Task, limit: Optional[int] = 10):
     Example:
         ```python
         from prefect import task
-        from prefect.task_server import serve
+        from prefect.task_worker import serve
 
         @task(log_prints=True)
         def say(message: str):
@@ -316,13 +324,21 @@ async def serve(*tasks: Task, limit: Optional[int] = 10):
             serve(say, yell)
         ```
     """
-    task_server = TaskServer(*tasks, limit=limit)
+    task_worker = TaskWorker(*tasks, limit=limit)
 
     try:
-        await task_server.start()
+        await task_worker.start()
 
-    except StopTaskServer:
-        logger.info("Task server stopped.")
+    except BaseExceptionGroup as exc:  # novermin
+        exceptions = exc.exceptions
+        n_exceptions = len(exceptions)
+        logger.error(
+            f"Task worker stopped with {n_exceptions} exception{'s' if n_exceptions != 1 else ''}:"
+            f"\n" + "\n".join(str(e) for e in exceptions)
+        )
 
-    except asyncio.CancelledError:
-        logger.info("Task server interrupted, stopping...")
+    except StopTaskWorker:
+        logger.info("Task worker stopped.")
+
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        logger.info("Task worker interrupted, stopping...")
