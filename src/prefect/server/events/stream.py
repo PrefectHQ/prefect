@@ -47,7 +47,7 @@ async def events(
                 # forever waiting for a message to be put on the queue, and never notice
                 # that their client (like a websocket) has actually disconnected.
                 try:
-                    event = await asyncio.wait_for(queue.get(), timeout=2)
+                    event = await asyncio.wait_for(queue.get(), timeout=1)
                 except asyncio.TimeoutError:
                     # If the queue is empty, we'll yield to the caller with a None in
                     # order to give it control over what happens next.  This helps with
