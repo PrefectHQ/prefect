@@ -30,7 +30,9 @@ RUN_TYPES = {"flow-run", "task-run"}
 
 
 def convert_class_to_name(obj: Any) -> str:
-    # Convert CamelCase class name to dash-separated lowercase name
+    """
+    Convert CamelCase class name to dash-separated lowercase name
+    """
     cls = obj if inspect.isclass(obj) else obj.__class__
     name = cls.__name__
     return "".join(["-" + i.lower() if i.isupper() else i for i in name]).lstrip("-")
