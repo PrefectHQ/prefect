@@ -2502,7 +2502,7 @@ class TestKubernetesWorker:
 
         # mock_watch.return_value.stream = mock_stream
         mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
-        default_configuration.job_watch_timeout_seconds = 40
+        default_configuration.job_watch_timeout_seconds = 1
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             result = await k8s_worker.run(flow_run, default_configuration)
 

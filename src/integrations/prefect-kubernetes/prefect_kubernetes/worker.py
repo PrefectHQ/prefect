@@ -104,7 +104,6 @@ import base64
 import enum
 import json
 import logging
-import math
 import os
 import shlex
 import time
@@ -151,6 +150,7 @@ from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
 from prefect.utilities.templating import find_placeholders
+from prefect.utilities.timeout import timeout_async
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -911,8 +911,7 @@ class KubernetesWorker(BaseWorker):
         batch_client: BatchV1Api,
         job_name: str,
         namespace: str,
-        watch_kwargs: dict,
-    ):
+    ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Stream job events.
 
@@ -921,7 +920,7 @@ class KubernetesWorker(BaseWorker):
 
         See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
         """
-        resource_version = None
+        watch_kwargs = {}
         while True:
             try:
                 async for event in watch.stream(
@@ -932,7 +931,6 @@ class KubernetesWorker(BaseWorker):
                 ):
                     yield event
             except ApiException as e:
-                print(e.status)
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
                         namespace=namespace, field_selector=f"metadata.name={job_name}"
@@ -943,6 +941,7 @@ class KubernetesWorker(BaseWorker):
                 else:
                     raise
             finally:
+                # breakpoint()≈
                 await watch.close()
 
     async def _watch_job(
@@ -990,13 +989,6 @@ class KubernetesWorker(BaseWorker):
                     print(line.decode().rstrip())
                     # Check if we have passed the deadline and should stop streaming
                     # logs
-                    # while True:
-                    #     print("inside while loop")
-                    #     line = await logs.content.readline()
-                    #     if not line:
-                    #         break
-                    #     print(line.decode().rstrip())
-
                     remaining_time = deadline - time.monotonic() if deadline else None
                     print(remaining_time)
                     print(deadline)
@@ -1020,31 +1012,30 @@ class KubernetesWorker(BaseWorker):
         )
         completed = job.status.completion_time is not None
 
-        while not completed:
-            remaining_time = (
-                math.ceil(deadline - time.monotonic()) if deadline else None
-            )
+        with timeout_async(configuration.job_watch_timeout_seconds):
+            # remaining_time = (
+            #     math.ceil(deadline - time.monotonic()) if deadline else None
+            # )
 
-            if deadline and remaining_time <= 0:
-                logger.error(
-                    f"Job {job_name!r}: Job did not complete within "
-                    f"timeout of {configuration.job_watch_timeout_seconds}s."
-                )
-                return -1
+            # if deadline and remaining_time <= 0:
+            #     logger.error(
+            #         f"Job {job_name!r}: Job did not complete within "
+            #         f"timeout of {configuration.job_watch_timeout_seconds}s."
+            #     )
+            #     return -1
 
             watch = kubernetes_asyncio.watch.Watch()
 
             # The kubernetes library will disable retries if the timeout kwarg is
             # present regardless of the value so we do not pass it unless given
             # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
-            watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
+            # watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
 
             async for event in self._job_events(
                 watch,
                 batch_client,
                 job_name,
                 configuration.namespace,
-                watch_kwargs,
             ):
                 if event["type"] == "DELETED":
                     logger.error(f"Job {job_name!r}: Job has been deleted.")
