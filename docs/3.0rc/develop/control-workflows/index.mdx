@@ -82,7 +82,7 @@ async def greet_user():
 
 For advanced use cases such as overriding how Prefect stores flow run inputs, create a `RunInput` class:
 
-```python
+```python continuation
 from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
@@ -109,7 +109,7 @@ Set default values for fields in your model with the `with_initial_data` method.
 
 Expanding on the example above, you can make the `name` field default to "anonymous":
 
-```python
+```python continuation
 from prefect.logging import get_run_logger
 from prefect.input import RunInput
 
@@ -190,6 +190,7 @@ The following is an example `RunInput` class that uses a custom field validator:
 ```python
 import pydantic
 from prefect.input import RunInput
+from typing import Literal
 
 
 class ShirtOrder(RunInput):
@@ -212,6 +213,7 @@ In the example, we use Pydantic's `validator` decorator to define a custom valid
 import pydantic
 from prefect import flow, pause_flow_run
 from prefect.input import RunInput
+from typing import Literal
 
 
 class ShirtOrder(RunInput):
@@ -366,7 +368,7 @@ By default, each time you call `receive_input`, you get an iterator that iterate
 
 ```python
 from prefect import flow, get_client
-from prefect.deployments.deployments import run_deployment
+from prefect.deployments.flow_runs import run_deployment
 from prefect.input.run_input import receive_input, send_input
 
 EXIT_SIGNAL = "__EXIT__"
@@ -533,7 +535,7 @@ Send input to a flow with the `send_input` function. This works similarly to `re
 
 Next, create a `sender` flow that starts a `greeter` flow run and then enters a loop—continuously getting input from the terminal and sending it to the greeter flow:
 
-```python
+```python continuation
 @flow
 async def sender():
     greeter_flow_run = await run_deployment(
@@ -585,7 +587,7 @@ import sys
 from prefect import flow, get_client
 from prefect.blocks.system import JSON
 from prefect.context import get_run_context
-from prefect.deployments.deployments import run_deployment
+from prefect.deployments.flow_runs import run_deployment
 from prefect.input.run_input import receive_input, send_input
 
 
