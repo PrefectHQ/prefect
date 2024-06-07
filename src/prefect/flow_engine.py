@@ -43,7 +43,7 @@ from prefect.logging.loggers import (
     patch_print,
 )
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_UI_URL
+from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
     Pending,
@@ -64,6 +64,7 @@ from prefect.utilities.engine import (
     resolve_to_final_result,
 )
 from prefect.utilities.timeout import timeout, timeout_async
+from prefect.utilities.urls import url_for
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -504,12 +505,11 @@ class FlowRunEngine(Generic[P, R]):
 
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(self.client)
+                flow_run_url = url_for(self.flow_run)
 
-                ui_url = PREFECT_UI_URL.value()
-                if ui_url:
+                if flow_run_url:
                     self.logger.info(
-                        f"View at {ui_url}/flow-runs/flow-run/{self.flow_run.id}",
-                        extra={"send_to_api": False},
+                        f"View at {flow_run_url}", extra={"send_to_api": False}
                     )
 
             # validate prior to context so that context receives validated params

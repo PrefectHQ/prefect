@@ -17,7 +17,7 @@ from prefect.client.schemas.sorting import FlowSort
 from prefect.deployments.runner import RunnerDeployment
 from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
-from prefect.settings import PREFECT_UI_URL
+from prefect.utilities import urls
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
 app.add_typer(flow_app, aliases=["flows"])
@@ -155,10 +155,12 @@ async def serve(
         " command:\n[blue]\n\t$ prefect deployment run"
         f" '{runner_deployment.flow_name}/{name}'\n[/]"
     )
-    if PREFECT_UI_URL:
+
+    deployment_url = urls.url_for("deployment", obj_id=deployment_id)
+    if deployment_url:
         help_message += (
             "\nYou can also run your flow via the Prefect UI:"
-            f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
+            f" [blue]{deployment_url}[/]\n"
         )
 
     app.console.print(help_message, soft_wrap=True)

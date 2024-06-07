@@ -11,6 +11,7 @@ from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_UI_URL
+from prefect.utilities import urls
 
 
 class FlowRunNotifications(LoopService):
@@ -151,6 +152,7 @@ class FlowRunNotifications(LoopService):
         Args:
             flow_run_id: the flow run id.
         """
+        return urls.url_for(flow_run_id=flow_run_id)
         ui_url = PREFECT_UI_URL.value() or "http://ephemeral-prefect/api"
         return f"{ui_url}/flow-runs/flow-run/{flow_run_id}"
 
