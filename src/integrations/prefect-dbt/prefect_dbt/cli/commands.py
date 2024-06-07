@@ -173,7 +173,8 @@ async def trigger_dbt_cli_command(
     callbacks = []
     if stream_output:
         def _stream_output(event):
-            logger.info(event.info.msg)
+            if event.info.level != "debug":
+                logger.info(event.info.msg)
         callbacks.append(_stream_output)
 
     # fix up empty shell_run_command_kwargs
