@@ -7,7 +7,8 @@ install_requires = (
     open("requirements.txt").read().strip().split("\n")[1:] + client_requires
 )
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
-markdown_requires = open("requirements-markdown.txt").read().strip().split("\n")
+markdown_requirements = open("requirements-markdown.txt").read().strip().split("\n")
+markdown_requires = dev_requires + markdown_requirements[1:]
 
 setup(
     # Package metadata
