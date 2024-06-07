@@ -14,11 +14,14 @@ __getattr__ = getattr_migration(__name__)
 import sys
 from typing import Any, Callable, Dict
 
+from pydantic_core import PydanticCustomError
+
 from prefect.exceptions import PrefectImportError
 
 MOVED_IN_V3 = {
     "prefect.deployments.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
     "prefect.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
+    "prefect.variables:get": "prefect.variables:Variable.get",
 }
 
 REMOVED_IN_V3 = {
@@ -64,7 +67,37 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
                 DeprecationWarning,
                 stacklevel=2,
             )
-            return import_string(new_location)
+            try:
+                return import_string(new_location)
+
+            except PydanticCustomError as exc:
+                """
+                Handle moved class methods.
+
+                `import_string` does not account for moved class methods. This block handles cases where a method has been
+                moved to a class. For example, if `new_location` is 'prefect.variables:Variable.get', `import_string(new_location)`
+                will raise an error because it does not handle class methods. This block will import the class and get the
+                method from the class.
+
+                Args:
+                    new_location (str): The new location of the method.
+                    class_name (str): The name of the class.
+                    method_name (str): The name of the method.
+
+                Returns:
+                    method: The resolved method from the class.
+                """
+                class_name, method_name = new_location.rsplit(".", 1)
+                cls = import_string(class_name)
+                method = getattr(cls, method_name, None)
+
+                if method is not None and callable(method):
+                    return method
+                else:
+                    # unable to parse new_location
+                    raise PrefectImportError(
+                        f"Unable to import {new_location!r}: {exc}"
+                    )
 
         if import_path in REMOVED_IN_V3.keys():
             error_message = REMOVED_IN_V3[import_path]
