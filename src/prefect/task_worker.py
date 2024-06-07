@@ -139,6 +139,12 @@ class TaskWorker:
         raise StopTaskWorker
 
     async def _subscribe_to_task_scheduling(self):
+        base_url = PREFECT_API_URL.value()
+        if base_url is None:
+            raise ValueError(
+                "`PREFECT_API_URL` must be set to use the task worker. "
+                "Task workers are not compatible with the ephemeral API."
+            )
         logger.info(
             f"Subscribing to tasks: {' | '.join(t.task_key.split('.')[-1] for t in self.tasks)}"
         )
@@ -147,6 +153,7 @@ class TaskWorker:
             path="/task_runs/subscriptions/scheduled",
             keys=[task.task_key for task in self.tasks],
             client_id=self._client_id,
+            base_url=base_url,
         ):
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)

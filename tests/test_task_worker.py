@@ -11,9 +11,12 @@ from prefect import flow, task
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
+from prefect.settings import PREFECT_API_URL, temporary_settings
 from prefect.states import Running
 from prefect.task_worker import TaskWorker, serve
 from prefect.tasks import task_input_hash
+
+pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
 
 
 @pytest.fixture(autouse=True)
@@ -85,6 +88,12 @@ def mock_subscription(monkeypatch):
         "prefect.task_worker.Subscription", mock_subscription := MagicMock()
     )
     return mock_subscription
+
+
+async def test_task_worker_does_not_run_against_ephemeral_api():
+    with pytest.raises(ValueError):
+        with temporary_settings({PREFECT_API_URL: None}):
+            await TaskWorker(...)._subscribe_to_task_scheduling()
 
 
 async def test_task_worker_basic_context_management():
