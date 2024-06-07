@@ -86,7 +86,7 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="1-3"
+```python hl_lines="1-3" continuation
 @flow 
 def subflow():
     return 42 
@@ -100,7 +100,7 @@ def my_flow():
 
 To return a `State` instead, add `return_state=True` as a parameter of your task call.
 
-```python hl_lines="3-4"
+```python hl_lines="3-4" continuation
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -108,7 +108,7 @@ def my_flow():
 
 To get data from a `State`, call `.result()`.
 
-```python hl_lines="4-5"
+```python hl_lines="4-5" continuation
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -117,7 +117,7 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="7-8"
+```python hl_lines="7-8" continuation
 @flow 
 def subflow():
     return 42 
@@ -132,7 +132,7 @@ def my_flow():
 
 To get a `PrefectFuture`, add `.submit()` to your task call.
 
-```python hl_lines="3-5"
+```python hl_lines="3-5" continuation
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -140,7 +140,7 @@ def my_flow():
 
 To get data from a `PrefectFuture`, call `.result()`.
 
-```python hl_lines="4-5"
+```python hl_lines="4-5" continuation
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -149,7 +149,7 @@ def my_flow():
 
 To get a `State` from a `PrefectFuture`, call `.wait()`.
 
-```python hl_lines="4-5"
+```python hl_lines="4-5" continuation
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -202,33 +202,38 @@ my_flow()
 
 #### Create flow run state change hooks
 
-```python
-def my_flow_hook(flow: Flow, flow_run: FlowRun, state: State):
+```python continuation
+def my_flow_hook(flow, flow_run, state):
     """This is the required signature for a flow run state
     change hook. This hook can only be passed into flows.
     """
 
 # pass hook as a list of callables
 @flow(on_completion=[my_flow_hook])
+def my_flow():
+    raise 
 ```
 
 #### Create task run state change hooks
 
 ```python
-def my_task_hook(task: Task, task_run: TaskRun, state: State):
+from prefect import task
+def my_task_hook(task, task_run, state):
     """This is the required signature for a task run state change
     hook. This hook can only be passed into tasks.
     """
 
 # pass hook as a list of callables
 @task(on_failure=[my_task_hook])
+def my_task():
+    raise
 ```
 
 #### Use multiple state change hooks
 
 State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition, or to use the same state change hook for different transitions:
 
-```python
+```python continuation
 def my_success_hook(task, task_run, state):
     print("Task run succeeded!")
 
@@ -242,6 +247,8 @@ def my_succeed_or_fail_hook(task, task_run, state):
     on_completion=[my_success_hook, my_succeed_or_fail_hook],
     on_failure=[my_failure_hook, my_succeed_or_fail_hook]
 )
+def my_task():
+    pass
 ```
 
 #### Pass `kwargs` to your hooks
