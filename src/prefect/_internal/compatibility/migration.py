@@ -60,7 +60,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
         if import_path in MOVED_IN_V3.keys():
             new_location = MOVED_IN_V3[import_path]
             warnings.warn(
-                f"{import_path} has been moved to {new_location!r}. Importing from {new_location!r} instead. This warning will raise an error in a future release.",
+                f"{import_path!r} has been moved to {new_location!r}. Importing from {new_location!r} instead. This warning will raise an error in a future release.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -68,7 +68,9 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
 
         if import_path in REMOVED_IN_V3.keys():
             error_message = REMOVED_IN_V3[import_path]
-            raise PrefectImportError(f"{import_path} has been removed. {error_message}")
+            raise PrefectImportError(
+                f"{import_path!r} has been removed. {error_message}"
+            )
 
         globals: Dict[str, Any] = sys.modules[module_name].__dict__
         if name in globals:
