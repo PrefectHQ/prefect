@@ -16,10 +16,6 @@ from typing import Any, Callable, Dict
 
 from prefect.exceptions import PrefectImportError
 
-# IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following line at the bottom of that module:
-# __getattr__ = getattr_migration(__name__)
-# See src/prefect/filesystems for an example
-
 MOVED_IN_V3 = {
     "prefect.deployments.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
 }
@@ -31,6 +27,11 @@ REMOVED_IN_V3 = {
     "prefect.filesystems:Azure": "Use 'prefect_azure' instead.",
     "prefect.filesystems:S3": "Use 'prefect_aws' instead.",
 }
+
+# IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following line at the bottom of that module:
+# from prefect._internal.compatibility.migration import getattr_migration
+# __getattr__ = getattr_migration(__name__)
+# See src/prefect/filesystems.py for an example
 
 
 def getattr_migration(module_name: str) -> Callable[[str], Any]:
