@@ -18,6 +18,7 @@ from prefect.exceptions import PrefectImportError
 
 MOVED_IN_V3 = {
     "prefect.deployments.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
+    "prefect.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
 }
 
 REMOVED_IN_V3 = {
@@ -58,7 +59,11 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
         # Check if the attribute name corresponds to a moved or removed class or module
         if import_path in MOVED_IN_V3.keys():
             new_location = MOVED_IN_V3[import_path]
-            warnings.warn(f"{import_path} has been moved to {new_location}.")
+            warnings.warn(
+                f"{import_path} has been moved to {new_location}. Importing from {new_location} instead. This warning will raise an error in a future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             return import_string(new_location)
 
         if import_path in REMOVED_IN_V3.keys():
