@@ -3708,7 +3708,9 @@ class SyncPrefectClient:
         if tags is not None:
             params["tags"] = tags
         if empirical_policy is not None:
-            params["empirical_policy"] = empirical_policy
+            params["empirical_policy"] = empirical_policy.model_dump(
+                mode="json", exclude_unset=True
+            )
         if infrastructure_pid:
             params["infrastructure_pid"] = infrastructure_pid
         if job_variables is not None:
