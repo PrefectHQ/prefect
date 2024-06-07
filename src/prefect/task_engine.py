@@ -333,10 +333,24 @@ class TaskRunEngine(Generic[P, R]):
                     scheduled_time=pendulum.now("utc").add(seconds=delay)
                 )
             else:
+                delay = None
                 new_state = Retrying()
+
+            self.logger.info(
+                f"Task run failed with exception {exc!r} - "
+                f"Retry {self.retries + 1}/{self.task.retries} will start "
+                f"{str(delay) + ' second(s) from now' if delay else 'immediately'}"
+            )
+
             self.set_state(new_state, force=True)
             self.retries = self.retries + 1
             return True
+        elif self.retries >= self.task.retries:
+            self.logger.error(
+                f"Task run failed with exception {exc!r} - Retries are exhausted"
+            )
+            return False
+
         return False
 
     def handle_exception(self, exc: Exception) -> None:
@@ -499,9 +513,6 @@ class TaskRunEngine(Generic[P, R]):
     async def wait_until_ready(self):
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            self.logger.info(
-                f"Waiting for scheduled time {scheduled_time} for task {self.task.name!r}"
-            )
             await anyio.sleep((scheduled_time - pendulum.now("utc")).total_seconds())
             self.set_state(
                 Retrying() if self.state.name == "AwaitingRetry" else Running(),
