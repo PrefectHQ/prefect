@@ -60,7 +60,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
         if import_path in MOVED_IN_V3.keys():
             new_location = MOVED_IN_V3[import_path]
             warnings.warn(
-                f"{import_path} has been moved to {new_location}. Importing from {new_location} instead. This warning will raise an error in a future release.",
+                f"{import_path} has been moved to {new_location!r}. Importing from {new_location!r} instead. This warning will raise an error in a future release.",
                 DeprecationWarning,
                 stacklevel=2,
             )
