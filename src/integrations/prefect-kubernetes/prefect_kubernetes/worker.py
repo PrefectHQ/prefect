@@ -100,13 +100,13 @@ For more information about work pools and workers,
 checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
 """
 
+import asyncio
 import base64
 import enum
 import json
 import logging
 import os
 import shlex
-import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
@@ -905,6 +905,32 @@ class KubernetesWorker(BaseWorker):
 
         return cluster_uid
 
+    async def _stream_pod_logs(
+        self,
+        pod_name: str,
+        namespace: str,
+        core_client: CoreV1Api,
+    ):
+        logs = await core_client.read_namespaced_pod_log(
+            pod_name,
+            namespace,
+            follow=True,
+            _preload_content=False,
+            container="prefect-job",
+        )
+        try:
+            async for line in logs.content:
+                if not line:
+                    break
+                print(line.decode().rstrip())
+        except Exception:
+            self.logger.warning(
+                "Error occurred while streaming logs - "
+                "Job will continue to run but logs will "
+                "no longer be streamed to stdout.",
+                exc_info=True,
+            )
+
     async def _job_events(
         self,
         watch: kubernetes_asyncio.watch.Watch,
@@ -941,22 +967,15 @@ class KubernetesWorker(BaseWorker):
                 else:
                     raise
             finally:
-                # breakpoint()≈
                 await watch.close()
 
     async def _watch_job(
         self,
         logger: logging.Logger,
         job_name: str,
-        configuration: KubernetesWorkerJobConfiguration,
+        configuration: "KubernetesWorkerJobConfiguration",
         client: "ApiClient",
     ) -> int:
-        """
-        Watch a job.
-
-        Return the final status code of the first container.
-        """
-
         logger.debug(f"Job {job_name!r}: Monitoring job...")
 
         job = await self._get_job(logger, job_name, configuration, client)
@@ -967,137 +986,50 @@ class KubernetesWorker(BaseWorker):
         if not pod:
             return -1
 
-        # Calculate the deadline before streaming output
-        deadline = (
-            (time.monotonic() + configuration.job_watch_timeout_seconds)
-            if configuration.job_watch_timeout_seconds is not None
-            else None
-        )
-        if configuration.stream_output:
-            core_client = CoreV1Api(client)
-            logs = await core_client.read_namespaced_pod_log(
-                pod.metadata.name,
-                configuration.namespace,
-                follow=True,
-                _preload_content=False,
-                container="prefect-job",
-            )
-            try:
-                async for line in logs.content:
-                    if not line:
-                        break
-                    print(line.decode().rstrip())
-                    # Check if we have passed the deadline and should stop streaming
-                    # logs
-                    remaining_time = deadline - time.monotonic() if deadline else None
-                    print(remaining_time)
-                    print(deadline)
-                    if deadline and remaining_time <= 0:
-                        break
-
-            except Exception:
-                logger.warning(
-                    (
-                        "Error occurred while streaming logs - "
-                        "Job will continue to run but logs will "
-                        "no longer be streamed to stdout."
+        core_client = CoreV1Api(client)
+        batch_client = BatchV1Api(client)
+        try:
+            with timeout_async(configuration.job_watch_timeout_seconds):
+                tasks = [
+                    self._stream_pod_logs(
+                        pod.metadata.name, configuration.namespace, core_client
                     ),
-                    exc_info=True,
+                    self._monitor_job_events(job_name, configuration, batch_client),
+                ]
+
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                if any(isinstance(result, Exception) for result in results):
+                    for result in results:
+                        if isinstance(result, Exception):
+                            logger.error(
+                                f"Error during task execution: {result}", exc_info=True
+                            )
+
+                first_container_status = await self._get_first_container_status(
+                    pod.metadata.name, configuration, client
                 )
 
-        batch_client = BatchV1Api(client)
-        # Check if the job is completed before beginning a watch
-        job = await batch_client.read_namespaced_job(
-            name=job_name, namespace=configuration.namespace
-        )
-        completed = job.status.completion_time is not None
-
-        with timeout_async(configuration.job_watch_timeout_seconds):
-            # remaining_time = (
-            #     math.ceil(deadline - time.monotonic()) if deadline else None
-            # )
-
-            # if deadline and remaining_time <= 0:
-            #     logger.error(
-            #         f"Job {job_name!r}: Job did not complete within "
-            #         f"timeout of {configuration.job_watch_timeout_seconds}s."
-            #     )
-            #     return -1
-
-            watch = kubernetes_asyncio.watch.Watch()
-
-            # The kubernetes library will disable retries if the timeout kwarg is
-            # present regardless of the value so we do not pass it unless given
-            # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
-            # watch_kwargs = {"timeout_seconds": remaining_time} if deadline else {}
-
-            async for event in self._job_events(
-                watch,
-                batch_client,
-                job_name,
-                configuration.namespace,
-            ):
-                if event["type"] == "DELETED":
-                    logger.error(f"Job {job_name!r}: Job has been deleted.")
-                    completed = True
-                elif event["object"].status.completion_time:
-                    if not event["object"].status.succeeded:
-                        # Job failed, exit while loop and return pod exit code
-                        logger.error(f"Job {job_name!r}: Job failed.")
-                    completed = True
-                # Check if the job has reached its backoff limit
-                # and stop watching if it has
+                if not first_container_status:
+                    logger.error(f"Job {job_name!r}: No pods found for job.")
+                    return -1
                 elif (
-                    event["object"].spec.backoff_limit is not None
-                    and event["object"].status.failed is not None
-                    and event["object"].status.failed
-                    > event["object"].spec.backoff_limit
+                    first_container_status.state is None
+                    or first_container_status.state.terminated is None
+                    or first_container_status.state.terminated.exit_code is None
                 ):
-                    logger.error(f"Job {job_name!r}: Job reached backoff limit.")
-                    completed = True
-                # If the job has no backoff limit, check if it has failed
-                # and stop watching if it has
-                elif (
-                    not event["object"].spec.backoff_limit
-                    and event["object"].status.failed
-                ):
-                    completed = True
+                    logger.error(
+                        f"Could not determine exit code for {job_name!r}."
+                        "Exit code will be reported as -1."
+                        f"First container status info did not report an exit code."
+                        f"First container info: {first_container_status}."
+                    )
+                    return -1
 
-                if completed:
-                    watch.stop()
-                    break
-
-        core_client = CoreV1Api(client)
-        # Get all pods for the job
-        pods = await core_client.list_namespaced_pod(
-            namespace=configuration.namespace, label_selector=f"job-name={job_name}"
-        )
-        # Get the status for only the most recently used pod
-        pods.items.sort(key=lambda pod: pod.metadata.creation_timestamp, reverse=True)
-        most_recent_pod = pods.items[0] if pods.items else None
-        first_container_status = (
-            most_recent_pod.status.container_statuses[0] if most_recent_pod else None
-        )
-
-        if not first_container_status:
-            logger.error(f"Job {job_name!r}: No pods found for job.")
+                return first_container_status.state.terminated.exit_code
+        except asyncio.TimeoutError:
+            logger.error(f"Job {job_name!r}: Job timed out.")
             return -1
-        # In some cases, such as spot instance evictions, the pod will be forcibly
-        # terminated and not report a status correctly.
-        elif (
-            first_container_status.state is None
-            or first_container_status.state.terminated is None
-            or first_container_status.state.terminated.exit_code is None
-        ):
-            logger.error(
-                f"Could not determine exit code for {job_name!r}."
-                "Exit code will be reported as -1."
-                f"First container status info did not report an exit code."
-                f"First container info: {first_container_status}."
-            )
-            return -1
-
-        return first_container_status.state.terminated.exit_code
 
     async def _get_job(
         self,
@@ -1222,3 +1154,61 @@ class KubernetesWorker(BaseWorker):
                 and event.involved_object.name == pod_name
             ):
                 log_event(event)
+
+    async def _monitor_job_events(
+        self,
+        job_name: str,
+        configuration: "KubernetesWorkerJobConfiguration",
+        batch_client: BatchV1Api,
+    ):
+        completed = False
+        while not completed:
+            watch = kubernetes_asyncio.watch.Watch()
+
+            async for event in self._job_events(
+                watch,
+                batch_client,
+                job_name,
+                configuration.namespace,
+            ):
+                if event["type"] == "DELETED":
+                    self.logger.error(f"Job {job_name!r}: Job has been deleted.")
+                    completed = True
+                elif event["object"].status.completion_time:
+                    if not event["object"].status.succeeded:
+                        self.logger.error(f"Job {job_name!r}: Job failed.")
+                    completed = True
+                elif (
+                    event["object"].spec.backoff_limit is not None
+                    and event["object"].status.failed is not None
+                    and event["object"].status.failed
+                    > event["object"].spec.backoff_limit
+                ):
+                    self.logger.error(f"Job {job_name!r}: Job reached backoff limit.")
+                    completed = True
+                elif (
+                    not event["object"].spec.backoff_limit
+                    and event["object"].status.failed
+                ):
+                    completed = True
+
+                if completed:
+                    watch.stop()
+                    break
+
+    async def _get_first_container_status(
+        self,
+        pod_name: str,
+        configuration: "KubernetesWorkerJobConfiguration",
+        client: "ApiClient",
+    ):
+        core_client = CoreV1Api(client)
+        pods = await core_client.list_namespaced_pod(
+            namespace=configuration.namespace, label_selector=f"job-name={pod_name}"
+        )
+        pods.items.sort(key=lambda pod: pod.metadata.creation_timestamp, reverse=True)
+        most_recent_pod = pods.items[0] if pods.items else None
+        first_container_status = (
+            most_recent_pod.status.container_statuses[0] if most_recent_pod else None
+        )
+        return first_container_status

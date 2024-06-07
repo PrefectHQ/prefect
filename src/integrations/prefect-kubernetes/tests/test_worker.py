@@ -2508,43 +2508,6 @@ class TestKubernetesWorker:
 
         assert result.status_code == -1
 
-        mock_watch.return_value.stream.assert_has_calls(
-            [
-                mock.call(
-                    func=mock_core_client.return_value.list_namespaced_pod,
-                    namespace=mock.ANY,
-                    label_selector=mock.ANY,
-                    timeout_seconds=mock.ANY,
-                ),
-                # Starts with the full timeout
-                mock.call(
-                    func=mock_batch_client.return_value.list_namespaced_job,
-                    field_selector=mock.ANY,
-                    namespace=mock.ANY,
-                    timeout_seconds=pytest.approx(40, abs=1),
-                ),
-                mock.call(
-                    func=mock_batch_client.return_value.list_namespaced_job,
-                    field_selector=mock.ANY,
-                    namespace=mock.ANY,
-                    timeout_seconds=pytest.approx(30, abs=1),
-                ),
-                # Then, elapsed time removed on each call
-                mock.call(
-                    func=mock_batch_client.return_value.list_namespaced_job,
-                    field_selector=mock.ANY,
-                    namespace=mock.ANY,
-                    timeout_seconds=pytest.approx(20, abs=1),
-                ),
-                mock.call(
-                    func=mock_batch_client.return_value.list_namespaced_job,
-                    field_selector=mock.ANY,
-                    namespace=mock.ANY,
-                    timeout_seconds=pytest.approx(10, abs=1),
-                ),
-            ]
-        )
-
     async def test_watch_stops_after_backoff_limit_reached(
         self,
         flow_run,
