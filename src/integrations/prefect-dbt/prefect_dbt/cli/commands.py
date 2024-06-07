@@ -30,6 +30,7 @@ async def trigger_dbt_cli_command(
     create_summary_artifact: bool = False,
     summary_artifact_key: Optional[str] = "dbt-cli-command-summary",
     extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
 ) -> Optional[dbtRunnerResult]:
     """
     Task for running dbt commands.
@@ -51,15 +52,17 @@ async def trigger_dbt_cli_command(
         dbt_cli_profile: Profiles class containing the profile written to profiles.yml.
             Note! This is optional and will raise an error if profiles.yml already exists
             under profile_dir and overwrite_profiles is set to False.
-        create_artifact: If True, creates a Prefect artifact on the task run
-            with the dbt build results using the specified artifact key.
-            Defaults to True.
-        artifact_key: The key under which to store
-            the dbt build results artifact in Prefect.
-            Defaults to 'dbt-seed-task-summary'.
+        create_summary_artifact: If True, creates a Prefect artifact on the task run
+            with the dbt results using the specified artifact key.
+            Defaults to False.
+        summary_artifact_key: The key under which to store the dbt results artifact in Prefect.
+            Defaults to 'dbt-cli-command-summary'.
         extra_command_args: Additional command arguments to pass to the dbt command.
             These arguments get appended to the command that gets passed to the dbtRunner client.
             Example: extra_command_args=["--model", "foo_model"]
+        stream_output: If True, the output from the dbt command will be logged in Prefect
+            as it happens.
+            Defaults to True.
 
     Returns:
         last_line_cli_output (str): The last line of the CLI output will be returned
@@ -166,8 +169,15 @@ async def trigger_dbt_cli_command(
         for value in extra_command_args:
             cli_args.append(value)
 
+    # Add the dbt event log callback if enabled
+    callbacks = []
+    if stream_output:
+        def _stream_output(event):
+            logger.info(event.info.msg)
+        callbacks.append(_stream_output)
+
     # fix up empty shell_run_command_kwargs
-    dbt_runner_client = dbtRunner()
+    dbt_runner_client = dbtRunner(callbacks=callbacks)
     logger.info(f"Running dbt command: {cli_args}")
     result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
 
