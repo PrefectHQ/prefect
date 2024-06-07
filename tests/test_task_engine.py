@@ -1036,6 +1036,17 @@ class TestTimeout:
         with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             await run_task_async(async_task)
 
+    @pytest.mark.xfail(
+        reason="Synchronous sleep in an async task is not interruptible by async timeout"
+    )
+    async def test_timeout_async_task_with_sync_sleep(self):
+        @task(timeout_seconds=0.1)
+        async def async_task():
+            time.sleep(2)
+
+        with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
+            await run_task_async(async_task)
+
     async def test_timeout_sync_task(self):
         @task(timeout_seconds=0.1)
         def sync_task():
@@ -1436,7 +1447,10 @@ class TestAsyncGenerators:
             pass
         assert values == [1, 2, 1, 2, 1, 2]
 
-    async def test_generator_timeout(self):
+    @pytest.mark.xfail(
+        reason="Synchronous sleep in an async task is not interruptible by async timeout"
+    )
+    async def test_generator_timeout_with_sync_sleep(self):
         """
         Test that a generator can timeout
         """
@@ -1445,6 +1459,23 @@ class TestAsyncGenerators:
         async def g():
             yield 1
             time.sleep(2)
+            yield 2
+
+        values = []
+        with pytest.raises(TimeoutError):
+            async for v in g():
+                values.append(v)
+        assert values == [1]
+
+    async def test_generator_timeout_with_async_sleep(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @task(timeout_seconds=0.1)
+        async def g():
+            yield 1
+            await asyncio.sleep(2)
             yield 2
 
         values = []
