@@ -2,11 +2,11 @@
 Routes for interacting with task run objects.
 """
 
+import asyncio
 import datetime
 from typing import Any, Dict, List
 from uuid import UUID
 
-import anyio
 import pendulum
 from fastapi import (
     Body,
@@ -300,9 +300,10 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
     while True:
         try:
-            with anyio.fail_after(5):
-                task_run = await subscribed_queue.get()
-        except TimeoutError:
+            task_run = await asyncio.wait_for(subscribed_queue.get(), timeout=1)
+        except asyncio.TimeoutError:
+            if not await subscriptions.still_connected(websocket):
+                break
             continue
 
         try:
@@ -321,4 +322,4 @@ async def scheduled_task_subscription(websocket: WebSocket):
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
             await TaskQueue.for_key(task_run.task_key).retry(task_run)
-            return
+            break
