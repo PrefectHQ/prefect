@@ -359,12 +359,15 @@ def pytest_sessionstart(session):
     setup_logging()
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_sessionfinish(session):
-    # Allow all other finish fixture to complete first
+# def pytest_sessionfinish(session, exitstatus):
+@pytest.fixture(scope="session", autouse=True)
+def cleanup(drain_log_workers, drain_events_workers):
+    # this fixture depends on other fixtures with important cleanup steps like
+    # draining workers to ensure that the home directory is not deleted before
+    # these steps are completed
     yield
 
-    # Then, delete the temporary directory
+    # delete the temporary directory
     if TEST_PREFECT_HOME is not None:
         shutil.rmtree(TEST_PREFECT_HOME)
 
