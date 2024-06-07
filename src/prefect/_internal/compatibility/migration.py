@@ -11,13 +11,14 @@ from typing import Any, Callable, Dict
 
 from prefect.exceptions import PrefectImportError
 
-# These objects have been moved in v3
+# IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following line at the bottom of that module:
+# __getattr__ = getattr_migration(__name__)
+# See src/prefect/filesystems for an example
+
 MOVED_IN_V3 = {
     "prefect.deployments.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
 }
 
-# These objects have been removed in v3
-# The value for each key is a message explaining the removal
 REMOVED_IN_V3 = {
     "prefect.deployments.deployments:Deployment": "Use 'flow.serve()' or `prefect deploy` instead.",
     "prefect.deployments:Deployment": "Use 'flow.serve()' or `prefect deploy` instead.",
