@@ -1,10 +1,15 @@
 """
-This module provides a helper function to handle imports for moved or removed classes and modules.
+This module provides a function to handle imports for moved or removed objects in Prefect 3.0 upgrade.
 
-The `handle_moved_objects` function creates a custom `__getattr__` function to intercept attribute access
-on the given class or module and raise appropriate errors if it has been moved or removed.
+The `getattr_migration` function is used to handle imports for moved or removed objects in Prefect 3.0 upgrade.
+It is used in the `__getattr__` attribute of modules that have moved or removed objects.
 
-The `MOVED_IN_V3` dictionary should be updated with any old object paths and their new locations.
+Usage:
+```python
+from prefect._internal.compatibility.migration import getattr_migration
+
+__getattr__ = getattr_migration(__name__)
+```
 """
 import sys
 from typing import Any, Callable, Dict
