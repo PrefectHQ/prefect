@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
 
@@ -571,3 +571,19 @@ class GlobalConcurrencyLimitResponse(ORMBaseModel):
         default=2.0,
         description="The decay rate for active slots when used as a rate limit.",
     )
+
+
+class FlowPaginationResponse(BaseModel):
+    results: list[schemas.core.Flow]
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
+class FlowRunPaginationResponse(BaseModel):
+    results: list[FlowRunResponse]
+    count: int
+    limit: int
+    pages: int
+    page: int
