@@ -28,7 +28,7 @@ REMOVED_IN_V3 = {
     "prefect.filesystems:S3": "Use 'prefect_aws' instead.",
 }
 
-# IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following line at the bottom of that module:
+# IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following lines at the bottom of that module:
 # from prefect._internal.compatibility.migration import getattr_migration
 # __getattr__ = getattr_migration(__name__)
 # See src/prefect/filesystems.py for an example
