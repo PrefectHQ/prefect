@@ -416,11 +416,10 @@ my_s3_bucket = S3Bucket(
 my_s3_bucket.save("my_s3_bucket")
 ```
 
-Saving block values like this links the values of the two blocks. This means any changes 
-to the values stored for the `AWSCredentials` block with the name `my_aws_credentials` 
-are seen when the block values for the `S3Bucket` block named `my_s3_bucket` is loaded.
+This creates a reference from the AWSCredentials block my_aws_credentials to the S3Bucket block my_s3_bucket, 
+so that changes to the values in my_aws_credentials propogate to my_s3_bucket.
 
-Values for nested blocks can also be hard coded by not first saving child blocks:
+Values for nested blocks can also be specified in place:
 
 ```python
 my_s3_bucket = S3Bucket(

@@ -3,10 +3,11 @@ title: Separate logic into tasks
 description: Learn how to create `@task` functions that do the specific work of your flow.
 ---
 
-Create `@task` functions that do the specific work of your flow, and use your `@flow` function as the conductor that orchestrates the flow of your application:
+Create `@task` functions that do the specific work of your flow, and use your `@flow` function 
+to orchestrate the flow of your application:
 
 
-The simplest workflow is just a `@flow` function that does all the work of the workflow.
+The simplest workflow is a `@flow` function that does all the work of the workflow.
 
 ```python
 from prefect import flow
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     hello_world("Marvin")
 ```
 
-When you run this flow, you'll see output like the following:
+When you run this flow, you see output like the following:
 
 <div class="terminal">
 ```bash
@@ -31,7 +32,8 @@ Hello Marvin!
 ```
 </div>
 
-A better practice is to create `@task` functions that do the specific work of your flow, and use your `@flow` function as the conductor that orchestrates the flow of your application:
+A better practice is to create `@task` functions that do the specific work of your flow, 
+and use your `@flow` function to orchestrate the flow of your application:
 
 ```python
 from prefect import flow, task
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     hello_world("Marvin")
 ```
 
-When you run this flow, you'll see the following output, which illustrates how the work is encapsulated in a task run.
+When you run this flow, you see the following output, which illustrates how the work is encapsulated in a task run.
 
 <div class="terminal">
 ```bash
