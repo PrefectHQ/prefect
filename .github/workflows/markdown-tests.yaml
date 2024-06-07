@@ -50,7 +50,7 @@ jobs:
   run-markdown-tests:
     runs-on:
       group: oss-larger-runners
-    name: python:${{ matrix.python-version }}, ${{ matrix.database }}
+    name: markdown:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
         database:
@@ -85,7 +85,7 @@ jobs:
         id: cache-uv
         with:
           path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt', 'requirements-markdown.txt') }}
+          key: uvcache-markdown-tests-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt', 'requirements-markdown.txt') }}
 
       - name: Install packages
         run: |
