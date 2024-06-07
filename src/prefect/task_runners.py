@@ -202,9 +202,10 @@ class TaskRunner(abc.ABC, Generic[F]):
 
 
 class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
-    def __init__(self):
+    def __init__(self, max_workers: Optional[int] = None):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
+        self._max_workers = max_workers
 
     def duplicate(self) -> "ThreadPoolTaskRunner":
         return type(self)()
@@ -278,7 +279,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
 
     def __enter__(self):
         super().__enter__()
-        self._executor = ThreadPoolExecutor()
+        self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -325,11 +326,11 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture]):
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx:
             get_run_logger(flow_run_ctx).info(
-                f"Submitting task {task.name} to for execution by a Prefect task server..."
+                f"Submitting task {task.name} to for execution by a Prefect task worker..."
             )
         else:
             self.logger.info(
-                f"Submitting task {task.name} to for execution by a Prefect task server..."
+                f"Submitting task {task.name} to for execution by a Prefect task worker..."
             )
 
         return task.apply_async(
