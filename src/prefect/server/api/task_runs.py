@@ -303,7 +303,7 @@ async def scheduled_task_subscription(websocket: WebSocket):
             task_run = await asyncio.wait_for(subscribed_queue.get(), timeout=1)
         except asyncio.TimeoutError:
             if not await subscriptions.still_connected(websocket):
-                break
+                return
             continue
 
         try:
@@ -321,5 +321,5 @@ async def scheduled_task_subscription(websocket: WebSocket):
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
-            await TaskQueue.for_key(task_run.task_key).retry(task_run)
-            break
+            await asyncio.shield(TaskQueue.for_key(task_run.task_key).retry(task_run))
+            return
