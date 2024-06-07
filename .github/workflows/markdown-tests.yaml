@@ -90,7 +90,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[markdown-tests]
+          uv pip install --upgrade --system -e '.[markdown-tests]'
 
       - name: Run tests
         run: >
