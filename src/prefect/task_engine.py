@@ -479,7 +479,11 @@ class TaskRunEngine(Generic[P, R]):
                     level = logging.INFO if self.state.is_completed() else logging.ERROR
                     msg = f"Finished in state {display_state}"
                     if self.state.is_pending():
-                        msg += ". Please wait for all submitted tasks to complete before exiting your flow."
+                        msg += (
+                            ". Please wait for all submitted tasks to complete"
+                            " before exiting your flow by calling `.wait()` on the "
+                            "`PrefectFuture` returned from your `.submit()` call."
+                        )
                     self.logger.log(
                         level=level,
                         msg=msg,
