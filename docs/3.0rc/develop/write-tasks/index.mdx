@@ -162,7 +162,7 @@ Now you're fetching the data you need, but the requests are happening sequential
 Tasks expose a [`submit`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit) method that changes the execution from sequential to concurrent.
 In this example, you also need to use the [`result`](/3.0rc/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result) method because you are unpacking a list of return values:
 
-```python hl_lines="6 11"
+```python hl_lines="6 11" continuation
 def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
     issues = []
     pages = range(1, -(open_issues_count // -per_page) + 1)
@@ -219,7 +219,7 @@ Subflows are a great way to organize your workflows and offer more visibility wi
 
 Let's add a `flow` decorator to the `get_open_issues` function:
 
-```python hl_lines="1"
+```python hl_lines="1" continuation
 @flow
 def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100):
     issues = []
@@ -319,7 +319,7 @@ See all possible parameters in the [Python SDK API docs](/3.0rc/api-ref/prefect/
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
-```python hl_lines="1"
+```python hl_lines="1" continuation
 @task(name="hello-task", 
       description="This task says hello.")
 def my_task():
@@ -369,7 +369,7 @@ def my_flow():
 If you need access to information about the task, use the `prefect.runtime` module. For example:
 
 ```python
-from prefect import flow
+from prefect import flow, task
 from prefect.runtime import flow_run, task_run
 
 def generate_task_name():
@@ -403,7 +403,7 @@ Tags are optional string labels that enable you to identify and group tasks othe
 
 Tags may be specified as a keyword argument on the [task decorator](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.task).
 
-```python hl_lines="1"
+```python hl_lines="1" continuation
 @task(name="hello-task", tags=["test"])
 def my_task():
     print("Hello, I'm a task")
@@ -499,7 +499,7 @@ When each task run requested to enter a `Running` state, it provided its cache k
 
 A real-world example might include the flow run ID from the context in the cache key so only repeated calls in the same flow run are cached.
 
-```python
+```python  continuation
 def cache_within_flow_run(context, parameters):
     return f"{context.task_run.flow_run_id}-{task_input_hash(context, parameters)}"
 
@@ -518,7 +518,7 @@ Sometimes, you want a task to update the data associated with its cache key inst
 
 The `refresh_cache` option can be used to enable this behavior for a specific task:
 
-```python
+```python continuation
 import random
 
 
@@ -538,7 +538,7 @@ If you want to refresh the cache for all tasks, you can use the `PREFECT_TASKS_R
 
 If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` to `False`. These tasks will never refresh the cache &mdash; if a cache key exists it will be read, not updated. Note that, if a cache key does _not_ exist yet, these tasks can still write to the cache.
 
-```python
+```python continuation
 @task(cache_key_fn=static_cache_key, refresh_cache=False)
 def caching_task():
     return random.random()
@@ -550,7 +550,7 @@ Task timeouts are used to prevent unintentional long-running tasks. When the dur
 
 Timeout durations are specified using the `timeout_seconds` keyword argument.
 
-```python hl_lines="4"
+```python hl_lines="4" continuation
 from prefect import task
 import time
 
@@ -582,7 +582,7 @@ See [state returned values](/3.0rc/develop/write-tasks/use-task-runners/#using-r
 
 To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`](/3.0rc/api-ref/prefect/tasks/#prefect.tasks.Task.submit) keyword argument:
 
-```python
+```python continuation
 @task
 def task_1():
     pass
@@ -605,7 +605,7 @@ Prefect provides a `.map()` implementation that automatically creates a task run
 
 The simplest Prefect map takes a tasks and applies it to each element of its inputs.
 
-```python
+```python continuation
 from prefect import flow, task
 
 @task
@@ -654,17 +654,17 @@ def sum_plus(x, static_iterable):
 
 @flow
 def sum_it(numbers, static_iterable):
-    futures = sum_plus.map(numbers, static_iterable)
+    futures = sum_plus.map(numbers, unmapped(static_iterable))
     return futures
 
-sum_it([4, 5, 6], unmapped([1, 2, 3]))
+sum_it([4, 5, 6], [1, 2, 3])
 ```
 
 ## Async tasks
 
 Prefect also supports asynchronous task and flow definitions by default. All of [the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
 
-```python
+```python notest
 import asyncio
 
 from prefect import task, flow
@@ -764,7 +764,7 @@ To update your tag concurrency limits programmatically, use [`PrefectClient.orch
 
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
-```python
+```python notest
 from prefect import get_client
 
 async with get_client() as client:
@@ -777,7 +777,7 @@ async with get_client() as client:
 
 To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](/3.0rc/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.delete_concurrency_limit_by_tag/), passing the tag:
 
-```python
+```python notest
 async with get_client() as client:
     # remove a concurrency limit on the 'small_instance' tag
     await client.delete_concurrency_limit_by_tag(tag="small_instance")
@@ -787,7 +787,7 @@ If you wish to query for the currently set limit on a tag, use [`PrefectClient.r
 
 To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](/3.0rc/api-ref/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limits).
 
-```python
+```python notest
 async with get_client() as client:
     # query the concurrency limit on the 'small_instance' tag
     limit = await client.read_concurrency_limit_by_tag(tag="small_instance")
