@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.logging.handlers import APILogHandler
+from prefect.logging.handlers import APILogHandler, APILogWorker
 from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 
 
@@ -31,3 +31,12 @@ def enable_api_log_handler_if_marked(request):
             yield True
     else:
         yield False
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def drain_log_workers():
+    """
+    Ensure that all workers have finished before the test session ends.
+    """
+    yield
+    await APILogWorker.drain_all()
