@@ -6,6 +6,8 @@ from . import _version
 import importlib
 import pathlib
 
+from ._internal.compatibility.migration import getattr_migration
+
 __version_info__ = _version.get_versions()
 __version__ = __version_info__["version"]
 
@@ -84,14 +86,6 @@ from prefect._internal.compatibility.deprecated import (
 inject_renamed_module_alias_finder()
 
 
-from prefect._migrationv3 import (
-    MOVED_IN_V3,
-    handle_moved_objects,
-)
-
-handle_moved_objects(__name__, MOVED_IN_V3)
-
-
 # Declare API for type-checkers
 __all__ = [
     "allow_failure",
@@ -112,3 +106,5 @@ __all__ = [
     "resume_flow_run",
     "suspend_flow_run",
 ]
+
+__getattr__ = getattr_migration(__name__)
