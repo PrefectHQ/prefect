@@ -3,6 +3,7 @@ import logging
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
+from textwrap import dedent
 from typing import (
     Any,
     Callable,
@@ -482,7 +483,26 @@ class TaskRunEngine(Generic[P, R]):
                         msg += (
                             ". Please wait for all submitted tasks to complete"
                             " before exiting your flow by calling `.wait()` on the "
-                            "`PrefectFuture` returned from your `.submit()` call."
+                            "`PrefectFuture` returned from your `.submit()` calls."
+                        )
+                        msg += dedent(
+                            """
+                                      
+                            Example:
+                            
+                            from prefect import flow, task
+                                      
+                            @task
+                            def say_hello(name):
+                                print f"Hello, {name}!"
+                                      
+                            @flow
+                            def example_flow():
+                                say_hello.submit(name="Marvin)
+                                say_hello.wait()
+                                      
+                            example_flow()
+                                      """
                         )
                     self.logger.log(
                         level=level,
