@@ -70,6 +70,10 @@ class TestThreadPoolTaskRunner:
         with pytest.raises(RuntimeError, match="Task runner is not started"):
             runner.submit(my_test_task, {})
 
+    def test_set_max_workers(self):
+        with ThreadPoolTaskRunner(max_workers=2) as runner:
+            assert runner._executor._max_workers == 2
+
     def test_submit_sync_task(self):
         with ThreadPoolTaskRunner() as runner:
             parameters = {"param1": 1, "param2": 2}
