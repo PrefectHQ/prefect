@@ -94,6 +94,6 @@ jobs:
 
       - name: Run tests
         run: >
-          pytest docs/3.0rc/deploy/ --markdown-docs -m markdown-docs
+          pytest docs/3.0rc --markdown-docs -m markdown-docs
           --numprocesses auto
           --maxprocesses 6
