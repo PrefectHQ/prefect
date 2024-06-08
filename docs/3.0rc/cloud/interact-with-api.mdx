@@ -1,18 +1,15 @@
 ---
 title: Using the Prefect orchestration client
-description: Learn how to leverage the `PrefectClient` to interact with the API.
+description: Learn how to use the `PrefectClient` to interact with the API.
 ---
 
-Learn how to use the `PrefectClient` to interact with the API.
+The [API reference for the `PrefectClient`](/3.0rc/api-ref/prefect/client/orchestration/) 
+contains many client methods that make it simpler to perform actions, such as:
 
-## Overview
+- reschedule late flow runs
+- get the last `N` completed flow runs from a workspace
 
-The [API reference for the `PrefectClient`](/3.0rc/api-ref/prefect/client/orchestration/) contains many client methods that make it simpler to do things such as:
-
-- [reschedule late flow runs](#rescheduling-late-flow-runs)
-- [get the last `N` completed flow runs from my workspace](#get-the-last-n-completed-flow-runs-from-my-workspace)
-
-The `PrefectClient` is an async context manager, so you can use it like this:
+The `PrefectClient` is an async context manager. Here's an example usage:
 
 ```python hl_lines="3"
 from prefect import get_client
@@ -26,9 +23,13 @@ async with get_client() as client:
 
 ### Reschedule late flow runs
 
-To bulk reschedule flow runs that are late, delete late flow runs and create new ones in a `Scheduled` state with a delay. For example, this is useful if you accidentally scheduled many flow runs of a deployment to an inactive work pool.
+To bulk reschedule flow runs that are late, delete the late flow runs and create new ones in a 
+`Scheduled` state with a delay. This is useful if you accidentally scheduled many 
+flow runs of a deployment to an inactive work pool, for example.
 
-The following example reschedules the last three late flow runs of a deployment named `healthcheck-storage-test` to run six hours later than their original expected start time. It also deletes any remaining late flow runs of that deployment.
+The following example reschedules the last three late flow runs of a deployment named 
+`healthcheck-storage-test` to run six hours later than their original expected start time. 
+It also deletes any remaining late flow runs of that deployment.
 
 ```python
 import asyncio
@@ -151,12 +152,14 @@ if __name__ == "__main__":
     ) == sorted(end_times, reverse=True)
 ```
 
-Instead of the last three from the whole workspace, you could also use the `DeploymentFilter` like the previous example to get the last three completed flow runs of a specific deployment.
+Instead of the last three from the whole workspace, you can also use the `DeploymentFilter` 
+to get the last three completed flow runs of a specific deployment.
 
 ### Transition all running flows to cancelled through the Client
 
 Use `get_client`to set multiple runs to a `Cancelled` state.
 The code below cancels all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
+
 ```python
 import anyio
 
@@ -201,6 +204,3 @@ async def bulk_cancel_flow_runs():
 if __name__ == "__main__":
     anyio.run(bulk_cancel_flow_runs)
 ```
-
-!!! tip "There are other ways to filter objects like flow runs"
-    See [`the filters API reference`](/3.0rc/api-ref/prefect/client/schemas/#prefect.client.schemas.filters) for more ways to filter flow runs and other objects in your Prefect ecosystem.
