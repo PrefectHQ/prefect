@@ -38,6 +38,37 @@ REMOVED_IN_V3 = {
 # See src/prefect/filesystems.py for an example
 
 
+def import_string_class_method(new_location: str) -> object:
+    """
+    Handle moved class methods.
+
+    `import_string` does not account for moved class methods. This function handles cases where a method has been
+    moved to a class. For example, if `new_location` is 'prefect.variables:Variable.get', `import_string(new_location)`
+    will raise an error because it does not handle class methods. This function will import the class and get the
+    method from the class.
+
+    Args:
+        new_location (str): The new location of the method.
+        class_name (str): The name of the class.
+        method_name (str): The name of the method.
+
+    Returns:
+        method: The resolved method from the class.
+    """
+    from pydantic._internal._validators import import_string
+
+    class_name, method_name = new_location.rsplit(".", 1)
+
+    cls = import_string(class_name)
+    method = getattr(cls, method_name, None)
+
+    if method is not None and callable(method):
+        return method
+    else:
+        # unable to parse new_location
+        raise PrefectImportError(f"Unable to import {new_location!r}")
+
+
 def getattr_migration(module_name: str) -> Callable[[str], Any]:
     """
     Handle imports for moved or removed objects in Prefect 3.0 upgrade
@@ -69,35 +100,8 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
             )
             try:
                 return import_string(new_location)
-
-            except PydanticCustomError as exc:
-                """
-                Handle moved class methods.
-
-                `import_string` does not account for moved class methods. This block handles cases where a method has been
-                moved to a class. For example, if `new_location` is 'prefect.variables:Variable.get', `import_string(new_location)`
-                will raise an error because it does not handle class methods. This block will import the class and get the
-                method from the class.
-
-                Args:
-                    new_location (str): The new location of the method.
-                    class_name (str): The name of the class.
-                    method_name (str): The name of the method.
-
-                Returns:
-                    method: The resolved method from the class.
-                """
-                class_name, method_name = new_location.rsplit(".", 1)
-                cls = import_string(class_name)
-                method = getattr(cls, method_name, None)
-
-                if method is not None and callable(method):
-                    return method
-                else:
-                    # unable to parse new_location
-                    raise PrefectImportError(
-                        f"Unable to import {new_location!r}: {exc}"
-                    )
+            except PydanticCustomError:
+                return import_string_class_method(new_location)
 
         if import_path in REMOVED_IN_V3.keys():
             error_message = REMOVED_IN_V3[import_path]
