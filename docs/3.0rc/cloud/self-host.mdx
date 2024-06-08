@@ -216,7 +216,7 @@ prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file
 <Warning>
 **Use SQLite database for testing only**
 
-SQLite is only supported by Prefect for testing purposes and is not compatible with multiprocessing.
+SQLite does not support multiprocessing. For high orchestration volume, use PostgreSQL.
 </Warning>
 
 ### Migrations
