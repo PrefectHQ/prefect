@@ -126,16 +126,19 @@ from prefect.workers.base import BaseJobConfiguration
 
 class MyWorkerConfiguration(BaseJobConfiguration):
     memory: str = Field(
-            default="1024Mi",
-            description="Memory allocation for the execution environment."
-            template="{{ memory_request }}Mi"
-        )
+        default="1024Mi",
+        description="Memory allocation for the execution environment."
+        json_schema_extra=dict(template="{{ memory_request }}Mi")
+    )
     cpu: str = Field(
-            default="500m", 
-            description="CPU allocation for the execution environment."
-            template="{{ cpu_request }}m"
-        )
+        default="500m", 
+        description="CPU allocation for the execution environment."
+        json_schema_extra=dict(template="{{ cpu_request }}m")
+    )
 ```
+
+!!! note
+    If you're using `pydantic<2`, use `template="{{ memory_request }}Mi"` instead of `json_schema_extra`.
 
 Notice that we changed the type of each attribute to `str` to accommodate the units, and we added a new `template` attribute to each attribute. The `template` attribute is used to populate the `job_configuration` section of the resulting base job template.
 
@@ -313,9 +316,12 @@ The `run` method has the following signature:
 
 ```python
  async def run(
-        self, flow_run: FlowRun, configuration: BaseJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> BaseWorkerResult:
-        ...
+    self,
+    flow_run: FlowRun,
+    configuration: BaseJobConfiguration,
+    task_status: Optional[anyio.abc.TaskStatus] = None,
+) -> BaseWorkerResult:
+    ...
 ```
 
 The `run` method is passed: the flow run to execute, the execution environment configuration for the flow run, and a task status object that allows the worker to track whether the flow run was submitted successfully.
@@ -350,31 +356,31 @@ from prefect.workers.base import BaseWorker, BaseWorkerResult, BaseJobConfigurat
 
 class MyWorkerConfiguration(BaseJobConfiguration):
     memory: str = Field(
-            default="1024Mi",
-            description="Memory allocation for the execution environment."
-            template="{{ memory_request }}Mi"
-        )
+        default="1024Mi",
+        description="Memory allocation for the execution environment."
+        json_schema_extra=dict(template="{{ memory_request }}Mi")
+    )
     cpu: str = Field(
-            default="500m", 
-            description="CPU allocation for the execution environment."
-            template="{{ cpu_request }}m"
-        )
+        default="500m", 
+        description="CPU allocation for the execution environment."
+        json_schema_extra=dict(template="{{ cpu_request }}m")
+    )
 
 class MyWorkerTemplateVariables(BaseVariables):
     memory_request: int = Field(
-            default=1024,
-            description="Memory allocation for the execution environment."
-        )
+        default=1024,
+        description="Memory allocation for the execution environment."
+    )
     cpu_request: int = Field(
-            default=500, 
-            description="CPU allocation for the execution environment."
-        )
+        default=500, 
+        description="CPU allocation for the execution environment."
+    )
 
 class MyWorkerResult(BaseWorkerResult):
     """Result returned by the MyWorker."""
 
 class MyWorker(BaseWorker):
-    type = "my-worker"
+    type: str = "my-worker"
     job_configuration = MyWorkerConfiguration
     job_configuration_variables = MyWorkerTemplateVariables
     _documentation_url = "https://example.com/docs"
