@@ -26,7 +26,10 @@ def import_from(dotted_path: str):
         ModuleNotFoundError: If the module specified in the dotted path cannot be found.
         AttributeError: If the object specified in the dotted path does not exist
                         in the module.
-        ValueError: If the dotted path is not in the correct format.
+        ValueError: If the dotted path is not in the correct format. This can happen
+                    if the dotted path is missing the colon separator. Raising this error
+                    will provide a helpful message to the developer who adds new objects to
+                    MOVED_IN_V3 or REMOVED_IN_V3 without following the correct format.
 
     Example:
         To import the `MyClass` class from the `my_package.my_module` module,
@@ -48,8 +51,6 @@ def import_from(dotted_path: str):
         return getattr(module, object_name)
     except ValueError as exc:
         if "not enough values to unpack" in str(exc):
-            # this will ensure that when we add new objects to MOVED_IN_V3 or REMOVED_IN_V3,
-            # when the test fails we will get a helpful error message
             raise ValueError(
                 "Invalid dotted path format. Did you mean 'module.submodule:object_name' instead of 'module.submodule.object_name'?"
             ) from exc
