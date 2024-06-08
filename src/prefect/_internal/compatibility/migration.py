@@ -38,7 +38,7 @@ REMOVED_IN_V3 = {
 # See src/prefect/filesystems.py for an example
 
 
-def import_string_class_method(new_location: str) -> object:
+def import_string_class_method(new_location: str) -> Callable:
     """
     Handle moved class methods.
 
@@ -65,8 +65,8 @@ def import_string_class_method(new_location: str) -> object:
 
     if method is not None and callable(method):
         return method
-    else:
-        raise PrefectImportError(f"Unable to import {new_location!r}")
+
+    raise PrefectImportError(f"Unable to import {new_location!r}")
 
 
 def getattr_migration(module_name: str) -> Callable[[str], Any]:
