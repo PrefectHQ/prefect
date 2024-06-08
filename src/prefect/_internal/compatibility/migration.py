@@ -49,11 +49,12 @@ def import_string_class_method(new_location: str) -> object:
 
     Args:
         new_location (str): The new location of the method.
-        class_name (str): The name of the class.
-        method_name (str): The name of the method.
 
     Returns:
         method: The resolved method from the class.
+
+    Raises:
+        PrefectImportError: If the method is not found in the class.
     """
     from pydantic._internal._validators import import_string
 
@@ -65,7 +66,6 @@ def import_string_class_method(new_location: str) -> object:
     if method is not None and callable(method):
         return method
     else:
-        # unable to parse new_location
         raise PrefectImportError(f"Unable to import {new_location!r}")
 
 
