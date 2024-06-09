@@ -28,7 +28,7 @@
     },
     {
       "name": "Integrations",
-      "url": "3.0rc/integrations"
+      "url": "integrations"
     },
     {
       "name": "Contribute",
@@ -41,7 +41,7 @@
     }
   },
   "topbarCtaButton": {
-    "name": "GET STARTED",
+    "name": "TRY PREFECT CLOUD →",
     "url": "https://app.prefect.cloud/auth/login"
   },
   "anchors": [
@@ -58,7 +58,7 @@
   ],
   "navigation": [
     {
-      "group": "Get Started",
+      "group": "Get started",
       "version": "3.0rc",
       "pages": [
         "3.0rc/get-started/index",
@@ -75,6 +75,7 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-workflows/index",
+            "3.0rc/develop/write-workflows/pause-cancel-flows", 
             "3.0rc/develop/write-workflows/variables"
           ]
         },
@@ -83,12 +84,16 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-tasks/index",
+            "3.0rc/develop/write-tasks/separate-logic", 
+            "3.0rc/develop/write-tasks/task-run-limits",
             "3.0rc/develop/write-tasks/use-task-runners",
+            "3.0rc/develop/write-tasks/dask-and-ray", 
             "3.0rc/develop/write-tasks/upstream-dependencies"
           ]
         },
         "3.0rc/develop/recover-from-failure",
         "3.0rc/develop/interact-with-data",
+        "3.0rc/develop/results",
         {
           "group": "Observe workflows",
           "version": "3.0rc",
@@ -119,7 +124,8 @@
           "group": "Serve workflows",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/deploy/serve-workflows/index",
+            "3.0rc/deploy/serve-workflows/deploy-a-flow",
+            "3.0rc/deploy/serve-workflows/serve-a-flow",
             "3.0rc/deploy/serve-workflows/add-schedules"
           ]
         },
@@ -178,22 +184,22 @@
         "3.0rc/cloud/rate-limits",
         "3.0rc/cloud/self-host",
         "3.0rc/cloud/configure-client",
-        "3.0rc/cloud/interact-with-api"
+        "3.0rc/cloud/interact-with-api",
+        "3.0rc/cloud/troubleshoot-cloud"
       ]
     },
     {
-      "group": "Migrate",
+      "group": "Resources",
       "version": "3.0rc",
       "pages": [
         {
           "group": "Migrate",
           "version": "3.0rc",
           "pages": [
-            "3.0rc/migrate/upgrade-agents-to-workers"
+            "3.0rc/resources/upgrade-agents-to-workers"
           ]
         },
-        "3.0rc/react/manage-events",
-        "3.0rc/react/state-change-hooks"
+        "3.0rc/resources/visualize-flow-structure"
       ]
     },
     {
@@ -240,127 +246,113 @@
     },
     {
       "group": "Integrations",
-      "version": "3.0rc",
       "pages": [
-        "3.0rc/integrations/index",
-        "3.0rc/integrations/usage",
-        "3.0rc/integrations/contribute",
+        "integrations/index",
+        "integrations/usage",
+        "integrations/contribute",
         {
           "group": "Libraries",
-          "version": "3.0rc",
           "pages": [
             {
               "group": "AWS",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-aws/index",
+                "integrations/prefect-aws/index",
                 {
                   "group": "Guides",
-                  "version": "3.0rc",
                   "pages": [
-                    "3.0rc/integrations/prefect-aws/ecs_guide"
+                    "integrations/prefect-aws/ecs_guide"
                   ]
                 },
-                "3.0rc/integrations/prefect-aws/batch",
-                "3.0rc/integrations/prefect-aws/client_waiter",
-                "3.0rc/integrations/prefect-aws/credentials",
-                "3.0rc/integrations/prefect-aws/ecs_worker",
-                "3.0rc/integrations/prefect-aws/ecs",
-                "3.0rc/integrations/prefect-aws/glue_job",
-                "3.0rc/integrations/prefect-aws/lambda_function",
+                "integrations/prefect-aws/batch",
+                "integrations/prefect-aws/client_waiter",
+                "integrations/prefect-aws/credentials",
+                "integrations/prefect-aws/ecs_worker",
+                "integrations/prefect-aws/ecs",
+                "integrations/prefect-aws/glue_job",
+                "integrations/prefect-aws/lambda_function",
                 {
                   "group": "Deployments",
-                  "version": "3.0rc",
                   "pages": [
-                    "3.0rc/integrations/prefect-aws/deployments/steps"
+                    "integrations/prefect-aws/deployments/steps"
                   ]
                 },
-                "3.0rc/integrations/prefect-aws/s3",
-                "3.0rc/integrations/prefect-aws/secrets_manager"
+                "integrations/prefect-aws/s3",
+                "integrations/prefect-aws/secrets_manager"
               ]
             },
             {
               "group": "Azure",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-azure/index",
-                "3.0rc/integrations/prefect-azure/aci_worker",
-                "3.0rc/integrations/prefect-azure/credentials",
-                "3.0rc/integrations/prefect-azure/blob_storage",
-                "3.0rc/integrations/prefect-azure/cosmos_db",
-                "3.0rc/integrations/prefect-azure/ml_datastore",
-                "3.0rc/integrations/prefect-azure/container_instance",
-                "3.0rc/integrations/prefect-azure/container_instance_worker",
+                "integrations/prefect-azure/index",
+                "integrations/prefect-azure/aci_worker",
+                "integrations/prefect-azure/credentials",
+                "integrations/prefect-azure/blob_storage",
+                "integrations/prefect-azure/cosmos_db",
+                "integrations/prefect-azure/ml_datastore",
+                "integrations/prefect-azure/container_instance",
+                "integrations/prefect-azure/container_instance_worker",
                 {
                   "group": "Deployments",
-                  "version": "3.0rc",
                   "pages": [
-                    "3.0rc/integrations/prefect-azure/deployments/steps"
+                    "integrations/prefect-azure/deployments/steps"
                   ]
                 }
               ]
             },
             {
               "group": "Bitbucket",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-bitbucket/index",
-                "3.0rc/integrations/prefect-bitbucket/credentials",
-                "3.0rc/integrations/prefect-bitbucket/repository"
+                "integrations/prefect-bitbucket/index",
+                "integrations/prefect-bitbucket/credentials",
+                "integrations/prefect-bitbucket/repository"
               ]
             },
             {
               "group": "Dask",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-dask/index",
-                "3.0rc/integrations/prefect-dask/usage_guide",
-                "3.0rc/integrations/prefect-dask/task_runners",
-                "3.0rc/integrations/prefect-dask/utils"
+                "integrations/prefect-dask/index",
+                "integrations/prefect-dask/usage_guide",
+                "integrations/prefect-dask/task_runners",
+                "integrations/prefect-dask/utils"
               ]
             },
             {
               "group": "Databricks",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-databricks/index",
-                "3.0rc/integrations/prefect-databricks/credentials",
-                "3.0rc/integrations/prefect-databricks/jobs",
-                "3.0rc/integrations/prefect-databricks/rest",
-                "3.0rc/integrations/prefect-databricks/flows"
+                "integrations/prefect-databricks/index",
+                "integrations/prefect-databricks/credentials",
+                "integrations/prefect-databricks/jobs",
+                "integrations/prefect-databricks/rest",
+                "integrations/prefect-databricks/flows"
               ]
             },
             {
               "group": "dbt",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-dbt/index",
+                "integrations/prefect-dbt/index",
                 {
                   "group": "Cloud",
-                  "version": "3.0rc",
                   "pages": [
-                    "3.0rc/integrations/prefect-dbt/cloud/credentials",
-                    "3.0rc/integrations/prefect-dbt/cloud/jobs",
-                    "3.0rc/integrations/prefect-dbt/cloud/runs",
-                    "3.0rc/integrations/prefect-dbt/cloud/clients",
-                    "3.0rc/integrations/prefect-dbt/cloud/models",
-                    "3.0rc/integrations/prefect-dbt/cloud/utils"
+                    "integrations/prefect-dbt/cloud/credentials",
+                    "integrations/prefect-dbt/cloud/jobs",
+                    "integrations/prefect-dbt/cloud/runs",
+                    "integrations/prefect-dbt/cloud/clients",
+                    "integrations/prefect-dbt/cloud/models",
+                    "integrations/prefect-dbt/cloud/utils"
                   ]
                 },
                 {
                   "group": "CLI",
-                  "version": "3.0rc",
                   "pages": [
-                    "3.0rc/integrations/prefect-dbt/cli/credentials",
-                    "3.0rc/integrations/prefect-dbt/cli/commands",
+                    "integrations/prefect-dbt/cli/credentials",
+                    "integrations/prefect-dbt/cli/commands",
                     {
                       "group": "Configs",
-                      "version": "3.0rc",
                       "pages": [
-                        "3.0rc/integrations/prefect-dbt/cli/configs/base",
-                        "3.0rc/integrations/prefect-dbt/cli/configs/bigquery",
-                        "3.0rc/integrations/prefect-dbt/cli/configs/postgres",
-                        "3.0rc/integrations/prefect-dbt/cli/configs/snowflake"
+                        "integrations/prefect-dbt/cli/configs/base",
+                        "integrations/prefect-dbt/cli/configs/bigquery",
+                        "integrations/prefect-dbt/cli/configs/postgres",
+                        "integrations/prefect-dbt/cli/configs/snowflake"
                       ]
                     }
                   ]
@@ -369,132 +361,120 @@
             },
             {
               "group": "Docker",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-docker/index",
-                "3.0rc/integrations/prefect-docker/host",
-                "3.0rc/integrations/prefect-docker/credentials",
-                "3.0rc/integrations/prefect-docker/containers",
-                "3.0rc/integrations/prefect-docker/images",
-                "3.0rc/integrations/prefect-docker/worker"
+                "integrations/prefect-docker/index",
+                "integrations/prefect-docker/host",
+                "integrations/prefect-docker/credentials",
+                "integrations/prefect-docker/containers",
+                "integrations/prefect-docker/images",
+                "integrations/prefect-docker/worker"
               ]
             },
             {
               "group": "Email",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-email/index",
-                "3.0rc/integrations/prefect-email/credentials",
-                "3.0rc/integrations/prefect-email/message"
+                "integrations/prefect-email/index",
+                "integrations/prefect-email/credentials",
+                "integrations/prefect-email/message"
               ]
             },
             {
               "group": "GCP",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-gcp/index",
-                "3.0rc/integrations/prefect-gcp/gcp-worker-guide",
-                "3.0rc/integrations/prefect-gcp/credentials",
-                "3.0rc/integrations/prefect-gcp/cloud_storage",
-                "3.0rc/integrations/prefect-gcp/bigquery",
-                "3.0rc/integrations/prefect-gcp/secret_manager",
-                "3.0rc/integrations/prefect-gcp/cloud_run",
-                "3.0rc/integrations/prefect-gcp/aiplatform",
-                "3.0rc/integrations/prefect-gcp/deployments/steps",
+                "integrations/prefect-gcp/index",
+                "integrations/prefect-gcp/gcp-worker-guide",
+                "integrations/prefect-gcp/credentials",
+                "integrations/prefect-gcp/cloud_storage",
+                "integrations/prefect-gcp/bigquery",
+                "integrations/prefect-gcp/secret_manager",
+                "integrations/prefect-gcp/cloud_run",
+                "integrations/prefect-gcp/aiplatform",
+                "integrations/prefect-gcp/deployments/steps",
                 {
-                  "group": "Email",
-                  "version": "3.0rc",
+                  "group": "GCP Workers",
                   "pages": [
-                    "3.0rc/integrations/prefect-gcp/cloud_run_worker",
-                    "3.0rc/integrations/prefect-gcp/cloud_run_worker_v2",
-                    "3.0rc/integrations/prefect-gcp/vertex_worker"
+                    "integrations/prefect-gcp/cloud_run_worker",
+                    "integrations/prefect-gcp/cloud_run_worker_v2",
+                    "integrations/prefect-gcp/vertex_worker"
                   ]
                 }
               ]
             },
             {
               "group": "GitHub",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-github/index",
-                "3.0rc/integrations/prefect-github/credentials",
-                "3.0rc/integrations/prefect-github/graphql",
-                "3.0rc/integrations/prefect-github/mutations",
-                "3.0rc/integrations/prefect-github/organization",
-                "3.0rc/integrations/prefect-github/repository",
-                "3.0rc/integrations/prefect-github/repository_owner",
-                "3.0rc/integrations/prefect-github/user",
-                "3.0rc/integrations/prefect-github/utils",
-                "3.0rc/integrations/prefect-github/viewer"
+                "integrations/prefect-github/index",
+                "integrations/prefect-github/credentials",
+                "integrations/prefect-github/graphql",
+                "integrations/prefect-github/mutations",
+                "integrations/prefect-github/organization",
+                "integrations/prefect-github/repository",
+                "integrations/prefect-github/repository_owner",
+                "integrations/prefect-github/user",
+                "integrations/prefect-github/utils",
+                "integrations/prefect-github/viewer"
               ]
             },
             {
               "group": "Gitlab",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-gitlab/index",
-                "3.0rc/integrations/prefect-gitlab/credentials",
-                "3.0rc/integrations/prefect-gitlab/repositories"
+                "integrations/prefect-gitlab/index",
+                "integrations/prefect-gitlab/credentials",
+                "integrations/prefect-gitlab/repositories"
               ]
             },
             {
               "group": "Kubernetes",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-kubernetes/index",
-                "3.0rc/integrations/prefect-kubernetes/credentials",
-                "3.0rc/integrations/prefect-kubernetes/custom_objects",
-                "3.0rc/integrations/prefect-kubernetes/deployments",
-                "3.0rc/integrations/prefect-kubernetes/exceptions",
-                "3.0rc/integrations/prefect-kubernetes/flows",
-                "3.0rc/integrations/prefect-kubernetes/jobs",
-                "3.0rc/integrations/prefect-kubernetes/pods",
-                "3.0rc/integrations/prefect-kubernetes/services",
-                "3.0rc/integrations/prefect-kubernetes/utilities",
-                "3.0rc/integrations/prefect-kubernetes/worker"
+                "integrations/prefect-kubernetes/index",
+                "integrations/prefect-kubernetes/credentials",
+                "integrations/prefect-kubernetes/custom_objects",
+                "integrations/prefect-kubernetes/deployments",
+                "integrations/prefect-kubernetes/exceptions",
+                "integrations/prefect-kubernetes/flows",
+                "integrations/prefect-kubernetes/jobs",
+                "integrations/prefect-kubernetes/pods",
+                "integrations/prefect-kubernetes/services",
+                "integrations/prefect-kubernetes/utilities",
+                "integrations/prefect-kubernetes/worker"
               ]
             },
             {
               "group": "Ray",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-ray/index",
-                "3.0rc/integrations/prefect-ray/task-runners"
+                "integrations/prefect-ray/index",
+                "integrations/prefect-ray/task-runners"
               ]
             },
             {
               "group": "Shell",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-shell/index",
-                "3.0rc/integrations/prefect-shell/commands"
+                "integrations/prefect-shell/index",
+                "integrations/prefect-shell/commands"
               ]
             },
             {
               "group": "Slack",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-slack/index",
-                "3.0rc/integrations/prefect-slack/credentials",
-                "3.0rc/integrations/prefect-slack/messages"
+                "integrations/prefect-slack/index",
+                "integrations/prefect-slack/credentials",
+                "integrations/prefect-slack/messages"
               ]
             },
             {
               "group": "Snowflake",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-snowflake/index",
-                "3.0rc/integrations/prefect-snowflake/credentials",
-                "3.0rc/integrations/prefect-snowflake/database"
+                "integrations/prefect-snowflake/index",
+                "integrations/prefect-snowflake/credentials",
+                "integrations/prefect-snowflake/database"
               ]
             },
             {
               "group": "SQLAlchemy",
-              "version": "3.0rc",
               "pages": [
-                "3.0rc/integrations/prefect-sqlalchemy/index",
-                "3.0rc/integrations/prefect-sqlalchemy/credentials",
-                "3.0rc/integrations/prefect-sqlalchemy/database"
+                "integrations/prefect-sqlalchemy/index",
+                "integrations/prefect-sqlalchemy/credentials",
+                "integrations/prefect-sqlalchemy/database"
               ]
             }
           ]

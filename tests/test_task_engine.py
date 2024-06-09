@@ -3,7 +3,7 @@ import logging
 import time
 from pathlib import Path
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
@@ -21,7 +21,7 @@ from prefect.context import (
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResult, ResultFactory
+from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
 from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
@@ -53,7 +53,7 @@ class TestTaskRunEngine:
 
     async def test_client_attr_returns_client_after_starting(self):
         engine = TaskRunEngine(task=foo)
-        with engine.start():
+        with engine.initialize_run():
             client = engine.client
             assert isinstance(client, SyncPrefectClient)
 
@@ -858,6 +858,94 @@ class TestTaskRetries:
             await test_flow()
             assert mock.call_count == 2
 
+    @pytest.mark.parametrize(
+        "retry_delay_seconds,expected_delay_sequence",
+        [
+            (1, [1, 1, 1]),
+            ([1, 2, 3], [1, 2, 3]),
+            (
+                [1, 2],
+                [1, 2, 2],
+            ),  # repeat last value if len(retry_delay_seconds) < retries
+        ],
+    )
+    async def test_async_task_respects_retry_delay_seconds(
+        self, retry_delay_seconds, expected_delay_sequence, prefect_client, monkeypatch
+    ):
+        mock_sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", mock_sleep)
+
+        @task(retries=3, retry_delay_seconds=retry_delay_seconds)
+        async def flaky_function():
+            raise ValueError()
+
+        task_run_state = await flaky_function(return_state=True)
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_failed()
+        assert mock_sleep.call_count == 3
+        assert mock_sleep.call_args_list == [
+            call(pytest.approx(delay, abs=0.2)) for delay in expected_delay_sequence
+        ]
+
+        states = await prefect_client.read_task_run_states(task_run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "Failed",
+        ]
+
+    @pytest.mark.parametrize(
+        "retry_delay_seconds,expected_delay_sequence",
+        [
+            (1, [1, 1, 1]),
+            ([1, 2, 3], [1, 2, 3]),
+            (
+                [1, 2],
+                [1, 2, 2],
+            ),  # repeat last value if len(retry_delay_seconds) < retries
+        ],
+    )
+    async def test_sync_task_respects_retry_delay_seconds(
+        self, retry_delay_seconds, expected_delay_sequence, prefect_client, monkeypatch
+    ):
+        mock_sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", mock_sleep)
+
+        @task(retries=3, retry_delay_seconds=retry_delay_seconds)
+        def flaky_function():
+            raise ValueError()
+
+        task_run_state = flaky_function(return_state=True)
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_failed()
+        assert mock_sleep.call_count == 3
+        assert mock_sleep.call_args_list == [
+            call(pytest.approx(delay, abs=0.2)) for delay in expected_delay_sequence
+        ]
+
+        states = await prefect_client.read_task_run_states(task_run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "Failed",
+        ]
+
 
 class TestTaskCrashDetection:
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
@@ -1023,3 +1111,30 @@ class TestPersistence:
         assert await state.result() == -92
         assert isinstance(state.data, PersistedResult)
         assert state.data.storage_key == "foo-bar"
+
+
+class TestCachePolicy:
+    async def test_result_stored_with_storage_key_if_no_policy_set(
+        self, prefect_client
+    ):
+        @task(persist_result=True, result_storage_key="foo-bar")
+        async def async_task():
+            return 1800
+
+        state = await async_task(return_state=True)
+
+        assert state.is_completed()
+        assert await state.result() == 1800
+        assert state.data.storage_key == "foo-bar"
+
+    async def test_none_policy_doesnt_persist(self, prefect_client):
+        @task(cache_policy=None, result_storage_key=None)
+        async def async_task():
+            return 1800
+
+        assert async_task.cache_policy is None
+        state = await async_task(return_state=True)
+
+        assert state.is_completed()
+        assert await state.result() == 1800
+        assert isinstance(state.data, UnpersistedResult)

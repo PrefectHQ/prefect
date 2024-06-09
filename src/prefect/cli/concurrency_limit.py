@@ -24,7 +24,7 @@ from prefect.exceptions import ObjectNotFound
 
 concurrency_limit_app = PrefectTyper(
     name="concurrency-limit",
-    help="Commands for managing task-level concurrency limits.",
+    help="Manage task-level concurrency limits.",
 )
 app.add_typer(concurrency_limit_app, aliases=["concurrency-limits"])
 
