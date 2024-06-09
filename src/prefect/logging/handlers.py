@@ -108,8 +108,8 @@ class APILogHandler(logging.Handler):
                 )
 
             # Not ideal, but this method is called by the stdlib and cannot return a
-            # coroutine so we just schedule the drain in a new thread and continue
-            from_sync.call_soon_in_new_thread(create_call(APILogWorker.drain_all))
+            # coroutine so we just schedule the drain in the global loop thread and continue
+            from_sync.call_soon_in_loop_thread(create_call(APILogWorker.drain_all))
             return None
         else:
             # We set a timeout of 5s because we don't want to block forever if the worker
