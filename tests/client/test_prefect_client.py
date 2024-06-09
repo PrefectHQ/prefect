@@ -507,7 +507,7 @@ class TestClientContextManager:
 async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monkeypatch):
     with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
         # turn on lifespan for this test; it turns off after its run once per process
-        monkeypatch.setattr(prefect.server.api.server, "RUN_LIFESPAN", True)
+        monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
 
         app = create_app(ephemeral=True, ignore_cache=True)
         mock = AsyncMock()
@@ -522,6 +522,34 @@ async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monke
         async with PrefectClient(app):
             if enabled:
                 mock.assert_awaited_once_with()
+
+        if not enabled:
+            mock.assert_not_awaited()
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_client_runs_migrations_for_two_different_ephemeral_apps(
+    enabled, monkeypatch
+):
+    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
+        # turn on lifespan for this test; it turns off after its run once per process
+        monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
+
+        app = create_app(ephemeral=True, ignore_cache=True)
+        app2 = create_app(ephemeral=True, ignore_cache=True)
+
+        mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.server.database.interface.PrefectDBInterface.create_db", mock
+        )
+        async with PrefectClient(app):
+            if enabled:
+                mock.assert_awaited_once_with()
+
+        # run a second time, and mock should be called again because it's a different app
+        async with PrefectClient(app2):
+            if enabled:
+                assert mock.await_count == 2
 
         if not enabled:
             mock.assert_not_awaited()
