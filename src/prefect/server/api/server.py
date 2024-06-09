@@ -58,7 +58,7 @@ UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
 # migrations should run only once per app start; the ephemeral API can potentially
 # create multiple apps in a single process
-RUN_LIFESPAN = True
+LIFESPAN_RAN_FOR_APP = set()
 
 logger = get_logger("server")
 
@@ -622,13 +622,12 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app):
-        global RUN_LIFESPAN
-        if RUN_LIFESPAN:
+        if app not in LIFESPAN_RAN_FOR_APP:
             try:
                 await run_migrations()
                 await add_block_types()
                 await start_services()
-                RUN_LIFESPAN = False
+                LIFESPAN_RAN_FOR_APP.add(app)
                 yield
             finally:
                 await stop_services()
