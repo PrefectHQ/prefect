@@ -433,7 +433,7 @@ class TestTaskRunsAsync:
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
-        assert await api_state.result() == str(run_id)
+        assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
@@ -631,7 +631,7 @@ class TestTaskRunsSync:
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
-        assert await api_state.result() == str(run_id)
+        assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
@@ -1138,3 +1138,27 @@ class TestCachePolicy:
         assert state.is_completed()
         assert await state.result() == 1800
         assert isinstance(state.data, UnpersistedResult)
+
+    async def test_none_return_value_does_persist(self, prefect_client):
+        FIRST_RUN = True
+
+        @task(
+            persist_result=True, cache_key_fn=lambda *args, **kwargs: "test-none-caches"
+        )
+        async def async_task():
+            nonlocal FIRST_RUN
+
+            if FIRST_RUN:
+                FIRST_RUN = False
+                return None
+            else:
+                return 42
+
+        first_val = await async_task()
+        # make sure test is behaving
+        assert FIRST_RUN is False
+
+        second_val = await async_task()
+
+        assert first_val is None
+        assert second_val is None
