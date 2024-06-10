@@ -160,7 +160,8 @@
     FlowRunSortValuesSortParam,
     TaskRunsFilter,
     TaskRunSortValuesSortParam,
-    TaskRunsSort
+    TaskRunsSort,
+    FlowRunsPaginationFilter
   } from '@prefecthq/prefect-ui-library'
   import { BooleanRouteParam, NullableStringRouteParam, NumberRouteParam, useDebouncedRef, useLocalStorage, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import merge from 'lodash.merge'
@@ -199,7 +200,7 @@
 
   const { value: limit } = useLocalStorage('workspace-runs-list-limit', 10)
 
-  const flowRunsFilter: Getter<FlowRunsFilter> = () => {
+  const flowRunsFilter: Getter<FlowRunsPaginationFilter> = () => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
 
     return merge({}, filter, {
@@ -230,7 +231,21 @@
 
   const interval = 30000
 
-  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [flowRunsFilterRef], {
+  const flowRunsHistoryFilter: Getter<FlowRunsFilter> = () => {
+    const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
+
+    return merge({}, filter, {
+      flowRuns: {
+        nameLike: flowRunNameLikeDebounced.value ?? undefined,
+        parentTaskRunIdNull: hideSubflows.value ? true : undefined,
+      },
+      sort: flowRunsSort.value,
+    })
+  }
+
+  const flowRunsHistoryFilterRef = toRef(flowRunsHistoryFilter)
+
+  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [flowRunsHistoryFilterRef], {
     interval,
   })
 
