@@ -999,12 +999,14 @@ class KubernetesWorker(BaseWorker):
         try:
             with timeout_async(configuration.job_watch_timeout_seconds):
                 tasks = [
-                    self._stream_pod_logs(
-                        pod.metadata.name, configuration.namespace, core_client
-                    ),
                     self._monitor_job_events(job_name, configuration, batch_client),
                 ]
-
+                if configuration.stream_output:
+                    tasks.append(
+                        self._stream_pod_logs(
+                            pod.metadata.name, configuration.namespace, core_client
+                        )
+                    )
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
                 if any(isinstance(result, Exception) for result in results):
