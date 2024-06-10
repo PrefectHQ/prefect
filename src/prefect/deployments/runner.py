@@ -462,6 +462,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint: Optional[str] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
@@ -523,6 +524,7 @@ class RunnerDeployment(BaseModel):
             enforce_parameter_schema=enforce_parameter_schema,
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
+            entrypoint=entrypoint,
             job_variables=job_variables,
         )
 
@@ -853,6 +855,7 @@ async def deploy(
     push: bool = True,
     print_next_steps_message: bool = True,
     ignore_warnings: bool = False,
+    working_directory: Optional[str] = None,
 ) -> List[UUID]:
     """
     Deploy the provided list of deployments to dynamic infrastructure via a
@@ -907,12 +910,16 @@ async def deploy(
     """
     work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
 
-    if not image and not all(
-        d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
-        for d in deployments
+    if (
+        not working_directory
+        and not image
+        and not all(
+            d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
+            for d in deployments
+        )
     ):
         raise ValueError(
-            "Either an image or remote storage location must be provided when deploying"
+            "An image, remote storage location or working_directory must be provided when deploying"
             " a deployment."
         )
 
@@ -922,6 +929,10 @@ async def deploy(
             " provide a work pool name when calling `deploy` or set"
             " `PREFECT_DEFAULT_WORK_POOL_NAME` in your profile."
         )
+
+    if working_directory and isinstance(working_directory, str):
+        for d in deployments:
+            d._path = working_directory
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)

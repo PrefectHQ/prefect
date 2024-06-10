@@ -611,6 +611,7 @@ class Flow(Generic[P, R]):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[Dict[str, Any]] = None,
+        entrypoint: Optional[str] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
@@ -712,6 +713,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
+                entrypoint=entrypoint,
                 entrypoint_type=entrypoint_type,
             )
 
@@ -956,9 +958,11 @@ class Flow(Generic[P, R]):
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = False,
+        entrypoint: Optional[str] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
+        working_directory: Optional[str] = None,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
@@ -1080,6 +1084,7 @@ class Flow(Generic[P, R]):
             enforce_parameter_schema=enforce_parameter_schema,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            entrypoint=entrypoint,
             entrypoint_type=entrypoint_type,
         )
 
@@ -1091,6 +1096,7 @@ class Flow(Generic[P, R]):
             push=push,
             print_next_steps_message=False,
             ignore_warnings=ignore_warnings,
+            working_directory=working_directory,
         )
 
         if print_next_steps:
