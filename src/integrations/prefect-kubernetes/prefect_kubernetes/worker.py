@@ -131,7 +131,12 @@ from kubernetes_asyncio.client import (
     V1Pod,
 )
 from kubernetes_asyncio.client.exceptions import ApiException
-from kubernetes_asyncio.client.models import V1ObjectMeta, V1Secret
+from kubernetes_asyncio.client.models import (
+    CoreV1Event,
+    CoreV1EventList,
+    V1ObjectMeta,
+    V1Secret,
+)
 from pydantic import Field, model_validator
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal
@@ -923,6 +928,8 @@ class KubernetesWorker(BaseWorker):
                 if not line:
                     break
                 print(line.decode().rstrip())
+        except asyncio.TimeoutError:
+            self.logger.warning("Log streaming timed out.")
         except Exception:
             self.logger.warning(
                 "Error occurred while streaming logs - "
@@ -988,6 +995,7 @@ class KubernetesWorker(BaseWorker):
 
         core_client = CoreV1Api(client)
         batch_client = BatchV1Api(client)
+
         try:
             with timeout_async(configuration.job_watch_timeout_seconds):
                 tasks = [
@@ -1058,7 +1066,6 @@ class KubernetesWorker(BaseWorker):
         client: "ApiClient",
     ) -> Optional["V1Pod"]:
         """Get the first running pod for a job."""
-        from kubernetes_asyncio.client.models import V1Pod
 
         watch = kubernetes_asyncio.watch.Watch()
         logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
@@ -1104,7 +1111,6 @@ class KubernetesWorker(BaseWorker):
     ) -> None:
         """Look for reasons why a Job may not have been able to schedule a Pod, or why
         a Pod may not have been able to start and log them to the provided logger."""
-        from kubernetes_asyncio.client.models import CoreV1Event, CoreV1EventList
 
         def best_event_time(event: CoreV1Event) -> datetime:
             """Choose the best timestamp from a Kubernetes event"""
