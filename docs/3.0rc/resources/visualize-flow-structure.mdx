@@ -1,13 +1,24 @@
 ---
 title: Visualize flow structure
-description: Get a quick sense of the structure of your flow.
+description: Learn how to view the overall structure of your flow.
 ---
 
-You can get a quick sense of the structure of your flow using the `.visualize()` method on your flow. Calling this method will attempt to produce a schematic diagram of your flow and tasks without actually running your flow code.
+Get a quick view of the structure of your flow using the `.visualize()` method. 
+Calling this method attempts to produce a schematic diagram of your flow and tasks without 
+actually running your flow code.
 
-!!! warning "Functions and code not inside of flows or tasks will still be run when calling `.visualize()`. This may have unintended consequences. Place your code into tasks to avoid unintended execution."
+<Warning>
+Functions and code outside of flows or tasks will still be run when calling 
+`.visualize()`. This may have unintended consequences. Place your code into tasks to 
+avoid unintended 
+execution.
+</Warning>
 
-!!! note "To use the `visualize()` method, Graphviz must be installed and on your PATH. Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). And note: just installing the `graphviz` python package is not sufficient."
+To use the `visualize()` method, you must havae Graphviz installed and on your PATH. 
+Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). 
+<Note>
+Just installing the `graphviz` python package is not sufficient.
+</Note>
 
 ```python
 from prefect import flow, task
@@ -35,7 +46,8 @@ if __name__ == "__main__":
 
 ![A simple flow visualized with the .visualize() method](/3.0rc/img/orchestration/hello-flow-viz.png)
 
-Prefect cannot automatically produce a schematic for dynamic workflows, such as those with loops or if/else control flow.
+Prefect cannot automatically produce a schematic for dynamic workflows, such as those with loops or 
+if/else control flow.
 In this case, you can provide tasks with mock return values for use in the `visualize()` call.
 
 ```python

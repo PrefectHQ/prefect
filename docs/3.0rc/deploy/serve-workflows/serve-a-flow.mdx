@@ -3,8 +3,10 @@ title: Serve flows
 description: Create a deployment for a flow by calling the `serve` method.
 ---
 
-The simplest way to create a [deployment](/3.0rc/deploy/serve-workflows/) for your flow is by calling its [`serve` method](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.serve).
-This method creates a deployment for the flow and starts a long-running process that monitors for work from the Prefect server.
+The simplest way to create a [deployment](/3.0rc/deploy/serve-workflows/) for your 
+flow is by calling its [`serve` method](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.serve).
+This method creates a deployment for the flow and starts a long-running process 
+that monitors for work from the Prefect server.
 When work is found, it is executed within its own isolated subprocess.
 
 ```python title="hello_world.py"
@@ -20,7 +22,8 @@ def hello_world(name: str = "world", goodbye: bool = False):
 
 
 if __name__ == "__main__":
-    # creates a deployment and stays running to monitor for work instructions generated on the server
+    # creates a deployment and stays running to monitor for work instructions 
+    generated on the server
 
     hello_world.serve(name="my-first-deployment",
                       tags=["onboarding"],
@@ -28,16 +31,23 @@ if __name__ == "__main__":
                       interval=60)
 ```
 
-This interface provides all of the configuration needed for a deployment with no strong infrastructure requirements:
+This interface provides the configuration for a deployment (with no 
+strong infrastructure requirements), such as:
 
 - schedules
 - event triggers
 - metadata such as tags and description
 - default parameter values
 
-!!! tip "Schedules are auto-paused on shutdown"
-    By default, stopping the process running `flow.serve` will pause the schedule for the deployment (if it has one).
-    When running this in environments where restarts are expected use the `pause_on_shutdown=False` flag to prevent this behavior:
+<Tip>
+**Schedules are auto-paused on shutdown**
+
+By default, stopping the process running `flow.serve` will pause the schedule 
+for the deployment (if it has one).
+
+When running this in environments where restarts are expected use the 
+
+`pause_on_shutdown=False` flag to prevent this behavior:
 
     ```python hl_lines="5"
     if __name__ == "__main__":
@@ -47,10 +57,13 @@ This interface provides all of the configuration needed for a deployment with no
                           pause_on_shutdown=False,
                           interval=60)
     ```
+</Tip>
 
-### Serving multiple flows at once
+### Serve multiple flows at once
 
-You can take this further and serve multiple flows with the same process using the [`serve`](/3.0rc/api-ref/prefect/runner/#prefect.runner.serve) utility along with the `to_deployment` method of flows:
+Serve multiple flows with the same process using 
+the [`serve`](/3.0rc/api-ref/prefect/runner/#prefect.runner.serve) utility along 
+with the `to_deployment` method of flows:
 
 ```python
 import time
@@ -79,9 +92,12 @@ The behavior and interfaces are identical to the single flow case.
 
 ## Retrieve a flow from remote storage
 
-Flows can be retrieved from remote storage using the [`flow.from_source`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.from_source) method.
+You can retrieve flows from remote storage with the 
+[`flow.from_source`](/3.0rc/api-ref/prefect/flows/#prefect.flows.Flow.from_source) 
+method.
 
-`flow.from_source` accepts a git repository URL and an entrypoint pointing to the flow to load from the repository:
+`flow.from_source` accepts a git repository URL and an entrypoint pointing to the 
+flow to load from the repository:
 
 ```python title="load_from_url.py"
 from prefect import flow
@@ -105,9 +121,12 @@ if __name__ == "__main__":
 
 </div>
 
-A flow entrypoint is the path to the file the flow is located in and the name of the flow function separated by a colon.
+A flow entrypoint is the path to the file where the flow is located, and the name of the
+flow function separated by a colon.
 
-If you need additional configuration, such as specifying a private repository, you can provide a [`GitRepository`](/3.0rc/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) instead of URL:
+For additional configuration, such as specifying a private repository, 
+provide a [`GitRepository`](/3.0rc/api-ref/prefect/flows/#prefect.runner.storage.GitRepository) 
+instead of URL:
 
 ```python title="load_from_storage.py"
 from prefect import flow
@@ -129,8 +148,11 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-!!! tip "You can serve loaded flows"
-    Flows loaded from remote storage can be served using the same [`serve`](#serving-a-flow) method as local flows:
+<Tip>
+**You can serve loaded flows**
+
+    You can serve flows loaded from remote storage with the same 
+    [`serve`](#serving-a-flow) method as local flows:
 
     ```python title="serve_loaded_flow.py"
     from prefect import flow
@@ -141,6 +163,9 @@ if __name__ == "__main__":
             entrypoint="flows.py:my_flow"
         ).serve(name="my-deployment")
     ```
+</Tip>
 
-    When you serve a flow loaded from remote storage, the serving process will periodically poll your remote storage for updates to the flow's code. 
-    This pattern allows you to update your flow code without restarting the serving process.
+When you serve a flow loaded from remote storage, the serving process 
+periodically polls your remote storage for updates to the flow's code. 
+This pattern allows you to update your flow code without restarting the serving 
+process.
