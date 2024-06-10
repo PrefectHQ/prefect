@@ -6,8 +6,6 @@ from . import _version
 import importlib
 import pathlib
 
-from ._internal.compatibility.migration import getattr_migration
-
 __version_info__ = _version.get_versions()
 __version__ = __version_info__["version"]
 
@@ -106,5 +104,3 @@ __all__ = [
     "resume_flow_run",
     "suspend_flow_run",
 ]
-
-__getattr__ = getattr_migration(__name__)

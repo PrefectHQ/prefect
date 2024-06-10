@@ -26,7 +26,6 @@ MOVED_IN_V3 = {
     "prefect.engine:resume_flow_run": "prefect.flow_runs:resume_flow_run",
     "prefect.engine:suspend_flow_run": "prefect.flow_runs:suspend_flow_run",
     "prefect.engine:_in_process_pause": "prefect.flow_runs:_in_process_pause",
-    "prefect.engine:_out_of_process_pause": "prefect.flow_runs:_out_of_process_pause",
 }
 
 REMOVED_IN_V3 = {
@@ -35,6 +34,7 @@ REMOVED_IN_V3 = {
     "prefect.filesystems:GCS": "Use 'prefect_gcp' instead.",
     "prefect.filesystems:Azure": "Use 'prefect_azure' instead.",
     "prefect.filesystems:S3": "Use 'prefect_aws' instead.",
+    "prefect.engine:_out_of_process_pause": "Use 'prefect.flow_runs.pause_flow_run' instead.",
 }
 
 # IMPORTANT FOR USAGE: When adding new modules to MOVED_IN_V3 or REMOVED_IN_V3, include the following lines at the bottom of that module:
