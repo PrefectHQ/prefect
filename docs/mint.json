@@ -88,7 +88,8 @@
             "3.0rc/develop/write-tasks/task-run-limits",
             "3.0rc/develop/write-tasks/use-task-runners",
             "3.0rc/develop/write-tasks/dask-and-ray", 
-            "3.0rc/develop/write-tasks/upstream-dependencies"
+            "3.0rc/develop/write-tasks/upstream-dependencies",
+            "3.0rc/develop/write-tasks/deferred-tasks" 
           ]
         },
         "3.0rc/develop/recover-from-failure",
@@ -139,8 +140,17 @@
             "3.0rc/deploy/dynamic-infra/customize",
             "3.0rc/deploy/dynamic-infra/deploy-docker",
             "3.0rc/deploy/dynamic-infra/deploy-kubernetes",
-            "3.0rc/deploy/dynamic-infra/deploy-ci-cd",
-            "3.0rc/deploy/dynamic-infra/control-runs"
+            "3.0rc/deploy/dynamic-infra/deploy-ci-cd"
+          ]
+        },
+        {
+          "group": "Control runs",
+          "version": "3.0rc",
+          "pages": [
+            "3.0rc/deploy/work-pools/control-runs",
+            "3.0rc/deploy/work-pools/developing-a-new-worker-type",
+            "3.0rc/deploy/work-pools/prefect-deploy",
+            "3.0rc/deploy/work-pools/managed-execution"
           ]
         }
       ]
@@ -184,7 +194,10 @@
         "3.0rc/cloud/rate-limits",
         "3.0rc/cloud/self-host",
         "3.0rc/cloud/configure-client",
-        "3.0rc/cloud/interact-with-api"
+        "3.0rc/cloud/interact-with-api",
+        "3.0rc/cloud/secrets",
+        "3.0rc/cloud/terraform-provider", 
+        "3.0rc/cloud/troubleshoot-cloud"
       ]
     },
     {
@@ -198,49 +211,12 @@
             "3.0rc/resources/upgrade-agents-to-workers"
           ]
         },
-        "3.0rc/resources/visualize-flow-structure"
-      ]
-    },
-    {
-      "group": "Tutorial",
-      "version": "3.0rc",
-      "pages": [
-        "3.0rc/tutorial/index",
-        "3.0rc/tutorial/work-pools"
-      ]
-    },
-    {
-      "group": "How-to Guides",
-      "version": "3.0rc",
-      "pages": [
-        "3.0rc/guides/index",
-        {
-          "group": "Development",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/guides/terraform-provider",
-            "3.0rc/guides/secrets",
-            "3.0rc/guides/recipes",
-            "3.0rc/guides/deferred-tasks"
-          ]
-        },
-        {
-          "group": "Execution",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/guides/big-data",
-            "3.0rc/guides/managed-execution",
-            "3.0rc/guides/cli-shell"
-          ]
-        },
-        {
-          "group": "Work Pools",
-          "version": "3.0rc",
-          "pages": [
-            "3.0rc/guides/prefect-deploy",
-            "3.0rc/guides/deployment/developing-a-new-worker-type"
-          ]
-        }
+        "3.0rc/resources/visualize-flow-structure",
+        "3.0rc/resources/recipes",
+        "3.0rc/resources/cli-shell",
+        "3.0rc/resources/daemonize-processes",
+        "3.0rc/resources/big-data"
+
       ]
     },
     {
