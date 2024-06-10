@@ -411,12 +411,14 @@ class TestTaskRunsAsync:
 
         assert "__parents__" not in tr.task_inputs
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
-        @task(persist_result=False)
+    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=False, result_storage=fs)
         async def no_persist():
             return TaskRunContext.get().task_run.id
 
-        @task(persist_result=True)
+        @task(persist_result=True, result_storage=fs)
         async def persist():
             return TaskRunContext.get().task_run.id
 
@@ -605,14 +607,16 @@ class TestTaskRunsSync:
         assert "__parents__" in inner_run.task_inputs
         assert inner_run.task_inputs["__parents__"][0].id == b
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
-        @task(persist_result=False)
+    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=False, result_storage=fs)
         def no_persist():
             ctx = TaskRunContext.get()
             assert ctx
             return ctx.task_run.id
 
-        @task(persist_result=True)
+        @task(persist_result=True, result_storage=fs)
         def persist():
             ctx = TaskRunContext.get()
             assert ctx
@@ -1139,11 +1143,14 @@ class TestCachePolicy:
         assert await state.result() == 1800
         assert isinstance(state.data, UnpersistedResult)
 
-    async def test_none_return_value_does_persist(self, prefect_client):
+    async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
         FIRST_RUN = True
 
         @task(
-            persist_result=True, cache_key_fn=lambda *args, **kwargs: "test-none-caches"
+            persist_result=True,
+            cache_key_fn=lambda *args, **kwargs: "test-none-caches",
+            result_storage=fs,
         )
         async def async_task():
             nonlocal FIRST_RUN

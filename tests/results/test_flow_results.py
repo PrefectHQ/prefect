@@ -106,22 +106,6 @@ async def test_flow_with_uncached_but_persisted_result(prefect_client):
     assert await api_state.result() == 1
 
 
-async def test_flow_with_uncached_but_literal_result(prefect_client):
-    @flow(persist_result=True, cache_result_in_memory=False)
-    def foo():
-        return True
-
-    state = foo(return_state=True)
-    # Literal results are always cached
-    assert state.data.has_cached_object()
-    assert await state.result() is True
-
-    api_state = (
-        await prefect_client.read_flow_run(state.state_details.flow_run_id)
-    ).state
-    assert await api_state.result() is True
-
-
 async def test_flow_result_missing_with_null_return(prefect_client):
     @flow
     def foo():
