@@ -2,6 +2,7 @@ import os
 import sys
 from uuid import UUID
 
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect.exceptions import (
     Abort,
     Pause,
@@ -70,3 +71,5 @@ if __name__ == "__main__":
         )
         # Let the exit code be determined by the base exception type
         raise
+
+__getattr__ = getattr_migration(__name__)

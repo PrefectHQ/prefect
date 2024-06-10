@@ -16,6 +16,8 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
 
+from ._internal.compatibility.migration import getattr_migration
+
 
 class ReadableFileSystem(Block, abc.ABC):
     _block_schema_capabilities = ["read-path"]
@@ -506,3 +508,6 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+__getattr__ = getattr_migration(__name__)

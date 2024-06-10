@@ -1,3 +1,4 @@
+from prefect._internal.compatibility.migration import getattr_migration
 import prefect.deployments.base
 import prefect.deployments.steps
 from prefect.deployments.base import (
@@ -15,3 +16,5 @@ from prefect.deployments.runner import (
 from prefect.deployments.flow_runs import (
     run_deployment,
 )
+
+__getattr__ = getattr_migration(__name__)

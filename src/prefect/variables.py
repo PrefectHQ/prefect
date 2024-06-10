@@ -1,5 +1,6 @@
 from typing import List, Optional, Union
 
+from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.schemas.actions import VariableCreate as VariableRequest
 from prefect.client.schemas.actions import VariableUpdate as VariableUpdateRequest
 from prefect.client.schemas.objects import Variable as VariableResponse
@@ -134,3 +135,6 @@ class Variable(VariableRequest):
             return True
         except ObjectNotFound:
             return False
+
+
+__getattr__ = getattr_migration(__name__)
