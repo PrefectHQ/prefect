@@ -548,12 +548,6 @@ class FlowRunEngine(Generic[P, R]):
                     msg=f"Finished in state {display_state}",
                 )
 
-                # flush any logs in the background if this is a "top" level run
-                # if not (FlowRunContext.get() or TaskRunContext.get()):
-                #     from_sync.call_soon_in_loop_thread(
-                #         create_call(APILogHandler.aflush)
-                #     )
-
                 self._is_started = False
                 self._client = None
 
