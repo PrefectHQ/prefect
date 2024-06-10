@@ -400,3 +400,12 @@ class FlowPauseTimeout(PrefectException):
 
 class FlowRunWaitTimeout(PrefectException):
     """Raised when a flow run takes longer than a given timeout"""
+
+
+class PrefectImportError(ImportError):
+    """
+    An error raised when a Prefect object cannot be imported due to a move or removal.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
