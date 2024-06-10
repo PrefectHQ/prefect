@@ -22,6 +22,11 @@ MOVED_IN_V3 = {
     "prefect.deployments.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
     "prefect.deployments:load_flow_from_flow_run": "prefect.flows:load_flow_from_flow_run",
     "prefect.variables:get": "prefect.variables:Variable.get",
+    "prefect.engine:pause_flow_run": "prefect.flow_runs:pause_flow_run",
+    "prefect.engine:resume_flow_run": "prefect.flow_runs:resume_flow_run",
+    "prefect.engine:suspend_flow_run": "prefect.flow_runs:suspend_flow_run",
+    "prefect.engine:_in_process_pause": "prefect.flow_runs:_in_process_pause",
+    "prefect.engine:_out_of_process_pause": "prefect.flow_runs:_out_of_process_pause",
 }
 
 REMOVED_IN_V3 = {
