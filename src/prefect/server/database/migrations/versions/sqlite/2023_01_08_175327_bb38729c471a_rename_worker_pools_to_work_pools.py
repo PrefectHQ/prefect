@@ -5,6 +5,7 @@ Revises: fe77ad0dda06
 Create Date: 2023-01-08 17:53:27.444733
 
 """
+
 import sqlalchemy as sa
 from alembic import op
 

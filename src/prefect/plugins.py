@@ -7,6 +7,7 @@ Currently supported entrypoints:
     - prefect.collections: Identifies this package as a Prefect collection that
         should be imported when Prefect is imported.
 """
+
 import sys
 from types import ModuleType
 from typing import Any, Dict, Union

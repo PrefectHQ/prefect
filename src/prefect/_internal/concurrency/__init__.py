@@ -5,7 +5,7 @@ both asynchronous and synchronous calls.
 Much of the complexity managed here arises from ensuring that a thread of execution is
 not blocked.
 
-The main data structure is a `Call` which is created from a function call capturing 
+The main data structure is a `Call` which is created from a function call capturing
 local context variables. The call is then submitted to run somewhere via a `Portal`.
 The primary portal used is the `WorkerThread`, which executes work on a thread running
 concurrently to the one that created the call. A singleton `EventLoopThread` portal
@@ -13,7 +13,7 @@ is also used to schedule work on a dedicated event loop.
 
 The result of the call can be retrieved asynchronously using `Call.result()`. Behind
 the scenes, a `Future` is used to report the result of the call. Retrieving the result
-of a call is a blocking operation. 
+of a call is a blocking operation.
 
 Sometimes, it is important not to block the current thread while retrieving the result
 of a call. For this purpose, there is the `Waiter`. Waiters attach to a call and provide

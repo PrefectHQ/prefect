@@ -5,6 +5,7 @@ Revises: b23c83a12cb4
 Create Date: 2024-05-21 10:14:57.246286
 
 """
+
 import json
 
 import sqlalchemy as sa

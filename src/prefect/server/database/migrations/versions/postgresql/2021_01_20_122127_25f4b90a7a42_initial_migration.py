@@ -1,10 +1,11 @@
 """initial migration
 
 Revision ID: 25f4b90a7a42
-Revises: 
+Revises:
 Create Date: 2022-01-20 12:21:27.508018
 
 """
+
 from typing import Dict, List, Union
 
 import sqlalchemy as sa
