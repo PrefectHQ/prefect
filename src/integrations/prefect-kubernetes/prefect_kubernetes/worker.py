@@ -913,15 +913,16 @@ class KubernetesWorker(BaseWorker):
     async def _stream_pod_logs(
         self,
         pod_name: str,
-        namespace: str,
+        configuration: KubernetesWorkerJobConfiguration,
         core_client: CoreV1Api,
     ):
         logs = await core_client.read_namespaced_pod_log(
             pod_name,
-            namespace,
+            configuration.namespace,
             follow=True,
             _preload_content=False,
             container="prefect-job",
+            timeout_seconds=configuration.pod_watch_timeout_seconds,
         )
         try:
             async for line in logs.content:
@@ -943,7 +944,7 @@ class KubernetesWorker(BaseWorker):
         watch: kubernetes_asyncio.watch.Watch,
         batch_client: BatchV1Api,
         job_name: str,
-        namespace: str,
+        configuration: KubernetesWorkerJobConfiguration,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Stream job events.
@@ -953,12 +954,12 @@ class KubernetesWorker(BaseWorker):
 
         See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
         """
-        watch_kwargs = {}
+        watch_kwargs = {"timeout_seconds": configuration.job_watch_timeout_seconds}
         while True:
             try:
                 async for event in watch.stream(
                     func=batch_client.list_namespaced_job,
-                    namespace=namespace,
+                    namespace=configuration.namespace,
                     field_selector=f"metadata.name={job_name}",
                     **watch_kwargs,
                 ):
@@ -966,7 +967,8 @@ class KubernetesWorker(BaseWorker):
             except ApiException as e:
                 if e.status == 410:
                     job_list = await batch_client.list_namespaced_job(
-                        namespace=namespace, field_selector=f"metadata.name={job_name}"
+                        namespace=configuration.namespace,
+                        field_selector=f"metadata.name={job_name}",
                     )
 
                     resource_version = job_list.metadata.resource_version
@@ -999,12 +1001,12 @@ class KubernetesWorker(BaseWorker):
         try:
             with timeout_async(configuration.job_watch_timeout_seconds):
                 tasks = [
-                    self._monitor_job_events(job_name, configuration, batch_client),
+                    self._stream_job_events(job_name, configuration, batch_client),
                 ]
                 if configuration.stream_output:
                     tasks.append(
                         self._stream_pod_logs(
-                            pod.metadata.name, configuration.namespace, core_client
+                            pod.metadata.name, configuration, core_client
                         )
                     )
                 results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -1163,7 +1165,7 @@ class KubernetesWorker(BaseWorker):
             ):
                 log_event(event)
 
-    async def _monitor_job_events(
+    async def _stream_job_events(
         self,
         job_name: str,
         configuration: "KubernetesWorkerJobConfiguration",
