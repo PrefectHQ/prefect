@@ -1,6 +1,7 @@
 """
 The base class for all Prefect REST API loop services.
 """
+
 import asyncio
 import signal
 from typing import List
