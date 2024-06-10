@@ -267,10 +267,10 @@ def test_safe_load_namespace():
     assert "math" in namespace
     assert "datetime" in namespace
     assert "BaseModel" in namespace
-    # module-level variables should not be present
-    assert "x" not in namespace
-    assert "y" not in namespace
-    assert "now" not in namespace
+    # module-level variables should be present
+    assert "x" in namespace
+    assert "y" in namespace
+    assert "now" in namespace
     # module-level classes should be present
     assert "MyModel" in namespace
     # module-level functions should be present

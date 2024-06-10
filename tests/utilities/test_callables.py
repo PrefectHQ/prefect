@@ -736,6 +736,21 @@ class TestMethodToSchema:
                 }
             assert schema.dict() == expected_schema
 
+    def test_method_with_kwargs_only(self):
+        def f(
+            *,
+            x: int,
+        ):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "properties": {"x": {"title": "x", "position": 0, "type": "integer"}},
+            "title": "Parameters",
+            "type": "object",
+            "required": ["x"],
+        }
+
 
 class TestParseFlowDescriptionToSchema:
     def test_flow_with_args_docstring(self):
@@ -1670,4 +1685,101 @@ class TestEntrypointToSchema:
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+        }
+
+    def test_handles_dynamically_created_models(self, tmp_path: Path):
+        source_code = dedent(
+            """
+            from pydantic import BaseModel, create_model, Field
+
+
+            def get_model() -> BaseModel:
+                return create_model(
+                    "MyModel",
+                    param=(
+                        int,
+                        Field(
+                            title="param",
+                            default=1,
+                        ),
+                    ),
+                )
+
+
+            MyModel = get_model()
+
+
+            def f(
+                param: MyModel,
+            ) -> None:
+                pass        
+            """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "param": {
+                    "allOf": [{"$ref": "#/definitions/MyModel"}],
+                    "position": 0,
+                    "title": "param",
+                }
+            },
+            "required": ["param"],
+            "definitions": {
+                "MyModel": {
+                    "properties": {
+                        "param": {
+                            "default": 1,
+                            "title": "param",
+                            "type": "integer",
+                        }
+                    },
+                    "title": "MyModel",
+                    "type": "object",
+                }
+            },
+        }
+
+    def test_function_with_kwargs_only(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(
+            *,
+            x: int = 42,
+        ):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.dict() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "type": "integer", "default": 42}
+            },
+            "title": "Parameters",
+            "type": "object",
+        }
+
+    def test_function_with_positional_only_args(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        def f(x=1, /, y=2, z=3):
+            pass
+        """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert schema.dict() == {
+            "properties": {
+                "x": {"title": "x", "position": 0, "default": 1},
+                "y": {"title": "y", "position": 1, "default": 2},
+                "z": {"title": "z", "position": 2, "default": 3},
+            },
+            "title": "Parameters",
+            "type": "object",
         }
