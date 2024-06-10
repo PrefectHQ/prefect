@@ -471,6 +471,7 @@ jobs:
           PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: "1"
         run: >
           pytest tests
+          -v
           --numprocesses auto
           --maxprocesses 6
           --dist worksteal
