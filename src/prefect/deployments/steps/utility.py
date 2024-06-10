@@ -4,7 +4,7 @@ Utility project steps that are useful for managing a project's deployment lifecy
 Steps within this module can be used within a `build`, `push`, or `pull` deployment action.
 
 Example:
-    Use the `run_shell_script` setp to retrieve the short Git commit hash of the current 
+    Use the `run_shell_script` setp to retrieve the short Git commit hash of the current
         repository and use it as a Docker image tag:
     ```yaml
     build:
@@ -19,6 +19,7 @@ Example:
             dockerfile: auto
     ```
 """
+
 import io
 import os
 import shlex

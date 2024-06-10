@@ -1,6 +1,6 @@
 """
-This file contains compat code to handle pendulum.DateTime objects during jsonschema 
-generation and validation. 
+This file contains compat code to handle pendulum.DateTime objects during jsonschema
+generation and validation.
 """
 
 import typing as t

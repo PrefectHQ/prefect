@@ -1,6 +1,7 @@
 """
 Encryption utilities
 """
+
 import json
 import os
 
