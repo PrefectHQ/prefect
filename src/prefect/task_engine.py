@@ -3,6 +3,7 @@ import logging
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
+from textwrap import dedent
 from typing import (
     Any,
     Callable,
@@ -333,10 +334,24 @@ class TaskRunEngine(Generic[P, R]):
                     scheduled_time=pendulum.now("utc").add(seconds=delay)
                 )
             else:
+                delay = None
                 new_state = Retrying()
+
+            self.logger.info(
+                f"Task run failed with exception {exc!r} - "
+                f"Retry {self.retries + 1}/{self.task.retries} will start "
+                f"{str(delay) + ' second(s) from now' if delay else 'immediately'}"
+            )
+
             self.set_state(new_state, force=True)
             self.retries = self.retries + 1
             return True
+        elif self.retries >= self.task.retries:
+            self.logger.error(
+                f"Task run failed with exception {exc!r} - Retries are exhausted"
+            )
+            return False
+
         return False
 
     def handle_exception(self, exc: Exception) -> None:
@@ -459,8 +474,10 @@ class TaskRunEngine(Generic[P, R]):
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
                     raise
-                except (Pause, Abort):
+                except (Pause, Abort) as exc:
                     # Do not capture internal signals as crashes
+                    if isinstance(exc, Abort):
+                        self.logger.error("Task run was aborted: %s", exc)
                     raise
                 except GeneratorExit:
                     # Do not capture generator exits as crashes
@@ -474,11 +491,36 @@ class TaskRunEngine(Generic[P, R]):
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
+                    level = logging.INFO if self.state.is_completed() else logging.ERROR
+                    msg = f"Finished in state {display_state}"
+                    if self.state.is_pending():
+                        msg += (
+                            "\nPlease wait for all submitted tasks to complete"
+                            " before exiting your flow by calling `.wait()` on the "
+                            "`PrefectFuture` returned from your `.submit()` calls."
+                        )
+                        msg += dedent(
+                            """
+                                      
+                            Example:
+                            
+                            from prefect import flow, task
+                                      
+                            @task
+                            def say_hello(name):
+                                print f"Hello, {name}!"
+                                      
+                            @flow
+                            def example_flow():
+                                say_hello.submit(name="Marvin)
+                                say_hello.wait()
+                                      
+                            example_flow()
+                                      """
+                        )
                     self.logger.log(
-                        level=(
-                            logging.INFO if self.state.is_completed() else logging.ERROR
-                        ),
-                        msg=f"Finished in state {display_state}",
+                        level=level,
+                        msg=msg,
                     )
 
                     # flush all logs if this is not a "top" level run
@@ -499,9 +541,6 @@ class TaskRunEngine(Generic[P, R]):
     async def wait_until_ready(self):
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            self.logger.info(
-                f"Waiting for scheduled time {scheduled_time} for task {self.task.name!r}"
-            )
             await anyio.sleep((scheduled_time - pendulum.now("utc")).total_seconds())
             self.set_state(
                 Retrying() if self.state.name == "AwaitingRetry" else Running(),
