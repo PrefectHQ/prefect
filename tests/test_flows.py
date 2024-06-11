@@ -816,22 +816,29 @@ class TestFlowCall:
         assert flow_state.is_cancelled()
         assert flow_state.message == "1/1 states cancelled."
 
-    def test_flow_supports_instance_methods(self):
-        class Foo:
-            def __init__(self, x):
-                self.x = x
+    class BaseFooModel(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(ignored_types=(Flow,))
+        x: int
 
+    class BaseFoo:
+        def __init__(self, x):
+            self.x = x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_instance_methods(self, T):
+        class Foo(T):
             @flow
             def instance_method(self):
                 return self.x
 
-        f = Foo(1)
-        assert Foo(5).instance_method() == 5
+        f = Foo(x=1)
+        assert Foo(x=5).instance_method() == 5
         assert f.instance_method() == 1
-        assert isinstance(Foo(10).instance_method, Flow)
+        assert isinstance(Foo(x=10).instance_method, Flow)
 
-    def test_flow_supports_class_methods(self):
-        class Foo:
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_class_methods(self, T):
+        class Foo(T):
             def __init__(self, x):
                 self.x = x
 
@@ -843,8 +850,9 @@ class TestFlowCall:
         assert Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Flow)
 
-    def test_flow_supports_static_methods(self):
-        class Foo:
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_static_methods(self, T):
+        class Foo(T):
             def __init__(self, x):
                 self.x = x
 

@@ -10,6 +10,7 @@ from unittest.mock import ANY, MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
+import pydantic
 import pytest
 import regex as re
 
@@ -324,27 +325,31 @@ class TestTaskCall:
 
         assert bar() == "ahellob"
 
-    def test_task_supports_instance_methods(self):
-        class Foo:
-            def __init__(self, x):
-                self.x = x
+    class BaseFooModel(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(ignored_types=(Task,))
+        x: int
 
+    class BaseFoo:
+        def __init__(self, x):
+            self.x = x
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_instance_methods(self, T):
+        class Foo(T):
             @task
             def instance_method(self):
                 return self.x
 
-        f = Foo(1)
-        assert Foo(5).instance_method() == 5
+        f = Foo(x=1)
+        assert Foo(x=5).instance_method() == 5
         # ensure the instance binding is not global
         assert f.instance_method() == 1
 
-        assert isinstance(Foo(10).instance_method, Task)
+        assert isinstance(Foo(x=10).instance_method, Task)
 
-    def test_task_supports_class_methods(self):
-        class Foo:
-            def __init__(self, x):
-                self.x = x
-
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_class_methods(self, T):
+        class Foo(T):
             @classmethod
             @task
             def class_method(cls):
@@ -353,11 +358,9 @@ class TestTaskCall:
         assert Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Task)
 
-    def test_task_supports_static_methods(self):
-        class Foo:
-            def __init__(self, x):
-                self.x = x
-
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_static_methods(self, T):
+        class Foo(T):
             @staticmethod
             @task
             def static_method():
