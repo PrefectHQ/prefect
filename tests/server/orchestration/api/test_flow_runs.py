@@ -16,7 +16,7 @@ from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.core import TaskRunResult
-from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -967,6 +967,137 @@ class TestReadFlowRuns:
         )
         assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()) == 0
+
+    @pytest.fixture
+    async def pending_run(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Pending(),
+            ),
+        )
+        await session.commit()
+        return flow_run
+
+    @pytest.fixture
+    async def scheduled_run(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Scheduled(),
+            ),
+        )
+        await session.commit()
+        return flow_run
+
+    async def test_read_flow_runs_filter_include_state_type(
+        self,
+        pending_run,
+        scheduled_run,
+        client,
+    ):
+        # filter for pending runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"type": {"any_": ["PENDING"]}}}},
+        )
+        assert response.status_code == 200
+
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == pending_run.id
+
+        # filter for scheduled runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"type": {"any_": ["SCHEDULED"]}}}},
+        )
+        assert response.status_code == 200
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == scheduled_run.id
+
+    async def test_read_flow_runs_filter_exclude_state_type(
+        self,
+        pending_run,
+        scheduled_run,
+        client,
+    ):
+        # exclude pending runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"type": {"not_any_": ["PENDING"]}}}},
+        )
+        assert response.status_code == 200
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == scheduled_run.id
+
+        # exclude scheduled runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"type": {"not_any_": ["SCHEDULED"]}}}},
+        )
+        assert response.status_code == 200
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == pending_run.id
+
+    async def test_read_flow_runs_filter_include_state_name(
+        self,
+        pending_run,
+        scheduled_run,
+        client,
+    ):
+        # filter for pending runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"name": {"any_": ["Pending"]}}}},
+        )
+        assert response.status_code == 200
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == pending_run.id
+
+        # filter for scheduled runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"name": {"any_": ["Scheduled"]}}}},
+        )
+        assert response.status_code == 200
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == scheduled_run.id
+
+    async def test_read_flow_runs_filter_exclude_state_name(
+        self,
+        pending_run,
+        scheduled_run,
+        client,
+    ):
+        # exclude pending runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"name": {"not_any_": ["Pending"]}}}},
+        )
+        assert response.status_code == 200
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == scheduled_run.id
+
+        # exclude scheduled runs
+        response = await client.post(
+            "/flow_runs/filter",
+            json={"flow_runs": {"state": {"name": {"not_any_": ["Scheduled"]}}}},
+        )
+        assert response.status_code == 200
+        flow_runs = parse_obj_as(list[FlowRunResponse], response.json())
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == pending_run.id
 
 
 class TestReadFlowRunGraph:
