@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from textwrap import dedent
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
@@ -63,11 +64,12 @@ from prefect.states import (
 )
 from prefect.transactions import Transaction, transaction
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.callables import call_with_parameters
+from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     emit_task_run_state_change_event,
+    link_state_to_result,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -673,6 +675,117 @@ async def run_task_async(
     return engine.state if return_type == "state" else engine.result()
 
 
+def run_generator_task_sync(
+    task: Task[P, R],
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> Generator[R, None, None]:
+    if return_type != "result":
+        raise ValueError("The return_type for a generator task must be 'result'")
+
+    engine = TaskRunEngine[P, R](
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
+    )
+
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+        while engine.is_running():
+            run_coro_as_sync(engine.wait_until_ready())
+            with engine.run_context(), engine.transaction_context() as txn:
+                # TODO: generators should default to commit_mode=OFF
+                # because they are dynamic by definition
+                # for now we just prevent this branch explicitly
+                if False and txn.is_committed():
+                    txn.read()
+                else:
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        task.fn, engine.parameters or {}
+                    )
+                    gen = task.fn(*call_args, **call_kwargs)
+                    try:
+                        while True:
+                            gen_result = next(gen)
+                            # link the current state to the result for dependency tracking
+                            #
+                            # TODO: this could grow the task_run_result
+                            # dictionary in an unbounded way, so finding a
+                            # way to periodically clean it up (using
+                            # weakrefs or similar) would be good
+                            link_state_to_result(engine.state, gen_result)
+                            yield gen_result
+                    except StopIteration as exc:
+                        engine.handle_success(exc.value, transaction=txn)
+                    except GeneratorExit as exc:
+                        engine.handle_success(None, transaction=txn)
+                        gen.throw(exc)
+
+    return engine.result()
+
+
+async def run_generator_task_async(
+    task: Task[P, R],
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> AsyncGenerator[R, None]:
+    if return_type != "result":
+        raise ValueError("The return_type for a generator task must be 'result'")
+    engine = TaskRunEngine[P, R](
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
+    )
+
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+        while engine.is_running():
+            await engine.wait_until_ready()
+            with engine.run_context(), engine.transaction_context() as txn:
+                # TODO: generators should default to commit_mode=OFF
+                # because they are dynamic by definition
+                # for now we just prevent this branch explicitly
+                if False and txn.is_committed():
+                    txn.read()
+                else:
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        task.fn, engine.parameters or {}
+                    )
+                    gen = task.fn(*call_args, **call_kwargs)
+                    try:
+                        while True:
+                            # can't use anext in Python < 3.10
+                            gen_result = await gen.__anext__()
+                            # link the current state to the result for dependency tracking
+                            #
+                            # TODO: this could grow the task_run_result
+                            # dictionary in an unbounded way, so finding a
+                            # way to periodically clean it up (using
+                            # weakrefs or similar) would be good
+                            link_state_to_result(engine.state, gen_result)
+                            yield gen_result
+                    except (StopAsyncIteration, GeneratorExit) as exc:
+                        engine.handle_success(None, transaction=txn)
+                        if isinstance(exc, GeneratorExit):
+                            gen.throw(exc)
+
+    # async generators can't return, but we can raise failures here
+    if engine.state.is_failed():
+        engine.result()
+
+
 def run_task(
     task: Task[P, Union[R, Coroutine[Any, Any, R]]],
     task_run_id: Optional[UUID] = None,
@@ -712,7 +825,11 @@ def run_task(
         dependencies=dependencies,
         context=context,
     )
-    if task.isasync:
+    if task.isasync and task.isgenerator:
+        return run_generator_task_async(**kwargs)
+    elif task.isgenerator:
+        return run_generator_task_sync(**kwargs)
+    elif task.isasync:
         return run_task_async(**kwargs)
     else:
         return run_task_sync(**kwargs)
