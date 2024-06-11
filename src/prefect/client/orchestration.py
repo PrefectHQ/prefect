@@ -2133,7 +2133,6 @@ class PrefectClient:
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
         state_create.state_details.transition_id = uuid4()
-
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
@@ -3668,6 +3667,61 @@ class SyncPrefectClient:
         flow_run.parameters = parameters
 
         return flow_run
+
+    def update_flow_run(
+        self,
+        flow_run_id: UUID,
+        flow_version: Optional[str] = None,
+        parameters: Optional[dict] = None,
+        name: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        empirical_policy: Optional[FlowRunPolicy] = None,
+        infrastructure_pid: Optional[str] = None,
+        job_variables: Optional[dict] = None,
+    ) -> httpx.Response:
+        """
+        Update a flow run's details.
+
+        Args:
+            flow_run_id: The identifier for the flow run to update.
+            flow_version: A new version string for the flow run.
+            parameters: A dictionary of parameter values for the flow run. This will not
+                be merged with any existing parameters.
+            name: A new name for the flow run.
+            empirical_policy: A new flow run orchestration policy. This will not be
+                merged with any existing policy.
+            tags: An iterable of new tags for the flow run. These will not be merged with
+                any existing tags.
+            infrastructure_pid: The id of flow run as returned by an
+                infrastructure block.
+
+        Returns:
+            an `httpx.Response` object from the PATCH request
+        """
+        params = {}
+        if flow_version is not None:
+            params["flow_version"] = flow_version
+        if parameters is not None:
+            params["parameters"] = parameters
+        if name is not None:
+            params["name"] = name
+        if tags is not None:
+            params["tags"] = tags
+        if empirical_policy is not None:
+            params["empirical_policy"] = empirical_policy.model_dump(
+                mode="json", exclude_unset=True
+            )
+        if infrastructure_pid:
+            params["infrastructure_pid"] = infrastructure_pid
+        if job_variables is not None:
+            params["job_variables"] = job_variables
+
+        flow_run_data = FlowRunUpdate(**params)
+
+        return self._client.patch(
+            f"/flow_runs/{flow_run_id}",
+            json=flow_run_data.model_dump(mode="json", exclude_unset=True),
+        )
 
     def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
         """
