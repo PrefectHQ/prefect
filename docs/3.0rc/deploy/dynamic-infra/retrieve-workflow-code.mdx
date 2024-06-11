@@ -8,7 +8,9 @@ Flow code is not stored in a Prefect server instance or in Prefect Cloud.
 
 You have several flow code storage options.
 
-This guide focusses on deployments created with the interactive CLI experience or a prefect.yaml file. If you'd like to create your deployments using Python code, see the discussion of flow code storage in the [`.deploy` section of Deploying Flows to Work pools and Workers guide](/3.0rc/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
+This guide focusses on deployments created with the interactive CLI experience or a prefect.yaml file. 
+If you'd like to create your deployments using Python code, see the discussion of flow code storage in the 
+[`.deploy` section of Deploying Flows to Work pools and Workers guide](/3.0rc/guides/prefect-deploy/#creating-work-pool-based-deployments-with-deploy).
 
 
 ## Option 1: Git-based storage
@@ -22,9 +24,12 @@ Prefect supports each of these platforms.
 
 ### Creating a deployment with git-based storage
 
-Run `prefect deploy` from the root directory of the git repository and create a new deployment. You will see a series of prompts. Select that you want to create a new deployment, select the flow code entrypoint, and name your deployment.
+Run `prefect deploy` from the root directory of the git repository and create a new deployment. 
+You will see a series of prompts. Select that you want to create a new deployment, select the flow code entrypoint, 
+and name your deployment.
 
-Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. Select "y" and you will be prompted to confirm the URL of your git repository and the branch name, as in the example below:
+Prefect detects that you are in a git repository and asks if you want to store your flow code in a git repository. 
+Select "y" and you will be prompted to confirm the URL of your git repository and the branch name, as in the example below:
 
 <div class="terminal">
 ```bash
@@ -40,15 +45,18 @@ In this example, the git repository is hosted on GitHub.
 If you are using Bitbucket or GitLab, the URL will match your provider.
 If the repository is public, enter "n" and you are on your way.
 
-If the repository is private, you can enter a token to access your private repository. This token will be saved in an encrypted Prefect Secret block.
+If the repository is private, you can enter a token to access your private repository. 
+This token will be saved in an encrypted Prefect Secret block.
 
 <div class="terminal">
 ```bash
-? Please enter a token that can be used to access your private repository. This token will be saved as a Secret block via the Prefect API: "123_abc_this_is_my_token"
+? Please enter a token that can be used to access your private repository. 
+This token will be saved as a Secret block via the Prefect API: "123_abc_this_is_my_token"
 ```
 </div>
 
-Verify that you have a new Secret block in your active workspace named in the format "deployment-my-deployment-my-flow-name-repo-token".
+Verify that you have a new Secret block in your active workspace named in the format 
+"deployment-my-deployment-my-flow-name-repo-token".
 
 Creating access tokens differs for each provider.
 
