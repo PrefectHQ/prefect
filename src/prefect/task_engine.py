@@ -3,6 +3,7 @@ import logging
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
+from textwrap import dedent
 from typing import (
     Any,
     AsyncGenerator,
@@ -26,7 +27,6 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -44,7 +44,6 @@ from prefect.exceptions import (
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, _format_user_supplied_storage_key
@@ -59,7 +58,6 @@ from prefect.states import (
     Pending,
     Retrying,
     Running,
-    StateDetails,
     exception_to_crashed_state,
     exception_to_failed_state,
     return_value_to_state,
@@ -176,51 +174,15 @@ class TaskRunEngine(Generic[P, R]):
     def compute_transaction_key(self) -> str:
         key = None
         if self.task.cache_policy:
+            task_run_context = TaskRunContext.get()
             key = self.task.cache_policy.compute_key(
-                task=self.task,
-                run=self.task_run,
+                task_ctx=task_run_context,
                 inputs=self.parameters,
                 flow_parameters=None,
             )
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
-
-    def _compute_state_details(
-        self, include_cache_expiration: bool = False
-    ) -> StateDetails:
-        task_run_context = TaskRunContext.get()
-        ## setup cache metadata
-        cache_key = (
-            self.task.cache_key_fn(
-                task_run_context,
-                self.parameters or {},
-            )
-            if self.task.cache_key_fn
-            else None
-        )
-        # Ignore the cached results for a cache key, default = false
-        # Setting on task level overrules the Prefect setting (env var)
-        refresh_cache = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-
-        if include_cache_expiration:
-            cache_expiration = (
-                (pendulum.now("utc") + self.task.cache_expiration)
-                if self.task.cache_expiration
-                else None
-            )
-        else:
-            cache_expiration = None
-
-        return StateDetails(
-            cache_key=cache_key,
-            refresh_cache=refresh_cache,
-            cache_expiration=cache_expiration,
-        )
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -258,7 +220,7 @@ class TaskRunEngine(Generic[P, R]):
             return_data=False,
             max_depth=-1,
             remove_annotations=True,
-            context={},
+            context={"current_task_run": self.task_run, "current_task": self.task},
         )
 
     def begin_run(self):
@@ -277,8 +239,7 @@ class TaskRunEngine(Generic[P, R]):
             )
             return
 
-        state_details = self._compute_state_details()
-        new_state = Running(state_details=state_details)
+        new_state = Running()
         state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
@@ -338,17 +299,9 @@ class TaskRunEngine(Generic[P, R]):
         if result_factory is None:
             raise ValueError("Result factory is not set")
 
-        # dont put this inside function, else the transaction could get serialized
-        key = transaction.key
-
-        def key_fn():
-            return key
-
-        result_factory.storage_key_fn = key_fn
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                result,
-                result_factory=result_factory,
+                result, result_factory=result_factory, key=transaction.key
             )
         )
         transaction.stage(
@@ -356,9 +309,8 @@ class TaskRunEngine(Generic[P, R]):
             on_rollback_hooks=self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
-        terminal_state.state_details = self._compute_state_details(
-            include_cache_expiration=True
-        )
+        if transaction.is_committed():
+            terminal_state.name = "Cached"
         self.set_state(terminal_state)
         return result
 
@@ -382,10 +334,24 @@ class TaskRunEngine(Generic[P, R]):
                     scheduled_time=pendulum.now("utc").add(seconds=delay)
                 )
             else:
+                delay = None
                 new_state = Retrying()
+
+            self.logger.info(
+                f"Task run failed with exception {exc!r} - "
+                f"Retry {self.retries + 1}/{self.task.retries} will start "
+                f"{str(delay) + ' second(s) from now' if delay else 'immediately'}"
+            )
+
             self.set_state(new_state, force=True)
             self.retries = self.retries + 1
             return True
+        elif self.retries >= self.task.retries:
+            self.logger.error(
+                f"Task run failed with exception {exc!r} - Retries are exhausted"
+            )
+            return False
+
         return False
 
     def handle_exception(self, exc: Exception) -> None:
@@ -508,8 +474,10 @@ class TaskRunEngine(Generic[P, R]):
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
                     raise
-                except (Pause, Abort):
+                except (Pause, Abort) as exc:
                     # Do not capture internal signals as crashes
+                    if isinstance(exc, Abort):
+                        self.logger.error("Task run was aborted: %s", exc)
                     raise
                 except GeneratorExit:
                     # Do not capture generator exits as crashes
@@ -523,18 +491,37 @@ class TaskRunEngine(Generic[P, R]):
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
-                    self.logger.log(
-                        level=(
-                            logging.INFO if self.state.is_completed() else logging.ERROR
-                        ),
-                        msg=f"Finished in state {display_state}",
-                    )
-
-                    # flush all logs if this is not a "top" level run
-                    if not (FlowRunContext.get() or TaskRunContext.get()):
-                        from_sync.call_soon_in_loop_thread(
-                            create_call(APILogHandler.aflush)
+                    level = logging.INFO if self.state.is_completed() else logging.ERROR
+                    msg = f"Finished in state {display_state}"
+                    if self.state.is_pending():
+                        msg += (
+                            "\nPlease wait for all submitted tasks to complete"
+                            " before exiting your flow by calling `.wait()` on the "
+                            "`PrefectFuture` returned from your `.submit()` calls."
                         )
+                        msg += dedent(
+                            """
+                                      
+                            Example:
+                            
+                            from prefect import flow, task
+                                      
+                            @task
+                            def say_hello(name):
+                                print f"Hello, {name}!"
+                                      
+                            @flow
+                            def example_flow():
+                                say_hello.submit(name="Marvin)
+                                say_hello.wait()
+                                      
+                            example_flow()
+                                      """
+                        )
+                    self.logger.log(
+                        level=level,
+                        msg=msg,
+                    )
 
                     self._is_started = False
                     self._client = None
@@ -546,11 +533,8 @@ class TaskRunEngine(Generic[P, R]):
         return task_run.state.is_running() or task_run.state.is_scheduled()
 
     async def wait_until_ready(self):
-        """Waits for scheduled time if set."""
+        """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            self.logger.info(
-                f"Waiting for scheduled time {scheduled_time} for task {self.task.name!r}"
-            )
             await anyio.sleep((scheduled_time - pendulum.now("utc")).total_seconds())
             self.set_state(
                 Retrying() if self.state.name == "AwaitingRetry" else Running(),
@@ -583,9 +567,17 @@ class TaskRunEngine(Generic[P, R]):
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+
+        # refresh cache setting is now repurposes as overwrite transaction record
+        overwrite = (
+            self.task.refresh_cache
+            if self.task.refresh_cache is not None
+            else PREFECT_TASKS_REFRESH_CACHE.value()
+        )
         with transaction(
             key=self.compute_transaction_key(),
             store=ResultFactoryStore(result_factory=result_factory),
+            overwrite=overwrite,
         ) as txn:
             yield txn
 

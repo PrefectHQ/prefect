@@ -63,7 +63,6 @@ from prefect.utilities.importtools import to_qualified_name
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
-    from prefect.task_runners import BaseTaskRunner
     from prefect.transactions import Transaction
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -368,15 +367,22 @@ class Task(Generic[P, R]):
 
             self.task_key = f"{self.fn.__qualname__}-{task_origin_hash}"
 
-        if cache_policy is NotSet and result_storage_key is None:
-            self.cache_policy = DEFAULT
-        elif result_storage_key:
-            self.cache_policy = None
-        else:
-            self.cache_policy = cache_policy
+        # TODO: warn of precedence of cache policies and cache key fn if both provided?
+        if cache_key_fn:
+            cache_policy = CachePolicy.from_cache_key_fn(cache_key_fn)
+
+        # TODO: manage expiration and cache refresh
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
         self.refresh_cache = refresh_cache
+
+        if cache_policy is NotSet and result_storage_key is None:
+            self.cache_policy = DEFAULT
+        elif result_storage_key:
+            # TODO: handle this situation with double storage
+            self.cache_policy = None
+        else:
+            self.cache_policy = cache_policy
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -644,7 +650,7 @@ class Task(Generic[P, R]):
         async with client:
             if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
-                task_run_name = f"{self.name}-{dynamic_key[:NUM_CHARS_DYNAMIC_KEY]}"
+                task_run_name = self.name
             else:
                 dynamic_key = _dynamic_key_for_task_run(
                     context=flow_run_context, task=self
@@ -657,7 +663,7 @@ class Task(Generic[P, R]):
             else:
                 state = Pending()
 
-            # store parameters for background tasks so that task servers
+            # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
                 parameters_id = uuid4()
@@ -817,8 +823,6 @@ class Task(Generic[P, R]):
     ):
         """
         Submit a run of the task to the engine.
-
-        If writing an async task, this call must be awaited.
 
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
@@ -1128,7 +1132,7 @@ class Task(Generic[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> PrefectDistributedFuture:
         """
-        Create a pending task run for a task server to execute.
+        Create a pending task run for a task worker to execute.
 
         Args:
             args: Arguments to run the task with
@@ -1250,7 +1254,7 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    def serve(self, task_runner: Optional["BaseTaskRunner"] = None) -> "Task":
+    def serve(self) -> "Task":
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1267,9 +1271,9 @@ class Task(Generic[P, R]):
 
             >>> my_task.serve()
         """
-        from prefect.task_server import serve
+        from prefect.task_worker import serve
 
-        serve(self, task_runner=task_runner)
+        serve(self)
 
 
 @overload

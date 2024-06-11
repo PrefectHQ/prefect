@@ -1,10 +1,11 @@
 """Rename block data table
 
 Revision ID: 4c4a6a138053
-Revises: 
+Revises:
 Create Date: 2022-02-19 21:02:55.886313
 
 """
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
