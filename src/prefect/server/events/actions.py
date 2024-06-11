@@ -262,17 +262,19 @@ class ExternalDataAction(Action):
         )
 
     def reason_from_response(self, response: Response) -> str:
-        # TODO: handle specific status codes here
-        try:
-            error_detail = response.json().get("detail")
-        except Exception:
-            error_detail = None
+        error_detail = None
         if response.status_code in {409, 422}:
-            if error_detail or response.status_code == 422:
+            try:
+                error_detail = response.json().get("detail")
+            except Exception:
+                pass
+
+            if response.status_code == 422 or error_detail:
                 return f"Validation error occurred for {self.type!r}" + (
                     f" - {error_detail}" if error_detail else ""
                 )
-            return f"Conflict (409) occurred for {self.type!r} - {error_detail or response.text!r}"
+            else:
+                return f"Conflict (409) occurred for {self.type!r} - {error_detail or response.text!r}"
         else:
             return (
                 f"Unexpected status from {self.type!r} action: {response.status_code}"
