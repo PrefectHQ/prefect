@@ -2,7 +2,7 @@ import sys
 from collections import deque
 from traceback import format_exception
 from types import TracebackType
-from typing import Callable, Coroutine, Deque, Tuple
+from typing import Callable, Coroutine, Deque, Optional, Tuple
 
 import anyio
 import httpx
@@ -22,7 +22,7 @@ async def critical_service_loop(
     backoff: int = 1,
     printer: Callable[..., None] = print,
     run_once: bool = False,
-    jitter_range: float = None,
+    jitter_range: Optional[float] = None,
 ):
     """
     Runs the given `workload` function on the specified `interval`, while being
