@@ -109,8 +109,10 @@ class Action(PrefectBaseModel, abc.ABC):
 
     # Captures any additional information about the result of the action we'd like to
     # make available in the payload of the executed or failed events
-    _result_details: Dict[str, Any] = PrivateAttr({})
-    _resulting_related_resources: List[RelatedResource] = PrivateAttr([])
+    _result_details: Dict[str, Any] = PrivateAttr(default_factory=dict)
+    _resulting_related_resources: List[RelatedResource] = PrivateAttr(
+        default_factory=list
+    )
 
     @abc.abstractmethod
     async def act(self, triggered_action: "TriggeredAction") -> None:
@@ -261,7 +263,10 @@ class ExternalDataAction(Action):
 
     def reason_from_response(self, response: Response) -> str:
         # TODO: handle specific status codes here
-        return f"Unexpected status from {self.type} action: {response.status_code}"
+        if response.status_code == 409:
+            return f"409 Conflict occurred while executing action {self.type!r}. Parameter template may be invalid."
+        else:
+            return f"Unexpected status from {self.type} action: {response.status_code}"
 
 
 def _first_resource_of_kind(event: "Event", expected_kind: str) -> Optional["Resource"]:
