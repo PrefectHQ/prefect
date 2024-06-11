@@ -887,7 +887,7 @@ class Flow(Generic[P, R]):
         cls: Type[F],
         source: Union[str, RunnerStorage, ReadableDeploymentStorage],
         entrypoint: str,
-    ) -> Self:
+    ) -> F:
         """
         Loads a flow from a remote source.
 
