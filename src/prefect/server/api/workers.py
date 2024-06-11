@@ -385,7 +385,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_deployments_ready,
-        work_queue_ids=ready_work_queue_ids,
+        work_queue_ids=work_queue_ids,
     )
 
     return queue_response
