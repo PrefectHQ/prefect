@@ -337,7 +337,10 @@ class TestTaskWorkerTaskResults:
     async def test_task_run_via_task_worker_respects_result_storage_key(
         self, storage_key, prefect_client
     ):
-        x = f"foo-{uuid.uuid4()}"
+        if isinstance(storage_key, str):
+            x = f"{storage_key}-{uuid.uuid4()}"
+        else:
+            x = f"foo-{uuid.uuid4()}"
 
         @task(persist_result=True, result_storage_key=x)
         def some_task(x):
