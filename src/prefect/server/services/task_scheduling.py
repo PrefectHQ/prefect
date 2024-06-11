@@ -99,9 +99,8 @@ class TaskSchedulingTimeouts(LoopService):
                 if prior_scheduled_state.type == states.StateType.SCHEDULED:
                     break
             else:
-                self.logger.warning(
-                    "No prior scheduled state found for task run %s", task_run.id
-                )
+                # This wasn't originally a SCHEDULED background task, so we won't
+                # attempt to reschedule it.
                 continue
 
             rescheduled = states.Scheduled(
