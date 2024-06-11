@@ -449,7 +449,7 @@ def _is_main_block(node: ast.AST):
                 and isinstance(node.test.left, ast.Name)
                 and node.test.left.id == "__name__"
                 and isinstance(node.test.comparators[0], ast.Constant)
-                and node.test.comparators[0].s == "__main__"
+                and node.test.comparators[0].value == "__main__"
             ):
                 return True
         except AttributeError:
