@@ -384,7 +384,7 @@ def safe_load_namespace(source_code: str):
     # execution of guarded code
     new_body = []
     for node in parsed_code.body:
-        if isinstance(node, ast.If) and _is_main_block(node):
+        if _is_main_block(node):
             continue
         new_body.append(node)
     parsed_code.body = new_body
