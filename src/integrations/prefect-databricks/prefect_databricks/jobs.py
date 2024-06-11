@@ -89,6 +89,7 @@ async def jobs_create(
     git_source: "models.GitSource" = None,
     format: Optional[str] = None,
     access_control_list: Optional[List["models.AccessControlRequest"]] = None,
+    parameters: Optional[List["models.JobParameter"]] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Create a new job.
@@ -335,6 +336,8 @@ async def jobs_create(
             value is always set to `'MULTI_TASK'`, e.g. `MULTI_TASK`.
         access_control_list:
             List of permissions to set on the job.
+        parameters:
+            Job-level parameter definitions.
 
     Returns:
         Upon success, a dict of the response. </br>- `job_id: int`</br>
@@ -372,6 +375,7 @@ async def jobs_create(
         "git_source": git_source,
         "format": format,
         "access_control_list": access_control_list,
+        "parameters": parameters,
     }
 
     response = await execute_endpoint.fn(
@@ -740,6 +744,8 @@ async def jobs_reset(
                 ignored in Create/Update/Reset calls. When using the Jobs
                 API 2.1 this value is always set to `'MULTI_TASK'`, e.g.
                 `MULTI_TASK`.
+            - job_settings:
+                Job-level parameter definitions.
 
     Returns:
         Upon success, an empty dict.
@@ -793,6 +799,7 @@ async def jobs_run_now(
     pipeline_params: Optional[str] = None,
     sql_params: Optional[Dict] = None,
     dbt_commands: Optional[List] = None,
+    job_parameters: Optional[Dict] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Run a job and return the `run_id` of the triggered run.
@@ -908,6 +915,13 @@ async def jobs_run_now(
             ["dbt deps", "dbt seed", "dbt run"]
             ```
 
+        job_parameters:
+            A map from keys to values for job-level parameters used in the run, for example
+             `'job_parameters': {'param': 'overriding_val'}`, e.g.
+            ```
+            {"param": "overriding_val"}
+            ```
+
     Returns:
         Upon success, a dict of the response. </br>- `run_id: int`</br>- `number_in_job: int`</br>
 
@@ -942,6 +956,7 @@ async def jobs_run_now(
         "pipeline_params": pipeline_params,
         "sql_params": sql_params,
         "dbt_commands": dbt_commands,
+        "job_parameters": job_parameters,
     }
 
     response = await execute_endpoint.fn(
@@ -1134,7 +1149,7 @@ async def jobs_runs_get(
             Whether to include the repair history in the response.
 
     Returns:
-        Upon success, a dict of the response. </br>- `job_id: int`</br>- `run_id: int`</br>- `number_in_job: int`</br>- `creator_user_name: str`</br>- `original_attempt_run_id: int`</br>- `state: "models.RunState"`</br>- `schedule: "models.CronSchedule"`</br>- `tasks: List["models.RunTask"]`</br>- `job_clusters: List["models.JobCluster"]`</br>- `cluster_spec: "models.ClusterSpec"`</br>- `cluster_instance: "models.ClusterInstance"`</br>- `git_source: "models.GitSource"`</br>- `overriding_parameters: "models.RunParameters"`</br>- `start_time: int`</br>- `setup_duration: int`</br>- `execution_duration: int`</br>- `cleanup_duration: int`</br>- `end_time: int`</br>- `trigger: "models.TriggerType"`</br>- `run_name: str`</br>- `run_page_url: str`</br>- `run_type: "models.RunType"`</br>- `attempt_number: int`</br>- `repair_history: List["models.RepairHistoryItem"]`</br>
+        Upon success, a dict of the response. </br>- `job_id: int`</br>- `run_id: int`</br>- `number_in_job: int`</br>- `creator_user_name: str`</br>- `original_attempt_run_id: int`</br>- `state: "models.RunState"`</br>- `schedule: "models.CronSchedule"`</br>- `tasks: List["models.RunTask"]`</br>- `job_clusters: List["models.JobCluster"]`</br>- `cluster_spec: "models.ClusterSpec"`</br>- `cluster_instance: "models.ClusterInstance"`</br>- `git_source: "models.GitSource"`</br>- `overriding_parameters: "models.RunParameters"`</br>- `start_time: int`</br>- `setup_duration: int`</br>- `execution_duration: int`</br>- `cleanup_duration: int`</br>- `end_time: int`</br>- `trigger: "models.TriggerType"`</br>- `run_name: str`</br>- `run_page_url: str`</br>- `run_type: "models.RunType"`</br>- `attempt_number: int`</br>- `repair_history: List["models.RepairHistoryItem"]`</br>- `job_parameters: List["models.RunJobParameter]"`</br>
 
     <h4>API Endpoint:</h4>
     `/2.1/jobs/runs/get`
@@ -1347,6 +1362,7 @@ async def jobs_runs_repair(
     pipeline_params: Optional[str] = None,
     sql_params: Optional[Dict] = None,
     dbt_commands: Optional[List] = None,
+    job_parameters: Optional[Dict] = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """
     Re-run one or more tasks. Tasks are re-run as part of the original job run, use
@@ -1465,6 +1481,13 @@ async def jobs_runs_repair(
             ["dbt deps", "dbt seed", "dbt run"]
             ```
 
+        job_parameters:
+            A map from keys to values for job-level parameters used in the run, for example
+             `'job_parameters': {'param': 'overriding_val'}`, e.g.
+            ```
+            {"param": "overriding_val"}
+            ```
+
     Returns:
         Upon success, a dict of the response. </br>- `repair_id: int`</br>
 
@@ -1501,6 +1524,7 @@ async def jobs_runs_repair(
         "pipeline_params": pipeline_params,
         "sql_params": sql_params,
         "dbt_commands": dbt_commands,
+        "job_parameters": job_parameters,
     }
 
     response = await execute_endpoint.fn(
@@ -1902,6 +1926,8 @@ async def jobs_update(
                 ignored in Create/Update/Reset calls. When using the Jobs
                 API 2.1 this value is always set to `'MULTI_TASK'`, e.g.
                 `MULTI_TASK`.
+            - parameters:
+                Job-level parameter definitions.
         fields_to_remove:
             Remove top-level fields in the job settings. Removing nested fields is
             not supported. This field is optional, e.g.
