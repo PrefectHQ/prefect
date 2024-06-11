@@ -1,6 +1,7 @@
 import asyncio
 import signal
 import uuid
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -170,6 +171,29 @@ async def test_task_worker_handles_deleted_task_run_submission(
     assert (
         f"Task run {task_run.id!r} not found. It may have been deleted." in caplog.text
     )
+
+
+async def test_task_worker_stays_running_on_errors(monkeypatch):
+    # regression test for https://github.com/PrefectHQ/prefect/issues/13911
+    # previously the error submitting the task run would be raised
+    # and uncaught, causing the task worker to stop and this test to fail
+
+    @task
+    def empty_task():
+        pass
+
+    @contextmanager
+    def always_error(*args, **kwargs):
+        raise ValueError("oops")
+
+    monkeypatch.setattr("prefect.task_engine.TaskRunEngine.start", always_error)
+
+    task_worker = TaskWorker(empty_task)
+
+    empty_task.apply_async()
+
+    with anyio.move_on_after(1):
+        await task_worker.start()
 
 
 @pytest.mark.usefixtures("mock_task_worker_start")
