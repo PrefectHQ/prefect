@@ -657,8 +657,8 @@ section:
 ```
 
 Every step optionally provides a `requires` field. Prefect uses this to auto-install if the step is not  
-found in the current environment. Each step can specify an `id` to reference outputs 
-later. The additional fields map directly to Python keyword arguments to the step function. Within a given section, 
+found in the current environment. Each step can specify an `id` to reference outputs in 
+future steps. The additional fields map directly to Python keyword arguments to the step function. Within a given section, 
 steps always run in their order within the `prefect.yaml` file.
 
 <Tip> 
@@ -716,25 +716,24 @@ build:
 ```
 </Tip>
 
-Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with 
-the provided name and tag and push it to the repository referenced by the image name.  
-[As the `prefect-docker` package documentation notes](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), 
-this step produces a few fields that can optionally be used in future steps or within `prefect.yaml` as template values.  
-It is best practice to use `{{ image }}` within `prefect.yaml` (specifically the work pool's job variables section) so that 
-you don't risk having your build step and deployment specification get out of sync with hardcoded values.  
+Once you confirm that these fields are set to their desired values, this step automatically builds a Docker image with 
+the provided name and tag and pushes it to the repository referenced by the image name.  
+As the [`prefect-docker` package documentation explains](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), 
+this step produces optional fields for future steps, or within `prefect.yaml` as template values.  
+We recommend using `{{ image }}` within `prefect.yaml` (specifically the work pool's job variables section). This is so  
+you don't risk your build step and deployment specification get out of sync with hardcoded values.  
 
 <Note>
 **Some steps require Prefect integrations**
 
-Note that in the build step example above, you relied on the `prefect-docker` package; in cases that deal with external services, 
-additional packages are often required and will be auto-installed for you.
+In the build step example above, you relied on the `prefect-docker` package; in cases that deal with external services, 
+additional required packages are auto-installed for you.
 </Note>
 
-<Tip>
 **Pass output to downstream steps**
 
-    Each deployment action can be composed of multiple steps. For example, if you wanted to build a Docker image tagged with the 
-    current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
+Each deployment action can be composed of multiple steps. For example, if you wanted to build a Docker image tagged with the 
+current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
 
     ```yaml
     build:
@@ -749,16 +748,15 @@ additional packages are often required and will be auto-installed for you.
             dockerfile: auto
     ```
 
-    Note that the `id` field is used in the `run_shell_script` step so that its output can be referenced in the next step.
-</Tip>
+The `id` field is used in the `run_shell_script` step to reference its output in the next step.
 
 ### The push action
 
-The push section is most critical for situations in which code is not stored on persistent filesystems or in version control. 
-In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.). 
+The push section is most critical for situations where code is not stored on persistent filesystems or in version control. 
+In this scenario, code is often pushed and pulled from a Cloud storage bucket (for example, S3, GCS, Azure Blobs). 
 The push section allows users to specify and customize the logic for pushing this code repository to arbitrary remote locations.
 
-For example, a user wishing to store their code in an S3 bucket and rely on default worker settings for its runtime environment 
+For example, a user who stores their code in an S3 bucket and relies on default worker settings for its runtime environment 
 could use the `s3` recipe:
 
 <div class="terminal">
@@ -768,7 +766,8 @@ prefect init --recipe s3
 ```
 </div>
 
-Inspecting our newly created `prefect.yaml` file you find that the `push` and `pull` sections have been templated out for us as follows:
+In your newly created`prefect.yaml` file, you should find that the `push` and `pull` sections have been templated out 
+as follows:
 
 ```yaml
 push:
@@ -787,11 +786,11 @@ pull:
     credentials: null
 ```
 
-The bucket has been populated with our provided value (which also could have been provided with the `--field` flag); note that the 
-`folder` property of the `push` step is a template - the `pull_from_s3` step outputs both a `bucket` value as well as a `folder` 
-value that can be used to template downstream steps.  Doing this helps you keep your steps consistent across edits.
+The bucket is populated with the provided value (which also could have been provided with the `--field` flag); note that the 
+`folder` property of the `push` step is a template—the `pull_from_s3` step outputs both a `bucket` value as well as a `folder` 
+value for the template downstream steps. This helps you keep your steps consistent across edits.
 
-As discussed above, if you are using [blocks](/3.0rc/develop/connect-third-party/), the credentials section can be templated with 
+As discussed above, if you use [blocks](/3.0rc/develop/connect-third-party/), you can template the credentials section with 
 a block reference for secure and dynamic credentials access:
 
 ```yaml
@@ -803,25 +802,24 @@ push:
     credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}"
 ```
 
-Anytime you run `prefect deploy`, this `push` section will be executed upon successful completion of your `build` section. 
-For more information on the mechanics of steps, [see below](#deployment-mechanics).
+Anytime you run `prefect deploy`, this `push` section executes upon successful completion of your `build` section.
 
 ### The pull action
 
 The pull section is the most important section within the `prefect.yaml` file. It contains instructions for preparing your 
-flows for a deployment run. These instructions will be executed each time a deployment created within this folder is run through a worker.
+flows for a deployment run. These instructions execute each time a deployment in this folder is run through a worker.
 
 There are three main types of steps that typically show up in a `pull` section:
 
-- `set_working_directory`: this step simply sets the working directory for the process prior to importing your flow
+- `set_working_directory`: this step sets the working directory for the process prior to importing your flow
 - `git_clone`: this step clones the provided repository on the provided branch
-- `pull_from_{cloud}`: this step pulls the working directory from a Cloud storage location (e.g., S3)
+- `pull_from_{cloud}`: this step pulls the working directory from a Cloud storage location (for example, S3)
 
 <Tip> 
 **Use block and variable references**
 
     All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and 
-    will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it 
+    are pulled each time your deployment runs. This avoids storing sensitive information insecurely; it 
     also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 </Tip>
 
@@ -836,7 +834,7 @@ pull:
 
 Alternatively, you can specify a `BitBucketCredentials` or `GitLabCredentials` block to clone from Bitbucket or GitLab. In 
 lieu of a credentials block, you can also provide a GitHub, GitLab, or Bitbucket token directly to the 'access_token` field. 
-You can use a Secret block to do this securely:
+Use a Secret block to do this securely:
 
 ```yaml
 pull:
@@ -847,7 +845,7 @@ pull:
 
 ### Utility steps
 
-Utility steps can be used within a build, push, or pull action to assist in managing the deployment lifecycle:
+Use utility steps within a build, push, or pull action to assist in managing the deployment lifecycle:
 
 - `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output 
 and standard error of the script.
@@ -882,12 +880,12 @@ build:
         expand_env_vars: true
     ```
 
-    Without `expand_env_vars: true`, the above step would return a literal string `$USER` instead of the current user.
+    Without `expand_env_vars: true`, the above step returns a literal string `$USER` instead of the current user.
 </Warning>
 
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
-Below is an example of installing dependencies from a `requirements.txt` file after cloning:
+Here is an example of installing dependencies from a `requirements.txt` file after cloning:
 
 ```yaml
 pull:
@@ -899,7 +897,7 @@ pull:
         requirements_file: requirements.txt
 ```
 
-Below is an example that retrieves an access token from a 3rd party Key Vault and uses it in a private clone step:
+Here is an example that retrieves an access token from a third party key vault and uses it in a private clone step:
 
 ```yaml
 pull:
@@ -913,9 +911,9 @@ pull:
     access_token: "{{ get-access-token.stdout }}"
 ```
 
-You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module that has 
-been packaged into the default working directory of a Docker image (which is /opt/prefect by default).
-`main` is the function entry point, which returns an access token (e.g. `return {"access_token": access_token}`) like the 
+You can also run custom steps by packaging them. In the example below, `retrieve_secrets` is a custom python module packaged 
+into the default working directory of a Docker image (which is /opt/prefect by default).
+`main` is the function entry point, which returns an access token (for example, `return {"access_token": access_token}`) like the 
 preceding example, but utilizing the Azure Python SDK for retrieval.
 
 ```yaml
@@ -932,18 +930,18 @@ preceding example, but utilizing the Azure Python SDK for retrieval.
 Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
 
 - **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these 
-fields within `prefect.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double 
-brackets and be of the form `"{{ field_name }}"`
-- **blocks**: [Prefect blocks](/3.0rc/develop/connect-third-party) can also be referenced with the special syntax 
-`{{ prefect.blocks.block_type.block_slug }}`. It is highly recommended that you use block references for any sensitive 
+fields within `prefect.yaml` and `prefect deploy` will populate them with each call. References must be enclosed in double 
+brackets and in `"{{ field_name }}"` format
+- **blocks**: you can reference [Prefect blocks](/3.0rc/develop/connect-third-party) with the  
+`{{ prefect.blocks.block_type.block_slug }}` syntax. It is highly recommended that you use block references for any sensitive 
 information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
-- **variables**: [Prefect variables](/3.0rc/concepts/variables) can also be referenced with the special syntax 
-`{{ prefect.variables.variable_name }}`. Variables can be used to reference non-sensitive, reusable pieces of information 
+- **variables**: you can reference [Prefect variables](/3.0rc/concepts/variables) with the  
+`{{ prefect.variables.variable_name }}` syntax. Use variables to reference non-sensitive, reusable pieces of information 
 such as a default image name or a default work pool name.
 - **environment variables**: you can also reference environment variables with the special syntax `{{ $MY_ENV_VAR }}`. 
 This is especially useful for referencing environment variables that are set at runtime.
 
-As an example, consider the following `prefect.yaml` file:
+Here's a `prefect.yaml` file as an example:
 
 ```yaml
 build:
@@ -978,8 +976,8 @@ deployments:
             cluster_config: "{{ prefect.blocks.kubernetes-cluster-config.my-favorite-config }}"
 ```
 
-So long as our `build` steps produce fields called `image_name` and `tag`, every time you deploy a new version of our deployment, 
-the `{{ build-image.image }}` variable will be dynamically populated with the relevant values.
+So long as your `build` steps produce fields called `image_name` and `tag`, every time you deploy a new version of our deployment, 
+the `{{ build-image.image }}` variable is dynamically populated with the relevant values.
 
 <Note>
 **Docker step**
@@ -988,24 +986,24 @@ the `{{ build-image.image }}` variable will be dynamically populated with the re
     [`prefect_docker.deployments.steps.build_docker_image`](/3.0rc/deploy/dynamic-infra/deploy-docker/) 
     which produces both the `image_name` and `tag` fields.
 
-    For an example, [check out the deployments tutorial](/3.0rc/deploy/dynamic-infra/deploy-docker/).
+    For an example, check out [Deploy Docker](/3.0rc/deploy/dynamic-infra/deploy-docker/).
 </Note>
 
 A `prefect.yaml` file can have multiple deployment configurations that control the behavior of several deployments.
-These deployments can be managed independently of one another, allowing you to deploy the same flow with different 
+You can manage these deployments independently of one another, allowing you to deploy the same flow with different 
 configurations in the same codebase.
 
-### Working with multiple deployments with prefect.yaml
+### Work with multiple deployments with prefect.yaml
 
 Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple 
-deployments allows the configuration for all deployments to be version controlled and deployed with a single command.
+deployments supports version control for all deployments through a single command.
 
-New deployment declarations can be added to the `prefect.yaml` file by adding a new entry to the `deployments` list. 
-Each deployment declaration must have a unique `name` field which is used to select deployment declarations when using the 
+Add new deployment declarations to the `prefect.yaml` file with a new entry to the `deployments` list. 
+Each deployment declaration must have a unique `name` field to select deployment declarations when using the 
 `prefect deploy` command.
 
 <Warning>
-    When using a `prefect.yaml` file that is in another directory or differently named, remember that the value for
+    When using a `prefect.yaml` file that is in another directory or differently named, the value for
     the deployment `entrypoint` must be relative to the root directory of the project.
 </Warning>
 
@@ -1040,9 +1038,9 @@ deployments:
 ```
 
 This file has three deployment declarations, each referencing a different flow. Each deployment declaration has a unique `name` 
-field and can be deployed individually by using the `--name` flag when deploying.
+field and can be deployed individually with the `--name` flag when deploying.
 
-For example, to deploy `deployment-1` you would run:
+For example, to deploy `deployment-1`, run:
 
 <div class="terminal">
 ```bash
@@ -1050,7 +1048,7 @@ prefect deploy --name deployment-1
 ```
 </div>
 
-To deploy multiple deployments you can provide multiple `--name` flags:
+To deploy multiple deployments, provide multiple `--name` flags:
 
 <div class="terminal">
 ```bash
@@ -1058,7 +1056,7 @@ prefect deploy --name deployment-1 --name deployment-2
 ```
 </div>
 
-To deploy multiple deployments with the same name, you can prefix the deployment name with its flow name:
+To deploy multiple deployments with the same name, prefix the deployment name with its flow name:
 
 <div class="terminal">
 ```bash
@@ -1066,7 +1064,7 @@ prefect deploy --name my_flow/deployment-1 --name my_other_flow/deployment-1
 ```
 </div>
 
-To deploy all deployments you can use the `--all` flag:
+To deploy all deployments, use the `--all` flag:
 
 <div class="terminal">
 ```bash
@@ -1074,7 +1072,7 @@ prefect deploy --all
 ```
 </div>
 
-To deploy deployments that match a pattern you can run:
+To deploy deployments that match a pattern, run:
 
 <div class="terminal">
 ```bash
@@ -1082,34 +1080,36 @@ prefect deploy -n my-flow/* -n *dev/my-deployment -n dep*prod
 ```
 </div>
 
-The above command will deploy all deployments from the flow `my-flow`, all flows ending in `dev` with a deployment named 
-`my-deployment`, and all deployments starting with `dep` and ending in `prod`.
+The above command deploys:
+- all deployments from the flow `my-flow`
+- all flows ending in `dev` with a deployment named 
+`my-deployment`
+- all deployments starting with `dep` and ending in `prod`.
 
 <Note>
-**CLI Options When Deploying Multiple Deployments**
+**CLI Options When deploying multiple deployments**
 
-    When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided through 
-    the CLI will be ignored.
+    When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided are ignored.
 
     To provide overrides to a deployment through the CLI, you must deploy that deployment individually.
 </Note>
 
-### Reusing configuration across deployments
+### Reuse configuration across deployments
 
 Because a `prefect.yaml` file is a standard YAML file, you can use [YAML aliases](https://yaml.org/spec/1.2.2/#71-alias-nodes) 
 to reuse configuration across deployments.
 
-This functionality is useful when multiple deployments need to share the work pool configuration, deployment actions, or other 
+This functionality allows multiple deployments to share the work pool configuration, deployment actions, or other 
 configurations.
 
-You can declare a YAML alias by using the `&{alias_name}` syntax and insert that alias elsewhere in the file with the `*{alias_name}` 
-syntax. When aliasing YAML maps, you can also override specific fields of the aliased map by using the `<<: *{alias_name}` syntax and 
+Declare a YAML alias with the `&{alias_name}` syntax and insert that alias elsewhere in the file with the `*{alias_name}` 
+syntax. When aliasing YAML maps, you can override specific fields of the aliased map with the `<<: *{alias_name}` syntax and 
 adding additional fields below.
 
 We recommend adding a `definitions` section to your `prefect.yaml` file at the same level as the `deployments` section to store your 
 aliases.
 
-For example, consider the following `prefect.yaml` file:
+For example:
 
 ```yaml
 build: ...
@@ -1163,18 +1163,18 @@ deployments:
 
 ```
 
-In the above example, you are using YAML aliases to reuse work pool, schedule, and build configuration across multiple deployments:
+In the above example, YAML aliases reuse work pool, schedule, and build configuration across multiple deployments:
 
-- `deployment-1` and `deployment-2` are using the same work pool configuration
-- `deployment-1` and `deployment-3` are using the same schedule
-- `deployment-1` and `deployment-2` are using the same build deployment action, but `deployment-2` is overriding the `dockerfile` 
+- `deployment-1` and `deployment-2` use the same work pool configuration
+- `deployment-1` and `deployment-3` use the same schedule
+- `deployment-1` and `deployment-2` use the same build deployment action, but `deployment-2` overrides the `dockerfile` 
 field to use a custom Dockerfile
 
 ### Deployment declaration reference
 
 #### Deployment fields
 
-Below are fields that can be added to each deployment declaration.
+These are fields you can add to each deployment declaration.
 
 | Property                                   | Description                                                                                                                                                                                                                                                                              |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1184,45 +1184,45 @@ Below are fields that can be added to each deployment declaration.
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
 | `schedule`                                 | An optional [schedule](/3.0rc/deploy/serve-workflows/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/3.0rc/deploy/serve-workflows/#create-a-flow-run-with-an-event-trigger) to assign to the deployment |
-| `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. Should be in the format `path/to/file.py:flow_function_name`. |
+| `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
-| `work_pool`                                | Information on where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
+| `work_pool`                                | Information of where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
 #### Schedule fields
 
-Below are fields that can be added to a deployment declaration's `schedule` section.
+These are fields you can add to a deployment declaration's `schedule` section.
 
 | Property                                   | Description                                                                                                                                                                                                            |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `interval`                                 | Number of seconds indicating the time between flow runs. Cannot be used in conjunction with `cron` or `rrule`.                                                                                                         |
-| <span class="no-wrap">`anchor_date`</span> | Datetime string indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used. Can only be used with `interval`.                                       |
+| `interval`                                 | Number of seconds indicating the time between flow runs. Cannot use them in conjunction with `cron` or `rrule`.                                                                                                         |
+| <span class="no-wrap">`anchor_date`</span> | Datetime string indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used. Can only use with `interval`.                                       |
 | `timezone`                                 | String name of a time zone, used to enforce localization behaviors like DST boundaries. See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.                                       |
-| `cron`                                     | A valid cron string. Cannot be used in conjunction with `interval` or `rrule`.                                                                                                                                         |
-| `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must be used with `cron`. Defaults to `True`.                                                                                                     |
-| `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot be used in conjunction with `interval` or `cron`. |
+| `cron`                                     | A valid cron string. Cannot use in conjunction with `interval` or `rrule`.                                                                                                                                         |
+| `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must use with `cron`. Defaults to `True`.                                                                                                     |
+| `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot used them in conjunction with `interval` or `cron`. |
 
-For more information about schedules, see the [Schedules](/3.0rc/deploy/serve-workflows/add-schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section) concept doc.
+For more information, see the [Schedules](/3.0rc/deploy/serve-workflows/add-schedules/#creating-schedules-through-a-deployment-yaml-files-schedule-section).
 
 #### Work pool fields
 
-Below are fields that can be added to a deployment declaration's `work_pool` section.
+These are fields you can add to a deployment declaration's `work_pool` section.
 
 | Property                                       | Description                                                                                                                                                                                               |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                                         | The name of the work pool to schedule flow runs in for the deployment.                                                                                                                                    |
-| <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool will be used.                       |
+| <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool is used.                       |
 | `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/3.0rc/deploy/dynamic-infra/control-runs/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
 #### Deployment mechanics
 
-Anytime you run `prefect deploy` in a directory that contains a `prefect.yaml` file, the following actions are taken in order:
+Anytime you run `prefect deploy` in a directory that contains a `prefect.yaml` file, the following actions take place in order:
 
-- The `prefect.yaml` file is loaded. First, the `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided.
-- Next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
-- Next, the `pull` section is templated with any step outputs but _is not run_.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime
-- Next, all variable and block references are resolved with the deployment declaration.  All flags provided through the `prefect deploy` CLI are then overlaid on the values loaded from the file.
-- The final step occurs when the fully realized deployment specification is registered with the Prefect API
+- The `prefect.yaml` file load. First, the `build` section loads and all variable and block references resolve. The steps then run in the order provided.
+- Next, the `push` section loads and all variable and block references resolve; the steps within this section then run in the order provided.
+- Next, the `pull` section is templated with any step outputs but _is not run_. Block references are _not_ hydrated for security purposes: they are always resolved at runtime.
+- Next, all variable and block references resolve with the deployment declaration. All flags provided through the `prefect deploy` CLI are then overlaid on the values loaded from the file.
+- The final step occurs when the fully realized deployment specification is registered with the Prefect API.
 
 <Tip>
 **Deployment instruction overrides**
@@ -1231,17 +1231,16 @@ The `build`, `push`, and `pull` sections in deployment definitions take preceden
 `prefect.yaml`.
 </Tip>
 
-Each time a step is run, the following actions are taken in order:
+Each time a step runs, the following actions take place in order:
 
-- The step's inputs and block / variable references are resolved (see [the templating documentation above](#templating-options) for 
-more details).
-- The step's function is imported; if it cannot be found, the special `requires` keyword is used to install the necessary packages
+- The step's inputs and block / variable references resolve.
+- The step's function is imported; if it cannot be found, the special `requires` keyword installs the necessary packages.
 - The step's function is called with the resolved inputs.
 - The step's output is returned and used to resolve inputs for subsequent steps.
 
 ## Next steps
 
-Now that you are familiar with creating deployments, you may want to explore infrastructure options for running your deployments:
+Now that you are familiar with creating deployments, you can explore infrastructure options for running your deployments:
 
 - [Managed work pools](/3.0rc/guides/managed-execution/)
 - [Push work pools](/3.0rc/deploy/dynamic-infra/push-runs-serverless/)
