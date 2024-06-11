@@ -268,9 +268,7 @@ class TaskWorker:
                 )
                 await asyncio.wrap_future(future)
         except BaseException as exc:
-            logger.exception(
-                f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
-            )
+            logger.exception(f"Failed to start task run {task_run.id!r}", exc_info=exc)
             return
 
         if self._limiter:
