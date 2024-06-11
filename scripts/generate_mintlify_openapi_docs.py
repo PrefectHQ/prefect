@@ -5,6 +5,9 @@ import sys
 from pathlib import Path
 from typing import Any, Union
 
+from pkg_resources import parse_version
+
+import prefect
 from prefect.server.api.server import create_app
 
 Mint = dict[str, Any]
@@ -18,8 +21,12 @@ def docs_path() -> Path:
 
 
 def current_version() -> str:
-    # TODO: derive this from the docs and the current version of the prefect package
-    return "3.0rc"
+    """
+    Return a high-level version string for the current Prefect version, like "3.1" or
+    "3.1rc".
+    """
+    version = parse_version(prefect.__version__)
+    return f"{version.major}.{version.minor}{version.pre[0] if version.pre else ''}"
 
 
 def main():
