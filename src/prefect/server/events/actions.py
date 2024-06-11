@@ -268,8 +268,10 @@ class ExternalDataAction(Action):
         except Exception:
             error_detail = None
         if response.status_code in {409, 422}:
-            if error_detail:
-                return f"Validation error occurred for {self.type!r} - {error_detail}"
+            if error_detail or response.status_code == 422:
+                return f"Validation error occurred for {self.type!r}" + (
+                    f" - {error_detail}" if error_detail else ""
+                )
             return f"Conflict (409) occurred for {self.type!r} - {error_detail or response.text!r}"
         else:
             return (
