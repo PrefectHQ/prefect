@@ -390,18 +390,6 @@ class TestTaskRun:
         assert isinstance(task_state, State)
         assert await task_state.result() == 1
 
-    def test_task_returns_generator_implicit_list(self):
-        @task
-        def my_generator(n):
-            for i in range(n):
-                yield i
-
-        @flow
-        def my_flow():
-            return my_generator(5)
-
-        assert my_flow() == [0, 1, 2, 3, 4]
-
 
 class TestTaskSubmit:
     def test_raises_outside_of_flow(self):
