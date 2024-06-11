@@ -263,10 +263,17 @@ class ExternalDataAction(Action):
 
     def reason_from_response(self, response: Response) -> str:
         # TODO: handle specific status codes here
+        try:
+            error_detail = response.json().get("detail")
+        except Exception:
+            error_detail = None
         if response.status_code == 409:
-            return f"409 Conflict occurred while executing action {self.type!r}. Parameter template may be invalid."
+            if error_detail and "Validation failed" in error_detail:
+                return f"Validation error occurred for {self.type!r} - {error_detail}"
         else:
-            return f"Unexpected status from {self.type} action: {response.status_code}"
+            return (
+                f"Unexpected status from {self.type!r} action: {response.status_code}"
+            )
 
 
 def _first_resource_of_kind(event: "Event", expected_kind: str) -> Optional["Resource"]:
