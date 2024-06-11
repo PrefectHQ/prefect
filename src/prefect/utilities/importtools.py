@@ -448,7 +448,7 @@ def _is_main_block(node: ast.AST):
                 isinstance(node.test, ast.Compare)
                 and isinstance(node.test.left, ast.Name)
                 and node.test.left.id == "__name__"
-                and isinstance(node.test.comparators[0], ast.Str)
+                and isinstance(node.test.comparators[0], ast.Constant)
                 and node.test.comparators[0].s == "__main__"
             ):
                 return True
