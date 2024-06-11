@@ -159,11 +159,13 @@ class TaskWorker:
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)
-            self._runs_task_group.start_soon(self._submit_scheduled_task_run, task_run)
+            self._runs_task_group.start_soon(
+                self._safe_submit_scheduled_task_run, task_run
+            )
 
-    async def _submit_scheduled_task_run(self, task_run: TaskRun):
+    async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
         try:
-            await self._submit_and_start_run(task_run)
+            await self._submit_scheduled_task_run(task_run)
         except BaseException as exc:
             logger.exception(
                 f"Failed to submit task run {task_run.id!r}",
@@ -173,7 +175,7 @@ class TaskWorker:
             if self._limiter:
                 self._limiter.release_on_behalf_of(task_run.id)
 
-    async def _submit_and_start_run(self, task_run: TaskRun):
+    async def _submit_scheduled_task_run(self, task_run: TaskRun):
         logger.debug(
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
@@ -284,7 +286,7 @@ class TaskWorker:
         async with self if not self.started else asyncnullcontext():
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run.id)
-            await self._submit_scheduled_task_run(task_run)
+            await self._safe_submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
         logger.debug("Starting task worker...")
