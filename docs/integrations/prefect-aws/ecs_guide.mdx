@@ -66,12 +66,15 @@ graph TB
 
 ## ECS and Prefect
 
-!!! tip "ECS tasks != Prefect tasks"
-    An ECS task is **not** the same thing as a [Prefect task](https://docs.prefect.io/latest/develop/write-tasks/#tasks-overview).
+<Tip>
+**ECS tasks != Prefect tasks**
 
-    ECS tasks are groupings of containers that run within an ECS Cluster. An ECS task's behavior is determined by its task definition.
+An ECS task is **not** the same thing as a [Prefect task](https://docs.prefect.io/latest/develop/write-tasks/#tasks-overview).
 
-    An [*ECS task definition*](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) is the blueprint for the ECS task. It describes which Docker containers to run and what you want to have happen inside these containers.
+ECS tasks are groupings of containers that run within an ECS Cluster. An ECS task's behavior is determined by its task definition.
+</Tip>
+
+An [*ECS task definition*](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) is the blueprint for the ECS task. It describes which Docker containers to run and what you want to have happen inside these containers.
 
 ECS tasks are instances of a task definition. A Task Execution launches container(s) as defined in the task definition **until they are stopped or exit on their own**. This setup is ideal for ephemeral processes such as a Prefect flow run.
 
@@ -87,9 +90,9 @@ If you specify a task definition [ARN (Amazon Resource Name)](https://docs.aws.a
 
 You can use either EC2 or Fargate as the capacity provider. Fargate simplifies initiation, but lengthens infrastructure setup time for each flow run. Using EC2 for the ECS cluster can reduce setup time. In this example, we will show how to use Fargate.
 
-
-!!! tip
-    If you prefer infrastructure as code check out this [Terraform module](https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/aws/tf-prefect2-ecs-worker) to provision an ECS cluster with a worker.
+<Tip>
+If you prefer infrastructure as code check out this [Terraform module](https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/aws/tf-prefect2-ecs-worker) to provision an ECS cluster with a worker.
+</Tip>
 
 ## Prerequisites
 
@@ -112,8 +115,7 @@ prefect work-pool create --type ecs my-ecs-pool
 Or from the Prefect UI:
 ![WorkPool](img/Workpool_UI.png)
 
-!!!
-    Because this guide uses Fargate as the capacity provider and the default VPC and ECS cluster, no further configuration is needed.
+Because this guide uses Fargate as the capacity provider and the default VPC and ECS cluster, no further configuration is needed.
 
 Next, set up a Prefect ECS worker that will discover and pull work from this work pool.
 
@@ -152,8 +154,8 @@ Use the `aws iam create-role` command to create the roles that you will be using
     --assume-role-policy-document file://ecs-trust-policy.json
 ```
 
-!!! tip
-    Depending on the requirements of your flows, it is advised to create a [second role for your ECS tasks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html). This role will contain the permissions required by the ECS tasks in which your flows will run. For example, if your workflow loads data into an S3 bucket, you would need a role with additional permissions to access S3.
+
+Depending on the requirements of your flows, it is advised to create a [second role for your ECS tasks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html). This role will contain the permissions required by the ECS tasks in which your flows will run. For example, if your workflow loads data into an S3 bucket, you would need a role with additional permissions to access S3.
 
 ### 3. Attach the policy to the role
 
@@ -224,8 +226,9 @@ aws iam get-role --role-name taskExecutionRole --query 'Role.[RoleName, Arn]' --
 
 - Notice that the CPU and Memory allocations are relatively small. The worker's main responsibility is to submit work through API calls to AWS, _not_ to execute your Prefect flow code.
 
-!!! tip
+<Tip>
     To avoid hardcoding your API key into the task definition JSON see [how to add sensitive data using AWS secrets manager to the container definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data-tutorial.html#specifying-sensitive-data-tutorial-create-taskdef).
+</Tip>
 
 ### 2. Register the task definition
 
@@ -259,9 +262,10 @@ aws ecs create-service \
     `aws ec2 describe-subnets --filter Name=<vpc-id>`
 - Replace `<security-group-ids>` with a comma-separated list of your VPC security group IDs.
 
-!!! tip "Sanity check"
-    The work pool page in the Prefect UI allows you to check the health of your workers - make sure your new worker is live! Note that it can take a few minutes for an ECS service to come online.
-    If your worker does not come online and you are using the command from this guide, you may not be using the default VPC. For connectivity issues, check your VPC's configuration and refer to the [ECS outbound networking guide](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/networking-outbound.html).
+
+The work pool page in the Prefect UI allows you to check the health of your workers - make sure your new worker is live! Note that it can take a few minutes for an ECS service to come online.
+
+If your worker does not come online and you are using the command from this guide, you may not be using the default VPC. For connectivity issues, check your VPC's configuration and refer to the [ECS outbound networking guide](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/networking-outbound.html).
 
 ## Step 4: Pick up a flow run with your new worker
 

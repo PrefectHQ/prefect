@@ -6,7 +6,8 @@
           v-model:fullscreen="fullscreen"
           v-model:viewport="dateRange"
           v-model:selected="selection"
-          :flow-run="flowRun"
+          :flow-run
+          :fetch-events
           class="flow-run-graphs__flow-run"
         />
       </div>
@@ -39,7 +40,11 @@
     FlowRunGraphSelectionPanel,
     FlowRunGraphArtifactDrawer,
     FlowRunGraphArtifactsPopover,
-    FlowRunGraphStatePopover
+    FlowRunGraphStatePopover,
+    RunGraphFetchEventsContext,
+    RunGraphEvent,
+    WorkspaceEventsFilter,
+    useWorkspaceApi
   } from '@prefecthq/prefect-ui-library'
   import { computed, ref } from 'vue'
 
@@ -47,6 +52,7 @@
     flowRun: FlowRun,
   }>()
 
+  const api = useWorkspaceApi()
   const dateRange = ref<RunGraphViewportDateRange>()
 
   const fullscreen = ref(false)
@@ -63,6 +69,25 @@
       },
     }
   })
+
+  const fetchEvents = async ({ nodeId, since, until }: RunGraphFetchEventsContext): Promise<RunGraphEvent[]> => {
+    const filter: WorkspaceEventsFilter = {
+      anyResource: {
+        id: [`prefect.flow-run.${nodeId}`],
+      },
+      event: {
+        excludePrefix: ['prefect.log.write', 'prefect.task-run.'],
+      },
+      occurred: {
+        since,
+        until,
+      },
+    }
+
+    const { events } = await api.events.getEvents(filter)
+
+    return events
+  }
 </script>
 
 <style>

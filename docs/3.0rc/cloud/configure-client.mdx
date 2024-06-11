@@ -1,16 +1,17 @@
 ---
-title: Profiles and Configuration
+title: Profiles and configuration
 description: Prefect settings let you customize your workflow environment, including working with Prefect server and Prefect Cloud.
 ---
 
-Learn how to configure your Prefect local settings to customize your workflow environment. These settings are type-validated and [documented][prefect.settings.Settings]. 
+Learn how to configure your Prefect local settings to customize your workflow environment.
+
+{/* These settings are type-validated and [documented][prefect.settings.Settings.] */}
 
 ## Profiles
 
 You can override a setting with an environment variable or by updating the setting in a Prefect [profile](#configuration-profiles).
 
-Prefect profiles are persisted groups of settings on your local machine. A single profile is always active.
-
+Prefect profiles are persisted groups of settings on your local machine. A single profile is always active. 
 Initially, a `default` profile is active and contains no settings overrides.
 
 To view active settings from the command line, run:
@@ -55,22 +56,32 @@ If using a local Prefect server instance, set your API URL like this:
 ```bash
 PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
+<Tip>
 
-!!! tip "`PREFECT_API_URL` setting for workers"
+**`PREFECT_API_URL` setting for workers**
 
-    If using a [worker](/3.0rc/deploy/dynamic-infra/control-runs/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/3.0rc/cloud/configure-client/) must be set for the environment in which your worker is running.
+If you're using a [worker](/3.0rc/deploy/dynamic-infra/control-runs/) to run flows in remote environments, 
+[`PREFECT_API_URL`](/3.0rc/cloud/configure-client/) must be set for the environment where your worker is running.
 
-    For the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+For the worker to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or 
+Docker container, you must configure `PREFECT_API_URL` in that environment.
 
-!!! tip "Running the Prefect UI behind a reverse proxy"
+</Tip>
 
-    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
-    The [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL) should be set to the external proxy URL (for example, if your external URL is \<https://prefect-server.example.com/> then set `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). 
-    You can also set [`PREFECT_API_URL`](/3.0rc/cloud/configure-client/#prefect.settings.PREFECT_API_URL) to the API URL. This setting is a fallback if `PREFECT_UI_API_URL` is not set.
+### Host the Prefect UI behind a reverse proxy
+
+When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
+locally-hosted Prefect UI instance, you must also configure the Prefect server instance to connect to the API. 
+The [`PREFECT_UI_API_URL`](../../api-ref/prefect/settings/#PREFECT_UI_API_URL) should be set to the external proxy URL 
+(for example, if your external URL is \<https://prefect-server.example.com/> then set 
+`PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process). 
+You can also set [`PREFECT_API_URL`](/3.0rc/cloud/configure-client/#prefect.settings.PREFECT_API_URL) to the API URL. 
+This setting is a fallback if `PREFECT_UI_API_URL` is not set.
 
 ### PREFECT_HOME
 
-The `PREFECT_HOME` value specifies the local Prefect directory for configuration files, profiles, and the location of the default [Prefect SQLite database](/3.0rc/concepts/database/).
+The `PREFECT_HOME` value specifies the local Prefect directory for configuration files, profiles, and the location of the 
+default [Prefect SQLite database](/3.0rc/concepts/database/).
 
 ```bash
 PREFECT_HOME='~/.prefect'
@@ -89,7 +100,8 @@ PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
 If using a local Prefect server instance, you can configure CSRF protection settings.
 
 `PREFECT_SERVER_CSRF_PROTECTION_ENABLED`
-- Activates CSRF protection on the server, requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. Defaults to False.
+- Activates CSRF protection on the server, requiring valid CSRF tokens for applicable requests. Recommended for production to 
+prevent CSRF attacks. Defaults to False.
 
 ```bash
 PREFECT_SERVER_CSRF_PROTECTION_ENABLED=True
@@ -102,16 +114,16 @@ PREFECT_SERVER_CSRF_PROTECTION_ENABLED=True
 PREFECT_SERVER_CSRF_TOKEN_EXPIRATION='3600'  # 1 hour in seconds
 ```
 
-By default clients expect that CSRF protection is enabled on the server. If you are running a server without CSRF protection, you can disable CSRF support in the client.
+By default clients expect that CSRF protection is enabled on the server. If you are running a server without CSRF protection, 
+you can disable CSRF support in the client.
 
 `PREFECT_CLIENT_CSRF_SUPPORT_ENABLED`
-- Enables or disables CSRF token handling in the Prefect client. When enabled, the client manages CSRF tokens for state-changing API requests. Defaults to True.
+- Enables or disables CSRF token handling in the Prefect client. When enabled, the client manages CSRF tokens for state-changing API requests. 
+Defaults to True.
 
 ```bash
 PREFECT_CLIENT_CSRF_SUPPORT_ENABLED=True
 ```
-
-
 
 ### Database settings
 
@@ -133,7 +145,7 @@ The `prefect config` CLI commands enable you to view, set, and unset settings.
 
 ### View settings from the CLI
 
-The `prefect config view` command will display settings that override default values.
+The `prefect config view` command displays settings that override default values.
 
 ```bash
 $ prefect config view
@@ -164,7 +176,8 @@ PREFECT_API_URL='None' (from defaults)
 
 The `prefect config set` command lets you change the value of a default setting.
 
-A commonly used example is setting the `PREFECT_API_URL`, which you may need to change when interacting with different Prefect server instances or Prefect Cloud.
+For example, you can set the `PREFECT_API_URL` to the location of Prefect server or your Cloud workspace:
+instances or Prefect Cloud.
 
 ```bash
 # use a local Prefect server

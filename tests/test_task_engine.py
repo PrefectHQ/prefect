@@ -3,7 +3,7 @@ import logging
 import time
 from pathlib import Path
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 from uuid import UUID, uuid4
 
 import anyio
@@ -411,12 +411,14 @@ class TestTaskRunsAsync:
 
         assert "__parents__" not in tr.task_inputs
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
-        @task(persist_result=False)
+    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=False, result_storage=fs)
         async def no_persist():
             return TaskRunContext.get().task_run.id
 
-        @task(persist_result=True)
+        @task(persist_result=True, result_storage=fs)
         async def persist():
             return TaskRunContext.get().task_run.id
 
@@ -433,7 +435,7 @@ class TestTaskRunsAsync:
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
-        assert await api_state.result() == str(run_id)
+        assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
@@ -605,14 +607,16 @@ class TestTaskRunsSync:
         assert "__parents__" in inner_run.task_inputs
         assert inner_run.task_inputs["__parents__"][0].id == b
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
-        @task(persist_result=False)
+    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=False, result_storage=fs)
         def no_persist():
             ctx = TaskRunContext.get()
             assert ctx
             return ctx.task_run.id
 
-        @task(persist_result=True)
+        @task(persist_result=True, result_storage=fs)
         def persist():
             ctx = TaskRunContext.get()
             assert ctx
@@ -631,7 +635,7 @@ class TestTaskRunsSync:
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
-        assert await api_state.result() == str(run_id)
+        assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
@@ -858,6 +862,94 @@ class TestTaskRetries:
             await test_flow()
             assert mock.call_count == 2
 
+    @pytest.mark.parametrize(
+        "retry_delay_seconds,expected_delay_sequence",
+        [
+            (1, [1, 1, 1]),
+            ([1, 2, 3], [1, 2, 3]),
+            (
+                [1, 2],
+                [1, 2, 2],
+            ),  # repeat last value if len(retry_delay_seconds) < retries
+        ],
+    )
+    async def test_async_task_respects_retry_delay_seconds(
+        self, retry_delay_seconds, expected_delay_sequence, prefect_client, monkeypatch
+    ):
+        mock_sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", mock_sleep)
+
+        @task(retries=3, retry_delay_seconds=retry_delay_seconds)
+        async def flaky_function():
+            raise ValueError()
+
+        task_run_state = await flaky_function(return_state=True)
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_failed()
+        assert mock_sleep.call_count == 3
+        assert mock_sleep.call_args_list == [
+            call(pytest.approx(delay, abs=0.2)) for delay in expected_delay_sequence
+        ]
+
+        states = await prefect_client.read_task_run_states(task_run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "Failed",
+        ]
+
+    @pytest.mark.parametrize(
+        "retry_delay_seconds,expected_delay_sequence",
+        [
+            (1, [1, 1, 1]),
+            ([1, 2, 3], [1, 2, 3]),
+            (
+                [1, 2],
+                [1, 2, 2],
+            ),  # repeat last value if len(retry_delay_seconds) < retries
+        ],
+    )
+    async def test_sync_task_respects_retry_delay_seconds(
+        self, retry_delay_seconds, expected_delay_sequence, prefect_client, monkeypatch
+    ):
+        mock_sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", mock_sleep)
+
+        @task(retries=3, retry_delay_seconds=retry_delay_seconds)
+        def flaky_function():
+            raise ValueError()
+
+        task_run_state = flaky_function(return_state=True)
+        task_run_id = task_run_state.state_details.task_run_id
+
+        assert task_run_state.is_failed()
+        assert mock_sleep.call_count == 3
+        assert mock_sleep.call_args_list == [
+            call(pytest.approx(delay, abs=1)) for delay in expected_delay_sequence
+        ]
+
+        states = await prefect_client.read_task_run_states(task_run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "AwaitingRetry",
+            "Retrying",
+            "Failed",
+        ]
+
 
 class TestTaskCrashDetection:
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
@@ -944,6 +1036,17 @@ class TestTimeout:
         @task(timeout_seconds=0.1)
         async def async_task():
             await asyncio.sleep(2)
+
+        with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
+            await run_task_async(async_task)
+
+    @pytest.mark.xfail(
+        reason="Synchronous sleep in an async task is not interruptible by async timeout"
+    )
+    async def test_timeout_async_task_with_sync_sleep(self):
+        @task(timeout_seconds=0.1)
+        async def async_task():
+            time.sleep(2)
 
         with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             await run_task_async(async_task)
@@ -1050,3 +1153,382 @@ class TestCachePolicy:
         assert state.is_completed()
         assert await state.result() == 1800
         assert isinstance(state.data, UnpersistedResult)
+
+    async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+        FIRST_RUN = True
+
+        @task(
+            persist_result=True,
+            cache_key_fn=lambda *args, **kwargs: "test-none-caches",
+            result_storage=fs,
+        )
+        async def async_task():
+            nonlocal FIRST_RUN
+
+            if FIRST_RUN:
+                FIRST_RUN = False
+                return None
+            else:
+                return 42
+
+        first_val = await async_task()
+        # make sure test is behaving
+        assert FIRST_RUN is False
+
+        second_val = await async_task()
+
+        assert first_val is None
+        assert second_val is None
+
+
+class TestGenerators:
+    async def test_generator_task(self):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        def g():
+            yield 1
+            yield 2
+
+        gen = g()
+        assert next(gen) == 1
+        assert next(gen) == 2
+        with pytest.raises(StopIteration):
+            next(gen)
+
+    async def test_generator_task_requires_return_type_result(self):
+        @task
+        def g():
+            yield 1
+
+        with pytest.raises(
+            ValueError, match="The return_type for a generator task must be 'result'"
+        ):
+            for i in g(return_state=True):
+                pass
+
+    async def test_generator_task_states(self, prefect_client: PrefectClient):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        def g():
+            yield TaskRunContext.get().task_run.id
+            yield 2
+
+        gen = g()
+        tr_id = next(gen)
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_running()
+
+        # exhaust the generator
+        for _ in gen:
+            pass
+
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_completed()
+
+    async def test_generator_task_with_return(self):
+        """
+        If a generator returns, the return value is trapped
+        in its StopIteration error
+        """
+
+        @task
+        def g():
+            yield 1
+            return 2
+
+        gen = g()
+        assert next(gen) == 1
+        with pytest.raises(StopIteration) as exc_info:
+            next(gen)
+        assert exc_info.value.value == 2
+
+    async def test_generator_task_with_exception(self):
+        @task
+        def g():
+            yield 1
+            raise ValueError("xyz")
+
+        gen = g()
+        assert next(gen) == 1
+        with pytest.raises(ValueError, match="xyz"):
+            next(gen)
+
+    async def test_generator_task_with_exception_is_failed(
+        self, prefect_client: PrefectClient
+    ):
+        @task
+        def g():
+            yield TaskRunContext.get().task_run.id
+            raise ValueError("xyz")
+
+        gen = g()
+        tr_id = next(gen)
+        with pytest.raises(ValueError, match="xyz"):
+            next(gen)
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_failed()
+
+    async def test_generator_parent_tracking(self, prefect_client: PrefectClient):
+        """ """
+
+        @task(task_run_name="gen-1000")
+        def g():
+            yield 1000
+
+        @task
+        def f(x):
+            return TaskRunContext.get().task_run.id
+
+        @flow
+        def parent_tracking():
+            for val in g():
+                tr_id = f(val)
+            return tr_id
+
+        tr_id = parent_tracking()
+        tr = await prefect_client.read_task_run(tr_id)
+        assert "x" in tr.task_inputs
+        assert "__parents__" in tr.task_inputs
+        # the parent run and upstream 'x' run are the same
+        assert tr.task_inputs["__parents__"][0].id == tr.task_inputs["x"][0].id
+        # the parent run is "gen-1000"
+        gen_id = tr.task_inputs["__parents__"][0].id
+        gen_tr = await prefect_client.read_task_run(gen_id)
+        assert gen_tr.name == "gen-1000"
+
+    async def test_generator_retries(self):
+        """
+        Test that a generator can retry and will re-emit its events
+        """
+
+        @task(retries=2)
+        def g():
+            yield 1
+            yield 2
+            raise ValueError()
+
+        values = []
+        try:
+            for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2, 1, 2, 1, 2]
+
+    async def test_generator_timeout(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @task(timeout_seconds=0.1)
+        def g():
+            yield 1
+            time.sleep(2)
+            yield 2
+
+        values = []
+        with pytest.raises(TimeoutError):
+            for v in g():
+                values.append(v)
+        assert values == [1]
+
+    async def test_generator_doesnt_retry_on_generator_exception(self):
+        """
+        Test that a generator doesn't retry for normal generator exceptions like StopIteration
+        """
+
+        @task(retries=2)
+        def g():
+            yield 1
+            yield 2
+
+        values = []
+        try:
+            for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2]
+
+
+class TestAsyncGenerators:
+    async def test_generator_task(self):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        async def g():
+            yield 1
+            yield 2
+
+        counter = 0
+        async for val in g():
+            if counter == 0:
+                assert val == 1
+            if counter == 1:
+                assert val == 2
+            assert counter <= 1
+            counter += 1
+
+    async def test_generator_task_requires_return_type_result(self):
+        @task
+        async def g():
+            yield 1
+
+        with pytest.raises(
+            ValueError, match="The return_type for a generator task must be 'result'"
+        ):
+            async for i in g(return_state=True):
+                pass
+
+    async def test_generator_task_states(self, prefect_client: PrefectClient):
+        """
+        Test for generator behavior including StopIteration
+        """
+
+        @task
+        async def g():
+            yield TaskRunContext.get().task_run.id
+
+        async for val in g():
+            tr_id = val
+            tr = await prefect_client.read_task_run(tr_id)
+            assert tr.state.is_running()
+
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_completed()
+
+    async def test_generator_task_with_exception(self):
+        @task
+        async def g():
+            yield 1
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            async for val in g():
+                assert val == 1
+
+    async def test_generator_task_with_exception_is_failed(
+        self, prefect_client: PrefectClient
+    ):
+        @task
+        async def g():
+            yield TaskRunContext.get().task_run.id
+            raise ValueError("xyz")
+
+        with pytest.raises(ValueError, match="xyz"):
+            async for val in g():
+                tr_id = val
+
+        tr = await prefect_client.read_task_run(tr_id)
+        assert tr.state.is_failed()
+
+    async def test_generator_parent_tracking(self, prefect_client: PrefectClient):
+        """ """
+
+        @task(task_run_name="gen-1000")
+        async def g():
+            yield 1000
+
+        @task
+        async def f(x):
+            return TaskRunContext.get().task_run.id
+
+        @flow
+        async def parent_tracking():
+            async for val in g():
+                tr_id = await f(val)
+            return tr_id
+
+        tr_id = await parent_tracking()
+        tr = await prefect_client.read_task_run(tr_id)
+        assert "x" in tr.task_inputs
+        assert "__parents__" in tr.task_inputs
+        # the parent run and upstream 'x' run are the same
+        assert tr.task_inputs["__parents__"][0].id == tr.task_inputs["x"][0].id
+        # the parent run is "gen-1000"
+        gen_id = tr.task_inputs["__parents__"][0].id
+        gen_tr = await prefect_client.read_task_run(gen_id)
+        assert gen_tr.name == "gen-1000"
+
+    async def test_generator_retries(self):
+        """
+        Test that a generator can retry and will re-emit its events
+        """
+
+        @task(retries=2)
+        async def g():
+            yield 1
+            yield 2
+            raise ValueError()
+
+        values = []
+        try:
+            async for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2, 1, 2, 1, 2]
+
+    @pytest.mark.xfail(
+        reason="Synchronous sleep in an async task is not interruptible by async timeout"
+    )
+    async def test_generator_timeout_with_sync_sleep(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @task(timeout_seconds=0.1)
+        async def g():
+            yield 1
+            time.sleep(2)
+            yield 2
+
+        values = []
+        with pytest.raises(TimeoutError):
+            async for v in g():
+                values.append(v)
+        assert values == [1]
+
+    async def test_generator_timeout_with_async_sleep(self):
+        """
+        Test that a generator can timeout
+        """
+
+        @task(timeout_seconds=0.1)
+        async def g():
+            yield 1
+            await asyncio.sleep(2)
+            yield 2
+
+        values = []
+        with pytest.raises(TimeoutError):
+            async for v in g():
+                values.append(v)
+        assert values == [1]
+
+    async def test_generator_doesnt_retry_on_generator_exception(self):
+        """
+        Test that a generator doesn't retry for normal generator exceptions like StopIteration
+        """
+
+        @task(retries=2)
+        async def g():
+            yield 1
+            yield 2
+
+        values = []
+        try:
+            async for v in g():
+                values.append(v)
+        except ValueError:
+            pass
+        assert values == [1, 2]

@@ -3,8 +3,10 @@ import logging
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
+from textwrap import dedent
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
@@ -13,17 +15,18 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Sequence,
     Set,
     TypeVar,
     Union,
 )
 from uuid import UUID
 
+import anyio
 import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -41,7 +44,6 @@ from prefect.exceptions import (
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, _format_user_supplied_storage_key
@@ -50,23 +52,24 @@ from prefect.settings import (
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
+    AwaitingRetry,
     Failed,
     Paused,
     Pending,
     Retrying,
     Running,
-    StateDetails,
     exception_to_crashed_state,
     exception_to_failed_state,
     return_value_to_state,
 )
 from prefect.transactions import Transaction, transaction
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.callables import call_with_parameters
+from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     _get_hook_name,
     emit_task_run_state_change_event,
+    link_state_to_result,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -171,51 +174,15 @@ class TaskRunEngine(Generic[P, R]):
     def compute_transaction_key(self) -> str:
         key = None
         if self.task.cache_policy:
+            task_run_context = TaskRunContext.get()
             key = self.task.cache_policy.compute_key(
-                task=self.task,
-                run=self.task_run,
+                task_ctx=task_run_context,
                 inputs=self.parameters,
                 flow_parameters=None,
             )
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
-
-    def _compute_state_details(
-        self, include_cache_expiration: bool = False
-    ) -> StateDetails:
-        task_run_context = TaskRunContext.get()
-        ## setup cache metadata
-        cache_key = (
-            self.task.cache_key_fn(
-                task_run_context,
-                self.parameters or {},
-            )
-            if self.task.cache_key_fn
-            else None
-        )
-        # Ignore the cached results for a cache key, default = false
-        # Setting on task level overrules the Prefect setting (env var)
-        refresh_cache = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-
-        if include_cache_expiration:
-            cache_expiration = (
-                (pendulum.now("utc") + self.task.cache_expiration)
-                if self.task.cache_expiration
-                else None
-            )
-        else:
-            cache_expiration = None
-
-        return StateDetails(
-            cache_key=cache_key,
-            refresh_cache=refresh_cache,
-            cache_expiration=cache_expiration,
-        )
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -253,7 +220,7 @@ class TaskRunEngine(Generic[P, R]):
             return_data=False,
             max_depth=-1,
             remove_annotations=True,
-            context={},
+            context={"current_task_run": self.task_run, "current_task": self.task},
         )
 
     def begin_run(self):
@@ -272,8 +239,7 @@ class TaskRunEngine(Generic[P, R]):
             )
             return
 
-        state_details = self._compute_state_details()
-        new_state = Running(state_details=state_details)
+        new_state = Running()
         state = self.set_state(new_state)
 
         BACKOFF_MAX = 10
@@ -333,17 +299,9 @@ class TaskRunEngine(Generic[P, R]):
         if result_factory is None:
             raise ValueError("Result factory is not set")
 
-        # dont put this inside function, else the transaction could get serialized
-        key = transaction.key
-
-        def key_fn():
-            return key
-
-        result_factory.storage_key_fn = key_fn
         terminal_state = run_coro_as_sync(
             return_value_to_state(
-                result,
-                result_factory=result_factory,
+                result, result_factory=result_factory, key=transaction.key
             )
         )
         transaction.stage(
@@ -351,22 +309,49 @@ class TaskRunEngine(Generic[P, R]):
             on_rollback_hooks=self.task.on_rollback_hooks,
             on_commit_hooks=self.task.on_commit_hooks,
         )
-        terminal_state.state_details = self._compute_state_details(
-            include_cache_expiration=True
-        )
+        if transaction.is_committed():
+            terminal_state.name = "Cached"
         self.set_state(terminal_state)
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
-        """
-        If the task has retries left, and the retry condition is met, set the task to retrying.
+        """Handle any task run retries.
+
+        - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
+          - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
-        - If the task has retries left, and the retry condition is met, return True.
         """
         if self.retries < self.task.retries and self.can_retry:
-            self.set_state(Retrying(), force=True)
+            if self.task.retry_delay_seconds:
+                delay = (
+                    self.task.retry_delay_seconds[
+                        min(self.retries, len(self.task.retry_delay_seconds) - 1)
+                    ]  # repeat final delay value if attempts exceed specified delays
+                    if isinstance(self.task.retry_delay_seconds, Sequence)
+                    else self.task.retry_delay_seconds
+                )
+                new_state = AwaitingRetry(
+                    scheduled_time=pendulum.now("utc").add(seconds=delay)
+                )
+            else:
+                delay = None
+                new_state = Retrying()
+
+            self.logger.info(
+                f"Task run failed with exception {exc!r} - "
+                f"Retry {self.retries + 1}/{self.task.retries} will start "
+                f"{str(delay) + ' second(s) from now' if delay else 'immediately'}"
+            )
+
+            self.set_state(new_state, force=True)
             self.retries = self.retries + 1
             return True
+        elif self.retries >= self.task.retries:
+            self.logger.error(
+                f"Task run failed with exception {exc!r} - Retries are exhausted"
+            )
+            return False
+
         return False
 
     def handle_exception(self, exc: Exception) -> None:
@@ -489,8 +474,10 @@ class TaskRunEngine(Generic[P, R]):
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
                     raise
-                except (Pause, Abort):
+                except (Pause, Abort) as exc:
                     # Do not capture internal signals as crashes
+                    if isinstance(exc, Abort):
+                        self.logger.error("Task run was aborted: %s", exc)
                     raise
                 except GeneratorExit:
                     # Do not capture generator exits as crashes
@@ -504,26 +491,56 @@ class TaskRunEngine(Generic[P, R]):
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
-                    self.logger.log(
-                        level=(
-                            logging.INFO if self.state.is_completed() else logging.ERROR
-                        ),
-                        msg=f"Finished in state {display_state}",
-                    )
-
-                    # flush all logs if this is not a "top" level run
-                    if not (FlowRunContext.get() or TaskRunContext.get()):
-                        from_sync.call_soon_in_loop_thread(
-                            create_call(APILogHandler.aflush)
+                    level = logging.INFO if self.state.is_completed() else logging.ERROR
+                    msg = f"Finished in state {display_state}"
+                    if self.state.is_pending():
+                        msg += (
+                            "\nPlease wait for all submitted tasks to complete"
+                            " before exiting your flow by calling `.wait()` on the "
+                            "`PrefectFuture` returned from your `.submit()` calls."
                         )
+                        msg += dedent(
+                            """
+                                      
+                            Example:
+                            
+                            from prefect import flow, task
+                                      
+                            @task
+                            def say_hello(name):
+                                print f"Hello, {name}!"
+                                      
+                            @flow
+                            def example_flow():
+                                say_hello.submit(name="Marvin)
+                                say_hello.wait()
+                                      
+                            example_flow()
+                                      """
+                        )
+                    self.logger.log(
+                        level=level,
+                        msg=msg,
+                    )
 
                     self._is_started = False
                     self._client = None
 
     def is_running(self) -> bool:
-        if getattr(self, "task_run", None) is None:
+        """Whether or not the engine is currently running a task."""
+        if (task_run := getattr(self, "task_run", None)) is None:
             return False
-        return getattr(self, "task_run").state.is_running()
+        return task_run.state.is_running() or task_run.state.is_scheduled()
+
+    async def wait_until_ready(self):
+        """Waits until the scheduled time (if its the future), then enters Running."""
+        if scheduled_time := self.state.state_details.scheduled_time:
+            sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
+            await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            self.set_state(
+                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                force=True,
+            )
 
     # --------------------------
     #
@@ -551,9 +568,17 @@ class TaskRunEngine(Generic[P, R]):
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
         result_factory = getattr(TaskRunContext.get(), "result_factory", None)
+
+        # refresh cache setting is now repurposes as overwrite transaction record
+        overwrite = (
+            self.task.refresh_cache
+            if self.task.refresh_cache is not None
+            else PREFECT_TASKS_REFRESH_CACHE.value()
+        )
         with transaction(
             key=self.compute_transaction_key(),
             store=ResultFactoryStore(result_factory=result_factory),
+            overwrite=overwrite,
         ) as txn:
             yield txn
 
@@ -577,13 +602,14 @@ class TaskRunEngine(Generic[P, R]):
         Convenience method to call the task function. Returns a coroutine if the
         task is async.
         """
+        parameters = self.parameters or {}
         if self.task.isasync:
 
             async def _call_task_fn():
                 if transaction.is_committed():
                     result = transaction.read()
                 else:
-                    result = await call_with_parameters(self.task.fn, self.parameters)
+                    result = await call_with_parameters(self.task.fn, parameters)
                 self.handle_success(result, transaction=transaction)
 
             return _call_task_fn()
@@ -591,7 +617,7 @@ class TaskRunEngine(Generic[P, R]):
             if transaction.is_committed():
                 result = transaction.read()
             else:
-                result = call_with_parameters(self.task.fn, self.parameters)
+                result = call_with_parameters(self.task.fn, parameters)
             self.handle_success(result, transaction=transaction)
 
 
@@ -615,6 +641,7 @@ def run_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
+            run_coro_as_sync(engine.wait_until_ready())
             with engine.run_context(), engine.transaction_context() as txn:
                 engine.call_task_fn(txn)
 
@@ -641,10 +668,122 @@ async def run_task_async(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
+            await engine.wait_until_ready()
             with engine.run_context(), engine.transaction_context() as txn:
                 await engine.call_task_fn(txn)
 
     return engine.state if return_type == "state" else engine.result()
+
+
+def run_generator_task_sync(
+    task: Task[P, R],
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> Generator[R, None, None]:
+    if return_type != "result":
+        raise ValueError("The return_type for a generator task must be 'result'")
+
+    engine = TaskRunEngine[P, R](
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
+    )
+
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+        while engine.is_running():
+            run_coro_as_sync(engine.wait_until_ready())
+            with engine.run_context(), engine.transaction_context() as txn:
+                # TODO: generators should default to commit_mode=OFF
+                # because they are dynamic by definition
+                # for now we just prevent this branch explicitly
+                if False and txn.is_committed():
+                    txn.read()
+                else:
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        task.fn, engine.parameters or {}
+                    )
+                    gen = task.fn(*call_args, **call_kwargs)
+                    try:
+                        while True:
+                            gen_result = next(gen)
+                            # link the current state to the result for dependency tracking
+                            #
+                            # TODO: this could grow the task_run_result
+                            # dictionary in an unbounded way, so finding a
+                            # way to periodically clean it up (using
+                            # weakrefs or similar) would be good
+                            link_state_to_result(engine.state, gen_result)
+                            yield gen_result
+                    except StopIteration as exc:
+                        engine.handle_success(exc.value, transaction=txn)
+                    except GeneratorExit as exc:
+                        engine.handle_success(None, transaction=txn)
+                        gen.throw(exc)
+
+    return engine.result()
+
+
+async def run_generator_task_async(
+    task: Task[P, R],
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    return_type: Literal["state", "result"] = "result",
+    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> AsyncGenerator[R, None]:
+    if return_type != "result":
+        raise ValueError("The return_type for a generator task must be 'result'")
+    engine = TaskRunEngine[P, R](
+        task=task,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        context=context,
+    )
+
+    with engine.start(task_run_id=task_run_id, dependencies=dependencies):
+        while engine.is_running():
+            await engine.wait_until_ready()
+            with engine.run_context(), engine.transaction_context() as txn:
+                # TODO: generators should default to commit_mode=OFF
+                # because they are dynamic by definition
+                # for now we just prevent this branch explicitly
+                if False and txn.is_committed():
+                    txn.read()
+                else:
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        task.fn, engine.parameters or {}
+                    )
+                    gen = task.fn(*call_args, **call_kwargs)
+                    try:
+                        while True:
+                            # can't use anext in Python < 3.10
+                            gen_result = await gen.__anext__()
+                            # link the current state to the result for dependency tracking
+                            #
+                            # TODO: this could grow the task_run_result
+                            # dictionary in an unbounded way, so finding a
+                            # way to periodically clean it up (using
+                            # weakrefs or similar) would be good
+                            link_state_to_result(engine.state, gen_result)
+                            yield gen_result
+                    except (StopAsyncIteration, GeneratorExit) as exc:
+                        engine.handle_success(None, transaction=txn)
+                        if isinstance(exc, GeneratorExit):
+                            gen.throw(exc)
+
+    # async generators can't return, but we can raise failures here
+    if engine.state.is_failed():
+        engine.result()
 
 
 def run_task(
@@ -686,7 +825,11 @@ def run_task(
         dependencies=dependencies,
         context=context,
     )
-    if task.isasync:
+    if task.isasync and task.isgenerator:
+        return run_generator_task_async(**kwargs)
+    elif task.isgenerator:
+        return run_generator_task_sync(**kwargs)
+    elif task.isasync:
         return run_task_async(**kwargs)
     else:
         return run_task_sync(**kwargs)
