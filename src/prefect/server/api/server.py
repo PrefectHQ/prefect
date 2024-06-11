@@ -299,7 +299,7 @@ def create_api_app(
         return True
 
     @api_app.get(version_check_path, tags=["Root"])
-    async def orion_info():
+    async def server_version():
         return SERVER_API_VERSION
 
     # always include version checking
