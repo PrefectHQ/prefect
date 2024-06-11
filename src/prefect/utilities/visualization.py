@@ -1,6 +1,7 @@
 """
 Utilities for working with Flow.visualize()
 """
+
 from functools import partial
 from typing import Any, List, Optional
 
