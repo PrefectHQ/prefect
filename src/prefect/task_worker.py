@@ -241,30 +241,37 @@ class TaskWorker:
             validated_state=state,
         )
 
-        if task.isasync:
-            await run_task_async(
-                task=task,
-                task_run_id=task_run.id,
-                task_run=task_run,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type="state",
-                context=run_context,
+        try:
+            if task.isasync:
+                await run_task_async(
+                    task=task,
+                    task_run_id=task_run.id,
+                    task_run=task_run,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                    return_type="state",
+                    context=run_context,
+                )
+            else:
+                context = copy_context()
+                future = self._executor.submit(
+                    context.run,
+                    run_task_sync,
+                    task=task,
+                    task_run_id=task_run.id,
+                    task_run=task_run,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                    return_type="state",
+                    context=run_context,
+                )
+                await asyncio.wrap_future(future)
+        except BaseException as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
             )
-        else:
-            context = copy_context()
-            future = self._executor.submit(
-                context.run,
-                run_task_sync,
-                task=task,
-                task_run_id=task_run.id,
-                task_run=task_run,
-                parameters=parameters,
-                wait_for=wait_for,
-                return_type="state",
-                context=run_context,
-            )
-            await asyncio.wrap_future(future)
+            return
+
         if self._limiter:
             self._limiter.release_on_behalf_of(task_run.id)
 
