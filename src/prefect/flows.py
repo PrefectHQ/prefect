@@ -884,10 +884,10 @@ class Flow(Generic[P, R]):
     @classmethod
     @sync_compatible
     async def from_source(
-        cls: Type[Self],
+        cls: Type[F],
         source: Union[str, RunnerStorage, ReadableDeploymentStorage],
         entrypoint: str,
-    ) -> Self:
+    ) -> F:
         """
         Loads a flow from a remote source.
 
