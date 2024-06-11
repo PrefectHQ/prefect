@@ -99,6 +99,7 @@ from azure.mgmt.containerinstance.models import (
 from pydantic import VERSION as PYDANTIC_VERSION
 
 import prefect.infrastructure.container
+from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.core import BlockNotSavedError
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
@@ -177,15 +178,25 @@ class AzureContainerInstanceJobResult(InfrastructureResult):
     """
 
 
+@deprecated_class(
+    start_date="Mar 2024",
+    help="Use the AzureContainerWorker instead."
+    " Refer to the upgrade guide for more information:"
+    " https://docs.prefect.io/latest/guides/upgrade-guide-agents-to-workers/.",
+)
 class AzureContainerInstanceJob(Infrastructure):
     """
+    DEPRECATION WARNING:
+
+    This block is deprecated along with Agents and all other Infrastructure blocks.
+    It will be removed in prefect v3.
+
     Run a command using a container on Azure Container Instances.
     Note this block is experimental. The interface may change without notice.
     """
 
     _block_type_name = "Azure Container Instance Job"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _description = "Run tasks using Azure Container Instances. Note this block is experimental. The interface may change without notice."  # noqa
     _documentation_url = "https://prefecthq.github.io/prefect-azure/container_instance/#prefect_azure.container_instance.AzureContainerInstanceJob"  # noqa
 
     type: Literal["container-instance-job"] = Field(

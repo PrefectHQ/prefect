@@ -121,6 +121,11 @@ class VertexAICustomTrainingJobResult(InfrastructureResult):
 )
 class VertexAICustomTrainingJob(Infrastructure):
     """
+    DEPRECATION WARNING:
+
+    This block is deprecated along with Agents and all other Infrastructure blocks.
+    It will be removed in prefect v3.
+
     Infrastructure block used to run Vertex AI custom training jobs.
     """
 

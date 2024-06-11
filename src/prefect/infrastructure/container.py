@@ -124,6 +124,12 @@ class BaseDockerLogin(Block, ABC):
 )
 class DockerRegistry(BaseDockerLogin):
     """
+    DEPRECATION WARNING:
+
+    This class is deprecated as of March 2024 and will not be available after September 2024.
+    It has been replaced by `DockerRegistryCredentials` from the `prefect-docker` package, which
+    offers enhanced functionality and better a better user experience.
+
     Connects to a Docker registry.
 
     Requires a Docker Engine to be connectable.
