@@ -1,0 +1,229 @@
+---
+title: Quickstart
+description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
+---
+
+Prefect is an orchestration and observability platform that empowers developers to build and scale code quickly, turning Python scripts into resilient, recurring workflows. Take a Python script to a production-ready, remotely executable workflow in minutes.
+
+In this quickstart, you'll schedule your code on remote infrastructure and observe the state of your workflows.
+
+## Example
+
+This basic script fetches statistics about the [main Prefect GitHub repository](https://github.com/PrefectHQ/prefect).
+
+```python
+import httpx
+
+def get_repo_info():
+    url = "https://api.github.com/repos/PrefectHQ/prefect"
+    response = httpx.get(url)
+    repo = response.json()
+    print("PrefectHQ/prefect repository statistics 🤓:")
+    print(f"Stars 🌠 : {repo['stargazers_count']}")
+
+if __name__ == "__main__":
+    get_repo_info()
+```
+
+The following steps convert this script to a schedulable, observable, resilient, and deployable workflow.
+
+## Install Prefect
+
+```bash
+pip install -U prefect
+```
+
+See the [install guide](/3.0rc/get-started/install/) for more detailed installation instructions, if needed.
+
+## Connect to Prefect's API
+
+Much of Prefect's functionality is backed by a hosted API. The fastest and simplest solution is a Prefect-hosted API:
+
+1. Head to [https://app.prefect.cloud/](https://app.prefect.cloud/) and sign in or create a forever-free Prefect Cloud account.
+1. Use the `prefect cloud login` CLI command to log in to Prefect Cloud from your development environment.
+
+```bash
+prefect cloud login
+```
+
+Choose **Log in with a web browser** and click the **Authorize** button in the browser window that opens.
+Your CLI is now authenticated with your Prefect Cloud account through a locally-stored API key that expires in 30 days.
+
+If you have any issues with browser-based authentication, see the [Prefect Cloud docs](/3.0rc/cloud/manage-users/api-keys/) to learn how to authenticate with a manually created API key.
+
+<Note>
+If you would like to run a Prefect server instance on your own infrastructure, see the [Host a Prefect server instance](/3.0rc/cloud/self-host/) docs.
+Note that you need to both host your own server and run flows on your own infrastructure.
+</Note>
+
+## Convert your function to a Prefect flow
+
+The easiest way convert a Python function into a workflow is to add a `@flow` decorator.
+[Flows](/3.0rc/develop/write-workflows/) are the core observable, deployable units in Prefect and are the primary entrypoint to orchestrated work.
+
+```python my_gh_workflow.py
+import httpx   # an HTTP client library and dependency of Prefect
+from prefect import flow, task
+
+
+@task(retries=2)
+def get_repo_info(repo_owner: str, repo_name: str):
+    """Get info about a repo - will retry twice after failing"""
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+    api_response = httpx.get(url)
+    api_response.raise_for_status()
+    repo_info = api_response.json()
+    return repo_info
+
+
+@task
+def get_contributors(repo_info: dict):
+    """Get contributors for a repo"""
+    contributors_url = repo_info["contributors_url"]
+    response = httpx.get(contributors_url)
+    response.raise_for_status()
+    contributors = response.json()
+    return contributors
+
+
+@flow(log_prints=True)
+def repo_info(repo_owner: str = "PrefectHQ", repo_name: str = "prefect"):
+    """
+    Given a GitHub repository, logs the number of stargazers
+    and contributors for that repo.
+    """
+    repo_info = get_repo_info(repo_owner, repo_name)
+    print(f"Stars 🌠 : {repo_info['stargazers_count']}")
+
+    contributors = get_contributors(repo_info)
+    print(f"Number of contributors 👷: {len(contributors)}")
+
+
+if __name__ == "__main__":
+    repo_info()
+```
+
+The `log_prints=True` argument provided to the `@flow` decorator logs output from `print` statements within the function.
+
+The flow calls two tasks, defined by the `@task` decorator. Tasks are the smallest unit of observed and orchestrated work in Prefect.
+
+Run the script:
+
+```bash
+python my_gh_workflow.py
+```
+
+Prefect automatically tracks the state of the flow run and logs the output in the UI and CLI.
+
+```bash
+14:28:31.099 | INFO    | prefect.engine - Created flow run 'energetic-panther' for flow 'repo-info'
+14:28:31.100 | INFO    | Flow run 'energetic-panther' - View at https://app.prefect.cloud/account/123/workspace/abc/flow-runs/flow-run/xyz
+14:28:32.178 | INFO    | Flow run 'energetic-panther' - Created task run 'get_repo_info-0' for task 'get_repo_info'
+14:28:32.179 | INFO    | Flow run 'energetic-panther' - Executing 'get_repo_info-0' immediately...
+14:28:32.584 | INFO    | Task run 'get_repo_info-0' - Finished in state Completed()
+14:28:32.599 | INFO    | Flow run 'energetic-panther' - Stars 🌠 : 13609
+14:28:32.682 | INFO    | Flow run 'energetic-panther' - Created task run 'get_contributors-0' for task 'get_contributors'
+14:28:32.682 | INFO    | Flow run 'energetic-panther' - Executing 'get_contributors-0' immediately...
+14:28:33.118 | INFO    | Task run 'get_contributors-0' - Finished in state Completed()
+14:28:33.134 | INFO    | Flow run 'energetic-panther' - Number of contributors 👷: 30
+14:28:33.255 | INFO    | Flow run 'energetic-panther' - Finished in state Completed('All states completed.')
+```
+
+## Deploy on a remote infrastructure
+
+Running a flow locally is a good start, but a remote destination is used for production. Tell Prefect where to run the workflow by creating a [work pool](/3.0rc/deploy/dynamic-infra/control-runs/).
+
+Prefect Cloud can run the flow code using a [Prefect Managed work pool](/3.0rc/deploy/serve-workflows/index). You can create a work pool in the UI or from the CLI.
+
+```bash
+prefect work-pool create my-managed-pool --type prefect:managed
+```
+
+You'll see the work pool created by the CLI. You can also view your new work pool on the **Work Pools** page of the UI.
+
+## Make your code schedulable
+
+The final step is to deploy your flow so it can run remotely on a schedule. 
+
+A [deployment](/3.0rc/deploy/serve-workflows/) schedules a flow function to run in your work pool. Deployments elevate flows to remotely configurable entities that have their own API.
+
+This next script builds a deployment, identifying:
+
+- Source for the code to deploy (here, a GitHub repo)
+- Specific flow to run (`my_gh_workflow.py:repo_info`)
+- Work pool target (`my-managed-pool`)
+- Cron schedule (1am every day)
+
+<Info>
+This example uses Prefect's own GitHub repo. To test with your own code, push your script to your GitHub account and update the `source` argument accordingly.
+</Info>
+
+```bash create_deployment.py
+from prefect import flow
+
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/prefecthq/demos.git",
+        entrypoint="my_gh_workflow.py:repo_info",
+    ).deploy(
+        name="my-first-deployment",
+        work_pool_name="my-managed-pool",
+        cron="0 1 * * *",
+    )
+```
+
+<Tip>
+You can store your flow code in nearly any location as long as Prefect can access it. This example uses a GitHub repository, but you could bake your code into a Docker image or store it in cloud provider storage. Read [Where to store your flow code](/3.0rc/deploy/dynamic-infra/retrieve-workflow-code) for details.
+</Tip>
+
+Run the script to create the deployment on the Prefect Cloud server.
+
+```bash
+python create_deployment.py
+```
+
+You see a message that your deployment was created:
+
+```bash
+Successfully created/updated all deployments!
+______________________________________________________
+|                    Deployments                     |  
+______________________________________________________
+|    Name                       |  Status  | Details |
+______________________________________________________
+| repo-info/my-first-deployment | applied  |         |
+______________________________________________________
+```
+
+The previous command creates the deployment in Prefect, without starting it. To schedule a run for the deployment, use:
+
+```bash
+prefect deployment run 'repo-info/my-first-deployment'
+```
+
+You can also run your flow via the Prefect UI on the **Deployments** page.
+
+The deployment is configured to run on a Prefect Managed work pool, so Prefect automatically spins up the infrastructure to run the flow. 
+
+After a minute or so, you should see the flow run graph and logs on the Flow Run page in the UI.
+
+![Managed flow run graph and logs](/3.0rc/img/ui/qs-flow-run.png)
+
+<Warning>
+    After testing this process, click the **Remove** button in the top right of the **Deployment** page so that the workflow is no longer scheduled to run once per day.
+</Warning>
+
+## Next steps
+
+You've seen how to move from a Python script to a scheduled, observable, remotely orchestrated workflow with Prefect. Now considering reading: 
+
+* [Write workflows](/3.0rc/develop/write-workflows/index)
+* [Write tasks](/3.0rc/develop/write-tasks/index)
+* [Self-host](/3.0rc/cloud/self-host) your Prefect server
+
+
+<Tip>
+**Need help?**
+
+Get your questions answered by a Prefect Product Advocate! [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs)
+</Tip>

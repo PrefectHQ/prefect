@@ -25,17 +25,15 @@ import anyio._backends._asyncio
 from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
-from prefect import Task, get_client
-from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.client.orchestration import SyncPrefectClient
+from prefect import Task
+from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import ClientContext, FlowRunContext, TagsContext, TaskRunContext
+from prefect.context import ClientContext, FlowRunContext, TagsContext
 from prefect.exceptions import Abort, Pause, PrefectException, UpstreamTaskError
 from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
 from prefect.futures import PrefectFuture, resolve_futures_to_states
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
@@ -490,18 +488,6 @@ class FlowRunEngine(Generic[P, R]):
             self._client = client_ctx.sync_client
             self._is_started = True
 
-            # this conditional is engaged whenever a run is triggered via deployment
-            if self.flow_run_id and not self.flow:
-                self.flow_run = self.client.read_flow_run(self.flow_run_id)
-                try:
-                    self.flow = self.load_flow(self.client)
-                except Exception as exc:
-                    self.handle_exception(
-                        exc,
-                        msg="Failed to load flow from entrypoint.",
-                    )
-                    self.short_circuit = True
-
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(self.client)
 
@@ -511,6 +497,21 @@ class FlowRunEngine(Generic[P, R]):
                         f"View at {ui_url}/flow-runs/flow-run/{self.flow_run.id}",
                         extra={"send_to_api": False},
                     )
+            else:
+                # Update the empirical policy to match the flow if it is not set
+                if self.flow_run.empirical_policy.retry_delay is None:
+                    self.flow_run.empirical_policy.retry_delay = (
+                        self.flow.retry_delay_seconds
+                    )
+
+                if self.flow_run.empirical_policy.retries is None:
+                    self.flow_run.empirical_policy.retries = self.flow.retries
+
+                self.client.update_flow_run(
+                    flow_run_id=self.flow_run.id,
+                    flow_version=self.flow.version,
+                    empirical_policy=self.flow_run.empirical_policy,
+                )
 
             # validate prior to context so that context receives validated params
             if self.flow.should_validate_parameters:
@@ -549,12 +550,6 @@ class FlowRunEngine(Generic[P, R]):
                     level=logging.INFO if self.state.is_completed() else logging.ERROR,
                     msg=f"Finished in state {display_state}",
                 )
-
-                # flush any logs in the background if this is a "top" level run
-                if not (FlowRunContext.get() or TaskRunContext.get()):
-                    from_sync.call_soon_in_loop_thread(
-                        create_call(APILogHandler.aflush)
-                    )
 
                 self._is_started = False
                 self._client = None

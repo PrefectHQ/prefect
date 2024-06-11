@@ -78,7 +78,7 @@ _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {
 
 async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
-    Generate a default file system for autonomous task parameter/result storage.
+    Generate a default file system for background task parameter/result storage.
     """
     default_storage_name, storage_path = cache_key = (
         PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value(),
@@ -433,18 +433,13 @@ class ResultFactory(BaseModel):
         If persistence is disabled, the object is wrapped in an `UnpersistedResult` and
         returned.
 
-        If persistence is enabled:
-        - Bool and null types are converted into `LiteralResult`.
-        - Other types are serialized, persisted to storage, and a reference is returned.
+        If persistence is enabled the object is serialized, persisted to storage, and a reference is returned.
         """
         # Null objects are "cached" in memory at no cost
         should_cache_object = self.cache_result_in_memory or obj is None
 
         if not self.persist_result:
             return await UnpersistedResult.create(obj, cache_object=should_cache_object)
-
-        if type(obj) in LITERAL_TYPES:
-            return await LiteralResult.create(obj)
 
         if key:
 
@@ -567,41 +562,6 @@ class UnpersistedResult(BaseResult):
         if cache_object:
             result._cache_object(obj)
         return result
-
-
-class LiteralResult(BaseResult):
-    """
-    Result type for literal values like `None`, `True`, `False`.
-
-    These values are stored inline and JSON serialized when sent to the Prefect API.
-    They are not persisted to external result storage.
-    """
-
-    type: str = "literal"
-    value: Any = None
-
-    def has_cached_object(self) -> bool:
-        # This result type always has the object cached in memory
-        return True
-
-    @sync_compatible
-    async def get(self) -> R:
-        return self.value
-
-    @classmethod
-    @sync_compatible
-    async def create(
-        cls: "Type[LiteralResult]",
-        obj: R,
-    ) -> "LiteralResult[R]":
-        if type(obj) not in LITERAL_TYPES:
-            raise TypeError(
-                f"Unsupported type {type(obj).__name__!r} for result literal. Expected"
-                f" one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
-            )
-
-        description = f"Result with value `{obj}` persisted to Prefect."
-        return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
 class PersistedResult(BaseResult):

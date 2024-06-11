@@ -7,8 +7,6 @@ export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag
   switch (source) {
     case 'workers':
       return 'access:workers'
-    case 'work_pools':
-      return 'access:work_pools'
     case 'artifacts':
       return 'access:artifacts'
     case 'deployment_status':

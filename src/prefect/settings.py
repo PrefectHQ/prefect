@@ -76,7 +76,7 @@ from pydantic import (
     fields,
     model_validator,
 )
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
@@ -1208,6 +1208,9 @@ PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS = Setting(
 """The number of seconds before a work queue is marked as not ready if it has not been
 polled."""
 
+PREFECT_API_LOG_RETRYABLE_ERRORS = Setting(bool, default=False)
+"""If `True`, log retryable errors in the API and it's services."""
+
 
 PREFECT_API_DEFAULT_LIMIT = Setting(
     int,
@@ -1527,9 +1530,9 @@ PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT = Setting(
     default=timedelta(seconds=30),
 )
 """
-How long before a PENDING task are made available to another task server.  In practice,
-a task server should move a task from PENDING to RUNNING very quickly, so runs stuck in
-PENDING for a while is a sign that the task server may have crashed.
+How long before a PENDING task are made available to another task worker.  In practice,
+a task worker should move a task from PENDING to RUNNING very quickly, so runs stuck in
+PENDING for a while is a sign that the task worker may have crashed.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS = Setting(bool, default=False)
@@ -1717,9 +1720,14 @@ for __name, __setting in SETTING_VARIABLES.items():
 
 # Dynamically create a pydantic model that includes all of our settings
 
+
+class PrefectBaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+
 SettingsFieldsMixin: Type[BaseSettings] = create_model(
     "SettingsFieldsMixin",
-    __base__=BaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
+    __base__=PrefectBaseSettings,  # Inheriting from `BaseSettings` provides environment variable loading
     **{
         setting.name: (setting.type, setting.field)
         for setting in SETTING_VARIABLES.values()
@@ -2001,6 +2009,7 @@ class Profile(BaseModel):
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path] = None
+    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     @field_validator("settings", mode="before")
     def map_names_to_settings(cls, value):
@@ -2038,8 +2047,6 @@ class Profile(BaseModel):
                 )
                 changed.append((setting, setting.deprecated_renamed_to))
         return changed
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ProfilesCollection:
