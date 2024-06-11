@@ -1,5 +1,6 @@
 import asyncio
 import signal
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
@@ -336,13 +337,15 @@ class TestTaskWorkerTaskResults:
     async def test_task_run_via_task_worker_respects_result_storage_key(
         self, storage_key, prefect_client
     ):
-        @task(persist_result=True, result_storage_key=storage_key)
+        x = f"foo-{uuid.uuid4()}"
+
+        @task(persist_result=True, result_storage_key=x)
         def some_task(x):
             return x
 
         task_worker = TaskWorker(some_task)
 
-        task_run_future = some_task.apply_async(kwargs={"x": "foo"})
+        task_run_future = some_task.apply_async(kwargs={"x": x})
         task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
 
         await task_worker.execute_task_run(task_run)
@@ -353,9 +356,9 @@ class TestTaskWorkerTaskResults:
 
         assert updated_task_run.state.is_completed()
 
-        assert await updated_task_run.state.result() == "foo"
+        assert await updated_task_run.state.result() == x
 
-        assert updated_task_run.state.data.storage_key == "foo"
+        assert updated_task_run.state.data.storage_key == x
 
     async def test_task_run_via_task_worker_with_complex_result_type(
         self, prefect_client
