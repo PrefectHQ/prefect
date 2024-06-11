@@ -4,7 +4,6 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
-
 import ast
 import datetime
 import importlib.util
@@ -15,7 +14,8 @@ import re
 import sys
 import tempfile
 import warnings
-from functools import partial, update_wrapper
+from copy import copy
+from functools import partial, update_wrapper, wraps
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import (
@@ -353,6 +353,36 @@ class Flow(Generic[P, R]):
             module = module_name if module_name != "__main__" else module
 
         self._entrypoint = f"{module}:{fn.__name__}"
+
+    def __get__(self, instance, owner):
+        """
+        Implement the descriptor protocol so that the flow can be used as an instance method.
+        When an instance method is loaded, this method is called with the "self" instance as
+        an argument. We return a copy of the flow with that instance bound to the flow's function.
+        """
+
+        # if no instance is provided, it's being accessed on the class
+        if instance is None:
+            return self
+
+        # if the flow is being accessed on an instance, bind the instance to the flow's fn
+        else:
+            # create a wrapper that calls the flow function with the instance as the first argument
+            @wraps(self.fn)
+            def _instance_wrapper(*args, **kwargs):
+                return self.fn(instance, *args, **kwargs)
+
+            # remove the first (bound) argument from the wrapped function signature
+            # so that validation works as expected
+            signature = inspect.signature(self.fn)
+            _instance_wrapper.__signature__ = signature.replace(
+                parameters=list(signature.parameters.values())[1:]
+            )
+
+            bound_flow = copy(self)
+            bound_flow.fn = _instance_wrapper
+            update_wrapper(bound_flow, _instance_wrapper)
+            return bound_flow
 
     def with_options(
         self,

@@ -8,7 +8,7 @@ import datetime
 import inspect
 import os
 from copy import copy
-from functools import partial, update_wrapper
+from functools import partial, update_wrapper, wraps
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -366,6 +366,36 @@ class Task(Generic[P, R]):
 
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
+
+    def __get__(self, instance, owner):
+        """
+        Implement the descriptor protocol so that the task can be used as an instance method.
+        When an instance method is loaded, this method is called with the "self" instance as
+        an argument. We return a copy of the task with that instance bound to the task's function.
+        """
+
+        # if no instance is provided, it's being accessed on the class
+        if instance is None:
+            return self
+
+        # if the task is being accessed on an instance, bind the instance to the task's fn
+        else:
+            # create a wrapper that calls the task function with the instance as the first argument
+            @wraps(self.fn)
+            def _instance_wrapper(*args, **kwargs):
+                return self.fn(instance, *args, **kwargs)
+
+            # remove the first (bound) argument from the wrapped function signature
+            # so that validation works as expected
+            signature = inspect.signature(self.fn)
+            _instance_wrapper.__signature__ = signature.replace(
+                parameters=list(signature.parameters.values())[1:]
+            )
+
+            bound_task = copy(self)
+            bound_task.fn = _instance_wrapper
+            update_wrapper(bound_task, _instance_wrapper)
+            return bound_task
 
     def with_options(
         self,
