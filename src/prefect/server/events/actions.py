@@ -721,8 +721,8 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                 },
             )
 
-            if response.status_code == 409:
-                self._result_details["validation_error"] = response.json().get("detail")
+        if response.status_code == 409:
+            self._result_details["validation_error"] = response.json().get("detail")
 
         return response
 
