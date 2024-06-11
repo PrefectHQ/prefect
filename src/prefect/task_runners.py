@@ -208,7 +208,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         self._max_workers = max_workers
 
     def duplicate(self) -> "ThreadPoolTaskRunner":
-        return type(self)()
+        return type(self)(max_workers=self._max_workers)
 
     def submit(
         self,
@@ -287,6 +287,11 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
             self._executor.shutdown()
             self._executor = None
         super().__exit__(exc_type, exc_value, traceback)
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, ThreadPoolTaskRunner):
+            return False
+        return self._max_workers == value._max_workers
 
 
 # Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
