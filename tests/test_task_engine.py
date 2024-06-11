@@ -85,16 +85,14 @@ class TestRunTask:
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
         result_factory = await ResultFactory.from_flow(f)
-        async with anyio.create_task_group() as task_group:
-            flow_run_context = EngineContext(
-                flow=f,
-                flow_run=flow_run,
-                client=prefect_client,
-                task_runner=test_task_runner,
-                result_factory=result_factory,
-                background_tasks=task_group,
-                parameters={"x": "y"},
-            )
+        flow_run_context = EngineContext(
+            flow=f,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_factory=result_factory,
+            parameters={"x": "y"},
+        )
 
         @task
         def foo():
@@ -131,16 +129,14 @@ class TestTaskRunsAsync:
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
         result_factory = await ResultFactory.from_flow(f)
-        async with anyio.create_task_group() as task_group:
-            flow_run_context = EngineContext(
-                flow=f,
-                flow_run=flow_run,
-                client=prefect_client,
-                task_runner=test_task_runner,
-                result_factory=result_factory,
-                background_tasks=task_group,
-                parameters={"x": "y"},
-            )
+        flow_run_context = EngineContext(
+            flow=f,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_factory=result_factory,
+            parameters={"x": "y"},
+        )
 
         @task
         async def foo():
