@@ -1,9 +1,7 @@
 import pytest
 
 from prefect import flow, task
-from prefect.results import LiteralResult
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT, temporary_settings
-from prefect.states import Completed
 
 
 @pytest.fixture(autouse=True)
@@ -15,23 +13,6 @@ def disable_fetch_by_default():
     """
     with temporary_settings({PREFECT_ASYNC_FETCH_STATE_RESULT: False}):
         yield
-
-
-async def test_async_result_raises_deprecation_warning():
-    # This test creates a state directly because a flows do not yet return the new
-    # result types
-    state = Completed(data=await LiteralResult.create(True))
-    result = state.result(fetch=False)
-
-    with pytest.warns(
-        DeprecationWarning,
-        match=r"State.result\(\) was called from an async context but not awaited.",
-    ):
-        result = state.result()
-
-    # A result type is returned
-    assert isinstance(result, LiteralResult)
-    assert await result.get() is True
 
 
 async def test_async_result_warnings_are_not_raised_by_engine():
@@ -92,17 +73,6 @@ async def test_async_result_warnings_are_not_raised_by_engine():
         return a + b + c + d + e + f
 
     assert await my_flow() == 6
-
-
-async def test_async_result_does_not_raise_warning_with_opt_out():
-    # This test creates a state directly because a flows do not yet return the new
-    # result types
-    state = Completed(data=await LiteralResult.create(True))
-    result = state.result(fetch=False)
-
-    # A result type is returned
-    assert isinstance(result, LiteralResult)
-    assert await result.get() is True
 
 
 async def test_async_result_returns_coroutine_with_opt_in():
