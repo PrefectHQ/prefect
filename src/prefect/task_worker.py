@@ -116,7 +116,7 @@ class TaskWorker:
             except InvalidStatusCode as exc:
                 if exc.status_code == 403:
                     logger.error(
-                        "Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
+                        "403: Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
                         f" endpoint found at:\n\n {PREFECT_API_URL.value()}"
                         "\n\nPlease double-check the values of your"
                         " `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables."
@@ -145,9 +145,10 @@ class TaskWorker:
                 "`PREFECT_API_URL` must be set to use the task worker. "
                 "Task workers are not compatible with the ephemeral API."
             )
-        logger.info(
-            f"Subscribing to tasks: {' | '.join(t.task_key.split('.')[-1] for t in self.tasks)}"
+        task_keys_repr = " | ".join(
+            t.task_key.split(".")[-1].split("-")[0] for t in self.tasks
         )
+        logger.info(f"Subscribing to runs of task(s): {task_keys_repr}")
         async for task_run in Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
