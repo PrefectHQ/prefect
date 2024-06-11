@@ -259,9 +259,9 @@ deployments:
     job_variables:
       image: '{{ build_image.image }}'
 ```
-
-!!!Tip
-    After copying the example above, don't forget to replace `<WORKING-DIRECTORY>` with the name of the directory where your flow folder and `prefect.yaml` live. You'll also need to replace `<PATH-TO-ARTIFACT-REGISTRY>` with the path to the Docker repository in your Google Artifact Registry.
+<Tip>
+After copying the example above, don't forget to replace `<WORKING-DIRECTORY>` with the name of the directory where your flow folder and `prefect.yaml` live. You'll also need to replace `<PATH-TO-ARTIFACT-REGISTRY>` with the path to the Docker repository in your Google Artifact Registry.
+</Tip>
 
 To get a better understanding of the different components of the `prefect.yaml` file above and what they do, feel free to read this next section. Otherwise, you can skip ahead to *Flow Deployment*.
 
@@ -269,18 +269,21 @@ In the `build` section of the `prefect.yaml` the following step is executed at d
 
 1. `prefect_docker.deployments.steps.build_docker_image` : builds a Docker image automatically which uses the name and tag chosen previously.
 
-!!!Warning
-    If you are using an ARM-based chip (such as an M1 or M2 Mac), you'll want to ensure that you add `platform: linux/amd64` to your `build_docker_image` step to ensure that your docker image uses an AMD architecture. For example:
+<Warning>
 
-    ```yaml
-    - prefect_docker.deployments.steps.build_docker_image:
-    id: build_image
-    requires: prefect-docker>=0.3.1
-    image_name: us-docker.pkg.dev/prefect-project/my-docker-repository/gcp-weather-image
-    tag: latest
-    dockerfile: auto
-    platform: linux/amd64
-    ```
+If you are using an ARM-based chip (such as an M1 or M2 Mac), you'll want to ensure that you add `platform: linux/amd64` to your `build_docker_image` step to ensure that your docker image uses an AMD architecture. For example:
+
+```yaml
+- prefect_docker.deployments.steps.build_docker_image:
+id: build_image
+requires: prefect-docker>=0.3.1
+image_name: us-docker.pkg.dev/prefect-project/my-docker-repository/gcp-weather-image
+tag: latest
+dockerfile: auto
+platform: linux/amd64
+```
+
+</Warning>
 
 
 The `push` section sends the Docker image to the Docker repository in your Google Artifact Registry, so that it can be easily accessed by the worker for flow run execution.

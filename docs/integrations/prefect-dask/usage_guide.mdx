@@ -73,10 +73,13 @@ def my_flow():
 | adapt_kwargs | Additional kwargs to pass to `cluster.adapt` when creating a temporary Dask cluster. Note that adaptive scaling is only enabled if `adapt_kwargs` are provided. |
 | client_kwargs | Additional kwargs to use when creating a [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client). |
 
-!!! warning "Multiprocessing safety"
-    Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
-    in scripts must be guarded with `if __name__ == "__main__":` or you will encounter
-    warnings and errors.
+<Warning>
+**Multiprocessing safety**
+
+Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
+in scripts must be guarded with `if __name__ == "__main__":` or you will encounter
+warnings and errors.
+</Warning>
 
 If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically. The number of workers used is based on the number of cores available to your execution environment. The default provides a mix of processes and threads that should work well for most workloads. If you want to specify this explicitly, you can pass values for `n_workers` or `threads_per_worker` to `cluster_kwargs`.
 
@@ -113,23 +116,28 @@ dask_flow()
 
 The context managers can be used the same way in both `flow` run contexts and `task` run contexts.
 
-!!! warning "Resolving futures in sync client"
-    Note, by default, `dask_collection.compute()` returns concrete values while `client.compute(dask_collection)` returns Dask Futures. Therefore, if you call `client.compute`, you must resolve all futures before exiting out of the context manager by either:
+<Warning>
 
-    1. setting `sync=True`
-    ```python
-    with get_dask_client() as client:
-        df = dask.datasets.timeseries("2000", "2001", partition_freq="4w")
-        summary_df = client.compute(df.describe(), sync=True)
-    ```
+**Resolving futures in sync client**
 
-    2. calling `result()`
-    ```python
-    with get_dask_client() as client:
-        df = dask.datasets.timeseries("2000", "2001", partition_freq="4w")
-        summary_df = client.compute(df.describe()).result()
-    ```
-    For more information, visit the docs on [Waiting on Futures](https://docs.dask.org/en/stable/futures.html#waiting-on-futures).
+Note, by default, `dask_collection.compute()` returns concrete values while `client.compute(dask_collection)` returns Dask Futures. Therefore, if you call `client.compute`, you must resolve all futures before exiting out of the context manager by either:
+
+1. setting `sync=True`
+```python
+with get_dask_client() as client:
+    df = dask.datasets.timeseries("2000", "2001", partition_freq="4w")
+    summary_df = client.compute(df.describe(), sync=True)
+```
+
+2. calling `result()`
+```python
+with get_dask_client() as client:
+    df = dask.datasets.timeseries("2000", "2001", partition_freq="4w")
+    summary_df = client.compute(df.describe()).result()
+```
+For more information, visit the docs on [Waiting on Futures](https://docs.dask.org/en/stable/futures.html#waiting-on-futures).
+
+</Warning>
 
 There is also an equivalent context manager for asynchronous tasks and flows: `get_async_dask_client`.
 
@@ -155,12 +163,15 @@ async def dask_flow():
 asyncio.run(dask_flow())
 ```
 
-!!! warning "Resolving futures in async client"
-    With the async client, you do not need to set `sync=True` or call `result()`.
+<Warning>
+**Resolving futures in async client**
 
-    However, you must `await client.compute(dask_collection)` before exiting the context manager.
+With the async client, you do not need to set `sync=True` or call `result()`.
 
-    To invoke `compute` from the Dask collection, set `sync=False` and call `result()` before exiting out of the context manager: `await dask_collection.compute(sync=False)`.
+However, you must `await client.compute(dask_collection)` before exiting the context manager.
+
+To invoke `compute` from the Dask collection, set `sync=False` and call `result()` before exiting out of the context manager: `await dask_collection.compute(sync=False)`.
+</Warning>
 
 ## Use a temporary cluster
 

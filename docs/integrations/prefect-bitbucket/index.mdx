@@ -53,9 +53,11 @@ bitbucket_credentials_block = BitbucketCredentials(token="x-token-auth:my-token"
 bitbucket_credentials_block.save(name="my-bitbucket-credentials-block")
 ```
 
-!!! info "Difference between Bitbucket Server and Bitbucket Cloud authentication"
+<Info> 
+**Difference between Bitbucket Server and Bitbucket Cloud authentication**
 
-    If using a token to authenticate to Bitbucket Cloud, only set the `token` to authenticate. Do not include a value in the `username` field or authentication will fail. If using Bitbucket Server, provide both the `token` and `username` values.
+If using a token to authenticate to Bitbucket Cloud, only set the `token` to authenticate. Do not include a value in the `username` field or authentication will fail. If using Bitbucket Server, provide both the `token` and `username` values.
+</Info>
 
 ### Access flow code stored in a private Bitbucket repository in a deployment
 

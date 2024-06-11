@@ -1285,9 +1285,9 @@ class RunState(BaseModel):
 class RunType(str, Enum):
     """
         The type of the run.
-    * `JOB_RUN` \- Normal job run. A run created with [Run now](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow).
-    * `WORKFLOW_RUN` \- Workflow run. A run created with [dbutils.notebook.run](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-workflow).
-    * `SUBMIT_RUN` \- Submit run. A run created with [Run Submit](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit).
+    * `JOB_RUN`: Normal job run. A run created with [Run now](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow).
+    * `WORKFLOW_RUN`: Workflow run. A run created with [dbutils.notebook.run](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-workflow).
+    * `SUBMIT_RUN`: Submit run. A run created with [Run Submit](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit).
     """
 
     jobrun = "JOB_RUN"
