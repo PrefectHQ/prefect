@@ -47,7 +47,7 @@ setup(
         "azure": "prefect-azure",
         "gcp": "prefect-gcp",
         "docker": "prefect-docker",
-        "kubernetes": "prefect-kubernetes",
+        "kubernetes": "prefect-kubernetes>=0.4.0rc1",
         "shell": "prefect-shell",
         # Distributed task execution extras
         "dask": "prefect-dask",
