@@ -156,12 +156,24 @@ class TaskWorker:
             client_id=self._client_id,
             base_url=base_url,
         ):
-            if self._limiter:
-                await self._limiter.acquire_on_behalf_of(task_run.id)
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
             self._runs_task_group.start_soon(self._submit_scheduled_task_run, task_run)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
+        try:
+            if self._limiter:
+                await self._limiter.acquire_on_behalf_of(task_run.id)
+            await self._submit_and_start_run(task_run)
+        except BaseException as exc:
+            logger.exception(
+                f"Failed to submit task run {task_run.id!r}",
+                exc_info=exc,
+            )
+        finally:
+            if self._limiter:
+                self._limiter.release_on_behalf_of(task_run.id)
+
+    async def _submit_and_start_run(self, task_run: TaskRun):
         logger.debug(
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
@@ -242,43 +254,34 @@ class TaskWorker:
             validated_state=state,
         )
 
-        try:
-            if task.isasync:
-                await run_task_async(
-                    task=task,
-                    task_run_id=task_run.id,
-                    task_run=task_run,
-                    parameters=parameters,
-                    wait_for=wait_for,
-                    return_type="state",
-                    context=run_context,
-                )
-            else:
-                context = copy_context()
-                future = self._executor.submit(
-                    context.run,
-                    run_task_sync,
-                    task=task,
-                    task_run_id=task_run.id,
-                    task_run=task_run,
-                    parameters=parameters,
-                    wait_for=wait_for,
-                    return_type="state",
-                    context=run_context,
-                )
-                await asyncio.wrap_future(future)
-        except BaseException as exc:
-            logger.exception(f"Failed to start task run {task_run.id!r}", exc_info=exc)
-            return
-
-        if self._limiter:
-            self._limiter.release_on_behalf_of(task_run.id)
+        if task.isasync:
+            await run_task_async(
+                task=task,
+                task_run_id=task_run.id,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type="state",
+                context=run_context,
+            )
+        else:
+            context = copy_context()
+            future = self._executor.submit(
+                context.run,
+                run_task_sync,
+                task=task,
+                task_run_id=task_run.id,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                return_type="state",
+                context=run_context,
+            )
+            await asyncio.wrap_future(future)
 
     async def execute_task_run(self, task_run: TaskRun):
         """Execute a task run in the task worker."""
         async with self if not self.started else asyncnullcontext():
-            if self._limiter:
-                await self._limiter.acquire_on_behalf_of(task_run.id)
             await self._submit_scheduled_task_run(task_run)
 
     async def __aenter__(self):
