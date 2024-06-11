@@ -267,10 +267,10 @@ class ExternalDataAction(Action):
             error_detail = response.json().get("detail")
         except Exception:
             error_detail = None
-        if response.status_code == 409:
-            if error_detail and "Validation failed" in error_detail:
+        if response.status_code in {409, 422}:
+            if error_detail:
                 return f"Validation error occurred for {self.type!r} - {error_detail}"
-            return f"Conflict (409) occurred for {self.type!r} - {error_detail or response.content!r}"
+            return f"Conflict (409) occurred for {self.type!r} - {error_detail or response.text!r}"
         else:
             return (
                 f"Unexpected status from {self.type!r} action: {response.status_code}"
@@ -720,6 +720,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                     **self.logging_context(triggered_action),
                 },
             )
+
+            if response.status_code == 409:
+                self._result_details["validation_error"] = response.json().get("detail")
 
         return response
 
