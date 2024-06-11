@@ -270,7 +270,7 @@ class ExternalDataAction(Action):
         if response.status_code == 409:
             if error_detail and "Validation failed" in error_detail:
                 return f"Validation error occurred for {self.type!r} - {error_detail}"
-            return f"Conflict (409) occurred for {self.type!r} - {response.content!r}"
+            return f"Conflict (409) occurred for {self.type!r} - {error_detail or response.content!r}"
         else:
             return (
                 f"Unexpected status from {self.type!r} action: {response.status_code}"
