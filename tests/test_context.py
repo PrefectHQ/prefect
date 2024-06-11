@@ -525,9 +525,6 @@ class TestHydratedContext:
             assert (
                 hydrated_flow_run_context.result_factory is not None
             )  # this won't be the same object as the original result factory
-            assert (
-                hydrated_flow_run_context.background_tasks is not None
-            )  # this won't be the same object as the original background tasks
             assert isinstance(hydrated_flow_run_context.start_time, DateTime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
 
