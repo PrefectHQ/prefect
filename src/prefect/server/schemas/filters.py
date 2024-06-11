@@ -329,11 +329,16 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
     any_: Optional[List[schemas.states.StateType]] = Field(
         default=None, description="A list of flow run state types to include"
     )
+    not_any_: Optional[List[schemas.states.StateType]] = Field(
+        default=None, description="A list of flow run state types to exclude"
+    )
 
     def _get_filter_list(self) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(orm_models.FlowRun.state_type.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(orm_models.FlowRun.state_type.not_in(self.not_any_))
         return filters
 
 
@@ -343,11 +348,16 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
     any_: Optional[List[str]] = Field(
         default=None, description="A list of flow run state names to include"
     )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run state names to exclude"
+    )
 
     def _get_filter_list(self) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(orm_models.FlowRun.state_name.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(orm_models.FlowRun.state_name.not_in(self.not_any_))
         return filters
 
 
