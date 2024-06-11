@@ -8,7 +8,6 @@ from prefect import flow, task
 from prefect.context import FlowRunContext, get_run_context
 from prefect.filesystems import LocalFileSystem
 from prefect.results import (
-    LiteralResult,
     PersistedResult,
     ResultFactory,
 )
@@ -33,13 +32,6 @@ async def factory(prefect_client):
     return await ResultFactory.default_factory(
         client=prefect_client, persist_result=True
     )
-
-
-@pytest.mark.parametrize("value", [True, False, None])
-async def test_create_result_literal(value, factory):
-    result = await factory.create_result(value)
-    assert isinstance(result, LiteralResult)
-    assert await result.get() == value
 
 
 async def test_create_result_reference(factory):

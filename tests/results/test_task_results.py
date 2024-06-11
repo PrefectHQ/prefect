@@ -5,7 +5,6 @@ import pytest
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
-from prefect.results import LiteralResult
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import PREFECT_HOME
 from prefect.tasks import task
@@ -167,27 +166,6 @@ async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
     # and caching is enabled by default
     assert api_state.data.has_cached_object()
     assert await api_state.result() == 1
-
-
-async def test_task_with_uncached_but_literal_result(prefect_client):
-    @flow
-    def foo():
-        return bar(return_state=True)
-
-    @task(persist_result=True, cache_result_in_memory=False)
-    def bar():
-        return True
-
-    flow_state = foo(return_state=True)
-    task_state = await flow_state.result()
-    # Literal results are _always_ cached
-    assert task_state.data.has_cached_object()
-    assert await task_state.result() is True
-
-    api_state = (
-        await prefect_client.read_task_run(task_state.state_details.task_run_id)
-    ).state
-    assert await api_state.result() is True
 
 
 @pytest.mark.parametrize(
@@ -354,9 +332,7 @@ async def test_task_result_missing_with_null_return(prefect_client):
 
 
 @pytest.mark.parametrize("value", [True, False, None])
-async def test_task_literal_result_is_available_but_not_serialized_or_persisted(
-    prefect_client, value
-):
+async def test_task_literal_result_is_handled_the_same(prefect_client, value):
     @flow
     def foo():
         return bar(return_state=True)
@@ -371,7 +347,6 @@ async def test_task_literal_result_is_available_but_not_serialized_or_persisted(
 
     flow_state = foo(return_state=True)
     task_state = await flow_state.result()
-    assert isinstance(task_state.data, LiteralResult)
     assert await task_state.result() is value
 
     api_state = (
