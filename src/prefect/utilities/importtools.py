@@ -380,6 +380,15 @@ def safe_load_namespace(source_code: str):
 
     namespace = {"__name__": "prefect_safe_namespace_loader"}
 
+    # Remove the body of the if __name__ == "__main__": block from the AST to prevent
+    # execution of guarded code
+    new_body = []
+    for node in parsed_code.body:
+        if isinstance(node, ast.If) and _is_main_block(node):
+            continue
+        new_body.append(node)
+    parsed_code.body = new_body
+
     # Walk through the AST and find all import statements
     for node in ast.walk(parsed_code):
         if isinstance(node, ast.Import):
@@ -426,3 +435,23 @@ def safe_load_namespace(source_code: str):
             except Exception as e:
                 logger.debug("Failed to compile: %s", e)
     return namespace
+
+
+def _is_main_block(node: ast.AST):
+    """
+    Check if the node is an `if __name__ == "__main__":` block.
+    """
+    if isinstance(node, ast.If):
+        try:
+            # Check if the condition is `if __name__ == "__main__":`
+            if (
+                isinstance(node.test, ast.Compare)
+                and isinstance(node.test.left, ast.Name)
+                and node.test.left.id == "__name__"
+                and isinstance(node.test.comparators[0], ast.Str)
+                and node.test.comparators[0].s == "__main__"
+            ):
+                return True
+        except AttributeError:
+            pass
+    return False
