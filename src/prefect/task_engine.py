@@ -26,7 +26,6 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -44,7 +43,6 @@ from prefect.exceptions import (
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, _format_user_supplied_storage_key
@@ -522,12 +520,6 @@ class TaskRunEngine(Generic[P, R]):
                         level=level,
                         msg=msg,
                     )
-
-                    # flush all logs if this is not a "top" level run
-                    if not (FlowRunContext.get() or TaskRunContext.get()):
-                        from_sync.call_soon_in_loop_thread(
-                            create_call(APILogHandler.aflush)
-                        )
 
                     self._is_started = False
                     self._client = None
