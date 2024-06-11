@@ -218,7 +218,7 @@ class TaskRunEngine(Generic[P, R]):
             return_data=False,
             max_depth=-1,
             remove_annotations=True,
-            context={},
+            context={"current_task_run": self.task_run, "current_task": self.task},
         )
 
     def begin_run(self):
@@ -533,7 +533,8 @@ class TaskRunEngine(Generic[P, R]):
     async def wait_until_ready(self):
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            await anyio.sleep((scheduled_time - pendulum.now("utc")).total_seconds())
+            sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
+            await anyio.sleep(sleep_time if sleep_time > 0 else 0)
             self.set_state(
                 Retrying() if self.state.name == "AwaitingRetry" else Running(),
                 force=True,

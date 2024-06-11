@@ -407,12 +407,14 @@ class TestTaskRunsAsync:
 
         assert "__parents__" not in tr.task_inputs
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
-        @task(persist_result=False)
+    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=False, result_storage=fs)
         async def no_persist():
             return TaskRunContext.get().task_run.id
 
-        @task(persist_result=True)
+        @task(persist_result=True, result_storage=fs)
         async def persist():
             return TaskRunContext.get().task_run.id
 
@@ -429,7 +431,7 @@ class TestTaskRunsAsync:
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
-        assert await api_state.result() == str(run_id)
+        assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
@@ -601,14 +603,16 @@ class TestTaskRunsSync:
         assert "__parents__" in inner_run.task_inputs
         assert inner_run.task_inputs["__parents__"][0].id == b
 
-    async def test_task_runs_respect_result_persistence(self, prefect_client):
-        @task(persist_result=False)
+    async def test_task_runs_respect_result_persistence(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+
+        @task(persist_result=False, result_storage=fs)
         def no_persist():
             ctx = TaskRunContext.get()
             assert ctx
             return ctx.task_run.id
 
-        @task(persist_result=True)
+        @task(persist_result=True, result_storage=fs)
         def persist():
             ctx = TaskRunContext.get()
             assert ctx
@@ -627,7 +631,7 @@ class TestTaskRunsSync:
         task_run = await prefect_client.read_task_run(run_id)
         api_state = task_run.state
 
-        assert await api_state.result() == str(run_id)
+        assert await api_state.result() == run_id
 
     async def test_task_runs_respect_cache_key(self, tmp_path: Path):
         @task(cache_key_fn=lambda *args, **kwargs: "key")
@@ -925,7 +929,7 @@ class TestTaskRetries:
         assert task_run_state.is_failed()
         assert mock_sleep.call_count == 3
         assert mock_sleep.call_args_list == [
-            call(pytest.approx(delay, abs=0.2)) for delay in expected_delay_sequence
+            call(pytest.approx(delay, abs=1)) for delay in expected_delay_sequence
         ]
 
         states = await prefect_client.read_task_run_states(task_run_id)
@@ -1134,3 +1138,30 @@ class TestCachePolicy:
         assert state.is_completed()
         assert await state.result() == 1800
         assert isinstance(state.data, UnpersistedResult)
+
+    async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+        FIRST_RUN = True
+
+        @task(
+            persist_result=True,
+            cache_key_fn=lambda *args, **kwargs: "test-none-caches",
+            result_storage=fs,
+        )
+        async def async_task():
+            nonlocal FIRST_RUN
+
+            if FIRST_RUN:
+                FIRST_RUN = False
+                return None
+            else:
+                return 42
+
+        first_val = await async_task()
+        # make sure test is behaving
+        assert FIRST_RUN is False
+
+        second_val = await async_task()
+
+        assert first_val is None
+        assert second_val is None

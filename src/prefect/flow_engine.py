@@ -477,18 +477,6 @@ class FlowRunEngine(Generic[P, R]):
             self._client = client_ctx.sync_client
             self._is_started = True
 
-            # this conditional is engaged whenever a run is triggered via deployment
-            if self.flow_run_id and not self.flow:
-                self.flow_run = self.client.read_flow_run(self.flow_run_id)
-                try:
-                    self.flow = self.load_flow(self.client)
-                except Exception as exc:
-                    self.handle_exception(
-                        exc,
-                        msg="Failed to load flow from entrypoint.",
-                    )
-                    self.short_circuit = True
-
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(self.client)
 
@@ -498,6 +486,21 @@ class FlowRunEngine(Generic[P, R]):
                         f"View at {ui_url}/flow-runs/flow-run/{self.flow_run.id}",
                         extra={"send_to_api": False},
                     )
+            else:
+                # Update the empirical policy to match the flow if it is not set
+                if self.flow_run.empirical_policy.retry_delay is None:
+                    self.flow_run.empirical_policy.retry_delay = (
+                        self.flow.retry_delay_seconds
+                    )
+
+                if self.flow_run.empirical_policy.retries is None:
+                    self.flow_run.empirical_policy.retries = self.flow.retries
+
+                self.client.update_flow_run(
+                    flow_run_id=self.flow_run.id,
+                    flow_version=self.flow.version,
+                    empirical_policy=self.flow_run.empirical_policy,
+                )
 
             # validate prior to context so that context receives validated params
             if self.flow.should_validate_parameters:
