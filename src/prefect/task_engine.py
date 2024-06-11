@@ -3,6 +3,7 @@ import logging
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
+from textwrap import dedent
 from typing import (
     Any,
     Callable,
@@ -25,7 +26,6 @@ import pendulum
 from typing_extensions import ParamSpec
 
 from prefect import Task
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -43,7 +43,6 @@ from prefect.exceptions import (
     UpstreamTaskError,
 )
 from prefect.futures import PrefectFuture
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.records.result_store import ResultFactoryStore
 from prefect.results import ResultFactory, _format_user_supplied_storage_key
@@ -473,8 +472,10 @@ class TaskRunEngine(Generic[P, R]):
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
                     raise
-                except (Pause, Abort):
+                except (Pause, Abort) as exc:
                     # Do not capture internal signals as crashes
+                    if isinstance(exc, Abort):
+                        self.logger.error("Task run was aborted: %s", exc)
                     raise
                 except GeneratorExit:
                     # Do not capture generator exits as crashes
@@ -488,18 +489,37 @@ class TaskRunEngine(Generic[P, R]):
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
-                    self.logger.log(
-                        level=(
-                            logging.INFO if self.state.is_completed() else logging.ERROR
-                        ),
-                        msg=f"Finished in state {display_state}",
-                    )
-
-                    # flush all logs if this is not a "top" level run
-                    if not (FlowRunContext.get() or TaskRunContext.get()):
-                        from_sync.call_soon_in_loop_thread(
-                            create_call(APILogHandler.aflush)
+                    level = logging.INFO if self.state.is_completed() else logging.ERROR
+                    msg = f"Finished in state {display_state}"
+                    if self.state.is_pending():
+                        msg += (
+                            "\nPlease wait for all submitted tasks to complete"
+                            " before exiting your flow by calling `.wait()` on the "
+                            "`PrefectFuture` returned from your `.submit()` calls."
                         )
+                        msg += dedent(
+                            """
+                                      
+                            Example:
+                            
+                            from prefect import flow, task
+                                      
+                            @task
+                            def say_hello(name):
+                                print f"Hello, {name}!"
+                                      
+                            @flow
+                            def example_flow():
+                                say_hello.submit(name="Marvin)
+                                say_hello.wait()
+                                      
+                            example_flow()
+                                      """
+                        )
+                    self.logger.log(
+                        level=level,
+                        msg=msg,
+                    )
 
                     self._is_started = False
                     self._client = None
