@@ -11,12 +11,16 @@ Prefect Cloud can also schedule flow runs through event-driven [automations](/3.
 Schedules tell the Prefect API how to create new flow runs for you automatically on a specified cadence.
 
 You can add a schedule to any [deployment](/3.0rc/deploy/serve-workflows/).
-The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
+The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule 
+configured for the deployment.
 
 !!! tip "Support for multiple schedules"
-    We are currently rolling out support for multiple schedules per deployment. You can now assign multiple schedules to deployments in the Prefect UI, the CLI via `prefect deployment schedule` commands, the `Deployment` class, and in [block-based deployment](/3.0rc/deploy/serve-workflows/#block-based-deployments) YAML files.
+    We are currently rolling out support for multiple schedules per deployment. You can now assign multiple schedules to deployments 
+    in the Prefect UI, the CLI via `prefect deployment schedule` commands, the `Deployment` class, and in 
+    [block-based deployment](/3.0rc/deploy/serve-workflows/#block-based-deployments) YAML files.
 
-    Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/3.0rc/deploy/dynamic-infra/control-runs/) with `prefect deploy` will arrive soon.
+    Support for multiple schedules in `flow.serve`, `flow.deploy`, `serve`, and [worker-based deployments](/3.0rc/deploy/dynamic-infra/control-runs/) 
+    with `prefect deploy` will arrive soon.
 
 ## Schedule types
 
