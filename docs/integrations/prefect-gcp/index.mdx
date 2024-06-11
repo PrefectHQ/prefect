@@ -70,11 +70,13 @@ GcpCredentials(
 ).save("BLOCK-NAME-PLACEHOLDER")
 ```
 
-!!! warning "`service_account_info` vs `service_account_file`"
+<Warning> 
+**`service_account_info` vs `service_account_file`**
 
-    The advantage of using `service_account_info`, instead of `service_account_file`, is that it is accessible across containers.
-    
-    If `service_account_file` is used, the provided file path *must be available* in the container executing the flow.
+The advantage of using `service_account_info`, instead of `service_account_file`, is that it is accessible across containers.
+
+If `service_account_file` is used, the provided file path *must be available* in the container executing the flow.
+</Warning>
 
 Alternatively, GCP can authenticate without storing credentials in a block.
 See the [Third-pary Screts Guide](https://docs.prefect.io/latest/guides/secrets/) for an analogous example that uses AWS Secrets Manager and Snowflake.
@@ -170,9 +172,11 @@ if __name__ == "__main__":
     cloud_storage_flow()
 ```
 
-!!! info "Upload and download directories"
+<Info> 
+**Upload and download directories**
 
-    `GcsBucket` supports uploading and downloading entire directories. To view examples, check out the [Examples Catalog](examples_catalog/#cloud-storage-module)!
+`GcsBucket` supports uploading and downloading entire directories. To view examples, check out the [Examples Catalog](examples_catalog/#cloud-storage-module)!
+</Info>
 
 ## Save secrets with Google Secret Manager
 
