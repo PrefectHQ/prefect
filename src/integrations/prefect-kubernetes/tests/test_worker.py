@@ -2341,268 +2341,272 @@ class TestKubernetesWorker:
                 ]
             )
 
-    async def test_timeout_during_log_stream_does_not_fail_completed_job(
-        self,
-        mock_core_client,
-        mock_watch,
-        mock_batch_client,
-        capsys,
-        flow_run,
-        default_configuration,
-    ):
-        # Pretend the job is completed immediately
-        mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = True
+        async def test_timeout_during_log_stream_does_not_fail_completed_job(
+            self,
+            mock_core_client,
+            mock_watch,
+            mock_batch_client,
+            capsys,
+            flow_run,
+            default_configuration,
+        ):
+            # Pretend the job is completed immediately
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = True
 
-        # TODO investigate why it needs type
-        async def mock_stream(*args, **kwargs):
-            if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-                job_pod.status.phase = "Running"
-                yield {"object": job_pod, "type": "ADDED"}
+            # TODO investigate why it needs type
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+                    job_pod.status.phase = "Running"
+                    yield {"object": job_pod, "type": "ADDED"}
 
-        async def mock_log_stream(*args, **kwargs):
-            for i in range(10):
-                sleep(0.25)
-                yield f"test {i}".encode()
+            async def mock_log_stream(*args, **kwargs):
+                for i in range(10):
+                    await asyncio.sleep(0.25)
+                    yield f"test {i}".encode()
 
-        mock_core_client.return_value.read_namespaced_pod_log.return_value.content = (
-            mock_log_stream()
-        )
-        mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+            mock_core_client.return_value.read_namespaced_pod_log.return_value.content = mock_log_stream()
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
 
-        default_configuration.job_watch_timeout_seconds = 1
-        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            result = await k8s_worker.run(flow_run, default_configuration)
+            default_configuration.job_watch_timeout_seconds = 2
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
 
-        # The job should not timeout
-        assert result.status_code == 1
+            # The job should not timeout
+            assert result.status_code == 1
 
-        mock_watch.return_value.stream.assert_has_calls(
-            [
-                mock.call(
-                    func=mock_core_client.return_value.list_namespaced_pod,
-                    namespace=mock.ANY,
-                    label_selector=mock.ANY,
-                    timeout_seconds=mock.ANY,
-                ),
-                # No watch call is made because the job is completed already
+            mock_watch.return_value.stream.assert_has_calls(
+                [
+                    mock.call(
+                        func=mock_core_client.return_value.list_namespaced_pod,
+                        namespace=mock.ANY,
+                        label_selector=mock.ANY,
+                        timeout_seconds=mock.ANY,
+                    ),
+                    # No watch call is made because the job is completed already
+                ]
+            )
+
+            # Check for logs
+            stdout, _ = capsys.readouterr()
+
+            # Before the deadline, logs should be displayed
+            for i in range(4):
+                assert f"test {i}" in stdout
+            for i in range(4, 10):
+                assert f"test {i}" not in stdout
+
+        @pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerances
+        async def test_watch_timeout_is_restarted_until_job_is_complete(
+            self,
+            flow_run,
+            default_configuration,
+            mock_core_client,
+            mock_watch,
+            mock_batch_client,
+        ):
+            # The job should not be completed to start
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+
+            # TODO investigate why it needs type
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+                    job_pod.status.phase = "Running"
+                    yield {"object": job_pod, "type": "MODIFIED"}
+
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+
+                    # Sleep a little
+                    await anyio.sleep(10)
+
+                    # Yield the job then return exiting the stream
+                    job.status.completion_time = None
+                    job.status.failed = 0
+                    job.spec.backoff_limit = 6
+                    yield {"object": job, "type": "ADDED"}
+
+            # mock_watch.return_value.stream = mock_stream
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+            default_configuration.job_watch_timeout_seconds = 1
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
+
+            assert result.status_code == -1
+
+        async def test_watch_stops_after_backoff_limit_reached(
+            self,
+            flow_run,
+            default_configuration,
+            mock_core_client,
+            mock_watch,
+            mock_batch_client,
+        ):
+            # The job should not be completed to start
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            job_pod.status.phase = "Running"
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.terminated.exit_code = 137
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
             ]
-        )
 
-        # Check for logs
-        stdout, _ = capsys.readouterr()
+            # TODO investigate why it needs type
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    yield {"object": job_pod, "type": "ADDED"}
 
-        # Before the deadline, logs should be displayed
-        for i in range(4):
-            assert f"test {i}" in stdout
-        for i in range(4, 10):
-            assert f"test {i}" not in stdout
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
 
-    @pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerances
-    async def test_watch_timeout_is_restarted_until_job_is_complete(
-        self,
-        flow_run,
-        default_configuration,
-        mock_core_client,
-        mock_watch,
-        mock_batch_client,
-    ):
-        # The job should not be completed to start
-        mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+                    # Yield the job then return exiting the stream
+                    job.status.completion_time = None
+                    job.spec.backoff_limit = 6
+                    for i in range(0, 8):
+                        job.status.failed = i
+                        yield {"object": job, "type": "ADDED"}
 
-        # TODO investigate why it needs type
-        async def mock_stream(*args, **kwargs):
-            if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-                job_pod.status.phase = "Running"
-                yield {"object": job_pod, "type": "MODIFIED"}
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
 
-            if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
-                job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
 
-                # Sleep a little
-                await anyio.sleep(10)
+            assert result.status_code == 137
 
-                # Yield the job then return exiting the stream
-                job.status.completion_time = None
-                job.status.failed = 0
-                job.spec.backoff_limit = 6
-                yield {"object": job, "type": "ADDED"}
+        async def test_watch_handles_no_pod(
+            self,
+            flow_run,
+            default_configuration,
+            mock_core_client,
+            mock_watch,
+            mock_batch_client,
+        ):
+            # The job should not be completed to start
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = []
 
-        # mock_watch.return_value.stream = mock_stream
-        mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
-        default_configuration.job_watch_timeout_seconds = 1
-        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            result = await k8s_worker.run(flow_run, default_configuration)
+            # TODO investigate why it needs type
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+                    job_pod.status.phase = "Running"
+                    yield {"object": job_pod, "type": "ADDED"}
 
-        assert result.status_code == -1
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
 
-    async def test_watch_stops_after_backoff_limit_reached(
-        self,
-        flow_run,
-        default_configuration,
-        mock_core_client,
-        mock_watch,
-        mock_batch_client,
-    ):
-        # The job should not be completed to start
-        mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
-        job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-        job_pod.status.phase = "Running"
-        mock_container_status = MagicMock(
-            spec=kubernetes_asyncio.client.V1ContainerStatus
-        )
-        mock_container_status.state.terminated.exit_code = 137
-        job_pod.status.container_statuses = [mock_container_status]
-        mock_core_client.return_value.list_namespaced_pod.return_value.items = [job_pod]
+                    # Yield the job then return exiting the stream
+                    job.status.completion_time = None
+                    job.spec.backoff_limit = 6
+                    for i in range(0, 8):
+                        job.status.failed = i
+                        yield {"object": job, "type": "ADDED"}
 
-        # TODO investigate why it needs type
-        async def mock_stream(*args, **kwargs):
-            if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                yield {"object": job_pod, "type": "ADDED"}
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
 
-            if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
-                job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
 
-                # Yield the job then return exiting the stream
-                job.status.completion_time = None
-                job.spec.backoff_limit = 6
-                for i in range(0, 8):
-                    job.status.failed = i
-                    yield {"object": job, "type": "ADDED"}
+            assert result.status_code == -1
 
-        mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
-
-        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            result = await k8s_worker.run(flow_run, default_configuration)
-
-        assert result.status_code == 137
-
-    async def test_watch_handles_no_pod(
-        self,
-        flow_run,
-        default_configuration,
-        mock_core_client,
-        mock_watch,
-        mock_batch_client,
-    ):
-        # The job should not be completed to start
-        mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
-        mock_core_client.return_value.list_namespaced_pod.return_value.items = []
-
-        # TODO investigate why it needs type
-        async def mock_stream(*args, **kwargs):
-            if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-                job_pod.status.phase = "Running"
-                yield {"object": job_pod, "type": "ADDED"}
-
-            if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
-                job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
-
-                # Yield the job then return exiting the stream
-                job.status.completion_time = None
-                job.spec.backoff_limit = 6
-                for i in range(0, 8):
-                    job.status.failed = i
-                    yield {"object": job, "type": "ADDED"}
-
-        mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
-
-        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            result = await k8s_worker.run(flow_run, default_configuration)
-
-        assert result.status_code == -1
-
-    async def test_watch_handles_pod_without_exit_code(
-        self,
-        flow_run,
-        default_configuration,
-        mock_core_client,
-        mock_watch,
-        mock_batch_client,
-    ):
-        """
-        This test case mimics the behavior of a pod that has been forcefully terminated
-        (i.e. AWS spot instance termination or another node failure).
-        """
-        mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
-        job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-        job_pod.status.phase = "Running"
-        mock_container_status = MagicMock(
-            spec=kubernetes_asyncio.client.V1ContainerStatus
-        )
-        # The container may exist but because it has been forcefully terminated
-        # it will not have an exit code.
-        mock_container_status.state.terminated = None
-        job_pod.status.container_statuses = [mock_container_status]
-        mock_core_client.return_value.list_namespaced_pod.return_value.items = [job_pod]
-
-        # TODO investigate why it needs type
-        async def mock_stream(*args, **kwargs):
-            if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
-                job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
-                job_pod.status.phase = "Running"
-                yield {"object": job_pod, "type": "ADDED"}
-
-            if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
-                job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
-
-                # Yield the job then return exiting the stream
-                job.status.completion_time = None
-                job.spec.backoff_limit = 6
-                for i in range(0, 8):
-                    job.status.failed = i
-                    yield {"object": job, "type": "ADDED"}
-
-        mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
-
-        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            result = await k8s_worker.run(flow_run, default_configuration)
-
-        assert result.status_code == -1
-
-    async def test_watch_handles_410(
-        self,
-        default_configuration: KubernetesWorkerJobConfiguration,
-        flow_run,
-        mock_batch_client,
-        mock_core_client,
-        mock_watch,
-    ):
-        stream_return = [
-            _mock_pods_stream_that_returns_running_pod(),
-            _mock_pods_stream_that_returns_running_pod(),
-            ApiException(status=410),
-            _mock_pods_stream_that_returns_running_pod(),
-        ]
-        mock_watch.return_value.stream = mock.Mock(side_effect=stream_return)
-        job_list = MagicMock(spec=kubernetes_asyncio.client.V1JobList)
-        job_list.metadata.resource_version = "1"
-
-        mock_batch_client.return_value.list_namespaced_job.side_effect = [job_list]
-
-        # The job should not be completed to start
-        mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
-
-        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            await k8s_worker.run(flow_run=flow_run, configuration=default_configuration)
-
-        mock_watch.return_value.stream.assert_has_calls(
-            [
-                mock.call(
-                    func=mock_batch_client.return_value.list_namespaced_job,
-                    namespace=mock.ANY,
-                    field_selector="metadata.name=mock-job",
-                ),
-                mock.call(
-                    func=mock_batch_client.return_value.list_namespaced_job,
-                    namespace=mock.ANY,
-                    field_selector="metadata.name=mock-job",
-                    resource_version="1",
-                ),
+        async def test_watch_handles_pod_without_exit_code(
+            self,
+            flow_run,
+            default_configuration,
+            mock_core_client,
+            mock_watch,
+            mock_batch_client,
+        ):
+            """
+            This test case mimics the behavior of a pod that has been forcefully terminated
+            (i.e. AWS spot instance termination or another node failure).
+            """
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            job_pod.status.phase = "Running"
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            # The container may exist but because it has been forcefully terminated
+            # it will not have an exit code.
+            mock_container_status.state.terminated = None
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
             ]
-        )
+
+            # TODO investigate why it needs type
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+                    job_pod.status.phase = "Running"
+                    yield {"object": job_pod, "type": "ADDED"}
+
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+
+                    # Yield the job then return exiting the stream
+                    job.status.completion_time = None
+                    job.spec.backoff_limit = 6
+                    for i in range(0, 8):
+                        job.status.failed = i
+                        yield {"object": job, "type": "ADDED"}
+
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
+
+            assert result.status_code == -1
+
+        async def test_watch_handles_410(
+            self,
+            default_configuration: KubernetesWorkerJobConfiguration,
+            flow_run,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+        ):
+            stream_return = [
+                _mock_pods_stream_that_returns_running_pod(),
+                _mock_pods_stream_that_returns_running_pod(),
+                ApiException(status=410),
+                _mock_pods_stream_that_returns_running_pod(),
+            ]
+            mock_watch.return_value.stream = mock.Mock(side_effect=stream_return)
+            job_list = MagicMock(spec=kubernetes_asyncio.client.V1JobList)
+            job_list.metadata.resource_version = "1"
+
+            mock_batch_client.return_value.list_namespaced_job.side_effect = [job_list]
+
+            # The job should not be completed to start
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                await k8s_worker.run(
+                    flow_run=flow_run, configuration=default_configuration
+                )
+
+            mock_watch.return_value.stream.assert_has_calls(
+                [
+                    mock.call(
+                        func=mock_batch_client.return_value.list_namespaced_job,
+                        namespace=mock.ANY,
+                        field_selector="metadata.name=mock-job",
+                    ),
+                    mock.call(
+                        func=mock_batch_client.return_value.list_namespaced_job,
+                        namespace=mock.ANY,
+                        field_selector="metadata.name=mock-job",
+                        resource_version="1",
+                    ),
+                ]
+            )
 
     class TestKillInfrastructure:
         async def test_kill_infrastructure_calls_delete_namespaced_job(
