@@ -51,11 +51,11 @@ def main():
 
 
 def ensure_mintlify_installed():
-    result = subprocess.run(["which", "mintlify-scrape"], capture_output=False)
+    result = subprocess.run(["which", "mintlify-scrape"], capture_output=True)
     if result.returncode == 0:
         return
 
-    result = subprocess.run(["which", "npm"], capture_output=False)
+    result = subprocess.run(["which", "npm"], capture_output=True)
     if result.returncode != 0:
         print(
             "Neither `@mintlify/scraping` nor `npm` are installed.  Please make sure "

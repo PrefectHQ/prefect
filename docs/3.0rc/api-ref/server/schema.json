@@ -22051,14 +22051,16 @@
                         "default": 3
                     },
                     "PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Api Services Scheduler Max Scheduled Time",
-                        "default": 8640000.0
+                        "default": "P100D"
                     },
                     "PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Api Services Scheduler Min Scheduled Time",
-                        "default": 3600.0
+                        "default": "PT1H"
                     },
                     "PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE": {
                         "type": "integer",
@@ -22071,9 +22073,10 @@
                         "default": 5
                     },
                     "PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Api Services Late Runs After Seconds",
-                        "default": 15.0
+                        "default": "PT15S"
                     },
                     "PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS": {
                         "type": "number",
@@ -22146,9 +22149,10 @@
                         "default": false
                     },
                     "PREFECT_SERVER_CSRF_TOKEN_EXPIRATION": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Server Csrf Token Expiration",
-                        "default": 3600.0
+                        "default": "PT1H"
                     },
                     "PREFECT_UI_ENABLED": {
                         "type": "boolean",
@@ -22357,9 +22361,10 @@
                         "default": 100
                     },
                     "PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Task Scheduling Pending Task Timeout",
-                        "default": 30.0
+                        "default": "PT30S"
                     },
                     "PREFECT_EXPERIMENTAL_ENABLE_EXTRA_RUNNER_ENDPOINTS": {
                         "type": "boolean",
@@ -22486,14 +22491,16 @@
                         "default": true
                     },
                     "PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Events Expired Bucket Buffer",
-                        "default": 60.0
+                        "default": "PT1M"
                     },
                     "PREFECT_EVENTS_PROACTIVE_GRANULARITY": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Events Proactive Granularity",
-                        "default": 5.0
+                        "default": "PT5S"
                     },
                     "PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED": {
                         "type": "boolean",
@@ -22513,9 +22520,10 @@
                         "default": 5
                     },
                     "PREFECT_EVENTS_RETENTION_PERIOD": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Events Retention Period",
-                        "default": 604800.0
+                        "default": "P7D"
                     },
                     "PREFECT_API_EVENTS_STREAM_OUT_ENABLED": {
                         "type": "boolean",
@@ -22523,9 +22531,10 @@
                         "default": true
                     },
                     "PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL": {
-                        "type": "number",
+                        "type": "string",
+                        "format": "duration",
                         "title": "Prefect Api Events Related Resource Cache Ttl",
-                        "default": 300.0
+                        "default": "PT5M"
                     }
                 },
                 "type": "object",
