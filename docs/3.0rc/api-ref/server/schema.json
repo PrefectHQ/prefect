@@ -18854,6 +18854,21 @@
                         ],
                         "title": "Any ",
                         "description": "A list of flow run state names to include"
+                    },
+                    "not_any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Not Any ",
+                        "description": "A list of flow run state names to exclude"
                     }
                 },
                 "additionalProperties": false,
@@ -18877,6 +18892,21 @@
                         ],
                         "title": "Any ",
                         "description": "A list of flow run state types to include"
+                    },
+                    "not_any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/StateType"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Not Any ",
+                        "description": "A list of flow run state types to exclude"
                     }
                 },
                 "additionalProperties": false,
