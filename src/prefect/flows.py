@@ -15,7 +15,7 @@ import sys
 import tempfile
 import warnings
 from copy import copy
-from functools import partial, update_wrapper, wraps
+from functools import partial, update_wrapper
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import (
@@ -365,23 +365,11 @@ class Flow(Generic[P, R]):
         if instance is None:
             return self
 
-        # if the flow is being accessed on an instance, bind the instance to the flow's fn
+        # if the flow is being accessed on an instance, bind the instance to the __self__ attribute
+        # of the flow's function. This will allow it to be automatically added to the flow's parameters
         else:
-            # create a wrapper that calls the flow function with the instance as the first argument
-            @wraps(self.fn)
-            def _instance_wrapper(*args, **kwargs):
-                return self.fn(instance, *args, **kwargs)
-
-            # remove the first (bound) argument from the wrapped function signature
-            # so that validation works as expected
-            signature = inspect.signature(self.fn)
-            _instance_wrapper.__signature__ = signature.replace(
-                parameters=list(signature.parameters.values())[1:]
-            )
-
             bound_flow = copy(self)
-            bound_flow.fn = _instance_wrapper
-            update_wrapper(bound_flow, _instance_wrapper)
+            bound_flow.fn.__self__ = instance
             return bound_flow
 
     def with_options(

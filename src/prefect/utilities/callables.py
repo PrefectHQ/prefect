@@ -42,13 +42,24 @@ def get_call_parameters(
     call_args: Tuple[Any, ...],
     call_kwargs: Dict[str, Any],
     apply_defaults: bool = True,
+    include_self: bool = True,
 ) -> Dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on the
     signature will be included if not overridden.
 
+    If include_self is True and fn is a bound method, fn.__self__ will be
+    explicitly included as the first parameter. This allows Prefect to work with
+    bound methods in a way that is consistent with how Python handles them (i.e.
+    users don't have to pass the instance to the method) while still making the
+    implicit self argument visible to all of Prefect's parameter machinery (such as
+    cache key functions).
+
     Raises a ParameterBindError if the arguments/kwargs are not valid for the function
     """
+    if include_self and hasattr(fn, "__self__"):
+        call_args = (fn.__self__,) + call_args
+
     try:
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
     except TypeError as exc:

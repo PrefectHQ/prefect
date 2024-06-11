@@ -1327,6 +1327,41 @@ class TestTaskCaching:
             assert await second_state.result() != await first_state.result()
             assert await third_state.result() == await second_state.result()
 
+    async def test_cache_key_fn_receives_self_if_method(self):
+        def stringed_inputs(context, args):
+            return str(args)
+
+        class Foo:
+            def __init__(self, x):
+                self.x = x
+
+            @task(cache_key_fn=stringed_inputs)
+            def add(self, a):
+                return a + self.x
+
+        f1 = Foo(1)
+        f2 = Foo(2)
+
+        @flow
+        def bar():
+            return (
+                f1.add(5, return_state=True),
+                f1.add(5, return_state=True),
+                f2.add(5, return_state=True),
+                f2.add(5, return_state=True),
+            )
+
+        s1, s2, s3, s4 = bar()
+        assert s1.name == "Completed"
+        assert s2.name == "Cached"
+        assert s3.name == "Completed"
+        assert s4.name == "Cached"
+
+        assert await s1.result() == 6
+        assert await s2.result() == 6
+        assert await s3.result() == 7
+        assert await s4.result() == 7
+
 
 class TestCacheFunctionBuiltins:
     async def test_task_input_hash_within_flows(self):
