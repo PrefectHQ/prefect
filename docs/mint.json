@@ -75,7 +75,7 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-workflows/index",
-            "3.0rc/develop/write-workflows/pause-cancel-flows", 
+            "3.0rc/develop/write-workflows/pause-cancel-flows",
             "3.0rc/develop/write-workflows/variables"
           ]
         },
@@ -84,12 +84,12 @@
           "version": "3.0rc",
           "pages": [
             "3.0rc/develop/write-tasks/index",
-            "3.0rc/develop/write-tasks/separate-logic", 
+            "3.0rc/develop/write-tasks/separate-logic",
             "3.0rc/develop/write-tasks/task-run-limits",
             "3.0rc/develop/write-tasks/use-task-runners",
-            "3.0rc/develop/write-tasks/dask-and-ray", 
+            "3.0rc/develop/write-tasks/dask-and-ray",
             "3.0rc/develop/write-tasks/upstream-dependencies",
-            "3.0rc/develop/write-tasks/deferred-tasks" 
+            "3.0rc/develop/write-tasks/deferred-tasks"
           ]
         },
         "3.0rc/develop/recover-from-failure",
@@ -196,7 +196,7 @@
         "3.0rc/cloud/configure-client",
         "3.0rc/cloud/interact-with-api",
         "3.0rc/cloud/secrets",
-        "3.0rc/cloud/terraform-provider", 
+        "3.0rc/cloud/terraform-provider",
         "3.0rc/cloud/troubleshoot-cloud"
       ]
     },
@@ -216,7 +216,6 @@
         "3.0rc/resources/cli-shell",
         "3.0rc/resources/daemonize-processes",
         "3.0rc/resources/big-data"
-
       ]
     },
     {
@@ -480,7 +479,7 @@
           "group": "Root",
           "pages": [
             "3.0rc/api-ref/server/root/health-check",
-            "3.0rc/api-ref/server/root/orion-info",
+            "3.0rc/api-ref/server/root/server-version",
             "3.0rc/api-ref/server/root/hello",
             "3.0rc/api-ref/server/root/perform-readiness-check"
           ]
@@ -495,6 +494,7 @@
             "3.0rc/api-ref/server/flows/count-flows",
             "3.0rc/api-ref/server/flows/read-flow-by-name",
             "3.0rc/api-ref/server/flows/read-flows",
+            "3.0rc/api-ref/server/flows/paginate-flows",
             "3.0rc/api-ref/server/flows/count-deployments-by-flow",
             "3.0rc/api-ref/server/flows/next-runs-by-flow"
           ]
@@ -512,13 +512,15 @@
             "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v1",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-graph-v2",
             "3.0rc/api-ref/server/flow-runs/resume-flow-run",
-            "3.0rc/api-ref/server/flow-runs/read-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/paginate-flow-runs",
             "3.0rc/api-ref/server/flow-runs/set-flow-run-state",
             "3.0rc/api-ref/server/flow-runs/create-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/filter-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/read-flow-run-input",
             "3.0rc/api-ref/server/flow-runs/delete-flow-run-input",
-            "3.0rc/api-ref/server/flow-runs/read-flow-run-history"
+            "3.0rc/api-ref/server/flow-runs/read-flow-runs",
+            "3.0rc/api-ref/server/flow-runs/read-flow-run-history",
+            "3.0rc/api-ref/server/flow-runs/count-task-runs-by-flow-run"
           ]
         },
         {
@@ -771,7 +773,8 @@
             "3.0rc/api-ref/server/admin/drop-database",
             "3.0rc/api-ref/server/admin/create-database"
           ]
-        }
+        },
+        "3.0rc/api-ref/server/create-csrf-token"
       ]
     },
     {
