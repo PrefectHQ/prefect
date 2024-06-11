@@ -385,7 +385,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_deployments_ready,
-        work_queue_ids=work_queue_ids,
+        work_queue_ids=polled_work_queue_ids,
     )
 
     return queue_response
@@ -511,7 +511,6 @@ async def update_work_queue(
     """
     Update a work pool queue
     """
-
     async with db.session_context(begin_transaction=True) as session:
         work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             work_pool_name=work_pool_name,

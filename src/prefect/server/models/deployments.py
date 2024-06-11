@@ -175,7 +175,6 @@ async def update_deployment(
         bool: whether the deployment was updated
 
     """
-
     from prefect.server.api.workers import WorkerLookups
 
     schedules = deployment.schedules
