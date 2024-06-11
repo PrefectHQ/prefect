@@ -332,17 +332,19 @@ class TestTaskWorkerTaskResults:
                 await updated_task_run.state.result()
 
     @pytest.mark.parametrize(
-        "storage_key", ["foo", "{parameters[x]}"], ids=["static", "dynamic"]
+        "storage_key",
+        [f"foo-{uuid.uuid4()}", "{parameters[x]}"],
+        ids=["static", "dynamic"],
     )
     async def test_task_run_via_task_worker_respects_result_storage_key(
         self, storage_key, prefect_client
     ):
-        if isinstance(storage_key, str):
-            x = f"{storage_key}-{uuid.uuid4()}"
+        if "foo" in storage_key:
+            x = storage_key
         else:
             x = f"foo-{uuid.uuid4()}"
 
-        @task(persist_result=True, result_storage_key=x)
+        @task(persist_result=True, result_storage_key=storage_key)
         def some_task(x):
             return x
 
@@ -361,7 +363,10 @@ class TestTaskWorkerTaskResults:
 
         assert await updated_task_run.state.result() == x
 
-        assert updated_task_run.state.data.storage_key == x
+        if "foo" in storage_key:
+            assert updated_task_run.state.data.storage_key == storage_key
+        else:
+            assert updated_task_run.state.data.storage_key == x
 
     async def test_task_run_via_task_worker_with_complex_result_type(
         self, prefect_client
