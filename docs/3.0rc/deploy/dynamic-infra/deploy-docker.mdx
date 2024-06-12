@@ -183,7 +183,7 @@ Use the instructions provided by Docker to
 
 To ensure the process serving your flow is always running, 
 create a [Kubernetes deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/). 
-If your flow's container ever crashes, Kubernetes automatically restarts it, 
+If your flow's container crashes, Kubernetes automatically restarts it, 
 ensuring you don't miss any scheduled runs.
 
 First, create a `deployment-manifest.yaml` file in your `prefect-docker-guide` directory:
