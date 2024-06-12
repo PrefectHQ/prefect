@@ -2,7 +2,6 @@ import textwrap
 from contextvars import ContextVar
 from unittest.mock import MagicMock
 
-import anyio
 import pytest
 from pendulum.datetime import DateTime
 
@@ -96,24 +95,22 @@ async def test_flow_run_context(prefect_client):
     flow_run = await prefect_client.create_flow_run(foo)
     result_factory = await ResultFactory.from_flow(foo)
 
-    async with anyio.create_task_group() as task_group:
-        with FlowRunContext(
-            flow=foo,
-            flow_run=flow_run,
-            client=prefect_client,
-            task_runner=test_task_runner,
-            result_factory=result_factory,
-            background_tasks=task_group,
-            parameters={"x": "y"},
-        ):
-            ctx = FlowRunContext.get()
-            assert ctx.flow is foo
-            assert ctx.flow_run == flow_run
-            assert ctx.client is prefect_client
-            assert ctx.task_runner is test_task_runner
-            assert ctx.result_factory == result_factory
-            assert isinstance(ctx.start_time, DateTime)
-            assert ctx.parameters == {"x": "y"}
+    with FlowRunContext(
+        flow=foo,
+        flow_run=flow_run,
+        client=prefect_client,
+        task_runner=test_task_runner,
+        result_factory=result_factory,
+        parameters={"x": "y"},
+    ):
+        ctx = FlowRunContext.get()
+        assert ctx.flow is foo
+        assert ctx.flow_run == flow_run
+        assert ctx.client is prefect_client
+        assert ctx.task_runner is test_task_runner
+        assert ctx.result_factory == result_factory
+        assert isinstance(ctx.start_time, DateTime)
+        assert ctx.parameters == {"x": "y"}
 
 
 async def test_task_run_context(prefect_client, flow_run):
@@ -167,32 +164,26 @@ async def test_get_run_context(prefect_client, local_filesystem):
     with pytest.raises(MissingContextError):
         get_run_context()
 
-    async with anyio.create_task_group() as task_group:
-        with FlowRunContext(
-            flow=foo,
-            flow_run=flow_run,
+    with FlowRunContext(
+        flow=foo,
+        flow_run=flow_run,
+        client=prefect_client,
+        task_runner=test_task_runner,
+        result_factory=await ResultFactory.from_flow(foo, client=prefect_client),
+        parameters={"x": "y"},
+    ) as flow_ctx:
+        assert get_run_context() is flow_ctx
+
+        with TaskRunContext(
+            task=bar,
+            task_run=task_run,
             client=prefect_client,
-            task_runner=test_task_runner,
-            background_tasks=task_group,
-            result_factory=await ResultFactory.from_flow(foo, client=prefect_client),
-            parameters={"x": "y"},
-        ) as flow_ctx:
-            assert get_run_context() is flow_ctx
+            result_factory=await ResultFactory.from_task(bar, client=prefect_client),
+            parameters={"foo": "bar"},
+        ) as task_ctx:
+            assert get_run_context() is task_ctx, "Task context takes precedence"
 
-            with TaskRunContext(
-                task=bar,
-                task_run=task_run,
-                client=prefect_client,
-                result_factory=await ResultFactory.from_task(
-                    bar, client=prefect_client
-                ),
-                parameters={"foo": "bar"},
-            ) as task_ctx:
-                assert get_run_context() is task_ctx, "Task context takes precedence"
-
-            assert (
-                get_run_context() is flow_ctx
-            ), "Flow context is restored and retrieved"
+        assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"
 
 
 class TestSettingsContext:
@@ -419,23 +410,21 @@ class TestSerializeContext:
         flow_run = await prefect_client.create_flow_run(foo)
         result_factory = await ResultFactory.from_flow(foo)
 
-        async with anyio.create_task_group() as task_group:
-            with FlowRunContext(
-                flow=foo,
-                flow_run=flow_run,
-                client=prefect_client,
-                task_runner=test_task_runner,
-                result_factory=result_factory,
-                background_tasks=task_group,
-                parameters={"x": "y"},
-            ) as flow_run_context:
-                serialized = serialize_context()
-                assert serialized == {
-                    "flow_run_context": flow_run_context.serialize(),
-                    "task_run_context": {},
-                    "tags_context": {},
-                    "settings_context": SettingsContext.get().serialize(),
-                }
+        with FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_factory=result_factory,
+            parameters={"x": "y"},
+        ) as flow_run_context:
+            serialized = serialize_context()
+            assert serialized == {
+                "flow_run_context": flow_run_context.serialize(),
+                "task_run_context": {},
+                "tags_context": {},
+                "settings_context": SettingsContext.get().serialize(),
+            }
 
     async def test_with_task_run_context(self, prefect_client, flow_run):
         @task
@@ -510,16 +499,14 @@ class TestHydratedContext:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo)
         result_factory = await ResultFactory.from_flow(foo)
-        async with anyio.create_task_group() as task_group:
-            flow_run_context = FlowRunContext(
-                flow=foo,
-                flow_run=flow_run,
-                client=prefect_client,
-                task_runner=test_task_runner,
-                result_factory=result_factory,
-                background_tasks=task_group,
-                parameters={"x": "y"},
-            )
+        flow_run_context = FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_factory=result_factory,
+            parameters={"x": "y"},
+        )
 
         with hydrated_context(
             {
@@ -538,9 +525,6 @@ class TestHydratedContext:
             assert (
                 hydrated_flow_run_context.result_factory is not None
             )  # this won't be the same object as the original result factory
-            assert (
-                hydrated_flow_run_context.background_tasks is not None
-            )  # this won't be the same object as the original background tasks
             assert isinstance(hydrated_flow_run_context.start_time, DateTime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
 
