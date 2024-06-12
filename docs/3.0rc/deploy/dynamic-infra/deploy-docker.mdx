@@ -420,7 +420,7 @@ or tasks that are part of `prefect` itself, you can rely on the default provided
 - If the installation process requires compiling code or other expensive operations, 
 consider building a custom image instead.
 
-- If your flow (or flows) require extra dependencies or shared libraries, 
+- If your flow requires extra dependencies or shared libraries, 
 we recommend building a shared custom image with all the extra dependencies 
 and shared task definitions you need. Your flows can all rely on the same image, 
 but have their source stored externally. This option eases development, since 
