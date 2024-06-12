@@ -402,7 +402,7 @@ class FlowRunEngine(Generic[P, R]):
                 self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
     @contextmanager
-    def enter_run_context(self, client: Optional[SyncPrefectClient] = None):
+    def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
             should_log_prints,
         )
@@ -557,9 +557,6 @@ class FlowRunEngine(Generic[P, R]):
     @contextmanager
     def start(self) -> Generator[None, None, None]:
         with self.initialize_run():
-            self.logger.debug(
-                f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
-            )
             self.begin_run()
 
             if self.state.is_running():
@@ -574,13 +571,17 @@ class FlowRunEngine(Generic[P, R]):
     def run_context(self):
         timeout_context = timeout_async if self.flow.isasync else timeout
         # reenter the run context to ensure it is up to date for every run
-        with self.enter_run_context():
+        with self.setup_run_context():
             try:
                 with timeout_context(seconds=self.flow.timeout_seconds):
+                    self.logger.debug(
+                        f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
+                    )
                     yield self
             except TimeoutError as exc:
                 self.handle_timeout(exc)
             except Exception as exc:
+                self.logger.exception(f"Encountered exception during execution: {exc}")
                 self.handle_exception(exc)
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:

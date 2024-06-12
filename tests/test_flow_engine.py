@@ -92,7 +92,7 @@ class TestStartFlowRunEngine:
         flow_run = await prefect_client.create_flow_run(flow_with_retries)
 
         engine = FlowRunEngine(flow=flow_with_retries, flow_run=flow_run)
-        with engine.start() as engine:
+        with engine.start():
             assert engine.flow_run.empirical_policy.retries == 3
             assert engine.flow_run.empirical_policy.retry_delay == 10
 
