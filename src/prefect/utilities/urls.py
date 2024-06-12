@@ -7,10 +7,10 @@ from pydantic import BaseModel
 
 from prefect import settings
 from prefect.blocks.core import Block
+from prefect.events.schemas.automations import Automation
+from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.server.events.schemas.automations import Automation
-from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.variables import Variable
 
 logger = get_logger("utilities.urls")
@@ -114,7 +114,7 @@ def url_for(
         name = "received-event"
     elif isinstance(obj, Resource):
         if obj.id.startswith("prefect."):
-            _, name, obj_id = obj.id.split(".")
+            name = obj.id.split(".")[1]
         else:
             logger.warning(f"No URL known for resource with ID: {obj.id}")
             return None
