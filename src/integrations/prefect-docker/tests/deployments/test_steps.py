@@ -201,7 +201,6 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
         Path("Dockerfile").unlink()
 
 
-@pytest.mark.flaky(max_runs=3)
 def test_real_auto_dockerfile_build(docker_client_with_cleanup):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
     try:
@@ -213,8 +212,12 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup):
         )
         assert image
 
+        expected_prefect_version = prefect.__version__
+        expected_prefect_version = expected_prefect_version.replace(".dirty", "")
+        expected_prefect_version = expected_prefect_version.split("+")[0]
+
         cases = [
-            {"command": "prefect version", "expected": prefect.__version__},
+            {"command": "prefect version", "expected": expected_prefect_version},
             {"command": "ls", "expected": "requirements.txt"},
         ]
 
@@ -239,11 +242,12 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup):
         docker_client_with_cleanup.containers.prune(
             filters={"label": "prefect-docker-test"}
         )
-        image = docker_client_with_cleanup.images.get("local/repo:test")
-        if image:
+        try:
             docker_client_with_cleanup.images.remove(
                 image="local/repo:test", force=True
             )
+        except docker.errors.ImageNotFound:
+            pass
 
 
 def test_push_docker_image_with_additional_tags(mock_docker_client, monkeypatch):
