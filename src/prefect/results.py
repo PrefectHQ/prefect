@@ -62,15 +62,17 @@ R = TypeVar("R")
 
 
 @sync_compatible
-async def get_default_result_storage() -> ResultStorage:
+async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
-    return (
-        await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
-        if PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value() is not None
-        else LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
-    )
+    try:
+        return await Block.load(PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value())
+    except ValueError:
+        block = LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+        default_name = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value().split("/")[-1]
+        await block.save(default_name)
+        return block
 
 
 _default_task_scheduling_storages: Dict[Tuple[str, str], WritableFileSystem] = {}

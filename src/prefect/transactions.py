@@ -1,3 +1,4 @@
+import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import (
@@ -12,8 +13,10 @@ from typing import (
 from pydantic import Field
 from typing_extensions import Self
 
-from prefect.context import ContextModel
+from prefect.context import ContextModel, FlowRunContext
 from prefect.records import RecordStore
+from prefect.records.result_store import ResultFactoryStore
+from prefect.results import get_default_result_storage
 from prefect.utilities.collections import AutoEnum
 
 
@@ -181,11 +184,17 @@ class Transaction(ContextModel):
             return False
 
     def stage(
-        self, value: dict, on_rollback_hooks: list, on_commit_hooks: list
+        self,
+        value: dict,
+        on_rollback_hooks: Optional[List] = None,
+        on_commit_hooks: Optional[List] = None,
     ) -> None:
         """
         Stage a value to be committed later.
         """
+        on_commit_hooks = on_commit_hooks or []
+        on_rollback_hooks = on_rollback_hooks or []
+
         if self.state != TransactionState.COMMITTED:
             self._staged_value = value
             self.on_rollback_hooks += on_rollback_hooks
@@ -238,6 +247,22 @@ def transaction(
     Yields:
         - Transaction: An object representing the transaction state
     """
+    if not store and (flow_run_context := FlowRunContext.get()):
+        if flow_run_context:
+            new_factory = flow_run_context.result_factory.model_copy(
+                update={
+                    "persist_result": True,
+                }
+            )
+            if not new_factory.storage_block:
+                default_storage = get_default_result_storage(_sync=True)
+                new_factory.storage_block = default_storage
+            store = ResultFactoryStore(
+                result_factory=new_factory,
+            )
+
+    if not key:
+        key = str(uuid.uuid4())
     with Transaction(
         key=key, store=store, commit_mode=commit_mode, overwrite=overwrite
     ) as txn:
