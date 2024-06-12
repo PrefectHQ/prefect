@@ -22,7 +22,7 @@
 
 <script lang="ts" setup>
   import { useWizardStep } from '@prefecthq/prefect-design'
-  import { createTuple, stringify, withProps, AutomationTriggerEventInput, AutomationTrigger, AutomationTriggerResponse, getAutomationTriggerTemplate, getDefaultAutomationTriggerValue, isNullish } from '@prefecthq/prefect-ui-library'
+  import { createTuple, stringify, withProps, AutomationTriggerEventInput, AutomationTrigger, AutomationTriggerResponse, getAutomationTriggerTemplate, getDefaultAutomationTriggerValue, isNullish, AutomationTriggerCustomInput } from '@prefecthq/prefect-ui-library'
   import { useValidation, useValidationObserver } from '@prefecthq/vue-compositions'
   import { computed, ref, watch } from 'vue'
   import AutomationTriggerJsonInput from '@/components/AutomationTriggerJsonInput.vue'
@@ -125,11 +125,25 @@
 
     const trigger = automation.value.trigger ?? getDefaultAutomationTriggerValue(template.value)
 
-    return withProps(AutomationTriggerEventInput, {
-      template: template.value,
-      trigger,
-      'onUpdate:trigger': updateTrigger,
-    })
+    switch (trigger.type) {
+      case 'event':
+        return withProps(AutomationTriggerEventInput, {
+          template: template.value,
+          trigger,
+          'onUpdate:trigger': updateTrigger,
+        })
+      case 'compound':
+      case 'sequence':
+        return withProps(AutomationTriggerCustomInput, {
+          trigger,
+          'onUpdate:trigger': updateTrigger,
+        })
+
+      default:
+        const exhaustive: never = trigger
+        throw new Error(`AutomationWizardStepTrigger is missing case for trigger type ${(exhaustive as AutomationTrigger).type}`)
+    }
+
   })
 
   function updateTrigger(trigger: AutomationTrigger | undefined): void {
