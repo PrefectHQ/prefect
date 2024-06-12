@@ -2831,10 +2831,12 @@ class TestTaskWithOptions:
 
 
 class TestTaskMap:
+    @staticmethod
     @task
     async def add_one(x):
         return x + 1
 
+    @staticmethod
     @task
     def add_together(x, y):
         return x + y
@@ -2931,10 +2933,12 @@ class TestTaskMap:
         task_states = my_flow()
         assert [await state.result() for state in task_states] == [2, 3, 4]
 
+    @staticmethod
     @task
     def echo(x):
         return x
 
+    @staticmethod
     @task
     def numbers():
         return [1, 2, 3]

@@ -365,11 +365,11 @@ class Flow(Generic[P, R]):
         if instance is None:
             return self
 
-        # if the flow is being accessed on an instance, bind the instance to the __self__ attribute
+        # if the flow is being accessed on an instance, bind the instance to the __prefect_self__ attribute
         # of the flow's function. This will allow it to be automatically added to the flow's parameters
         else:
             bound_flow = copy(self)
-            bound_flow.fn.__self__ = instance
+            bound_flow.fn.__prefect_self__ = instance
             return bound_flow
 
     def with_options(

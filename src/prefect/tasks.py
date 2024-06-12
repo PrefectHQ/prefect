@@ -378,11 +378,11 @@ class Task(Generic[P, R]):
         if instance is None:
             return self
 
-        # if the task is being accessed on an instance, bind the instance to the __self__ attribute
+        # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
         # of the task's function. This will allow it to be automatically added to the task's parameters
         else:
             bound_task = copy(self)
-            bound_task.fn.__self__ = instance
+            bound_task.fn.__prefect_self__ = instance
             return bound_task
 
     def with_options(
