@@ -514,7 +514,7 @@ an option with the Python deployment creation method.
 Use the `run_shell_script` command to grab the SHA and pass it to the `tag` 
 parameter of `build_docker_image`:
 
-```yaml hl_lines="2-5 10"
+```yaml
 build:
 - prefect.deployments.steps.run_shell_script:
     id: get-commit-hash
