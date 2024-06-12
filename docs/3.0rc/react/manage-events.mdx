@@ -1,51 +1,48 @@
 ---
 title: Incidents
-description: Incidents in Prefect Cloud help identify, rectify and document issues in mission-critical workflows.
+description: Incidents in Prefect Cloud help identify, resolve, and document issues in mission-critical workflows.
+# TODO: Rename file as incidents.mdx
 ---
-
-## Overview
 
 Incidents are a Prefect Cloud feature to help your team manage workflow disruptions. Incidents help you identify, resolve, and document issues with mission-critical workflows. This system enhances operational efficiency by automating the incident management process and providing a centralized platform for collaboration and compliance.
 
-## What are incidents?
+## Definition
 
-Incidents are formal declarations of disruptions to a workspace. With [automations](#incident-automations), activity in a workspace can be paused when an incident is created and resumed when it is resolved.
+Incidents are formal declarations of disruptions to a workspace. With [automations](#incident-automations), activity in a workspace can be paused when an incident is created and resumed when the incident is resolved.
 
 Incidents vary in nature and severity, ranging from minor glitches to critical system failures. Prefect Cloud enables users to effectively and automatically track and manage these incidents, ensuring minimal impact on operational continuity.
 
 ![Incidents in the Prefect Cloud UI](/3.0rc/img/ui/incidents-dashboard.png)
 
-## Why use incident management?
+## Use cases
 
-1. **Automated detection and reporting**: Incidents can be automatically identified based on specific triggers or manually reported by team members, facilitating prompt response.
+Incorporating incidents into your Prefect workflow facilitates many common needs:
 
-2. **Collaborative problem-solving**: The platform fosters collaboration, allowing team members to share insights, discuss resolutions, and track contributions.
+* **Automated detection and reporting**, Incidents can be automatically identified based on specific triggers or manually reported by team members, facilitating prompt response
 
-3. **Comprehensive impact assessment**: Users gain insights into the incident's influence on workflows, helping in prioritizing response efforts.
+* **Collaborative problem solving**, The platform fosters collaboration, allowing team members to share insights, discuss resolutions, and track contributions
 
-4. **Compliance with incident management processes**: Detailed documentation and reporting features support compliance with incident management systems.
+* **Comprehensive impact assessment**, Users gain insights into the incident's influence on workflows, helping in prioritizing response efforts
 
-5. **Enhanced operational transparency**: The system provides a transparent view of both ongoing and resolved incidents, promoting accountability and continuous improvement.
+* **Compliance with incident management processes**, Detailed documentation and reporting features support compliance with incident management systems
 
-![An active incident in the Prefect Cloud UI](/3.0rc/img/ui/incidents-active.png)
+* **Enhanced operational transparency**, The system provides a transparent view of both ongoing and resolved incidents, promoting accountability and continuous improvement
 
-## How to use incident management in Prefect Cloud
+## Incident management in Prefect Cloud
 
-### Creating an incident
+Prefect Cloud provides tools for managing the entire incident lifecycle, from creation to retrospective reporting. 
+
+### Create an incident
 
 There are several ways to create an incident:
 
-1. **From the Incidents page:**
-    - Click on the **+** button.
-    - Fill in required fields and attach any Prefect resources related to your incident.
+* **From the Incidents page**, click the **+** button, fill in required fields, and attach any Prefect resources related to your incident.
 
-2. **From a flow run, work pool, or block:**
-    - Initiate an incident directly from a failed flow run, automatically linking it as a resource, by clicking on the menu button and selecting "Declare an incident".
+* **From a flow run, work pool, or block**, from the failed flow run, click the menu button and select "Declare an incident". This method automatically links the resource. 
 
-3. **Via an [automation](/3.0rc/react/understand-events/automations-triggers/):**
-    - Set up incident creation as an automated response to selected triggers.
+* **Through an [automation](/3.0rc/react/understand-events/automations-triggers/)**, set up incident creation as an automated response to selected triggers.
 
-### Incident automations
+### Automate an incident
 
 Automations can be used for triggering an incident and for selecting actions to take when an incident is triggered. For example, a work pool status change could trigger the declaration of an incident, or a critical level incident could trigger a notification action.
 
@@ -65,32 +62,35 @@ To automatically take action when an incident is declared, set up a custom trigg
 }
 ```
 
-!!! tip "Building custom triggers"
-    To get started with incident automations, you only need to specify two fields in your trigger:
+To get started with incident automations, specify two fields in your trigger:
 
-      - **match**: The resource emitting your event of interest. You can match on specific resource IDs, use wildcards to match on all resources of a given type, and even match on other resource attributes, like `prefect.resource.name`.
+  - **match**, the resource emitting your event of interest. You can match on specific resource IDs, use wildcards to match on all resources of a given type, and even match on other resource attributes, like `prefect.resource.name`.
 
-      - **expect**: The event type to listen for. For example, you could listen for any (or all) of the following event types:
-          - `prefect-cloud.incident.declared`
-          - `prefect-cloud.incident.resolved`
-          - `prefect-cloud.incident.updated.severity`
+  - **expect**, the event type to listen for. For example, you could listen for any (or all) of the following event types:
+      - `prefect-cloud.incident.declared`
+      - `prefect-cloud.incident.resolved`
+      - `prefect-cloud.incident.updated.severity`
 
-    See [Event Triggers](/3.0rc/react/understand-events/automations-triggers/#custom-triggers) for more information on custom triggers, and check out your Event Feed to see the event types emitted by your incidents and other resources (i.e. events that you can react to).
+See [event triggers](/3.0rc/react/understand-events/automations-triggers/#custom-triggers) for more information on custom triggers, and check out your event feed to see the event types emitted by your incidents and other resources (that is, the events that you can react to).
 
-When an incident is declared, any actions you configure such as pausing work pools or sending notifications, will execute immediately.
+When an incident is declared, any actions you configure such as pausing work pools or sending notifications, execute immediately.
 
-### Managing an incident
+### Manage an incident
 
-- **Monitor active incidents**: View real-time status, severity, and impact.
-- **Adjust incident details**: Update status, severity, and other relevant information.
-- **Collaborate**: Add comments and insights; these will display with user identifiers and timestamps.
-- **Impact assessment**: Evaluate how the incident affects ongoing and future workflows.
+During an incident, Prefect Cloud facilitates management through:
 
-### Resolving and documenting incidents
+- **Monitor active incidents**, view real-time status, severity, and impact
+- **Adjust incident details**, update status, severity, and other relevant information
+- **Collaborate**, add comments and insights; these display with user identifiers and timestamps
+- **Impact assessment**, evaluate how the incident affects ongoing and future workflows
 
-- **Resolution**: Update the incident status to reflect resolution steps taken.
-- **Documentation**: Ensure all actions, comments, and changes are logged for future reference.
+### Resolve and document an incident
 
-### Incident reporting
+Incidents conclude with:
 
-- Generate a detailed timeline of the incident: actions taken, updates to severity and resolution - suitable for compliance and retrospective analysis.
+- **Resolution**, update the incident status to reflect resolution steps taken
+- **Documentation**, ensure all actions, comments, and changes are logged for future reference
+
+### Retroactive incident reporting
+
+After an incident's resolution, generate a detailed timeline of the incident: actions taken, updates to severity, and resolution. The report is suitable for compliance and retrospective analysis.

@@ -1,17 +1,13 @@
 ---
 title: Events
-description: Prefect Cloud Event Feed
+# TODO: Idealy "Understand events" loads this page directly
 ---
 
-An event is a notification of a change. Together, events form a feed of activity recording what's happening across your stack.
+An event is a notification of a change, creating a history of activity in your stack. Events can represent API calls, state transitions, or changes in your execution environment or infrastructure.
 
 Events power several features in Prefect Cloud, including flow run logs, audit logs, and automations.
 
-Events can represent API calls, state transitions, or changes in your execution environment or infrastructure.
-
-Events enable observability into your data stack via the [event feed](/3.0rc/react/understand-events/#event-feed), and the configuration of Prefect's reactivity via [automations](/3.0rc/react/understand-events/automations-triggers/).
-
-![Prefect UI](/3.0rc/img/ui/event-feed.png)
+Events enable observability into your data stack via the [event feed in the UI](#events-in-the-cloud-ui) and the configuration of Prefect's reactivity via [automations](/3.0rc/react/understand-events/automations-triggers/).
 
 ## Event specification
 
@@ -22,16 +18,16 @@ Events adhere to a structured [specification](https://app.prefect.cloud/api/docs
 | Name     | Type   | Required? | Description                                                          |
 | -------- | ------ | --------- | -------------------------------------------------------------------- |
 | occurred | String | yes       | When the event happened                                              |
-| event    | String | yes       | The name of the event that happened                                  |
-| resource | Object | yes       | The primary Resource this event concerns                             |
-| related  | Array  | no        | A list of additional Resources involved in this event                |
-| payload  | Object | no        | An open-ended set of data describing what happened                   |
-| id       | String | yes       | The client-provided identifier of this event                         |
-| follows  | String | no        | The ID of an event that is known to have occurred prior to this one. |
+| event    | String | yes       | Name of the event that happened                                  |
+| resource | Object | yes       | Primary resource this event concerns                             |
+| related  | Array  | no        | List of additional Resources involved in this event                |
+| payload  | Object | no        | Open-ended set of data describing what happened                   |
+| id       | String | yes       | Client-provided identifier of this event                         |
+| follows  | String | no        | ID of an event that is known to have occurred prior to this one |
 
 ## Event grammar
 
-Generally, events have a consistent and informative grammar - an event describes a resource and an action that the resource took or that was taken on that resource. For example, events emitted by Prefect objects take the form of:
+Generally, events have a consistent and informative grammar&mdash;an event describes a resource and an action that the resource took or that was taken on that resource. For example, events emitted by Prefect objects take the form of:
 
 ```
 prefect.block.write-method.called
@@ -41,11 +37,11 @@ prefect-cloud.user.logged-in
 
 ## Event sources
 
-Events are automatically emitted by all Prefect objects, including flows, tasks, deployments, work queues, and logs. Prefect-emitted events will contain the `prefect` or `prefect-cloud` resource prefix. Events can also be sent to the Prefect [events API](https://app.prefect.cloud/api/docs#tag/Events) via authenticated http request.
+Events are automatically emitted by all Prefect objects, including flows, tasks, deployments, work queues, and logs. Prefect-emitted events contain the `prefect` or `prefect-cloud` resource prefix. Events can also be sent to the Prefect [events API](https://app.prefect.cloud/api/docs#tag/Events) through an authenticated HTTP request.
 
 ### Emit custom events from Python code
 
-The Prefect Python SDK provides an `emit_event` function that emits an Prefect event when called. The function can be called inside or outside of a task or flow. Running the following code will emit an event to Prefect Cloud, which will validate and ingest the event data.
+The Prefect Python SDK provides an `emit_event` function that emits an Prefect event when called. You can call `emit_event` inside or outside of a task or flow. For example, running this code emits an event to Prefect Cloud, which validates and ingests the event data:
 
 ```python
 from prefect.events import emit_event
@@ -57,14 +53,15 @@ def some_function(name: str="kiki") -> None:
 some_function()
 ```
 
-Note that the `emit_event` arguments shown above are required: `event` represents the name of the event and `resource={"prefect.resource.id": "my_string"}` is the resource id. 
+You must pass `emit_event` two arguments: `event`, the name of the event, and `resource={"prefect.resource.id": "my_string"}`, the resource ID.
+
 To get data into an event for use in an automation action, you can specify a dictionary of values for the `payload` parameter. 
 
-### Emit events via webhooks
+### Emit events through webhooks
 
 Prefect Cloud offers [programmable webhooks](/3.0rc/react/understand-events/webhook-triggers/) to receive HTTP requests from other systems and translate them into events within your workspace.  Webhooks can emit [pre-defined static events](/3.0rc/react/understand-events/webhook-triggers/#static-webhook-events), dynamic events that [use portions of the incoming HTTP request](/3.0rc/react/understand-events/webhook-triggers/#dynamic-webhook-events), or events derived from [CloudEvents](/3.0rc/react/understand-events/webhook-triggers/#accepting-cloudevents).
 
-Events emitted from any source will appear in the event feed, where you can visualize activity in context and configure [automations](/3.0rc/react/understand-events/automations-triggers/) to react to the presence or absence of it in the future. 
+Events emitted from any source appear in the event feed, where you can visualize activity in context and configure [automations](/3.0rc/react/understand-events/automations-triggers/) to react to the presence or absence of events in the future. 
 
 ## Resources
 
@@ -112,10 +109,10 @@ The event feed is the primary place to view, search, and filter events to unders
 
 You can view more information about an event by clicking into it, where you can view the full details of an event's resource, related resources, and its payload.
 
-## Reacting to events
+## Respond to events
 
 From an event page, you can configure an [automation](/3.0rc/react/understand-events/automations-triggers) to trigger on the observation of matching events or a lack of matching events by clicking the automate button in the overflow menu:
 
 ![Automation from event](/3.0rc/img/ui/automation-from-event.png)
 
-The default trigger configuration will fire every time it sees an event with a matching resource identifier. Advanced configuration is possible via [custom triggers](/3.0rc/react/understand-events/automations-triggers/).
+The default trigger configuration fires every time it sees an event with a matching resource identifier. Advanced configuration is possible through [custom triggers](/3.0rc/react/understand-events/automations-triggers/).
