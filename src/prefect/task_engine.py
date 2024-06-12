@@ -469,7 +469,8 @@ class TaskRunEngine(Generic[P, R]):
                         validated_state=self.task_run.state,
                     )
 
-                    yield self
+                    with self.setup_run_context():
+                        yield self
 
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
