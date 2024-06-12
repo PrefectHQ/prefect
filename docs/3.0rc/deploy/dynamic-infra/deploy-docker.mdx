@@ -226,7 +226,7 @@ Add the following content to your `deployment-manifest.yaml` file:
 <Tip>
 **Keep your API key secret**
 
-In the above manifest, you are passing in the Prefect API URL and API key as environment variables. 
+In the above manifest, you are passing the Prefect API URL and API key as environment variables. 
 This approach is simple, but not secure. If you are deploying your flow to a remote cluster, use a 
 [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/)
 to store your API key.
