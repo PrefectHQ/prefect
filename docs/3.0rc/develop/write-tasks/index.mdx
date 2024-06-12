@@ -27,7 +27,7 @@ Flows and tasks share some common features:
 
 Here's an example of what it looks like to move a request from a flow into a task:
 
-```python hl_lines="2 5-9 15" title="repo_info.py"
+```python repo_info.py
 import httpx
 from prefect import flow, task
 from typing import Optional
@@ -74,7 +74,7 @@ This concurrency greatly enhances the efficiency and performance of your workflo
 
 Expand the script to calculate the average open issues per user by making more requests:
 
-```python hl_lines="14-24 30-31 35" title="repo_info.py"
+```python repo_info.py
 import httpx
 from datetime import timedelta
 from prefect import flow, task
@@ -605,7 +605,7 @@ def my_flow():
 Prefect provides a `.map()` implementation that automatically creates a task run for each element of its 
 input data. Mapped tasks represent the computations of many individual children tasks.
 
-The simplest Prefect map takes a tasks and applies it to each element of its inputs.
+The simplest Prefect map takes a task and applies it to each element of its inputs.
 
 ```python
 from prefect import flow, task
