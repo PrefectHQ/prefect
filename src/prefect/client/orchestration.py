@@ -4048,3 +4048,23 @@ class SyncPrefectClient:
             else:
                 raise
         return DeploymentResponse.model_validate(response.json())
+
+    def create_artifact(
+        self,
+        artifact: ArtifactCreate,
+    ) -> Artifact:
+        """
+        Creates an artifact with the provided configuration.
+
+        Args:
+            artifact: Desired configuration for the new artifact.
+        Returns:
+            Information about the newly created artifact.
+        """
+
+        response = self._client.post(
+            "/artifacts/",
+            json=artifact.model_dump_json(exclude_unset=True),
+        )
+
+        return Artifact.model_validate(response.json())
