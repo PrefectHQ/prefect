@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import docker
 import docker.errors
@@ -203,9 +204,12 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
 
 def test_real_auto_dockerfile_build(docker_client_with_cleanup):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
+    image_name = "local/repo"
+    tag = f"test-{uuid4()}"
+    image_reference = f"{image_name}:{tag}"
     try:
         result = build_docker_image(
-            image_name="local/repo", tag="test", dockerfile="auto"
+            image_name=image_name, tag=tag, dockerfile="auto", pull=False
         )
         image: docker.models.images.Image = docker_client_with_cleanup.images.get(
             result["image"]
@@ -243,9 +247,7 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup):
             filters={"label": "prefect-docker-test"}
         )
         try:
-            docker_client_with_cleanup.images.remove(
-                image="local/repo:test", force=True
-            )
+            docker_client_with_cleanup.images.remove(image=image_reference, force=True)
         except docker.errors.ImageNotFound:
             pass
 
