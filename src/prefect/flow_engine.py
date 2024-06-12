@@ -20,9 +20,6 @@ from typing import (
 )
 from uuid import UUID
 
-import anyio
-import anyio._backends._asyncio
-from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
 from prefect import Task
@@ -434,13 +431,6 @@ class FlowRunEngine(Generic[P, R]):
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
 
-        # if running in a completely synchronous frame, anyio will not detect the
-        # backend to use for the task group
-        try:
-            task_group = anyio.create_task_group()
-        except AsyncLibraryNotFoundError:
-            task_group = anyio._backends._asyncio.TaskGroup()
-
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
             # wait for futures to complete
@@ -455,7 +445,6 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    background_tasks=task_group,
                     result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
                     task_runner=task_runner,
                 )
