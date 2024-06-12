@@ -5,12 +5,13 @@ on:
     paths:
       - .github/workflows/integration-package-tests.yaml
       - "src/**/*.py"
+      - "src/integrations/**/*"
     types: [opened, reopened, synchronize, labeled, unlabeled]
   push:
     branches:
       - main
     paths:
-      - "src/integrations/*/**.py"
+      - "src/integrations/**/*"
 
 jobs:
   prepare-matrix:
