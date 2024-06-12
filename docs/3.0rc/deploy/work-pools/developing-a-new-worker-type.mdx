@@ -85,7 +85,7 @@ class MyWorkerConfiguration(BaseJobConfiguration):
         )
 ```
 
-This configuration class populate the `job_configuration` section of the resulting base job template.
+This configuration class populates the `job_configuration` section of the resulting base job template.
 
 For this example, the base job template would look like this:
 
@@ -237,7 +237,7 @@ The [Kubernetes worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
 ### Configure credentials
 
 When executing flow runs within cloud services, workers will often need credentials to authenticate with those services. 
-For example, a worker that executes flow runs in AWS Fargate need AWS credentials. As a worker developer, you can use 
+For example, a worker that executes flow runs in AWS Fargate needs AWS credentials. As a worker developer, you can use 
 blocks to accept credentials configuration from the user.
 
 For example, to allow the user to configure AWS credentials, you can do so like this:
@@ -501,5 +501,5 @@ entry_points={
 },
 ```
 
-Prefect discovers this entry point and load your work module in the specified module. The entry point allows the 
+Prefect discovers this entry point and loads your work module in the specified module. The entry point allows the 
 worker to be available through the CLI.
