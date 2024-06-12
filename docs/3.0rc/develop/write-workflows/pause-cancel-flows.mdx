@@ -218,8 +218,8 @@ see [Create interactive workflows](/3.0rc/develop/control-workflows/).
 
 You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
 
-When requesting cancelation, the flow run moves to a "Cancelling" state.
-If the deployment is a work pool-based deployemnt with a worker, then the worker monitors 
+When requesting cancellation, the flow run moves to a "Cancelling" state.
+If the deployment is a work pool-based deployment with a worker, then the worker monitors 
 the state of flow runs and detects that cancellation is requested.
 The worker then sends a signal to the flow run infrastructure, requesting termination of the run.
 If the run does not terminate after a grace period (default of 30 seconds), the infrastructure is killed, ensuring the flow run exits.

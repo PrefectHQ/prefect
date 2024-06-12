@@ -1,37 +1,32 @@
 ---
-title: Running Flows with Kubernetes
-description: Learn how to run flows on Kubernetes using containers
+title: Run flows with Kubernetes
+description: Learn how to run flows on Kubernetes using containers.
 ---
 
-This guide will walk you through running your flows on Kubernetes.
-Though much of the guide is general to any Kubernetes cluster, there are differences between the managed Kubernetes offerings between cloud providers, especially when it comes to container registries and access management.
-We'll focus on Amazon Elastic Kubernetes Service (EKS).
+This guide explains how to run flows on Kubernetes.
+Though much of the guide is general to any Kubernetes cluster, it focuses on 
+Amazon Elastic Kubernetes Service (EKS). Prefect is tested against 
+Kubernetes 1.26.0 and newer minor versions.
 
 ## Prerequisites
 
-Before we begin, there are a few pre-requisites:
-
 1. A Prefect Cloud account
 2. A cloud provider (AWS, GCP, or Azure) account
-3. [Install](/3.0rc/get-started/install/) Python and Prefect
-4. Install [Helm](https://helm.sh/docs/intro/install/)
-5. Install the [Kubernetes CLI (kubectl)](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-
-Prefect is tested against Kubernetes 1.26.0 and newer minor versions.
-
-!!! Note "Administrator Access"
-    Though not strictly necessary, you may want to ensure you have admin access, both in Prefect Cloud and in your cloud provider.
-    Admin access is only necessary during the initial setup and can be downgraded after.
+3. Python and Prefect [installed](/3.0rc/get-started/install/)
+4. Helm [installed](https://helm.sh/docs/intro/install/) 
+5. Kubernetes CLI (kubectl) [installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/) 
+6. Admin access for Prefect Cloud and your cloud provider. You can downgrade it after this setup.
 
 ## Create a cluster
 
-Let's start by creating a new cluster. If you already have one, skip ahead to the next section.
+If you already have one, skip ahead to the next section.
 
-=== "AWS"
+<Tabs>
+  <Tab title="AWS">
 
     One easy way to get set up with a cluster in EKS is with [`eksctl`](https://eksctl.io/).
     Node pools can be backed by either EC2 instances or FARGATE.
-    Let's choose FARGATE so there's less to manage.
+    Choose FARGATE so there's less to manage.
     The following command takes around 15 minutes and must not be interrupted:
 
     ```bash
@@ -41,14 +36,16 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     # Authenticate to the cluster.
     aws eks update-kubeconfig --name <CLUSTER-NAME>
     ```
+  </Tab>
+  <Tab title="GCP">
 
-=== "GCP"
-
-    You can get a GKE cluster up and running with a few commands using the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install).
-    We'll build a bare-bones cluster that is accessible over the open internet - this should **not** be used in a production environment.
+    You can get a GKE cluster up and running with a few commands using the 
+    [`gcloud` CLI](https://cloud.google.com/sdk/docs/install).
+    This builds a bare-bones cluster that is accessible over the open 
+    internet - but it should **not** be used in a production environment.
     To deploy the cluster, your project must have a VPC network configured.
 
-    First, authenticate to GCP by setting the following configuration options.
+    First, authenticate to GCP by setting the following configuration options:
 
     ```bash
     # Authenticate to gcloud
@@ -60,7 +57,7 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud config set compute/zone <AVAILABILITY-ZONE>
     ```
 
-    Next, deploy the cluster - this command will take ~15 minutes to complete.
+    Next, deploy the cluster. This command takes ~15 minutes to complete.
     Once the cluster has been created, authenticate to the cluster.
 
     ```bash
@@ -73,23 +70,30 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
     gcloud container clusters <CLUSTER-NAME> --region <AVAILABILITY-ZONE>
     ```
 
-    !!! Warning "GCP Gotchas"
+<Warning>
+**GCP potential errors**
 
-      - You'll need to enable the default service account in the IAM console, or specify a different service account with the appropriate permissions to be used.
+```
+ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
+```
+- You must enable the default service account in the IAM console, or 
+specify a different service account with the appropriate permissions.
 
-      ```
-      ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
-      ```
+```
+creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
+```
+- Organization policy blocks creation of external (public) IPs. Override 
+this policy (if you have the appropriate permissions) under the `Organizational Policy` 
+page within IAM.
 
-      - Organization policy blocks creation of external (public) IPs. You can override this policy (if you have the appropriate permissions) under the `Organizational Policy` page within IAM.
 
-      ```
-      creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
-      ```
+</Warning>
+  </Tab>
+  <Tab title="Azure">
 
-=== "Azure"
-
-    You can quickly create an AKS cluster using the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/get-started-with-azure-cli), or use the Cloud Shell directly from the Azure portal [shell.azure.com](https://shell.azure.com).
+    Create an AKS cluster using the 
+    [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/get-started-with-azure-cli), 
+    or use the Cloud Shell directly from the Azure portal [shell.azure.com](https://shell.azure.com).
 
     First, authenticate to Azure if not already done.
 
@@ -97,7 +101,8 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       az login
     ```
 
-    Next, deploy the cluster - this command will take ~4 minutes to complete. Once the cluster has been created, authenticate to the cluster.
+    Next, deploy the cluster - this command takes ~4 minutes to complete. 
+    Once the cluster is created, authenticate to the cluster.
 
     ```bash
 
@@ -113,16 +118,21 @@ Let's start by creating a new cluster. If you already have one, skip ahead to th
       # Verify the connection by listing the cluster nodes
       kubectl get nodes
     ```
+  </Tab>
+</Tabs>
 
 ## Create a container registry
 
-Besides a cluster, the other critical resource we'll need is a container registry.
-A registry is not strictly required, but in most cases you'll want to use custom images and/or have more control over where images are stored.
+Besides a cluster, the other critical resource is a container registry.
+A registry is not strictly required, but in most cases you'll want to use custom 
+images and/or have more control over where images are stored.
 If you already have a registry, skip ahead to the next section.
 
-=== "AWS"
+<Tabs>
+  <Tab title="AWS">
 
-    Let's create a registry using the AWS CLI and authenticate the docker daemon to said registry:
+    Create a registry using the AWS CLI and authenticate the docker daemon to 
+    that registry:
 
     ```bash
     # Replace the image name with your own value
@@ -133,9 +143,10 @@ If you already have a registry, skip ahead to the next section.
     aws ecr get-login-password --region <REGION> | docker login \
       --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
     ```
-
-=== "GCP"
-    Let's create a registry using the gcloud CLI and authenticate the docker daemon to said registry:
+  </Tab>
+  <Tab title="GCP">
+    Create a registry using the gcloud CLI and authenticate the docker daemon to 
+    that registry:
 
     ```bash
     # Create artifact registry repository to host your custom image
@@ -147,9 +158,10 @@ If you already have a registry, skip ahead to the next section.
     # Authenticate to artifact registry
     gcloud auth configure-docker us-docker.pkg.dev
     ```
-
-=== "Azure"
-    Let's create a registry using the Azure CLI and authenticate the docker daemon to said registry:
+  </Tab>
+<Tab title="Azure">
+    Create a registry using the Azure CLI and authenticate the docker daemon to 
+    that registry:
 
     ```bash
     # Name must be a lower-case alphanumeric
@@ -166,63 +178,82 @@ If you already have a registry, skip ahead to the next section.
     az aks check-acr --resource-group RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --acr <REPOSITORY-NAME>.azurecr.io
 
     ```
+  </Tab>
+</Tabs>
 
 ## Create a Kubernetes work pool
 
-[Work pools](/3.0rc/deploy/dynamic-infra/control-runs/) allow you to manage deployment infrastructure.
-We'll configure the default values for our Kubernetes base job template.
-Note that these values can be overridden by individual deployments.
+[Work pools](/3.0rc/deploy/dynamic-infra/control-runs/) allow you to manage deployment 
+infrastructure.
+This section shows you how to configure the default values for your 
+Kubernetes base job template.
+These values can be overridden by individual deployments.
 
-Let's switch to the Prefect Cloud UI, where we'll create a new Kubernetes work pool (alternatively, you could use the Prefect CLI to create a work pool).
+Switch to the Prefect Cloud UI to create a new Kubernetes work pool. 
+(Alternatively, you could use the Prefect CLI to create a work pool.)
 
 1. Click on the **Work Pools** tab on the left sidebar
 1. Click the **+** button at the top of the page
 1. Select **Kubernetes** as the work pool type
 1. Click **Next** to configure the work pool settings
 
-Let's look at a few popular configuration options.
+### Configure work pool options
+
+Here are some popular configuration options.
 
 **Environment Variables**
 
 Add environment variables to set when starting a flow run.
-So long as you are using a Prefect-maintained image and haven't overwritten the image's entrypoint, you can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`.
-For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` will install pandas version 1.2.3.
-Alternatively, you can specify package installation in a custom Dockerfile, which can allow you to take advantage of image caching.
-As we'll see below, Prefect can help us create a Dockerfile with our flow code and the packages specified in a `requirements.txt` file baked in.
+If you are using a Prefect-maintained image and haven't overwritten the image's 
+entrypoint, you can specify Python packages to install at runtime with `{"EXTRA_PIP_PACKAGES":"my_package"}`.
+For example `{"EXTRA_PIP_PACKAGES":"pandas==1.2.3"}` installs pandas version 1.2.3.
+Alternatively, you can specify package installation in a custom Dockerfile, which  
+allows you to use image caching.
+As shown below, Prefect can help create a Dockerfile with your flow code and the 
+packages specified in a `requirements.txt` file baked in.
 
 **Namespace**
 
-Set the Kubernetes namespace to create jobs within, such as `prefect`. By default, set to **default**.
+Set the Kubernetes namespace to create jobs within, such as `prefect`. By default, set 
+to **default**.
 
 **Image**
 
 Specify the Docker container image for created jobs.
-If not set, the latest Prefect 2 image will be used (i.e. `prefecthq/prefect:3-latest`).
-Note that you can override this on each deployment through `job_variables`.
+If not set, the latest Prefect 3 image is used (for example, `prefecthq/prefect:3-latest`).
+You can override this on each deployment through `job_variables`.
 
 **Image Pull Policy**
 
 Select from the dropdown options to specify when to pull the image.
-When using the `IfNotPresent` policy, make sure to use unique image tags, as otherwise old images could get cached on your nodes.
+When using the `IfNotPresent` policy, make sure to use unique image tags, or  
+old images may get cached on your nodes.
 
 **Finished Job TTL**
 
-Number of seconds before finished jobs are automatically cleaned up by Kubernetes' controller.
-You may want to set to 60 so that completed flow runs are cleaned up after a minute.
+Number of seconds before finished jobs are automatically cleaned up by the Kubernetes 
+controller.
+Set to 60 so completed flow runs are cleaned up after a minute.
 
 **Pod Watch Timeout Seconds**
 
 Number of seconds for pod creation to complete before timing out.
-Consider setting to 300, especially if using a **serverless** type node pool, as these tend to have longer startup times.
+Consider setting to 300, especially if using a **serverless** type node pool, as 
+these tend to have longer startup times.
 
-**Kubernetes Cluster Config**
+**Kubernetes cluster config**
 
-You can configure the Kubernetes cluster to use for job creation by specifying a `KubernetesClusterConfig` block.
-Generally you should leave the cluster config blank as the worker should be provisioned with appropriate access and permissions.
-Typically this setting is used when a worker is deployed to a cluster that is different from the cluster where flow runs are executed.
+Specify a KubernetesClusterConfig block to configure the Kubernetes cluster for job creation.
+In most cases, leave the cluster config blank since the worker should already have appropriate 
+access and permissions.
+We recommend using this setting when deploying a worker to a cluster that differs from the one 
+executing the flow runs.
 
-!!! Note "Advanced Settings"
-    Want to modify the default base job template to add other fields or delete existing fields?
+<Note>
+**Advanced Settings**
+
+    Modify the default base job template to add other fields or delete existing 
+    fields.
 
     Select the **Advanced** tab and edit the JSON representation of the base job template.
 
@@ -254,24 +285,33 @@ Typically this setting is used when a worker is deployed to a cluster that is di
     ...
     ```
 
-    Running deployments with this work pool will now request the specified CPU.
+    Running deployments with this work pool will request the specified CPU.
+</Note>
 
 After configuring the work pool settings, move to the next screen.
 
 Give the work pool a name and save.
 
-Our new Kubernetes work pool should now appear in the list of work pools.
+Your new Kubernetes work pool should appear in the list of work pools.
 
 ## Create a Prefect Cloud API key
 
-While in the Prefect Cloud UI, create a Prefect Cloud API key if you don't already have one.
-Click on your profile avatar picture, then click your name to go to your profile settings, click [API Keys](https://app.prefect.cloud/my/api-keys) and hit the plus button to create a new API key here.
-Make sure to store it safely along with your other passwords, ideally via a password manager.
+If you already have a Prefect Cloud API key, you can skip these steps.
+
+To create a Prefect Cloud API key:
+
+1. Log in to the Prefect Cloud UI.
+1. Click on your profile avatar picture in the top right corner.
+1. Click on your name to go to your profile settings.
+1. In the left sidebar, click on [API Keys](https://app.prefect.cloud/my/api-keys).
+1. Click the **+** button to create a new API key.
+1. Securely store the API key, ideally using a password manager.
 
 ## Deploy a worker using Helm
 
-With our cluster and work pool created, it's time to deploy a worker, which will set up Kubernetes infrastructure to run our flows.
-The best way to deploy a worker is using the [Prefect Helm Chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker).
+After you create a cluster and work pool, the next step is to deploy a worker. 
+The worker sets up the necessary Kubernetes infrastructure to run your flows. 
+The recommended method for deploying a worker is with the [Prefect Helm Chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker).
 
 ### Add the Prefect Helm repository
 
@@ -311,14 +351,15 @@ worker:
     workPool: <target work pool name>
 ```
 
-These settings will ensure that the worker connects to the proper account, workspace, and work pool.
+These settings ensure that the worker connects to the proper account, workspace, 
+and work pool.
 
 View your Account ID and Workspace ID in your browser URL when logged into Prefect Cloud.
 For example: \<https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here>.
 
 ### Create a Helm release
 
-Let's install the Prefect worker using the Helm chart with your custom `values.yaml` file:
+Install the Prefect worker using the Helm chart with your custom `values.yaml` file:
 
 ```bash
 helm install prefect-worker prefect/prefect-worker \
@@ -336,7 +377,7 @@ kubectl get pods -n prefect
 
 ## Define a flow
 
-Let's start simple with a flow that just logs a message.
+Start simple with a flow that just logs a message.
 In a directory named `flows`, create a file named `hello.py` with the following contents:
 
 ```python
@@ -354,19 +395,23 @@ if __name__ == "__main__":
 ```
 
 Run the flow locally with `python hello.py` to verify that it works.
-Note that we use the `tags` context manager to tag the flow run as `local`.
+Use the `tags` context manager to tag the flow run as `local`.
 This step is not required, but does add some helpful metadata.
 
 ## Define a Prefect deployment
 
 Prefect has two recommended options for creating a deployment with dynamic infrastructure.
-You can define a deployment in a Python script using the `flow.deploy` mechanics or in a `prefect.yaml` definition file.
-The `prefect.yaml` file currently allows for more customization in terms of push and pull steps.
-Kubernetes objects are defined in YAML, so we expect many teams using Kubernetes work pools to create their deployments with YAML as well.
-To learn about the Python deployment creation method with `flow.deploy` refer to the [Workers & Work Pools tutorial page](/3.0rc/deploy/dynamic-infra/push-runs-remote/).
+You can define a deployment in a Python script using the `flow.deploy` mechanics or in a 
+`prefect.yaml` definition file.
+The `prefect.yaml` file currently allows for more customization in terms of push and pull 
+steps.
 
-The [`prefect.yaml`](/3.0rc/deploy/serve-workflows/#managing-deployments) file is used by the `prefect deploy` command to deploy our flows.
-As a part of that process it will also build and push our image.
+To learn about the Python deployment creation method with `flow.deploy` see 
+[Workers](/3.0rc/deploy/dynamic-infra/push-runs-remote/).
+
+The [`prefect.yaml`](/3.0rc/deploy/serve-workflows/#managing-deployments) file is used 
+by the `prefect deploy` command to deploy your flows.
+As a part of that process it also builds and pushes your image.
 Create a new file named `prefect.yaml` with the following contents:
 
 ```yaml
@@ -391,7 +436,8 @@ push:
     image_name: "{{ build-image.image_name }}"
     tag: "{{ build-image.tag }}"
 
-# pull section allows you to provide instructions for cloning this project in remote locations
+# pull section allows you to provide instructions for cloning this project in remote 
+locations
 pull:
 - prefect.deployments.steps.set_working_directory:
     directory: /opt/prefect/flows
@@ -423,19 +469,27 @@ deployments:
 ```
 
 We define two deployments of the `hello` flow: `default` and `arthur`.
-Note that by specifying `dockerfile: auto`, Prefect will automatically create a dockerfile that installs any `requirements.txt` and copies over the current directory.
-You can pass a custom Dockerfile instead with `dockerfile: Dockerfile` or `dockerfile: path/to/Dockerfile`.
-Also note that we are specifically building for the `linux/amd64` platform.
-This specification is often necessary when images are built on Macs with M series chips but run on cloud provider instances.
+By specifying `dockerfile: auto`, Prefect automatically creates a dockerfile 
+that installs any `requirements.txt` and copies over the current directory.
 
-!!! note "Deployment specific build, push, and pull"
-    The build, push, and pull steps can be overridden for each deployment.
-    This allows for more custom behavior, such as specifying a different image for each deployment.
+You can pass a custom Dockerfile instead with `dockerfile: Dockerfile` or 
+`dockerfile: path/to/Dockerfile`.
+We are specifically building for the `linux/amd64` platform.
+This specification is often necessary when images are built on Macs with M series chips 
+but run on cloud provider instances.
 
-Let's make sure we define our requirements in a `requirements.txt` file:
+<Note>
+**Deployment specific build, push, and pull**
+
+    You can override the build, push, and pull steps for each deployment.
+    This allows for more custom behavior, such as specifying a different image for each 
+    deployment.
+</Note>
+
+Define your requirements in a `requirements.txt` file:
 
 ```
-prefect>=2.13.8
+prefect>=3.0.0
 prefect-docker>=0.4.0
 prefect-kubernetes>=0.3.1
 ```
@@ -452,11 +506,15 @@ The directory should now look something like this:
 
 ### Tag images with a Git SHA
 
-If your code is stored in a GitHub repository, it's good practice to tag your images with the Git SHA of the code used to build it.
-This can be done in the `prefect.yaml` file with a few minor modifications, and isn't yet an option with the Python deployment creation method.
-Let's use the `run_shell_script` command to grab the SHA and pass it to the `tag` parameter of `build_docker_image`:
+If your code is stored in a GitHub repository, it's good practice to tag your images
+with the Git SHA of the code used to build it.
+Do this in the `prefect.yaml` file with a few minor modifications, since it's not yet 
+an option with the Python deployment creation method.
 
-```yaml hl_lines="2-5 10"
+Use the `run_shell_script` command to grab the SHA and pass it to the `tag` 
+parameter of `build_docker_image`:
+
+```yaml
 build:
 - prefect.deployments.steps.run_shell_script:
     id: get-commit-hash
@@ -471,9 +529,9 @@ build:
     platform: "linux/amd64"
 ```
 
-Let's also set the SHA as a tag for easy identification in the UI:
+Set the SHA as a tag for easy identification in the UI:
 
-```yaml hl_lines="4"
+```yaml
 definitions:
   tags: &common_tags
     - "eks"
@@ -486,8 +544,8 @@ definitions:
 
 ## Authenticate to Prefect
 
-Before we deploy the flows to Prefect, we will need to authenticate via the Prefect CLI.
-We will also need to ensure that all of our flow's dependencies are present at `deploy` time.
+Before deploying the flows to Prefect, you need to authenticate through the Prefect CLI.
+You also need to ensure that all of your flow's dependencies are present at `deploy` time.
 
 This example uses a virtual environment to ensure consistency across environments.
 
@@ -506,41 +564,43 @@ prefect-demo/bin/prefect cloud login
 
 ## Deploy the flows
 
-Now we're ready to deploy our flows which will build our images.
-The image name determines which registry it will end up in.
-We have configured our `prefect.yaml` file to get the image name from the `PREFECT_IMAGE_NAME` environment variable, so let's set that first:
+You're ready to deploy your flows to build your images.
+The image name determines its registry.
+You have configured our `prefect.yaml` file to get the image name from the 
+`PREFECT_IMAGE_NAME` environment variable, so set that first:
 
-=== "AWS"
+<Tabs>
+  <Tab title="AWS">
 
     ```bash
     export PREFECT_IMAGE_NAME=<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<IMAGE-NAME>
     ```
-
-=== "GCP"
+  </Tab>
+  <Tab title="GCP">
 
     ```bash
     export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME>/<REPOSITORY-NAME>/<IMAGE-NAME>
     ```
-
-=== "Azure"
+  </Tab>
+<Tab title="Azure">
 
     ```bash
     export PREFECT_IMAGE_NAME=<REPOSITORY-NAME>.azurecr.io/<IMAGE-NAME>
     ```
+  </Tab>
+</Tabs>
 
-To deploy your flows, ensure your Docker daemon is running first. Deploy all the flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy -n hello/default` or `prefect deploy -n hello/arthur`.
+To deploy your flows, ensure your Docker daemon is running. Deploy all the 
+flows with `prefect deploy --all` or deploy them individually by name: `prefect deploy 
+-n hello/default` or `prefect deploy -n hello/arthur`.
 
 ## Run the flows
 
-Once the deployments are successfully created, we can run them from the UI or the CLI:
+Once the deployments are successfully created, you can run them from the UI or the CLI:
 
 ```bash
 prefect deployment run hello/default
 prefect deployment run hello/arthur
 ```
 
-Congratulations!
-You just ran two deployments in Kubernetes.
-Head over to the UI to check their status!
-
-\<!-- ### Example: cpu and memory example -->
+You can now check the status of your two deployments in the UI.
