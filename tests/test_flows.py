@@ -4212,7 +4212,7 @@ class TestLoadFlowArgumentFromEntrypoint:
         assert result == "from-a-function"
 
     def test_load_flow_name_from_entrypoint_dynamic_name_depends_on_missing_import(
-        self, tmp_path: Path
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ):
         flow_source = dedent(
             """
@@ -4234,6 +4234,7 @@ class TestLoadFlowArgumentFromEntrypoint:
         result = load_flow_argument_from_entrypoint(entrypoint, "name")
 
         assert result == "flow-function"
+        assert "Failed to parse @flow argument: `name=get_name()`" in caplog.text
 
     def test_load_async_flow_from_entrypoint_no_name(self, tmp_path: Path):
         flow_source = dedent(
