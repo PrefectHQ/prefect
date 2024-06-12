@@ -612,11 +612,13 @@ class KubernetesWorker(BaseWorker):
                 ),
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
             )
-
-            async with events_replicator:
-                status_code = await self._watch_job(
-                    logger, job.metadata.name, configuration, client
-                )
+            try:
+                async with events_replicator:
+                    status_code = await self._watch_job(
+                        logger, job.metadata.name, configuration, client
+                    )
+            finally:
+                await events_replicator._watch.close()
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
     async def kill_infrastructure(
@@ -912,31 +914,37 @@ class KubernetesWorker(BaseWorker):
         configuration: KubernetesWorkerJobConfiguration,
         client,
     ):
-        timeout = aiohttp.ClientTimeout(total=None)
-        core_client = CoreV1Api(client)
-        logs = await core_client.read_namespaced_pod_log(
-            pod_name,
-            configuration.namespace,
-            follow=True,
-            _preload_content=False,
-            container="prefect-job",
-            _request_timeout=timeout,
+        timeout = (
+            configuration.job_watch_timeout_seconds
+            if configuration.job_watch_timeout_seconds
+            else aiohttp.ClientTimeout(total=None)
         )
-        try:
-            async for line in logs.content:
-                if not line:
-                    break
-                print(line.decode().rstrip())
+        core_client = CoreV1Api(client)
+        watch = kubernetes_asyncio.watch.Watch()
+        async with watch:
+            async for line in watch.stream(
+                func=core_client.read_namespaced_pod_log,
+                namespace=configuration.namespace,
+                name=pod_name,
+                container="prefect-job",
+                follow=True,
+                _preload_content=False,
+                _request_timeout=timeout,
+            ):
+                try:
+                    if not line:
+                        break
+                    print(line)
 
-        except Exception:
-            logger.warning(
-                (
-                    "Error occurred while streaming logs - "
-                    "Job will continue to run but logs will "
-                    "no longer be streamed to stdout."
-                ),
-                exc_info=True,
-            )
+                except Exception:
+                    logger.warning(
+                        (
+                            "Error occurred while streaming logs - "
+                            "Job will continue to run but logs will "
+                            "no longer be streamed to stdout."
+                        ),
+                        exc_info=True,
+                    )
 
     async def _job_events(
         self,
@@ -992,6 +1000,7 @@ class KubernetesWorker(BaseWorker):
 
         while not completed:
             watch = kubernetes_asyncio.watch.Watch()
+
             async for event in self._job_events(
                 watch,
                 batch_client,
@@ -1028,6 +1037,7 @@ class KubernetesWorker(BaseWorker):
                 if completed:
                     watch.stop()
                     break
+            await watch.close()
 
     async def _watch_job(
         self,
