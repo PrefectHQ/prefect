@@ -587,11 +587,12 @@ class LocalStorage:
     def __init__(
         self,
         url: str,
+        pull_interval: Optional[int] = 60,
     ):
         self._url = Path(url)
         self._logger = get_logger("runner.storage.local-storage")
         self._storage_base_path = Path.cwd()
-        self._pull_interval = None
+        self._pull_interval = 60
 
     @property
     def destination(self) -> Path:
