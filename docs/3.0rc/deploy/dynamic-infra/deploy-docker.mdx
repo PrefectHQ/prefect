@@ -415,7 +415,7 @@ or tasks that are part of `prefect` itself, you can rely on the default provided
 `prefecthq/prefect` image.
 
 - If your flow requires a few extra dependencies found on PyPI, you can use the default 
-`prefecthq/prefect` image and set `prefect.deployments.steps.pip_install_requirements:` 
+`prefecthq/prefect` image and specify additional packages to install at runtime when you create a deployment or a work pool.
 in the `pull`step to install these dependencies at runtime.
 
 - If the installation process requires compiling code or other expensive operations, 
