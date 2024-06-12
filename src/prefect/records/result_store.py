@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any
 
-from prefect.exceptions import ObjectNotFound
 from prefect.results import BaseResult, PersistedResult, ResultFactory
 from prefect.utilities.asyncutils import run_coro_as_sync
 
@@ -19,7 +18,7 @@ class ResultFactoryStore(RecordStore):
             result.get(_sync=True)
             self.cache = result
             return True
-        except (ObjectNotFound, ValueError):
+        except Exception:
             return False
 
     def read(self, key: str) -> BaseResult:
