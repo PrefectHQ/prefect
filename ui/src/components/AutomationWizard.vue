@@ -26,13 +26,11 @@
 
 <script lang="ts" setup>
   import { PWizard, WizardStep } from '@prefecthq/prefect-design'
-  import { isAutomationTriggerEvent } from '@prefecthq/prefect-ui-library'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import AutomationWizardStepActions from '@/components/AutomationWizardStepActions.vue'
   import AutomationWizardStepDetails from '@/components/AutomationWizardStepDetails.vue'
   import AutomationWizardStepTrigger from '@/components/AutomationWizardStepTrigger.vue'
-  import { mapper } from '@/services/mapper'
   import { Automation, AutomationFormValues, IAutomation, isAutomationActionFormValues } from '@/types/automation'
 
   const props = defineProps<{
