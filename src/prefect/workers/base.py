@@ -524,7 +524,6 @@ class BaseWorker(abc.ABC):
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
 
-        # TODO: no-op change to trigger CI, remove me before merging, please
         if not PREFECT_TEST_MODE and not PREFECT_API_URL.value():
             raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
 
