@@ -69,7 +69,7 @@ touch prefect-docker-guide-flow.py
 
 Here's the flow code for reference:
 
-```python title="prefect-docker-guide-flow.py"
+```python prefect-docker-guide-flow.py
 import httpx
 from prefect import flow
 
@@ -100,7 +100,7 @@ touch requirements.txt
 
 Put the following in your `requirements.txt` file:
 
-```txt title="requirements.txt"
+```txt requirements.txt
 prefect>=3.0.0
 httpx
 ```
@@ -113,7 +113,7 @@ touch Dockerfile
 
 Add the following content to your `Dockerfile`:
 
-```dockerfile title="Dockerfile"
+```dockerfile Dockerfile
 # Using the latest version of Prefect with Python 3.10
 FROM prefecthq/prefect:2-python3.10
 
@@ -197,7 +197,7 @@ Add the following content to your `deployment-manifest.yaml` file:
 <Tabs>
   <Tab title="Cloud">
 
-    ```yaml title="deployment-manifest.yaml"
+    ```yaml deployment-manifest.yaml
     apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -234,7 +234,7 @@ to store your API key.
   </Tab>
   <Tab title="Self-hosted">
 
-    ```yaml title="deployment-manifest.yaml"
+    ```yaml deployment-manifest.yaml
     apiVersion: apps/v1
     kind: Deployment
     metadata:

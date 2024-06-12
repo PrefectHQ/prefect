@@ -12,8 +12,11 @@ This guide describes the following use cases:
 - Build upon an event-based automation
 - Combine into a multi-layered responsive deployment pattern
 
-!!! cloud-ad "Available only on Prefect Cloud"
-        Automations are a Prefect Cloud feature.
+<Tip>
+**Available only on Prefect Cloud**
+
+Automations are a Prefect Cloud feature.
+</Tip>
 
 ## Prerequisites
 
@@ -72,7 +75,7 @@ if __name__ == "__main__":
 
 The data cleaning workflow has visibility into each step, and sends a list of names to the next step of the pipeline.
 
-## Create notification block within the UI
+## Create a notification block in the UI
 Next, send a notification based off a completed state outcome. Configure a notification that shows when to look into our workflow logic. 
 
 1. Prior to creating the automation, confirm the notification location. Create a notification block to help define where the notification is sent. 
@@ -93,9 +96,14 @@ Next, send a notification based off a completed state outcome. Configure a notif
 6. Now the automation is ready to be triggered from a flow run completion. Run the file locally and see that the notification is sent to your inbox after the completion. It may take a few minutes for the notification to arrive.
 ![Final notification](/3.0rc/img/guides/final-automation.png)
 
-!!! Tip "No deployment created"
-    Keep in mind, you do not need to create a deployment to trigger your automation, where a state outcome of a local flow run helped trigger this notification block. You are not required to create a deployment to trigger a notification.
+<Tip>
+**No deployment created**
+
+Keep in mind, you do not need to create a deployment to trigger your automation, where a state outcome of a local flow run helped trigger this notification block. You are not required to create a deployment to trigger a notification.
+</Tip>
+
 Now that you've seen how to create an email notification from a flow run completion, see how to kick off a deployment run in response to an event.
+
 ## Event-based deployment automation 
 Create an automation to kick off a deployment instead of a notification. Explore how to programmatically create this automation by taking advantage of Prefect's REST API.  
 
@@ -164,8 +172,11 @@ Create a deployment with a `prefect.yaml` file or a Python file that uses `flow.
 
 Grab your `deployment_id` from this deployment using the CLI and embed it in your automation. 
 
-!!! Tip "Find deployment_id from the CLI"
-      Run `prefect deployment ls` in an authenticated command prompt.
+<Tip> 
+**Find deployment_id from the CLI**
+  
+Run `prefect deployment ls` in an authenticated command prompt.
+</Tip>
 
 ```bash 
 prefect deployment ls
@@ -231,7 +242,7 @@ You can take this a step further by using your own .yaml version of the automati
 
 First start with creating the .yaml file to house the automation requirements:
 
-```yaml title="automation.yaml"
+```yaml automation.yaml
 name: Cancel long running flows
 description: Cancel any flow run after an hour of execution
 trigger:
@@ -426,9 +437,6 @@ Potential triggers include the occurrence of events from changes in a flow run's
 
 Potential actions include kicking off flow runs, pausing schedules, and sending custom notifications.
 
-!!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](/3.0rc/concepts/notifications/) in an open-source Prefect server provide a subset of the notification message-sending features available in Automations.
-
 Automations provide a flexible and powerful framework for automatically taking action in response to events.
 
 ## Automations overview
@@ -464,8 +472,11 @@ Triggers specify the conditions under which your action should be performed. The
 - Incident declarations (available on Pro and Custom plans)
 - Custom event triggers
 
-!!! note "Automations API"
-    The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
+<Note>
+**Automations API**
+
+The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
+</Note>
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to fire in the absence of an expected event.
 
@@ -687,8 +698,9 @@ def transform(table_name: str):
 
 The following configuration uses `after` to prevent this automation from firing unless either a `table-missing` or a `table-empty` event has occurred before a flow run of this deployment completes.
 
-!!! tip
+<Tip>
     Note how `match` and `match_related` are used to ensure the trigger only evaluates events that are relevant to its purpose.
+</Tip>
 
 ```json
 "match": {
@@ -1163,9 +1175,11 @@ triggers:
 
 Both of the above triggers would be attached to `test-deployment` after running `prefect deploy`.
 
-!!! warning "Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`"
-    While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will
-    take precedence over those defined in `prefect.yaml`.
+<Warning>
+**Triggers passed to `prefect deploy` will override any triggers defined in `prefect.yaml`**
+
+While you can define triggers in `prefect.yaml` for a given deployment, triggers passed to `prefect deploy` will take precedence over those defined in `prefect.yaml`.
+</Warning>
 
 Note that deployment triggers contribute to the total number of automations in your workspace.
 
