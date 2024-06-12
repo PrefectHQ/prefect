@@ -261,7 +261,7 @@ class ECSJobConfiguration(BaseJobConfiguration):
     Job configuration for an ECS worker.
     """
 
-    aws_credentials: Optional[AwsCredentials] = Field(None)
+    aws_credentials: Optional[AwsCredentials] = Field(default_factory=AwsCredentials)
     task_definition: Dict[str, Any] = Field(
         default_factory=dict,
         json_schema_extra=dict(template=_default_task_definition_template()),
